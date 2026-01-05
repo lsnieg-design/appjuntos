@@ -1,4 +1,3 @@
-import React, { useState, useEffect } from 'react';
 import { 
   Calendar as CalendarIcon, 
   CheckSquare, 
@@ -46,13 +45,11 @@ import {
   getDocs
 } from 'firebase/firestore';
 
-// --- CONFIGURACIÓN DE FIREBASE (HÍBRIDA) ---
+// --- CONFIGURACIÓN DE FIREBASE (ACTIVADA PARA VERCEL) ---
 const getFirebaseConfig = () => {
-  // 1. CONFIGURACIÓN PARA VERCEL / PRODUCCIÓN
-  // IMPORTANTE: Cuando subas esto a GitHub/Vercel, DESCOMENTA el siguiente bloque:
-  
-  /*
+  // 1. Intentar leer variables de entorno de Vercel (Vite)
   try {
+    // Verificamos si existe import.meta.env (estándar de Vite)
     if (import.meta.env && import.meta.env.VITE_FIREBASE_API_KEY) {
       return {
         apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -64,22 +61,25 @@ const getFirebaseConfig = () => {
       };
     }
   } catch (e) {
-    // Ignorar error si import.meta no existe en este entorno
+    // Si falla (por ejemplo en entornos que no son Vite), seguimos al fallback
+    console.log("No se detectaron variables de entorno Vite, buscando config global...");
   }
-  */
   
   // 2. Fallback: Configuración automática del entorno de chat (Preview)
   if (typeof __firebase_config !== 'undefined') {
     return JSON.parse(__firebase_config);
   }
 
+  // 3. Fallback final: Objeto vacío (evita que la app explote, pero no conectará)
+  console.error("Falta configuración de Firebase. Revise las variables de entorno en Vercel.");
   return {};
 };
 
 const firebaseConfig = getFirebaseConfig();
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+// Inicializamos solo si hay configuración válida
+const app = Object.keys(firebaseConfig).length > 0 ? initializeApp(firebaseConfig) : null;
+const auth = app ? getAuth(app) : null;
+const db = app ? getFirestore(app) : null;
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'escuela-app-prod';
 
 // --- Constantes ---
@@ -124,14 +124,22 @@ export default function App() {
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [configError, setConfigError] = useState(false);
 
   // Inicialización de Auth
   useEffect(() => {
+    if (!auth) {
+      setConfigError(true);
+      setLoading(false);
+      return;
+    }
+
     const initAuth = async () => {
       try {
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
           await signInWithCustomToken(auth, __initial_auth_token);
         } else {
+          // Importante: Asegúrate de tener habilitado "Anonymous" en Firebase Console
           await signInAnonymously(auth);
         }
       } catch (error) {
@@ -165,6 +173,17 @@ export default function App() {
     return (
       <div className="flex items-center justify-center h-screen bg-violet-50">
         <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-violet-600"></div>
+      </div>
+    );
+  }
+
+  if (configError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-red-50 p-6 text-center">
+        <AlertCircle className="text-red-500 w-16 h-16 mb-4" />
+        <h1 className="text-xl font-bold text-red-700">Error de Configuración</h1>
+        <p className="text-red-600 mt-2">No se pudo conectar con la base de datos.</p>
+        <p className="text-sm text-red-500 mt-4">Verifica que las Variables de Entorno en Vercel estén configuradas correctamente.</p>
       </div>
     );
   }
@@ -1011,6 +1030,9 @@ function CalendarView({ events, canEdit, user }) {
            </div>
            <div className="grid grid-cols-7 bg-gray-100 gap-px">
              {renderCalendarGrid()}
+           </div>
+           <div className="p-3 text-xs text-gray-400 text-center bg-gray-50">
+             * Toca un día para ver detalles
            </div>
         </div>
       ) : (
