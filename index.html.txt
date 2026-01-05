@@ -12,6 +12,7 @@
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
   </head>
   <body>
+    <!-- IMPORTANTE: El id debe ser "root" (en inglés) porque React lo busca así -->
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
