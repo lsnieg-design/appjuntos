@@ -262,10 +262,20 @@ function LoginScreen({ onLogin }) {
       <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md border-t-8 border-orange-500">
         <div className="text-center mb-8">
           <div className="bg-gradient-to-tr from-orange-400 to-pink-500 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg ring-4 ring-white">
-            <Briefcase className="text-white w-12 h-12" />
+           <div className="text-center mb-8">
+          {/* LOGO DEL COLEGIO */}
+          <div className="flex justify-center mb-4">
+             <img 
+               src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" 
+               alt="Logo Juntos a la Par" 
+               className="h-24 w-auto object-contain drop-shadow-md"
+             />
           </div>
-          <h1 className="text-3xl font-extrabold text-violet-900 tracking-tight">Portal Institucional</h1>
-          <p className="text-gray-500 mt-2 text-sm font-medium">Bienvenido al sistema de gestión</p>
+          <h1 className="text-2xl font-extrabold text-violet-900 tracking-tight uppercase">
+            PORTAL INSTITUCIONAL<br/>
+            <span className="text-orange-500">JUNTOS A LA PAR</span>
+          </h1>
+          <p className="text-gray-500 mt-2 text-sm font-medium">Sistema de Gestión Integral</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -1288,4 +1298,5 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
     </div>
   );
 }
+
 
