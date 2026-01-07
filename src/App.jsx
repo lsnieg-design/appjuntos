@@ -32,7 +32,10 @@ import {
   Clock,
   Shield,
   Crown,
-  Activity
+  Activity,
+  Share,
+  PlusSquare,
+  Smartphone
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -160,7 +163,62 @@ export default function App() {
   return <MainApp user={currentUserProfile} onLogout={handleLogout} />;
 }
 
-// --- Pantalla Login ---
+// --- Componente de Ayuda para Instalación (NUEVO) ---
+function InstallTutorial({ onClose }) {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  
+  return (
+    <div className="fixed inset-0 bg-violet-900/90 z-50 flex flex-col items-center justify-center p-6 text-white animate-in zoom-in-95">
+      <div className="max-w-sm w-full bg-white text-gray-800 rounded-3xl p-6 shadow-2xl relative">
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><AlertCircle className="rotate-45" size={24}/></button>
+        
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 bg-violet-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Smartphone className="text-violet-600" size={32} />
+          </div>
+          <h2 className="text-xl font-bold text-violet-900">Instalar App</h2>
+          <p className="text-sm text-gray-500 mt-2">Sigue estos pasos para tener el icono en tu pantalla de inicio.</p>
+        </div>
+
+        {isIOS ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl">
+              <div className="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full font-bold">1</div>
+              <p className="text-sm font-medium">Toca el botón <strong>Compartir</strong> abajo del todo.</p>
+              <Share className="text-blue-500" />
+            </div>
+            <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl">
+              <div className="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full font-bold">2</div>
+              <p className="text-sm font-medium">Busca y toca <strong>"Agregar a Inicio"</strong>.</p>
+              <PlusSquare className="text-gray-500" />
+            </div>
+            <div className="text-center mt-4">
+                <span className="text-xs text-gray-400">¿No ves la opción? Desliza el menú hacia arriba.</span>
+            </div>
+            <div className="animate-bounce mt-4 flex justify-center text-violet-600">
+                <ChevronLeft className="-rotate-90" size={32} />
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+             <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl">
+              <div className="w-8 h-8 flex items-center justify-center bg-orange-100 text-orange-600 rounded-full font-bold">1</div>
+              <p className="text-sm font-medium">Toca los <strong>3 puntitos</strong> arriba a la derecha.</p>
+            </div>
+            <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl">
+              <div className="w-8 h-8 flex items-center justify-center bg-orange-100 text-orange-600 rounded-full font-bold">2</div>
+              <p className="text-sm font-medium">Elige <strong>"Instalar aplicación"</strong> o "Agregar a la pantalla principal".</p>
+            </div>
+          </div>
+        )}
+        
+        <button onClick={onClose} className="w-full mt-6 py-3 bg-violet-600 text-white rounded-xl font-bold shadow-lg">Entendido</button>
+      </div>
+    </div>
+  );
+}
+
+// --- Pantalla Login (Con botón de instalación) ---
 function LoginScreen({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -168,7 +226,11 @@ function LoginScreen({ onLogin }) {
   const [checking, setChecking] = useState(false);
   const [showRecover, setShowRecover] = useState(false);
   const [recoverUser, setRecoverUser] = useState('');
-  const [recoverStatus, setRecoverStatus] = useState('idle'); 
+  const [recoverStatus, setRecoverStatus] = useState('idle');
+  const [showInstall, setShowInstall] = useState(false);
+
+  // Detectar si ya está instalada (Standalone)
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -191,12 +253,8 @@ function LoginScreen({ onLogin }) {
       if (!querySnapshot.empty) {
         const userDoc = querySnapshot.docs[0];
         const userData = userDoc.data();
-        
-        // --- AQUÍ REGISTRAMOS LA ÚLTIMA CONEXIÓN ---
         const userDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', userDoc.id);
         await updateDoc(userDocRef, { lastLogin: serverTimestamp() });
-
-        // Determinamos rol
         const esAdmin = userData.rol === 'admin';
         onLogin({ ...userData, id: userDoc.id, isAdmin: esAdmin });
       } else {
@@ -236,7 +294,22 @@ function LoginScreen({ onLogin }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-900 to-fuchsia-900 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-violet-900 to-fuchsia-900 flex items-center justify-center p-6 relative">
+      
+      {/* BOTÓN DE INSTALACIÓN FLOTANTE (Solo si no es app instalada) */}
+      {!isStandalone && !showInstall && (
+          <div className="absolute top-4 w-full px-6 flex justify-center animate-bounce">
+              <button 
+                onClick={() => setShowInstall(true)}
+                className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 shadow-lg"
+              >
+                  <Download size={16} /> 📲 Instalar App en el Celu
+              </button>
+          </div>
+      )}
+
+      {showInstall && <InstallTutorial onClose={() => setShowInstall(false)} />}
+
       <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md border-t-8 border-orange-500">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
@@ -616,7 +689,6 @@ function NotificationsView({ notifications, canEdit }) {
   );
 }
 
-// --- VISTA USUARIOS (CON MONITOR DE ÚLTIMA CONEXIÓN) ---
 function UsersView({ user }) {
   const [usersList, setUsersList] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -678,15 +750,10 @@ function UsersView({ user }) {
                   <div className="flex flex-col text-xs text-gray-500">
                       <span className="text-orange-600 font-bold uppercase tracking-wider text-[10px]">{u.role}</span>
                       <span className="flex items-center gap-1 mt-0.5"><User size={10}/> {u.username}</span>
-                      
-                      {/* MONITOR DE ÚLTIMA CONEXIÓN */}
-                      <span className="flex items-center gap-1 mt-1 text-violet-400 font-medium">
-                          <Activity size={10}/> {formatLastLogin(u.lastLogin)}
-                      </span>
+                      <span className="flex items-center gap-1 mt-1 text-violet-400 font-medium"><Activity size={10}/> {formatLastLogin(u.lastLogin)}</span>
                   </div>
               </div>
             </div>
-            {/* Solo se puede borrar si no es super admin */}
             {u.rol !== 'super-admin' && (
                 <button onClick={(e) => {e.stopPropagation(); deleteUser(u.id)}} className="text-gray-300 hover:text-red-500 p-2 bg-gray-50 rounded-full hover:bg-red-50 transition"><Trash2 size={18} /></button>
             )}
@@ -701,16 +768,7 @@ function UsersView({ user }) {
               <div className="grid grid-cols-2 gap-3"><input name="firstName" defaultValue={editUser?.firstName} required className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Nombre" /><input name="lastName" defaultValue={editUser?.lastName} required className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Apellido" /></div>
               <select name="role" defaultValue={editUser?.role || ROLES[0]} className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400 text-gray-700">{ROLES.map(r => <option key={r} value={r}>{r}</option>)}</select>
               <div className="p-4 bg-orange-50 rounded-xl space-y-3"><p className="text-xs text-orange-600 font-bold uppercase">Credenciales</p><input name="username" defaultValue={editUser?.username} required className="w-full p-2 bg-white rounded-lg border border-orange-200" placeholder="Usuario" /><input name="password" defaultValue={editUser?.password} required className="w-full p-2 bg-white rounded-lg border border-orange-200" placeholder="Contraseña" /></div>
-              
-              {/* CHECKBOX PARA OTORGAR ADMIN */}
-              <div className="flex items-center gap-3 p-3 bg-violet-50 rounded-xl border border-violet-100">
-                  <input type="checkbox" name="isAdmin" defaultChecked={editUser?.rol === 'admin'} className="w-5 h-5 text-violet-600 rounded focus:ring-violet-500" />
-                  <div className="flex flex-col">
-                      <label className="text-sm font-bold text-violet-900">Permisos de Administrador</label>
-                      <span className="text-[10px] text-gray-500">Puede editar tareas y eventos</span>
-                  </div>
-              </div>
-
+              <div className="flex items-center gap-3 p-3 bg-violet-50 rounded-xl border border-violet-100"><input type="checkbox" name="isAdmin" defaultChecked={editUser?.rol === 'admin'} className="w-5 h-5 text-violet-600 rounded focus:ring-violet-500" /><div className="flex flex-col"><label className="text-sm font-bold text-violet-900">Permisos de Administrador</label><span className="text-[10px] text-gray-500">Puede editar tareas y eventos</span></div></div>
               <div className="flex gap-3 mt-6"><button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button><button type="submit" className="flex-1 py-3 bg-violet-800 text-white font-bold rounded-xl shadow-lg">{editUser ? 'Guardar Cambios' : 'Crear'}</button></div>
             </form>
           </div>
@@ -720,7 +778,6 @@ function UsersView({ user }) {
   );
 }
 
-// ... CalendarView, ProfileView se mantienen igual (ya incluidos arriba)
 function CalendarView({ events, canEdit, user }) {
   const [showModal, setShowModal] = useState(false);
   const [viewMode, setViewMode] = useState('list');
@@ -791,17 +848,11 @@ function CalendarView({ events, canEdit, user }) {
   );
 }
 
-// --- VISTA PERFIL (CON AUTO-RESIZE PARA QUE NO FALLE NUNCA) ---
 function ProfileView({ user, tasks, onLogout, canEdit }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({ 
-    firstName: user.firstName || '', 
-    lastName: user.lastName || '', 
-    photoUrl: user.photoUrl || '' 
-  });
+  const [formData, setFormData] = useState({ firstName: user.firstName || '', lastName: user.lastName || '', photoUrl: user.photoUrl || '' });
   const [uploading, setUploading] = useState(false);
 
-  // Función mágica para achicar la imagen
   const resizeImage = (file) => {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -809,13 +860,12 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 300; // Tamaño ideal para avatar
+          const MAX_WIDTH = 300;
           const scaleSize = MAX_WIDTH / img.width;
           canvas.width = MAX_WIDTH;
           canvas.height = img.height * scaleSize;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          // Convertir a JPEG calidad media (ocupa muy poco)
           resolve(canvas.toDataURL('image/jpeg', 0.8));
         };
         img.src = e.target.result;
@@ -827,42 +877,22 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     setUploading(true);
     try {
-      // Comprimimos la imagen antes de guardarla
       const resizedImage = await resizeImage(file);
       setFormData(prev => ({ ...prev, photoUrl: resizedImage }));
-    } catch (err) {
-      alert("Error al procesar la imagen");
-    } finally {
-      setUploading(false);
-    }
+    } catch (err) { alert("Error al procesar la imagen"); } finally { setUploading(false); }
   };
 
   const handleSave = async () => {
     try {
       const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-      await updateDoc(userRef, { 
-        firstName: formData.firstName, 
-        lastName: formData.lastName, 
-        fullName: `${formData.firstName} ${formData.lastName}`, 
-        photoUrl: formData.photoUrl 
-      });
-      
-      // Actualizamos el localStorage para que se vea el cambio YA sin recargar
+      await updateDoc(userRef, { firstName: formData.firstName, lastName: formData.lastName, fullName: `${formData.firstName} ${formData.lastName}`, photoUrl: formData.photoUrl });
       const updatedProfile = { ...user, ...formData, fullName: `${formData.firstName} ${formData.lastName}` };
       localStorage.setItem('schoolApp_profile', JSON.stringify(updatedProfile));
-      
-      alert("¡Perfil actualizado! 📸"); 
-      // Opcional: Recargar la página para forzar que el header tome la foto nueva
-      window.location.reload(); 
-    } catch (e) { 
-      console.error(e);
-      alert("Error al guardar. Intenta con otra foto."); 
-    }
+      alert("¡Perfil actualizado! 📸"); window.location.reload();
+    } catch (e) { alert("Error al guardar"); }
   };
-
   const exportData = () => {
     let csvContent = "data:text/csv;charset=utf-8,Titulo,Vencimiento,Estado,Asignado A\n" + tasks.map(t => [`"${t.title}"`, t.dueDate, t.completed ? "Completado" : "Pendiente", t.assignedTo].join(",")).join("\r\n");
     const link = document.createElement("a"); link.href = encodeURI(csvContent); link.download = `reporte_${user.lastName}.csv`; document.body.appendChild(link); link.click(); document.body.removeChild(link);
@@ -884,7 +914,7 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
         {isEditing && (
           <div className="px-6 pb-6 animate-in slide-in-from-top-4">
             <div className="bg-gray-50 p-4 rounded-xl space-y-4 border border-gray-100">
-              <div className="bg-white p-3 rounded-lg border border-dashed border-violet-300 text-center"><p className="text-xs font-bold text-gray-500 mb-2">Cambiar Foto de Perfil</p><label className="cursor-pointer bg-violet-100 text-violet-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-violet-200 transition inline-flex items-center gap-2"><User size={14}/> Elegir archivo...<input type="file" accept="image/*" onChange={handleFileChange} className="hidden" /></label><p className="text-[10px] text-gray-400 mt-2">Cualquier tamaño (se ajusta solo)</p></div>
+              <div className="bg-white p-3 rounded-lg border border-dashed border-violet-300 text-center"><p className="text-xs font-bold text-gray-500 mb-2">Cambiar Foto de Perfil</p><label className="cursor-pointer bg-violet-100 text-violet-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-violet-200 transition inline-flex items-center gap-2"><User size={14}/> Elegir archivo...<input type="file" accept="image/*" onChange={handleFileChange} className="hidden" /></label></div>
               <div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-gray-500 ml-1">Nombre</label><input value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} className="w-full p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-orange-400 outline-none" /></div><div><label className="text-xs font-bold text-gray-500 ml-1">Apellido</label><input value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} className="w-full p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-orange-400 outline-none" /></div></div>
               <button onClick={handleSave} disabled={uploading} className="w-full py-3 bg-violet-600 text-white font-bold rounded-xl shadow hover:bg-violet-700 transition disabled:opacity-50">{uploading ? 'Procesando imagen...' : 'Guardar Cambios'}</button>
             </div>
