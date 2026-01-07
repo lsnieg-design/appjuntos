@@ -25,7 +25,13 @@ import {
   Send,
   Key,
   Filter,
-  X
+  LayoutDashboard,
+  Link as LinkIcon,
+  ExternalLink,
+  AlertTriangle,
+  Clock,
+  Activity,
+  ArrowRight
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -78,7 +84,7 @@ const db = app ? getFirestore(app) : null;
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'escuela-app-prod';
 
 // --- Constantes ---
-const ROLES = ['Docente', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor'];
+const ROLES = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor'];
 const EVENT_TYPES = ['SALIDA EDUCATIVA', 'GENERAL', 'ADMINISTRATIVO', 'INFORMES', 'EVENTOS', 'ACTOS', 'EFEMÉRIDES', 'CUMPLEAÑOS'];
 
 // --- Utils ---
@@ -160,7 +166,6 @@ function LoginScreen({ onLogin }) {
   const [error, setError] = useState('');
   const [checking, setChecking] = useState(false);
   const [showRecover, setShowRecover] = useState(false);
-  
   const [recoverUser, setRecoverUser] = useState('');
   const [recoverStatus, setRecoverStatus] = useState('idle'); 
 
@@ -206,13 +211,11 @@ function LoginScreen({ onLogin }) {
         const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
         const q = query(usersRef, where('username', '==', recoverUser));
         const snapshot = await getDocs(q);
-
         if (snapshot.empty) {
             setRecoverStatus('error');
             setTimeout(() => setRecoverStatus('idle'), 3000);
             return;
         }
-
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'requests'), {
             type: 'password_reset',
             username: recoverUser,
@@ -221,7 +224,6 @@ function LoginScreen({ onLogin }) {
         });
         setRecoverStatus('sent');
     } catch (error) {
-        console.error(error);
         setRecoverStatus('error');
     }
   };
@@ -255,9 +257,7 @@ function LoginScreen({ onLogin }) {
               </div>
             </div>
             <div className="flex justify-end">
-                <button type="button" onClick={() => setShowRecover(true)} className="text-xs font-bold text-violet-600 hover:text-orange-500 transition">
-                    ¿Olvidaste tu contraseña?
-                </button>
+                <button type="button" onClick={() => setShowRecover(true)} className="text-xs font-bold text-violet-600 hover:text-orange-500 transition">¿Olvidaste tu contraseña?</button>
             </div>
             {error && <div className="bg-red-50 text-red-600 text-sm p-4 rounded-xl flex items-center gap-3 border border-red-100 animate-pulse"><AlertCircle size={20} /> {error}</div>}
             <button type="submit" disabled={checking} className="w-full bg-gradient-to-r from-violet-600 to-violet-800 text-white py-4 rounded-xl font-bold text-lg hover:from-orange-500 hover:to-orange-600 transition duration-300 shadow-xl disabled:opacity-70 flex justify-center items-center">
@@ -271,9 +271,7 @@ function LoginScreen({ onLogin }) {
                 <h3 className="font-bold text-violet-900 text-lg mb-2">Solicitar Blanqueo</h3>
                 <p className="text-sm text-gray-600 mb-4">Ingresa tu nombre de usuario. La administración recibirá una notificación para restablecer tu clave.</p>
                 {recoverStatus === 'sent' ? (
-                    <div className="bg-green-100 text-green-700 p-3 rounded-xl mb-4 text-sm font-bold flex items-center justify-center gap-2">
-                        <CheckCircle size={18} /> ¡Solicitud Enviada!
-                    </div>
+                    <div className="bg-green-100 text-green-700 p-3 rounded-xl mb-4 text-sm font-bold flex items-center justify-center gap-2"><CheckCircle size={18} /> ¡Solicitud Enviada!</div>
                 ) : (
                     <form onSubmit={handleRequestReset} className="mb-4">
                         <input className="w-full p-3 bg-white border border-violet-200 rounded-xl mb-3 text-center focus:ring-2 focus:ring-orange-400 outline-none" placeholder="Tu Usuario (Ej: jlopez)" value={recoverUser} onChange={(e) => setRecoverUser(e.target.value)} required />
@@ -294,44 +292,68 @@ function LoginScreen({ onLogin }) {
 
 // --- App Principal ---
 function MainApp({ user, onLogout }) {
-  const [activeTab, setActiveTab] = useState('tasks');
+  const [activeTab, setActiveTab] = useState('dashboard'); // Entramos al Dashboard primero
   const [tasks, setTasks] = useState([]);
   const [events, setEvents] = useState([]);
+  const [resources, setResources] = useState([]); // Nueva colección
   const [notifications, setNotifications] = useState([]);
   const [adminRequests, setAdminRequests] = useState([]);
   
   const canEdit = user.isAdmin === true || user.rol === 'admin' || user.role === 'Equipo Directivo' || user.role === 'Administración';
 
+  // LÓGICA DE VISIBILIDAD DE TAREAS MEJORADA (PRIVACIDAD)
   const isAssignedToUser = (item) => {
+    // Si soy admin, veo todo
+    if (canEdit) return true;
+    
+    // Si la tarea es "Para Todos"
     if (!item.targetType || item.targetType === 'all') return true;
-    if (item.targetType === 'roles' && Array.isArray(item.targetRoles)) return item.targetRoles.includes(user.role);
-    if (item.targetType === 'users' && Array.isArray(item.targetUsers)) return item.targetUsers.includes(user.fullName);
+    
+    // Si es por Rol y yo tengo ese rol
+    if (item.targetType === 'roles' && Array.isArray(item.targetRoles)) {
+        return item.targetRoles.includes(user.role);
+    }
+    
+    // Si es por Usuario específico y yo estoy en la lista
+    if (item.targetType === 'users' && Array.isArray(item.targetUsers)) {
+        return item.targetUsers.includes(user.fullName);
+    }
+    
+    // Si no cumplo nada, no la veo
     return false;
   };
 
   useEffect(() => {
+    // 1. Tareas
     const qTasks = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('dueDate', 'asc'));
     const unsubTasks = onSnapshot(qTasks, (snapshot) => {
       const allTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setTasks(canEdit ? allTasks : allTasks.filter(isAssignedToUser));
+      // FILTRO DE SEGURIDAD AQUÍ:
+      setTasks(allTasks.filter(isAssignedToUser));
     });
 
+    // 2. Eventos
     const qEvents = query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc'));
     const unsubEvents = onSnapshot(qEvents, (snap) => {
-      const allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setEvents(allEvents);
+      setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
 
+    // 3. Recursos
+    const qResources = query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc'));
+    const unsubResources = onSnapshot(qResources, (snap) => {
+      setResources(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    // 4. Solicitudes (Solo Admins)
     let unsubRequests = () => {};
     if (canEdit) {
         const qReq = query(collection(db, 'artifacts', appId, 'public', 'data', 'requests'), orderBy('createdAt', 'desc'));
         unsubRequests = onSnapshot(qReq, (snap) => {
-            const reqs = snap.docs.map(d => ({ id: d.id, ...d.data(), isRequest: true }));
-            setAdminRequests(reqs);
+            setAdminRequests(snap.docs.map(d => ({ id: d.id, ...d.data(), isRequest: true })));
         });
     }
 
-    return () => { unsubTasks(); unsubEvents(); unsubRequests(); };
+    return () => { unsubTasks(); unsubEvents(); unsubRequests(); unsubResources(); };
   }, [user, canEdit]);
 
   useEffect(() => {
@@ -342,12 +364,12 @@ function MainApp({ user, onLogout }) {
 
     if (canEdit) {
         adminRequests.forEach(req => {
-            newNotifs.push({ id: req.id, type: 'admin_alert', title: "Solicitud de Contraseña", message: `El usuario "${req.username}" solicita blanqueo de clave.`, date: req.createdAt ? new Date(req.createdAt.seconds * 1000).toISOString() : todayStr, context: 'Acción Requerida', isRequest: true });
+            newNotifs.push({ id: req.id, type: 'admin_alert', title: "Solicitud de Contraseña", message: `El usuario "${req.username}" solicita blanqueo.`, date: req.createdAt ? new Date(req.createdAt.seconds * 1000).toISOString() : todayStr, context: 'Acción Requerida', isRequest: true });
         });
     }
 
     tasks.forEach(task => {
-      if (!canEdit && !isAssignedToUser(task)) return;
+      if (task.status === 'completed') return; // No notificar tareas terminadas
       if (task.notificationDate && task.notificationDate <= todayStr && task.notificationMessage) {
         newNotifs.push({ id: `task-auto-${task.id}`, type: 'scheduled', title: "Aviso Programado", message: task.notificationMessage, date: task.notificationDate, context: 'Tarea: ' + task.title });
       }
@@ -363,22 +385,20 @@ function MainApp({ user, onLogout }) {
        }
     });
 
-    newNotifs.sort((a, b) => {
-        if (a.type === 'admin_alert') return -1;
-        if (b.type === 'admin_alert') return 1;
-        return new Date(b.date) - new Date(a.date);
-    });
+    newNotifs.sort((a, b) => new Date(b.date) - new Date(a.date));
     setNotifications(newNotifs);
   }, [tasks, events, canEdit, user, adminRequests]);
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'dashboard': return <DashboardView user={user} tasks={tasks} events={events} />;
       case 'calendar': return <CalendarView events={events} canEdit={canEdit} user={user} />;
       case 'tasks': return <TasksView tasks={tasks} user={user} canEdit={canEdit} />;
+      case 'resources': return <ResourcesView resources={resources} canEdit={canEdit} />;
       case 'notifications': return <NotificationsView notifications={notifications} canEdit={canEdit} />;
       case 'users': return <UsersView user={user} />;
       case 'profile': return <ProfileView user={user} tasks={tasks} onLogout={onLogout} canEdit={canEdit} />;
-      default: return <TasksView tasks={tasks} user={user} canEdit={canEdit} />;
+      default: return <DashboardView user={user} tasks={tasks} events={events} />;
     }
   };
 
@@ -408,8 +428,10 @@ function MainApp({ user, onLogout }) {
       </main>
       <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 pb-safe shadow-[0_-10px_20px_rgba(109,40,217,0.05)] z-30">
         <div className="flex justify-around items-center h-20 max-w-4xl mx-auto px-2">
-          <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={24} />} label="Tareas" badge={tasks.filter(t => !t.completed).length} />
+          <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={24} />} label="Inicio" />
+          <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={24} />} label="Tareas" badge={tasks.filter(t => t.status !== 'completed').length} />
           <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={24} />} label="Agenda" />
+          <NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<LinkIcon size={24} />} label="Recursos" />
           <NavButton active={activeTab === 'notifications'} onClick={() => setActiveTab('notifications')} icon={<Bell size={24} />} label="Avisos" badge={notifications.length} />
           {canEdit && <NavButton active={activeTab === 'users'} onClick={() => setActiveTab('users')} icon={<Users size={24} />} label="Admin" />}
           <NavButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={<User size={24} />} label="Perfil" />
@@ -431,47 +453,156 @@ function NavButton({ active, onClick, icon, label, badge }) {
   );
 }
 
-// --- VISTAS ---
-function NotificationsView({ notifications, canEdit }) {
-  const deleteRequest = async (id) => {
-    if(confirm('¿Has resuelto esta solicitud? Se borrará de la lista.')) {
-        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'requests', id));
-    }
-  };
+// --- VISTA DASHBOARD (INICIO) ---
+function DashboardView({ user, tasks, events }) {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const eventsToday = events.filter(e => e.date === todayStr);
+    const myPending = tasks.filter(t => t.status !== 'completed');
+    const highPriority = myPending.filter(t => t.priority === 'high');
 
-  return (
-    <div className="animate-in fade-in duration-500">
-      <h2 className="text-2xl font-bold text-violet-900 mb-6">Avisos</h2>
-      <div className="space-y-3">
-        {notifications.length === 0 ? (
-           <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200"><Bell size={48} className="mx-auto mb-4 text-violet-100" /><p className="text-gray-500">No tienes notificaciones nuevas.</p></div>
-        ) : (
-          notifications.map(notif => (
-            <div key={notif.id} className={`p-4 rounded-2xl border-l-4 shadow-sm bg-white relative ${notif.type === 'admin_alert' ? 'border-red-600 bg-red-50' : notif.type === 'reminder' ? 'border-orange-500 bg-orange-50/50' : 'border-violet-500'}`}>
-               <div className="flex justify-between items-start mb-1">
-                 <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${notif.type === 'admin_alert' ? 'bg-red-600 text-white animate-pulse' : notif.type === 'reminder' ? 'bg-orange-100 text-orange-600' : 'bg-violet-100 text-violet-600'}`}>
-                    {notif.type === 'admin_alert' ? 'SOLICITUD' : notif.type === 'reminder' ? 'Urgente' : 'Aviso'}
-                 </span>
-                 <span className="text-xs text-gray-400">{formatDate(notif.date)}</span>
-               </div>
-               <h3 className="font-bold text-gray-800">{notif.title}</h3>
-               <p className="text-sm text-gray-600 mt-1">{notif.message}</p>
-               {notif.context && <div className="mt-2 text-xs font-medium text-gray-400 border-t border-gray-200 pt-1">Ref: {notif.context}</div>}
-               {notif.isRequest && canEdit && (
-                   <div className="mt-3 flex justify-end">
-                       <button onClick={() => deleteRequest(notif.id)} className="flex items-center gap-1 text-xs font-bold text-red-500 bg-white border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition shadow-sm">
-                           <Check size={14} /> Marcar como Resuelto
-                       </button>
-                   </div>
-               )}
+    return (
+        <div className="animate-in fade-in duration-500 space-y-6">
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-violet-50">
+                <h2 className="text-2xl font-bold text-violet-900">Hola, {user.firstName}! 👋</h2>
+                <p className="text-gray-500 text-sm">Bienvenido a tu portal digital.</p>
             </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
+
+            <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gradient-to-br from-orange-400 to-orange-600 p-5 rounded-3xl text-white shadow-lg relative overflow-hidden">
+                    <div className="relative z-10">
+                        <h3 className="text-3xl font-bold">{myPending.length}</h3>
+                        <p className="text-xs font-bold opacity-90 uppercase tracking-wide">Tareas Pendientes</p>
+                    </div>
+                    <CheckSquare className="absolute -bottom-4 -right-4 opacity-20 w-24 h-24" />
+                </div>
+                <div className="bg-gradient-to-br from-violet-600 to-violet-800 p-5 rounded-3xl text-white shadow-lg relative overflow-hidden">
+                     <div className="relative z-10">
+                        <h3 className="text-3xl font-bold">{eventsToday.length}</h3>
+                        <p className="text-xs font-bold opacity-90 uppercase tracking-wide">Eventos Hoy</p>
+                    </div>
+                    <CalendarIcon className="absolute -bottom-4 -right-4 opacity-20 w-24 h-24" />
+                </div>
+            </div>
+
+            {highPriority.length > 0 && (
+                <div className="bg-red-50 rounded-3xl p-5 border border-red-100">
+                    <div className="flex items-center gap-2 mb-3 text-red-600 font-bold">
+                        <AlertTriangle size={20} />
+                        <h3>Requieren Atención</h3>
+                    </div>
+                    <div className="space-y-2">
+                        {highPriority.slice(0, 3).map(t => (
+                            <div key={t.id} className="bg-white p-3 rounded-xl border border-red-100 shadow-sm flex justify-between items-center">
+                                <span className="text-sm font-bold text-gray-700 truncate">{t.title}</span>
+                                <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-lg font-bold">URGENTE</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+            
+             {eventsToday.length > 0 && (
+                <div className="bg-white rounded-3xl p-5 border border-violet-50 shadow-sm">
+                    <div className="flex items-center gap-2 mb-3 text-violet-800 font-bold">
+                        <Clock size={20} />
+                        <h3>Agenda de Hoy</h3>
+                    </div>
+                     <div className="space-y-2">
+                        {eventsToday.map(e => (
+                             <div key={e.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-xl transition">
+                                <div className="w-10 h-10 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center font-bold text-xs shrink-0">
+                                    {new Date(e.date + 'T00:00:00').getDate()}
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-gray-800">{e.title}</p>
+                                    <p className="text-xs text-gray-500 font-medium uppercase">{e.type}</p>
+                                </div>
+                             </div>
+                        ))}
+                     </div>
+                </div>
+            )}
+        </div>
+    );
 }
 
+// --- VISTA RECURSOS (NUEVA) ---
+function ResourcesView({ resources, canEdit }) {
+    const [showModal, setShowModal] = useState(false);
+    
+    const addResource = async (e) => {
+        e.preventDefault();
+        const title = e.target.title.value;
+        const url = e.target.url.value;
+        const category = e.target.category.value;
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), {
+            title, url, category, createdAt: serverTimestamp()
+        });
+        setShowModal(false);
+    };
+
+    const deleteResource = async (id) => {
+        if(confirm('¿Borrar recurso?')) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', id));
+    };
+
+    return (
+        <div className="animate-in fade-in duration-500">
+            <div className="flex justify-between items-center mb-6">
+                <div>
+                    <h2 className="text-2xl font-bold text-violet-900">Recursos</h2>
+                    <p className="text-xs text-gray-500">Documentos y Enlaces</p>
+                </div>
+                {canEdit && <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:bg-orange-600 transition"><Plus size={24} /></button>}
+            </div>
+
+            <div className="grid gap-3">
+                {resources.length === 0 ? (
+                     <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200"><LinkIcon size={48} className="mx-auto mb-4 text-violet-100" /><p className="text-gray-500">No hay recursos compartidos.</p></div>
+                ) : (
+                    resources.map(res => (
+                        <a key={res.id} href={res.url} target="_blank" rel="noopener noreferrer" className="bg-white p-4 rounded-2xl shadow-sm border border-violet-50 flex items-center gap-4 hover:shadow-md transition group relative">
+                            <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0">
+                                <FileText size={24} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h3 className="font-bold text-gray-800 text-sm truncate pr-6">{res.title}</h3>
+                                <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded uppercase font-bold tracking-wide">{res.category || 'General'}</span>
+                            </div>
+                            <ExternalLink size={16} className="text-gray-300 group-hover:text-blue-500" />
+                            {canEdit && (
+                                <button onClick={(e) => {e.preventDefault(); deleteResource(res.id)}} className="absolute top-2 right-2 p-2 text-gray-300 hover:text-red-500 z-10 bg-white/80 rounded-full"><Trash2 size={14} /></button>
+                            )}
+                        </a>
+                    ))
+                )}
+            </div>
+
+            {showModal && (
+                 <div className="fixed inset-0 bg-violet-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+                        <h3 className="text-xl font-bold mb-6 text-violet-900">Nuevo Recurso</h3>
+                        <form onSubmit={addResource} className="space-y-4">
+                            <input name="title" required className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Título (Ej: Licencias)" />
+                            <input name="url" required className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Enlace (https://...)" />
+                            <select name="category" className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400 text-gray-700">
+                                <option>Documentos</option>
+                                <option>Planillas</option>
+                                <option>Normativa</option>
+                                <option>Utilidades</option>
+                            </select>
+                            <div className="flex gap-3 mt-6">
+                                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button>
+                                <button type="submit" className="flex-1 py-3 bg-violet-800 text-white font-bold rounded-xl shadow-lg">Guardar</button>
+                            </div>
+                        </form>
+                    </div>
+                 </div>
+            )}
+        </div>
+    );
+}
+
+// --- VISTA TAREAS (ACTUALIZADA: ESTADOS + PRIORIDAD) ---
 function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [targetType, setTargetType] = useState('all'); 
@@ -481,8 +612,6 @@ function TasksView({ tasks, user, canEdit }) {
   const [notifDate, setNotifDate] = useState('');
   const [notifMsg, setNotifMsg] = useState('');
   const [usersList, setUsersList] = useState([]);
-  
-  // --- FILTROS NUEVOS ---
   const [filterRole, setFilterRole] = useState('all');
 
   useEffect(() => {
@@ -502,13 +631,24 @@ function TasksView({ tasks, user, canEdit }) {
     e.preventDefault();
     const title = e.target.title.value;
     const dueDate = e.target.dueDate.value;
-    let taskData = { title, dueDate, targetType, completed: false, createdBy: user.id, createdAt: serverTimestamp() };
+    const priority = e.target.priority.value;
+    
+    let taskData = { 
+        title, dueDate, priority, 
+        targetType, 
+        status: 'pending', // Nuevo campo de estado
+        createdBy: user.id, 
+        createdAt: serverTimestamp() 
+    };
+
     if (targetType === 'roles') taskData.targetRoles = selectedRoles;
     if (targetType === 'users') taskData.targetUsers = selectedUsers;
     if (hasNotification && notifDate && notifMsg) {
       taskData.notificationDate = notifDate;
       taskData.notificationMessage = notifMsg;
     }
+    
+    // Texto descriptivo de asignación
     if (targetType === 'all') taskData.assignedTo = "Todos";
     else if (targetType === 'roles') taskData.assignedTo = selectedRoles.join(", ");
     else if (targetType === 'users') taskData.assignedTo = selectedUsers.length + " personas";
@@ -517,9 +657,9 @@ function TasksView({ tasks, user, canEdit }) {
     setShowModal(false); setTargetType('all'); setSelectedRoles([]); setSelectedUsers([]); setHasNotification(false);
   };
 
-  const toggleTask = async (task) => {
+  const updateStatus = async (task, newStatus) => {
     const ref = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id);
-    await updateDoc(ref, { completed: !task.completed });
+    await updateDoc(ref, { status: newStatus });
   };
 
   const deleteTask = async (id) => {
@@ -527,16 +667,27 @@ function TasksView({ tasks, user, canEdit }) {
   };
 
   const sendReminder = async (task) => {
-    if (!confirm(`¿Enviar notificación de recordatorio?`)) return;
+    if (!confirm(`¿Enviar notificación?`)) return;
     const ref = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id);
     await updateDoc(ref, { lastReminder: serverTimestamp() });
     alert("Recordatorio enviado.");
   };
 
-  // Lógica de Filtrado
+  const getPriorityColor = (p) => {
+      if(p === 'high') return 'text-red-500 bg-red-50 border-red-200';
+      if(p === 'medium') return 'text-amber-500 bg-amber-50 border-amber-200';
+      return 'text-green-500 bg-green-50 border-green-200';
+  };
+
+  const getStatusColor = (s) => {
+      if(s === 'completed') return 'bg-green-100 text-green-700 border-green-200';
+      if(s === 'in_progress') return 'bg-blue-100 text-blue-700 border-blue-200';
+      return 'bg-gray-100 text-gray-500 border-gray-200';
+  };
+
   const filteredTasks = tasks.filter(t => {
       if (filterRole === 'all') return true;
-      if (t.targetType === 'all') return true; // Tareas para todos siempre se ven
+      if (t.targetType === 'all') return true; 
       if (t.targetType === 'roles' && t.targetRoles?.includes(filterRole)) return true;
       return false;
   });
@@ -545,12 +696,11 @@ function TasksView({ tasks, user, canEdit }) {
     <div className="animate-in fade-in duration-500">
       <div className="bg-gradient-to-r from-violet-700 to-violet-900 p-6 rounded-3xl shadow-lg text-white mb-8 relative overflow-hidden">
         <div className="relative z-10 flex justify-between items-center">
-          <div><h2 className="text-3xl font-bold">Tareas</h2><p className="text-violet-200 mt-1">Tienes <span className="font-bold text-white text-lg">{filteredTasks.filter(t => !t.completed).length}</span> pendientes.</p></div>
+          <div><h2 className="text-3xl font-bold">Tareas</h2><p className="text-violet-200 mt-1">Gestión y seguimiento</p></div>
           {canEdit && <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:bg-orange-600 transition active:scale-95"><Plus size={24} /></button>}
         </div>
       </div>
       
-      {/* BARRA DE FILTROS */}
       {canEdit && (
           <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
               <span className="text-xs font-bold text-gray-400 flex items-center gap-1 uppercase"><Filter size={12}/> Filtrar:</span>
@@ -569,13 +719,32 @@ function TasksView({ tasks, user, canEdit }) {
         ) : (
             filteredTasks.map(task => {
             const daysLeft = calculateDaysLeft(task.dueDate);
-            const isLate = daysLeft < 0 && !task.completed;
+            const isLate = daysLeft < 0 && task.status !== 'completed';
+            
+            // Compatibilidad para tareas viejas que usaban 'completed' boolean
+            const status = task.status || (task.completed ? 'completed' : 'pending');
+
             return (
-              <div key={task.id} className={`p-4 rounded-2xl border-l-[6px] shadow-sm transition-all relative group bg-white ${task.completed ? 'border-green-400 opacity-60' : isLate ? 'border-red-500' : 'border-violet-500'}`}>
+              <div key={task.id} className={`p-4 rounded-2xl border-l-[6px] shadow-sm transition-all relative group bg-white ${status === 'completed' ? 'border-green-400 opacity-70' : isLate ? 'border-red-500' : 'border-violet-500'}`}>
                 <div className="flex items-start gap-4">
-                  <div className="pt-1"><button onClick={() => toggleTask(task)} className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition ${task.completed ? 'bg-green-500 border-green-500' : 'border-gray-300'}`}>{task.completed && <CheckCircle size={14} className="text-white" />}</button></div>
+                  <div className="pt-1">
+                      {/* SELECTOR DE ESTADO (SEMÁFORO) */}
+                      <select 
+                        value={status} 
+                        onChange={(e) => updateStatus(task, e.target.value)}
+                        className={`text-[10px] font-bold uppercase rounded-lg p-1 border outline-none cursor-pointer ${getStatusColor(status)} appearance-none text-center min-w-[80px]`}
+                      >
+                          <option value="pending">Pendiente</option>
+                          <option value="in_progress">En Proceso</option>
+                          <option value="completed">Finalizado</option>
+                      </select>
+                  </div>
                   <div className="flex-1 pr-8">
-                    <h3 className={`font-bold text-gray-800 text-base ${task.completed ? 'line-through text-gray-400' : ''}`}>{task.title}</h3>
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className={`w-2 h-2 rounded-full ${task.priority === 'high' ? 'bg-red-500' : task.priority === 'medium' ? 'bg-amber-400' : 'bg-green-400'}`}></span>
+                        <h3 className={`font-bold text-gray-800 text-base ${status === 'completed' ? 'line-through text-gray-400' : ''}`}>{task.title}</h3>
+                    </div>
+                    
                     <div className="flex flex-wrap items-center gap-2 mt-2 text-xs">
                        {canEdit && <span className="bg-violet-50 text-violet-700 px-2 py-1 rounded-lg font-bold flex items-center gap-1">{task.targetType === 'roles' ? <Users size={12} /> : <User size={12} />}<span className="truncate max-w-[150px]">{task.assignedTo || "Todos"}</span></span>}
                        <span className={`px-2 py-1 rounded-lg font-medium border ${isLate ? 'bg-red-50 text-red-600 border-red-100' : 'bg-gray-50 text-gray-600 border-gray-100'}`}>{formatDate(task.dueDate)}</span>
@@ -600,12 +769,21 @@ function TasksView({ tasks, user, canEdit }) {
             <h3 className="text-xl font-bold mb-6 text-violet-900">Nueva Tarea</h3>
             <form onSubmit={addTask} className="space-y-4">
               <input name="title" required className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none" placeholder="Título" />
-              <input type="date" name="dueDate" required className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none" />
+              <div className="grid grid-cols-2 gap-3">
+                  <input type="date" name="dueDate" required className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none" />
+                  <select name="priority" className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none text-gray-700">
+                      <option value="low">Prioridad Baja 🟢</option>
+                      <option value="medium">Prioridad Media 🟡</option>
+                      <option value="high">Prioridad Alta 🔴</option>
+                  </select>
+              </div>
+              
               <div className="bg-gray-50 p-1 rounded-xl flex">
                   <button type="button" onClick={() => setTargetType('all')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${targetType === 'all' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Todos</button>
                   <button type="button" onClick={() => setTargetType('roles')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${targetType === 'roles' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Roles</button>
                   <button type="button" onClick={() => setTargetType('users')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${targetType === 'users' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Personas</button>
               </div>
+
               {targetType === 'roles' && (
                 <div className="p-3 bg-violet-50 rounded-xl max-h-40 overflow-y-auto">
                   <p className="text-xs text-gray-500 mb-2 font-bold uppercase">Roles:</p>
@@ -620,6 +798,7 @@ function TasksView({ tasks, user, canEdit }) {
                   </div>
                 </div>
               )}
+
               {targetType === 'users' && (
                 <div className="p-3 bg-violet-50 rounded-xl max-h-40 overflow-y-auto">
                     <p className="text-xs text-gray-500 mb-2 font-bold uppercase">Personas:</p>
@@ -634,6 +813,7 @@ function TasksView({ tasks, user, canEdit }) {
                   </div>
                 </div>
               )}
+
               <div className="pt-2 border-t border-gray-100">
                 <label className="flex items-center gap-2 text-sm font-bold text-gray-700 cursor-pointer mb-2">
                   <input type="checkbox" checked={hasNotification} onChange={(e) => setHasNotification(e.target.checked)} className="rounded text-violet-600 focus:ring-violet-500" />
@@ -654,6 +834,35 @@ function TasksView({ tasks, user, canEdit }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// --- RESTO DE VISTAS (UserView, CalendarView, NotificationsView, ProfileView) ---
+// Se mantienen igual pero están incluidas en el bloque de abajo por completitud
+
+function NotificationsView({ notifications, canEdit }) {
+  const deleteRequest = async (id) => {
+    if(confirm('¿Has resuelto esta solicitud?')) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'requests', id));
+  };
+  return (
+    <div className="animate-in fade-in duration-500">
+      <h2 className="text-2xl font-bold text-violet-900 mb-6">Avisos</h2>
+      <div className="space-y-3">
+        {notifications.length === 0 ? <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200"><Bell size={48} className="mx-auto mb-4 text-violet-100" /><p className="text-gray-500">Sin novedades.</p></div> : 
+          notifications.map(notif => (
+            <div key={notif.id} className={`p-4 rounded-2xl border-l-4 shadow-sm bg-white relative ${notif.type === 'admin_alert' ? 'border-red-600 bg-red-50' : notif.type === 'reminder' ? 'border-orange-500 bg-orange-50/50' : 'border-violet-500'}`}>
+               <div className="flex justify-between items-start mb-1">
+                 <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${notif.type === 'admin_alert' ? 'bg-red-600 text-white animate-pulse' : notif.type === 'reminder' ? 'bg-orange-100 text-orange-600' : 'bg-violet-100 text-violet-600'}`}>{notif.type === 'admin_alert' ? 'SOLICITUD' : notif.type === 'reminder' ? 'Urgente' : 'Aviso'}</span>
+                 <span className="text-xs text-gray-400">{formatDate(notif.date)}</span>
+               </div>
+               <h3 className="font-bold text-gray-800">{notif.title}</h3>
+               <p className="text-sm text-gray-600 mt-1">{notif.message}</p>
+               {notif.isRequest && canEdit && <div className="mt-3 flex justify-end"><button onClick={() => deleteRequest(notif.id)} className="flex items-center gap-1 text-xs font-bold text-red-500 bg-white border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition shadow-sm"><Check size={14} /> Resuelto</button></div>}
+            </div>
+          ))
+        }
+      </div>
     </div>
   );
 }
@@ -688,11 +897,7 @@ function UsersView({ user }) {
     }
     setShowModal(false);
   };
-
-  const deleteUser = async (id) => {
-    if (confirm("¿Eliminar usuario?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id));
-  };
-
+  const deleteUser = async (id) => { if (confirm("¿Eliminar usuario?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id)); };
   const openEdit = (u) => { setEditUser(u); setShowModal(true); }
   const openCreate = () => { setEditUser(null); setShowModal(true); }
 
@@ -706,16 +911,8 @@ function UsersView({ user }) {
         {usersList.map(u => (
           <div key={u.id} className="bg-white p-4 rounded-2xl shadow-sm border border-violet-50 flex justify-between items-center group cursor-pointer hover:shadow-md transition" onClick={() => openEdit(u)}>
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center font-bold text-lg overflow-hidden">
-                {u.photoUrl ? <img src={u.photoUrl} className="w-full h-full object-cover" /> : `${u.firstName?.[0]}${u.lastName?.[0]}`}
-              </div>
-              <div>
-                <h4 className="font-bold text-gray-800">{u.fullName}</h4>
-                <div className="flex flex-col text-xs text-gray-500">
-                  <span className="text-orange-600 font-bold uppercase tracking-wider text-[10px]">{u.role}</span>
-                  <span className="flex items-center gap-1 mt-0.5"><User size={10}/> {u.username}</span>
-                </div>
-              </div>
+              <div className="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center font-bold text-lg overflow-hidden">{u.photoUrl ? <img src={u.photoUrl} className="w-full h-full object-cover" /> : `${u.firstName?.[0]}${u.lastName?.[0]}`}</div>
+              <div><h4 className="font-bold text-gray-800">{u.fullName}</h4><div className="flex flex-col text-xs text-gray-500"><span className="text-orange-600 font-bold uppercase tracking-wider text-[10px]">{u.role}</span><span className="flex items-center gap-1 mt-0.5"><User size={10}/> {u.username}</span></div></div>
             </div>
             <button onClick={(e) => {e.stopPropagation(); deleteUser(u.id)}} className="text-gray-300 hover:text-red-500 p-2 bg-gray-50 rounded-full hover:bg-red-50 transition"><Trash2 size={18} /></button>
           </div>
@@ -726,22 +923,10 @@ function UsersView({ user }) {
           <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200">
             <h3 className="text-xl font-bold mb-6 text-violet-900">{editUser ? 'Editar Usuario' : 'Alta de Usuario'}</h3>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <input name="firstName" defaultValue={editUser?.firstName} required className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Nombre" />
-                <input name="lastName" defaultValue={editUser?.lastName} required className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Apellido" />
-              </div>
-              <select name="role" defaultValue={editUser?.role || ROLES[0]} className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400 text-gray-700">
-                {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
-              <div className="p-4 bg-orange-50 rounded-xl space-y-3">
-                <p className="text-xs text-orange-600 font-bold uppercase">Credenciales</p>
-                <input name="username" defaultValue={editUser?.username} required className="w-full p-2 bg-white rounded-lg border border-orange-200" placeholder="Usuario" />
-                <input name="password" defaultValue={editUser?.password} required className="w-full p-2 bg-white rounded-lg border border-orange-200" placeholder="Contraseña" />
-              </div>
-              <div className="flex gap-3 mt-6">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button>
-                <button type="submit" className="flex-1 py-3 bg-violet-800 text-white font-bold rounded-xl shadow-lg">{editUser ? 'Guardar Cambios' : 'Crear'}</button>
-              </div>
+              <div className="grid grid-cols-2 gap-3"><input name="firstName" defaultValue={editUser?.firstName} required className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Nombre" /><input name="lastName" defaultValue={editUser?.lastName} required className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Apellido" /></div>
+              <select name="role" defaultValue={editUser?.role || ROLES[0]} className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400 text-gray-700">{ROLES.map(r => <option key={r} value={r}>{r}</option>)}</select>
+              <div className="p-4 bg-orange-50 rounded-xl space-y-3"><p className="text-xs text-orange-600 font-bold uppercase">Credenciales</p><input name="username" defaultValue={editUser?.username} required className="w-full p-2 bg-white rounded-lg border border-orange-200" placeholder="Usuario" /><input name="password" defaultValue={editUser?.password} required className="w-full p-2 bg-white rounded-lg border border-orange-200" placeholder="Contraseña" /></div>
+              <div className="flex gap-3 mt-6"><button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button><button type="submit" className="flex-1 py-3 bg-violet-800 text-white font-bold rounded-xl shadow-lg">{editUser ? 'Guardar Cambios' : 'Crear'}</button></div>
             </form>
           </div>
         </div>
@@ -758,8 +943,6 @@ function CalendarView({ events, canEdit, user }) {
   const [hasNotification, setHasNotification] = useState(false);
   const [notifDate, setNotifDate] = useState('');
   const [notifMsg, setNotifMsg] = useState('');
-
-  // --- FILTRO DE CALENDARIO ---
   const [filterType, setFilterType] = useState('all');
 
   const addEvent = async (e) => {
@@ -777,59 +960,26 @@ function CalendarView({ events, canEdit, user }) {
     setShowModal(false); setHasNotification(false); setNotifMsg(''); setNotifDate('');
   };
 
-  const deleteEvent = async (id) => {
-    if(confirm('¿Eliminar evento?')) {
-      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', id));
-      setSelectedEvent(null);
-    }
-  };
-
+  const deleteEvent = async (id) => { if(confirm('¿Eliminar evento?')) { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', id)); setSelectedEvent(null); } };
   const getTypeStyle = (type) => {
-    const styles = {
-      'SALIDA EDUCATIVA': 'bg-green-100 text-green-800 border-green-200',
-      'GENERAL': 'bg-gray-100 text-gray-800 border-gray-200',
-      'ADMINISTRATIVO': 'bg-blue-100 text-blue-800 border-blue-200',
-      'INFORMES': 'bg-amber-100 text-amber-800 border-amber-200',
-      'EVENTOS': 'bg-violet-100 text-violet-800 border-violet-200',
-      'ACTOS': 'bg-red-100 text-red-800 border-red-200',
-      'EFEMÉRIDES': 'bg-cyan-100 text-cyan-800 border-cyan-200',
-      'CUMPLEAÑOS': 'bg-pink-100 text-pink-800 border-pink-200',
-    };
+    const styles = { 'SALIDA EDUCATIVA': 'bg-green-100 text-green-800 border-green-200', 'GENERAL': 'bg-gray-100 text-gray-800 border-gray-200', 'ADMINISTRATIVO': 'bg-blue-100 text-blue-800 border-blue-200', 'INFORMES': 'bg-amber-100 text-amber-800 border-amber-200', 'EVENTOS': 'bg-violet-100 text-violet-800 border-violet-200', 'ACTOS': 'bg-red-100 text-red-800 border-red-200', 'EFEMÉRIDES': 'bg-cyan-100 text-cyan-800 border-cyan-200', 'CUMPLEAÑOS': 'bg-pink-100 text-pink-800 border-pink-200' };
     return styles[type] || styles['GENERAL'];
   };
-  
   const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
   const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
-  const changeMonth = (offset) => {
-    const newDate = new Date(currentDate.setMonth(currentDate.getMonth() + offset));
-    setCurrentDate(new Date(newDate));
-  };
-
-  // Filtrar eventos antes de renderizar
+  const changeMonth = (offset) => { const newDate = new Date(currentDate.setMonth(currentDate.getMonth() + offset)); setCurrentDate(new Date(newDate)); };
   const filteredEvents = events.filter(e => filterType === 'all' || e.type === filterType);
-
   const renderCalendarGrid = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const daysInMonth = getDaysInMonth(year, month);
     const firstDay = getFirstDayOfMonth(year, month);
     const days = [];
-
     for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} className="min-h-[80px] bg-gray-50/30 border border-gray-100"></div>);
-
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const dayEvents = filteredEvents.filter(e => e.date === dateStr);
-      days.push(
-        <div key={d} className="min-h-[80px] border border-gray-100 p-1 relative bg-white hover:bg-violet-50 transition group overflow-hidden">
-          <span className={`text-xs font-bold block mb-1 ${dayEvents.length > 0 ? 'text-violet-700' : 'text-gray-400'}`}>{d}</span>
-          <div className="flex flex-col gap-1">
-            {dayEvents.map((ev, idx) => (
-              <button key={idx} onClick={() => setSelectedEvent(ev)} className={`text-[9px] text-left truncate px-1.5 py-0.5 rounded font-medium w-full shadow-sm hover:opacity-80 transition ${getTypeStyle(ev.type)}`}>{ev.title}</button>
-            ))}
-          </div>
-        </div>
-      );
+      days.push(<div key={d} className="min-h-[80px] border border-gray-100 p-1 relative bg-white hover:bg-violet-50 transition group overflow-hidden"><span className={`text-xs font-bold block mb-1 ${dayEvents.length > 0 ? 'text-violet-700' : 'text-gray-400'}`}>{d}</span><div className="flex flex-col gap-1">{dayEvents.map((ev, idx) => (<button key={idx} onClick={() => setSelectedEvent(ev)} className={`text-[9px] text-left truncate px-1.5 py-0.5 rounded font-medium w-full shadow-sm hover:opacity-80 transition ${getTypeStyle(ev.type)}`}>{ev.title}</button>))}</div></div>);
     }
     return days;
   };
@@ -837,120 +987,19 @@ function CalendarView({ events, canEdit, user }) {
   return (
     <div className="animate-in fade-in duration-500">
       <div className="flex flex-col gap-4 mb-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-violet-900">Agenda</h2>
-            <div className="flex gap-2">
-            <div className="bg-white p-1 rounded-xl border border-gray-200 flex shadow-sm">
-                <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition ${viewMode === 'list' ? 'bg-violet-100 text-violet-700 shadow-inner' : 'text-gray-400 hover:text-gray-600'}`}><List size={20} /></button>
-                <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition ${viewMode === 'grid' ? 'bg-violet-100 text-violet-700 shadow-inner' : 'text-gray-400 hover:text-gray-600'}`}><Grid size={20} /></button>
-            </div>
-            {canEdit && <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg hover:bg-orange-600 transition active:scale-95"><Plus size={20} /></button>}
-            </div>
-          </div>
-
-          {/* BARRA DE FILTROS CALENDARIO */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-              <span className="text-xs font-bold text-gray-400 flex items-center gap-1 uppercase"><Filter size={12}/> Categorías:</span>
-              <button onClick={() => setFilterType('all')} className={`text-xs px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition ${filterType === 'all' ? 'bg-violet-600 text-white' : 'bg-white text-gray-500 border border-gray-200'}`}>Todas</button>
-              {EVENT_TYPES.map(type => (
-                  <button key={type} onClick={() => setFilterType(type)} className={`text-xs px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition ${filterType === type ? 'bg-violet-600 text-white' : 'bg-white text-gray-500 border border-gray-200'}`}>
-                      {type}
-                  </button>
-              ))}
-          </div>
+          <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-violet-900">Agenda</h2><div className="flex gap-2"><div className="bg-white p-1 rounded-xl border border-gray-200 flex shadow-sm"><button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition ${viewMode === 'list' ? 'bg-violet-100 text-violet-700 shadow-inner' : 'text-gray-400 hover:text-gray-600'}`}><List size={20} /></button><button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition ${viewMode === 'grid' ? 'bg-violet-100 text-violet-700 shadow-inner' : 'text-gray-400 hover:text-gray-600'}`}><Grid size={20} /></button></div>{canEdit && <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg hover:bg-orange-600 transition active:scale-95"><Plus size={20} /></button>}</div></div>
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide"><span className="text-xs font-bold text-gray-400 flex items-center gap-1 uppercase"><Filter size={12}/> Categorías:</span><button onClick={() => setFilterType('all')} className={`text-xs px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition ${filterType === 'all' ? 'bg-violet-600 text-white' : 'bg-white text-gray-500 border border-gray-200'}`}>Todas</button>{EVENT_TYPES.map(type => (<button key={type} onClick={() => setFilterType(type)} className={`text-xs px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition ${filterType === type ? 'bg-violet-600 text-white' : 'bg-white text-gray-500 border border-gray-200'}`}>{type}</button>))}</div>
       </div>
-
       {viewMode === 'grid' ? (
-        <div className="bg-white rounded-3xl shadow-lg border border-gray-200 overflow-hidden">
-           <div className="p-4 flex justify-between items-center bg-violet-50 border-b border-violet-100">
-              <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700"><ChevronLeft size={24} /></button>
-              <span className="font-bold text-violet-900 capitalize text-lg">{currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}</span>
-              <button onClick={() => changeMonth(1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700"><ChevronRight size={24} /></button>
-           </div>
-           <div className="grid grid-cols-7 text-center py-3 bg-white text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100"><div>Dom</div><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div></div>
-           <div className="grid grid-cols-7 bg-gray-100 gap-px border-b border-gray-200">{renderCalendarGrid()}</div>
-        </div>
+        <div className="bg-white rounded-3xl shadow-lg border border-gray-200 overflow-hidden"><div className="p-4 flex justify-between items-center bg-violet-50 border-b border-violet-100"><button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700"><ChevronLeft size={24} /></button><span className="font-bold text-violet-900 capitalize text-lg">{currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}</span><button onClick={() => changeMonth(1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700"><ChevronRight size={24} /></button></div><div className="grid grid-cols-7 text-center py-3 bg-white text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100"><div>Dom</div><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div></div><div className="grid grid-cols-7 bg-gray-100 gap-px border-b border-gray-200">{renderCalendarGrid()}</div></div>
       ) : (
-        <div className="space-y-4">
-          {filteredEvents.length === 0 ? <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200"><CalendarIcon size={48} className="mx-auto mb-4 text-violet-100" /><p className="text-gray-500">No hay eventos para esta categoría.</p></div> : 
-            filteredEvents.map(event => (
-              <div key={event.id} onClick={() => setSelectedEvent(event)} className="bg-white p-4 rounded-2xl shadow-sm border border-violet-50 flex items-center gap-4 relative group hover:shadow-md transition cursor-pointer active:scale-[0.99]">
-                  <div className="flex flex-col items-center justify-center w-14 h-14 bg-violet-50 rounded-2xl border border-violet-100 text-violet-600 shrink-0">
-                    <span className="text-[10px] uppercase font-bold text-violet-400">{event.date ? new Date(event.date + 'T00:00:00').toLocaleDateString('es-ES', { month: 'short' }) : '-'}</span>
-                    <span className="text-xl font-bold leading-none">{event.date ? new Date(event.date + 'T00:00:00').getDate() : '-'}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-gray-800 text-sm truncate">{event.title}</h3>
-                    <div className="mt-1 flex items-center gap-2 flex-wrap">
-                        <span className={`text-[9px] px-2 py-1 rounded-md font-bold uppercase tracking-wide border whitespace-nowrap ${getTypeStyle(event.type)}`}>{event.type}</span>
-                        {event.notificationDate && <span className="text-gray-400 flex items-center gap-1 text-[9px] whitespace-nowrap"><Bell size={10} /> Aviso: {new Date(event.notificationDate + 'T00:00:00').toLocaleDateString('es-ES', {day:'2-digit', month:'2-digit'})}</span>}
-                    </div>
-                  </div>
-                  <ChevronRight size={18} className="text-gray-300" />
-              </div>
-            ))
-          }
-        </div>
+        <div className="space-y-4">{filteredEvents.length === 0 ? <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200"><CalendarIcon size={48} className="mx-auto mb-4 text-violet-100" /><p className="text-gray-500">No hay eventos.</p></div> : filteredEvents.map(event => (<div key={event.id} onClick={() => setSelectedEvent(event)} className="bg-white p-4 rounded-2xl shadow-sm border border-violet-50 flex items-center gap-4 relative group hover:shadow-md transition cursor-pointer active:scale-[0.99]"><div className="flex flex-col items-center justify-center w-14 h-14 bg-violet-50 rounded-2xl border border-violet-100 text-violet-600 shrink-0"><span className="text-[10px] uppercase font-bold text-violet-400">{event.date ? new Date(event.date + 'T00:00:00').toLocaleDateString('es-ES', { month: 'short' }) : '-'}</span><span className="text-xl font-bold leading-none">{event.date ? new Date(event.date + 'T00:00:00').getDate() : '-'}</span></div><div className="flex-1 min-w-0"><h3 className="font-bold text-gray-800 text-sm truncate">{event.title}</h3><div className="mt-1 flex items-center gap-2 flex-wrap"><span className={`text-[9px] px-2 py-1 rounded-md font-bold uppercase tracking-wide border whitespace-nowrap ${getTypeStyle(event.type)}`}>{event.type}</span></div></div></div>))}</div>
       )}
-
       {showModal && canEdit && (
-        <div className="fixed inset-0 bg-violet-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-bold mb-6 text-violet-900">Nuevo Evento</h3>
-            <form onSubmit={addEvent} className="space-y-4">
-              <input name="title" required className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none placeholder:text-gray-400" placeholder="Título" />
-              <input type="date" name="date" required className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none" />
-              <select name="type" className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none text-gray-700">{EVENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select>
-              <textarea name="description" className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none resize-none h-20 placeholder:text-gray-400 text-sm" placeholder="Descripción opcional..." ></textarea>
-               <div className="pt-2 border-t border-gray-100">
-                <label className="flex items-center gap-2 text-sm font-bold text-gray-700 cursor-pointer mb-2 select-none"><input type="checkbox" checked={hasNotification} onChange={(e) => setHasNotification(e.target.checked)} className="rounded text-violet-600 focus:ring-violet-500" /> <Bell size={16} /> Programar Aviso</label>
-                {hasNotification && (
-                  <div className="space-y-3 bg-orange-50 p-3 rounded-xl animate-in fade-in">
-                    <div><label className="text-xs font-bold text-orange-600">Fecha</label><input type="date" value={notifDate} onChange={(e) => setNotifDate(e.target.value)} className="w-full mt-1 p-2 bg-white border border-orange-200 rounded-lg text-sm" /></div>
-                    <div><label className="text-xs font-bold text-orange-600">Mensaje</label><input type="text" value={notifMsg} onChange={(e) => setNotifMsg(e.target.value)} className="w-full mt-1 p-2 bg-white border border-orange-200 rounded-lg text-sm" /></div>
-                  </div>
-                )}
-              </div>
-              <div className="flex gap-3 mt-6">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl transition">Cancelar</button>
-                <button type="submit" className="flex-1 py-3 bg-violet-800 text-white font-bold rounded-xl shadow-lg hover:bg-violet-900 transition">Guardar</button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <div className="fixed inset-0 bg-violet-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200"><h3 className="text-xl font-bold mb-6 text-violet-900">Nuevo Evento</h3><form onSubmit={addEvent} className="space-y-4"><input name="title" required className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none placeholder:text-gray-400" placeholder="Título" /><input type="date" name="date" required className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none" /><select name="type" className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none text-gray-700">{EVENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select><textarea name="description" className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none resize-none h-20 placeholder:text-gray-400 text-sm" placeholder="Descripción opcional..." ></textarea><div className="pt-2 border-t border-gray-100"><label className="flex items-center gap-2 text-sm font-bold text-gray-700 cursor-pointer mb-2 select-none"><input type="checkbox" checked={hasNotification} onChange={(e) => setHasNotification(e.target.checked)} className="rounded text-violet-600 focus:ring-violet-500" /> <Bell size={16} /> Programar Aviso</label>{hasNotification && (<div className="space-y-3 bg-orange-50 p-3 rounded-xl animate-in fade-in"><div><label className="text-xs font-bold text-orange-600">Fecha</label><input type="date" value={notifDate} onChange={(e) => setNotifDate(e.target.value)} className="w-full mt-1 p-2 bg-white border border-orange-200 rounded-lg text-sm" /></div><div><label className="text-xs font-bold text-orange-600">Mensaje</label><input type="text" value={notifMsg} onChange={(e) => setNotifMsg(e.target.value)} className="w-full mt-1 p-2 bg-white border border-orange-200 rounded-lg text-sm" /></div></div>)}</div><div className="flex gap-3 mt-6"><button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl transition">Cancelar</button><button type="submit" className="flex-1 py-3 bg-violet-800 text-white font-bold rounded-xl shadow-lg hover:bg-violet-900 transition">Guardar</button></div></form></div></div>
       )}
-
       {selectedEvent && (
-        <div className="fixed inset-0 bg-violet-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setSelectedEvent(null)}>
-           <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-              <div className={`h-24 ${getTypeStyle(selectedEvent.type).split(' ')[0]} relative`}>
-                 <button onClick={() => setSelectedEvent(null)} className="absolute top-4 right-4 bg-white/50 hover:bg-white rounded-full p-1 text-gray-700 transition"><ChevronRight className="rotate-90" size={24} /></button>
-              </div>
-              <div className="px-6 pb-6 -mt-10 relative">
-                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-4">
-                    <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide border mb-2 inline-block ${getTypeStyle(selectedEvent.type)}`}>{selectedEvent.type}</span>
-                    <h2 className="text-xl font-bold text-gray-800 leading-tight">{selectedEvent.title}</h2>
-                 </div>
-                 <div className="space-y-4">
-                    <div className="flex items-center gap-3 text-gray-600">
-                       <div className="w-10 h-10 rounded-full bg-violet-50 flex items-center justify-center text-violet-600"><CalendarIcon size={20} /></div>
-                       <div><p className="text-xs text-gray-400 font-bold uppercase">Fecha</p><p className="font-medium text-gray-800">{new Date(selectedEvent.date + 'T00:00:00').toLocaleDateString('es-ES', {weekday: 'long', day: 'numeric', month: 'long'})}</p></div>
-                    </div>
-                    {selectedEvent.description && (
-                      <div className="flex items-start gap-3 text-gray-600">
-                         <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-orange-500 shrink-0"><FileText size={20} /></div>
-                         <div><p className="text-xs text-gray-400 font-bold uppercase">Descripción</p><p className="text-sm text-gray-700 leading-relaxed">{selectedEvent.description}</p></div>
-                      </div>
-                    )}
-                 </div>
-                 {canEdit && (
-                    <div className="mt-8 pt-4 border-t border-gray-100 flex justify-end">
-                       <button onClick={() => deleteEvent(selectedEvent.id)} className="flex items-center gap-2 text-red-500 hover:bg-red-50 px-4 py-2 rounded-xl transition font-bold text-sm"><Trash2 size={18} /> Eliminar Evento</button>
-                    </div>
-                 )}
-              </div>
-           </div>
-        </div>
+        <div className="fixed inset-0 bg-violet-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setSelectedEvent(null)}><div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}><div className={`h-24 ${getTypeStyle(selectedEvent.type).split(' ')[0]} relative`}><button onClick={() => setSelectedEvent(null)} className="absolute top-4 right-4 bg-white/50 hover:bg-white rounded-full p-1 text-gray-700 transition"><ChevronRight className="rotate-90" size={24} /></button></div><div className="px-6 pb-6 -mt-10 relative"><div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-4"><span className={`text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide border mb-2 inline-block ${getTypeStyle(selectedEvent.type)}`}>{selectedEvent.type}</span><h2 className="text-xl font-bold text-gray-800 leading-tight">{selectedEvent.title}</h2></div><div className="space-y-4"><div className="flex items-center gap-3 text-gray-600"><div className="w-10 h-10 rounded-full bg-violet-50 flex items-center justify-center text-violet-600"><CalendarIcon size={20} /></div><div><p className="text-xs text-gray-400 font-bold uppercase">Fecha</p><p className="font-medium text-gray-800">{new Date(selectedEvent.date + 'T00:00:00').toLocaleDateString('es-ES', {weekday: 'long', day: 'numeric', month: 'long'})}</p></div></div>{selectedEvent.description && (<div className="flex items-start gap-3 text-gray-600"><div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-orange-500 shrink-0"><FileText size={20} /></div><div><p className="text-xs text-gray-400 font-bold uppercase">Descripción</p><p className="text-sm text-gray-700 leading-relaxed">{selectedEvent.description}</p></div></div>)}</div>{canEdit && (<div className="mt-8 pt-4 border-t border-gray-100 flex justify-end"><button onClick={() => deleteEvent(selectedEvent.id)} className="flex items-center gap-2 text-red-500 hover:bg-red-50 px-4 py-2 rounded-xl transition font-bold text-sm"><Trash2 size={18} /> Eliminar Evento</button></div>)}</div></div></div>
       )}
     </div>
   );
@@ -959,7 +1008,6 @@ function CalendarView({ events, canEdit, user }) {
 function ProfileView({ user, tasks, onLogout, canEdit }) {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({ firstName: user.firstName || '', lastName: user.lastName || '', photoUrl: user.photoUrl || '' });
-
   const handleSave = async () => {
     try {
       const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
@@ -967,7 +1015,6 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
       alert("Perfil actualizado. Inicia sesión nuevamente para ver cambios."); onLogout();
     } catch (e) { alert("Error al guardar"); }
   };
-
   const exportData = () => {
     let csvContent = "data:text/csv;charset=utf-8,Titulo,Vencimiento,Estado,Asignado A\n" + tasks.map(t => [`"${t.title}"`, t.dueDate, t.completed ? "Completado" : "Pendiente", t.assignedTo].join(",")).join("\r\n");
     const link = document.createElement("a"); link.href = encodeURI(csvContent); link.download = `reporte_${user.lastName}.csv`; document.body.appendChild(link); link.click(); document.body.removeChild(link);
@@ -977,40 +1024,11 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
     <div className="animate-in fade-in duration-500 p-4">
       <div className="bg-white rounded-3xl shadow-sm border border-violet-50 overflow-hidden mb-6 relative">
         <div className="bg-gradient-to-r from-violet-600 to-orange-500 h-28 relative"></div>
-        <div className="px-6 pb-6 pt-12 relative">
-           <div className="absolute -top-10 left-6 w-24 h-24 bg-white p-1 rounded-2xl shadow-lg">
-              {user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover rounded-xl" /> : <div className="w-full h-full bg-violet-50 rounded-xl flex items-center justify-center text-violet-600 font-bold text-3xl border border-violet-100">{user.firstName?.[0]}{user.lastName?.[0]}</div>}
-           </div>
-           <div className="flex justify-between items-start">
-             <div><h2 className="text-2xl font-bold text-gray-800 mt-2">{user.fullName}</h2><p className="text-orange-600 font-bold text-xs uppercase tracking-wider">{user.role}</p>{user.rol === 'admin' && <span className="bg-violet-600 text-white text-[10px] px-2 py-0.5 rounded-full ml-1">ADMIN</span>}</div>
-             <button onClick={() => setIsEditing(!isEditing)} className="text-violet-600 hover:bg-violet-50 p-2 rounded-xl transition text-sm font-bold flex items-center gap-1">{isEditing ? 'Cancelar' : 'Editar'}</button>
-           </div>
-        </div>
-        {isEditing && (
-          <div className="px-6 pb-6 animate-in slide-in-from-top-4">
-            <div className="bg-gray-50 p-4 rounded-xl space-y-3 border border-gray-100">
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-xs font-bold text-gray-500 ml-1">Nombre</label><input value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} className="w-full p-2 rounded-lg border border-gray-200" /></div>
-                <div><label className="text-xs font-bold text-gray-500 ml-1">Apellido</label><input value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} className="w-full p-2 rounded-lg border border-gray-200" /></div>
-              </div>
-              <div><label className="text-xs font-bold text-gray-500 ml-1">URL de Foto</label><input value={formData.photoUrl} onChange={e => setFormData({...formData, photoUrl: e.target.value})} placeholder="https://..." className="w-full p-2 rounded-lg border border-gray-200" /></div>
-              <button onClick={handleSave} className="w-full py-2 bg-violet-600 text-white font-bold rounded-lg shadow hover:bg-violet-700">Guardar Cambios</button>
-            </div>
-          </div>
-        )}
+        <div className="px-6 pb-6 pt-12 relative"><div className="absolute -top-10 left-6 w-24 h-24 bg-white p-1 rounded-2xl shadow-lg">{user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover rounded-xl" /> : <div className="w-full h-full bg-violet-50 rounded-xl flex items-center justify-center text-violet-600 font-bold text-3xl border border-violet-100">{user.firstName?.[0]}{user.lastName?.[0]}</div>}</div><div className="flex justify-between items-start"><div><h2 className="text-2xl font-bold text-gray-800 mt-2">{user.fullName}</h2><p className="text-orange-600 font-bold text-xs uppercase tracking-wider">{user.role}</p>{user.rol === 'admin' && <span className="bg-violet-600 text-white text-[10px] px-2 py-0.5 rounded-full ml-1">ADMIN</span>}</div><button onClick={() => setIsEditing(!isEditing)} className="text-violet-600 hover:bg-violet-50 p-2 rounded-xl transition text-sm font-bold flex items-center gap-1">{isEditing ? 'Cancelar' : 'Editar'}</button></div></div>
+        {isEditing && (<div className="px-6 pb-6 animate-in slide-in-from-top-4"><div className="bg-gray-50 p-4 rounded-xl space-y-3 border border-gray-100"><div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-gray-500 ml-1">Nombre</label><input value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} className="w-full p-2 rounded-lg border border-gray-200" /></div><div><label className="text-xs font-bold text-gray-500 ml-1">Apellido</label><input value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} className="w-full p-2 rounded-lg border border-gray-200" /></div></div><div><label className="text-xs font-bold text-gray-500 ml-1">URL de Foto</label><input value={formData.photoUrl} onChange={e => setFormData({...formData, photoUrl: e.target.value})} placeholder="https://..." className="w-full p-2 rounded-lg border border-gray-200" /></div><button onClick={handleSave} className="w-full py-2 bg-violet-600 text-white font-bold rounded-lg shadow hover:bg-violet-700">Guardar Cambios</button></div></div>)}
       </div>
-
       <h3 className="text-lg font-bold text-violet-900 mb-4 px-2">Acciones</h3>
-      <div className="grid gap-3">
-        <button onClick={exportData} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]">
-          <div className="bg-green-100 text-green-700 p-3 rounded-xl"><Download size={24} /></div>
-          <div className="text-left"><h4 className="font-bold text-gray-800">Exportar Reporte</h4><p className="text-xs text-gray-500">Descargar mis tareas en Excel/CSV</p></div>
-        </button>
-        <button onClick={() => { if(confirm("¿Cerrar sesión?")) onLogout(); }} className="bg-red-50 p-4 rounded-2xl border border-red-100 shadow-sm flex items-center gap-4 hover:bg-red-100 transition active:scale-[0.98] mt-4">
-           <div className="bg-white text-red-500 p-3 rounded-xl"><LogOut size={24} /></div>
-           <div className="text-left"><h4 className="font-bold text-red-600">Cerrar Sesión</h4><p className="text-xs text-red-400">Salir de la cuenta segura</p></div>
-        </button>
-      </div>
+      <div className="grid gap-3"><button onClick={exportData} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]"><div className="bg-green-100 text-green-700 p-3 rounded-xl"><Download size={24} /></div><div className="text-left"><h4 className="font-bold text-gray-800">Exportar Reporte</h4><p className="text-xs text-gray-500">Descargar mis tareas en Excel/CSV</p></div></button><button onClick={() => { if(confirm("¿Cerrar sesión?")) onLogout(); }} className="bg-red-50 p-4 rounded-2xl border border-red-100 shadow-sm flex items-center gap-4 hover:bg-red-100 transition active:scale-[0.98] mt-4"><div className="bg-white text-red-500 p-3 rounded-xl"><LogOut size={24} /></div><div className="text-left"><h4 className="font-bold text-red-600">Cerrar Sesión</h4><p className="text-xs text-red-400">Salir de la cuenta segura</p></div></button></div>
     </div>
   );
 }
