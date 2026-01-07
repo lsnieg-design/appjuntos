@@ -791,29 +791,78 @@ function CalendarView({ events, canEdit, user }) {
   );
 }
 
+// --- VISTA PERFIL (CON AUTO-RESIZE PARA QUE NO FALLE NUNCA) ---
 function ProfileView({ user, tasks, onLogout, canEdit }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({ firstName: user.firstName || '', lastName: user.lastName || '', photoUrl: user.photoUrl || '' });
+  const [formData, setFormData] = useState({ 
+    firstName: user.firstName || '', 
+    lastName: user.lastName || '', 
+    photoUrl: user.photoUrl || '' 
+  });
   const [uploading, setUploading] = useState(false);
 
-  const handleFileChange = (e) => {
+  // Función mágica para achicar la imagen
+  const resizeImage = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 300; // Tamaño ideal para avatar
+          const scaleSize = MAX_WIDTH / img.width;
+          canvas.width = MAX_WIDTH;
+          canvas.height = img.height * scaleSize;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          // Convertir a JPEG calidad media (ocupa muy poco)
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 800 * 1024) { alert("⚠️ La imagen es muy pesada (Máx 800KB)."); return; }
+
     setUploading(true);
-    const reader = new FileReader();
-    reader.onloadend = () => { setFormData(prev => ({ ...prev, photoUrl: reader.result })); setUploading(false); };
-    reader.onerror = () => { alert("Error"); setUploading(false); };
-    reader.readAsDataURL(file);
+    try {
+      // Comprimimos la imagen antes de guardarla
+      const resizedImage = await resizeImage(file);
+      setFormData(prev => ({ ...prev, photoUrl: resizedImage }));
+    } catch (err) {
+      alert("Error al procesar la imagen");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSave = async () => {
     try {
       const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-      await updateDoc(userRef, { firstName: formData.firstName, lastName: formData.lastName, fullName: `${formData.firstName} ${formData.lastName}`, photoUrl: formData.photoUrl });
-      alert("¡Perfil actualizado! 📸"); onLogout();
-    } catch (e) { alert("Error al guardar"); }
+      await updateDoc(userRef, { 
+        firstName: formData.firstName, 
+        lastName: formData.lastName, 
+        fullName: `${formData.firstName} ${formData.lastName}`, 
+        photoUrl: formData.photoUrl 
+      });
+      
+      // Actualizamos el localStorage para que se vea el cambio YA sin recargar
+      const updatedProfile = { ...user, ...formData, fullName: `${formData.firstName} ${formData.lastName}` };
+      localStorage.setItem('schoolApp_profile', JSON.stringify(updatedProfile));
+      
+      alert("¡Perfil actualizado! 📸"); 
+      // Opcional: Recargar la página para forzar que el header tome la foto nueva
+      window.location.reload(); 
+    } catch (e) { 
+      console.error(e);
+      alert("Error al guardar. Intenta con otra foto."); 
+    }
   };
+
   const exportData = () => {
     let csvContent = "data:text/csv;charset=utf-8,Titulo,Vencimiento,Estado,Asignado A\n" + tasks.map(t => [`"${t.title}"`, t.dueDate, t.completed ? "Completado" : "Pendiente", t.assignedTo].join(",")).join("\r\n");
     const link = document.createElement("a"); link.href = encodeURI(csvContent); link.download = `reporte_${user.lastName}.csv`; document.body.appendChild(link); link.click(); document.body.removeChild(link);
@@ -835,7 +884,7 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
         {isEditing && (
           <div className="px-6 pb-6 animate-in slide-in-from-top-4">
             <div className="bg-gray-50 p-4 rounded-xl space-y-4 border border-gray-100">
-              <div className="bg-white p-3 rounded-lg border border-dashed border-violet-300 text-center"><p className="text-xs font-bold text-gray-500 mb-2">Cambiar Foto de Perfil</p><label className="cursor-pointer bg-violet-100 text-violet-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-violet-200 transition inline-flex items-center gap-2"><User size={14}/> Elegir archivo...<input type="file" accept="image/*" onChange={handleFileChange} className="hidden" /></label></div>
+              <div className="bg-white p-3 rounded-lg border border-dashed border-violet-300 text-center"><p className="text-xs font-bold text-gray-500 mb-2">Cambiar Foto de Perfil</p><label className="cursor-pointer bg-violet-100 text-violet-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-violet-200 transition inline-flex items-center gap-2"><User size={14}/> Elegir archivo...<input type="file" accept="image/*" onChange={handleFileChange} className="hidden" /></label><p className="text-[10px] text-gray-400 mt-2">Cualquier tamaño (se ajusta solo)</p></div>
               <div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-gray-500 ml-1">Nombre</label><input value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} className="w-full p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-orange-400 outline-none" /></div><div><label className="text-xs font-bold text-gray-500 ml-1">Apellido</label><input value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} className="w-full p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-orange-400 outline-none" /></div></div>
               <button onClick={handleSave} disabled={uploading} className="w-full py-3 bg-violet-600 text-white font-bold rounded-xl shadow hover:bg-violet-700 transition disabled:opacity-50">{uploading ? 'Procesando imagen...' : 'Guardar Cambios'}</button>
             </div>
