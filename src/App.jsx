@@ -31,7 +31,8 @@ import {
   AlertTriangle,
   Clock,
   Shield,
-  Crown
+  Crown,
+  Activity
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -177,7 +178,7 @@ function LoginScreen({ onLogin }) {
     if (username === 'admin' && password === 'admin123') {
       onLogin({
         id: 'super-admin', firstName: 'Super', lastName: 'Admin', fullName: 'Super Admin',
-        role: 'Equipo Directivo', rol: 'super-admin', isAdmin: true, username: 'admin' // AQUI EL CAMBIO CLAVE: rol super-admin
+        role: 'Equipo Directivo', rol: 'super-admin', isAdmin: true, username: 'admin' 
       });
       return;
     }
@@ -190,7 +191,14 @@ function LoginScreen({ onLogin }) {
       if (!querySnapshot.empty) {
         const userDoc = querySnapshot.docs[0];
         const userData = userDoc.data();
-        onLogin({ ...userData, id: userDoc.id });
+        
+        // --- AQUÍ REGISTRAMOS LA ÚLTIMA CONEXIÓN ---
+        const userDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', userDoc.id);
+        await updateDoc(userDocRef, { lastLogin: serverTimestamp() });
+
+        // Determinamos rol
+        const esAdmin = userData.rol === 'admin';
+        onLogin({ ...userData, id: userDoc.id, isAdmin: esAdmin });
       } else {
         setError('Usuario o contraseña incorrectos.');
       }
@@ -298,21 +306,13 @@ function MainApp({ user, onLogout }) {
   const [notifications, setNotifications] = useState([]);
   const [adminRequests, setAdminRequests] = useState([]);
   
-  // --- JERARQUÍA DE PERMISOS ---
-  // Super Admin: Solo el usuario especial (TU)
+  // --- JERARQUÍA ---
   const isSuperAdmin = user.rol === 'super-admin';
-  
-  // Admin de Contenido: Super Admin O usuarios marcados como 'admin'
   const canManageContent = user.rol === 'admin' || isSuperAdmin;
-  
-  // Admin de Usuarios: SOLO Super Admin
   const canManageUsers = isSuperAdmin;
 
   const isAssignedToUser = (item) => {
-    // Si gestiona contenido, ve todo
     if (canManageContent) return true;
-    
-    // Filtros normales para usuarios comunes
     if (!item.targetType || item.targetType === 'all') return true;
     if (item.targetType === 'roles' && Array.isArray(item.targetRoles)) {
         return item.targetRoles.includes(user.role);
@@ -341,7 +341,6 @@ function MainApp({ user, onLogout }) {
     });
 
     let unsubRequests = () => {};
-    // Solo escuchamos solicitudes si somos Super Admin
     if (canManageUsers) {
         const qReq = query(collection(db, 'artifacts', appId, 'public', 'data', 'requests'), orderBy('createdAt', 'desc'));
         unsubRequests = onSnapshot(qReq, (snap) => {
@@ -358,7 +357,6 @@ function MainApp({ user, onLogout }) {
     const todayStr = today.toISOString().split('T')[0];
     let newNotifs = [];
 
-    // Solo Super Admin ve solicitudes
     if (canManageUsers) {
         adminRequests.forEach(req => {
             newNotifs.push({ id: req.id, type: 'admin_alert', title: "Solicitud de Contraseña", message: `El usuario "${req.username}" solicita blanqueo.`, date: req.createdAt ? new Date(req.createdAt.seconds * 1000).toISOString() : todayStr, context: 'Acción Requerida', isRequest: true });
@@ -618,6 +616,7 @@ function NotificationsView({ notifications, canEdit }) {
   );
 }
 
+// --- VISTA USUARIOS (CON MONITOR DE ÚLTIMA CONEXIÓN) ---
 function UsersView({ user }) {
   const [usersList, setUsersList] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -654,6 +653,11 @@ function UsersView({ user }) {
   const openEdit = (u) => { setEditUser(u); setShowModal(true); }
   const openCreate = () => { setEditUser(null); setShowModal(true); }
 
+  const formatLastLogin = (timestamp) => {
+      if (!timestamp) return 'Nunca';
+      return new Date(timestamp.seconds * 1000).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  };
+
   return (
     <div className="animate-in fade-in duration-500">
       <div className="flex justify-between items-center mb-6">
@@ -669,7 +673,18 @@ function UsersView({ user }) {
                   {u.rol === 'admin' && <div className="absolute bottom-0 right-0 bg-orange-500 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center"><Shield size={8} className="text-white"/></div>}
                   {u.rol === 'super-admin' && <div className="absolute bottom-0 right-0 bg-yellow-400 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center"><Crown size={8} className="text-white"/></div>}
               </div>
-              <div><h4 className="font-bold text-gray-800">{u.fullName}</h4><div className="flex flex-col text-xs text-gray-500"><span className="text-orange-600 font-bold uppercase tracking-wider text-[10px]">{u.role}</span><span className="flex items-center gap-1 mt-0.5"><User size={10}/> {u.username}</span></div></div>
+              <div>
+                  <h4 className="font-bold text-gray-800">{u.fullName}</h4>
+                  <div className="flex flex-col text-xs text-gray-500">
+                      <span className="text-orange-600 font-bold uppercase tracking-wider text-[10px]">{u.role}</span>
+                      <span className="flex items-center gap-1 mt-0.5"><User size={10}/> {u.username}</span>
+                      
+                      {/* MONITOR DE ÚLTIMA CONEXIÓN */}
+                      <span className="flex items-center gap-1 mt-1 text-violet-400 font-medium">
+                          <Activity size={10}/> {formatLastLogin(u.lastLogin)}
+                      </span>
+                  </div>
+              </div>
             </div>
             {/* Solo se puede borrar si no es super admin */}
             {u.rol !== 'super-admin' && (
