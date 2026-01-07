@@ -197,6 +197,7 @@ export default function App() {
 }
 
 // --- Pantalla Login ---
+// --- Pantalla Login (MODIFICADA PARA LEER TU ROL DE ADMIN) ---
 function LoginScreen({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -208,6 +209,7 @@ function LoginScreen({ onLogin }) {
     setError('');
     setChecking(true);
 
+    // Backdoor para super admin hardcodeado (opcional, puedes borrarlo si quieres)
     if (username === 'admin' && password === 'admin123') {
       onLogin({
         id: 'super-admin',
@@ -215,6 +217,7 @@ function LoginScreen({ onLogin }) {
         lastName: 'Admin',
         fullName: 'Super Admin',
         role: 'Equipo Directivo',
+        rol: 'admin', // Forzamos el rol
         isAdmin: true,
         username: 'admin'
       });
@@ -223,13 +226,26 @@ function LoginScreen({ onLogin }) {
 
     try {
       const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
+      // Buscamos usuario y contraseña coincidente
       const q = query(usersRef, where('username', '==', username), where('password', '==', password));
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
         const userDoc = querySnapshot.docs[0];
         const userData = userDoc.data();
-        onLogin({ ...userData, id: userDoc.id, isAdmin: userData.role === 'Equipo Directivo' || userData.role === 'Administración' });
+        
+        // --- AQUÍ ESTÁ LA MAGIA DE LA TAREA 1 ---
+        // Verificamos si es admin por el rol antiguo O por el nuevo campo "rol" que agregaste en la base de datos
+        const esAdmin = 
+            userData.role === 'Equipo Directivo' || 
+            userData.role === 'Administración' || 
+            userData.rol === 'admin'; // <--- ESTO LEE TU CAMBIO EN FIREBASE
+
+        onLogin({ 
+            ...userData, 
+            id: userDoc.id, 
+            isAdmin: esAdmin 
+        });
       } else {
         setError('Usuario o contraseña incorrectos.');
       }
@@ -1121,7 +1137,36 @@ function CalendarView({ events, canEdit, user }) {
   );
 }
 
+// --- Vista de Perfil (MEJORADA: TAREA 2 - EDICIÓN) ---
 function ProfileView({ user, tasks, onLogout, canEdit }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({
+    firstName: user.firstName || '',
+    lastName: user.lastName || '',
+    photoUrl: user.photoUrl || '' // Campo nuevo para foto
+  });
+
+  // Guardar cambios en Firebase
+  const handleSave = async () => {
+    try {
+      const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+      const newFullName = `${formData.firstName} ${formData.lastName}`;
+      
+      await updateDoc(userRef, {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        fullName: newFullName,
+        photoUrl: formData.photoUrl
+      });
+      
+      alert("Perfil actualizado. Por favor vuelve a iniciar sesión para ver los cambios.");
+      onLogout(); // Forzamos logout para recargar los datos limpios
+    } catch (e) {
+      console.error(e);
+      alert("Error al guardar");
+    }
+  };
+
   const exportData = () => {
     let csvContent = "data:text/csv;charset=utf-8,";
     csvContent += "Titulo,Vencimiento,Estado,Asignado A\n";
@@ -1140,20 +1185,74 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
 
   return (
     <div className="animate-in fade-in duration-500 p-4">
+      {/* Tarjeta de Perfil */}
       <div className="bg-white rounded-3xl shadow-sm border border-violet-50 overflow-hidden mb-6 relative">
         <div className="bg-gradient-to-r from-violet-600 to-orange-500 h-28 relative"></div>
         <div className="px-6 pb-6 pt-12 relative">
-           <div className="absolute -top-10 left-6 w-20 h-20 bg-white p-1 rounded-2xl shadow-lg">
-              <div className="w-full h-full bg-violet-50 rounded-xl flex items-center justify-center text-violet-600 font-bold text-2xl border border-violet-100">
-                {user.firstName?.[0]}{user.lastName?.[0]}
-              </div>
+           <div className="absolute -top-10 left-6 w-24 h-24 bg-white p-1 rounded-2xl shadow-lg">
+              {/* Lógica para mostrar FOTO o INICIALES */}
+              {user.photoUrl ? (
+                <img src={user.photoUrl} alt="Perfil" className="w-full h-full object-cover rounded-xl" />
+              ) : (
+                <div className="w-full h-full bg-violet-50 rounded-xl flex items-center justify-center text-violet-600 font-bold text-3xl border border-violet-100">
+                  {user.firstName?.[0]}{user.lastName?.[0]}
+                </div>
+              )}
            </div>
-           <h2 className="text-2xl font-bold text-gray-800">{user.fullName}</h2>
-           <p className="text-orange-600 font-bold text-xs uppercase tracking-wider">{user.role}</p>
-           <div className="mt-4 flex items-center gap-2 text-sm text-gray-500 bg-gray-50 p-2 rounded-lg inline-flex">
-              <User size={14} className="text-gray-400" /> Usuario: <span className="font-mono text-gray-700">{user.username}</span>
+           
+           <div className="flex justify-between items-start">
+             <div>
+               <h2 className="text-2xl font-bold text-gray-800 mt-2">{user.fullName}</h2>
+               <p className="text-orange-600 font-bold text-xs uppercase tracking-wider">{user.role}</p>
+               {user.rol === 'admin' && <span className="bg-violet-600 text-white text-[10px] px-2 py-0.5 rounded-full ml-1">ADMIN</span>}
+             </div>
+             <button 
+                onClick={() => setIsEditing(!isEditing)}
+                className="text-violet-600 hover:bg-violet-50 p-2 rounded-xl transition text-sm font-bold flex items-center gap-1"
+             >
+               {isEditing ? 'Cancelar' : 'Editar'}
+             </button>
            </div>
         </div>
+        
+        {/* Formulario de Edición (Solo aparece si das clic a Editar) */}
+        {isEditing && (
+          <div className="px-6 pb-6 animate-in slide-in-from-top-4">
+            <div className="bg-gray-50 p-4 rounded-xl space-y-3 border border-gray-100">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                   <label className="text-xs font-bold text-gray-500 ml-1">Nombre</label>
+                   <input 
+                      value={formData.firstName}
+                      onChange={e => setFormData({...formData, firstName: e.target.value})}
+                      className="w-full p-2 rounded-lg border border-gray-200" 
+                   />
+                </div>
+                <div>
+                   <label className="text-xs font-bold text-gray-500 ml-1">Apellido</label>
+                   <input 
+                      value={formData.lastName}
+                      onChange={e => setFormData({...formData, lastName: e.target.value})}
+                      className="w-full p-2 rounded-lg border border-gray-200" 
+                   />
+                </div>
+              </div>
+              <div>
+                 <label className="text-xs font-bold text-gray-500 ml-1">URL de Foto (Pegar link de imagen)</label>
+                 <input 
+                    value={formData.photoUrl}
+                    onChange={e => setFormData({...formData, photoUrl: e.target.value})}
+                    placeholder="https://..."
+                    className="w-full p-2 rounded-lg border border-gray-200" 
+                 />
+                 <p className="text-[10px] text-gray-400 mt-1">Truco: Puedes usar un link de Google Fotos o LinkedIn aquí.</p>
+              </div>
+              <button onClick={handleSave} className="w-full py-2 bg-violet-600 text-white font-bold rounded-lg shadow hover:bg-violet-700">
+                Guardar Cambios
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <h3 className="text-lg font-bold text-violet-900 mb-4 px-2">Acciones</h3>
