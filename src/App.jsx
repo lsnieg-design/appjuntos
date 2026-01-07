@@ -1005,16 +1005,58 @@ function CalendarView({ events, canEdit, user }) {
   );
 }
 
+// --- VISTA PERFIL (CON SUBIDA DE FOTO DESDE PC/CELU) ---
 function ProfileView({ user, tasks, onLogout, canEdit }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({ firstName: user.firstName || '', lastName: user.lastName || '', photoUrl: user.photoUrl || '' });
+  const [formData, setFormData] = useState({ 
+    firstName: user.firstName || '', 
+    lastName: user.lastName || '', 
+    photoUrl: user.photoUrl || '' 
+  });
+  const [uploading, setUploading] = useState(false);
+
+  // Manejar la selección de archivo
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // 1. Validación de tamaño (Max 800KB para no saturar Firestore)
+    if (file.size > 800 * 1024) {
+      alert("⚠️ La imagen es muy pesada (Máx 800KB). Por favor elige una más pequeña o comprimida.");
+      return;
+    }
+
+    // 2. Convertir imagen a Base64
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFormData(prev => ({ ...prev, photoUrl: reader.result }));
+      setUploading(false);
+    };
+    reader.onerror = () => {
+      alert("Error al leer la imagen");
+      setUploading(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSave = async () => {
     try {
       const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-      await updateDoc(userRef, { firstName: formData.firstName, lastName: formData.lastName, fullName: `${formData.firstName} ${formData.lastName}`, photoUrl: formData.photoUrl });
-      alert("Perfil actualizado. Inicia sesión nuevamente para ver cambios."); onLogout();
-    } catch (e) { alert("Error al guardar"); }
+      await updateDoc(userRef, { 
+        firstName: formData.firstName, 
+        lastName: formData.lastName, 
+        fullName: `${formData.firstName} ${formData.lastName}`, 
+        photoUrl: formData.photoUrl 
+      });
+      alert("¡Perfil actualizado con éxito! 📸"); 
+      onLogout(); // Forzamos logout para refrescar los datos
+    } catch (e) { 
+      console.error(e);
+      alert("Error al guardar cambios"); 
+    }
   };
+
   const exportData = () => {
     let csvContent = "data:text/csv;charset=utf-8,Titulo,Vencimiento,Estado,Asignado A\n" + tasks.map(t => [`"${t.title}"`, t.dueDate, t.completed ? "Completado" : "Pendiente", t.assignedTo].join(",")).join("\r\n");
     const link = document.createElement("a"); link.href = encodeURI(csvContent); link.download = `reporte_${user.lastName}.csv`; document.body.appendChild(link); link.click(); document.body.removeChild(link);
@@ -1024,11 +1066,84 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
     <div className="animate-in fade-in duration-500 p-4">
       <div className="bg-white rounded-3xl shadow-sm border border-violet-50 overflow-hidden mb-6 relative">
         <div className="bg-gradient-to-r from-violet-600 to-orange-500 h-28 relative"></div>
-        <div className="px-6 pb-6 pt-12 relative"><div className="absolute -top-10 left-6 w-24 h-24 bg-white p-1 rounded-2xl shadow-lg">{user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover rounded-xl" /> : <div className="w-full h-full bg-violet-50 rounded-xl flex items-center justify-center text-violet-600 font-bold text-3xl border border-violet-100">{user.firstName?.[0]}{user.lastName?.[0]}</div>}</div><div className="flex justify-between items-start"><div><h2 className="text-2xl font-bold text-gray-800 mt-2">{user.fullName}</h2><p className="text-orange-600 font-bold text-xs uppercase tracking-wider">{user.role}</p>{user.rol === 'admin' && <span className="bg-violet-600 text-white text-[10px] px-2 py-0.5 rounded-full ml-1">ADMIN</span>}</div><button onClick={() => setIsEditing(!isEditing)} className="text-violet-600 hover:bg-violet-50 p-2 rounded-xl transition text-sm font-bold flex items-center gap-1">{isEditing ? 'Cancelar' : 'Editar'}</button></div></div>
-        {isEditing && (<div className="px-6 pb-6 animate-in slide-in-from-top-4"><div className="bg-gray-50 p-4 rounded-xl space-y-3 border border-gray-100"><div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-gray-500 ml-1">Nombre</label><input value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} className="w-full p-2 rounded-lg border border-gray-200" /></div><div><label className="text-xs font-bold text-gray-500 ml-1">Apellido</label><input value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} className="w-full p-2 rounded-lg border border-gray-200" /></div></div><div><label className="text-xs font-bold text-gray-500 ml-1">URL de Foto</label><input value={formData.photoUrl} onChange={e => setFormData({...formData, photoUrl: e.target.value})} placeholder="https://..." className="w-full p-2 rounded-lg border border-gray-200" /></div><button onClick={handleSave} className="w-full py-2 bg-violet-600 text-white font-bold rounded-lg shadow hover:bg-violet-700">Guardar Cambios</button></div></div>)}
+        <div className="px-6 pb-6 pt-12 relative">
+           {/* AVATAR */}
+           <div className="absolute -top-10 left-6 w-24 h-24 bg-white p-1 rounded-2xl shadow-lg group">
+              <div className="w-full h-full rounded-xl overflow-hidden relative border border-violet-100 bg-violet-50 flex items-center justify-center">
+                  {formData.photoUrl ? (
+                    <img src={formData.photoUrl} className="w-full h-full object-cover" alt="Perfil" />
+                  ) : (
+                    <div className="text-violet-600 font-bold text-3xl">
+                      {user.firstName?.[0]}{user.lastName?.[0]}
+                    </div>
+                  )}
+                  
+                  {/* Overlay de carga */}
+                  {uploading && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <RefreshCw className="text-white animate-spin" />
+                    </div>
+                  )}
+              </div>
+           </div>
+
+           <div className="flex justify-between items-start">
+             <div className="pl-2">
+               <h2 className="text-2xl font-bold text-gray-800 mt-2">{user.fullName}</h2>
+               <p className="text-orange-600 font-bold text-xs uppercase tracking-wider">{user.role}</p>
+               {user.rol === 'admin' && <span className="bg-violet-600 text-white text-[10px] px-2 py-0.5 rounded-full mt-1 inline-block">ADMIN</span>}
+             </div>
+             <button onClick={() => setIsEditing(!isEditing)} className="text-violet-600 hover:bg-violet-50 p-2 rounded-xl transition text-sm font-bold flex items-center gap-1">
+               {isEditing ? 'Cancelar' : 'Editar'}
+             </button>
+           </div>
+        </div>
+        
+        {/* FORMULARIO DE EDICIÓN */}
+        {isEditing && (
+          <div className="px-6 pb-6 animate-in slide-in-from-top-4">
+            <div className="bg-gray-50 p-4 rounded-xl space-y-4 border border-gray-100">
+              
+              {/* CAMBIAR FOTO */}
+              <div className="bg-white p-3 rounded-lg border border-dashed border-violet-300 text-center">
+                  <p className="text-xs font-bold text-gray-500 mb-2">Cambiar Foto de Perfil</p>
+                  <label className="cursor-pointer bg-violet-100 text-violet-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-violet-200 transition inline-flex items-center gap-2">
+                      <User size={14}/> Elegir archivo...
+                      <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                  </label>
+                  <p className="text-[10px] text-gray-400 mt-2">Máx 800KB. Formatos: JPG, PNG.</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                   <label className="text-xs font-bold text-gray-500 ml-1">Nombre</label>
+                   <input value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} className="w-full p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-orange-400 outline-none" />
+                </div>
+                <div>
+                   <label className="text-xs font-bold text-gray-500 ml-1">Apellido</label>
+                   <input value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} className="w-full p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-orange-400 outline-none" />
+                </div>
+              </div>
+
+              <button onClick={handleSave} disabled={uploading} className="w-full py-3 bg-violet-600 text-white font-bold rounded-xl shadow hover:bg-violet-700 transition disabled:opacity-50">
+                {uploading ? 'Procesando imagen...' : 'Guardar Cambios'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
       <h3 className="text-lg font-bold text-violet-900 mb-4 px-2">Acciones</h3>
-      <div className="grid gap-3"><button onClick={exportData} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]"><div className="bg-green-100 text-green-700 p-3 rounded-xl"><Download size={24} /></div><div className="text-left"><h4 className="font-bold text-gray-800">Exportar Reporte</h4><p className="text-xs text-gray-500">Descargar mis tareas en Excel/CSV</p></div></button><button onClick={() => { if(confirm("¿Cerrar sesión?")) onLogout(); }} className="bg-red-50 p-4 rounded-2xl border border-red-100 shadow-sm flex items-center gap-4 hover:bg-red-100 transition active:scale-[0.98] mt-4"><div className="bg-white text-red-500 p-3 rounded-xl"><LogOut size={24} /></div><div className="text-left"><h4 className="font-bold text-red-600">Cerrar Sesión</h4><p className="text-xs text-red-400">Salir de la cuenta segura</p></div></button></div>
+      <div className="grid gap-3">
+        <button onClick={exportData} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]">
+          <div className="bg-green-100 text-green-700 p-3 rounded-xl"><Download size={24} /></div>
+          <div className="text-left"><h4 className="font-bold text-gray-800">Exportar Reporte</h4><p className="text-xs text-gray-500">Descargar mis tareas en Excel/CSV</p></div>
+        </button>
+        <button onClick={() => { if(confirm("¿Cerrar sesión?")) onLogout(); }} className="bg-red-50 p-4 rounded-2xl border border-red-100 shadow-sm flex items-center gap-4 hover:bg-red-100 transition active:scale-[0.98] mt-4">
+           <div className="bg-white text-red-500 p-3 rounded-xl"><LogOut size={24} /></div>
+           <div className="text-left"><h4 className="font-bold text-red-600">Cerrar Sesión</h4><p className="text-xs text-red-400">Salir de la cuenta segura</p></div>
+        </button>
+      </div>
     </div>
   );
 }
