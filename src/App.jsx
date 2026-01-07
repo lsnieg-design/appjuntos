@@ -324,7 +324,8 @@ function MainApp({ user, onLogout }) {
   const [events, setEvents] = useState([]);
   const [notifications, setNotifications] = useState([]);
   
-  const canEdit = user.role === 'Equipo Directivo' || user.role === 'Administración';
+  // Modificamos canEdit para aceptar también si user.rol es 'admin' o si user.isAdmin es true
+  const canEdit = user.isAdmin === true || user.rol === 'admin' || user.role === 'Equipo Directivo' || user.role === 'Administración';
 
   const isAssignedToUser = (item) => {
     if (!item.targetType || item.targetType === 'all') return true;
@@ -1287,3 +1288,4 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
     </div>
   );
 }
+
