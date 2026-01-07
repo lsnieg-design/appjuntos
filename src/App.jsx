@@ -21,7 +21,9 @@ import {
   Bell, 
   Check,
   HelpCircle,
-  Mail
+  Mail,
+  Send,
+  Key
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -90,7 +92,6 @@ const calculateDaysLeft = (dateString) => {
 
 const formatDate = (dateString) => {
   if (!dateString) return '';
-  // Fix para zonas horarias simples
   const date = new Date(dateString + 'T00:00:00');
   return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
@@ -150,13 +151,17 @@ export default function App() {
   return <MainApp user={currentUserProfile} onLogout={handleLogout} />;
 }
 
-// --- Pantalla Login ---
+// --- Pantalla Login (ACTUALIZADA CON SOLICITUD DE CLAVE) ---
 function LoginScreen({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [checking, setChecking] = useState(false);
   const [showRecover, setShowRecover] = useState(false);
+  
+  // Estados para recuperación
+  const [recoverUser, setRecoverUser] = useState('');
+  const [recoverStatus, setRecoverStatus] = useState('idle'); // idle, sending, sent, error
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -189,6 +194,36 @@ function LoginScreen({ onLogin }) {
       setError('Error de conexión.');
     } finally {
       setChecking(false);
+    }
+  };
+
+  const handleRequestReset = async (e) => {
+    e.preventDefault();
+    if(!recoverUser.trim()) return;
+    setRecoverStatus('sending');
+    try {
+        // 1. Verificamos si el usuario existe para no llenar la base de spam
+        const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
+        const q = query(usersRef, where('username', '==', recoverUser));
+        const snapshot = await getDocs(q);
+
+        if (snapshot.empty) {
+            setRecoverStatus('error');
+            setTimeout(() => setRecoverStatus('idle'), 3000);
+            return;
+        }
+
+        // 2. Creamos la solicitud
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'requests'), {
+            type: 'password_reset',
+            username: recoverUser,
+            status: 'pending',
+            createdAt: serverTimestamp()
+        });
+        setRecoverStatus('sent');
+    } catch (error) {
+        console.error(error);
+        setRecoverStatus('error');
     }
   };
 
@@ -236,16 +271,33 @@ function LoginScreen({ onLogin }) {
         ) : (
           <div className="animate-in fade-in slide-in-from-right">
              <div className="bg-violet-50 p-6 rounded-2xl text-center mb-6 border border-violet-100">
-                <HelpCircle className="mx-auto text-violet-500 mb-2" size={40} />
-                <h3 className="font-bold text-violet-900 text-lg mb-2">Recuperar Acceso</h3>
+                <Key className="mx-auto text-violet-500 mb-2" size={40} />
+                <h3 className="font-bold text-violet-900 text-lg mb-2">Solicitar Blanqueo</h3>
                 <p className="text-sm text-gray-600 mb-4">
-                    Por seguridad, las contraseñas solo pueden ser restablecidas por la administración del colegio.
+                   Ingresa tu nombre de usuario. La administración recibirá una notificación para restablecer tu clave.
                 </p>
-                <a href="mailto:administracion@colegio.edu.ar?subject=Recuperar%20Clave%20Portal" className="flex items-center justify-center gap-2 w-full bg-white border border-violet-200 text-violet-700 py-3 rounded-xl font-bold hover:bg-violet-100 transition shadow-sm">
-                    <Mail size={18} /> Enviar Correo a Administración
-                </a>
+                
+                {recoverStatus === 'sent' ? (
+                    <div className="bg-green-100 text-green-700 p-3 rounded-xl mb-4 text-sm font-bold flex items-center justify-center gap-2">
+                        <CheckCircle size={18} /> ¡Solicitud Enviada!
+                    </div>
+                ) : (
+                    <form onSubmit={handleRequestReset} className="mb-4">
+                        <input 
+                            className="w-full p-3 bg-white border border-violet-200 rounded-xl mb-3 text-center focus:ring-2 focus:ring-orange-400 outline-none" 
+                            placeholder="Tu Usuario (Ej: jlopez)"
+                            value={recoverUser}
+                            onChange={(e) => setRecoverUser(e.target.value)}
+                            required
+                        />
+                        <button type="submit" disabled={recoverStatus === 'sending'} className="w-full bg-orange-500 text-white py-3 rounded-xl font-bold hover:bg-orange-600 transition flex items-center justify-center gap-2">
+                            {recoverStatus === 'sending' ? <RefreshCw className="animate-spin" size={18} /> : <><Send size={18} /> Enviar Solicitud</>}
+                        </button>
+                        {recoverStatus === 'error' && <p className="text-xs text-red-500 mt-2 font-bold">Usuario no encontrado o error de red.</p>}
+                    </form>
+                )}
              </div>
-             <button onClick={() => setShowRecover(false)} className="w-full text-gray-500 font-bold py-3 hover:text-gray-700 transition">
+             <button onClick={() => {setShowRecover(false); setRecoverStatus('idle'); setRecoverUser('');}} className="w-full text-gray-500 font-bold py-3 hover:text-gray-700 transition">
                  Volver al inicio
              </button>
           </div>
@@ -255,12 +307,13 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-// --- App Principal ---
+// --- App Principal (CON LISTENER DE SOLICITUDES) ---
 function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('tasks');
   const [tasks, setTasks] = useState([]);
   const [events, setEvents] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [adminRequests, setAdminRequests] = useState([]); // Nuevo estado para solicitudes
   
   const canEdit = user.isAdmin === true || user.rol === 'admin' || user.role === 'Equipo Directivo' || user.role === 'Administración';
 
@@ -272,36 +325,56 @@ function MainApp({ user, onLogout }) {
   };
 
   useEffect(() => {
+    // 1. Tareas
     const qTasks = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('dueDate', 'asc'));
     const unsubTasks = onSnapshot(qTasks, (snapshot) => {
       const allTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setTasks(canEdit ? allTasks : allTasks.filter(isAssignedToUser));
     });
 
+    // 2. Eventos
     const qEvents = query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc'));
     const unsubEvents = onSnapshot(qEvents, (snap) => {
       const allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setEvents(allEvents);
     });
 
-    return () => { unsubTasks(); unsubEvents(); };
+    // 3. Solicitudes de Admin (Solo si es admin)
+    let unsubRequests = () => {};
+    if (canEdit) {
+        const qReq = query(collection(db, 'artifacts', appId, 'public', 'data', 'requests'), orderBy('createdAt', 'desc'));
+        unsubRequests = onSnapshot(qReq, (snap) => {
+            const reqs = snap.docs.map(d => ({ id: d.id, ...d.data(), isRequest: true }));
+            setAdminRequests(reqs);
+        });
+    }
+
+    return () => { unsubTasks(); unsubEvents(); unsubRequests(); };
   }, [user, canEdit]);
 
-  // Notificaciones
+  // Mezclador de Notificaciones
   useEffect(() => {
     const today = new Date();
     today.setHours(0,0,0,0);
     const todayStr = today.toISOString().split('T')[0];
     let newNotifs = [];
 
-    if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
+    // A. Solicitudes de Contraseña (Admin)
+    if (canEdit) {
+        adminRequests.forEach(req => {
+            newNotifs.push({
+                id: req.id,
+                type: 'admin_alert',
+                title: "Solicitud de Contraseña",
+                message: `El usuario "${req.username}" solicita blanqueo de clave.`,
+                date: req.createdAt ? new Date(req.createdAt.seconds * 1000).toISOString() : todayStr,
+                context: 'Acción Requerida',
+                isRequest: true // Flag para mostrar botón de borrar
+            });
+        });
+    }
 
-    const triggerSystemNotification = (title, body) => {
-      if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
-         new Notification(title, { body });
-      }
-    };
-
+    // B. Notificaciones Automáticas (Fechas)
     tasks.forEach(task => {
       if (!canEdit && !isAssignedToUser(task)) return;
       if (task.notificationDate && task.notificationDate <= todayStr && task.notificationMessage) {
@@ -309,9 +382,7 @@ function MainApp({ user, onLogout }) {
       }
       if (task.lastReminder) {
         const reminderDate = new Date(task.lastReminder.seconds * 1000);
-        const isToday = reminderDate.toISOString().split('T')[0] === todayStr;
         newNotifs.push({ id: `task-remind-${task.id}-${task.lastReminder.seconds}`, type: 'reminder', title: "¡Recordatorio!", message: `Se recuerda completar: "${task.title}"`, date: reminderDate.toISOString().split('T')[0], context: 'Urgente' });
-        if (isToday) triggerSystemNotification("Recordatorio Escolar", `Pendiente: ${task.title}`);
       }
     });
 
@@ -321,15 +392,21 @@ function MainApp({ user, onLogout }) {
        }
     });
 
-    newNotifs.sort((a, b) => new Date(b.date) - new Date(a.date));
+    // Ordenar: Primero las solicitudes urgentes, luego por fecha
+    newNotifs.sort((a, b) => {
+        if (a.type === 'admin_alert') return -1;
+        if (b.type === 'admin_alert') return 1;
+        return new Date(b.date) - new Date(a.date);
+    });
+    
     setNotifications(newNotifs);
-  }, [tasks, events, canEdit, user]);
+  }, [tasks, events, canEdit, user, adminRequests]);
 
   const renderContent = () => {
     switch (activeTab) {
       case 'calendar': return <CalendarView events={events} canEdit={canEdit} user={user} />;
       case 'tasks': return <TasksView tasks={tasks} user={user} canEdit={canEdit} />;
-      case 'notifications': return <NotificationsView notifications={notifications} />;
+      case 'notifications': return <NotificationsView notifications={notifications} canEdit={canEdit} />;
       case 'users': return <UsersView user={user} />;
       case 'profile': return <ProfileView user={user} tasks={tasks} onLogout={onLogout} canEdit={canEdit} />;
       default: return <TasksView tasks={tasks} user={user} canEdit={canEdit} />;
@@ -388,7 +465,13 @@ function NavButton({ active, onClick, icon, label, badge }) {
 }
 
 // --- VISTAS ---
-function NotificationsView({ notifications }) {
+function NotificationsView({ notifications, canEdit }) {
+  const deleteRequest = async (id) => {
+    if(confirm('¿Has resuelto esta solicitud? Se borrará de la lista.')) {
+        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'requests', id));
+    }
+  };
+
   return (
     <div className="animate-in fade-in duration-500">
       <h2 className="text-2xl font-bold text-violet-900 mb-6">Avisos</h2>
@@ -397,14 +480,25 @@ function NotificationsView({ notifications }) {
            <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200"><Bell size={48} className="mx-auto mb-4 text-violet-100" /><p className="text-gray-500">No tienes notificaciones nuevas.</p></div>
         ) : (
           notifications.map(notif => (
-            <div key={notif.id} className={`p-4 rounded-2xl border-l-4 shadow-sm bg-white relative ${notif.type === 'reminder' ? 'border-red-500 bg-red-50/50' : notif.type === 'scheduled' ? 'border-orange-500' : 'border-violet-500'}`}>
+            <div key={notif.id} className={`p-4 rounded-2xl border-l-4 shadow-sm bg-white relative ${notif.type === 'admin_alert' ? 'border-red-600 bg-red-50' : notif.type === 'reminder' ? 'border-orange-500 bg-orange-50/50' : 'border-violet-500'}`}>
                <div className="flex justify-between items-start mb-1">
-                 <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${notif.type === 'reminder' ? 'bg-red-100 text-red-600' : 'bg-violet-100 text-violet-600'}`}>{notif.type === 'reminder' ? 'Urgente' : 'Aviso'}</span>
+                 <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${notif.type === 'admin_alert' ? 'bg-red-600 text-white animate-pulse' : notif.type === 'reminder' ? 'bg-orange-100 text-orange-600' : 'bg-violet-100 text-violet-600'}`}>
+                    {notif.type === 'admin_alert' ? 'SOLICITUD' : notif.type === 'reminder' ? 'Urgente' : 'Aviso'}
+                 </span>
                  <span className="text-xs text-gray-400">{formatDate(notif.date)}</span>
                </div>
                <h3 className="font-bold text-gray-800">{notif.title}</h3>
                <p className="text-sm text-gray-600 mt-1">{notif.message}</p>
-               {notif.context && <div className="mt-2 text-xs font-medium text-gray-400 border-t border-gray-100 pt-1">Ref: {notif.context}</div>}
+               {notif.context && <div className="mt-2 text-xs font-medium text-gray-400 border-t border-gray-200 pt-1">Ref: {notif.context}</div>}
+               
+               {/* BOTÓN PARA BORRAR SOLICITUDES DE CLAVE */}
+               {notif.isRequest && canEdit && (
+                   <div className="mt-3 flex justify-end">
+                       <button onClick={() => deleteRequest(notif.id)} className="flex items-center gap-1 text-xs font-bold text-red-500 bg-white border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition shadow-sm">
+                           <Check size={14} /> Marcar como Resuelto
+                       </button>
+                   </div>
+               )}
             </div>
           ))
         )}
@@ -583,6 +677,7 @@ function TasksView({ tasks, user, canEdit }) {
 function UsersView({ user }) {
   const [usersList, setUsersList] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [editUser, setEditUser] = useState(null); // Nuevo estado para editar
 
   useEffect(() => {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
@@ -590,7 +685,7 @@ function UsersView({ user }) {
     return () => unsub();
   }, []);
 
-  const createUser = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const firstName = e.target.firstName.value;
     const lastName = e.target.lastName.value;
@@ -598,8 +693,17 @@ function UsersView({ user }) {
     const password = e.target.password.value;
     const role = e.target.role.value;
     const fullName = `${firstName} ${lastName}`;
-    if (usersList.some(u => u.username === username)) { alert("Usuario existente."); return; }
-    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), { firstName, lastName, fullName, username, password, role, createdAt: serverTimestamp() });
+
+    if (editUser) {
+        // Editar
+        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', editUser.id);
+        await updateDoc(userRef, { firstName, lastName, fullName, username, password, role });
+        setEditUser(null);
+    } else {
+        // Crear
+        if (usersList.some(u => u.username === username)) { alert("Usuario existente."); return; }
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), { firstName, lastName, fullName, username, password, role, createdAt: serverTimestamp() });
+    }
     setShowModal(false);
   };
 
@@ -607,16 +711,26 @@ function UsersView({ user }) {
     if (confirm("¿Eliminar usuario?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id));
   };
 
+  const openEdit = (u) => {
+      setEditUser(u);
+      setShowModal(true);
+  }
+
+  const openCreate = () => {
+      setEditUser(null);
+      setShowModal(true);
+  }
+
   return (
     <div className="animate-in fade-in duration-500">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-violet-900">Personal</h2>
-        <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:bg-orange-600 transition active:scale-95"><Plus size={24} /></button>
+        <button onClick={openCreate} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:bg-orange-600 transition active:scale-95"><Plus size={24} /></button>
       </div>
 
       <div className="grid gap-3">
         {usersList.map(u => (
-          <div key={u.id} className="bg-white p-4 rounded-2xl shadow-sm border border-violet-50 flex justify-between items-center group">
+          <div key={u.id} className="bg-white p-4 rounded-2xl shadow-sm border border-violet-50 flex justify-between items-center group cursor-pointer hover:shadow-md transition" onClick={() => openEdit(u)}>
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center font-bold text-lg overflow-hidden">
                 {u.photoUrl ? <img src={u.photoUrl} className="w-full h-full object-cover" /> : `${u.firstName?.[0]}${u.lastName?.[0]}`}
@@ -629,7 +743,7 @@ function UsersView({ user }) {
                 </div>
               </div>
             </div>
-            <button onClick={() => deleteUser(u.id)} className="text-gray-300 hover:text-red-500 p-2 bg-gray-50 rounded-full hover:bg-red-50 transition"><Trash2 size={18} /></button>
+            <button onClick={(e) => {e.stopPropagation(); deleteUser(u.id)}} className="text-gray-300 hover:text-red-500 p-2 bg-gray-50 rounded-full hover:bg-red-50 transition"><Trash2 size={18} /></button>
           </div>
         ))}
       </div>
@@ -637,23 +751,23 @@ function UsersView({ user }) {
       {showModal && (
         <div className="fixed inset-0 bg-violet-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-bold mb-6 text-violet-900">Alta de Usuario</h3>
-            <form onSubmit={createUser} className="space-y-4">
+            <h3 className="text-xl font-bold mb-6 text-violet-900">{editUser ? 'Editar Usuario' : 'Alta de Usuario'}</h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
-                <input name="firstName" required className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Nombre" />
-                <input name="lastName" required className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Apellido" />
+                <input name="firstName" defaultValue={editUser?.firstName} required className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Nombre" />
+                <input name="lastName" defaultValue={editUser?.lastName} required className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Apellido" />
               </div>
-              <select name="role" className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400 text-gray-700">
+              <select name="role" defaultValue={editUser?.role || ROLES[0]} className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400 text-gray-700">
                 {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
               <div className="p-4 bg-orange-50 rounded-xl space-y-3">
                 <p className="text-xs text-orange-600 font-bold uppercase">Credenciales</p>
-                <input name="username" required className="w-full p-2 bg-white rounded-lg border border-orange-200" placeholder="Usuario" />
-                <input name="password" required className="w-full p-2 bg-white rounded-lg border border-orange-200" placeholder="Contraseña" />
+                <input name="username" defaultValue={editUser?.username} required className="w-full p-2 bg-white rounded-lg border border-orange-200" placeholder="Usuario" />
+                <input name="password" defaultValue={editUser?.password} required className="w-full p-2 bg-white rounded-lg border border-orange-200" placeholder="Contraseña" />
               </div>
               <div className="flex gap-3 mt-6">
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button>
-                <button type="submit" className="flex-1 py-3 bg-violet-800 text-white font-bold rounded-xl shadow-lg">Crear</button>
+                <button type="submit" className="flex-1 py-3 bg-violet-800 text-white font-bold rounded-xl shadow-lg">{editUser ? 'Guardar Cambios' : 'Crear'}</button>
               </div>
             </form>
           </div>
