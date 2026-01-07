@@ -23,7 +23,9 @@ import {
   HelpCircle,
   Mail,
   Send,
-  Key
+  Key,
+  Filter,
+  X
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -151,7 +153,7 @@ export default function App() {
   return <MainApp user={currentUserProfile} onLogout={handleLogout} />;
 }
 
-// --- Pantalla Login (ACTUALIZADA CON SOLICITUD DE CLAVE) ---
+// --- Pantalla Login ---
 function LoginScreen({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -159,9 +161,8 @@ function LoginScreen({ onLogin }) {
   const [checking, setChecking] = useState(false);
   const [showRecover, setShowRecover] = useState(false);
   
-  // Estados para recuperación
   const [recoverUser, setRecoverUser] = useState('');
-  const [recoverStatus, setRecoverStatus] = useState('idle'); // idle, sending, sent, error
+  const [recoverStatus, setRecoverStatus] = useState('idle'); 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -202,7 +203,6 @@ function LoginScreen({ onLogin }) {
     if(!recoverUser.trim()) return;
     setRecoverStatus('sending');
     try {
-        // 1. Verificamos si el usuario existe para no llenar la base de spam
         const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
         const q = query(usersRef, where('username', '==', recoverUser));
         const snapshot = await getDocs(q);
@@ -213,7 +213,6 @@ function LoginScreen({ onLogin }) {
             return;
         }
 
-        // 2. Creamos la solicitud
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'requests'), {
             type: 'password_reset',
             username: recoverUser,
@@ -255,15 +254,12 @@ function LoginScreen({ onLogin }) {
                 <input type="password" required className="w-full pl-10 pr-4 py-3 bg-violet-50 border border-violet-100 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
               </div>
             </div>
-            
             <div className="flex justify-end">
                 <button type="button" onClick={() => setShowRecover(true)} className="text-xs font-bold text-violet-600 hover:text-orange-500 transition">
                     ¿Olvidaste tu contraseña?
                 </button>
             </div>
-
             {error && <div className="bg-red-50 text-red-600 text-sm p-4 rounded-xl flex items-center gap-3 border border-red-100 animate-pulse"><AlertCircle size={20} /> {error}</div>}
-
             <button type="submit" disabled={checking} className="w-full bg-gradient-to-r from-violet-600 to-violet-800 text-white py-4 rounded-xl font-bold text-lg hover:from-orange-500 hover:to-orange-600 transition duration-300 shadow-xl disabled:opacity-70 flex justify-center items-center">
               {checking ? <RefreshCw className="animate-spin" /> : 'Ingresar al Portal'}
             </button>
@@ -273,23 +269,14 @@ function LoginScreen({ onLogin }) {
              <div className="bg-violet-50 p-6 rounded-2xl text-center mb-6 border border-violet-100">
                 <Key className="mx-auto text-violet-500 mb-2" size={40} />
                 <h3 className="font-bold text-violet-900 text-lg mb-2">Solicitar Blanqueo</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                   Ingresa tu nombre de usuario. La administración recibirá una notificación para restablecer tu clave.
-                </p>
-                
+                <p className="text-sm text-gray-600 mb-4">Ingresa tu nombre de usuario. La administración recibirá una notificación para restablecer tu clave.</p>
                 {recoverStatus === 'sent' ? (
                     <div className="bg-green-100 text-green-700 p-3 rounded-xl mb-4 text-sm font-bold flex items-center justify-center gap-2">
                         <CheckCircle size={18} /> ¡Solicitud Enviada!
                     </div>
                 ) : (
                     <form onSubmit={handleRequestReset} className="mb-4">
-                        <input 
-                            className="w-full p-3 bg-white border border-violet-200 rounded-xl mb-3 text-center focus:ring-2 focus:ring-orange-400 outline-none" 
-                            placeholder="Tu Usuario (Ej: jlopez)"
-                            value={recoverUser}
-                            onChange={(e) => setRecoverUser(e.target.value)}
-                            required
-                        />
+                        <input className="w-full p-3 bg-white border border-violet-200 rounded-xl mb-3 text-center focus:ring-2 focus:ring-orange-400 outline-none" placeholder="Tu Usuario (Ej: jlopez)" value={recoverUser} onChange={(e) => setRecoverUser(e.target.value)} required />
                         <button type="submit" disabled={recoverStatus === 'sending'} className="w-full bg-orange-500 text-white py-3 rounded-xl font-bold hover:bg-orange-600 transition flex items-center justify-center gap-2">
                             {recoverStatus === 'sending' ? <RefreshCw className="animate-spin" size={18} /> : <><Send size={18} /> Enviar Solicitud</>}
                         </button>
@@ -297,9 +284,7 @@ function LoginScreen({ onLogin }) {
                     </form>
                 )}
              </div>
-             <button onClick={() => {setShowRecover(false); setRecoverStatus('idle'); setRecoverUser('');}} className="w-full text-gray-500 font-bold py-3 hover:text-gray-700 transition">
-                 Volver al inicio
-             </button>
+             <button onClick={() => {setShowRecover(false); setRecoverStatus('idle'); setRecoverUser('');}} className="w-full text-gray-500 font-bold py-3 hover:text-gray-700 transition">Volver al inicio</button>
           </div>
         )}
       </div>
@@ -307,13 +292,13 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-// --- App Principal (CON LISTENER DE SOLICITUDES) ---
+// --- App Principal ---
 function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('tasks');
   const [tasks, setTasks] = useState([]);
   const [events, setEvents] = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [adminRequests, setAdminRequests] = useState([]); // Nuevo estado para solicitudes
+  const [adminRequests, setAdminRequests] = useState([]);
   
   const canEdit = user.isAdmin === true || user.rol === 'admin' || user.role === 'Equipo Directivo' || user.role === 'Administración';
 
@@ -325,21 +310,18 @@ function MainApp({ user, onLogout }) {
   };
 
   useEffect(() => {
-    // 1. Tareas
     const qTasks = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('dueDate', 'asc'));
     const unsubTasks = onSnapshot(qTasks, (snapshot) => {
       const allTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setTasks(canEdit ? allTasks : allTasks.filter(isAssignedToUser));
     });
 
-    // 2. Eventos
     const qEvents = query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc'));
     const unsubEvents = onSnapshot(qEvents, (snap) => {
       const allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setEvents(allEvents);
     });
 
-    // 3. Solicitudes de Admin (Solo si es admin)
     let unsubRequests = () => {};
     if (canEdit) {
         const qReq = query(collection(db, 'artifacts', appId, 'public', 'data', 'requests'), orderBy('createdAt', 'desc'));
@@ -352,29 +334,18 @@ function MainApp({ user, onLogout }) {
     return () => { unsubTasks(); unsubEvents(); unsubRequests(); };
   }, [user, canEdit]);
 
-  // Mezclador de Notificaciones
   useEffect(() => {
     const today = new Date();
     today.setHours(0,0,0,0);
     const todayStr = today.toISOString().split('T')[0];
     let newNotifs = [];
 
-    // A. Solicitudes de Contraseña (Admin)
     if (canEdit) {
         adminRequests.forEach(req => {
-            newNotifs.push({
-                id: req.id,
-                type: 'admin_alert',
-                title: "Solicitud de Contraseña",
-                message: `El usuario "${req.username}" solicita blanqueo de clave.`,
-                date: req.createdAt ? new Date(req.createdAt.seconds * 1000).toISOString() : todayStr,
-                context: 'Acción Requerida',
-                isRequest: true // Flag para mostrar botón de borrar
-            });
+            newNotifs.push({ id: req.id, type: 'admin_alert', title: "Solicitud de Contraseña", message: `El usuario "${req.username}" solicita blanqueo de clave.`, date: req.createdAt ? new Date(req.createdAt.seconds * 1000).toISOString() : todayStr, context: 'Acción Requerida', isRequest: true });
         });
     }
 
-    // B. Notificaciones Automáticas (Fechas)
     tasks.forEach(task => {
       if (!canEdit && !isAssignedToUser(task)) return;
       if (task.notificationDate && task.notificationDate <= todayStr && task.notificationMessage) {
@@ -392,13 +363,11 @@ function MainApp({ user, onLogout }) {
        }
     });
 
-    // Ordenar: Primero las solicitudes urgentes, luego por fecha
     newNotifs.sort((a, b) => {
         if (a.type === 'admin_alert') return -1;
         if (b.type === 'admin_alert') return 1;
         return new Date(b.date) - new Date(a.date);
     });
-    
     setNotifications(newNotifs);
   }, [tasks, events, canEdit, user, adminRequests]);
 
@@ -434,11 +403,9 @@ function MainApp({ user, onLogout }) {
           </div>
         </div>
       </header>
-
       <main className="flex-1 overflow-y-auto pb-24 px-4 pt-6 max-w-4xl mx-auto w-full">
         {renderContent()}
       </main>
-
       <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 pb-safe shadow-[0_-10px_20px_rgba(109,40,217,0.05)] z-30">
         <div className="flex justify-around items-center h-20 max-w-4xl mx-auto px-2">
           <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={24} />} label="Tareas" badge={tasks.filter(t => !t.completed).length} />
@@ -490,8 +457,6 @@ function NotificationsView({ notifications, canEdit }) {
                <h3 className="font-bold text-gray-800">{notif.title}</h3>
                <p className="text-sm text-gray-600 mt-1">{notif.message}</p>
                {notif.context && <div className="mt-2 text-xs font-medium text-gray-400 border-t border-gray-200 pt-1">Ref: {notif.context}</div>}
-               
-               {/* BOTÓN PARA BORRAR SOLICITUDES DE CLAVE */}
                {notif.isRequest && canEdit && (
                    <div className="mt-3 flex justify-end">
                        <button onClick={() => deleteRequest(notif.id)} className="flex items-center gap-1 text-xs font-bold text-red-500 bg-white border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition shadow-sm">
@@ -516,6 +481,9 @@ function TasksView({ tasks, user, canEdit }) {
   const [notifDate, setNotifDate] = useState('');
   const [notifMsg, setNotifMsg] = useState('');
   const [usersList, setUsersList] = useState([]);
+  
+  // --- FILTROS NUEVOS ---
+  const [filterRole, setFilterRole] = useState('all');
 
   useEffect(() => {
     if (canEdit && showModal) {
@@ -565,20 +533,41 @@ function TasksView({ tasks, user, canEdit }) {
     alert("Recordatorio enviado.");
   };
 
+  // Lógica de Filtrado
+  const filteredTasks = tasks.filter(t => {
+      if (filterRole === 'all') return true;
+      if (t.targetType === 'all') return true; // Tareas para todos siempre se ven
+      if (t.targetType === 'roles' && t.targetRoles?.includes(filterRole)) return true;
+      return false;
+  });
+
   return (
     <div className="animate-in fade-in duration-500">
       <div className="bg-gradient-to-r from-violet-700 to-violet-900 p-6 rounded-3xl shadow-lg text-white mb-8 relative overflow-hidden">
         <div className="relative z-10 flex justify-between items-center">
-          <div><h2 className="text-3xl font-bold">Tareas</h2><p className="text-violet-200 mt-1">Tienes <span className="font-bold text-white text-lg">{tasks.filter(t => !t.completed).length}</span> pendientes.</p></div>
+          <div><h2 className="text-3xl font-bold">Tareas</h2><p className="text-violet-200 mt-1">Tienes <span className="font-bold text-white text-lg">{filteredTasks.filter(t => !t.completed).length}</span> pendientes.</p></div>
           {canEdit && <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:bg-orange-600 transition active:scale-95"><Plus size={24} /></button>}
         </div>
       </div>
+      
+      {/* BARRA DE FILTROS */}
+      {canEdit && (
+          <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+              <span className="text-xs font-bold text-gray-400 flex items-center gap-1 uppercase"><Filter size={12}/> Filtrar:</span>
+              <button onClick={() => setFilterRole('all')} className={`text-xs px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition ${filterRole === 'all' ? 'bg-violet-600 text-white' : 'bg-white text-gray-500 border border-gray-200'}`}>Todos</button>
+              {ROLES.map(role => (
+                  <button key={role} onClick={() => setFilterRole(role)} className={`text-xs px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition ${filterRole === role ? 'bg-violet-600 text-white' : 'bg-white text-gray-500 border border-gray-200'}`}>
+                      {role}
+                  </button>
+              ))}
+          </div>
+      )}
 
       <div className="space-y-3">
-        {tasks.length === 0 ? (
-          <div className="text-center py-12 text-gray-400 bg-white rounded-3xl border border-dashed border-gray-200"><CheckCircle size={48} className="mx-auto mb-2 text-violet-100" /><p>¡Todo al día!</p></div>
+        {filteredTasks.length === 0 ? (
+          <div className="text-center py-12 text-gray-400 bg-white rounded-3xl border border-dashed border-gray-200"><CheckCircle size={48} className="mx-auto mb-2 text-violet-100" /><p>No hay tareas visibles.</p></div>
         ) : (
-          tasks.map(task => {
+            filteredTasks.map(task => {
             const daysLeft = calculateDaysLeft(task.dueDate);
             const isLate = daysLeft < 0 && !task.completed;
             return (
@@ -612,13 +601,11 @@ function TasksView({ tasks, user, canEdit }) {
             <form onSubmit={addTask} className="space-y-4">
               <input name="title" required className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none" placeholder="Título" />
               <input type="date" name="dueDate" required className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none" />
-              
               <div className="bg-gray-50 p-1 rounded-xl flex">
                   <button type="button" onClick={() => setTargetType('all')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${targetType === 'all' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Todos</button>
                   <button type="button" onClick={() => setTargetType('roles')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${targetType === 'roles' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Roles</button>
                   <button type="button" onClick={() => setTargetType('users')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${targetType === 'users' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Personas</button>
               </div>
-
               {targetType === 'roles' && (
                 <div className="p-3 bg-violet-50 rounded-xl max-h-40 overflow-y-auto">
                   <p className="text-xs text-gray-500 mb-2 font-bold uppercase">Roles:</p>
@@ -633,7 +620,6 @@ function TasksView({ tasks, user, canEdit }) {
                   </div>
                 </div>
               )}
-
               {targetType === 'users' && (
                 <div className="p-3 bg-violet-50 rounded-xl max-h-40 overflow-y-auto">
                     <p className="text-xs text-gray-500 mb-2 font-bold uppercase">Personas:</p>
@@ -648,7 +634,6 @@ function TasksView({ tasks, user, canEdit }) {
                   </div>
                 </div>
               )}
-
               <div className="pt-2 border-t border-gray-100">
                 <label className="flex items-center gap-2 text-sm font-bold text-gray-700 cursor-pointer mb-2">
                   <input type="checkbox" checked={hasNotification} onChange={(e) => setHasNotification(e.target.checked)} className="rounded text-violet-600 focus:ring-violet-500" />
@@ -661,7 +646,6 @@ function TasksView({ tasks, user, canEdit }) {
                   </div>
                 )}
               </div>
-
               <div className="flex gap-3 mt-6">
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button>
                 <button type="submit" className="flex-1 py-3 bg-violet-800 text-white font-bold rounded-xl shadow-lg">Guardar</button>
@@ -677,7 +661,7 @@ function TasksView({ tasks, user, canEdit }) {
 function UsersView({ user }) {
   const [usersList, setUsersList] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [editUser, setEditUser] = useState(null); // Nuevo estado para editar
+  const [editUser, setEditUser] = useState(null);
 
   useEffect(() => {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
@@ -695,12 +679,10 @@ function UsersView({ user }) {
     const fullName = `${firstName} ${lastName}`;
 
     if (editUser) {
-        // Editar
         const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', editUser.id);
         await updateDoc(userRef, { firstName, lastName, fullName, username, password, role });
         setEditUser(null);
     } else {
-        // Crear
         if (usersList.some(u => u.username === username)) { alert("Usuario existente."); return; }
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), { firstName, lastName, fullName, username, password, role, createdAt: serverTimestamp() });
     }
@@ -711,15 +693,8 @@ function UsersView({ user }) {
     if (confirm("¿Eliminar usuario?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id));
   };
 
-  const openEdit = (u) => {
-      setEditUser(u);
-      setShowModal(true);
-  }
-
-  const openCreate = () => {
-      setEditUser(null);
-      setShowModal(true);
-  }
+  const openEdit = (u) => { setEditUser(u); setShowModal(true); }
+  const openCreate = () => { setEditUser(null); setShowModal(true); }
 
   return (
     <div className="animate-in fade-in duration-500">
@@ -727,7 +702,6 @@ function UsersView({ user }) {
         <h2 className="text-2xl font-bold text-violet-900">Personal</h2>
         <button onClick={openCreate} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:bg-orange-600 transition active:scale-95"><Plus size={24} /></button>
       </div>
-
       <div className="grid gap-3">
         {usersList.map(u => (
           <div key={u.id} className="bg-white p-4 rounded-2xl shadow-sm border border-violet-50 flex justify-between items-center group cursor-pointer hover:shadow-md transition" onClick={() => openEdit(u)}>
@@ -747,7 +721,6 @@ function UsersView({ user }) {
           </div>
         ))}
       </div>
-
       {showModal && (
         <div className="fixed inset-0 bg-violet-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200">
@@ -785,6 +758,9 @@ function CalendarView({ events, canEdit, user }) {
   const [hasNotification, setHasNotification] = useState(false);
   const [notifDate, setNotifDate] = useState('');
   const [notifMsg, setNotifMsg] = useState('');
+
+  // --- FILTRO DE CALENDARIO ---
+  const [filterType, setFilterType] = useState('all');
 
   const addEvent = async (e) => {
     e.preventDefault();
@@ -829,6 +805,9 @@ function CalendarView({ events, canEdit, user }) {
     setCurrentDate(new Date(newDate));
   };
 
+  // Filtrar eventos antes de renderizar
+  const filteredEvents = events.filter(e => filterType === 'all' || e.type === filterType);
+
   const renderCalendarGrid = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -840,7 +819,7 @@ function CalendarView({ events, canEdit, user }) {
 
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const dayEvents = events.filter(e => e.date === dateStr);
+      const dayEvents = filteredEvents.filter(e => e.date === dateStr);
       days.push(
         <div key={d} className="min-h-[80px] border border-gray-100 p-1 relative bg-white hover:bg-violet-50 transition group overflow-hidden">
           <span className={`text-xs font-bold block mb-1 ${dayEvents.length > 0 ? 'text-violet-700' : 'text-gray-400'}`}>{d}</span>
@@ -857,15 +836,28 @@ function CalendarView({ events, canEdit, user }) {
 
   return (
     <div className="animate-in fade-in duration-500">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-violet-900">Agenda</h2>
-        <div className="flex gap-2">
-           <div className="bg-white p-1 rounded-xl border border-gray-200 flex shadow-sm">
-              <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition ${viewMode === 'list' ? 'bg-violet-100 text-violet-700 shadow-inner' : 'text-gray-400 hover:text-gray-600'}`}><List size={20} /></button>
-              <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition ${viewMode === 'grid' ? 'bg-violet-100 text-violet-700 shadow-inner' : 'text-gray-400 hover:text-gray-600'}`}><Grid size={20} /></button>
-           </div>
-           {canEdit && <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg hover:bg-orange-600 transition active:scale-95"><Plus size={20} /></button>}
-        </div>
+      <div className="flex flex-col gap-4 mb-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold text-violet-900">Agenda</h2>
+            <div className="flex gap-2">
+            <div className="bg-white p-1 rounded-xl border border-gray-200 flex shadow-sm">
+                <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition ${viewMode === 'list' ? 'bg-violet-100 text-violet-700 shadow-inner' : 'text-gray-400 hover:text-gray-600'}`}><List size={20} /></button>
+                <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition ${viewMode === 'grid' ? 'bg-violet-100 text-violet-700 shadow-inner' : 'text-gray-400 hover:text-gray-600'}`}><Grid size={20} /></button>
+            </div>
+            {canEdit && <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg hover:bg-orange-600 transition active:scale-95"><Plus size={20} /></button>}
+            </div>
+          </div>
+
+          {/* BARRA DE FILTROS CALENDARIO */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+              <span className="text-xs font-bold text-gray-400 flex items-center gap-1 uppercase"><Filter size={12}/> Categorías:</span>
+              <button onClick={() => setFilterType('all')} className={`text-xs px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition ${filterType === 'all' ? 'bg-violet-600 text-white' : 'bg-white text-gray-500 border border-gray-200'}`}>Todas</button>
+              {EVENT_TYPES.map(type => (
+                  <button key={type} onClick={() => setFilterType(type)} className={`text-xs px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition ${filterType === type ? 'bg-violet-600 text-white' : 'bg-white text-gray-500 border border-gray-200'}`}>
+                      {type}
+                  </button>
+              ))}
+          </div>
       </div>
 
       {viewMode === 'grid' ? (
@@ -880,8 +872,8 @@ function CalendarView({ events, canEdit, user }) {
         </div>
       ) : (
         <div className="space-y-4">
-          {events.length === 0 ? <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200"><CalendarIcon size={48} className="mx-auto mb-4 text-violet-100" /><p className="text-gray-500">No hay eventos próximos.</p></div> : 
-            events.map(event => (
+          {filteredEvents.length === 0 ? <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200"><CalendarIcon size={48} className="mx-auto mb-4 text-violet-100" /><p className="text-gray-500">No hay eventos para esta categoría.</p></div> : 
+            filteredEvents.map(event => (
               <div key={event.id} onClick={() => setSelectedEvent(event)} className="bg-white p-4 rounded-2xl shadow-sm border border-violet-50 flex items-center gap-4 relative group hover:shadow-md transition cursor-pointer active:scale-[0.99]">
                   <div className="flex flex-col items-center justify-center w-14 h-14 bg-violet-50 rounded-2xl border border-violet-100 text-violet-600 shrink-0">
                     <span className="text-[10px] uppercase font-bold text-violet-400">{event.date ? new Date(event.date + 'T00:00:00').toLocaleDateString('es-ES', { month: 'short' }) : '-'}</span>
