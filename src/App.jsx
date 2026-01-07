@@ -30,7 +30,8 @@ import {
   ExternalLink,
   AlertTriangle,
   Clock,
-  Shield
+  Shield,
+  Crown
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -176,7 +177,7 @@ function LoginScreen({ onLogin }) {
     if (username === 'admin' && password === 'admin123') {
       onLogin({
         id: 'super-admin', firstName: 'Super', lastName: 'Admin', fullName: 'Super Admin',
-        role: 'Equipo Directivo', rol: 'admin', isAdmin: true, username: 'admin'
+        role: 'Equipo Directivo', rol: 'super-admin', isAdmin: true, username: 'admin' // AQUI EL CAMBIO CLAVE: rol super-admin
       });
       return;
     }
@@ -189,9 +190,7 @@ function LoginScreen({ onLogin }) {
       if (!querySnapshot.empty) {
         const userDoc = querySnapshot.docs[0];
         const userData = userDoc.data();
-        // LOGICA ESTRICTA: Solo es admin si el campo 'rol' es 'admin'
-        const esAdmin = userData.rol === 'admin';
-        onLogin({ ...userData, id: userDoc.id, isAdmin: esAdmin });
+        onLogin({ ...userData, id: userDoc.id });
       } else {
         setError('Usuario o contraseña incorrectos.');
       }
@@ -299,11 +298,21 @@ function MainApp({ user, onLogout }) {
   const [notifications, setNotifications] = useState([]);
   const [adminRequests, setAdminRequests] = useState([]);
   
-  // LOGICA STRICTA: Solo tiene permiso si su rol en DB es 'admin' (o es el super usuario)
-  const canEdit = user.rol === 'admin' || user.id === 'super-admin';
+  // --- JERARQUÍA DE PERMISOS ---
+  // Super Admin: Solo el usuario especial (TU)
+  const isSuperAdmin = user.rol === 'super-admin';
+  
+  // Admin de Contenido: Super Admin O usuarios marcados como 'admin'
+  const canManageContent = user.rol === 'admin' || isSuperAdmin;
+  
+  // Admin de Usuarios: SOLO Super Admin
+  const canManageUsers = isSuperAdmin;
 
   const isAssignedToUser = (item) => {
-    if (canEdit) return true;
+    // Si gestiona contenido, ve todo
+    if (canManageContent) return true;
+    
+    // Filtros normales para usuarios comunes
     if (!item.targetType || item.targetType === 'all') return true;
     if (item.targetType === 'roles' && Array.isArray(item.targetRoles)) {
         return item.targetRoles.includes(user.role);
@@ -332,7 +341,8 @@ function MainApp({ user, onLogout }) {
     });
 
     let unsubRequests = () => {};
-    if (canEdit) {
+    // Solo escuchamos solicitudes si somos Super Admin
+    if (canManageUsers) {
         const qReq = query(collection(db, 'artifacts', appId, 'public', 'data', 'requests'), orderBy('createdAt', 'desc'));
         unsubRequests = onSnapshot(qReq, (snap) => {
             setAdminRequests(snap.docs.map(d => ({ id: d.id, ...d.data(), isRequest: true })));
@@ -340,7 +350,7 @@ function MainApp({ user, onLogout }) {
     }
 
     return () => { unsubTasks(); unsubEvents(); unsubRequests(); unsubResources(); };
-  }, [user, canEdit]);
+  }, [user, canManageContent, canManageUsers]);
 
   useEffect(() => {
     const today = new Date();
@@ -348,7 +358,8 @@ function MainApp({ user, onLogout }) {
     const todayStr = today.toISOString().split('T')[0];
     let newNotifs = [];
 
-    if (canEdit) {
+    // Solo Super Admin ve solicitudes
+    if (canManageUsers) {
         adminRequests.forEach(req => {
             newNotifs.push({ id: req.id, type: 'admin_alert', title: "Solicitud de Contraseña", message: `El usuario "${req.username}" solicita blanqueo.`, date: req.createdAt ? new Date(req.createdAt.seconds * 1000).toISOString() : todayStr, context: 'Acción Requerida', isRequest: true });
         });
@@ -373,17 +384,17 @@ function MainApp({ user, onLogout }) {
 
     newNotifs.sort((a, b) => new Date(b.date) - new Date(a.date));
     setNotifications(newNotifs);
-  }, [tasks, events, canEdit, user, adminRequests]);
+  }, [tasks, events, canManageUsers, user, adminRequests]);
 
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard': return <DashboardView user={user} tasks={tasks} events={events} />;
-      case 'calendar': return <CalendarView events={events} canEdit={canEdit} user={user} />;
-      case 'tasks': return <TasksView tasks={tasks} user={user} canEdit={canEdit} />;
-      case 'resources': return <ResourcesView resources={resources} canEdit={canEdit} />;
-      case 'notifications': return <NotificationsView notifications={notifications} canEdit={canEdit} />;
+      case 'calendar': return <CalendarView events={events} canEdit={canManageContent} user={user} />;
+      case 'tasks': return <TasksView tasks={tasks} user={user} canEdit={canManageContent} />;
+      case 'resources': return <ResourcesView resources={resources} canEdit={canManageContent} />;
+      case 'notifications': return <NotificationsView notifications={notifications} canEdit={canManageUsers} />;
       case 'users': return <UsersView user={user} />;
-      case 'profile': return <ProfileView user={user} tasks={tasks} onLogout={onLogout} canEdit={canEdit} />;
+      case 'profile': return <ProfileView user={user} tasks={tasks} onLogout={onLogout} />;
       default: return <DashboardView user={user} tasks={tasks} events={events} />;
     }
   };
@@ -397,7 +408,10 @@ function MainApp({ user, onLogout }) {
           </div>
           <div>
             <h1 className="font-bold text-base leading-tight text-white">Juntos a la par digital</h1>
-            <p className="text-[10px] text-orange-200 font-medium tracking-wide uppercase">{user.rol === 'admin' ? 'Administrador' : user.role}</p>
+            <p className="text-[10px] text-orange-200 font-medium tracking-wide uppercase flex items-center gap-1">
+                {isSuperAdmin && <Crown size={10} className="text-yellow-400" />}
+                {isSuperAdmin ? 'Super Admin' : canManageContent ? 'Administrador' : user.role}
+            </p>
           </div>
         </div>
         <div className="flex items-center space-x-3 bg-violet-900/50 py-1.5 px-4 rounded-full border border-violet-600">
@@ -419,7 +433,7 @@ function MainApp({ user, onLogout }) {
           <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={24} />} label="Agenda" />
           <NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<LinkIcon size={24} />} label="Recursos" />
           <NavButton active={activeTab === 'notifications'} onClick={() => setActiveTab('notifications')} icon={<Bell size={24} />} label="Avisos" badge={notifications.length} />
-          {canEdit && <NavButton active={activeTab === 'users'} onClick={() => setActiveTab('users')} icon={<Users size={24} />} label="Admin" />}
+          {canManageUsers && <NavButton active={activeTab === 'users'} onClick={() => setActiveTab('users')} icon={<Users size={24} />} label="Admin" />}
           <NavButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={<User size={24} />} label="Perfil" />
         </div>
       </nav>
@@ -522,35 +536,18 @@ function TasksView({ tasks, user, canEdit }) {
     const title = e.target.title.value;
     const dueDate = e.target.dueDate.value;
     const priority = e.target.priority.value;
-    
-    let taskData = { 
-        title, dueDate, priority, 
-        targetType, 
-        status: 'pending', 
-        createdBy: user.id, 
-        createdAt: serverTimestamp() 
-    };
-
+    let taskData = { title, dueDate, priority, targetType, status: 'pending', createdBy: user.id, createdAt: serverTimestamp() };
     if (targetType === 'roles') taskData.targetRoles = selectedRoles;
     if (targetType === 'users') taskData.targetUsers = selectedUsers;
-    if (hasNotification && notifDate && notifMsg) {
-      taskData.notificationDate = notifDate;
-      taskData.notificationMessage = notifMsg;
-    }
-    
+    if (hasNotification && notifDate && notifMsg) { taskData.notificationDate = notifDate; taskData.notificationMessage = notifMsg; }
     if (targetType === 'all') taskData.assignedTo = "Todos";
     else if (targetType === 'roles') taskData.assignedTo = selectedRoles.join(", ");
     else if (targetType === 'users') taskData.assignedTo = selectedUsers.length + " personas";
-
     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), taskData);
     setShowModal(false); setTargetType('all'); setSelectedRoles([]); setSelectedUsers([]); setHasNotification(false);
   };
 
-  const updateStatus = async (task, newStatus) => {
-    const ref = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id);
-    await updateDoc(ref, { status: newStatus });
-  };
-
+  const updateStatus = async (task, newStatus) => { const ref = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id); await updateDoc(ref, { status: newStatus }); };
   const deleteTask = async (id) => { if(confirm('¿Eliminar tarea?')) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
   const sendReminder = async (task) => { if (!confirm(`¿Enviar notificación?`)) return; const ref = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id); await updateDoc(ref, { lastReminder: serverTimestamp() }); alert("Recordatorio enviado."); };
   const getStatusColor = (s) => { if(s === 'completed') return 'bg-green-100 text-green-700 border-green-200'; if(s === 'in_progress') return 'bg-blue-100 text-blue-700 border-blue-200'; return 'bg-gray-100 text-gray-500 border-gray-200'; };
@@ -580,18 +577,8 @@ function TasksView({ tasks, user, canEdit }) {
             return (
               <div key={task.id} className={`p-4 rounded-2xl border-l-[6px] shadow-sm transition-all relative group bg-white ${status === 'completed' ? 'border-green-400 opacity-70' : isLate ? 'border-red-500' : 'border-violet-500'}`}>
                 <div className="flex items-start gap-4">
-                  <div className="pt-1">
-                      <select value={status} onChange={(e) => updateStatus(task, e.target.value)} className={`text-[10px] font-bold uppercase rounded-lg p-1 border outline-none cursor-pointer ${getStatusColor(status)} appearance-none text-center min-w-[80px]`}>
-                          <option value="pending">Pendiente</option><option value="in_progress">En Proceso</option><option value="completed">Finalizado</option>
-                      </select>
-                  </div>
-                  <div className="flex-1 pr-8">
-                    <div className="flex items-center gap-2 mb-1"><span className={`w-2 h-2 rounded-full ${task.priority === 'high' ? 'bg-red-500' : task.priority === 'medium' ? 'bg-amber-400' : 'bg-green-400'}`}></span><h3 className={`font-bold text-gray-800 text-base ${status === 'completed' ? 'line-through text-gray-400' : ''}`}>{task.title}</h3></div>
-                    <div className="flex flex-wrap items-center gap-2 mt-2 text-xs">
-                       {canEdit && <span className="bg-violet-50 text-violet-700 px-2 py-1 rounded-lg font-bold flex items-center gap-1">{task.targetType === 'roles' ? <Users size={12} /> : <User size={12} />}<span className="truncate max-w-[150px]">{task.assignedTo || "Todos"}</span></span>}
-                       <span className={`px-2 py-1 rounded-lg font-medium border ${isLate ? 'bg-red-50 text-red-600 border-red-100' : 'bg-gray-50 text-gray-600 border-gray-100'}`}>{formatDate(task.dueDate)}</span>
-                    </div>
-                  </div>
+                  <div className="pt-1"><select value={status} onChange={(e) => updateStatus(task, e.target.value)} className={`text-[10px] font-bold uppercase rounded-lg p-1 border outline-none cursor-pointer ${getStatusColor(status)} appearance-none text-center min-w-[80px]`}><option value="pending">Pendiente</option><option value="in_progress">En Proceso</option><option value="completed">Finalizado</option></select></div>
+                  <div className="flex-1 pr-8"><div className="flex items-center gap-2 mb-1"><span className={`w-2 h-2 rounded-full ${task.priority === 'high' ? 'bg-red-500' : task.priority === 'medium' ? 'bg-amber-400' : 'bg-green-400'}`}></span><h3 className={`font-bold text-gray-800 text-base ${status === 'completed' ? 'line-through text-gray-400' : ''}`}>{task.title}</h3></div><div className="flex flex-wrap items-center gap-2 mt-2 text-xs">{canEdit && <span className="bg-violet-50 text-violet-700 px-2 py-1 rounded-lg font-bold flex items-center gap-1">{task.targetType === 'roles' ? <Users size={12} /> : <User size={12} />}<span className="truncate max-w-[150px]">{task.assignedTo || "Todos"}</span></span>}<span className={`px-2 py-1 rounded-lg font-medium border ${isLate ? 'bg-red-50 text-red-600 border-red-100' : 'bg-gray-50 text-gray-600 border-gray-100'}`}>{formatDate(task.dueDate)}</span></div></div>
                   {canEdit && (<div className="absolute top-4 right-4 flex gap-2"><button onClick={() => sendReminder(task)} className="text-gray-300 hover:text-orange-500 p-1.5 hover:bg-orange-50 rounded-full transition"><Bell size={16} /></button><button onClick={() => deleteTask(task.id)} className="text-gray-300 hover:text-red-500 p-1.5 hover:bg-red-50 rounded-full transition"><Trash2 size={16} /></button></div>)}
                 </div>
               </div>
@@ -606,8 +593,7 @@ function TasksView({ tasks, user, canEdit }) {
   );
 }
 
-// --- VISTAS RESTANTES (NotificationsView, UsersView, CalendarView, ProfileView) ---
-
+// --- VISTAS RESTANTES ---
 function NotificationsView({ notifications, canEdit }) {
   const deleteRequest = async (id) => { if(confirm('¿Has resuelto esta solicitud?')) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'requests', id)); };
   return (
@@ -632,7 +618,6 @@ function NotificationsView({ notifications, canEdit }) {
   );
 }
 
-// --- VISTA USUARIOS (AHORA CON CHECK DE ADMIN) ---
 function UsersView({ user }) {
   const [usersList, setUsersList] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -651,10 +636,8 @@ function UsersView({ user }) {
     const username = e.target.username.value;
     const password = e.target.password.value;
     const role = e.target.role.value;
-    const isAdmin = e.target.isAdmin.checked; // NUEVO: Checkbox
+    const isAdmin = e.target.isAdmin.checked;
     const fullName = `${firstName} ${lastName}`;
-
-    // Determinamos el rol interno: 'admin' o 'user'
     const systemRole = isAdmin ? 'admin' : 'user';
 
     if (editUser) {
@@ -684,10 +667,14 @@ function UsersView({ user }) {
               <div className="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center font-bold text-lg overflow-hidden relative">
                   {u.photoUrl ? <img src={u.photoUrl} className="w-full h-full object-cover" /> : `${u.firstName?.[0]}${u.lastName?.[0]}`}
                   {u.rol === 'admin' && <div className="absolute bottom-0 right-0 bg-orange-500 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center"><Shield size={8} className="text-white"/></div>}
+                  {u.rol === 'super-admin' && <div className="absolute bottom-0 right-0 bg-yellow-400 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center"><Crown size={8} className="text-white"/></div>}
               </div>
               <div><h4 className="font-bold text-gray-800">{u.fullName}</h4><div className="flex flex-col text-xs text-gray-500"><span className="text-orange-600 font-bold uppercase tracking-wider text-[10px]">{u.role}</span><span className="flex items-center gap-1 mt-0.5"><User size={10}/> {u.username}</span></div></div>
             </div>
-            <button onClick={(e) => {e.stopPropagation(); deleteUser(u.id)}} className="text-gray-300 hover:text-red-500 p-2 bg-gray-50 rounded-full hover:bg-red-50 transition"><Trash2 size={18} /></button>
+            {/* Solo se puede borrar si no es super admin */}
+            {u.rol !== 'super-admin' && (
+                <button onClick={(e) => {e.stopPropagation(); deleteUser(u.id)}} className="text-gray-300 hover:text-red-500 p-2 bg-gray-50 rounded-full hover:bg-red-50 transition"><Trash2 size={18} /></button>
+            )}
           </div>
         ))}
       </div>
@@ -703,7 +690,10 @@ function UsersView({ user }) {
               {/* CHECKBOX PARA OTORGAR ADMIN */}
               <div className="flex items-center gap-3 p-3 bg-violet-50 rounded-xl border border-violet-100">
                   <input type="checkbox" name="isAdmin" defaultChecked={editUser?.rol === 'admin'} className="w-5 h-5 text-violet-600 rounded focus:ring-violet-500" />
-                  <label className="text-sm font-bold text-violet-900">Otorgar Permisos de Administrador</label>
+                  <div className="flex flex-col">
+                      <label className="text-sm font-bold text-violet-900">Permisos de Administrador</label>
+                      <span className="text-[10px] text-gray-500">Puede editar tareas y eventos</span>
+                  </div>
               </div>
 
               <div className="flex gap-3 mt-6"><button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button><button type="submit" className="flex-1 py-3 bg-violet-800 text-white font-bold rounded-xl shadow-lg">{editUser ? 'Guardar Cambios' : 'Crear'}</button></div>
@@ -715,6 +705,7 @@ function UsersView({ user }) {
   );
 }
 
+// ... CalendarView, ProfileView se mantienen igual (ya incluidos arriba)
 function CalendarView({ events, canEdit, user }) {
   const [showModal, setShowModal] = useState(false);
   const [viewMode, setViewMode] = useState('list');
