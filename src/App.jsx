@@ -926,3 +926,44 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
     </div>
   );
 }
+let deferredPrompt;
+const installBtn = document.getElementById('btn-instalar');
+
+// 1. Escuchar el evento que habilita la instalación
+window.addEventListener('beforeinstallprompt', (e) => {
+  // Prevenir que Chrome muestre su cartel automático (opcional, para tener control total)
+  e.preventDefault();
+  
+  // Guardar el evento para dispararlo cuando el usuario haga clic
+  deferredPrompt = e;
+  
+  // MOSTRAR nuestro botón (quitamos la clase 'hidden' de Tailwind)
+  installBtn.classList.remove('hidden');
+  console.log("App lista para instalar, botón mostrado.");
+});
+
+// 2. Qué pasa cuando el usuario hace clic
+installBtn.addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+
+  // Mostrar el cartel nativo de instalación
+  deferredPrompt.prompt();
+
+  // Esperar a ver qué decide el usuario
+  const { outcome } = await deferredPrompt.userChoice;
+  console.log(`El usuario decidió: ${outcome}`);
+  
+  // Limpiar la variable
+  deferredPrompt = null;
+  
+  // Ocultar el botón de nuevo (opcional, ya que la app se instalará)
+  installBtn.classList.add('hidden');
+});
+
+// 3. Detectar si ya se instaló para ocultar el botón
+window.addEventListener('appinstalled', () => {
+  installBtn.classList.add('hidden');
+  deferredPrompt = null;
+  console.log('App instalada con éxito');
+});
+
