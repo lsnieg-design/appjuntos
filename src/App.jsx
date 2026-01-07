@@ -1034,20 +1034,363 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
     </div>
   );
 }
-// --- VISTA MATRÍCULA (CON IMPORTACIÓN Y EDAD) ---
+// --- VISTA MATRÍCULA (COMPLETA Y ACTUALIZADA) ---
 function MatriculaView({ canEdit }) {
   const [students, setStudents] = useState([]);
   const [filterText, setFilterText] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false); 
   const [editingStudent, setEditingStudent] = useState(null);
-  const [importJson, setImportJson] = useState(''); 
-  const [importing, setImporting] = useState(false);
   
+  // Estado para la foto
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
+
   // Filtros
-  const [filterGroup, setFilterGroup] = useState('all');
-  const [filterShift, setFilterShift] = useState('all');
-  const [filterTeacher, setFilterTeacher] = useState('all');
+  const [filterDx, setFilterDx] = useState('all');
+  const [filterJourney, setFilterJourney] = useState('all');
+
+  // Utilidad: Calcular Edad
+  const calculateAge = (dateString) => {
+    if (!dateString) return '-';
+    const today = new Date();
+    const birthDate = new Date(dateString);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  // Utilidad: Redimensionar imagen (Para que no pese en la base de datos)
+  const resizeImage = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 300; // Ancho máximo
+          const scaleSize = MAX_WIDTH / img.width;
+          canvas.width = MAX_WIDTH;
+          canvas.height = img.height * scaleSize;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.7)); // Compresión JPG al 70%
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handlePhotoChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const resized = await resizeImage(file);
+      setPhotoPreview(resized);
+    } catch (error) {
+      alert("Error al procesar imagen");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  useEffect(() => {
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), orderBy('lastName', 'asc'));
+    const unsub = onSnapshot(q, (snap) => {
+      setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, []);
+
+  const filteredStudents = students.filter(s => {
+    const textMatch = 
+      s.firstName?.toLowerCase().includes(filterText.toLowerCase()) || 
+      s.lastName?.toLowerCase().includes(filterText.toLowerCase()) || 
+      s.dni?.toString().includes(filterText);
+    
+    const dxMatch = filterDx === 'all' || s.dx === filterDx;
+    const journeyMatch = filterJourney === 'all' || s.journey === filterJourney;
+
+    return textMatch && dxMatch && journeyMatch;
+  });
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    
+    const data = {
+      firstName: formData.get('firstName'),
+      lastName: formData.get('lastName'),
+      dni: formData.get('dni'),
+      birthDate: formData.get('birthDate'),
+      gender: formData.get('gender'),
+      dx: formData.get('dx'),
+      journey: formData.get('journey'), // Jornada
+      healthInsurance: formData.get('healthInsurance'), // Obra Social
+      cudExpiration: formData.get('cudExpiration'),
+      
+      // Datos Escolares 2026
+      groupMorning: formData.get('groupMorning'),
+      groupAfternoon: formData.get('groupAfternoon'),
+      
+      // Contactos
+      address: formData.get('address'),
+      motherName: formData.get('motherName'),
+      motherContact: formData.get('motherContact'),
+      fatherName: formData.get('fatherName'),
+      fatherContact: formData.get('fatherContact'),
+      
+      photoUrl: photoPreview || editingStudent?.photoUrl || '', // Guardar la foto
+      updatedAt: serverTimestamp()
+    };
+
+    try {
+      if (editingStudent) {
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', editingStudent.id), data);
+      } else {
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...data, createdAt: serverTimestamp() });
+      }
+      setShowModal(false);
+      setEditingStudent(null);
+      setPhotoPreview(null);
+    } catch (err) {
+      alert("Error al guardar: " + err.message);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if(confirm("¿Borrar legajo de estudiante de forma permanente?")) {
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id));
+    }
+  };
+
+  const openEdit = (student) => {
+    setEditingStudent(student);
+    setPhotoPreview(student.photoUrl);
+    setShowModal(true);
+  };
+
+  const openNew = () => {
+    setEditingStudent(null);
+    setPhotoPreview(null);
+    setShowModal(true);
+  };
+
+  const exportToCSV = () => {
+    let csv = "Apellido,Nombre,DNI,Edad,DX,Jornada,Obra Social,Venc CUD,Mañana,Tarde,Madre,Contacto Madre,Padre,Contacto Padre\n";
+    students.forEach(s => {
+      const age = calculateAge(s.birthDate);
+      csv += `"${s.lastName}","${s.firstName}",${s.dni},${age},"${s.dx || ''}","${s.journey || ''}","${s.healthInsurance || ''}","${s.cudExpiration || ''}","${s.groupMorning || ''}","${s.groupAfternoon || ''}","${s.motherName || ''}","${s.motherContact || ''}","${s.fatherName || ''}","${s.fatherContact || ''}"\n`;
+    });
+    const link = document.createElement("a");
+    link.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
+    link.download = "Legajos_Completos_2026.csv";
+    link.click();
+  };
+
+  return (
+    <div className="animate-in fade-in duration-500 pb-20">
+      {/* HEADER */}
+      <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 rounded-3xl shadow-lg text-white mb-6">
+        <div className="flex justify-between items-center flex-wrap gap-4">
+          <div>
+            <h2 className="text-3xl font-bold flex items-center gap-2"><GraduationCap /> Legajos 2026</h2>
+            <p className="text-blue-100 opacity-90">{students.length} Estudiantes activos</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={exportToCSV} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold" title="Descargar Excel">
+                <Download size={20}/> Exportar
+            </button>
+            {canEdit && (
+                <button onClick={openNew} className="bg-white text-blue-600 p-3 rounded-xl shadow-lg hover:bg-blue-50 transition font-bold">
+                    <Plus size={24} />
+                </button>
+            )}
+          </div>
+        </div>
+        
+        {/* BUSCADOR Y FILTROS */}
+        <div className="mt-6 space-y-3">
+          <div className="bg-white/10 backdrop-blur-md p-2 rounded-xl flex items-center gap-2 border border-white/20">
+            <Search className="text-white ml-2 opacity-70" size={20} />
+            <input 
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+              placeholder="Buscar por apellido, nombre o DNI..." 
+              className="bg-transparent border-none outline-none text-white placeholder-blue-200 w-full"
+            />
+            {filterText && <button onClick={() => setFilterText('')}><X className="text-white opacity-70" size={16}/></button>}
+          </div>
+          
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            <select value={filterDx} onChange={(e) => setFilterDx(e.target.value)} className="bg-white/20 text-white border-none rounded-lg text-xs px-3 py-2 outline-none font-bold cursor-pointer hover:bg-white/30 transition">
+              <option value="all" className="text-gray-800">DX: Todos</option>
+              <option value="DI" className="text-gray-800">DI</option>
+              <option value="TES" className="text-gray-800">TES</option>
+              <option value="Otro" className="text-gray-800">Otro</option>
+            </select>
+            <select value={filterJourney} onChange={(e) => setFilterJourney(e.target.value)} className="bg-white/20 text-white border-none rounded-lg text-xs px-3 py-2 outline-none font-bold cursor-pointer hover:bg-white/30 transition">
+              <option value="all" className="text-gray-800">Jornada: Todas</option>
+              <option value="Simple Mañana" className="text-gray-800">Simple Mañana</option>
+              <option value="Simple Tarde" className="text-gray-800">Simple Tarde</option>
+              <option value="Doble" className="text-gray-800">Doble</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* LISTA DE TARJETAS */}
+      <div className="space-y-3">
+        {filteredStudents.length === 0 ? (
+          <div className="text-center py-10 text-gray-400">No se encontraron legajos.</div>
+        ) : (
+          filteredStudents.map(s => {
+            const age = calculateAge(s.birthDate);
+            return (
+            <div key={s.id} onClick={() => canEdit && openEdit(s)} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between group hover:shadow-md transition cursor-pointer">
+              <div className="flex items-center gap-4 w-full">
+                {/* FOTO MINIATURA */}
+                <div className="w-14 h-14 rounded-2xl bg-gray-100 border border-gray-200 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                    {s.photoUrl ? (
+                        <img src={s.photoUrl} className="w-full h-full object-cover" alt="Foto" />
+                    ) : (
+                        <User className="text-gray-300" size={24} />
+                    )}
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex justify-between items-start">
+                      <h4 className="font-bold text-gray-800 text-lg truncate pr-2">{s.lastName}, {s.firstName}</h4>
+                      {s.dx && <span className="bg-purple-100 text-purple-700 text-[10px] px-2 py-0.5 rounded font-bold uppercase border border-purple-200 shrink-0">{s.dx}</span>}
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2 text-xs text-gray-500 mt-1">
+                    <span className="bg-gray-100 px-2 py-0.5 rounded font-medium">{age !== '-' ? `${age} años` : '-'}</span>
+                    {s.journey === 'Doble' && <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-bold border border-orange-200">DOBLE</span>}
+                    {s.journey?.includes('Mañana') && <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded font-bold border border-yellow-200">TM</span>}
+                    {s.journey?.includes('Tarde') && <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-bold border border-indigo-200">TT</span>}
+                  </div>
+                </div>
+              </div>
+              {canEdit && <ChevronRight className="text-gray-300 ml-2" />}
+            </div>
+          )})
+        )}
+      </div>
+
+      {/* MODAL DE EDICIÓN / ALTA */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-2xl p-6 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">{editingStudent ? 'Editar Ficha' : 'Nueva Ficha'}</h3>
+            
+            <form onSubmit={handleSave} className="space-y-6">
+                
+              {/* SECCIÓN 1: DATOS PERSONALES Y FOTO */}
+              <div className="flex gap-4 flex-col sm:flex-row">
+                  {/* Carga de Foto */}
+                  <div className="flex flex-col items-center gap-2">
+                      <div className="w-24 h-24 rounded-2xl bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden relative group cursor-pointer">
+                          {photoPreview ? (
+                              <img src={photoPreview} className="w-full h-full object-cover" />
+                          ) : (
+                              <span className="text-xs text-gray-400 text-center px-2">Subir Foto</span>
+                          )}
+                          <input type="file" accept="image/*" onChange={handlePhotoChange} className="absolute inset-0 opacity-0 cursor-pointer" />
+                          {uploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><RefreshCw className="text-white animate-spin" /></div>}
+                      </div>
+                      <span className="text-[10px] text-gray-400">Clic para cambiar</span>
+                  </div>
+
+                  <div className="flex-1 space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div><label className="text-xs font-bold text-gray-500">Apellido *</label><input name="lastName" defaultValue={editingStudent?.lastName} required className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                        <div><label className="text-xs font-bold text-gray-500">Nombre *</label><input name="firstName" defaultValue={editingStudent?.firstName} required className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3">
+                          <div><label className="text-xs font-bold text-gray-500">DNI</label><input name="dni" type="number" defaultValue={editingStudent?.dni} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                          <div><label className="text-xs font-bold text-gray-500">Nacimiento</label><input name="birthDate" type="date" defaultValue={editingStudent?.birthDate} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                          <div>
+                              <label className="text-xs font-bold text-gray-500">Género</label>
+                              <select name="gender" defaultValue={editingStudent?.gender || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
+                                  <option value="">Seleccionar</option>
+                                  <option value="M">Masculino</option>
+                                  <option value="F">Femenino</option>
+                                  <option value="X">No binario</option>
+                              </select>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
+              {/* SECCIÓN 2: SALUD Y ESCOLARIDAD */}
+              <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 space-y-3">
+                  <p className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1"><Activity size={12}/> Salud & Escolaridad</p>
+                  <div className="grid grid-cols-2 gap-3">
+                      <div>
+                          <label className="text-xs font-bold text-gray-500">Diagnóstico (DX)</label>
+                          <select name="dx" defaultValue={editingStudent?.dx || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
+                              <option value="">Ninguno / A evaluar</option>
+                              <option value="DI">DI (Discapacidad Intelectual)</option>
+                              <option value="TES">TES (Trastorno del Espectro)</option>
+                              <option value="Otro">Otro</option>
+                          </select>
+                      </div>
+                      <div>
+                          <label className="text-xs font-bold text-gray-500">Jornada</label>
+                          <select name="journey" defaultValue={editingStudent?.journey || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
+                              <option value="">Seleccionar</option>
+                              <option value="Simple Mañana">Simple Mañana</option>
+                              <option value="Simple Tarde">Simple Tarde</option>
+                              <option value="Doble">Doble Jornada</option>
+                          </select>
+                      </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                      <div><label className="text-xs font-bold text-gray-500">Obra Social</label><input name="healthInsurance" defaultValue={editingStudent?.healthInsurance} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                      <div><label className="text-xs font-bold text-gray-500">Vencimiento CUD</label><input name="cudExpiration" type="date" defaultValue={editingStudent?.cudExpiration} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                  </div>
+              </div>
+
+              {/* SECCIÓN 3: UBICACIÓN 2026 */}
+              <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 space-y-3">
+                  <p className="text-xs font-bold text-indigo-800 uppercase tracking-wider flex items-center gap-1"><GraduationCap size={12}/> Ubicación 2026</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div><label className="text-xs font-bold text-gray-500">Docentes/Grupo (Mañana)</label><input name="groupMorning" defaultValue={editingStudent?.groupMorning} placeholder="Ej: 3ro A - Prof. Lopez" className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                      <div><label className="text-xs font-bold text-gray-500">Docentes/Grupo (Tarde)</label><input name="groupAfternoon" defaultValue={editingStudent?.groupAfternoon} placeholder="Ej: Taller Carpintería" className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                  </div>
+              </div>
+
+              {/* SECCIÓN 4: FAMILIA Y CONTACTO */}
+              <div className="space-y-3 pt-2 border-t border-gray-100">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Familia y Contacto</p>
+                  <div><label className="text-xs font-bold text-gray-500">Dirección</label><input name="address" defaultValue={editingStudent?.address} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Calle, Número, Localidad" /></div>
+                  <div className="grid grid-cols-2 gap-3">
+                      <div><label className="text-xs font-bold text-gray-500">Nombre Madre</label><input name="motherName" defaultValue={editingStudent?.motherName} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                      <div><label className="text-xs font-bold text-gray-500">Contacto Madre</label><input name="motherContact" defaultValue={editingStudent?.motherContact} placeholder="Tel / WhatsApp" className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                      <div><label className="text-xs font-bold text-gray-500">Nombre Padre</label><input name="fatherName" defaultValue={editingStudent?.fatherName} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                      <div><label className="text-xs font-bold text-gray-500">Contacto Padre</label><input name="fatherContact" defaultValue={editingStudent?.fatherContact} placeholder="Tel / WhatsApp" className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                  </div>
+              </div>
+
+              <div className="flex gap-3 mt-6 pt-4 border-t border-gray-100">
+                {editingStudent && <button type="button" onClick={() => handleDelete(editingStudent.id)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition"><Trash2 size={20}/></button>}
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button>
+                <button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg">Guardar Ficha</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
   // Utilidad: Calcular Edad
   const calculateAge = (dateString) => {
@@ -1306,6 +1649,7 @@ function MatriculaView({ canEdit }) {
     </div>
   );
 }
+
 
 
 
