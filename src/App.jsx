@@ -4,31 +4,31 @@ import {
   CheckSquare, 
   User, 
   FileText, 
-  CheckCircle,
-  Download,
-  Database,
-  RefreshCw,
-  Plus,
-  Trash2,
-  Users,
-  Shield,
-  AlertCircle,
-  LogOut,
-  Briefcase,
-  Lock,
-  List,
-  Grid,
-  ChevronLeft,
-  ChevronRight,
-  Bell,
-  Check
+  CheckCircle, 
+  Download, 
+  RefreshCw, 
+  Plus, 
+  Trash2, 
+  Users, 
+  AlertCircle, 
+  LogOut, 
+  Briefcase, 
+  Lock, 
+  List, 
+  Grid, 
+  ChevronLeft, 
+  ChevronRight, 
+  Bell, 
+  Check,
+  HelpCircle,
+  Mail
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { 
   getAuth, 
   signInAnonymously, 
-  onAuthStateChanged,
-  signInWithCustomToken
+  onAuthStateChanged, 
+  signInWithCustomToken 
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -38,19 +38,16 @@ import {
   orderBy, 
   onSnapshot, 
   doc, 
-  setDoc,
-  serverTimestamp,
-  updateDoc,
-  deleteDoc,
-  where,
-  getDocs
+  updateDoc, 
+  deleteDoc, 
+  where, 
+  getDocs,
+  serverTimestamp 
 } from 'firebase/firestore';
 
-// --- CONFIGURACIÓN DE FIREBASE (HÍBRIDA) ---
+// --- CONFIGURACIÓN DE FIREBASE ---
 const getFirebaseConfig = () => {
-  // 1. Intentar leer variables de entorno de Vercel (Vite)
   try {
-    // Verificamos si existe import.meta.env (estándar de Vite)
     if (import.meta.env && import.meta.env.VITE_FIREBASE_API_KEY) {
       return {
         apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -62,46 +59,23 @@ const getFirebaseConfig = () => {
       };
     }
   } catch (e) {
-    // Si falla (por ejemplo en entornos que no son Vite), seguimos al fallback
-    console.log("No se detectaron variables de entorno Vite, buscando config global...");
+    console.log("Buscando config global...");
   }
-  
-  // 2. Fallback: Configuración automática del entorno de chat (Preview)
   if (typeof __firebase_config !== 'undefined') {
     return JSON.parse(__firebase_config);
   }
-
-  // 3. Fallback final: Objeto vacío (evita que la app explote, pero no conectará)
-  // console.error("Falta configuración de Firebase. Revise las variables de entorno en Vercel.");
   return {};
 };
 
 const firebaseConfig = getFirebaseConfig();
-// Inicializamos solo si hay configuración válida
 const app = Object.keys(firebaseConfig).length > 0 ? initializeApp(firebaseConfig) : null;
 const auth = app ? getAuth(app) : null;
 const db = app ? getFirestore(app) : null;
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'escuela-app-prod';
 
 // --- Constantes ---
-const ROLES = [
-  'Docente',
-  'Equipo Técnico',
-  'Equipo Directivo',
-  'Administración',
-  'Auxiliar/Preceptor'
-];
-
-const EVENT_TYPES = [
-  'SALIDA EDUCATIVA',
-  'GENERAL',
-  'ADMINISTRATIVO',
-  'INFORMES',
-  'EVENTOS',
-  'ACTOS',
-  'EFEMÉRIDES',
-  'CUMPLEAÑOS'
-];
+const ROLES = ['Docente', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor'];
+const EVENT_TYPES = ['SALIDA EDUCATIVA', 'GENERAL', 'ADMINISTRATIVO', 'INFORMES', 'EVENTOS', 'ACTOS', 'EFEMÉRIDES', 'CUMPLEAÑOS'];
 
 // --- Utils ---
 const calculateDaysLeft = (dateString) => {
@@ -116,6 +90,7 @@ const calculateDaysLeft = (dateString) => {
 
 const formatDate = (dateString) => {
   if (!dateString) return '';
+  // Fix para zonas horarias simples
   const date = new Date(dateString + 'T00:00:00');
   return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
@@ -127,7 +102,6 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [configError, setConfigError] = useState(false);
 
-  // Inicialización de Auth
   useEffect(() => {
     if (!auth) {
       setConfigError(true);
@@ -140,7 +114,6 @@ export default function App() {
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
           await signInWithCustomToken(auth, __initial_auth_token);
         } else {
-          // Importante: Asegúrate de tener habilitado "Anonymous" en Firebase Console
           await signInAnonymously(auth);
         }
       } catch (error) {
@@ -170,88 +143,50 @@ export default function App() {
     localStorage.removeItem('schoolApp_profile');
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-violet-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-violet-600"></div>
-      </div>
-    );
-  }
-
-  if (configError) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen bg-red-50 p-6 text-center">
-        <AlertCircle className="text-red-500 w-16 h-16 mb-4" />
-        <h1 className="text-xl font-bold text-red-700">Error de Configuración</h1>
-        <p className="text-red-600 mt-2">No se pudo conectar con la base de datos.</p>
-        <p className="text-sm text-red-500 mt-4">Verifica que las Variables de Entorno en Vercel estén configuradas correctamente.</p>
-      </div>
-    );
-  }
-
-  if (!currentUserProfile) {
-    return <LoginScreen onLogin={handleLogin} />;
-  }
+  if (loading) return <div className="flex items-center justify-center h-screen bg-violet-50"><div className="animate-spin rounded-full h-12 w-12 border-b-4 border-violet-600"></div></div>;
+  if (configError) return <div className="flex flex-col items-center justify-center h-screen bg-red-50 p-6 text-center"><AlertCircle className="text-red-500 w-16 h-16 mb-4" /><h1 className="text-xl font-bold text-red-700">Error de Configuración</h1></div>;
+  if (!currentUserProfile) return <LoginScreen onLogin={handleLogin} />;
 
   return <MainApp user={currentUserProfile} onLogout={handleLogout} />;
 }
 
 // --- Pantalla Login ---
-// --- Pantalla Login (MODIFICADA PARA LEER TU ROL DE ADMIN) ---
 function LoginScreen({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [checking, setChecking] = useState(false);
+  const [showRecover, setShowRecover] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setChecking(true);
 
-    // Backdoor para super admin hardcodeado (opcional, puedes borrarlo si quieres)
     if (username === 'admin' && password === 'admin123') {
       onLogin({
-        id: 'super-admin',
-        firstName: 'Super',
-        lastName: 'Admin',
-        fullName: 'Super Admin',
-        role: 'Equipo Directivo',
-        rol: 'admin', // Forzamos el rol
-        isAdmin: true,
-        username: 'admin'
+        id: 'super-admin', firstName: 'Super', lastName: 'Admin', fullName: 'Super Admin',
+        role: 'Equipo Directivo', rol: 'admin', isAdmin: true, username: 'admin'
       });
       return;
     }
 
     try {
       const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
-      // Buscamos usuario y contraseña coincidente
       const q = query(usersRef, where('username', '==', username), where('password', '==', password));
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
         const userDoc = querySnapshot.docs[0];
         const userData = userDoc.data();
-        
-        // --- AQUÍ ESTÁ LA MAGIA DE LA TAREA 1 ---
-        // Verificamos si es admin por el rol antiguo O por el nuevo campo "rol" que agregaste en la base de datos
-        const esAdmin = 
-            userData.role === 'Equipo Directivo' || 
-            userData.role === 'Administración' || 
-            userData.rol === 'admin'; // <--- ESTO LEE TU CAMBIO EN FIREBASE
-
-        onLogin({ 
-            ...userData, 
-            id: userDoc.id, 
-            isAdmin: esAdmin 
-        });
+        const esAdmin = userData.role === 'Equipo Directivo' || userData.role === 'Administración' || userData.rol === 'admin';
+        onLogin({ ...userData, id: userDoc.id, isAdmin: esAdmin });
       } else {
         setError('Usuario o contraseña incorrectos.');
       }
     } catch (err) {
       console.error(err);
-      setError('Error de conexión. Intente nuevamente.');
+      setError('Error de conexión.');
     } finally {
       setChecking(false);
     }
@@ -261,67 +196,60 @@ function LoginScreen({ onLogin }) {
     <div className="min-h-screen bg-gradient-to-br from-violet-900 to-fuchsia-900 flex items-center justify-center p-6">
       <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md border-t-8 border-orange-500">
         <div className="text-center mb-8">
-          <div className="bg-gradient-to-tr from-orange-400 to-pink-500 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg ring-4 ring-white">
-           <div className="text-center mb-8">
-          {/* LOGO DEL COLEGIO */}
           <div className="flex justify-center mb-4">
-             <img 
-               src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" 
-               alt="Logo Juntos a la Par" 
-               className="h-24 w-auto object-contain drop-shadow-md"
-             />
+             <img src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" alt="Logo" className="h-24 w-auto object-contain drop-shadow-md" />
           </div>
           <h1 className="text-2xl font-extrabold text-violet-900 tracking-tight uppercase">
-            PORTAL INSTITUCIONAL<br/>
-            <span className="text-orange-500">JUNTOS A LA PAR</span>
+            PORTAL INSTITUCIONAL<br/><span className="text-orange-500">JUNTOS A LA PAR</span>
           </h1>
-          <p className="text-gray-500 mt-2 text-sm font-medium">Sistema de Gestión Integral</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-xs font-bold text-violet-900 uppercase mb-2 ml-1">Usuario</label>
-            <div className="relative group">
-              <User className="absolute left-3 top-3.5 text-violet-300 group-focus-within:text-orange-500 transition-colors" size={18} />
-              <input
-                type="text"
-                required
-                className="w-full pl-10 pr-4 py-3 bg-violet-50 border border-violet-100 rounded-xl focus:ring-2 focus:ring-orange-400 focus:bg-white outline-none transition-all"
-                placeholder="Nombre de usuario"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-              />
+        {!showRecover ? (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="block text-xs font-bold text-violet-900 uppercase mb-2 ml-1">Usuario</label>
+              <div className="relative group">
+                <User className="absolute left-3 top-3.5 text-violet-300" size={18} />
+                <input type="text" required className="w-full pl-10 pr-4 py-3 bg-violet-50 border border-violet-100 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Nombre de usuario" value={username} onChange={(e) => setUsername(e.target.value)} />
+              </div>
             </div>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-violet-900 uppercase mb-2 ml-1">Contraseña</label>
-            <div className="relative group">
-              <Lock className="absolute left-3 top-3.5 text-violet-300 group-focus-within:text-orange-500 transition-colors" size={18} />
-              <input
-                type="password"
-                required
-                className="w-full pl-10 pr-4 py-3 bg-violet-50 border border-violet-100 rounded-xl focus:ring-2 focus:ring-orange-400 focus:bg-white outline-none transition-all"
-                placeholder="••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+            <div>
+              <label className="block text-xs font-bold text-violet-900 uppercase mb-2 ml-1">Contraseña</label>
+              <div className="relative group">
+                <Lock className="absolute left-3 top-3.5 text-violet-300" size={18} />
+                <input type="password" required className="w-full pl-10 pr-4 py-3 bg-violet-50 border border-violet-100 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
+              </div>
             </div>
-          </div>
+            
+            <div className="flex justify-end">
+                <button type="button" onClick={() => setShowRecover(true)} className="text-xs font-bold text-violet-600 hover:text-orange-500 transition">
+                    ¿Olvidaste tu contraseña?
+                </button>
+            </div>
 
-          {error && (
-            <div className="bg-red-50 text-red-600 text-sm p-4 rounded-xl flex items-center gap-3 border border-red-100 animate-pulse">
-               <AlertCircle size={20} /> {error}
-            </div>
-          )}
+            {error && <div className="bg-red-50 text-red-600 text-sm p-4 rounded-xl flex items-center gap-3 border border-red-100 animate-pulse"><AlertCircle size={20} /> {error}</div>}
 
-          <button
-            type="submit"
-            disabled={checking}
-            className="w-full bg-gradient-to-r from-violet-600 to-violet-800 text-white py-4 rounded-xl font-bold text-lg hover:from-orange-500 hover:to-orange-600 transition duration-300 shadow-xl disabled:opacity-70 flex justify-center items-center transform hover:-translate-y-1"
-          >
-            {checking ? <RefreshCw className="animate-spin" /> : 'Ingresar al Portal'}
-          </button>
-        </form>
+            <button type="submit" disabled={checking} className="w-full bg-gradient-to-r from-violet-600 to-violet-800 text-white py-4 rounded-xl font-bold text-lg hover:from-orange-500 hover:to-orange-600 transition duration-300 shadow-xl disabled:opacity-70 flex justify-center items-center">
+              {checking ? <RefreshCw className="animate-spin" /> : 'Ingresar al Portal'}
+            </button>
+          </form>
+        ) : (
+          <div className="animate-in fade-in slide-in-from-right">
+             <div className="bg-violet-50 p-6 rounded-2xl text-center mb-6 border border-violet-100">
+                <HelpCircle className="mx-auto text-violet-500 mb-2" size={40} />
+                <h3 className="font-bold text-violet-900 text-lg mb-2">Recuperar Acceso</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                    Por seguridad, las contraseñas solo pueden ser restablecidas por la administración del colegio.
+                </p>
+                <a href="mailto:administracion@colegio.edu.ar?subject=Recuperar%20Clave%20Portal" className="flex items-center justify-center gap-2 w-full bg-white border border-violet-200 text-violet-700 py-3 rounded-xl font-bold hover:bg-violet-100 transition shadow-sm">
+                    <Mail size={18} /> Enviar Correo a Administración
+                </a>
+             </div>
+             <button onClick={() => setShowRecover(false)} className="w-full text-gray-500 font-bold py-3 hover:text-gray-700 transition">
+                 Volver al inicio
+             </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -334,17 +262,12 @@ function MainApp({ user, onLogout }) {
   const [events, setEvents] = useState([]);
   const [notifications, setNotifications] = useState([]);
   
-  // Modificamos canEdit para aceptar también si user.rol es 'admin' o si user.isAdmin es true
   const canEdit = user.isAdmin === true || user.rol === 'admin' || user.role === 'Equipo Directivo' || user.role === 'Administración';
 
   const isAssignedToUser = (item) => {
     if (!item.targetType || item.targetType === 'all') return true;
-    if (item.targetType === 'roles' && Array.isArray(item.targetRoles)) {
-      return item.targetRoles.includes(user.role);
-    }
-    if (item.targetType === 'users' && Array.isArray(item.targetUsers)) {
-      return item.targetUsers.includes(user.fullName);
-    }
+    if (item.targetType === 'roles' && Array.isArray(item.targetRoles)) return item.targetRoles.includes(user.role);
+    if (item.targetType === 'users' && Array.isArray(item.targetUsers)) return item.targetUsers.includes(user.fullName);
     return false;
   };
 
@@ -364,74 +287,42 @@ function MainApp({ user, onLogout }) {
     return () => { unsubTasks(); unsubEvents(); };
   }, [user, canEdit]);
 
+  // Notificaciones
   useEffect(() => {
     const today = new Date();
     today.setHours(0,0,0,0);
     const todayStr = today.toISOString().split('T')[0];
-
     let newNotifs = [];
 
-    // Permisos de notificación
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
+    if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
 
     const triggerSystemNotification = (title, body) => {
-      if ("Notification" in window && Notification.permission === "granted") {
-        if(document.hidden) {
-            new Notification(title, { body });
-        }
+      if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
+         new Notification(title, { body });
       }
     };
 
     tasks.forEach(task => {
       if (!canEdit && !isAssignedToUser(task)) return;
-
       if (task.notificationDate && task.notificationDate <= todayStr && task.notificationMessage) {
-        newNotifs.push({
-          id: `task-auto-${task.id}`,
-          type: 'scheduled',
-          title: "Aviso Programado",
-          message: task.notificationMessage,
-          date: task.notificationDate,
-          context: 'Tarea: ' + task.title
-        });
+        newNotifs.push({ id: `task-auto-${task.id}`, type: 'scheduled', title: "Aviso Programado", message: task.notificationMessage, date: task.notificationDate, context: 'Tarea: ' + task.title });
       }
       if (task.lastReminder) {
         const reminderDate = new Date(task.lastReminder.seconds * 1000);
         const isToday = reminderDate.toISOString().split('T')[0] === todayStr;
-        
-        newNotifs.push({
-          id: `task-remind-${task.id}-${task.lastReminder.seconds}`,
-          type: 'reminder',
-          title: "¡Recordatorio!",
-          message: `Se recuerda completar: "${task.title}"`,
-          date: reminderDate.toISOString().split('T')[0],
-          context: 'Urgente'
-        });
-
-        if (isToday) {
-            triggerSystemNotification("Recordatorio Escolar", `Pendiente: ${task.title}`);
-        }
+        newNotifs.push({ id: `task-remind-${task.id}-${task.lastReminder.seconds}`, type: 'reminder', title: "¡Recordatorio!", message: `Se recuerda completar: "${task.title}"`, date: reminderDate.toISOString().split('T')[0], context: 'Urgente' });
+        if (isToday) triggerSystemNotification("Recordatorio Escolar", `Pendiente: ${task.title}`);
       }
     });
 
     events.forEach(event => {
        if (event.notificationDate && event.notificationDate <= todayStr && event.notificationMessage) {
-         newNotifs.push({
-          id: `event-auto-${event.id}`,
-          type: 'event',
-          title: "Evento Próximo",
-          message: event.notificationMessage,
-          date: event.notificationDate,
-          context: 'Agenda: ' + event.title
-        });
+         newNotifs.push({ id: `event-auto-${event.id}`, type: 'event', title: "Evento Próximo", message: event.notificationMessage, date: event.notificationDate, context: 'Agenda: ' + event.title });
        }
     });
 
     newNotifs.sort((a, b) => new Date(b.date) - new Date(a.date));
     setNotifications(newNotifs);
-
   }, [tasks, events, canEdit, user]);
 
   const renderContent = () => {
@@ -449,37 +340,20 @@ function MainApp({ user, onLogout }) {
     <div className="flex flex-col h-screen bg-gray-50 font-sans text-slate-800">
       <header className="bg-violet-800 text-white shadow-lg px-4 py-3 flex justify-between items-center z-20 sticky top-0">
         <div className="flex items-center space-x-3">
-          {/* LOGO EN EL HEADER */}
           <div className="bg-white p-1 rounded-lg shadow-sm">
-             <img 
-               src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" 
-               alt="Logo" 
-               className="w-10 h-8 object-contain"
-             />
+             <img src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" alt="Logo" className="w-10 h-8 object-contain" />
           </div>
           <div>
             <h1 className="font-bold text-base leading-tight text-white">Juntos a la par digital</h1>
-            <p className="text-[10px] text-orange-200 font-medium tracking-wide uppercase">
-              {canEdit ? 'Administración' : user.role}
-            </p>
-          </div>
-        </div>
-          <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center shadow-md transform rotate-3">
-             <Briefcase size={20} className="text-white" />
-          </div>
-          <div>
-            <h1 className="font-bold text-base leading-tight">Escuela Digital</h1>
-            <p className="text-[10px] text-orange-200 font-medium tracking-wide uppercase">
-              {canEdit ? 'Administración' : user.role}
-            </p>
+            <p className="text-[10px] text-orange-200 font-medium tracking-wide uppercase">{canEdit ? 'Administración' : user.role}</p>
           </div>
         </div>
         <div className="flex items-center space-x-3 bg-violet-900/50 py-1.5 px-4 rounded-full border border-violet-600">
           <div className="flex flex-col items-end">
              <span className="text-xs font-bold truncate max-w-[100px]">{user.firstName}</span>
           </div>
-          <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-xs border-2 border-orange-400">
-            {user.firstName?.[0]}{user.lastName?.[0]}
+          <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-xs border-2 border-orange-400 overflow-hidden">
+            {user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover" /> : `${user.firstName?.[0]}${user.lastName?.[0]}`}
           </div>
         </div>
       </header>
@@ -490,40 +364,11 @@ function MainApp({ user, onLogout }) {
 
       <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 pb-safe shadow-[0_-10px_20px_rgba(109,40,217,0.05)] z-30">
         <div className="flex justify-around items-center h-20 max-w-4xl mx-auto px-2">
-          <NavButton 
-            active={activeTab === 'tasks'} 
-            onClick={() => setActiveTab('tasks')} 
-            icon={<CheckSquare size={24} />} 
-            label="Tareas" 
-            badge={tasks.filter(t => !t.completed).length}
-          />
-          <NavButton 
-            active={activeTab === 'calendar'} 
-            onClick={() => setActiveTab('calendar')} 
-            icon={<CalendarIcon size={24} />} 
-            label="Agenda" 
-          />
-          <NavButton 
-            active={activeTab === 'notifications'} 
-            onClick={() => setActiveTab('notifications')} 
-            icon={<Bell size={24} />} 
-            label="Avisos"
-            badge={notifications.length}
-          />
-          {canEdit && (
-            <NavButton 
-              active={activeTab === 'users'} 
-              onClick={() => setActiveTab('users')} 
-              icon={<Users size={24} />} 
-              label="Admin" 
-            />
-          )}
-          <NavButton 
-            active={activeTab === 'profile'} 
-            onClick={() => setActiveTab('profile')} 
-            icon={<User size={24} />} 
-            label="Perfil"
-          />
+          <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={24} />} label="Tareas" badge={tasks.filter(t => !t.completed).length} />
+          <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={24} />} label="Agenda" />
+          <NavButton active={activeTab === 'notifications'} onClick={() => setActiveTab('notifications')} icon={<Bell size={24} />} label="Avisos" badge={notifications.length} />
+          {canEdit && <NavButton active={activeTab === 'users'} onClick={() => setActiveTab('users')} icon={<Users size={24} />} label="Admin" />}
+          <NavButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={<User size={24} />} label="Perfil" />
         </div>
       </nav>
     </div>
@@ -532,21 +377,10 @@ function MainApp({ user, onLogout }) {
 
 function NavButton({ active, onClick, icon, label, badge }) {
   return (
-    <button 
-      onClick={onClick}
-      className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-300 ${
-        active 
-          ? 'text-orange-500 transform -translate-y-1' 
-          : 'text-gray-400 hover:text-violet-600'
-      }`}
-    >
+    <button onClick={onClick} className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-300 ${active ? 'text-orange-500 transform -translate-y-1' : 'text-gray-400 hover:text-violet-600'}`}>
       <div className={`relative p-2 rounded-2xl ${active ? 'bg-orange-50' : 'bg-transparent'}`}>
         {icon}
-        {badge > 0 && (
-          <span className="absolute -top-1 -right-1 bg-violet-600 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full border-2 border-white shadow-sm px-1">
-            {badge > 9 ? '+9' : badge}
-          </span>
-        )}
+        {badge > 0 && <span className="absolute -top-1 -right-1 bg-violet-600 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full border-2 border-white shadow-sm px-1">{badge > 9 ? '+9' : badge}</span>}
       </div>
       <span className={`text-[10px] font-bold ${active ? 'text-violet-900' : 'text-gray-400'}`}>{label}</span>
     </button>
@@ -557,40 +391,20 @@ function NavButton({ active, onClick, icon, label, badge }) {
 function NotificationsView({ notifications }) {
   return (
     <div className="animate-in fade-in duration-500">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-violet-900">Avisos</h2>
-          <p className="text-xs text-gray-500 font-medium">Alertas y novedades</p>
-        </div>
-      </div>
-
+      <h2 className="text-2xl font-bold text-violet-900 mb-6">Avisos</h2>
       <div className="space-y-3">
         {notifications.length === 0 ? (
-           <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200">
-            <Bell size={48} className="mx-auto mb-4 text-violet-100" />
-            <p className="text-gray-500">No tienes notificaciones nuevas.</p>
-          </div>
+           <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200"><Bell size={48} className="mx-auto mb-4 text-violet-100" /><p className="text-gray-500">No tienes notificaciones nuevas.</p></div>
         ) : (
           notifications.map(notif => (
-            <div key={notif.id} className={`p-4 rounded-2xl border-l-4 shadow-sm bg-white relative ${
-              notif.type === 'reminder' ? 'border-red-500 bg-red-50/50' : 
-              notif.type === 'scheduled' ? 'border-orange-500' : 'border-violet-500'
-            }`}>
+            <div key={notif.id} className={`p-4 rounded-2xl border-l-4 shadow-sm bg-white relative ${notif.type === 'reminder' ? 'border-red-500 bg-red-50/50' : notif.type === 'scheduled' ? 'border-orange-500' : 'border-violet-500'}`}>
                <div className="flex justify-between items-start mb-1">
-                  <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
-                     notif.type === 'reminder' ? 'bg-red-100 text-red-600' : 'bg-violet-100 text-violet-600'
-                  }`}>
-                    {notif.type === 'reminder' ? 'Urgente' : 'Aviso'}
-                  </span>
-                  <span className="text-xs text-gray-400">{formatDate(notif.date)}</span>
+                 <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${notif.type === 'reminder' ? 'bg-red-100 text-red-600' : 'bg-violet-100 text-violet-600'}`}>{notif.type === 'reminder' ? 'Urgente' : 'Aviso'}</span>
+                 <span className="text-xs text-gray-400">{formatDate(notif.date)}</span>
                </div>
                <h3 className="font-bold text-gray-800">{notif.title}</h3>
                <p className="text-sm text-gray-600 mt-1">{notif.message}</p>
-               {notif.context && (
-                 <div className="mt-2 text-xs font-medium text-gray-400 border-t border-gray-100 pt-1">
-                   Ref: {notif.context}
-                 </div>
-               )}
+               {notif.context && <div className="mt-2 text-xs font-medium text-gray-400 border-t border-gray-100 pt-1">Ref: {notif.context}</div>}
             </div>
           ))
         )}
@@ -612,51 +426,33 @@ function TasksView({ tasks, user, canEdit }) {
   useEffect(() => {
     if (canEdit && showModal) {
       const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
-      const unsub = onSnapshot(q, snap => {
-        setUsersList(snap.docs.map(d => d.data()));
-      });
+      const unsub = onSnapshot(q, snap => setUsersList(snap.docs.map(d => d.data())));
       return () => unsub();
     }
   }, [canEdit, showModal]);
 
   const toggleSelection = (item, list, setList) => {
-    if (list.includes(item)) {
-      setList(list.filter(i => i !== item));
-    } else {
-      setList([...list, item]);
-    }
+    if (list.includes(item)) setList(list.filter(i => i !== item));
+    else setList([...list, item]);
   };
 
   const addTask = async (e) => {
     e.preventDefault();
     const title = e.target.title.value;
     const dueDate = e.target.dueDate.value;
-    
-    let taskData = {
-      title, dueDate, targetType, completed: false, createdBy: user.id, createdAt: serverTimestamp()
-    };
-
+    let taskData = { title, dueDate, targetType, completed: false, createdBy: user.id, createdAt: serverTimestamp() };
     if (targetType === 'roles') taskData.targetRoles = selectedRoles;
     if (targetType === 'users') taskData.targetUsers = selectedUsers;
-
     if (hasNotification && notifDate && notifMsg) {
       taskData.notificationDate = notifDate;
       taskData.notificationMessage = notifMsg;
     }
-
     if (targetType === 'all') taskData.assignedTo = "Todos";
     else if (targetType === 'roles') taskData.assignedTo = selectedRoles.join(", ");
     else if (targetType === 'users') taskData.assignedTo = selectedUsers.length + " personas";
 
     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), taskData);
-    
-    setShowModal(false);
-    setTargetType('all');
-    setSelectedRoles([]);
-    setSelectedUsers([]);
-    setHasNotification(false);
-    setNotifMsg('');
-    setNotifDate('');
+    setShowModal(false); setTargetType('all'); setSelectedRoles([]); setSelectedUsers([]); setHasNotification(false);
   };
 
   const toggleTask = async (task) => {
@@ -665,9 +461,7 @@ function TasksView({ tasks, user, canEdit }) {
   };
 
   const deleteTask = async (id) => {
-    if(confirm('¿Eliminar tarea?')) {
-      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id));
-    }
+    if(confirm('¿Eliminar tarea?')) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id));
   };
 
   const sendReminder = async (task) => {
@@ -677,67 +471,31 @@ function TasksView({ tasks, user, canEdit }) {
     alert("Recordatorio enviado.");
   };
 
-  const pendingCount = tasks.filter(t => !t.completed).length;
-
   return (
     <div className="animate-in fade-in duration-500">
       <div className="bg-gradient-to-r from-violet-700 to-violet-900 p-6 rounded-3xl shadow-lg text-white mb-8 relative overflow-hidden">
         <div className="relative z-10 flex justify-between items-center">
-          <div>
-            <h2 className="text-3xl font-bold">Tareas</h2>
-            <p className="text-violet-200 mt-1">Tienes <span className="font-bold text-white text-lg">{pendingCount}</span> pendientes.</p>
-          </div>
-          {canEdit && (
-            <button 
-              onClick={() => setShowModal(true)}
-              className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:bg-orange-600 transition active:scale-95"
-            >
-              <Plus size={24} />
-            </button>
-          )}
+          <div><h2 className="text-3xl font-bold">Tareas</h2><p className="text-violet-200 mt-1">Tienes <span className="font-bold text-white text-lg">{tasks.filter(t => !t.completed).length}</span> pendientes.</p></div>
+          {canEdit && <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:bg-orange-600 transition active:scale-95"><Plus size={24} /></button>}
         </div>
-        <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white opacity-10 rounded-full blur-2xl"></div>
       </div>
 
       <div className="space-y-3">
         {tasks.length === 0 ? (
-          <div className="text-center py-12 text-gray-400 bg-white rounded-3xl border border-dashed border-gray-200">
-            <CheckCircle size={48} className="mx-auto mb-2 text-violet-100" />
-            <p>¡Todo al día! No hay tareas.</p>
-          </div>
+          <div className="text-center py-12 text-gray-400 bg-white rounded-3xl border border-dashed border-gray-200"><CheckCircle size={48} className="mx-auto mb-2 text-violet-100" /><p>¡Todo al día!</p></div>
         ) : (
           tasks.map(task => {
             const daysLeft = calculateDaysLeft(task.dueDate);
             const isLate = daysLeft < 0 && !task.completed;
-            
             return (
-              <div key={task.id} className={`p-4 rounded-2xl border-l-[6px] shadow-sm transition-all relative group bg-white ${
-                task.completed ? 'border-green-400 opacity-60' : 
-                isLate ? 'border-red-500' : 'border-violet-500'
-              }`}>
+              <div key={task.id} className={`p-4 rounded-2xl border-l-[6px] shadow-sm transition-all relative group bg-white ${task.completed ? 'border-green-400 opacity-60' : isLate ? 'border-red-500' : 'border-violet-500'}`}>
                 <div className="flex items-start gap-4">
-                  <div className="pt-1">
-                    <button 
-                      onClick={() => toggleTask(task)}
-                      className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition ${task.completed ? 'bg-green-500 border-green-500' : 'border-gray-300'}`}
-                    >
-                      {task.completed && <CheckCircle size={14} className="text-white" />}
-                    </button>
-                  </div>
+                  <div className="pt-1"><button onClick={() => toggleTask(task)} className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition ${task.completed ? 'bg-green-500 border-green-500' : 'border-gray-300'}`}>{task.completed && <CheckCircle size={14} className="text-white" />}</button></div>
                   <div className="flex-1 pr-8">
-                    <h3 className={`font-bold text-gray-800 text-base ${task.completed ? 'line-through text-gray-400' : ''}`}>
-                      {task.title}
-                    </h3>
+                    <h3 className={`font-bold text-gray-800 text-base ${task.completed ? 'line-through text-gray-400' : ''}`}>{task.title}</h3>
                     <div className="flex flex-wrap items-center gap-2 mt-2 text-xs">
-                       {canEdit && (
-                        <span className="bg-violet-50 text-violet-700 px-2 py-1 rounded-lg font-bold flex items-center gap-1">
-                           {task.targetType === 'roles' ? <Users size={12} /> : <User size={12} />}
-                           <span className="truncate max-w-[150px]">{task.assignedTo || "Todos"}</span>
-                        </span>
-                      )}
-                      <span className={`px-2 py-1 rounded-lg font-medium border ${isLate ? 'bg-red-50 text-red-600 border-red-100' : 'bg-gray-50 text-gray-600 border-gray-100'}`}>
-                        {formatDate(task.dueDate)}
-                      </span>
+                       {canEdit && <span className="bg-violet-50 text-violet-700 px-2 py-1 rounded-lg font-bold flex items-center gap-1">{task.targetType === 'roles' ? <Users size={12} /> : <User size={12} />}<span className="truncate max-w-[150px]">{task.assignedTo || "Todos"}</span></span>}
+                       <span className={`px-2 py-1 rounded-lg font-medium border ${isLate ? 'bg-red-50 text-red-600 border-red-100' : 'bg-gray-50 text-gray-600 border-gray-100'}`}>{formatDate(task.dueDate)}</span>
                     </div>
                   </div>
                   {canEdit && (
@@ -769,13 +527,11 @@ function TasksView({ tasks, user, canEdit }) {
 
               {targetType === 'roles' && (
                 <div className="p-3 bg-violet-50 rounded-xl max-h-40 overflow-y-auto">
-                  <p className="text-xs text-gray-500 mb-2 font-bold uppercase">Selecciona Roles:</p>
+                  <p className="text-xs text-gray-500 mb-2 font-bold uppercase">Roles:</p>
                   <div className="space-y-2">
                     {ROLES.map(role => (
                       <label key={role} className="flex items-center gap-2 cursor-pointer hover:bg-white p-1 rounded">
-                        <div className={`w-5 h-5 rounded border flex items-center justify-center ${selectedRoles.includes(role) ? 'bg-violet-600 border-violet-600' : 'border-gray-300 bg-white'}`}>
-                          {selectedRoles.includes(role) && <Check size={12} className="text-white" />}
-                        </div>
+                        <div className={`w-5 h-5 rounded border flex items-center justify-center ${selectedRoles.includes(role) ? 'bg-violet-600 border-violet-600' : 'border-gray-300 bg-white'}`}>{selectedRoles.includes(role) && <Check size={12} className="text-white" />}</div>
                         <input type="checkbox" className="hidden" checked={selectedRoles.includes(role)} onChange={() => toggleSelection(role, selectedRoles, setSelectedRoles)} />
                         <span className="text-sm text-gray-700">{role}</span>
                       </label>
@@ -786,17 +542,15 @@ function TasksView({ tasks, user, canEdit }) {
 
               {targetType === 'users' && (
                 <div className="p-3 bg-violet-50 rounded-xl max-h-40 overflow-y-auto">
-                   <p className="text-xs text-gray-500 mb-2 font-bold uppercase">Selecciona Personas:</p>
-                   <div className="space-y-2">
-                    {usersList.map(u => (
+                    <p className="text-xs text-gray-500 mb-2 font-bold uppercase">Personas:</p>
+                    <div className="space-y-2">
+                     {usersList.map(u => (
                       <label key={u.id} className="flex items-center gap-2 cursor-pointer hover:bg-white p-1 rounded">
-                        <div className={`w-5 h-5 rounded border flex items-center justify-center ${selectedUsers.includes(u.fullName) ? 'bg-violet-600 border-violet-600' : 'border-gray-300 bg-white'}`}>
-                          {selectedUsers.includes(u.fullName) && <Check size={12} className="text-white" />}
-                        </div>
+                        <div className={`w-5 h-5 rounded border flex items-center justify-center ${selectedUsers.includes(u.fullName) ? 'bg-violet-600 border-violet-600' : 'border-gray-300 bg-white'}`}>{selectedUsers.includes(u.fullName) && <Check size={12} className="text-white" />}</div>
                         <input type="checkbox" className="hidden" checked={selectedUsers.includes(u.fullName)} onChange={() => toggleSelection(u.fullName, selectedUsers, setSelectedUsers)} />
-                        <span className="text-sm text-gray-700">{u.fullName} <span className="text-xs text-gray-400">({u.role})</span></span>
+                        <span className="text-sm text-gray-700">{u.fullName}</span>
                       </label>
-                    ))}
+                     ))}
                   </div>
                 </div>
               )}
@@ -806,17 +560,10 @@ function TasksView({ tasks, user, canEdit }) {
                   <input type="checkbox" checked={hasNotification} onChange={(e) => setHasNotification(e.target.checked)} className="rounded text-violet-600 focus:ring-violet-500" />
                   <Bell size={16} /> Programar Aviso
                 </label>
-                
                 {hasNotification && (
                   <div className="space-y-3 bg-orange-50 p-3 rounded-xl animate-in fade-in">
-                    <div>
-                      <label className="text-xs font-bold text-orange-600">Fecha del Aviso</label>
-                      <input type="date" value={notifDate} onChange={(e) => setNotifDate(e.target.value)} className="w-full mt-1 p-2 bg-white border border-orange-200 rounded-lg text-sm" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-orange-600">Mensaje</label>
-                      <input type="text" value={notifMsg} onChange={(e) => setNotifMsg(e.target.value)} placeholder="Ej. Recuerden traer..." className="w-full mt-1 p-2 bg-white border border-orange-200 rounded-lg text-sm" />
-                    </div>
+                    <div><label className="text-xs font-bold text-orange-600">Fecha</label><input type="date" value={notifDate} onChange={(e) => setNotifDate(e.target.value)} className="w-full mt-1 p-2 bg-white border border-orange-200 rounded-lg text-sm" /></div>
+                    <div><label className="text-xs font-bold text-orange-600">Mensaje</label><input type="text" value={notifMsg} onChange={(e) => setNotifMsg(e.target.value)} className="w-full mt-1 p-2 bg-white border border-orange-200 rounded-lg text-sm" /></div>
                   </div>
                 )}
               </div>
@@ -839,9 +586,7 @@ function UsersView({ user }) {
 
   useEffect(() => {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
-    const unsub = onSnapshot(q, snap => {
-      setUsersList(snap.docs.map(d => ({id: d.id, ...d.data()})));
-    });
+    const unsub = onSnapshot(q, snap => setUsersList(snap.docs.map(d => ({id: d.id, ...d.data()}))));
     return () => unsub();
   }, []);
 
@@ -853,46 +598,28 @@ function UsersView({ user }) {
     const password = e.target.password.value;
     const role = e.target.role.value;
     const fullName = `${firstName} ${lastName}`;
-
-    if (usersList.some(u => u.username === username)) {
-      alert("El nombre de usuario ya existe.");
-      return;
-    }
-
-    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), {
-      firstName, lastName, fullName, username, password, role,
-      createdAt: serverTimestamp()
-    });
+    if (usersList.some(u => u.username === username)) { alert("Usuario existente."); return; }
+    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), { firstName, lastName, fullName, username, password, role, createdAt: serverTimestamp() });
     setShowModal(false);
   };
 
   const deleteUser = async (id) => {
-    if (confirm("¿Eliminar usuario?")) {
-      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id));
-    }
+    if (confirm("¿Eliminar usuario?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id));
   };
 
   return (
     <div className="animate-in fade-in duration-500">
       <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-violet-900">Personal</h2>
-          <p className="text-sm text-gray-500">Gestión de equipo</p>
-        </div>
-        <button 
-          onClick={() => setShowModal(true)}
-          className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg shadow-orange-200 hover:bg-orange-600 transition active:scale-95"
-        >
-          <Plus size={24} />
-        </button>
+        <h2 className="text-2xl font-bold text-violet-900">Personal</h2>
+        <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:bg-orange-600 transition active:scale-95"><Plus size={24} /></button>
       </div>
 
       <div className="grid gap-3">
         {usersList.map(u => (
-          <div key={u.id} className="bg-white p-4 rounded-2xl shadow-sm border border-violet-50 flex justify-between items-center group hover:shadow-md transition">
+          <div key={u.id} className="bg-white p-4 rounded-2xl shadow-sm border border-violet-50 flex justify-between items-center group">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center font-bold text-lg">
-                {u.firstName?.[0]}{u.lastName?.[0]}
+              <div className="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center font-bold text-lg overflow-hidden">
+                {u.photoUrl ? <img src={u.photoUrl} className="w-full h-full object-cover" /> : `${u.firstName?.[0]}${u.lastName?.[0]}`}
               </div>
               <div>
                 <h4 className="font-bold text-gray-800">{u.fullName}</h4>
@@ -902,9 +629,7 @@ function UsersView({ user }) {
                 </div>
               </div>
             </div>
-            <button onClick={() => deleteUser(u.id)} className="text-gray-300 hover:text-red-500 p-2 bg-gray-50 rounded-full hover:bg-red-50 transition">
-              <Trash2 size={18} />
-            </button>
+            <button onClick={() => deleteUser(u.id)} className="text-gray-300 hover:text-red-500 p-2 bg-gray-50 rounded-full hover:bg-red-50 transition"><Trash2 size={18} /></button>
           </div>
         ))}
       </div>
@@ -915,10 +640,10 @@ function UsersView({ user }) {
             <h3 className="text-xl font-bold mb-6 text-violet-900">Alta de Usuario</h3>
             <form onSubmit={createUser} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
-                <input name="firstName" required className="w-full p-3 bg-violet-50 rounded-xl border-none focus:ring-2 focus:ring-orange-400" placeholder="Nombre" />
-                <input name="lastName" required className="w-full p-3 bg-violet-50 rounded-xl border-none focus:ring-2 focus:ring-orange-400" placeholder="Apellido" />
+                <input name="firstName" required className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Nombre" />
+                <input name="lastName" required className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Apellido" />
               </div>
-              <select name="role" className="w-full p-3 bg-violet-50 rounded-xl border-none focus:ring-2 focus:ring-orange-400 text-gray-700">
+              <select name="role" className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400 text-gray-700">
                 {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
               <div className="p-4 bg-orange-50 rounded-xl space-y-3">
@@ -926,7 +651,6 @@ function UsersView({ user }) {
                 <input name="username" required className="w-full p-2 bg-white rounded-lg border border-orange-200" placeholder="Usuario" />
                 <input name="password" required className="w-full p-2 bg-white rounded-lg border border-orange-200" placeholder="Contraseña" />
               </div>
-
               <div className="flex gap-3 mt-6">
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button>
                 <button type="submit" className="flex-1 py-3 bg-violet-800 text-white font-bold rounded-xl shadow-lg">Crear</button>
@@ -939,16 +663,11 @@ function UsersView({ user }) {
   );
 }
 
-// --- Vista de Calendario (MEJORADA: TÍTULOS Y DETALLES) ---
 function CalendarView({ events, canEdit, user }) {
   const [showModal, setShowModal] = useState(false);
-  const [viewMode, setViewMode] = useState('list'); // 'list' o 'grid'
+  const [viewMode, setViewMode] = useState('list');
   const [currentDate, setCurrentDate] = useState(new Date());
-  
-  // Estados para ver detalles de un evento
   const [selectedEvent, setSelectedEvent] = useState(null);
-
-  // Estados para nuevo evento
   const [hasNotification, setHasNotification] = useState(false);
   const [notifDate, setNotifDate] = useState('');
   const [notifMsg, setNotifMsg] = useState('');
@@ -958,28 +677,20 @@ function CalendarView({ events, canEdit, user }) {
     const title = e.target.title.value;
     const date = e.target.date.value;
     const type = e.target.type.value;
-    const description = e.target.description?.value || ''; // Campo nuevo opcional
-    
-    let eventData = {
-      title, date, type, description, createdBy: user.id, createdAt: serverTimestamp()
-    };
-
+    const description = e.target.description?.value || '';
+    let eventData = { title, date, type, description, createdBy: user.id, createdAt: serverTimestamp() };
     if (hasNotification && notifDate && notifMsg) {
       eventData.notificationDate = notifDate;
       eventData.notificationMessage = notifMsg;
     }
-
     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), eventData);
-    setShowModal(false);
-    setHasNotification(false);
-    setNotifMsg('');
-    setNotifDate('');
+    setShowModal(false); setHasNotification(false); setNotifMsg(''); setNotifDate('');
   };
 
   const deleteEvent = async (id) => {
-    if(confirm('¿Seguro que deseas eliminar este evento?')) {
+    if(confirm('¿Eliminar evento?')) {
       await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', id));
-      setSelectedEvent(null); // Cerrar el modal de detalle si estaba abierto
+      setSelectedEvent(null);
     }
   };
 
@@ -999,13 +710,11 @@ function CalendarView({ events, canEdit, user }) {
   
   const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
   const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
-
   const changeMonth = (offset) => {
     const newDate = new Date(currentDate.setMonth(currentDate.getMonth() + offset));
     setCurrentDate(new Date(newDate));
   };
 
-  // Renderizado de la grilla del calendario (DÍAS)
   const renderCalendarGrid = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -1013,30 +722,17 @@ function CalendarView({ events, canEdit, user }) {
     const firstDay = getFirstDayOfMonth(year, month);
     const days = [];
 
-    // Celdas vacías antes del día 1
-    for (let i = 0; i < firstDay; i++) {
-      days.push(<div key={`empty-${i}`} className="min-h-[80px] bg-gray-50/30 border border-gray-100"></div>);
-    }
+    for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} className="min-h-[80px] bg-gray-50/30 border border-gray-100"></div>);
 
-    // Días del mes
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const dayEvents = events.filter(e => e.date === dateStr);
-      
       days.push(
         <div key={d} className="min-h-[80px] border border-gray-100 p-1 relative bg-white hover:bg-violet-50 transition group overflow-hidden">
           <span className={`text-xs font-bold block mb-1 ${dayEvents.length > 0 ? 'text-violet-700' : 'text-gray-400'}`}>{d}</span>
-          
           <div className="flex flex-col gap-1">
             {dayEvents.map((ev, idx) => (
-              <button 
-                key={idx} 
-                onClick={() => setSelectedEvent(ev)}
-                className={`text-[9px] text-left truncate px-1.5 py-0.5 rounded font-medium w-full shadow-sm hover:opacity-80 transition ${getTypeStyle(ev.type)}`}
-                title={ev.title}
-              >
-                {ev.title}
-              </button>
+              <button key={idx} onClick={() => setSelectedEvent(ev)} className={`text-[9px] text-left truncate px-1.5 py-0.5 rounded font-medium w-full shadow-sm hover:opacity-80 transition ${getTypeStyle(ev.type)}`}>{ev.title}</button>
             ))}
           </div>
         </div>
@@ -1048,22 +744,13 @@ function CalendarView({ events, canEdit, user }) {
   return (
     <div className="animate-in fade-in duration-500">
       <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-violet-900">Agenda</h2>
-          <p className="text-xs text-gray-500 font-medium">Eventos institucionales</p>
-        </div>
-        
+        <h2 className="text-2xl font-bold text-violet-900">Agenda</h2>
         <div className="flex gap-2">
            <div className="bg-white p-1 rounded-xl border border-gray-200 flex shadow-sm">
               <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition ${viewMode === 'list' ? 'bg-violet-100 text-violet-700 shadow-inner' : 'text-gray-400 hover:text-gray-600'}`}><List size={20} /></button>
               <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition ${viewMode === 'grid' ? 'bg-violet-100 text-violet-700 shadow-inner' : 'text-gray-400 hover:text-gray-600'}`}><Grid size={20} /></button>
            </div>
-           
-           {canEdit && (
-            <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg hover:bg-orange-600 transition active:scale-95 border-b-4 border-orange-600 active:border-b-0 active:translate-y-1">
-              <Plus size={20} />
-            </button>
-           )}
+           {canEdit && <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg hover:bg-orange-600 transition active:scale-95"><Plus size={20} /></button>}
         </div>
       </div>
 
@@ -1071,96 +758,53 @@ function CalendarView({ events, canEdit, user }) {
         <div className="bg-white rounded-3xl shadow-lg border border-gray-200 overflow-hidden">
            <div className="p-4 flex justify-between items-center bg-violet-50 border-b border-violet-100">
               <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700"><ChevronLeft size={24} /></button>
-              <span className="font-bold text-violet-900 capitalize text-lg">
-                {currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
-              </span>
+              <span className="font-bold text-violet-900 capitalize text-lg">{currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}</span>
               <button onClick={() => changeMonth(1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700"><ChevronRight size={24} /></button>
            </div>
-           <div className="grid grid-cols-7 text-center py-3 bg-white text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100">
-             <div>Dom</div><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div>
-           </div>
-           <div className="grid grid-cols-7 bg-gray-100 gap-px border-b border-gray-200">
-             {renderCalendarGrid()}
-           </div>
-           <div className="p-3 text-xs text-gray-400 text-center bg-gray-50 flex items-center justify-center gap-2">
-             <span className="w-2 h-2 rounded-full bg-violet-500"></span> Haz clic en un evento para ver detalles
-           </div>
+           <div className="grid grid-cols-7 text-center py-3 bg-white text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100"><div>Dom</div><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div></div>
+           <div className="grid grid-cols-7 bg-gray-100 gap-px border-b border-gray-200">{renderCalendarGrid()}</div>
         </div>
       ) : (
         <div className="space-y-4">
-          {events.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200">
-              <CalendarIcon size={48} className="mx-auto mb-4 text-violet-100" />
-              <p className="text-gray-500">No hay eventos próximos.</p>
-            </div>
-          ) : (
+          {events.length === 0 ? <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200"><CalendarIcon size={48} className="mx-auto mb-4 text-violet-100" /><p className="text-gray-500">No hay eventos próximos.</p></div> : 
             events.map(event => (
               <div key={event.id} onClick={() => setSelectedEvent(event)} className="bg-white p-4 rounded-2xl shadow-sm border border-violet-50 flex items-center gap-4 relative group hover:shadow-md transition cursor-pointer active:scale-[0.99]">
                   <div className="flex flex-col items-center justify-center w-14 h-14 bg-violet-50 rounded-2xl border border-violet-100 text-violet-600 shrink-0">
-                    <span className="text-[10px] uppercase font-bold text-violet-400">
-                      {event.date ? new Date(event.date + 'T00:00:00').toLocaleDateString('es-ES', { month: 'short' }) : '-'}
-                    </span>
-                    <span className="text-xl font-bold leading-none">
-                      {event.date ? new Date(event.date + 'T00:00:00').getDate() : '-'}
-                    </span>
+                    <span className="text-[10px] uppercase font-bold text-violet-400">{event.date ? new Date(event.date + 'T00:00:00').toLocaleDateString('es-ES', { month: 'short' }) : '-'}</span>
+                    <span className="text-xl font-bold leading-none">{event.date ? new Date(event.date + 'T00:00:00').getDate() : '-'}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-gray-800 text-sm truncate">{event.title}</h3>
                     <div className="mt-1 flex items-center gap-2 flex-wrap">
-                        <span className={`text-[9px] px-2 py-1 rounded-md font-bold uppercase tracking-wide border whitespace-nowrap ${getTypeStyle(event.type)}`}>
-                          {event.type}
-                        </span>
-                        {event.notificationDate && (
-                          <span className="text-gray-400 flex items-center gap-1 text-[9px] whitespace-nowrap">
-                            <Bell size={10} /> Aviso: {new Date(event.notificationDate + 'T00:00:00').toLocaleDateString('es-ES', {day:'2-digit', month:'2-digit'})}
-                          </span>
-                        )}
+                        <span className={`text-[9px] px-2 py-1 rounded-md font-bold uppercase tracking-wide border whitespace-nowrap ${getTypeStyle(event.type)}`}>{event.type}</span>
+                        {event.notificationDate && <span className="text-gray-400 flex items-center gap-1 text-[9px] whitespace-nowrap"><Bell size={10} /> Aviso: {new Date(event.notificationDate + 'T00:00:00').toLocaleDateString('es-ES', {day:'2-digit', month:'2-digit'})}</span>}
                     </div>
                   </div>
-                  <div className="text-gray-300">
-                    <ChevronRight size={18} />
-                  </div>
+                  <ChevronRight size={18} className="text-gray-300" />
               </div>
             ))
-          )}
+          }
         </div>
       )}
 
-      {/* --- MODAL DE NUEVO EVENTO --- */}
       {showModal && canEdit && (
         <div className="fixed inset-0 bg-violet-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200">
             <h3 className="text-xl font-bold mb-6 text-violet-900">Nuevo Evento</h3>
             <form onSubmit={addEvent} className="space-y-4">
-              <input name="title" required className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none placeholder:text-gray-400" placeholder="Título del evento" />
-              <input type="date" name="date" required className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none text-gray-700" />
-              
-              <select name="type" className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none text-gray-700">
-                {EVENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-
+              <input name="title" required className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none placeholder:text-gray-400" placeholder="Título" />
+              <input type="date" name="date" required className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none" />
+              <select name="type" className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none text-gray-700">{EVENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select>
               <textarea name="description" className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none resize-none h-20 placeholder:text-gray-400 text-sm" placeholder="Descripción opcional..." ></textarea>
-
                <div className="pt-2 border-t border-gray-100">
-                <label className="flex items-center gap-2 text-sm font-bold text-gray-700 cursor-pointer mb-2 select-none">
-                  <input type="checkbox" checked={hasNotification} onChange={(e) => setHasNotification(e.target.checked)} className="rounded text-violet-600 focus:ring-violet-500" />
-                  <Bell size={16} /> Programar Aviso
-                </label>
-                
+                <label className="flex items-center gap-2 text-sm font-bold text-gray-700 cursor-pointer mb-2 select-none"><input type="checkbox" checked={hasNotification} onChange={(e) => setHasNotification(e.target.checked)} className="rounded text-violet-600 focus:ring-violet-500" /> <Bell size={16} /> Programar Aviso</label>
                 {hasNotification && (
                   <div className="space-y-3 bg-orange-50 p-3 rounded-xl animate-in fade-in">
-                    <div>
-                      <label className="text-xs font-bold text-orange-600">Fecha del Aviso</label>
-                      <input type="date" value={notifDate} onChange={(e) => setNotifDate(e.target.value)} className="w-full mt-1 p-2 bg-white border border-orange-200 rounded-lg text-sm" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-orange-600">Mensaje</label>
-                      <input type="text" value={notifMsg} onChange={(e) => setNotifMsg(e.target.value)} placeholder="Ej. Mañana es el acto..." className="w-full mt-1 p-2 bg-white border border-orange-200 rounded-lg text-sm" />
-                    </div>
+                    <div><label className="text-xs font-bold text-orange-600">Fecha</label><input type="date" value={notifDate} onChange={(e) => setNotifDate(e.target.value)} className="w-full mt-1 p-2 bg-white border border-orange-200 rounded-lg text-sm" /></div>
+                    <div><label className="text-xs font-bold text-orange-600">Mensaje</label><input type="text" value={notifMsg} onChange={(e) => setNotifMsg(e.target.value)} className="w-full mt-1 p-2 bg-white border border-orange-200 rounded-lg text-sm" /></div>
                   </div>
                 )}
               </div>
-
               <div className="flex gap-3 mt-6">
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl transition">Cancelar</button>
                 <button type="submit" className="flex-1 py-3 bg-violet-800 text-white font-bold rounded-xl shadow-lg hover:bg-violet-900 transition">Guardar</button>
@@ -1170,57 +814,32 @@ function CalendarView({ events, canEdit, user }) {
         </div>
       )}
 
-      {/* --- MODAL DE DETALLES DEL EVENTO (NUEVO) --- */}
       {selectedEvent && (
         <div className="fixed inset-0 bg-violet-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setSelectedEvent(null)}>
            <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
               <div className={`h-24 ${getTypeStyle(selectedEvent.type).split(' ')[0]} relative`}>
-                 <button onClick={() => setSelectedEvent(null)} className="absolute top-4 right-4 bg-white/50 hover:bg-white rounded-full p-1 text-gray-700 transition">
-                    <ChevronRight className="rotate-90" size={24} />
-                 </button>
+                 <button onClick={() => setSelectedEvent(null)} className="absolute top-4 right-4 bg-white/50 hover:bg-white rounded-full p-1 text-gray-700 transition"><ChevronRight className="rotate-90" size={24} /></button>
               </div>
               <div className="px-6 pb-6 -mt-10 relative">
                  <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-4">
-                    <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide border mb-2 inline-block ${getTypeStyle(selectedEvent.type)}`}>
-                       {selectedEvent.type}
-                    </span>
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide border mb-2 inline-block ${getTypeStyle(selectedEvent.type)}`}>{selectedEvent.type}</span>
                     <h2 className="text-xl font-bold text-gray-800 leading-tight">{selectedEvent.title}</h2>
                  </div>
-
                  <div className="space-y-4">
                     <div className="flex items-center gap-3 text-gray-600">
-                       <div className="w-10 h-10 rounded-full bg-violet-50 flex items-center justify-center text-violet-600">
-                          <CalendarIcon size={20} />
-                       </div>
-                       <div>
-                          <p className="text-xs text-gray-400 font-bold uppercase">Fecha</p>
-                          <p className="font-medium text-gray-800">
-                             {new Date(selectedEvent.date + 'T00:00:00').toLocaleDateString('es-ES', {weekday: 'long', day: 'numeric', month: 'long'})}
-                          </p>
-                       </div>
+                       <div className="w-10 h-10 rounded-full bg-violet-50 flex items-center justify-center text-violet-600"><CalendarIcon size={20} /></div>
+                       <div><p className="text-xs text-gray-400 font-bold uppercase">Fecha</p><p className="font-medium text-gray-800">{new Date(selectedEvent.date + 'T00:00:00').toLocaleDateString('es-ES', {weekday: 'long', day: 'numeric', month: 'long'})}</p></div>
                     </div>
-
                     {selectedEvent.description && (
                       <div className="flex items-start gap-3 text-gray-600">
-                         <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-orange-500 shrink-0">
-                            <FileText size={20} />
-                         </div>
-                         <div>
-                            <p className="text-xs text-gray-400 font-bold uppercase">Descripción</p>
-                            <p className="text-sm text-gray-700 leading-relaxed">{selectedEvent.description}</p>
-                         </div>
+                         <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-orange-500 shrink-0"><FileText size={20} /></div>
+                         <div><p className="text-xs text-gray-400 font-bold uppercase">Descripción</p><p className="text-sm text-gray-700 leading-relaxed">{selectedEvent.description}</p></div>
                       </div>
                     )}
                  </div>
-
                  {canEdit && (
                     <div className="mt-8 pt-4 border-t border-gray-100 flex justify-end">
-                       <button 
-                          onClick={() => deleteEvent(selectedEvent.id)}
-                          className="flex items-center gap-2 text-red-500 hover:bg-red-50 px-4 py-2 rounded-xl transition font-bold text-sm"
-                       >
-                          <Trash2 size={18} /> Eliminar Evento
-                       </button>
+                       <button onClick={() => deleteEvent(selectedEvent.id)} className="flex items-center gap-2 text-red-500 hover:bg-red-50 px-4 py-2 rounded-xl transition font-bold text-sm"><Trash2 size={18} /> Eliminar Evento</button>
                     </div>
                  )}
               </div>
@@ -1230,157 +849,62 @@ function CalendarView({ events, canEdit, user }) {
     </div>
   );
 }
-// --- Vista de Perfil (MEJORADA: TAREA 2 - EDICIÓN) ---
+
 function ProfileView({ user, tasks, onLogout, canEdit }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    firstName: user.firstName || '',
-    lastName: user.lastName || '',
-    photoUrl: user.photoUrl || '' // Campo nuevo para foto
-  });
+  const [formData, setFormData] = useState({ firstName: user.firstName || '', lastName: user.lastName || '', photoUrl: user.photoUrl || '' });
 
-  // Guardar cambios en Firebase
   const handleSave = async () => {
     try {
       const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-      const newFullName = `${formData.firstName} ${formData.lastName}`;
-      
-      await updateDoc(userRef, {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        fullName: newFullName,
-        photoUrl: formData.photoUrl
-      });
-      
-      alert("Perfil actualizado. Por favor vuelve a iniciar sesión para ver los cambios.");
-      onLogout(); // Forzamos logout para recargar los datos limpios
-    } catch (e) {
-      console.error(e);
-      alert("Error al guardar");
-    }
+      await updateDoc(userRef, { firstName: formData.firstName, lastName: formData.lastName, fullName: `${formData.firstName} ${formData.lastName}`, photoUrl: formData.photoUrl });
+      alert("Perfil actualizado. Inicia sesión nuevamente para ver cambios."); onLogout();
+    } catch (e) { alert("Error al guardar"); }
   };
 
   const exportData = () => {
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Titulo,Vencimiento,Estado,Asignado A\n";
-    tasks.forEach(t => {
-      const row = [`"${t.title}"`, t.dueDate, t.completed ? "Completado" : "Pendiente", t.assignedTo].join(",");
-      csvContent += row + "\r\n";
-    });
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `reporte_${user.lastName}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    let csvContent = "data:text/csv;charset=utf-8,Titulo,Vencimiento,Estado,Asignado A\n" + tasks.map(t => [`"${t.title}"`, t.dueDate, t.completed ? "Completado" : "Pendiente", t.assignedTo].join(",")).join("\r\n");
+    const link = document.createElement("a"); link.href = encodeURI(csvContent); link.download = `reporte_${user.lastName}.csv`; document.body.appendChild(link); link.click(); document.body.removeChild(link);
   };
 
   return (
     <div className="animate-in fade-in duration-500 p-4">
-      {/* Tarjeta de Perfil */}
       <div className="bg-white rounded-3xl shadow-sm border border-violet-50 overflow-hidden mb-6 relative">
         <div className="bg-gradient-to-r from-violet-600 to-orange-500 h-28 relative"></div>
         <div className="px-6 pb-6 pt-12 relative">
            <div className="absolute -top-10 left-6 w-24 h-24 bg-white p-1 rounded-2xl shadow-lg">
-              {/* Lógica para mostrar FOTO o INICIALES */}
-              {user.photoUrl ? (
-                <img src={user.photoUrl} alt="Perfil" className="w-full h-full object-cover rounded-xl" />
-              ) : (
-                <div className="w-full h-full bg-violet-50 rounded-xl flex items-center justify-center text-violet-600 font-bold text-3xl border border-violet-100">
-                  {user.firstName?.[0]}{user.lastName?.[0]}
-                </div>
-              )}
+              {user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover rounded-xl" /> : <div className="w-full h-full bg-violet-50 rounded-xl flex items-center justify-center text-violet-600 font-bold text-3xl border border-violet-100">{user.firstName?.[0]}{user.lastName?.[0]}</div>}
            </div>
-           
            <div className="flex justify-between items-start">
-             <div>
-               <h2 className="text-2xl font-bold text-gray-800 mt-2">{user.fullName}</h2>
-               <p className="text-orange-600 font-bold text-xs uppercase tracking-wider">{user.role}</p>
-               {user.rol === 'admin' && <span className="bg-violet-600 text-white text-[10px] px-2 py-0.5 rounded-full ml-1">ADMIN</span>}
-             </div>
-             <button 
-                onClick={() => setIsEditing(!isEditing)}
-                className="text-violet-600 hover:bg-violet-50 p-2 rounded-xl transition text-sm font-bold flex items-center gap-1"
-             >
-               {isEditing ? 'Cancelar' : 'Editar'}
-             </button>
+             <div><h2 className="text-2xl font-bold text-gray-800 mt-2">{user.fullName}</h2><p className="text-orange-600 font-bold text-xs uppercase tracking-wider">{user.role}</p>{user.rol === 'admin' && <span className="bg-violet-600 text-white text-[10px] px-2 py-0.5 rounded-full ml-1">ADMIN</span>}</div>
+             <button onClick={() => setIsEditing(!isEditing)} className="text-violet-600 hover:bg-violet-50 p-2 rounded-xl transition text-sm font-bold flex items-center gap-1">{isEditing ? 'Cancelar' : 'Editar'}</button>
            </div>
         </div>
-        
-        {/* Formulario de Edición (Solo aparece si das clic a Editar) */}
         {isEditing && (
           <div className="px-6 pb-6 animate-in slide-in-from-top-4">
             <div className="bg-gray-50 p-4 rounded-xl space-y-3 border border-gray-100">
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                   <label className="text-xs font-bold text-gray-500 ml-1">Nombre</label>
-                   <input 
-                      value={formData.firstName}
-                      onChange={e => setFormData({...formData, firstName: e.target.value})}
-                      className="w-full p-2 rounded-lg border border-gray-200" 
-                   />
-                </div>
-                <div>
-                   <label className="text-xs font-bold text-gray-500 ml-1">Apellido</label>
-                   <input 
-                      value={formData.lastName}
-                      onChange={e => setFormData({...formData, lastName: e.target.value})}
-                      className="w-full p-2 rounded-lg border border-gray-200" 
-                   />
-                </div>
+                <div><label className="text-xs font-bold text-gray-500 ml-1">Nombre</label><input value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} className="w-full p-2 rounded-lg border border-gray-200" /></div>
+                <div><label className="text-xs font-bold text-gray-500 ml-1">Apellido</label><input value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} className="w-full p-2 rounded-lg border border-gray-200" /></div>
               </div>
-              <div>
-                 <label className="text-xs font-bold text-gray-500 ml-1">URL de Foto (Pegar link de imagen)</label>
-                 <input 
-                    value={formData.photoUrl}
-                    onChange={e => setFormData({...formData, photoUrl: e.target.value})}
-                    placeholder="https://..."
-                    className="w-full p-2 rounded-lg border border-gray-200" 
-                 />
-                 <p className="text-[10px] text-gray-400 mt-1">Truco: Puedes usar un link de Google Fotos o LinkedIn aquí.</p>
-              </div>
-              <button onClick={handleSave} className="w-full py-2 bg-violet-600 text-white font-bold rounded-lg shadow hover:bg-violet-700">
-                Guardar Cambios
-              </button>
+              <div><label className="text-xs font-bold text-gray-500 ml-1">URL de Foto</label><input value={formData.photoUrl} onChange={e => setFormData({...formData, photoUrl: e.target.value})} placeholder="https://..." className="w-full p-2 rounded-lg border border-gray-200" /></div>
+              <button onClick={handleSave} className="w-full py-2 bg-violet-600 text-white font-bold rounded-lg shadow hover:bg-violet-700">Guardar Cambios</button>
             </div>
           </div>
         )}
       </div>
 
       <h3 className="text-lg font-bold text-violet-900 mb-4 px-2">Acciones</h3>
-      
       <div className="grid gap-3">
-        <button 
-          onClick={exportData}
-          className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]"
-        >
-          <div className="bg-green-100 text-green-700 p-3 rounded-xl">
-            <Download size={24} />
-          </div>
-          <div className="text-left">
-            <h4 className="font-bold text-gray-800">Exportar Reporte</h4>
-            <p className="text-xs text-gray-500">Descargar mis tareas en Excel/CSV</p>
-          </div>
+        <button onClick={exportData} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]">
+          <div className="bg-green-100 text-green-700 p-3 rounded-xl"><Download size={24} /></div>
+          <div className="text-left"><h4 className="font-bold text-gray-800">Exportar Reporte</h4><p className="text-xs text-gray-500">Descargar mis tareas en Excel/CSV</p></div>
         </button>
-
-        <button 
-          onClick={() => { if(confirm("¿Cerrar sesión?")) onLogout(); }} 
-          className="bg-red-50 p-4 rounded-2xl border border-red-100 shadow-sm flex items-center gap-4 hover:bg-red-100 transition active:scale-[0.98] mt-4"
-        >
-           <div className="bg-white text-red-500 p-3 rounded-xl">
-             <LogOut size={24} />
-           </div>
-           <div className="text-left">
-             <h4 className="font-bold text-red-600">Cerrar Sesión</h4>
-             <p className="text-xs text-red-400">Salir de la cuenta segura</p>
-           </div>
+        <button onClick={() => { if(confirm("¿Cerrar sesión?")) onLogout(); }} className="bg-red-50 p-4 rounded-2xl border border-red-100 shadow-sm flex items-center gap-4 hover:bg-red-100 transition active:scale-[0.98] mt-4">
+           <div className="bg-white text-red-500 p-3 rounded-xl"><LogOut size={24} /></div>
+           <div className="text-left"><h4 className="font-bold text-red-600">Cerrar Sesión</h4><p className="text-xs text-red-400">Salir de la cuenta segura</p></div>
         </button>
       </div>
     </div>
   );
 }
-
-
-
-
