@@ -1,18 +1,18 @@
 {
   "short_name": "Juntos a la Par",
   "name": "Portal Juntos a la Par",
-"icons": [
+  "icons": [
     {
-      "src": "./icon-192.png",
+      "src": "/icon-192.png",
       "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "./icon-512.png",
+      "src": "/icon-512.png",
       "type": "image/png",
       "sizes": "512x512"
     }
-],
+  ],
   "start_url": "/",
   "display": "standalone",
   "theme_color": "#5b21b6",
