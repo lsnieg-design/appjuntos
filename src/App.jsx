@@ -163,62 +163,62 @@ export default function App() {
   return <MainApp user={currentUserProfile} onLogout={handleLogout} />;
 }
 
-// --- Componente de Ayuda para Instalación (NUEVO) ---
-function InstallTutorial({ onClose }) {
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-  
+// --- Componente Modal de Instalación (MEJORADO) ---
+function InstallTutorial({ onClose, isIos, onInstall }) {
   return (
-    <div className="fixed inset-0 bg-violet-900/90 z-50 flex flex-col items-center justify-center p-6 text-white animate-in zoom-in-95">
-      <div className="max-w-sm w-full bg-white text-gray-800 rounded-3xl p-6 shadow-2xl relative">
-        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><AlertCircle className="rotate-45" size={24}/></button>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-opacity duration-300">
+      <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm text-center transform scale-100 transition-transform duration-300 animate-in zoom-in-95">
         
-        <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-violet-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Smartphone className="text-violet-600" size={32} />
-          </div>
-          <h2 className="text-xl font-bold text-violet-900">Instalar App</h2>
-          <p className="text-sm text-gray-500 mt-2">Sigue estos pasos para tener el icono en tu pantalla de inicio.</p>
+        {/* Icono animado */}
+        <div className="mx-auto bg-purple-100 w-20 h-20 rounded-full flex items-center justify-center mb-5 animate-bounce">
+          <Smartphone className="text-violet-600" size={40} />
         </div>
 
-        {isIOS ? (
-          <div className="space-y-4">
-            <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl">
-              <div className="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full font-bold">1</div>
-              <p className="text-sm font-medium">Toca el botón <strong>Compartir</strong> abajo del todo.</p>
-              <Share className="text-blue-500" />
+        <h3 className="text-2xl font-extrabold text-gray-800 mb-2">¡Instala la App! 📲</h3>
+        <p className="text-gray-600 mb-6 text-sm">
+          Para mejor experiencia y acceso rápido, descarga la aplicación ahora.
+        </p>
+
+        <div className="flex flex-col gap-3">
+          
+          {/* Lógica: Si es Android/PC muestra botón, si es iOS muestra instrucciones */}
+          {!isIos ? (
+            <button 
+              onClick={onInstall}
+              className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg hover:shadow-xl hover:from-purple-700 hover:to-indigo-700 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-2"
+            >
+              <Download size={20} /> INSTALAR AHORA
+            </button>
+          ) : (
+            <div className="text-left bg-gray-50 p-4 rounded-xl border border-gray-200 text-sm text-gray-700 shadow-inner">
+              <p className="mb-3 font-bold text-violet-900 text-center">Pasos para iPhone:</p>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                    <div className="bg-blue-100 text-blue-600 w-8 h-8 rounded-full flex items-center justify-center font-bold shrink-0">1</div>
+                    <p>Toca el botón <strong>Compartir</strong> <span className="inline-block align-middle"><Share size={14}/></span></p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <div className="bg-blue-100 text-blue-600 w-8 h-8 rounded-full flex items-center justify-center font-bold shrink-0">2</div>
+                    <p>Selecciona <strong>"Agregar a Inicio"</strong> <span className="inline-block align-middle"><PlusSquare size={14}/></span></p>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl">
-              <div className="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full font-bold">2</div>
-              <p className="text-sm font-medium">Busca y toca <strong>"Agregar a Inicio"</strong>.</p>
-              <PlusSquare className="text-gray-500" />
-            </div>
-            <div className="text-center mt-4">
-                <span className="text-xs text-gray-400">¿No ves la opción? Desliza el menú hacia arriba.</span>
-            </div>
-            <div className="animate-bounce mt-4 flex justify-center text-violet-600">
-                <ChevronLeft className="-rotate-90" size={32} />
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-             <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl">
-              <div className="w-8 h-8 flex items-center justify-center bg-orange-100 text-orange-600 rounded-full font-bold">1</div>
-              <p className="text-sm font-medium">Toca los <strong>3 puntitos</strong> arriba a la derecha.</p>
-            </div>
-            <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl">
-              <div className="w-8 h-8 flex items-center justify-center bg-orange-100 text-orange-600 rounded-full font-bold">2</div>
-              <p className="text-sm font-medium">Elige <strong>"Instalar aplicación"</strong> o "Agregar a la pantalla principal".</p>
-            </div>
-          </div>
-        )}
-        
-        <button onClick={onClose} className="w-full mt-6 py-3 bg-violet-600 text-white rounded-xl font-bold shadow-lg">Entendido</button>
+          )}
+
+          {/* Botón Cerrar */}
+          <button 
+            onClick={onClose}
+            className="text-gray-400 text-sm font-medium hover:text-gray-600 underline mt-2"
+          >
+            Quizás más tarde
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-// --- Pantalla Login (Con botón de instalación) ---
+// --- Pantalla Login (Con lógica de instalación integrada) ---
 function LoginScreen({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -227,35 +227,40 @@ function LoginScreen({ onLogin }) {
   const [showRecover, setShowRecover] = useState(false);
   const [recoverUser, setRecoverUser] = useState('');
   const [recoverStatus, setRecoverStatus] = useState('idle');
+  
+  // --- LÓGICA DE INSTALACIÓN ---
   const [showInstall, setShowInstall] = useState(false);
-
-  // 1. Estados nuevos para controlar la instalación
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [esIos, setEsIos] = useState(false);
+  
+  // Detectar modo standalone (ya instalada)
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
   useEffect(() => {
-    // A) Detectar si es iPhone/iPad
-    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
-    setEsIos(ios);
+    // 1. Detectar si es iPhone
+    const iosCheck = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
+    setEsIos(iosCheck);
 
-    // B) Capturar el evento de instalación en Android/PC
+    // 2. Escuchar evento de instalación (Android/PC)
     const handleBeforeInstallPrompt = (e) => {
-      e.preventDefault(); // Evitar cartel feo de Chrome
+      e.preventDefault();
       setDeferredPrompt(e);
-      setShowInstall(true); // ¡Mostrar nuestro Modal automáticamente!
+      // Mostrar el modal automáticamente si no está instalada
+      if (!isStandalone) setShowInstall(true);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // C) Si es iPhone y no está instalada, mostrar modal a los 3 segundos
-    if (ios && !isStandalone) {
-      setTimeout(() => setShowInstall(true), 3000);
+    // 3. Si es iPhone y no está instalada, mostrar modal tras 3 segs
+    if (iosCheck && !isStandalone) {
+       const timer = setTimeout(() => setShowInstall(true), 3000);
+       return () => clearTimeout(timer);
     }
 
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-  }, []);
+  }, [isStandalone]);
 
-  // Función para disparar la instalación en Android
+  // Función para disparar el prompt nativo de Android
   const handleInstalarClick = async () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
@@ -266,8 +271,6 @@ function LoginScreen({ onLogin }) {
       setDeferredPrompt(null);
     }
   };
-  // Detectar si ya está instalada (Standalone)
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -333,21 +336,28 @@ function LoginScreen({ onLogin }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-900 to-fuchsia-900 flex items-center justify-center p-6 relative">
       
-      {/* BOTÓN DE INSTALACIÓN FLOTANTE (Solo si no es app instalada) */}
+      {/* RENDERIZADO DEL MODAL DE INSTALACIÓN */}
+      {!isStandalone && showInstall && (
+         <InstallTutorial 
+            onClose={() => setShowInstall(false)} 
+            isIos={esIos} 
+            onInstall={handleInstalarClick} 
+         />
+      )}
+
+      {/* Botón flotante manual (por si cerraron el modal) */}
       {!isStandalone && !showInstall && (
-          <div className="absolute top-4 w-full px-6 flex justify-center animate-bounce">
+          <div className="absolute top-4 w-full px-6 flex justify-center animate-bounce z-10">
               <button 
                 onClick={() => setShowInstall(true)}
-                className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 shadow-lg"
+                className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 shadow-lg hover:bg-white/20 transition"
               >
-                  <Download size={16} /> 📲 Instalar App en el Celu
+                  <Download size={16} /> Instalar App
               </button>
           </div>
       )}
 
-      {showInstall && <InstallTutorial onClose={() => setShowInstall(false)} />}
-
-      <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md border-t-8 border-orange-500">
+      <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md border-t-8 border-orange-500 relative z-0">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
              <img src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" alt="Logo" className="h-24 w-auto object-contain drop-shadow-md" />
@@ -524,7 +534,7 @@ function MainApp({ user, onLogout }) {
         </div>
         <div className="flex items-center space-x-3 bg-violet-900/50 py-1.5 px-4 rounded-full border border-violet-600">
           <div className="flex flex-col items-end">
-             <span className="text-xs font-bold truncate max-w-[100px]">{user.firstName}</span>
+              <span className="text-xs font-bold truncate max-w-[100px]">{user.firstName}</span>
           </div>
           <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-xs border-2 border-orange-400 overflow-hidden">
             {user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover" /> : `${user.firstName?.[0]}${user.lastName?.[0]}`}
@@ -678,7 +688,7 @@ function TasksView({ tasks, user, canEdit }) {
       {canEdit && (<div className="mb-4 flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide"><span className="text-xs font-bold text-gray-400 flex items-center gap-1 uppercase"><Filter size={12}/> Filtrar:</span><button onClick={() => setFilterRole('all')} className={`text-xs px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition ${filterRole === 'all' ? 'bg-violet-600 text-white' : 'bg-white text-gray-500 border border-gray-200'}`}>Todos</button>{ROLES.map(role => (<button key={role} onClick={() => setFilterRole(role)} className={`text-xs px-3 py-1.5 rounded-full font-bold whitespace-nowrap transition ${filterRole === role ? 'bg-violet-600 text-white' : 'bg-white text-gray-500 border border-gray-200'}`}>{role}</button>))}</div>)}
       <div className="space-y-3">
         {filteredTasks.length === 0 ? <div className="text-center py-12 text-gray-400 bg-white rounded-3xl border border-dashed border-gray-200"><CheckCircle size={48} className="mx-auto mb-2 text-violet-100" /><p>No hay tareas visibles.</p></div> : 
-            filteredTasks.map(task => {
+          filteredTasks.map(task => {
             const daysLeft = calculateDaysLeft(task.dueDate);
             const isLate = daysLeft < 0 && task.status !== 'completed';
             const status = task.status || (task.completed ? 'completed' : 'pending');
@@ -963,59 +973,3 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
     </div>
   );
 }
-let deferredPrompt;
-const installModal = document.getElementById('modal-instalacion');
-const installBtn = document.getElementById('btn-instalar');
-const closeBtn = document.getElementById('btn-cerrar');
-const iosInstructions = document.getElementById('instrucciones-ios');
-
-// Detectar si es dispositivo iOS (iPhone/iPad)
-const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
-// Detectar si ya está instalada (en modo standalone)
-const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-
-// --- LÓGICA PARA IPHONE ---
-if (isIos && !isStandalone) {
-  // En iPhone no esperamos evento. Mostramos el modal directamente (quizás con un pequeño retraso)
-  setTimeout(() => {
-    installModal.classList.remove('hidden');
-    // Ocultamos el botón de instalar (porque en iPhone no funciona)
-    installBtn.classList.add('hidden');
-    // Mostramos las instrucciones manuales
-    iosInstructions.classList.remove('hidden');
-  }, 2000); // Espera 2 segundos para no ser agresivo al entrar
-}
-
-// --- LÓGICA PARA ANDROID / PC ---
-window.addEventListener('beforeinstallprompt', (e) => {
-  // Prevenir Chrome automático
-  e.preventDefault();
-  deferredPrompt = e;
-  
-  // Mostrar modal
-  installModal.classList.remove('hidden');
-  // Asegurarnos que en Android SÍ se vea el botón y NO las instrucciones de iOS
-  installBtn.classList.remove('hidden');
-  iosInstructions.classList.add('hidden');
-});
-
-// Click en "Instalar Ahora" (Solo Android/PC)
-installBtn.addEventListener('click', async () => {
-  if (!deferredPrompt) return;
-  installModal.classList.add('hidden');
-  deferredPrompt.prompt();
-  const { outcome } = await deferredPrompt.userChoice;
-  deferredPrompt = null;
-});
-
-// Cerrar modal
-closeBtn.addEventListener('click', () => {
-  installModal.classList.add('hidden');
-});
-
-// Si se instala con éxito
-window.addEventListener('appinstalled', () => {
-  installModal.classList.add('hidden');
-  deferredPrompt = null;
-});
-
