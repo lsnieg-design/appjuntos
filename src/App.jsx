@@ -35,7 +35,12 @@ import {
   Activity,
   Share,
   PlusSquare,
-  Smartphone
+  Smartphone,
+  GraduationCap, // <--- NUEVO
+  Search,        // <--- NUEVO
+  X,             // <--- NUEVO
+  UploadCloud,   // <--- NUEVO
+  ChevronRight   // <--- NUEVO
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -1027,6 +1032,7 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
     </div>
   );
 }
+
 
 
 
