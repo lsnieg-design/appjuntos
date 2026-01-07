@@ -546,6 +546,7 @@ function MainApp({ user, onLogout }) {
       case 'dashboard': return <DashboardView user={user} tasks={tasks} events={events} />;
       case 'calendar': return <CalendarView events={events} canEdit={canManageContent} user={user} />;
       case 'tasks': return <TasksView tasks={tasks} user={user} canEdit={canManageContent} />;
+      case 'matricula': return <MatriculaView canEdit={canManageContent} />;
       case 'resources': return <ResourcesView resources={resources} canEdit={canManageContent} />;
       case 'notifications': return <NotificationsView notifications={notifications} canEdit={canManageUsers} />;
       case 'users': return <UsersView user={user} />;
@@ -1032,6 +1033,7 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
     </div>
   );
 }
+
 
 
 
