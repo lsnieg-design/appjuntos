@@ -58,6 +58,38 @@ import {
   getDocs,
   serverTimestamp 
 } from 'firebase/firestore';
+// --- UTILIDAD PARA NOTIFICACIONES DEL SISTEMA ---
+const sendSystemNotification = (title, body) => {
+  // 1. Verificar si el navegador soporta notificaciones
+  if (!("Notification" in window)) return;
+
+  // 2. Si ya dio permiso, lanzar la notificación
+  if (Notification.permission === "granted") {
+    // En móviles, a veces se requiere usar el Service Worker para que sea persistente,
+    // pero intentamos primero la forma directa que funciona en la mayoría de Androids modernos con PWA instalada.
+    navigator.serviceWorker.ready.then((registration) => {
+      registration.showNotification(title, {
+        body: body,
+        icon: '/icon-192.png', // Asegúrate de que esta ruta exista en public
+        vibrate: [200, 100, 200],
+        badge: '/icon-192.png'
+      });
+    });
+  } 
+  // 3. Si no ha dicho nada, no hacemos nada (se debe pedir permiso con un botón primero)
+};
+
+const requestNotificationPermission = async () => {
+  if (!("Notification" in window)) {
+    alert("Tu dispositivo no soporta notificaciones.");
+    return;
+  }
+  
+  const permission = await Notification.requestPermission();
+  if (permission === "granted") {
+    sendSystemNotification("¡Permiso concedido!", "Ahora recibirás avisos aquí.");
+  }
+};
 
 // --- CONFIGURACIÓN DE FIREBASE ---
 const getFirebaseConfig = () => {
@@ -973,3 +1005,4 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
     </div>
   );
 }
+
