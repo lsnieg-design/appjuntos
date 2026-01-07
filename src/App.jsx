@@ -229,6 +229,43 @@ function LoginScreen({ onLogin }) {
   const [recoverStatus, setRecoverStatus] = useState('idle');
   const [showInstall, setShowInstall] = useState(false);
 
+  // 1. Estados nuevos para controlar la instalación
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [esIos, setEsIos] = useState(false);
+
+  useEffect(() => {
+    // A) Detectar si es iPhone/iPad
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
+    setEsIos(ios);
+
+    // B) Capturar el evento de instalación en Android/PC
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault(); // Evitar cartel feo de Chrome
+      setDeferredPrompt(e);
+      setShowInstall(true); // ¡Mostrar nuestro Modal automáticamente!
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    // C) Si es iPhone y no está instalada, mostrar modal a los 3 segundos
+    if (ios && !isStandalone) {
+      setTimeout(() => setShowInstall(true), 3000);
+    }
+
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
+
+  // Función para disparar la instalación en Android
+  const handleInstalarClick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setShowInstall(false);
+      }
+      setDeferredPrompt(null);
+    }
+  };
   // Detectar si ya está instalada (Standalone)
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
@@ -981,3 +1018,4 @@ window.addEventListener('appinstalled', () => {
   installModal.classList.add('hidden');
   deferredPrompt = null;
 });
+
