@@ -939,11 +939,16 @@ function UsersView({ user }) {
   );
 }
 
+// --- Vista de Calendario (MEJORADA: TÍTULOS Y DETALLES) ---
 function CalendarView({ events, canEdit, user }) {
   const [showModal, setShowModal] = useState(false);
-  const [viewMode, setViewMode] = useState('list');
+  const [viewMode, setViewMode] = useState('list'); // 'list' o 'grid'
   const [currentDate, setCurrentDate] = useState(new Date());
+  
+  // Estados para ver detalles de un evento
+  const [selectedEvent, setSelectedEvent] = useState(null);
 
+  // Estados para nuevo evento
   const [hasNotification, setHasNotification] = useState(false);
   const [notifDate, setNotifDate] = useState('');
   const [notifMsg, setNotifMsg] = useState('');
@@ -953,9 +958,10 @@ function CalendarView({ events, canEdit, user }) {
     const title = e.target.title.value;
     const date = e.target.date.value;
     const type = e.target.type.value;
+    const description = e.target.description?.value || ''; // Campo nuevo opcional
     
     let eventData = {
-      title, date, type, createdBy: user.id, createdAt: serverTimestamp()
+      title, date, type, description, createdBy: user.id, createdAt: serverTimestamp()
     };
 
     if (hasNotification && notifDate && notifMsg) {
@@ -966,45 +972,40 @@ function CalendarView({ events, canEdit, user }) {
     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), eventData);
     setShowModal(false);
     setHasNotification(false);
+    setNotifMsg('');
+    setNotifDate('');
   };
 
   const deleteEvent = async (id) => {
-    if(confirm('¿Eliminar evento?')) {
+    if(confirm('¿Seguro que deseas eliminar este evento?')) {
       await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', id));
+      setSelectedEvent(null); // Cerrar el modal de detalle si estaba abierto
     }
   };
 
   const getTypeStyle = (type) => {
     const styles = {
-      'SALIDA EDUCATIVA': 'bg-green-100 text-green-700 border-green-200',
-      'GENERAL': 'bg-gray-100 text-gray-700 border-gray-200',
-      'ADMINISTRATIVO': 'bg-blue-100 text-blue-700 border-blue-200',
-      'INFORMES': 'bg-amber-100 text-amber-700 border-amber-200',
-      'EVENTOS': 'bg-violet-100 text-violet-700 border-violet-200',
-      'ACTOS': 'bg-red-100 text-red-700 border-red-200',
-      'EFEMÉRIDES': 'bg-cyan-100 text-cyan-700 border-cyan-200',
-      'CUMPLEAÑOS': 'bg-pink-100 text-pink-700 border-pink-200',
+      'SALIDA EDUCATIVA': 'bg-green-100 text-green-800 border-green-200',
+      'GENERAL': 'bg-gray-100 text-gray-800 border-gray-200',
+      'ADMINISTRATIVO': 'bg-blue-100 text-blue-800 border-blue-200',
+      'INFORMES': 'bg-amber-100 text-amber-800 border-amber-200',
+      'EVENTOS': 'bg-violet-100 text-violet-800 border-violet-200',
+      'ACTOS': 'bg-red-100 text-red-800 border-red-200',
+      'EFEMÉRIDES': 'bg-cyan-100 text-cyan-800 border-cyan-200',
+      'CUMPLEAÑOS': 'bg-pink-100 text-pink-800 border-pink-200',
     };
     return styles[type] || styles['GENERAL'];
   };
   
-  const getTypeDotColor = (type) => {
-    const colors = {
-      'SALIDA EDUCATIVA': 'bg-green-500',
-      'GENERAL': 'bg-gray-500',
-      'ADMINISTRATIVO': 'bg-blue-500',
-      'INFORMES': 'bg-amber-500',
-      'EVENTOS': 'bg-violet-500',
-      'ACTOS': 'bg-red-500',
-      'EFEMÉRIDES': 'bg-cyan-500',
-      'CUMPLEAÑOS': 'bg-pink-500',
-    };
-    return colors[type] || 'bg-gray-400';
-  }
-
   const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
   const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
 
+  const changeMonth = (offset) => {
+    const newDate = new Date(currentDate.setMonth(currentDate.getMonth() + offset));
+    setCurrentDate(new Date(newDate));
+  };
+
+  // Renderizado de la grilla del calendario (DÍAS)
   const renderCalendarGrid = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -1012,31 +1013,36 @@ function CalendarView({ events, canEdit, user }) {
     const firstDay = getFirstDayOfMonth(year, month);
     const days = [];
 
+    // Celdas vacías antes del día 1
     for (let i = 0; i < firstDay; i++) {
-      days.push(<div key={`empty-${i}`} className="h-20 bg-gray-50/50 border border-gray-100"></div>);
+      days.push(<div key={`empty-${i}`} className="min-h-[80px] bg-gray-50/30 border border-gray-100"></div>);
     }
 
+    // Días del mes
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const dayEvents = events.filter(e => e.date === dateStr);
       
       days.push(
-        <div key={d} className="h-20 border border-gray-100 p-1 relative bg-white hover:bg-violet-50 transition">
-          <span className={`text-xs font-bold ${dayEvents.length > 0 ? 'text-violet-700' : 'text-gray-400'}`}>{d}</span>
-          <div className="flex flex-wrap gap-1 mt-1 content-start">
+        <div key={d} className="min-h-[80px] border border-gray-100 p-1 relative bg-white hover:bg-violet-50 transition group overflow-hidden">
+          <span className={`text-xs font-bold block mb-1 ${dayEvents.length > 0 ? 'text-violet-700' : 'text-gray-400'}`}>{d}</span>
+          
+          <div className="flex flex-col gap-1">
             {dayEvents.map((ev, idx) => (
-              <div key={idx} className={`w-2 h-2 rounded-full ${getTypeDotColor(ev.type)}`} title={ev.title}></div>
+              <button 
+                key={idx} 
+                onClick={() => setSelectedEvent(ev)}
+                className={`text-[9px] text-left truncate px-1.5 py-0.5 rounded font-medium w-full shadow-sm hover:opacity-80 transition ${getTypeStyle(ev.type)}`}
+                title={ev.title}
+              >
+                {ev.title}
+              </button>
             ))}
           </div>
         </div>
       );
     }
     return days;
-  };
-
-  const changeMonth = (offset) => {
-    const newDate = new Date(currentDate.setMonth(currentDate.getMonth() + offset));
-    setCurrentDate(new Date(newDate));
   };
 
   return (
@@ -1048,34 +1054,36 @@ function CalendarView({ events, canEdit, user }) {
         </div>
         
         <div className="flex gap-2">
-           <div className="bg-white p-1 rounded-xl border border-gray-200 flex">
-              <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition ${viewMode === 'list' ? 'bg-violet-100 text-violet-700' : 'text-gray-400'}`}><List size={20} /></button>
-              <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition ${viewMode === 'grid' ? 'bg-violet-100 text-violet-700' : 'text-gray-400'}`}><Grid size={20} /></button>
+           <div className="bg-white p-1 rounded-xl border border-gray-200 flex shadow-sm">
+              <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition ${viewMode === 'list' ? 'bg-violet-100 text-violet-700 shadow-inner' : 'text-gray-400 hover:text-gray-600'}`}><List size={20} /></button>
+              <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition ${viewMode === 'grid' ? 'bg-violet-100 text-violet-700 shadow-inner' : 'text-gray-400 hover:text-gray-600'}`}><Grid size={20} /></button>
            </div>
            
            {canEdit && (
-            <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg hover:bg-orange-600 transition"><Plus size={20} /></button>
+            <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg hover:bg-orange-600 transition active:scale-95 border-b-4 border-orange-600 active:border-b-0 active:translate-y-1">
+              <Plus size={20} />
+            </button>
            )}
         </div>
       </div>
 
       {viewMode === 'grid' ? (
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-3xl shadow-lg border border-gray-200 overflow-hidden">
            <div className="p-4 flex justify-between items-center bg-violet-50 border-b border-violet-100">
-              <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white rounded-full transition"><ChevronLeft size={20} className="text-violet-700"/></button>
-              <span className="font-bold text-violet-900 capitalize">
+              <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700"><ChevronLeft size={24} /></button>
+              <span className="font-bold text-violet-900 capitalize text-lg">
                 {currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
               </span>
-              <button onClick={() => changeMonth(1)} className="p-2 hover:bg-white rounded-full transition"><ChevronRight size={20} className="text-violet-700"/></button>
+              <button onClick={() => changeMonth(1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700"><ChevronRight size={24} /></button>
            </div>
-           <div className="grid grid-cols-7 text-center py-2 bg-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+           <div className="grid grid-cols-7 text-center py-3 bg-white text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100">
              <div>Dom</div><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div>
            </div>
-           <div className="grid grid-cols-7 bg-gray-100 gap-px">
+           <div className="grid grid-cols-7 bg-gray-100 gap-px border-b border-gray-200">
              {renderCalendarGrid()}
            </div>
-           <div className="p-3 text-xs text-gray-400 text-center bg-gray-50">
-             * Toca un día para ver detalles
+           <div className="p-3 text-xs text-gray-400 text-center bg-gray-50 flex items-center justify-center gap-2">
+             <span className="w-2 h-2 rounded-full bg-violet-500"></span> Haz clic en un evento para ver detalles
            </div>
         </div>
       ) : (
@@ -1087,52 +1095,54 @@ function CalendarView({ events, canEdit, user }) {
             </div>
           ) : (
             events.map(event => (
-              <div key={event.id} className="bg-white p-4 rounded-2xl shadow-sm border border-violet-50 flex items-center gap-4 relative group hover:shadow-md transition">
-                 <div className="flex flex-col items-center justify-center w-14 h-14 bg-violet-50 rounded-2xl border border-violet-100 text-violet-600">
+              <div key={event.id} onClick={() => setSelectedEvent(event)} className="bg-white p-4 rounded-2xl shadow-sm border border-violet-50 flex items-center gap-4 relative group hover:shadow-md transition cursor-pointer active:scale-[0.99]">
+                  <div className="flex flex-col items-center justify-center w-14 h-14 bg-violet-50 rounded-2xl border border-violet-100 text-violet-600 shrink-0">
                     <span className="text-[10px] uppercase font-bold text-violet-400">
-                      {event.date ? new Date(event.date).toLocaleDateString('es-ES', { month: 'short' }) : '-'}
+                      {event.date ? new Date(event.date + 'T00:00:00').toLocaleDateString('es-ES', { month: 'short' }) : '-'}
                     </span>
                     <span className="text-xl font-bold leading-none">
-                      {event.date ? new Date(event.date).getDate() + 1 : '-'}
+                      {event.date ? new Date(event.date + 'T00:00:00').getDate() : '-'}
                     </span>
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-bold text-gray-800 text-sm">{event.title}</h3>
-                    <div className="mt-1 flex items-center gap-2">
-                       <span className={`text-[9px] px-2 py-1 rounded-md font-bold uppercase tracking-wide border ${getTypeStyle(event.type)}`}>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-gray-800 text-sm truncate">{event.title}</h3>
+                    <div className="mt-1 flex items-center gap-2 flex-wrap">
+                        <span className={`text-[9px] px-2 py-1 rounded-md font-bold uppercase tracking-wide border whitespace-nowrap ${getTypeStyle(event.type)}`}>
                           {event.type}
                         </span>
                         {event.notificationDate && (
-                          <span className="text-gray-400 flex items-center gap-1 text-[9px]">
-                            <Bell size={10} /> {formatDate(event.notificationDate)}
+                          <span className="text-gray-400 flex items-center gap-1 text-[9px] whitespace-nowrap">
+                            <Bell size={10} /> Aviso: {new Date(event.notificationDate + 'T00:00:00').toLocaleDateString('es-ES', {day:'2-digit', month:'2-digit'})}
                           </span>
                         )}
                     </div>
                   </div>
-                  {canEdit && (
-                    <button onClick={() => deleteEvent(event.id)} className="text-gray-300 hover:text-red-500 p-2 bg-gray-50 rounded-full hover:bg-red-50 transition">
-                      <Trash2 size={16} />
-                    </button>
-                  )}
+                  <div className="text-gray-300">
+                    <ChevronRight size={18} />
+                  </div>
               </div>
             ))
           )}
         </div>
       )}
 
+      {/* --- MODAL DE NUEVO EVENTO --- */}
       {showModal && canEdit && (
         <div className="fixed inset-0 bg-violet-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200">
             <h3 className="text-xl font-bold mb-6 text-violet-900">Nuevo Evento</h3>
             <form onSubmit={addEvent} className="space-y-4">
-              <input name="title" required className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none" placeholder="Título" />
-              <input type="date" name="date" required className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none" />
+              <input name="title" required className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none placeholder:text-gray-400" placeholder="Título del evento" />
+              <input type="date" name="date" required className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none text-gray-700" />
+              
               <select name="type" className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none text-gray-700">
-                {EVENT_TYPES.map(t => <option key={t}>{t}</option>)}
+                {EVENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
 
+              <textarea name="description" className="w-full p-3 bg-violet-50 rounded-xl focus:ring-2 focus:ring-orange-400 outline-none resize-none h-20 placeholder:text-gray-400 text-sm" placeholder="Descripción opcional..." ></textarea>
+
                <div className="pt-2 border-t border-gray-100">
-                <label className="flex items-center gap-2 text-sm font-bold text-gray-700 cursor-pointer mb-2">
+                <label className="flex items-center gap-2 text-sm font-bold text-gray-700 cursor-pointer mb-2 select-none">
                   <input type="checkbox" checked={hasNotification} onChange={(e) => setHasNotification(e.target.checked)} className="rounded text-violet-600 focus:ring-violet-500" />
                   <Bell size={16} /> Programar Aviso
                 </label>
@@ -1152,17 +1162,74 @@ function CalendarView({ events, canEdit, user }) {
               </div>
 
               <div className="flex gap-3 mt-6">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button>
-                <button type="submit" className="flex-1 py-3 bg-violet-800 text-white font-bold rounded-xl shadow-lg">Guardar</button>
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl transition">Cancelar</button>
+                <button type="submit" className="flex-1 py-3 bg-violet-800 text-white font-bold rounded-xl shadow-lg hover:bg-violet-900 transition">Guardar</button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* --- MODAL DE DETALLES DEL EVENTO (NUEVO) --- */}
+      {selectedEvent && (
+        <div className="fixed inset-0 bg-violet-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setSelectedEvent(null)}>
+           <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+              <div className={`h-24 ${getTypeStyle(selectedEvent.type).split(' ')[0]} relative`}>
+                 <button onClick={() => setSelectedEvent(null)} className="absolute top-4 right-4 bg-white/50 hover:bg-white rounded-full p-1 text-gray-700 transition">
+                    <ChevronRight className="rotate-90" size={24} />
+                 </button>
+              </div>
+              <div className="px-6 pb-6 -mt-10 relative">
+                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-4">
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide border mb-2 inline-block ${getTypeStyle(selectedEvent.type)}`}>
+                       {selectedEvent.type}
+                    </span>
+                    <h2 className="text-xl font-bold text-gray-800 leading-tight">{selectedEvent.title}</h2>
+                 </div>
+
+                 <div className="space-y-4">
+                    <div className="flex items-center gap-3 text-gray-600">
+                       <div className="w-10 h-10 rounded-full bg-violet-50 flex items-center justify-center text-violet-600">
+                          <CalendarIcon size={20} />
+                       </div>
+                       <div>
+                          <p className="text-xs text-gray-400 font-bold uppercase">Fecha</p>
+                          <p className="font-medium text-gray-800">
+                             {new Date(selectedEvent.date + 'T00:00:00').toLocaleDateString('es-ES', {weekday: 'long', day: 'numeric', month: 'long'})}
+                          </p>
+                       </div>
+                    </div>
+
+                    {selectedEvent.description && (
+                      <div className="flex items-start gap-3 text-gray-600">
+                         <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-orange-500 shrink-0">
+                            <FileText size={20} />
+                         </div>
+                         <div>
+                            <p className="text-xs text-gray-400 font-bold uppercase">Descripción</p>
+                            <p className="text-sm text-gray-700 leading-relaxed">{selectedEvent.description}</p>
+                         </div>
+                      </div>
+                    )}
+                 </div>
+
+                 {canEdit && (
+                    <div className="mt-8 pt-4 border-t border-gray-100 flex justify-end">
+                       <button 
+                          onClick={() => deleteEvent(selectedEvent.id)}
+                          className="flex items-center gap-2 text-red-500 hover:bg-red-50 px-4 py-2 rounded-xl transition font-bold text-sm"
+                       >
+                          <Trash2 size={18} /> Eliminar Evento
+                       </button>
+                    </div>
+                 )}
+              </div>
+           </div>
+        </div>
+      )}
     </div>
   );
 }
-
 // --- Vista de Perfil (MEJORADA: TAREA 2 - EDICIÓN) ---
 function ProfileView({ user, tasks, onLogout, canEdit }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -1313,6 +1380,7 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
     </div>
   );
 }
+
 
 
 
