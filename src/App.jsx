@@ -587,6 +587,7 @@ function MainApp({ user, onLogout }) {
           <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={24} />} label="Inicio" />
           <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={24} />} label="Tareas" badge={tasks.filter(t => t.status !== 'completed').length} />
           <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={24} />} label="Agenda" />
+          <NavButton active={activeTab === 'matricula'} onClick={() => setActiveTab('matricula')} icon={<GraduationCap size={24} />} label="Matrícula" />
           <NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<LinkIcon size={24} />} label="Recursos" />
           <NavButton active={activeTab === 'notifications'} onClick={() => setActiveTab('notifications')} icon={<Bell size={24} />} label="Avisos" badge={notifications.length} />
           {canManageUsers && <NavButton active={activeTab === 'users'} onClick={() => setActiveTab('users')} icon={<Users size={24} />} label="Admin" />}
@@ -1030,6 +1031,278 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
             <div className="text-left"><h4 className="font-bold text-red-600">Cerrar Sesión</h4><p className="text-xs text-red-400">Salir de la cuenta segura</p></div>
         </button>
       </div>
+    </div>
+  );
+}
+// --- VISTA MATRÍCULA (CON IMPORTACIÓN Y EDAD) ---
+function MatriculaView({ canEdit }) {
+  const [students, setStudents] = useState([]);
+  const [filterText, setFilterText] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false); 
+  const [editingStudent, setEditingStudent] = useState(null);
+  const [importJson, setImportJson] = useState(''); 
+  const [importing, setImporting] = useState(false);
+  
+  // Filtros
+  const [filterGroup, setFilterGroup] = useState('all');
+  const [filterShift, setFilterShift] = useState('all');
+  const [filterTeacher, setFilterTeacher] = useState('all');
+
+  // Utilidad: Calcular Edad
+  const calculateAge = (dateString) => {
+    if (!dateString) return '-';
+    const today = new Date();
+    const birthDate = new Date(dateString);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  useEffect(() => {
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), orderBy('lastName', 'asc'));
+    const unsub = onSnapshot(q, (snap) => {
+      setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, []);
+
+  const uniqueGroups = [...new Set(students.map(s => s.group).filter(Boolean))].sort();
+  const uniqueTeachers = [...new Set(students.map(s => s.teacher).filter(Boolean))].sort();
+
+  const filteredStudents = students.filter(s => {
+    const textMatch = 
+      s.firstName?.toLowerCase().includes(filterText.toLowerCase()) || 
+      s.lastName?.toLowerCase().includes(filterText.toLowerCase()) || 
+      s.dni?.toString().includes(filterText);
+    
+    const groupMatch = filterGroup === 'all' || s.group === filterGroup;
+    const shiftMatch = filterShift === 'all' || s.shift === filterShift;
+    const teacherMatch = filterTeacher === 'all' || s.teacher === filterTeacher;
+
+    return textMatch && groupMatch && shiftMatch && teacherMatch;
+  });
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = {
+      firstName: formData.get('firstName'),
+      lastName: formData.get('lastName'),
+      dni: formData.get('dni'),
+      birthDate: formData.get('birthDate'), 
+      group: formData.get('group'),
+      teacher: formData.get('teacher'),
+      shift: formData.get('shift'),
+      comments: formData.get('comments'),
+      updatedAt: serverTimestamp()
+    };
+
+    if (editingStudent) {
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', editingStudent.id), data);
+    } else {
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...data, createdAt: serverTimestamp() });
+    }
+    setShowModal(false);
+    setEditingStudent(null);
+  };
+
+  const handleBulkImport = async () => {
+    try {
+      setImporting(true);
+      const data = JSON.parse(importJson);
+      if (!Array.isArray(data)) throw new Error("El formato debe ser una lista [...]");
+
+      let count = 0;
+      for (const s of data) {
+        if (s.lastName && s.firstName) {
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), {
+                firstName: s.firstName,
+                lastName: s.lastName,
+                dni: s.dni || '',
+                birthDate: s.birthDate || '', 
+                group: s.group || 'Sin Grupo',
+                teacher: s.teacher || 'Sin Docente',
+                shift: s.shift || 'M',
+                createdAt: serverTimestamp()
+            });
+            count++;
+        }
+      }
+      alert(`¡Se importaron ${count} estudiantes con éxito!`);
+      setShowImportModal(false);
+      setImportJson('');
+    } catch (e) {
+      alert("Error en el formato JSON: " + e.message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if(confirm("¿Borrar legajo de estudiante de forma permanente?")) {
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id));
+    }
+  };
+
+  const exportToCSV = () => {
+    let csv = "Apellido,Nombre,Edad,DNI,F. Nacimiento,Grupo,Docente,Turno\n";
+    students.forEach(s => {
+      const age = calculateAge(s.birthDate);
+      csv += `"${s.lastName}","${s.firstName}",${age},${s.dni},${s.birthDate},"${s.group}","${s.teacher}","${s.shift}"\n`;
+    });
+    const link = document.createElement("a");
+    link.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
+    link.download = "Matricula_Completa.csv";
+    link.click();
+  };
+
+  return (
+    <div className="animate-in fade-in duration-500 pb-20">
+      <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 rounded-3xl shadow-lg text-white mb-6">
+        <div className="flex justify-between items-center flex-wrap gap-4">
+          <div>
+            <h2 className="text-3xl font-bold flex items-center gap-2"><GraduationCap /> Matrícula</h2>
+            <p className="text-blue-100 opacity-90">{students.length} Estudiantes inscriptos</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={exportToCSV} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold" title="Descargar Excel">
+                <Download size={20}/> Exportar
+            </button>
+            {canEdit && (
+              <>
+                <button onClick={() => setShowImportModal(true)} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold" title="Importar JSON">
+                    <UploadCloud size={20}/> Importar
+                </button>
+                <button onClick={() => { setEditingStudent(null); setShowModal(true); }} className="bg-white text-blue-600 p-3 rounded-xl shadow-lg hover:bg-blue-50 transition font-bold">
+                    <Plus size={24} />
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+        
+        <div className="mt-6 space-y-3">
+          <div className="bg-white/10 backdrop-blur-md p-2 rounded-xl flex items-center gap-2 border border-white/20">
+            <Search className="text-white ml-2 opacity-70" size={20} />
+            <input 
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+              placeholder="Buscar por nombre, apellido o DNI..." 
+              className="bg-transparent border-none outline-none text-white placeholder-blue-200 w-full"
+            />
+            {filterText && <button onClick={() => setFilterText('')}><X className="text-white opacity-70" size={16}/></button>}
+          </div>
+          
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            <select value={filterTeacher} onChange={(e) => setFilterTeacher(e.target.value)} className="bg-white/20 text-white border-none rounded-lg text-xs px-3 py-2 outline-none font-bold cursor-pointer hover:bg-white/30 transition">
+              <option value="all" className="text-gray-800">Todos los Docentes</option>
+              {uniqueTeachers.map(t => <option key={t} value={t} className="text-gray-800">{t}</option>)}
+            </select>
+            <select value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)} className="bg-white/20 text-white border-none rounded-lg text-xs px-3 py-2 outline-none font-bold cursor-pointer hover:bg-white/30 transition">
+              <option value="all" className="text-gray-800">Todos los Grupos</option>
+              {uniqueGroups.map(g => <option key={g} value={g} className="text-gray-800">{g}</option>)}
+            </select>
+            <select value={filterShift} onChange={(e) => setFilterShift(e.target.value)} className="bg-white/20 text-white border-none rounded-lg text-xs px-3 py-2 outline-none font-bold cursor-pointer hover:bg-white/30 transition">
+              <option value="all" className="text-gray-800">Todos los Turnos</option>
+              <option value="M" className="text-gray-800">Mañana</option>
+              <option value="T" className="text-gray-800">Tarde</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {filteredStudents.length === 0 ? (
+          <div className="text-center py-10 text-gray-400">No se encontraron estudiantes.</div>
+        ) : (
+          filteredStudents.map(s => {
+            const age = calculateAge(s.birthDate);
+            return (
+            <div key={s.id} onClick={() => canEdit && setEditingStudent(s) && setShowModal(true)} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between group hover:shadow-md transition cursor-pointer">
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-2xl flex flex-col items-center justify-center font-bold text-white shadow-sm ${s.shift === 'M' ? 'bg-orange-400' : 'bg-indigo-400'}`}>
+                  <span className="text-xs uppercase">{s.group?.split(' ')[0] || '-'}</span>
+                  <span className="text-lg leading-none">{s.firstName[0]}</span>
+                </div>
+                <div>
+                  <h4 className="font-bold text-gray-800 text-lg">{s.lastName}, {s.firstName}</h4>
+                  <div className="flex flex-wrap gap-2 text-xs text-gray-500 mt-1">
+                    <span className="bg-gray-100 px-2 py-0.5 rounded font-medium flex items-center gap-1"><User size={10}/> {age !== '-' ? `${age} años` : 'Sin edad'}</span>
+                    <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded font-bold border border-blue-100">{s.group}</span>
+                    {s.teacher && <span className="text-gray-400 flex items-center gap-1">• {s.teacher}</span>}
+                  </div>
+                </div>
+              </div>
+              {canEdit && <ChevronRight className="text-gray-300" />}
+            </div>
+          )})
+        )}
+      </div>
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">{editingStudent ? 'Editar Legajo' : 'Nuevo Ingreso'}</h3>
+            <form onSubmit={handleSave} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="text-xs font-bold text-gray-500">Nombre</label><input name="firstName" defaultValue={editingStudent?.firstName} required className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                <div><label className="text-xs font-bold text-gray-500">Apellido</label><input name="lastName" defaultValue={editingStudent?.lastName} required className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                 <div><label className="text-xs font-bold text-gray-500">DNI</label><input name="dni" type="number" defaultValue={editingStudent?.dni} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                 <div><label className="text-xs font-bold text-gray-500">Fecha Nacimiento</label><input name="birthDate" type="date" defaultValue={editingStudent?.birthDate} required className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="text-xs font-bold text-gray-500">Grupo / Grado</label><input name="group" defaultValue={editingStudent?.group} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Ej: 3ro B" /></div>
+                <div>
+                  <label className="text-xs font-bold text-gray-500">Turno</label>
+                  <select name="shift" defaultValue={editingStudent?.shift || 'M'} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
+                    <option value="M">Mañana</option>
+                    <option value="T">Tarde</option>
+                  </select>
+                </div>
+              </div>
+              <div><label className="text-xs font-bold text-gray-500">Docente a Cargo</label><input name="teacher" defaultValue={editingStudent?.teacher} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+              <div><label className="text-xs font-bold text-gray-500">Observaciones</label><textarea name="comments" defaultValue={editingStudent?.comments} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none h-20 resize-none"></textarea></div>
+              
+              <div className="flex gap-3 mt-6">
+                {editingStudent && <button type="button" onClick={() => handleDelete(editingStudent.id)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition"><Trash2 size={20}/></button>}
+                <button type="button" onClick={() => {setShowModal(false); setEditingStudent(null)}} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button>
+                <button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg">Guardar Ficha</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-2xl p-6 shadow-2xl animate-in zoom-in-95">
+             <h3 className="text-xl font-bold text-gray-800 mb-2">Importar Estudiantes</h3>
+             <p className="text-sm text-gray-500 mb-4">Copia tu Excel, conviértelo a JSON (ej. en csvjson.com) y pega el resultado aquí.</p>
+             <p className="text-xs bg-gray-100 p-2 rounded text-gray-600 font-mono mb-4">
+                Formato requerido: <br/>
+                [{`{"firstName": "Juan", "lastName": "Perez", "dni": "123", "group": "1A", "teacher": "Ana", "birthDate": "2015-05-20"}`}, ...]
+             </p>
+             <textarea 
+                value={importJson}
+                onChange={e => setImportJson(e.target.value)}
+                placeholder="Pega aquí tu lista JSON..." 
+                className="w-full h-64 p-3 bg-gray-50 rounded-xl border border-gray-200 font-mono text-xs outline-none focus:ring-2 focus:ring-blue-400"
+             ></textarea>
+             <div className="flex gap-3 mt-4">
+                <button onClick={() => setShowImportModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button>
+                <button onClick={handleBulkImport} disabled={importing || !importJson} className="flex-1 py-3 bg-green-600 text-white font-bold rounded-xl shadow-lg flex justify-center items-center gap-2">
+                    {importing ? <RefreshCw className="animate-spin" /> : <><UploadCloud size={20} /> Procesar Importación</>}
+                </button>
+             </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
