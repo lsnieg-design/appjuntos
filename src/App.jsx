@@ -930,40 +930,54 @@ let deferredPrompt;
 const installModal = document.getElementById('modal-instalacion');
 const installBtn = document.getElementById('btn-instalar');
 const closeBtn = document.getElementById('btn-cerrar');
+const iosInstructions = document.getElementById('instrucciones-ios');
 
-// 1. Escuchar si la app se puede instalar
+// Detectar si es dispositivo iOS (iPhone/iPad)
+const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
+// Detectar si ya está instalada (en modo standalone)
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+
+// --- LÓGICA PARA IPHONE ---
+if (isIos && !isStandalone) {
+  // En iPhone no esperamos evento. Mostramos el modal directamente (quizás con un pequeño retraso)
+  setTimeout(() => {
+    installModal.classList.remove('hidden');
+    // Ocultamos el botón de instalar (porque en iPhone no funciona)
+    installBtn.classList.add('hidden');
+    // Mostramos las instrucciones manuales
+    iosInstructions.classList.remove('hidden');
+  }, 2000); // Espera 2 segundos para no ser agresivo al entrar
+}
+
+// --- LÓGICA PARA ANDROID / PC ---
 window.addEventListener('beforeinstallprompt', (e) => {
+  // Prevenir Chrome automático
   e.preventDefault();
   deferredPrompt = e;
   
-  // ¡BUM! Mostrar el modal en toda la cara
+  // Mostrar modal
   installModal.classList.remove('hidden');
-  console.log("Modal de instalación mostrado.");
+  // Asegurarnos que en Android SÍ se vea el botón y NO las instrucciones de iOS
+  installBtn.classList.remove('hidden');
+  iosInstructions.classList.add('hidden');
 });
 
-// 2. Acción al tocar "INSTALAR AHORA"
+// Click en "Instalar Ahora" (Solo Android/PC)
 installBtn.addEventListener('click', async () => {
   if (!deferredPrompt) return;
-  
-  // Ocultamos el modal mientras sale el prompt nativo
   installModal.classList.add('hidden');
-
   deferredPrompt.prompt();
-
   const { outcome } = await deferredPrompt.userChoice;
-  console.log(`El usuario decidió: ${outcome}`);
-  
   deferredPrompt = null;
 });
 
-// 3. Acción al tocar "Quizás más tarde"
+// Cerrar modal
 closeBtn.addEventListener('click', () => {
   installModal.classList.add('hidden');
 });
 
-// 4. Si se instala con éxito, asegurarnos de que el modal se vaya
+// Si se instala con éxito
 window.addEventListener('appinstalled', () => {
   installModal.classList.add('hidden');
   deferredPrompt = null;
-  console.log('App instalada.');
 });
