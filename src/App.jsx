@@ -1003,7 +1003,7 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
       <h3 className="text-lg font-bold text-violet-900 mb-4 px-2">Acciones</h3>
       <div className="grid gap-3"><button onClick={exportData} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]"><div className="bg-green-100 text-green-700 p-3 rounded-xl"><Download size={24} /></div><div className="text-left"><h4 className="font-bold text-gray-800">Exportar Reporte</h4><p className="text-xs text-gray-500">Descargar mis tareas en Excel/CSV</p></div></button><button onClick={() => { if(confirm("¿Cerrar sesión?")) onLogout(); }} className="bg-red-50 p-4 rounded-2xl border border-red-100 shadow-sm flex items-center gap-4 hover:bg-red-100 transition active:scale-[0.98] mt-4"><div className="bg-white text-red-500 p-3 rounded-xl"><LogOut size={24} /></div><div className="text-left"><h4 className="font-bold text-red-600">Cerrar Sesión</h4><p className="text-xs text-red-400">Salir de la cuenta segura</p></div></button></div>
     <h3 className="text-lg font-bold text-violet-900 mb-4 px-2">Acciones</h3>
-      <div className="grid gap-3">
+      
         
         {/* Botón 1: Exportar (Ya lo tenías) */}
         <button onClick={exportData} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]">
@@ -1027,5 +1027,6 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
     </div>
   );
 }
+
 
 
