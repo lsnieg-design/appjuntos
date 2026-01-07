@@ -927,43 +927,43 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
   );
 }
 let deferredPrompt;
+const installModal = document.getElementById('modal-instalacion');
 const installBtn = document.getElementById('btn-instalar');
+const closeBtn = document.getElementById('btn-cerrar');
 
-// 1. Escuchar el evento que habilita la instalación
+// 1. Escuchar si la app se puede instalar
 window.addEventListener('beforeinstallprompt', (e) => {
-  // Prevenir que Chrome muestre su cartel automático (opcional, para tener control total)
   e.preventDefault();
-  
-  // Guardar el evento para dispararlo cuando el usuario haga clic
   deferredPrompt = e;
   
-  // MOSTRAR nuestro botón (quitamos la clase 'hidden' de Tailwind)
-  installBtn.classList.remove('hidden');
-  console.log("App lista para instalar, botón mostrado.");
+  // ¡BUM! Mostrar el modal en toda la cara
+  installModal.classList.remove('hidden');
+  console.log("Modal de instalación mostrado.");
 });
 
-// 2. Qué pasa cuando el usuario hace clic
+// 2. Acción al tocar "INSTALAR AHORA"
 installBtn.addEventListener('click', async () => {
   if (!deferredPrompt) return;
+  
+  // Ocultamos el modal mientras sale el prompt nativo
+  installModal.classList.add('hidden');
 
-  // Mostrar el cartel nativo de instalación
   deferredPrompt.prompt();
 
-  // Esperar a ver qué decide el usuario
   const { outcome } = await deferredPrompt.userChoice;
   console.log(`El usuario decidió: ${outcome}`);
   
-  // Limpiar la variable
   deferredPrompt = null;
-  
-  // Ocultar el botón de nuevo (opcional, ya que la app se instalará)
-  installBtn.classList.add('hidden');
 });
 
-// 3. Detectar si ya se instaló para ocultar el botón
+// 3. Acción al tocar "Quizás más tarde"
+closeBtn.addEventListener('click', () => {
+  installModal.classList.add('hidden');
+});
+
+// 4. Si se instala con éxito, asegurarnos de que el modal se vaya
 window.addEventListener('appinstalled', () => {
-  installBtn.classList.add('hidden');
+  installModal.classList.add('hidden');
   deferredPrompt = null;
-  console.log('App instalada con éxito');
+  console.log('App instalada.');
 });
-
