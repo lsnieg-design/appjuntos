@@ -449,6 +449,21 @@ function MainApp({ user, onLogout }) {
     <div className="flex flex-col h-screen bg-gray-50 font-sans text-slate-800">
       <header className="bg-violet-800 text-white shadow-lg px-4 py-3 flex justify-between items-center z-20 sticky top-0">
         <div className="flex items-center space-x-3">
+          {/* LOGO EN EL HEADER */}
+          <div className="bg-white p-1 rounded-lg shadow-sm">
+             <img 
+               src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" 
+               alt="Logo" 
+               className="w-10 h-8 object-contain"
+             />
+          </div>
+          <div>
+            <h1 className="font-bold text-base leading-tight text-white">Juntos a la par digital</h1>
+            <p className="text-[10px] text-orange-200 font-medium tracking-wide uppercase">
+              {canEdit ? 'Administración' : user.role}
+            </p>
+          </div>
+        </div>
           <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center shadow-md transform rotate-3">
              <Briefcase size={20} className="text-white" />
           </div>
@@ -1298,5 +1313,6 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
     </div>
   );
 }
+
 
 
