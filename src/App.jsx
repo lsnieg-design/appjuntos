@@ -1187,34 +1187,45 @@ function ProfileView({ user, tasks, onLogout }) {
   // --- NUEVA LÓGICA DE ACTIVACIÓN ---
   const activarNotificaciones = async () => {
     try {
+      // 1. LIMPIEZA DE LA LLAVE (Pega tu clave real aquí)
+      const myVapidKey = "BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw"; // <--- ¡TU CLAVE VAPID AQUÍ!
+      const cleanKey = myVapidKey.trim();
+
       const permission = await Notification.requestPermission();
+      
       if (permission === 'granted') {
-        alert("Permiso concedido. Configurando...");
-        
-        // Inicializar mensajería
         const messaging = getMessaging(app);
-        
-        // OBTENER TOKEN (EL CELULAR)
-        const currentToken = await getToken(messaging, {
-          // 🛑 PEGA AQUÍ TU CLAVE VAPID GENERADA EN FIREBASE
-          vapidKey: "BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw" 
-        });
+        const currentToken = await getToken(messaging, { vapidKey: cleanKey });
 
         if (currentToken) {
-          console.log("TOKEN GENERADO:", currentToken);
-          alert("✅ ¡Listo! Notificaciones activadas.");
+          // 2. AQUÍ ESTÁ LA MAGIA: GUARDAR EN LA BASE DE DATOS
+          // Usamos la ruta exacta donde están tus usuarios
+          // (Asegúrate de que 'appId' y 'user.id' estén disponibles en este componente)
+          const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
           
-          // (Opcional) Aquí podrías guardar el token en la base de datos:
-          // await updateDoc(doc(db, 'users', user.id), { fcmToken: currentToken });
+          await updateDoc(userRef, { 
+              fcmToken: currentToken,
+              lastTokenUpdate: serverTimestamp(),
+              deviceType: 'mobile' // (Opcional) Para saber que es un celu
+          });
+
+          alert("✅ Token GUARDADO en la base de datos. Ahora sí te llegarán.");
+          
+          // Prueba de sonido local
+          new Notification("Conexión Exitosa", { 
+              body: "Tu dispositivo ya figura en el sistema.",
+              icon: '/icon-192.png'
+          });
+          
         } else {
-          alert("No se pudo generar el token. Revisa la consola.");
+          alert("No se pudo generar el token.");
         }
       } else {
-        alert("Necesitas dar permiso para recibir avisos.");
+        alert("Necesitamos tu permiso para enviarte avisos.");
       }
     } catch (error) {
       console.error("Error FCM:", error);
-      alert("Error: " + error.message);
+      alert("Error al guardar: " + error.message);
     }
   };
   // ----------------------------------
@@ -1850,6 +1861,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
