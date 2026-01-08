@@ -614,37 +614,194 @@ function NavButton({ active, onClick, icon, label, badge }) {
   );
 }
 
-// --- VISTA DASHBOARD ---
+// --- VISTA DASHBOARD (Con Comunicados 24hs) ---
 function DashboardView({ user, tasks, events }) {
+    // Estados básicos
     const todayStr = new Date().toISOString().split('T')[0];
     const eventsToday = events.filter(e => e.date === todayStr);
     const myPending = tasks.filter(t => t.status !== 'completed');
     const highPriority = myPending.filter(t => t.priority === 'high');
 
+    // Estado para Comunicados
+    const [announcement, setAnnouncement] = useState(null);
+    const [showAnnounceModal, setShowAnnounceModal] = useState(false);
+
+    // Permisos: Solo Admin, Super-Admin o Equipo Directivo pueden publicar
+    const canPost = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
+
+    // Cargar el último comunicado
+    useEffect(() => {
+        const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc'));
+        const unsub = onSnapshot(q, (snapshot) => {
+            if (!snapshot.empty) {
+                const docData = snapshot.docs[0].data();
+                const msgDate = docData.createdAt ? new Date(docData.createdAt.seconds * 1000) : new Date();
+                const now = new Date();
+                const diffHours = (now - msgDate) / (1000 * 60 * 60);
+
+                // Solo mostrar si tiene menos de 24 horas
+                if (diffHours < 24) {
+                    setAnnouncement({ ...docData, timeAgo: Math.floor(diffHours) });
+                } else {
+                    setAnnouncement(null); // Expiró
+                }
+            } else {
+                setAnnouncement(null);
+            }
+        });
+        return () => unsub();
+    }, []);
+
+    // Guardar comunicado
+    const handlePostAnnouncement = async (e) => {
+        e.preventDefault();
+        const text = e.target.message.value;
+        if(!text.trim()) return;
+
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), {
+            message: text,
+            author: user.fullName,
+            role: user.role,
+            createdAt: serverTimestamp()
+        });
+        
+        setShowAnnounceModal(false);
+        // Notificación visual rápida
+        if("Notification" in window && Notification.permission === "granted") {
+             new Notification("Comunicado Publicado", { body: "Estará visible por 24 horas." });
+        }
+    };
+
     return (
         <div className="animate-in fade-in duration-500 space-y-6">
-            <div className="bg-white p-6 rounded-3xl shadow-sm border border-violet-50">
-                <h2 className="text-2xl font-bold text-violet-900">Hola, {user.firstName}! 👋</h2>
-                <p className="text-gray-500 text-sm">Bienvenido a tu portal digital.</p>
+            {/* SALUDO */}
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-violet-50 flex justify-between items-center">
+                <div>
+                    <h2 className="text-2xl font-bold text-violet-900">Hola, {user.firstName}! 👋</h2>
+                    <p className="text-gray-500 text-sm">Bienvenido a tu portal digital.</p>
+                </div>
+                {/* Logo o Icono extra si quisieras */}
             </div>
+
+            {/* TARJETAS PRINCIPALES */}
             <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gradient-to-br from-orange-400 to-orange-600 p-5 rounded-3xl text-white shadow-lg relative overflow-hidden">
-                    <div className="relative z-10"><h3 className="text-3xl font-bold">{myPending.length}</h3><p className="text-xs font-bold opacity-90 uppercase tracking-wide">Tareas Pendientes</p></div><CheckSquare className="absolute -bottom-4 -right-4 opacity-20 w-24 h-24" />
+                    <div className="relative z-10">
+                        <h3 className="text-3xl font-bold">{myPending.length}</h3>
+                        <p className="text-xs font-bold opacity-90 uppercase tracking-wide">Tareas Pendientes</p>
+                    </div>
+                    <CheckSquare className="absolute -bottom-4 -right-4 opacity-20 w-24 h-24" />
                 </div>
                 <div className="bg-gradient-to-br from-violet-600 to-violet-800 p-5 rounded-3xl text-white shadow-lg relative overflow-hidden">
-                     <div className="relative z-10"><h3 className="text-3xl font-bold">{eventsToday.length}</h3><p className="text-xs font-bold opacity-90 uppercase tracking-wide">Eventos Hoy</p></div><CalendarIcon className="absolute -bottom-4 -right-4 opacity-20 w-24 h-24" />
+                    <div className="relative z-10">
+                        <h3 className="text-3xl font-bold">{eventsToday.length}</h3>
+                        <p className="text-xs font-bold opacity-90 uppercase tracking-wide">Eventos Hoy</p>
+                    </div>
+                    <CalendarIcon className="absolute -bottom-4 -right-4 opacity-20 w-24 h-24" />
                 </div>
             </div>
+
+            {/* --- NUEVO: COMUNICADOS (CARTELERA DIGITAL) --- */}
+            <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-1 rounded-3xl shadow-lg relative group">
+                <div className="bg-white/10 backdrop-blur-sm p-5 rounded-[20px] text-white h-full flex flex-col justify-between relative overflow-hidden">
+                    <div className="flex justify-between items-start z-10">
+                        <div>
+                            <h3 className="text-lg font-bold flex items-center gap-2"><Bell size={20}/> Comunicados</h3>
+                            <p className="text-[10px] opacity-80 uppercase tracking-wider">Duración: 24hs</p>
+                        </div>
+                        {canPost && (
+                            <button 
+                                onClick={() => setShowAnnounceModal(true)} 
+                                className="bg-white/20 hover:bg-white/40 p-2 rounded-full transition"
+                                title="Publicar nuevo mensaje"
+                            >
+                                <Edit3 size={18} />
+                            </button>
+                        )}
+                    </div>
+                    
+                    <div className="mt-4 relative z-10">
+                        {announcement ? (
+                            <div className="animate-in slide-in-from-bottom-2">
+                                <p className="text-lg font-medium leading-relaxed">"{announcement.message}"</p>
+                                <div className="mt-3 flex items-center justify-between text-xs opacity-75 border-t border-white/20 pt-2">
+                                    <span className="font-bold">{announcement.author}</span>
+                                    <span>hace {announcement.timeAgo === 0 ? 'instantes' : `${announcement.timeAgo}h`}</span>
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-white/60 italic text-sm mt-2">No hay comunicados activos en este momento.</p>
+                        )}
+                    </div>
+                    
+                    {/* Decoración de fondo */}
+                    <Bell className="absolute -bottom-6 -right-6 w-32 h-32 opacity-10 text-white rotate-12" />
+                </div>
+            </div>
+
+            {/* TAREAS URGENTES */}
             {highPriority.length > 0 && (
                 <div className="bg-red-50 rounded-3xl p-5 border border-red-100">
-                    <div className="flex items-center gap-2 mb-3 text-red-600 font-bold"><AlertTriangle size={20} /><h3>Requieren Atención</h3></div>
-                    <div className="space-y-2">{highPriority.slice(0, 3).map(t => (<div key={t.id} className="bg-white p-3 rounded-xl border border-red-100 shadow-sm flex justify-between items-center"><span className="text-sm font-bold text-gray-700 truncate">{t.title}</span><span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-lg font-bold">URGENTE</span></div>))}</div>
+                    <div className="flex items-center gap-2 mb-3 text-red-600 font-bold">
+                        <AlertTriangle size={20} />
+                        <h3>Requieren Atención</h3>
+                    </div>
+                    <div className="space-y-2">
+                        {highPriority.slice(0, 3).map(t => (
+                            <div key={t.id} className="bg-white p-3 rounded-xl border border-red-100 shadow-sm flex justify-between items-center">
+                                <span className="text-sm font-bold text-gray-700 truncate">{t.title}</span>
+                                <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-lg font-bold">URGENTE</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
-             {eventsToday.length > 0 && (
+
+            {/* AGENDA DE HOY */}
+            {eventsToday.length > 0 && (
                 <div className="bg-white rounded-3xl p-5 border border-violet-50 shadow-sm">
-                    <div className="flex items-center gap-2 mb-3 text-violet-800 font-bold"><Clock size={20} /><h3>Agenda de Hoy</h3></div>
-                     <div className="space-y-2">{eventsToday.map(e => (<div key={e.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-xl transition"><div className="w-10 h-10 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center font-bold text-xs shrink-0">{new Date(e.date + 'T00:00:00').getDate()}</div><div><p className="text-sm font-bold text-gray-800">{e.title}</p><p className="text-xs text-gray-500 font-medium uppercase">{e.type}</p></div></div>))}</div>
+                    <div className="flex items-center gap-2 mb-3 text-violet-800 font-bold">
+                        <Clock size={20} />
+                        <h3>Agenda de Hoy</h3>
+                    </div>
+                    <div className="space-y-2">
+                        {eventsToday.map(e => (
+                            <div key={e.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-xl transition">
+                                <div className="w-10 h-10 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center font-bold text-xs shrink-0">
+                                    {new Date(e.date + 'T00:00:00').getDate()}
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-gray-800">{e.title}</p>
+                                    <p className="text-xs text-gray-500 font-medium uppercase">{e.type}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL PARA PUBLICAR COMUNICADO */}
+            {showAnnounceModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95">
+                        <h3 className="text-xl font-bold mb-2 text-rose-600">Nuevo Comunicado</h3>
+                        <p className="text-xs text-gray-500 mb-4">Este mensaje será visible para todos por 24 horas y luego desaparecerá automáticamente.</p>
+                        
+                        <form onSubmit={handlePostAnnouncement}>
+                            <textarea 
+                                name="message" 
+                                required 
+                                className="w-full p-3 bg-rose-50 rounded-xl outline-none focus:ring-2 focus:ring-rose-400 text-sm min-h-[100px] resize-none border border-rose-100" 
+                                placeholder="Escribe el mensaje aquí... (Ej: Reunión suspendida por lluvia)"
+                                autoFocus
+                            ></textarea>
+                            
+                            <div className="flex gap-3 mt-6">
+                                <button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl transition">Cancelar</button>
+                                <button type="submit" className="flex-1 py-3 bg-rose-600 text-white font-bold rounded-xl shadow-lg hover:bg-rose-700 transition">Publicar</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             )}
         </div>
@@ -1623,4 +1780,5 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
