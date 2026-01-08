@@ -192,15 +192,14 @@ export default function App() {
     requestPermission();
     
     // Escuchar mensajes en primer plano
-    onMessageListener().then((payload) => {
-      console.log('Notificación recibida:', payload);
-      // Usamos la función segura para mostrarla
-      if (payload.notification) {
-         triggerMobileNotification(payload.notification.title, payload.notification.body);
-      }
-    });
-  }, []);
-
+  const onMessageListener = () =>
+  new Promise((resolve) => {
+    if (messaging) {
+      onMessage(messaging, (payload) => {
+        resolve(payload);
+      });
+    }
+  });
   useEffect(() => {
     if (!auth) {
       setConfigError(true);
@@ -1366,6 +1365,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
