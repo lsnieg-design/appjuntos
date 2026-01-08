@@ -1,3 +1,11 @@
+import { 
+  getFirestore, 
+  // ... otros imports ...
+  updateDoc, 
+  doc, 
+  serverTimestamp, 
+  arrayUnion // <--- ¡AGREGA ESTO!
+} from 'firebase/firestore';
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import React, { useState, useEffect } from 'react';
 import { 
@@ -567,6 +575,31 @@ function MainApp({ user, onLogout }) {
 
     const activarMensajes = async () => {
       try {
+        const permission = await Notification.requestPermission();
+        
+        if (permission === 'granted') {
+          const currentToken = await getToken(messaging, {
+            vapidKey: "BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw"
+          });
+
+          if (currentToken) {
+            console.log("Token generado:", currentToken);
+            
+            // --- CAMBIO CLAVE AQUÍ ---
+            // Guardamos en una lista (array) para no borrar los otros dispositivos
+            if (user && user.id) {
+                const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+                await updateDoc(userRef, { 
+                    fcmTokens: arrayUnion(currentToken), // <--- ESTO AGREGA SIN BORRAR
+                    lastTokenUpdate: serverTimestamp()
+                });
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error FCM:", error);
+      }
+    };
         // 2. Pedir permiso al usuario (el navegador mostrará el cartelito)
         const permission = await Notification.requestPermission();
         
@@ -1951,6 +1984,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
