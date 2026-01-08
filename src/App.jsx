@@ -1036,7 +1036,7 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
     </div>
   );
 }
-// --- VISTA MATRÍCULA (CON GESTIÓN BD + CALCULADORA ESTADÍSTICA) ---
+// --- VISTA MATRÍCULA (FINAL: Corrección INICIAL mayúsculas) ---
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
   const [filterText, setFilterText] = useState('');
@@ -1048,13 +1048,13 @@ function MatriculaView({ user }) {
   const [showDataManagement, setShowDataManagement] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
 
-  // ESTADO PARA LA CALCULADORA ESTADÍSTICA (NUEVO)
+  // ESTADO PARA LA CALCULADORA ESTADÍSTICA
   const [statFilters, setStatFilters] = useState({
       level: 'all',
       dx: 'all',
       gender: 'all',
       journey: 'all',
-      turn: 'all' // Nuevo filtro para turno específico
+      turn: 'all'
   });
 
   // Estado Importación
@@ -1136,14 +1136,13 @@ function MatriculaView({ user }) {
     return textMatch && levelMatch && dxMatch && genderMatch && journeyMatch && groupMatch && teacherMatch;
   });
 
-  // Lógica de Filtrado CALCULADORA ESTADÍSTICA (NUEVO)
+  // Lógica de Filtrado CALCULADORA ESTADÍSTICA
   const statsResults = students.filter(s => {
       const levelMatch = statFilters.level === 'all' || s.level === statFilters.level;
       const dxMatch = statFilters.dx === 'all' || s.dx === statFilters.dx;
       const genderMatch = statFilters.gender === 'all' || s.gender === statFilters.gender;
       const journeyMatch = statFilters.journey === 'all' || s.journey === statFilters.journey;
       
-      // Lógica especial para Turno (busca si el alumno tiene grupo asignado en ese turno)
       let turnMatch = true;
       if (statFilters.turn === 'Mañana') turnMatch = !!s.groupMorning;
       if (statFilters.turn === 'Tarde') turnMatch = !!s.groupAfternoon;
@@ -1250,7 +1249,7 @@ function MatriculaView({ user }) {
           </div>
         </div>
         
-        {/* BUSCADOR Y FILTROS PRINCIPALES */}
+        {/* BUSCADOR Y FILTROS PRINCIPALES (Corregido: INICIAL) */}
         <div className="mt-6 space-y-3">
           <div className="bg-white/10 backdrop-blur-md p-2 rounded-xl flex items-center gap-2 border border-white/20">
             <Search className="text-white ml-2 opacity-70" size={20} />
@@ -1258,7 +1257,13 @@ function MatriculaView({ user }) {
             {filterText && <button onClick={() => setFilterText('')}><X className="text-white opacity-70" size={16}/></button>}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-            <select value={filters.level} onChange={e => setFilters({...filters, level: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">Nivel: Todos</option><option value="Inicial" className="text-gray-800">Inicial</option><option value="1er Ciclo" className="text-gray-800">1er Ciclo</option><option value="2do Ciclo" className="text-gray-800">2do Ciclo</option><option value="CFI" className="text-gray-800">CFI</option></select>
+            <select value={filters.level} onChange={e => setFilters({...filters, level: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30">
+                <option value="all" className="text-gray-800">Nivel: Todos</option>
+                <option value="INICIAL" className="text-gray-800">INICIAL</option> {/* CORREGIDO */}
+                <option value="1° Ciclo" className="text-gray-800">1° Ciclo</option>
+                <option value="2° Ciclo" className="text-gray-800">2° Ciclo</option>
+                <option value="CFI" className="text-gray-800">CFI</option>
+            </select>
             <select value={filters.dx} onChange={e => setFilters({...filters, dx: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">DX: Todos</option><option value="DI" className="text-gray-800">DI</option><option value="TES" className="text-gray-800">TES</option><option value="Otro" className="text-gray-800">Otro</option></select>
             <select value={filters.gender} onChange={e => setFilters({...filters, gender: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">Género: Todos</option><option value="F" className="text-gray-800">Femenino</option><option value="M" className="text-gray-800">Masculino</option></select>
             <select value={filters.journey} onChange={e => setFilters({...filters, journey: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">Jornada: Todas</option><option value="Simple Mañana" className="text-gray-800">Mañana</option><option value="Simple Tarde" className="text-gray-800">Tarde</option><option value="Doble" className="text-gray-800">Doble</option></select>
@@ -1298,7 +1303,7 @@ function MatriculaView({ user }) {
         </div>
       )}
 
-      {/* --- MODAL CALCULADORA ESTADÍSTICA (RENOVADO) --- */}
+      {/* --- MODAL CALCULADORA ESTADÍSTICA (Corregido: INICIAL) --- */}
       {showStats && (
         <div className="fixed inset-0 bg-violet-900/80 backdrop-blur-md z-[60] flex items-center justify-center p-4">
              <div className="bg-white rounded-3xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl animate-in zoom-in-95 overflow-hidden">
@@ -1315,7 +1320,13 @@ function MatriculaView({ user }) {
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                          <div>
                              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Nivel</label>
-                             <select value={statFilters.level} onChange={e => setStatFilters({...statFilters, level: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none border focus:border-violet-500"><option value="all">Todos</option><option value="Inicial">Inicial</option><option value="1er Ciclo">1er Ciclo</option><option value="2do Ciclo">2do Ciclo</option><option value="CFI">CFI</option></select>
+                             <select value={statFilters.level} onChange={e => setStatFilters({...statFilters, level: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none border focus:border-violet-500">
+                                <option value="all">Todos</option>
+                                <option value="INICIAL">INICIAL</option> {/* CORREGIDO */}
+                                <option value="1° Ciclo">1° Ciclo</option>
+                                <option value="2° Ciclo">2° Ciclo</option>
+                                <option value="CFI">CFI</option>
+                             </select>
                          </div>
                          <div>
                              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Diagnóstico</label>
@@ -1449,7 +1460,7 @@ function MatriculaView({ user }) {
         </div>
       )}
 
-      {/* --- MODAL FORMULARIO --- */}
+      {/* --- MODAL FORMULARIO (Corregido: INICIAL) --- */}
       {showForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-2xl p-6 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
@@ -1478,7 +1489,19 @@ function MatriculaView({ user }) {
               <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 space-y-3">
                   <p className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1"><Activity size={12}/> Datos Institucionales</p>
                   <div className="grid grid-cols-2 gap-3">
-                      <div><label className="text-xs font-bold text-gray-500">Nivel</label><select name="level" defaultValue={editingStudent?.level || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"><option value="">Seleccionar</option><option value="Inicial">Inicial</option><option value="1er Ciclo">1er Ciclo</option><option value="2do Ciclo">2do Ciclo</option><option value="CFI">CFI</option><option value="TALLER">Taller</option><option value="Pre-Taller">Pre-Taller</option><option value="FINES">Fines</option></select></div>
+                      <div>
+                          <label className="text-xs font-bold text-gray-500">Nivel</label>
+                          <select name="level" defaultValue={editingStudent?.level || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
+                            <option value="">Seleccionar</option>
+                            <option value="INICIAL">INICIAL</option> {/* CORREGIDO */}
+                            <option value="1° Ciclo">1° Ciclo</option>
+                            <option value="2° Ciclo">2° Ciclo</option>
+                            <option value="CFI">CFI</option>
+                            <option value="TALLER">Taller</option>
+                            <option value="Pre-Taller">Pre-Taller</option>
+                            <option value="FINES">Fines</option>
+                          </select>
+                      </div>
                       <div><label className="text-xs font-bold text-gray-500">Jornada</label><select name="journey" defaultValue={editingStudent?.journey || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"><option value="">Seleccionar</option><option value="Simple Mañana">Simple Mañana</option><option value="Simple Tarde">Simple Tarde</option><option value="Doble">Doble Jornada</option></select></div>
                       <div><label className="text-xs font-bold text-gray-500">Diagnóstico</label><select name="dx" defaultValue={editingStudent?.dx || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"><option value="">Ninguno</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select></div>
                   </div>
@@ -1507,3 +1530,4 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
