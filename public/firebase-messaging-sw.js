@@ -25,3 +25,11 @@ messaging.onBackgroundMessage(function(payload) {
 
   self.registration.showNotification(notificationTitle, notificationOptions);
 });
+// Agrega esto al final de firebase-messaging-sw.js
+self.addEventListener('install', () => {
+  self.skipWaiting(); // Fuerza la activación inmediata
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(clients.claim()); // Toma el control de las pestañas abiertas inmediatamente
+});
