@@ -1496,13 +1496,49 @@ function MatriculaView({ user }) {
     }
   };
 
+// --- EXPORTACIÓN EXCEL PROFESIONAL ---
   const exportFiltered = () => {
-    let csv = "Apellido,Nombre,DNI,Nivel,Edad,DX,Jornada,Mañana,Tarde\n";
-    filteredStudents.forEach(s => {
-      const age = calculateAge(s.birthDate);
-      csv += `"${s.lastName}","${s.firstName}",${s.dni},"${s.level||''}",${age},"${s.dx || ''}","${s.journey || ''}","${s.groupMorning || ''}","${s.groupAfternoon || ''}"\n`;
-    });
-    const link = document.createElement("a"); link.href = "data:text/csv;charset=utf-8," + encodeURI(csv); link.download = "Reporte.csv"; link.click();
+    if (filteredStudents.length === 0) {
+      alert("No hay datos para exportar.");
+      return;
+    }
+
+    // 1. Encabezados de las columnas
+    const headers = ["Apellido", "Nombre", "DNI", "Nivel", "Edad", "DX", "Jornada", "Turno Mañana", "Turno Tarde"];
+    
+    // 2. Armamos las filas
+    const csvContent = [
+      headers.join(','), // Fila de títulos
+      ...filteredStudents.map(s => {
+        const age = calculateAge(s.birthDate);
+        // "Limpiamos" los datos para que no rompan el Excel
+        return [
+          `"${s.lastName || ''}"`,
+          `"${s.firstName || ''}"`,
+          `"${s.dni || ''}"`,
+          `"${s.level || ''}"`,
+          `"${age}"`,
+          `"${s.dx || ''}"`,
+          `"${s.journey || ''}"`,
+          `"${s.groupMorning || ''}"`,
+          `"${s.groupAfternoon || ''}"`
+        ].join(',');
+      })
+    ].join('\n'); // Unimos todo con saltos de línea
+
+    // 3. Crear el archivo Blob con la marca BOM (\uFEFF) para que Excel reconozca las tildes/Ñ
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    // 4. Descargar
+    const link = document.createElement('a');
+    link.href = url;
+    // Le ponemos fecha al nombre del archivo
+    const fechaHoy = new Date().toLocaleDateString('es-AR').replace(/\//g, '-');
+    link.setAttribute('download', `Matrícula_${fechaHoy}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -1861,6 +1897,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
