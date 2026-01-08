@@ -1197,7 +1197,7 @@ function ProfileView({ user, tasks, onLogout }) {
         // OBTENER TOKEN (EL CELULAR)
         const currentToken = await getToken(messaging, {
           // 🛑 PEGA AQUÍ TU CLAVE VAPID GENERADA EN FIREBASE
-          vapidKey: "TU_CLAVE_VAPID_LARGA_AQUI" 
+          vapidKey: "BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw" 
         });
 
         if (currentToken) {
@@ -1850,6 +1850,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
