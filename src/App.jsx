@@ -1037,15 +1037,21 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
   );
 }
 // --- VISTA MATRÍCULA (CORREGIDA Y ESTABILIZADA) ---
+// --- VISTA MATRÍCULA (CON IMPORTACIÓN MASIVA) ---
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
   const [filterText, setFilterText] = useState('');
   
   // ESTADOS DE MODALES
-  const [viewingStudent, setViewingStudent] = useState(null); // Ver ficha (lectura)
-  const [showStats, setShowStats] = useState(false);          // Ver estadísticas
-  const [showForm, setShowForm] = useState(false);            // Abrir/Cerrar formulario
-  const [editingStudent, setEditingStudent] = useState(null); // Datos del estudiante a editar (null = nuevo)
+  const [viewingStudent, setViewingStudent] = useState(null);
+  const [showStats, setShowStats] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false); // <--- NUEVO
+  const [editingStudent, setEditingStudent] = useState(null);
+
+  // Estado Importación
+  const [importJson, setImportJson] = useState('');
+  const [importing, setImporting] = useState(false);
 
   // Estado foto
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -1053,15 +1059,9 @@ function MatriculaView({ user }) {
 
   // --- FILTROS ---
   const [filters, setFilters] = useState({
-    level: 'all',
-    dx: 'all',
-    gender: 'all',
-    journey: 'all',
-    group: 'all',
-    teacher: 'all'
+    level: 'all', dx: 'all', gender: 'all', journey: 'all', group: 'all', teacher: 'all'
   });
 
-  // Utilidad: Calcular Edad
   const calculateAge = (dateString) => {
     if (!dateString) return '-';
     const today = new Date();
@@ -1111,7 +1111,7 @@ function MatriculaView({ user }) {
     return () => unsub();
   }, []);
 
-  // --- LÓGICA DE FILTRADO ---
+  // Lógica de Filtrado
   const filteredStudents = students.filter(s => {
     const textMatch = 
       s.firstName?.toLowerCase().includes(filterText.toLowerCase()) || 
@@ -1122,16 +1122,8 @@ function MatriculaView({ user }) {
     const dxMatch = filters.dx === 'all' || s.dx === filters.dx;
     const genderMatch = filters.gender === 'all' || s.gender === filters.gender;
     const journeyMatch = filters.journey === 'all' || s.journey === filters.journey;
-    
-    // Filtro Grupo (busca en mañana o tarde)
-    const groupMatch = filters.group === 'all' || 
-                       (s.groupMorning === filters.group) || 
-                       (s.groupAfternoon === filters.group);
-
-    // Filtro Docente (busca en mañana o tarde)
-    const teacherMatch = filters.teacher === 'all' || 
-                         s.teacherMorning?.includes(filters.teacher) || 
-                         s.teacherAfternoon?.includes(filters.teacher);
+    const groupMatch = filters.group === 'all' || (s.groupMorning === filters.group) || (s.groupAfternoon === filters.group);
+    const teacherMatch = filters.teacher === 'all' || s.teacherMorning?.includes(filters.teacher) || s.teacherAfternoon?.includes(filters.teacher);
 
     return textMatch && levelMatch && dxMatch && genderMatch && journeyMatch && groupMatch && teacherMatch;
   });
@@ -1139,52 +1131,23 @@ function MatriculaView({ user }) {
   const uniqueGroups = [...new Set([...students.map(s => s.groupMorning), ...students.map(s => s.groupAfternoon)].filter(Boolean))].sort();
   const uniqueTeachers = [...new Set([...students.map(s => s.teacherMorning), ...students.map(s => s.teacherAfternoon)].filter(Boolean))].sort();
 
-  // --- MANEJO DEL FORMULARIO ---
-  const openNew = () => {
-      setEditingStudent(null); // Limpiamos para nuevo
-      setPhotoPreview(null);
-      setShowForm(true);       // Abrimos el modal
-  };
-
-  const openEdit = (student) => {
-      setEditingStudent(student);        // Cargamos datos
-      setPhotoPreview(student.photoUrl); // Cargamos foto
-      setViewingStudent(null);           // Cerramos la vista de lectura si estaba abierta
-      setShowForm(true);                 // Abrimos el modal
-  };
+  // --- MANEJO DE FORMULARIOS ---
+  const openNew = () => { setEditingStudent(null); setPhotoPreview(null); setShowForm(true); };
+  const openEdit = (student) => { setEditingStudent(student); setPhotoPreview(student.photoUrl); setViewingStudent(null); setShowForm(true); };
 
   const handleSave = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    
     const data = {
-      firstName: formData.get('firstName'),
-      lastName: formData.get('lastName'),
-      dni: formData.get('dni'),
-      birthDate: formData.get('birthDate'),
-      gender: formData.get('gender'),
-      dx: formData.get('dx'),
-      journey: formData.get('journey'),
-      level: formData.get('level'),
-      healthInsurance: formData.get('healthInsurance'),
-      cudExpiration: formData.get('cudExpiration'),
-      
-      groupMorning: formData.get('groupMorning'),
-      teacherMorning: formData.get('teacherMorning'),
-      auxMorning: formData.get('auxMorning'),
-
-      groupAfternoon: formData.get('groupAfternoon'),
-      teacherAfternoon: formData.get('teacherAfternoon'),
-      auxAfternoon: formData.get('auxAfternoon'),
-      
-      address: formData.get('address'),
-      motherName: formData.get('motherName'),
-      motherContact: formData.get('motherContact'),
-      fatherName: formData.get('fatherName'),
-      fatherContact: formData.get('fatherContact'),
-      
-      photoUrl: photoPreview || editingStudent?.photoUrl || '',
-      updatedAt: serverTimestamp()
+      firstName: formData.get('firstName'), lastName: formData.get('lastName'), dni: formData.get('dni'),
+      birthDate: formData.get('birthDate'), gender: formData.get('gender'), dx: formData.get('dx'),
+      journey: formData.get('journey'), level: formData.get('level'), healthInsurance: formData.get('healthInsurance'),
+      cudExpiration: formData.get('cudExpiration'), groupMorning: formData.get('groupMorning'),
+      teacherMorning: formData.get('teacherMorning'), auxMorning: formData.get('auxMorning'),
+      groupAfternoon: formData.get('groupAfternoon'), teacherAfternoon: formData.get('teacherAfternoon'),
+      auxAfternoon: formData.get('auxAfternoon'), address: formData.get('address'), motherName: formData.get('motherName'),
+      motherContact: formData.get('motherContact'), fatherName: formData.get('fatherName'), fatherContact: formData.get('fatherContact'),
+      photoUrl: photoPreview || editingStudent?.photoUrl || '', updatedAt: serverTimestamp()
     };
 
     try {
@@ -1193,18 +1156,40 @@ function MatriculaView({ user }) {
       } else {
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...data, createdAt: serverTimestamp() });
       }
-      setShowForm(false);
-      setEditingStudent(null);
-      setPhotoPreview(null);
+      setShowForm(false); setEditingStudent(null); setPhotoPreview(null);
     } catch (err) { alert("Error: " + err.message); }
+  };
+
+  const handleBulkImport = async () => {
+    try {
+      setImporting(true);
+      const data = JSON.parse(importJson);
+      if (!Array.isArray(data)) throw new Error("El formato debe ser una lista [...]");
+
+      let count = 0;
+      for (const s of data) {
+        if (s.lastName && s.firstName) {
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), {
+                ...s,
+                createdAt: serverTimestamp()
+            });
+            count++;
+        }
+      }
+      alert(`¡Éxito! Se importaron ${count} estudiantes.`);
+      setShowImport(false);
+      setImportJson('');
+    } catch (e) {
+      alert("Error en el JSON: " + e.message);
+    } finally {
+      setImporting(false);
+    }
   };
 
   const handleDelete = async (id) => {
     if(confirm("¿Borrar legajo permanentemente?")) {
       await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id));
-      setViewingStudent(null);
-      setEditingStudent(null);
-      setShowForm(false);
+      setViewingStudent(null); setEditingStudent(null); setShowForm(false);
     }
   };
 
@@ -1227,16 +1212,19 @@ function MatriculaView({ user }) {
         <div className="flex justify-between items-center flex-wrap gap-4">
           <div>
             <h2 className="text-3xl font-bold flex items-center gap-2"><GraduationCap /> Legajos 2026</h2>
-            <p className="text-blue-100 opacity-90">{filteredStudents.length} {filteredStudents.length === 1 ? 'estudiante encontrado' : 'estudiantes encontrados'}</p>
+            <p className="text-blue-100 opacity-90">{filteredStudents.length} estudiantes</p>
           </div>
           <div className="flex gap-2">
+             <button onClick={() => setShowImport(true)} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold border border-white/20">
+                <UploadCloud size={20}/> Importar
+            </button>
              <button onClick={() => setShowStats(true)} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold border border-white/20">
                 <PieChart size={20}/> Estadísticas
             </button>
-            <button onClick={exportFiltered} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold" title="Descargar Lista Filtrada">
-                <Download size={20}/> Exportar
+            <button onClick={exportFiltered} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold" title="Descargar Lista">
+                <Download size={20}/>
             </button>
-            <button onClick={openNew} className="bg-white text-blue-600 p-3 rounded-xl shadow-lg hover:bg-blue-50 transition font-bold" title="Nuevo Ingreso">
+            <button onClick={openNew} className="bg-white text-blue-600 p-3 rounded-xl shadow-lg hover:bg-blue-50 transition font-bold">
                 <Plus size={24} />
             </button>
           </div>
@@ -1246,12 +1234,7 @@ function MatriculaView({ user }) {
         <div className="mt-6 space-y-3">
           <div className="bg-white/10 backdrop-blur-md p-2 rounded-xl flex items-center gap-2 border border-white/20">
             <Search className="text-white ml-2 opacity-70" size={20} />
-            <input 
-              value={filterText}
-              onChange={(e) => setFilterText(e.target.value)}
-              placeholder="Buscar por apellido, nombre o DNI..." 
-              className="bg-transparent border-none outline-none text-white placeholder-blue-200 w-full"
-            />
+            <input value={filterText} onChange={(e) => setFilterText(e.target.value)} placeholder="Buscar..." className="bg-transparent border-none outline-none text-white placeholder-blue-200 w-full" />
             {filterText && <button onClick={() => setFilterText('')}><X className="text-white opacity-70" size={16}/></button>}
           </div>
           
@@ -1297,7 +1280,7 @@ function MatriculaView({ user }) {
         {filteredStudents.length === 0 ? (
           <div className="text-center py-10 text-gray-400 bg-white rounded-3xl border border-dashed border-gray-200">
              <Filter size={40} className="mx-auto mb-2 text-gray-200"/>
-             <p>No hay coincidencias con los filtros actuales.</p>
+             <p>No hay coincidencias.</p>
           </div>
         ) : (
           filteredStudents.map(s => {
@@ -1305,17 +1288,14 @@ function MatriculaView({ user }) {
             return (
             <div key={s.id} onClick={() => setViewingStudent(s)} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between group hover:shadow-md transition cursor-pointer active:scale-[0.99]">
               <div className="flex items-center gap-4 w-full">
-                {/* FOTO MINIATURA */}
                 <div className="w-14 h-14 rounded-2xl bg-gray-100 border border-gray-200 overflow-hidden flex-shrink-0 flex items-center justify-center relative">
                     {s.photoUrl ? ( <img src={s.photoUrl} className="w-full h-full object-cover" alt="Foto" /> ) : ( <User className="text-gray-300" size={24} /> )}
                 </div>
-
                 <div className="min-w-0 flex-1">
                   <div className="flex justify-between items-start">
                       <h4 className="font-bold text-gray-800 text-lg truncate pr-2">{s.lastName}, {s.firstName}</h4>
                       {s.dx && <span className="bg-purple-100 text-purple-700 text-[10px] px-2 py-0.5 rounded font-bold uppercase border border-purple-200 shrink-0">{s.dx}</span>}
                   </div>
-                  
                   <div className="flex flex-wrap gap-2 text-xs text-gray-500 mt-1">
                     <span className="bg-gray-100 px-2 py-0.5 rounded font-medium border border-gray-200">{age !== '-' ? `${age} años` : '-'}</span>
                     <span className="bg-gray-100 px-2 py-0.5 rounded font-medium border border-gray-200 text-gray-600">{s.level || 'Sin Nivel'}</span>
@@ -1329,7 +1309,29 @@ function MatriculaView({ user }) {
         )}
       </div>
 
-      {/* --- MODAL 1: VER FICHA (SOLO LECTURA) --- */}
+      {/* --- MODAL DE IMPORTACIÓN (NUEVO) --- */}
+      {showImport && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl w-full max-w-2xl p-6 shadow-2xl animate-in zoom-in-95">
+                <h3 className="text-xl font-bold text-gray-800 mb-2">Importar JSON</h3>
+                <p className="text-sm text-gray-500 mb-4">Pega aquí el texto que generó el "Procesador de Legajos".</p>
+                <textarea 
+                    value={importJson} 
+                    onChange={e => setImportJson(e.target.value)} 
+                    placeholder='[ { "firstName": "Juan"... } ]'
+                    className="w-full h-64 p-3 bg-gray-50 rounded-xl border border-gray-200 font-mono text-xs outline-none focus:ring-2 focus:ring-blue-400"
+                ></textarea>
+                <div className="flex gap-3 mt-4">
+                    <button onClick={() => setShowImport(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button>
+                    <button onClick={handleBulkImport} disabled={importing || !importJson} className="flex-1 py-3 bg-green-600 text-white font-bold rounded-xl shadow-lg flex justify-center items-center gap-2">
+                        {importing ? <RefreshCw className="animate-spin" /> : <><UploadCloud size={20} /> Procesar Datos</>}
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* --- MODAL VER FICHA --- */}
       {viewingStudent && !showForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]">
@@ -1348,17 +1350,13 @@ function MatriculaView({ user }) {
                         </div>
                     </div>
                 </div>
-                
                 <div className="p-6 overflow-y-auto space-y-6">
-                    {/* Datos Clave */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
                         <div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase">Nivel</p><p className="font-bold text-gray-800">{viewingStudent.level || '-'}</p></div>
                         <div className="bg-purple-50 p-3 rounded-xl border border-purple-100"><p className="text-xs text-purple-400 font-bold uppercase">DX</p><p className="font-bold text-purple-800">{viewingStudent.dx || '-'}</p></div>
                         <div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase">Género</p><p className="font-bold text-gray-800">{viewingStudent.gender || '-'}</p></div>
                         <div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase">Jornada</p><p className="font-bold text-gray-800">{viewingStudent.journey || '-'}</p></div>
                     </div>
-
-                    {/* Escolaridad Detallada */}
                     <div className="space-y-3">
                          <h3 className="font-bold text-gray-900 flex items-center gap-2"><Briefcase size={18} className="text-blue-500"/> Escolaridad 2026</h3>
                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1380,8 +1378,6 @@ function MatriculaView({ user }) {
                             </div>
                          </div>
                     </div>
-
-                    {/* Salud y Familia */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div className="space-y-3">
                              <h3 className="font-bold text-gray-900 flex items-center gap-2"><Activity size={18} className="text-green-500"/> Salud</h3>
@@ -1400,88 +1396,49 @@ function MatriculaView({ user }) {
                         </div>
                     </div>
                 </div>
-
                 <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3 shrink-0">
-                    <button onClick={() => openEdit(viewingStudent)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-lg">
-                        <Edit3 size={18}/> Editar Ficha
-                    </button>
+                    <button onClick={() => openEdit(viewingStudent)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-lg"><Edit3 size={18}/> Editar Ficha</button>
                 </div>
             </div>
         </div>
       )}
 
-      {/* --- MODAL 2: ESTADÍSTICAS --- */}
+      {/* --- MODAL ESTADÍSTICAS --- */}
       {showStats && (
         <div className="fixed inset-0 bg-violet-900/80 backdrop-blur-md z-[60] flex items-center justify-center p-4">
              <div className="bg-white rounded-3xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl animate-in zoom-in-95">
                 <div className="p-6 border-b flex justify-between items-center">
-                    <div>
-                        <h2 className="text-2xl font-bold text-violet-900">Estadísticas & Reportes</h2>
-                        <p className="text-gray-500">Análisis sobre {filteredStudents.length} estudiantes filtrados</p>
-                    </div>
+                    <div><h2 className="text-2xl font-bold text-violet-900">Estadísticas</h2><p className="text-gray-500">Sobre {filteredStudents.length} estudiantes filtrados</p></div>
                     <button onClick={() => setShowStats(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={24}/></button>
                 </div>
-                
                 <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-                    {/* Tarjetas de Resumen */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                        <div className="bg-white p-4 rounded-2xl shadow-sm border border-violet-100">
-                             <p className="text-xs font-bold text-violet-400 uppercase">Total Selección</p>
-                             <p className="text-3xl font-bold text-violet-900">{filteredStudents.length}</p>
-                        </div>
-                        <div className="bg-white p-4 rounded-2xl shadow-sm border border-blue-100">
-                             <p className="text-xs font-bold text-blue-400 uppercase">Mujeres</p>
-                             <p className="text-3xl font-bold text-blue-900">{filteredStudents.filter(s => s.gender === 'F').length}</p>
-                        </div>
-                        <div className="bg-white p-4 rounded-2xl shadow-sm border border-green-100">
-                             <p className="text-xs font-bold text-green-400 uppercase">Varones</p>
-                             <p className="text-3xl font-bold text-green-900">{filteredStudents.filter(s => s.gender === 'M').length}</p>
-                        </div>
-                        <div className="bg-white p-4 rounded-2xl shadow-sm border border-purple-100">
-                             <p className="text-xs font-bold text-purple-400 uppercase">Con CUD</p>
-                             <p className="text-3xl font-bold text-purple-900">{filteredStudents.filter(s => s.cudExpiration).length}</p>
-                        </div>
+                        <div className="bg-white p-4 rounded-2xl shadow-sm border border-violet-100"><p className="text-xs font-bold text-violet-400 uppercase">Total</p><p className="text-3xl font-bold text-violet-900">{filteredStudents.length}</p></div>
+                        <div className="bg-white p-4 rounded-2xl shadow-sm border border-blue-100"><p className="text-xs font-bold text-blue-400 uppercase">Mujeres</p><p className="text-3xl font-bold text-blue-900">{filteredStudents.filter(s => s.gender === 'F').length}</p></div>
+                        <div className="bg-white p-4 rounded-2xl shadow-sm border border-green-100"><p className="text-xs font-bold text-green-400 uppercase">Varones</p><p className="text-3xl font-bold text-green-900">{filteredStudents.filter(s => s.gender === 'M').length}</p></div>
+                        <div className="bg-white p-4 rounded-2xl shadow-sm border border-purple-100"><p className="text-xs font-bold text-purple-400 uppercase">Con CUD</p><p className="text-3xl font-bold text-purple-900">{filteredStudents.filter(s => s.cudExpiration).length}</p></div>
                     </div>
-
-                    {/* Desglose por Diagnóstico */}
-                    <h3 className="font-bold text-gray-800 mb-3 ml-1">Distribución por Diagnóstico (en esta selección)</h3>
+                    <h3 className="font-bold text-gray-800 mb-3 ml-1">Diagnóstico (en esta selección)</h3>
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 mb-6">
                         <div className="space-y-4">
                             {['DI', 'TES', 'Otro'].map(d => {
                                 const count = filteredStudents.filter(s => s.dx === d).length;
                                 const pct = filteredStudents.length ? Math.round((count / filteredStudents.length) * 100) : 0;
-                                return (
-                                    <div key={d}>
-                                        <div className="flex justify-between text-sm font-bold mb-1">
-                                            <span>{d}</span>
-                                            <span>{count} ({pct}%)</span>
-                                        </div>
-                                        <div className="w-full bg-gray-100 rounded-full h-2.5">
-                                            <div className="bg-violet-600 h-2.5 rounded-full" style={{width: `${pct}%`}}></div>
-                                        </div>
-                                    </div>
-                                )
+                                return ( <div key={d}><div className="flex justify-between text-sm font-bold mb-1"><span>{d}</span><span>{count} ({pct}%)</span></div><div className="w-full bg-gray-100 rounded-full h-2.5"><div className="bg-violet-600 h-2.5 rounded-full" style={{width: `${pct}%`}}></div></div></div> )
                             })}
                         </div>
-                    </div>
-                    
-                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 text-sm">
-                        <p className="font-bold text-blue-800 mb-1">💡 Tip:</p>
-                        <p className="text-blue-700">Usa los filtros de la pantalla anterior para afinar estos números. Por ejemplo, si filtras "Nivel: Primario", estos gráficos te mostrarán solo datos de primaria.</p>
                     </div>
                 </div>
              </div>
         </div>
       )}
 
-      {/* --- MODAL 3: EDITAR / CREAR (NUEVO O EXISTENTE) --- */}
+      {/* --- MODAL EDITAR / NUEVO --- */}
       {showForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-2xl p-6 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">{editingStudent ? 'Editar Ficha' : 'Nueva Ficha'}</h3>
-            
             <form onSubmit={handleSave} className="space-y-6">
-              {/* SECCIÓN 1: DATOS PERSONALES Y FOTO */}
               <div className="flex gap-4 flex-col sm:flex-row">
                   <div className="flex flex-col items-center gap-2">
                       <div className="w-24 h-24 rounded-2xl bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden relative group cursor-pointer">
@@ -1490,7 +1447,6 @@ function MatriculaView({ user }) {
                           {uploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><RefreshCw className="text-white animate-spin" /></div>}
                       </div>
                   </div>
-
                   <div className="flex-1 space-y-3">
                       <div className="grid grid-cols-2 gap-3">
                         <div><label className="text-xs font-bold text-gray-500">Apellido *</label><input name="lastName" defaultValue={editingStudent?.lastName || ''} required className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
@@ -1502,55 +1458,37 @@ function MatriculaView({ user }) {
                           <div>
                               <label className="text-xs font-bold text-gray-500">Género</label>
                               <select name="gender" defaultValue={editingStudent?.gender || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
-                                  <option value="">Seleccionar</option>
-                                  <option value="M">Masculino</option>
-                                  <option value="F">Femenino</option>
+                                  <option value="">Seleccionar</option><option value="M">Masculino</option><option value="F">Femenino</option>
                               </select>
                           </div>
                       </div>
                   </div>
               </div>
-
-              {/* SECCIÓN 2: INSTITUCIONAL */}
               <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 space-y-3">
                   <p className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1"><Activity size={12}/> Datos Institucionales</p>
                   <div className="grid grid-cols-2 gap-3">
                       <div>
                           <label className="text-xs font-bold text-gray-500">Nivel</label>
                           <select name="level" defaultValue={editingStudent?.level || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
-                              <option value="">Seleccionar</option>
-                              <option value="Inicial">Inicial</option>
-                              <option value="1er Ciclo">1er Ciclo</option>
-                              <option value="2do Ciclo">2do Ciclo</option>
-                              <option value="CFI">CFI</option>
+                              <option value="">Seleccionar</option><option value="Inicial">Inicial</option><option value="1er Ciclo">1er Ciclo</option><option value="2do Ciclo">2do Ciclo</option><option value="CFI">CFI</option><option value="TALLER">Taller</option><option value="Pre-Taller">Pre-Taller</option><option value="FINES">Fines</option>
                           </select>
                       </div>
                       <div>
                           <label className="text-xs font-bold text-gray-500">Jornada</label>
                           <select name="journey" defaultValue={editingStudent?.journey || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
-                              <option value="">Seleccionar</option>
-                              <option value="Simple Mañana">Simple Mañana</option>
-                              <option value="Simple Tarde">Simple Tarde</option>
-                              <option value="Doble">Doble Jornada</option>
+                              <option value="">Seleccionar</option><option value="Simple Mañana">Simple Mañana</option><option value="Simple Tarde">Simple Tarde</option><option value="Doble">Doble Jornada</option>
                           </select>
                       </div>
                        <div>
                           <label className="text-xs font-bold text-gray-500">Diagnóstico</label>
                           <select name="dx" defaultValue={editingStudent?.dx || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
-                              <option value="">Ninguno</option>
-                              <option value="DI">DI</option>
-                              <option value="TES">TES</option>
-                              <option value="Otro">Otro</option>
+                              <option value="">Ninguno</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option>
                           </select>
                       </div>
                   </div>
               </div>
-
-              {/* SECCIÓN 3: UBICACIÓN DETALLADA */}
               <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 space-y-3">
                   <p className="text-xs font-bold text-indigo-800 uppercase tracking-wider flex items-center gap-1"><GraduationCap size={12}/> Ubicación 2026</p>
-                  
-                  {/* Turno Mañana */}
                   <div className="bg-white/50 p-2 rounded-lg border border-indigo-100">
                       <p className="text-[10px] font-bold text-indigo-400 mb-2">TURNO MAÑANA</p>
                       <div className="grid grid-cols-3 gap-2">
@@ -1559,8 +1497,6 @@ function MatriculaView({ user }) {
                          <input name="auxMorning" defaultValue={editingStudent?.auxMorning || ''} placeholder="Auxiliar TM" className="p-2 bg-white rounded border text-xs outline-none" />
                       </div>
                   </div>
-
-                  {/* Turno Tarde */}
                   <div className="bg-white/50 p-2 rounded-lg border border-indigo-100">
                       <p className="text-[10px] font-bold text-indigo-400 mb-2">TURNO TARDE</p>
                       <div className="grid grid-cols-3 gap-2">
@@ -1570,8 +1506,6 @@ function MatriculaView({ user }) {
                       </div>
                   </div>
               </div>
-
-              {/* SECCIÓN 4: OTROS DATOS */}
               <div className="space-y-3 pt-2 border-t border-gray-100">
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Salud y Familia</p>
                   <div className="grid grid-cols-2 gap-3">
@@ -1588,10 +1522,10 @@ function MatriculaView({ user }) {
                       <input name="fatherContact" defaultValue={editingStudent?.fatherContact || ''} placeholder="Contacto Padre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" />
                   </div>
               </div>
-
               <div className="flex gap-3 mt-6 pt-4 border-t border-gray-100">
                 <button type="button" onClick={() => {setShowForm(false); setEditingStudent(null); setPhotoPreview(null);}} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button>
                 <button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg">Guardar</button>
+                {editingStudent && <button type="button" onClick={() => handleDelete(editingStudent.id)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition"><Trash2 size={20}/></button>}
               </div>
             </form>
           </div>
@@ -1600,13 +1534,3 @@ function MatriculaView({ user }) {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
