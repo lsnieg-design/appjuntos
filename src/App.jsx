@@ -181,9 +181,9 @@ const formatDate = (dateString) => {
   new Promise((resolve) => {
     if (messaging) {
       onMessage(messaging, (payload) => {
-        resolve(payload);
-      });
-     
+        resolve(payload); }); 
+    }
+    });
 export default function App() {
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
@@ -1370,6 +1370,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
