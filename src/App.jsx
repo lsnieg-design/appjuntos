@@ -177,13 +177,17 @@ const formatDate = (dateString) => {
   if (!dateString) return '';
   const date = new Date(dateString + 'T00:00:00');
   return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
- const onMessageListener = () =>
+const onMessageListener = () =>
   new Promise((resolve) => {
     if (messaging) {
       onMessage(messaging, (payload) => {
-        resolve(payload); }); 
+        resolve(payload);
+      });
     }
-   
+  }); // <--- ESTA ES LA LÍNEA QUE TE FALTA CERRAR BIEN
+
+// --- Componente Principal Wrapper (FUSIONADO) ---
+export default function App() {
 export default function App() {
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
@@ -1370,6 +1374,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
