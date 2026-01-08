@@ -179,7 +179,7 @@ const onMessageListener = () =>
         resolve(payload);
       });
     }
-  });
+  }); // <--- ESTE CIERRE ES EL QUE FALTA O ESTÁ MAL PUESTO
 
 // --- Componente Principal Wrapper (FUSIONADO) ---
 export default function App() {
@@ -1368,6 +1368,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
