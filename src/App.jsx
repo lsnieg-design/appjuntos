@@ -104,29 +104,24 @@ const VAPID_KEY = "BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHt
 
 const requestPermission = async () => {
   try {
-    // 1. ESPERAR a que el Service Worker esté registrado y listo
-    if ('serviceWorker' in navigator) {
-      const registration = await navigator.serviceWorker.ready;
-      console.log('Service Worker listo para suscripción:', registration);
-    }
-
+    // 1. Verificar registro del SW
+    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    
+    // 2. ESPERAR a que el estado sea 'activated'
+    await navigator.serviceWorker.ready; 
+    
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
-      // 2. Ahora que el SW está listo, pedimos el Token
       const currentToken = await getToken(messaging, {
-        vapidKey: VAPID_KEY
+        vapidKey: "BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw",
+        serviceWorkerRegistration: registration // Pasa el registro explícitamente
       });
-      
-      if (currentToken) {
-        console.log('Token generado correctamente:', currentToken);
-        return currentToken;
-      }
+      console.log("Token generado:", currentToken);
     }
   } catch (error) {
-    console.error('Error al pedir permiso (reintentando...):', error);
+    console.error("Error detallado:", error);
   }
 };
-
 const onMessageListener = () =>
   new Promise((resolve) => {
     if (messaging) {
@@ -1369,4 +1364,5 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
