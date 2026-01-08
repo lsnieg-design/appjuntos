@@ -551,7 +551,7 @@ function MainApp({ user, onLogout }) {
       case 'dashboard': return <DashboardView user={user} tasks={tasks} events={events} />;
       case 'calendar': return <CalendarView events={events} canEdit={canManageContent} user={user} />;
       case 'tasks': return <TasksView tasks={tasks} user={user} canEdit={canManageContent} />;
-     case 'matricula': return <MatriculaView user={user} />;
+      case 'matricula': return <MatriculaView user={user} />;
       case 'resources': return <ResourcesView resources={resources} canEdit={canManageContent} />;
       case 'notifications': return <NotificationsView notifications={notifications} canEdit={canManageUsers} />;
       case 'users': return <UsersView user={user} />;
@@ -559,87 +559,43 @@ function MainApp({ user, onLogout }) {
       default: return <DashboardView user={user} tasks={tasks} events={events} />;
     }
   };
+  
   // --- ACTIVAR NOTIFICACIONES PUSH (APP CERRADA) ---
-
   useEffect(() => {
-
     // 1. Inicializamos la mensajería
-
     const messaging = getMessaging(app);
 
-
-
     const activarMensajes = async () => {
-
       try {
-
         // 2. Pedir permiso al usuario (el navegador mostrará el cartelito)
-
         const permission = await Notification.requestPermission();
-
         
-
         if (permission === 'granted') {
-
           // 3. Obtener el Token Único de este dispositivo
-
           const currentToken = await getToken(messaging, {
-
-            vapidKey: "PEGA_AQUÍ_LA_CLAVE_LARGA_QUE_COPIASTE_DE_FIREBASE" 
-
+            vapidKey: "BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw" // <--- ASEGURATE DE QUE ESTA SEA TU CLAVE
           });
 
-
-
           if (currentToken) {
-
-            console.log("BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw", currentToken);
-
+            console.log("Token:", currentToken);
             // (Opcional) Aquí podríamos guardar este token en la base de datos del usuario
-
-            // para saber a quién enviarle mensajes específicos en el futuro.
-
           }
-
         } else {
-
           console.log("No se dio permiso para notificaciones.");
-
         }
-
       } catch (error) {
-
         console.error("Error al activar notificaciones:", error);
-
       }
-
     };
-
-
 
     activarMensajes();
 
-
-
     // 4. Escuchar mensajes si la app está ABIERTA (Foreground)
-
-    // Esto complementa al Service Worker (que se encarga cuando está cerrada)
-
     onMessage(messaging, (payload) => {
-
-      // console.log('Mensaje recibido en primer plano:', payload);
-
-      // Usamos tu función de notificación visual que ya tienes
-
       if (payload.notification) {
-
           triggerMobileNotification(payload.notification.title, payload.notification.body, 'fcm-msg');
-
       }
-
     });
-
-
 
   }, []); // Se ejecuta una sola vez al abrir la app
 
@@ -658,7 +614,12 @@ function MainApp({ user, onLogout }) {
             </p>
           </div>
         </div>
-        <div className="flex items-center space-x-3 bg-violet-900/50 py-1.5 px-4 rounded-full border border-violet-600">
+        
+        {/* AQUÍ ESTÁ EL CAMBIO DEL PERFIL EN EL HEADER */}
+        <div 
+          onClick={() => setActiveTab('profile')} 
+          className="flex items-center space-x-3 bg-violet-900/50 py-1.5 px-4 rounded-full border border-violet-600 cursor-pointer hover:bg-violet-800 transition select-none"
+        >
           <div className="flex flex-col items-end">
               <span className="text-xs font-bold truncate max-w-[100px]">{user.firstName}</span>
           </div>
@@ -666,6 +627,7 @@ function MainApp({ user, onLogout }) {
             {user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover" /> : `${user.firstName?.[0]}${user.lastName?.[0]}`}
           </div>
         </div>
+
       </header>
       <main className="flex-1 overflow-y-auto pb-24 px-4 pt-6 max-w-4xl mx-auto w-full">
         {renderContent()}
@@ -679,7 +641,7 @@ function MainApp({ user, onLogout }) {
           <NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<LinkIcon size={24} />} label="Recursos" />
           <NavButton active={activeTab === 'notifications'} onClick={() => setActiveTab('notifications')} icon={<Bell size={24} />} label="Avisos" badge={notifications.length} />
           {canManageUsers && <NavButton active={activeTab === 'users'} onClick={() => setActiveTab('users')} icon={<Users size={24} />} label="Admin" />}
-          <NavButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={<User size={24} />} label="Perfil" />
+          {/* EL BOTÓN DE PERFIL HA SIDO ELIMINADO DE AQUÍ */}
         </div>
       </nav>
     </div>
@@ -917,18 +879,43 @@ function DashboardView({ user, tasks, events }) {
         </div>
     );
 }
-// --- VISTA RECURSOS ---
+// --- VISTA RECURSOS (MEJORADA) ---
 function ResourcesView({ resources, canEdit }) {
     const [showModal, setShowModal] = useState(false);
+
+    // 1. Función auxiliar para arreglar links rotos
+    const formatUrl = (url) => {
+        if (!url) return '#';
+        // Si ya tiene http o https, lo dejamos igual
+        if (url.startsWith('http://') || url.startsWith('https://')) return url;
+        // Si no, le agregamos https:// por defecto
+        return `https://${url}`;
+    };
+
     const addResource = async (e) => { e.preventDefault(); const title = e.target.title.value; const url = e.target.url.value; const category = e.target.category.value; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), { title, url, category, createdAt: serverTimestamp() }); setShowModal(false); };
     const deleteResource = async (id) => { if(confirm('¿Borrar recurso?')) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', id)); };
+    
     return (
         <div className="animate-in fade-in duration-500">
             <div className="flex justify-between items-center mb-6"><div><h2 className="text-2xl font-bold text-violet-900">Recursos</h2><p className="text-xs text-gray-500">Documentos y Enlaces</p></div>{canEdit && <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:bg-orange-600 transition"><Plus size={24} /></button>}</div>
             <div className="grid gap-3">
-                {resources.length === 0 ? <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200"><LinkIcon size={48} className="mx-auto mb-4 text-violet-100" /><p className="text-gray-500">No hay recursos compartidos.</p></div> : resources.map(res => (<a key={res.id} href={res.url} target="_blank" rel="noopener noreferrer" className="bg-white p-4 rounded-2xl shadow-sm border border-violet-50 flex items-center gap-4 hover:shadow-md transition group relative"><div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0"><FileText size={24} /></div><div className="flex-1 min-w-0"><h3 className="font-bold text-gray-800 text-sm truncate pr-6">{res.title}</h3><span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded uppercase font-bold tracking-wide">{res.category || 'General'}</span></div><ExternalLink size={16} className="text-gray-300 group-hover:text-blue-500" />{canEdit && (<button onClick={(e) => {e.preventDefault(); deleteResource(res.id)}} className="absolute top-2 right-2 p-2 text-gray-300 hover:text-red-500 z-10 bg-white/80 rounded-full"><Trash2 size={14} /></button>)}</a>))}
+                {resources.length === 0 ? <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200"><LinkIcon size={48} className="mx-auto mb-4 text-violet-100" /><p className="text-gray-500">No hay recursos compartidos.</p></div> : 
+                resources.map(res => (
+                    <a 
+                        key={res.id} 
+                        href={formatUrl(res.url)} // <--- AQUÍ USAMOS LA FUNCIÓN MÁGICA
+                        target="_blank"           // <--- ESTO FUERZA PESTAÑA NUEVA
+                        rel="noopener noreferrer" // <--- SEGURIDAD
+                        className="bg-white p-4 rounded-2xl shadow-sm border border-violet-50 flex items-center gap-4 hover:shadow-md transition group relative"
+                    >
+                        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0"><FileText size={24} /></div>
+                        <div className="flex-1 min-w-0"><h3 className="font-bold text-gray-800 text-sm truncate pr-6">{res.title}</h3><span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded uppercase font-bold tracking-wide">{res.category || 'General'}</span></div>
+                        <ExternalLink size={16} className="text-gray-300 group-hover:text-blue-500" />
+                        {canEdit && (<button onClick={(e) => {e.preventDefault(); deleteResource(res.id)}} className="absolute top-2 right-2 p-2 text-gray-300 hover:text-red-500 z-10 bg-white/80 rounded-full"><Trash2 size={14} /></button>)}
+                    </a>
+                ))}
             </div>
-            {showModal && (<div className="fixed inset-0 bg-violet-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200"><h3 className="text-xl font-bold mb-6 text-violet-900">Nuevo Recurso</h3><form onSubmit={addResource} className="space-y-4"><input name="title" required className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Título (Ej: Licencias)" /><input name="url" required className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Enlace (https://...)" /><select name="category" className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400 text-gray-700"><option>Documentos</option><option>Planillas</option><option>Normativa</option><option>Utilidades</option></select><div className="flex gap-3 mt-6"><button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button><button type="submit" className="flex-1 py-3 bg-violet-800 text-white font-bold rounded-xl shadow-lg">Guardar</button></div></form></div></div>)}
+            {showModal && (<div className="fixed inset-0 bg-violet-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200"><h3 className="text-xl font-bold mb-6 text-violet-900">Nuevo Recurso</h3><form onSubmit={addResource} className="space-y-4"><input name="title" required className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Título (Ej: Licencias)" /><input name="url" required className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Enlace (www.abc.gob.ar)" /><select name="category" className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400 text-gray-700"><option>Documentos</option><option>Planillas</option><option>Normativa</option><option>Utilidades</option></select><div className="flex gap-3 mt-6"><button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button><button type="submit" className="flex-1 py-3 bg-violet-800 text-white font-bold rounded-xl shadow-lg">Guardar</button></div></form></div></div>)}
         </div>
     );
 }
@@ -1964,6 +1951,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
