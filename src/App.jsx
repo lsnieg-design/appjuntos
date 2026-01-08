@@ -1,16 +1,4 @@
-import { useEffect } from 'react';
-import { requestPermission, onMessageListener } from './firebase';
-
-function App() {
-  useEffect(() => {
-    requestPermission();
-    
-    onMessageListener().then((payload) => {
-      console.log('Notificación recibida:', payload);
-      alert(`Mensaje: ${payload.notification.title}`);
-    });
-  }, []);
-  import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Calendar as CalendarIcon, 
   CheckSquare, 
@@ -80,32 +68,7 @@ import {
 } from 'firebase/firestore';
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
-// --- FUNCIÓN SEGURA PARA NOTIFICACIONES (SOLUCIONA EL ERROR DE TABLET) ---
-const triggerMobileNotification = (title, body) => {
-  if (!("Notification" in window)) return;
-
-  if (Notification.permission === "granted") {
-    // Si estamos en celular (Service Worker activo)
-    if (navigator.serviceWorker && navigator.serviceWorker.ready) {
-      navigator.serviceWorker.ready.then((registration) => {
-        registration.showNotification(title, {
-          body: body,
-          icon: '/icon-192.png',
-          vibrate: [200, 100, 200]
-        });
-      });
-    } else {
-      // Si estamos en PC
-      try {
-        new Notification(title, { body, icon: '/icon-192.png' });
-      } catch (e) {
-        console.log("Notificación bloqueada o no soportada en este modo.");
-      }
-    }
-  }
-};
-
-// --- CONFIGURACIÓN DE FIREBASE ---
+// --- CONFIGURACIÓN DE FIREBASE (INTEGRADA) ---
 const getFirebaseConfig = () => {
   try {
     if (import.meta.env && import.meta.env.VITE_FIREBASE_API_KEY) {
@@ -132,18 +95,23 @@ const app = Object.keys(firebaseConfig).length > 0 ? initializeApp(firebaseConfi
 const auth = app ? getAuth(app) : null;
 const db = app ? getFirestore(app) : null;
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'escuela-app-prod';
-// --- INICIO CONFIGURACIÓN MESSAGING ---
+
+// --- CONFIGURACIÓN MESSAGING (NOTIFICACIONES) ---
 const messaging = app ? getMessaging(app) : null;
+
+// Clave pública VAPID (Extraída de tu código original)
+const VAPID_KEY = "BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw";
 
 const requestPermission = async () => {
   try {
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
       const currentToken = await getToken(messaging, {
-        vapidKey: "AQUI_TU_VAPID_KEY" // <--- PEGA TU CLAVE DE LA CONSOLA AQUÍ
+        vapidKey: VAPID_KEY
       });
       if (currentToken) {
         console.log('Token generado:', currentToken);
+        return currentToken;
       }
     }
   } catch (error) {
@@ -159,7 +127,32 @@ const onMessageListener = () =>
       });
     }
   });
-// --- FIN CONFIGURACIÓN MESSAGING ---
+
+// --- FUNCIÓN SEGURA PARA NOTIFICACIONES MÓVILES ---
+const triggerMobileNotification = (title, body) => {
+  if (!("Notification" in window)) return;
+
+  if (Notification.permission === "granted") {
+    // Si estamos en celular (Service Worker activo)
+    if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+      navigator.serviceWorker.ready.then((registration) => {
+        registration.showNotification(title, {
+          body: body,
+          icon: '/icon-192.png',
+          vibrate: [200, 100, 200]
+        });
+      });
+    } else {
+      // Si estamos en PC
+      try {
+        new Notification(title, { body, icon: '/icon-192.png' });
+      } catch (e) {
+        console.log("Notificación bloqueada o no soportada en este modo.");
+      }
+    }
+  }
+};
+
 // --- Constantes ---
 const ROLES = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor'];
 const EVENT_TYPES = ['SALIDA EDUCATIVA', 'GENERAL', 'ADMINISTRATIVO', 'INFORMES', 'EVENTOS', 'ACTOS', 'EFEMÉRIDES', 'CUMPLEAÑOS'];
@@ -181,12 +174,27 @@ const formatDate = (dateString) => {
   return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-// --- Componente Principal Wrapper ---
+// --- Componente Principal Wrapper (FUSIONADO) ---
 export default function App() {
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [configError, setConfigError] = useState(false);
+
+  // Efecto para Notificaciones (Movido aquí adentro)
+  useEffect(() => {
+    // Intentar pedir permiso al cargar
+    requestPermission();
+    
+    // Escuchar mensajes en primer plano
+    onMessageListener().then((payload) => {
+      console.log('Notificación recibida:', payload);
+      // Usamos la función segura para mostrarla
+      if (payload.notification) {
+         triggerMobileNotification(payload.notification.title, payload.notification.body);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     if (!auth) {
@@ -245,7 +253,7 @@ function LoginScreen({ onLogin }) {
   const [showRecover, setShowRecover] = useState(false);
   const [recoverUser, setRecoverUser] = useState('');
   const [recoverStatus, setRecoverStatus] = useState('idle');
-  
+   
   // Lógica de instalación PWA
   const [showInstall, setShowInstall] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -409,7 +417,7 @@ function MainApp({ user, onLogout }) {
   const [resources, setResources] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [adminRequests, setAdminRequests] = useState([]);
-  
+   
   const isSuperAdmin = user.rol === 'super-admin';
   const canManageContent = user.rol === 'admin' || isSuperAdmin;
   const canManageUsers = isSuperAdmin;
@@ -465,14 +473,13 @@ function MainApp({ user, onLogout }) {
 
   // --- ACTIVAR NOTIFICACIONES MULTI-DISPOSITIVO ---
   useEffect(() => {
-    const messaging = getMessaging(app);
     const activarMensajes = async () => {
       try {
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
-          // CLAVE VAPID REAL
+          // CLAVE VAPID REAL (Usando la constante)
           const currentToken = await getToken(messaging, {
-            vapidKey: "BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw"
+            vapidKey: VAPID_KEY
           });
 
           if (currentToken && user && user.id) {
@@ -492,6 +499,7 @@ function MainApp({ user, onLogout }) {
 
     if(user && user.id) activarMensajes();
 
+    // Listener dentro de MainApp también, por si acaso
     onMessage(messaging, (payload) => {
       if (payload.notification) {
           triggerMobileNotification(payload.notification.title, payload.notification.body);
@@ -512,7 +520,7 @@ function MainApp({ user, onLogout }) {
       default: return <DashboardView user={user} tasks={tasks} events={events} />;
     }
   };
-  
+   
   return (
     <div className="flex flex-col h-screen bg-gray-50 font-sans text-slate-800">
       <header className="bg-violet-800 text-white shadow-lg px-4 py-3 flex justify-between items-center z-20 sticky top-0">
@@ -579,7 +587,6 @@ function DashboardView({ user, tasks, events }) {
     const todayStr = new Date().toISOString().split('T')[0];
     const eventsToday = events.filter(e => e.date === todayStr);
     const myPending = tasks.filter(t => t.status !== 'completed');
-    const highPriority = myPending.filter(t => t.priority === 'high');
     const [announcements, setAnnouncements] = useState([]); 
     const [showAnnounceModal, setShowAnnounceModal] = useState(false);
     const canPost = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
@@ -973,7 +980,7 @@ function ProfileView({ user, tasks, onLogout }) {
         const messaging = getMessaging(app);
         // TU CLAVE VAPID
         const currentToken = await getToken(messaging, { 
-            vapidKey: "BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw" 
+            vapidKey: VAPID_KEY // <--- Usando la constante corregida
         });
         
         if (currentToken) {
@@ -1354,5 +1361,3 @@ function MatriculaView({ user }) {
     </div>
   );
 }
-
-
