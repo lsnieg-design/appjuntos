@@ -124,7 +124,7 @@ const requestPermission = async () => {
   } catch (error) {
     console.error('Error en el proceso de suscripción:', error);
   }
-};sageListener = () =>
+const onMessageListener = () =>
   new Promise((resolve) => {
     if (messaging) {
       onMessage(messaging, (payload) => {
@@ -1366,6 +1366,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
