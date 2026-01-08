@@ -188,7 +188,6 @@ const onMessageListener = () =>
 
 // --- Componente Principal Wrapper (FUSIONADO) ---
 export default function App() {
-export default function App() {
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1374,6 +1373,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
