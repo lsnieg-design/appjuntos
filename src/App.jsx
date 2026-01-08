@@ -921,10 +921,44 @@ function CalendarView({ events, canEdit, user }) {
   );
 }
 
-// --- VISTA PERFIL ---
+// --- VISTA PERFIL (COMPLETA Y RESTAURADA) ---
 function ProfileView({ user, tasks, onLogout }) {
   const [formData, setFormData] = useState({ firstName: user.firstName || '', lastName: user.lastName || '', photoUrl: user.photoUrl || '' });
   const [uploading, setUploading] = useState(false);
+
+  // 1. Lógica para Activar Notificaciones (Multidispositivo)
+  const activarNotificaciones = async () => {
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        const messaging = getMessaging(app);
+        // TU CLAVE VAPID
+        const currentToken = await getToken(messaging, { 
+            vapidKey: "BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw" 
+        });
+        
+        if (currentToken) {
+           // Guardamos el token en la lista sin borrar los anteriores
+           const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+           await updateDoc(userRef, { 
+               fcmTokens: arrayUnion(currentToken),
+               lastTokenUpdate: serverTimestamp()
+           });
+           alert("✅ Notificaciones activadas para este dispositivo.");
+           
+           // Prueba visual
+           triggerMobileNotification("Dispositivo Conectado", "Ahora recibirás los comunicados aquí.");
+        }
+      } else {
+        alert("Necesitamos tu permiso para enviarte avisos.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Error al activar: " + e.message);
+    }
+  };
+
+  // 2. Lógica para subir foto
   const resizeImage = (file) => {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -945,6 +979,7 @@ function ProfileView({ user, tasks, onLogout }) {
       reader.readAsDataURL(file);
     });
   };
+
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -958,23 +993,54 @@ function ProfileView({ user, tasks, onLogout }) {
       } catch (error) { alert("Error al subir."); } finally { setUploading(false); }
     }
   };
+
+  // 3. Lógica simple para exportar mis tareas
+  const exportData = () => {
+      if(!tasks || tasks.length === 0) return alert("No hay tareas para exportar.");
+      const csvContent = "Titulo,Fecha Limite,Estado\n" + tasks.map(t => `${t.title},${t.dueDate},${t.status}`).join("\n");
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a'); link.href = url; link.download = "Mis_Tareas.csv"; link.click();
+  };
+
   return (
     <div className="animate-in fade-in duration-500 p-4">
+      {/* TARJETA DE PERFIL */}
       <div className="bg-white rounded-3xl shadow-sm border border-violet-50 overflow-hidden mb-6 relative">
          <div className="bg-gradient-to-r from-violet-600 to-orange-500 h-28 relative"></div>
          <div className="px-6 pb-6 pt-12 relative">
             <div className="absolute -top-10 left-6 w-24 h-24 bg-white p-1 rounded-2xl shadow-lg group">
-               <div className="w-full h-full rounded-xl overflow-hidden relative border border-violet-100 bg-violet-50 flex items-center justify-center cursor-pointer">
+               <div className="w-full h-full rounded-xl overflow-hidden relative border border-violet-100 bg-violet-50 flex items-center justify-center cursor-pointer hover:opacity-80 transition">
                   {formData.photoUrl ? <img src={formData.photoUrl} className="w-full h-full object-cover" alt="Perfil" /> : <div className="text-violet-600 font-bold text-3xl">{user.firstName?.[0]}{user.lastName?.[0]}</div>}
-                  <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileChange} />
+                  {/* INPUT INVISIBLE PARA SUBIR FOTO */}
+                  <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileChange} accept="image/*" />
                   {uploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><RefreshCw className="text-white animate-spin" /></div>}
                </div>
             </div>
-            <div className="flex justify-between items-start"><div className="pl-2"><h2 className="text-2xl font-bold text-gray-800 mt-2">{user.fullName}</h2><p className="text-orange-600 font-bold text-xs uppercase tracking-wider">{user.role}</p></div></div>
+            <div className="flex justify-between items-start">
+                <div className="pl-2">
+                    <h2 className="text-2xl font-bold text-gray-800 mt-2">{user.fullName}</h2>
+                    <p className="text-orange-600 font-bold text-xs uppercase tracking-wider">{user.role}</p>
+                    <p className="text-gray-400 text-[10px] mt-1">Toca la foto para cambiarla</p>
+                </div>
+            </div>
          </div>
       </div>
+
       <h3 className="text-lg font-bold text-violet-900 mb-4 px-2">Acciones</h3>
+      
+      {/* BOTONES DE ACCIÓN */}
       <div className="grid gap-3">
+        <button onClick={exportData} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]">
+            <div className="bg-green-100 text-green-700 p-3 rounded-xl"><Download size={24} /></div>
+            <div className="text-left"><h4 className="font-bold text-gray-800">Exportar Reporte</h4><p className="text-xs text-gray-500">Descargar mis tareas en Excel</p></div>
+        </button>
+
+        <button onClick={activarNotificaciones} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]">
+            <div className="bg-yellow-100 text-yellow-700 p-3 rounded-xl"><Bell size={24} /></div>
+            <div className="text-left"><h4 className="font-bold text-gray-800">Activar Notificaciones</h4><p className="text-xs text-gray-500">Habilitar avisos en este dispositivo</p></div>
+        </button>
+
         <button onClick={() => { if(confirm("¿Cerrar sesión?")) onLogout(); }} className="bg-red-50 p-4 rounded-2xl border border-red-100 shadow-sm flex items-center gap-4 hover:bg-red-100 transition active:scale-[0.98]">
             <div className="bg-white text-red-500 p-3 rounded-xl"><LogOut size={24} /></div>
             <div className="text-left"><h4 className="font-bold text-red-600">Cerrar Sesión</h4><p className="text-xs text-red-400">Salir de la cuenta segura</p></div>
@@ -983,7 +1049,6 @@ function ProfileView({ user, tasks, onLogout }) {
     </div>
   );
 }
-
 // --- VISTA MATRÍCULA (EXCEL COMPLETO) ---
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
@@ -1250,3 +1315,4 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
