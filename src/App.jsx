@@ -468,6 +468,7 @@ function LoginScreen({ onLogin }) {
 }
 
 // --- App Principal ---
+// --- App Principal (Corregida: Ahora SÍ guarda el token) ---
 function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [tasks, setTasks] = useState([]);
@@ -570,7 +571,6 @@ function MainApp({ user, onLogout }) {
   
   // --- ACTIVAR NOTIFICACIONES PUSH (APP CERRADA) ---
   useEffect(() => {
-    // 1. Inicializamos la mensajería
     const messaging = getMessaging(app);
 
     const activarMensajes = async () => {
@@ -578,40 +578,28 @@ function MainApp({ user, onLogout }) {
         const permission = await Notification.requestPermission();
         
         if (permission === 'granted') {
+          // ⚠️ Pega tu clave VAPID real aquí abajo
           const currentToken = await getToken(messaging, {
             vapidKey: "BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw"
           });
 
           if (currentToken) {
-            console.log("Token generado:", currentToken);
+            console.log("Token generado y listo para guardar:", currentToken);
             
-            // --- CAMBIO CLAVE AQUÍ ---
-            // Guardamos en una lista (array) para no borrar los otros dispositivos
+            // --- ESTA ES LA PARTE QUE FALTABA ---
             if (user && user.id) {
+                // Referencia al usuario
                 const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+                
+                // Guardamos en un array (lista) sin borrar los anteriores
                 await updateDoc(userRef, { 
-                    fcmTokens: arrayUnion(currentToken), // <--- ESTO AGREGA SIN BORRAR
-                    lastTokenUpdate: serverTimestamp()
+                    fcmTokens: arrayUnion(currentToken), 
+                    lastTokenUpdate: serverTimestamp(),
+                    deviceType: 'multidevice' 
                 });
+                console.log("✅ Token guardado en DB con éxito.");
             }
-          }
-        }
-      } catch (error) {
-        console.error("Error FCM:", error);
-      }
-    };
-        // 2. Pedir permiso al usuario (el navegador mostrará el cartelito)
-        const permission = await Notification.requestPermission();
-        
-        if (permission === 'granted') {
-          // 3. Obtener el Token Único de este dispositivo
-          const currentToken = await getToken(messaging, {
-            vapidKey: "BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw" // <--- ASEGURATE DE QUE ESTA SEA TU CLAVE
-          });
-
-          if (currentToken) {
-            console.log("Token:", currentToken);
-            // (Opcional) Aquí podríamos guardar este token en la base de datos del usuario
+            // ------------------------------------
           }
         } else {
           console.log("No se dio permiso para notificaciones.");
@@ -621,16 +609,18 @@ function MainApp({ user, onLogout }) {
       }
     };
 
-    activarMensajes();
+    // Solo activamos si tenemos usuario cargado
+    if (user && user.id) {
+        activarMensajes();
+    }
 
-    // 4. Escuchar mensajes si la app está ABIERTA (Foreground)
     onMessage(messaging, (payload) => {
       if (payload.notification) {
           triggerMobileNotification(payload.notification.title, payload.notification.body, 'fcm-msg');
       }
     });
 
-  }, []); // Se ejecuta una sola vez al abrir la app
+  }, [user]); // IMPORTANTE: Se ejecuta cuando 'user' cambia (al loguearse)
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 font-sans text-slate-800">
@@ -648,7 +638,6 @@ function MainApp({ user, onLogout }) {
           </div>
         </div>
         
-        {/* AQUÍ ESTÁ EL CAMBIO DEL PERFIL EN EL HEADER */}
         <div 
           onClick={() => setActiveTab('profile')} 
           className="flex items-center space-x-3 bg-violet-900/50 py-1.5 px-4 rounded-full border border-violet-600 cursor-pointer hover:bg-violet-800 transition select-none"
@@ -674,13 +663,11 @@ function MainApp({ user, onLogout }) {
           <NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<LinkIcon size={24} />} label="Recursos" />
           <NavButton active={activeTab === 'notifications'} onClick={() => setActiveTab('notifications')} icon={<Bell size={24} />} label="Avisos" badge={notifications.length} />
           {canManageUsers && <NavButton active={activeTab === 'users'} onClick={() => setActiveTab('users')} icon={<Users size={24} />} label="Admin" />}
-          {/* EL BOTÓN DE PERFIL HA SIDO ELIMINADO DE AQUÍ */}
         </div>
       </nav>
     </div>
   );
 }
-
 function NavButton({ active, onClick, icon, label, badge }) {
   return (
     <button onClick={onClick} className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-300 ${active ? 'text-orange-500 transform -translate-y-1' : 'text-gray-400 hover:text-violet-600'}`}>
@@ -1984,6 +1971,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
