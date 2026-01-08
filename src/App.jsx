@@ -1,12 +1,3 @@
-import { 
-  getFirestore, 
-  // ... otros imports ...
-  updateDoc, 
-  doc, 
-  serverTimestamp, 
-  arrayUnion // <--- ¡AGREGA ESTO!
-} from 'firebase/firestore';
-import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import React, { useState, useEffect } from 'react';
 import { 
   Calendar as CalendarIcon, 
@@ -45,15 +36,13 @@ import {
   Share,
   PlusSquare,
   Smartphone,
-  GraduationCap, // <--- NUEVO
-  Search,        // <--- NUEVO
-  X,             // <--- NUEVO
-  UploadCloud,   // <--- NUEVO
-  PieChart, // <--- NUEVO PARA ESTADÍSTICAS
-  Eye,      // <--- NUEVO PARA VER FICHA
-  Edit3,    // <--- NUEVO PARA EDITAR
-  
-
+  GraduationCap,
+  Search,
+  X,
+  UploadCloud,
+  PieChart,
+  Eye,
+  Edit3
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -74,38 +63,33 @@ import {
   deleteDoc, 
   where, 
   getDocs,
-  serverTimestamp 
+  serverTimestamp,
+  arrayUnion 
 } from 'firebase/firestore';
-// --- UTILIDAD PARA NOTIFICACIONES DEL SISTEMA ---
-const sendSystemNotification = (title, body) => {
-  // 1. Verificar si el navegador soporta notificaciones
+import { getMessaging, getToken, onMessage } from "firebase/messaging";
+
+// --- FUNCIÓN SEGURA PARA NOTIFICACIONES (SOLUCIONA EL ERROR DE TABLET) ---
+const triggerMobileNotification = (title, body) => {
   if (!("Notification" in window)) return;
 
-  // 2. Si ya dio permiso, lanzar la notificación
   if (Notification.permission === "granted") {
-    // En móviles, a veces se requiere usar el Service Worker para que sea persistente,
-    // pero intentamos primero la forma directa que funciona en la mayoría de Androids modernos con PWA instalada.
-    navigator.serviceWorker.ready.then((registration) => {
-      registration.showNotification(title, {
-        body: body,
-        icon: '/icon-192.png', // Asegúrate de que esta ruta exista en public
-        vibrate: [200, 100, 200],
-        badge: '/icon-192.png'
+    // Si estamos en celular (Service Worker activo)
+    if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+      navigator.serviceWorker.ready.then((registration) => {
+        registration.showNotification(title, {
+          body: body,
+          icon: '/icon-192.png',
+          vibrate: [200, 100, 200]
+        });
       });
-    });
-  } 
-  // 3. Si no ha dicho nada, no hacemos nada (se debe pedir permiso con un botón primero)
-};
-
-const requestNotificationPermission = async () => {
-  if (!("Notification" in window)) {
-    alert("Tu dispositivo no soporta notificaciones.");
-    return;
-  }
-  
-  const permission = await Notification.requestPermission();
-  if (permission === "granted") {
-    sendSystemNotification("¡Permiso concedido!", "Ahora recibirás avisos aquí.");
+    } else {
+      // Si estamos en PC
+      try {
+        new Notification(title, { body, icon: '/icon-192.png' });
+      } catch (e) {
+        console.log("Notificación bloqueada o no soportada en este modo.");
+      }
+    }
   }
 };
 
@@ -158,7 +142,7 @@ const formatDate = (dateString) => {
   return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-// --- Componente Principal ---
+// --- Componente Principal Wrapper ---
 export default function App() {
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
@@ -213,62 +197,7 @@ export default function App() {
   return <MainApp user={currentUserProfile} onLogout={handleLogout} />;
 }
 
-// --- Componente Modal de Instalación (MEJORADO) ---
-function InstallTutorial({ onClose, isIos, onInstall }) {
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-opacity duration-300">
-      <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm text-center transform scale-100 transition-transform duration-300 animate-in zoom-in-95">
-        
-        {/* Icono animado */}
-        <div className="mx-auto bg-purple-100 w-20 h-20 rounded-full flex items-center justify-center mb-5 animate-bounce">
-          <Smartphone className="text-violet-600" size={40} />
-        </div>
-
-        <h3 className="text-2xl font-extrabold text-gray-800 mb-2">¡Instala la App! 📲</h3>
-        <p className="text-gray-600 mb-6 text-sm">
-          Para mejor experiencia y acceso rápido, descarga la aplicación ahora.
-        </p>
-
-        <div className="flex flex-col gap-3">
-          
-          {/* Lógica: Si es Android/PC muestra botón, si es iOS muestra instrucciones */}
-          {!isIos ? (
-            <button 
-              onClick={onInstall}
-              className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg hover:shadow-xl hover:from-purple-700 hover:to-indigo-700 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-2"
-            >
-              <Download size={20} /> INSTALAR AHORA
-            </button>
-          ) : (
-            <div className="text-left bg-gray-50 p-4 rounded-xl border border-gray-200 text-sm text-gray-700 shadow-inner">
-              <p className="mb-3 font-bold text-violet-900 text-center">Pasos para iPhone:</p>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                    <div className="bg-blue-100 text-blue-600 w-8 h-8 rounded-full flex items-center justify-center font-bold shrink-0">1</div>
-                    <p>Toca el botón <strong>Compartir</strong> <span className="inline-block align-middle"><Share size={14}/></span></p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <div className="bg-blue-100 text-blue-600 w-8 h-8 rounded-full flex items-center justify-center font-bold shrink-0">2</div>
-                    <p>Selecciona <strong>"Agregar a Inicio"</strong> <span className="inline-block align-middle"><PlusSquare size={14}/></span></p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Botón Cerrar */}
-          <button 
-            onClick={onClose}
-            className="text-gray-400 text-sm font-medium hover:text-gray-600 underline mt-2"
-          >
-            Quizás más tarde
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// --- Pantalla Login (Con lógica de instalación integrada) ---
+// --- PANTALLA LOGIN ---
 function LoginScreen({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -278,46 +207,35 @@ function LoginScreen({ onLogin }) {
   const [recoverUser, setRecoverUser] = useState('');
   const [recoverStatus, setRecoverStatus] = useState('idle');
   
-  // --- LÓGICA DE INSTALACIÓN ---
+  // Lógica de instalación PWA
   const [showInstall, setShowInstall] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [esIos, setEsIos] = useState(false);
-  
-  // Detectar modo standalone (ya instalada)
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
   useEffect(() => {
-    // 1. Detectar si es iPhone
     const iosCheck = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
     setEsIos(iosCheck);
 
-    // 2. Escuchar evento de instalación (Android/PC)
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      // Mostrar el modal automáticamente si no está instalada
       if (!isStandalone) setShowInstall(true);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    // 3. Si es iPhone y no está instalada, mostrar modal tras 3 segs
     if (iosCheck && !isStandalone) {
        const timer = setTimeout(() => setShowInstall(true), 3000);
        return () => clearTimeout(timer);
     }
-
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, [isStandalone]);
 
-  // Función para disparar el prompt nativo de Android
   const handleInstalarClick = async () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        setShowInstall(false);
-      }
+      if (outcome === 'accepted') setShowInstall(false);
       setDeferredPrompt(null);
     }
   };
@@ -358,6 +276,7 @@ function LoginScreen({ onLogin }) {
     }
   };
 
+  // Resto del login (Recuperar contraseña)
   const handleRequestReset = async (e) => {
     e.preventDefault();
     if(!recoverUser.trim()) return;
@@ -385,81 +304,57 @@ function LoginScreen({ onLogin }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-900 to-fuchsia-900 flex items-center justify-center p-6 relative">
-      
-      {/* RENDERIZADO DEL MODAL DE INSTALACIÓN */}
       {!isStandalone && showInstall && (
-         <InstallTutorial 
-            onClose={() => setShowInstall(false)} 
-            isIos={esIos} 
-            onInstall={handleInstalarClick} 
-         />
-      )}
-
-      {/* Botón flotante manual (por si cerraron el modal) */}
-      {!isStandalone && !showInstall && (
-          <div className="absolute top-4 w-full px-6 flex justify-center animate-bounce z-10">
-              <button 
-                onClick={() => setShowInstall(true)}
-                className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 shadow-lg hover:bg-white/20 transition"
-              >
-                  <Download size={16} /> Instalar App
-              </button>
-          </div>
+         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+             <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm text-center">
+                 <div className="mx-auto bg-purple-100 w-20 h-20 rounded-full flex items-center justify-center mb-5 animate-bounce">
+                    <Smartphone className="text-violet-600" size={40} />
+                 </div>
+                 <h3 className="text-2xl font-extrabold text-gray-800 mb-2">¡Instala la App! 📲</h3>
+                 <p className="text-gray-600 mb-6 text-sm">Para mejor experiencia, descarga la aplicación ahora.</p>
+                 <div className="flex flex-col gap-3">
+                     {!esIos ? (
+                         <button onClick={handleInstalarClick} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg">INSTALAR AHORA</button>
+                     ) : (
+                         <div className="text-left bg-gray-50 p-4 rounded-xl border text-sm text-gray-700"><p className="mb-2 font-bold">En iPhone:</p>1. Toca <strong>Compartir</strong> <Share size={12} className="inline"/><br/>2. Selecciona <strong>"Agregar a Inicio"</strong> <PlusSquare size={12} className="inline"/></div>
+                     )}
+                     <button onClick={() => setShowInstall(false)} className="text-gray-400 text-sm font-medium hover:text-gray-600 underline mt-2">Quizás más tarde</button>
+                 </div>
+             </div>
+         </div>
       )}
 
       <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md border-t-8 border-orange-500 relative z-0">
         <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-             <img src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" alt="Logo" className="h-24 w-auto object-contain drop-shadow-md" />
-          </div>
-          <h1 className="text-2xl font-extrabold text-violet-900 tracking-tight uppercase">
-            PORTAL INSTITUCIONAL<br/><span className="text-orange-500">JUNTOS A LA PAR</span>
-          </h1>
+            <div className="flex justify-center mb-4"><img src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" alt="Logo" className="h-24 w-auto object-contain drop-shadow-md" /></div>
+            <h1 className="text-2xl font-extrabold text-violet-900 tracking-tight uppercase">PORTAL INSTITUCIONAL<br/><span className="text-orange-500">JUNTOS A LA PAR</span></h1>
         </div>
 
         {!showRecover ? (
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-xs font-bold text-violet-900 uppercase mb-2 ml-1">Usuario</label>
-              <div className="relative group">
-                <User className="absolute left-3 top-3.5 text-violet-300" size={18} />
-                <input type="text" required className="w-full pl-10 pr-4 py-3 bg-violet-50 border border-violet-100 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Nombre de usuario" value={username} onChange={(e) => setUsername(e.target.value)} />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-violet-900 uppercase mb-2 ml-1">Contraseña</label>
-              <div className="relative group">
-                <Lock className="absolute left-3 top-3.5 text-violet-300" size={18} />
-                <input type="password" required className="w-full pl-10 pr-4 py-3 bg-violet-50 border border-violet-100 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
-              </div>
-            </div>
-            <div className="flex justify-end">
-                <button type="button" onClick={() => setShowRecover(true)} className="text-xs font-bold text-violet-600 hover:text-orange-500 transition">¿Olvidaste tu contraseña?</button>
-            </div>
-            {error && <div className="bg-red-50 text-red-600 text-sm p-4 rounded-xl flex items-center gap-3 border border-red-100 animate-pulse"><AlertCircle size={20} /> {error}</div>}
-            <button type="submit" disabled={checking} className="w-full bg-gradient-to-r from-violet-600 to-violet-800 text-white py-4 rounded-xl font-bold text-lg hover:from-orange-500 hover:to-orange-600 transition duration-300 shadow-xl disabled:opacity-70 flex justify-center items-center">
-              {checking ? <RefreshCw className="animate-spin" /> : 'Ingresar al Portal'}
-            </button>
+            <div><label className="block text-xs font-bold text-violet-900 uppercase mb-2 ml-1">Usuario</label><div className="relative group"><User className="absolute left-3 top-3.5 text-violet-300" size={18} /><input type="text" required className="w-full pl-10 pr-4 py-3 bg-violet-50 border border-violet-100 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Nombre de usuario" value={username} onChange={(e) => setUsername(e.target.value)} /></div></div>
+            <div><label className="block text-xs font-bold text-violet-900 uppercase mb-2 ml-1">Contraseña</label><div className="relative group"><Lock className="absolute left-3 top-3.5 text-violet-300" size={18} /><input type="password" required className="w-full pl-10 pr-4 py-3 bg-violet-50 border border-violet-100 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="••••••" value={password} onChange={(e) => setPassword(e.target.value)} /></div></div>
+            <div className="flex justify-end"><button type="button" onClick={() => setShowRecover(true)} className="text-xs font-bold text-violet-600 hover:text-orange-500 transition">¿Olvidaste tu contraseña?</button></div>
+            {error && <div className="bg-red-50 text-red-600 text-sm p-4 rounded-xl flex items-center gap-3 border border-red-100">{error}</div>}
+            <button type="submit" disabled={checking} className="w-full bg-gradient-to-r from-violet-600 to-violet-800 text-white py-4 rounded-xl font-bold text-lg hover:from-orange-500 hover:to-orange-600 transition duration-300 shadow-xl disabled:opacity-70 flex justify-center items-center">{checking ? <RefreshCw className="animate-spin" /> : 'Ingresar al Portal'}</button>
           </form>
         ) : (
           <div className="animate-in fade-in slide-in-from-right">
-             <div className="bg-violet-50 p-6 rounded-2xl text-center mb-6 border border-violet-100">
+              <div className="bg-violet-50 p-6 rounded-2xl text-center mb-6 border border-violet-100">
                 <Key className="mx-auto text-violet-500 mb-2" size={40} />
                 <h3 className="font-bold text-violet-900 text-lg mb-2">Solicitar Blanqueo</h3>
-                <p className="text-sm text-gray-600 mb-4">Ingresa tu nombre de usuario. La administración recibirá una notificación para restablecer tu clave.</p>
+                <p className="text-sm text-gray-600 mb-4">Ingresa tu usuario para notificar a administración.</p>
                 {recoverStatus === 'sent' ? (
                     <div className="bg-green-100 text-green-700 p-3 rounded-xl mb-4 text-sm font-bold flex items-center justify-center gap-2"><CheckCircle size={18} /> ¡Solicitud Enviada!</div>
                 ) : (
                     <form onSubmit={handleRequestReset} className="mb-4">
-                        <input className="w-full p-3 bg-white border border-violet-200 rounded-xl mb-3 text-center focus:ring-2 focus:ring-orange-400 outline-none" placeholder="Tu Usuario (Ej: jlopez)" value={recoverUser} onChange={(e) => setRecoverUser(e.target.value)} required />
-                        <button type="submit" disabled={recoverStatus === 'sending'} className="w-full bg-orange-500 text-white py-3 rounded-xl font-bold hover:bg-orange-600 transition flex items-center justify-center gap-2">
-                            {recoverStatus === 'sending' ? <RefreshCw className="animate-spin" size={18} /> : <><Send size={18} /> Enviar Solicitud</>}
-                        </button>
-                        {recoverStatus === 'error' && <p className="text-xs text-red-500 mt-2 font-bold">Usuario no encontrado o error de red.</p>}
+                        <input className="w-full p-3 bg-white border border-violet-200 rounded-xl mb-3 text-center focus:ring-2 focus:ring-orange-400 outline-none" placeholder="Tu Usuario" value={recoverUser} onChange={(e) => setRecoverUser(e.target.value)} required />
+                        <button type="submit" disabled={recoverStatus === 'sending'} className="w-full bg-orange-500 text-white py-3 rounded-xl font-bold hover:bg-orange-600 transition flex items-center justify-center gap-2">{recoverStatus === 'sending' ? <RefreshCw className="animate-spin" size={18} /> : <><Send size={18} /> Enviar Solicitud</>}</button>
+                        {recoverStatus === 'error' && <p className="text-xs text-red-500 mt-2 font-bold">Error de red o usuario incorrecto.</p>}
                     </form>
                 )}
-             </div>
-             <button onClick={() => {setShowRecover(false); setRecoverStatus('idle'); setRecoverUser('');}} className="w-full text-gray-500 font-bold py-3 hover:text-gray-700 transition">Volver al inicio</button>
+              </div>
+              <button onClick={() => {setShowRecover(false); setRecoverStatus('idle');}} className="w-full text-gray-500 font-bold py-3 hover:text-gray-700 transition">Volver al inicio</button>
           </div>
         )}
       </div>
@@ -467,8 +362,7 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-// --- App Principal ---
-// --- App Principal (Corregida: Ahora SÍ guarda el token) ---
+// --- APP PRINCIPAL (CON TODAS LAS MEJORAS INTEGRADAS) ---
 function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [tasks, setTasks] = useState([]);
@@ -477,7 +371,6 @@ function MainApp({ user, onLogout }) {
   const [notifications, setNotifications] = useState([]);
   const [adminRequests, setAdminRequests] = useState([]);
   
-  // --- JERARQUÍA ---
   const isSuperAdmin = user.rol === 'super-admin';
   const canManageContent = user.rol === 'admin' || isSuperAdmin;
   const canManageUsers = isSuperAdmin;
@@ -500,25 +393,16 @@ function MainApp({ user, onLogout }) {
       const allTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setTasks(allTasks.filter(isAssignedToUser));
     });
-
     const qEvents = query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc'));
-    const unsubEvents = onSnapshot(qEvents, (snap) => {
-      setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-
+    const unsubEvents = onSnapshot(qEvents, (snap) => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const qResources = query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc'));
-    const unsubResources = onSnapshot(qResources, (snap) => {
-      setResources(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
+    const unsubResources = onSnapshot(qResources, (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
 
     let unsubRequests = () => {};
     if (canManageUsers) {
         const qReq = query(collection(db, 'artifacts', appId, 'public', 'data', 'requests'), orderBy('createdAt', 'desc'));
-        unsubRequests = onSnapshot(qReq, (snap) => {
-            setAdminRequests(snap.docs.map(d => ({ id: d.id, ...d.data(), isRequest: true })));
-        });
+        unsubRequests = onSnapshot(qReq, (snap) => setAdminRequests(snap.docs.map(d => ({ id: d.id, ...d.data(), isRequest: true }))));
     }
-
     return () => { unsubTasks(); unsubEvents(); unsubRequests(); unsubResources(); };
   }, [user, canManageContent, canManageUsers]);
 
@@ -529,31 +413,52 @@ function MainApp({ user, onLogout }) {
     let newNotifs = [];
 
     if (canManageUsers) {
-        adminRequests.forEach(req => {
-            newNotifs.push({ id: req.id, type: 'admin_alert', title: "Solicitud de Contraseña", message: `El usuario "${req.username}" solicita blanqueo.`, date: req.createdAt ? new Date(req.createdAt.seconds * 1000).toISOString() : todayStr, context: 'Acción Requerida', isRequest: true });
-        });
+        adminRequests.forEach(req => newNotifs.push({ id: req.id, type: 'admin_alert', title: "Solicitud", message: `Usuario: ${req.username}`, date: todayStr }));
     }
 
     tasks.forEach(task => {
       if (task.status === 'completed') return;
-      if (task.notificationDate && task.notificationDate <= todayStr && task.notificationMessage) {
-        newNotifs.push({ id: `task-auto-${task.id}`, type: 'scheduled', title: "Aviso Programado", message: task.notificationMessage, date: task.notificationDate, context: 'Tarea: ' + task.title });
-      }
-      if (task.lastReminder) {
-        const reminderDate = new Date(task.lastReminder.seconds * 1000);
-        newNotifs.push({ id: `task-remind-${task.id}-${task.lastReminder.seconds}`, type: 'reminder', title: "¡Recordatorio!", message: `Se recuerda completar: "${task.title}"`, date: reminderDate.toISOString().split('T')[0], context: 'Urgente' });
-      }
+      if (task.lastReminder) newNotifs.push({ id: `remind-${task.id}`, type: 'reminder', title: "Recordatorio", message: task.title, date: todayStr });
     });
 
-    events.forEach(event => {
-       if (event.notificationDate && event.notificationDate <= todayStr && event.notificationMessage) {
-         newNotifs.push({ id: `event-auto-${event.id}`, type: 'event', title: "Evento Próximo", message: event.notificationMessage, date: event.notificationDate, context: 'Agenda: ' + event.title });
-       }
-    });
-
-    newNotifs.sort((a, b) => new Date(b.date) - new Date(a.date));
     setNotifications(newNotifs);
-  }, [tasks, events, canManageUsers, user, adminRequests]);
+  }, [tasks, adminRequests]);
+
+  // --- ACTIVAR NOTIFICACIONES MULTI-DISPOSITIVO ---
+  useEffect(() => {
+    const messaging = getMessaging(app);
+    const activarMensajes = async () => {
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          // CLAVE VAPID REAL
+          const currentToken = await getToken(messaging, {
+            vapidKey: "BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw"
+          });
+
+          if (currentToken && user && user.id) {
+            console.log("Token:", currentToken);
+            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+            // USAMOS ARRAY UNION PARA AGREGAR SIN BORRAR LO ANTERIOR
+            await updateDoc(userRef, { 
+                fcmTokens: arrayUnion(currentToken),
+                lastTokenUpdate: serverTimestamp() 
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error notificaciones:", error);
+      }
+    };
+
+    if(user && user.id) activarMensajes();
+
+    onMessage(messaging, (payload) => {
+      if (payload.notification) {
+          triggerMobileNotification(payload.notification.title, payload.notification.body);
+      }
+    });
+  }, [user]);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -569,59 +474,6 @@ function MainApp({ user, onLogout }) {
     }
   };
   
-  // --- ACTIVAR NOTIFICACIONES PUSH (APP CERRADA) ---
-  useEffect(() => {
-    const messaging = getMessaging(app);
-
-    const activarMensajes = async () => {
-      try {
-        const permission = await Notification.requestPermission();
-        
-        if (permission === 'granted') {
-          // ⚠️ Pega tu clave VAPID real aquí abajo
-          const currentToken = await getToken(messaging, {
-            vapidKey: "BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw"
-          });
-
-          if (currentToken) {
-            console.log("Token generado y listo para guardar:", currentToken);
-            
-            // --- ESTA ES LA PARTE QUE FALTABA ---
-            if (user && user.id) {
-                // Referencia al usuario
-                const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-                
-                // Guardamos en un array (lista) sin borrar los anteriores
-                await updateDoc(userRef, { 
-                    fcmTokens: arrayUnion(currentToken), 
-                    lastTokenUpdate: serverTimestamp(),
-                    deviceType: 'multidevice' 
-                });
-                console.log("✅ Token guardado en DB con éxito.");
-            }
-            // ------------------------------------
-          }
-        } else {
-          console.log("No se dio permiso para notificaciones.");
-        }
-      } catch (error) {
-        console.error("Error al activar notificaciones:", error);
-      }
-    };
-
-    // Solo activamos si tenemos usuario cargado
-    if (user && user.id) {
-        activarMensajes();
-    }
-
-    onMessage(messaging, (payload) => {
-      if (payload.notification) {
-          triggerMobileNotification(payload.notification.title, payload.notification.body, 'fcm-msg');
-      }
-    });
-
-  }, [user]); // IMPORTANTE: Se ejecuta cuando 'user' cambia (al loguearse)
-
   return (
     <div className="flex flex-col h-screen bg-gray-50 font-sans text-slate-800">
       <header className="bg-violet-800 text-white shadow-lg px-4 py-3 flex justify-between items-center z-20 sticky top-0">
@@ -638,6 +490,7 @@ function MainApp({ user, onLogout }) {
           </div>
         </div>
         
+        {/* PERFIL ARRIBA (CLICKABLE) */}
         <div 
           onClick={() => setActiveTab('profile')} 
           className="flex items-center space-x-3 bg-violet-900/50 py-1.5 px-4 rounded-full border border-violet-600 cursor-pointer hover:bg-violet-800 transition select-none"
@@ -649,11 +502,12 @@ function MainApp({ user, onLogout }) {
             {user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover" /> : `${user.firstName?.[0]}${user.lastName?.[0]}`}
           </div>
         </div>
-
       </header>
+
       <main className="flex-1 overflow-y-auto pb-24 px-4 pt-6 max-w-4xl mx-auto w-full">
         {renderContent()}
       </main>
+
       <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 pb-safe shadow-[0_-10px_20px_rgba(109,40,217,0.05)] z-30">
         <div className="flex justify-around items-center h-20 max-w-4xl mx-auto px-2">
           <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={24} />} label="Inicio" />
@@ -668,6 +522,7 @@ function MainApp({ user, onLogout }) {
     </div>
   );
 }
+
 function NavButton({ active, onClick, icon, label, badge }) {
   return (
     <button onClick={onClick} className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-300 ${active ? 'text-orange-500 transform -translate-y-1' : 'text-gray-400 hover:text-violet-600'}`}>
@@ -680,43 +535,27 @@ function NavButton({ active, onClick, icon, label, badge }) {
   );
 }
 
-// --- VISTA DASHBOARD (Mejorada: Múltiples Comunicados) ---
+// --- VISTA DASHBOARD (CARTELERA MULTIPLE) ---
 function DashboardView({ user, tasks, events }) {
-    // Estados básicos
     const todayStr = new Date().toISOString().split('T')[0];
     const eventsToday = events.filter(e => e.date === todayStr);
     const myPending = tasks.filter(t => t.status !== 'completed');
     const highPriority = myPending.filter(t => t.priority === 'high');
-
-    // Estado para MÚLTIPLES Comunicados
-    const [announcements, setAnnouncements] = useState([]); // <--- Antes era null, ahora es array []
+    const [announcements, setAnnouncements] = useState([]); 
     const [showAnnounceModal, setShowAnnounceModal] = useState(false);
-
-    // Permisos
     const canPost = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
 
-    // Cargar TODOS los comunicados recientes
     useEffect(() => {
-        // Traemos todos los mensajes ordenados por fecha
         const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc'));
-        
         const unsub = onSnapshot(q, (snapshot) => {
             const now = new Date();
             const validMessages = [];
-
             snapshot.docs.forEach(doc => {
                 const data = doc.data();
                 const msgDate = data.createdAt ? new Date(data.createdAt.seconds * 1000) : new Date();
                 const diffHours = (now - msgDate) / (1000 * 60 * 60);
-
-                // Filtramos: Solo guardar si tiene menos de 48 horas (damos un poco más de margen)
                 if (diffHours < 48) {
-                    validMessages.push({ 
-                        id: doc.id, 
-                        ...data, 
-                        timeAgo: Math.floor(diffHours),
-                        isRecent: diffHours < 24 // Marca visual para los muy nuevos
-                    });
+                    validMessages.push({ id: doc.id, ...data, timeAgo: Math.floor(diffHours) });
                 }
             });
             setAnnouncements(validMessages);
@@ -724,25 +563,17 @@ function DashboardView({ user, tasks, events }) {
         return () => unsub();
     }, []);
 
-    // Guardar nuevo comunicado
     const handlePostAnnouncement = async (e) => {
         e.preventDefault();
         const text = e.target.message.value;
         if(!text.trim()) return;
-
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), {
-            message: text,
-            author: user.fullName,
-            role: user.role,
-            createdAt: serverTimestamp()
+            message: text, author: user.fullName, role: user.role, createdAt: serverTimestamp()
         });
-        
         setShowAnnounceModal(false);
-        // Notificación de éxito
-        alert("✅ Comunicado publicado. Se agregó a la cartelera.");
+        alert("✅ Comunicado publicado.");
     };
 
-    // Función para borrar (Solo admin)
     const deleteAnnouncement = async (id) => {
         if(confirm("¿Borrar este comunicado?")) {
             await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'announcements', id));
@@ -751,147 +582,48 @@ function DashboardView({ user, tasks, events }) {
 
     return (
         <div className="animate-in fade-in duration-500 space-y-6">
-            {/* SALUDO */}
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-violet-50 flex justify-between items-center">
-                <div>
-                    <h2 className="text-2xl font-bold text-violet-900">Hola, {user.firstName}! 👋</h2>
-                    <p className="text-gray-500 text-sm">Bienvenido a tu portal digital.</p>
-                </div>
+                <div><h2 className="text-2xl font-bold text-violet-900">Hola, {user.firstName}! 👋</h2><p className="text-gray-500 text-sm">Bienvenido a tu portal digital.</p></div>
             </div>
-
-            {/* TARJETAS PRINCIPALES */}
             <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gradient-to-br from-orange-400 to-orange-600 p-5 rounded-3xl text-white shadow-lg relative overflow-hidden">
-                    <div className="relative z-10">
-                        <h3 className="text-3xl font-bold">{myPending.length}</h3>
-                        <p className="text-xs font-bold opacity-90 uppercase tracking-wide">Tareas Pendientes</p>
-                    </div>
+                    <div className="relative z-10"><h3 className="text-3xl font-bold">{myPending.length}</h3><p className="text-xs font-bold opacity-90 uppercase tracking-wide">Pendientes</p></div>
                     <CheckSquare className="absolute -bottom-4 -right-4 opacity-20 w-24 h-24" />
                 </div>
                 <div className="bg-gradient-to-br from-violet-600 to-violet-800 p-5 rounded-3xl text-white shadow-lg relative overflow-hidden">
-                    <div className="relative z-10">
-                        <h3 className="text-3xl font-bold">{eventsToday.length}</h3>
-                        <p className="text-xs font-bold opacity-90 uppercase tracking-wide">Eventos Hoy</p>
-                    </div>
+                    <div className="relative z-10"><h3 className="text-3xl font-bold">{eventsToday.length}</h3><p className="text-xs font-bold opacity-90 uppercase tracking-wide">Eventos Hoy</p></div>
                     <CalendarIcon className="absolute -bottom-4 -right-4 opacity-20 w-24 h-24" />
                 </div>
             </div>
-
-            {/* --- CARTELERA DIGITAL (Múltiples Mensajes) --- */}
+            {/* CARTELERA */}
             <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-1 rounded-3xl shadow-lg relative">
                 <div className="bg-white/10 backdrop-blur-sm p-5 rounded-[20px] text-white min-h-[140px] relative overflow-hidden">
-                    
-                    {/* Cabecera Cartelera */}
                     <div className="flex justify-between items-center z-10 relative mb-4">
-                        <div>
-                            <h3 className="text-lg font-bold flex items-center gap-2"><Bell size={20}/> Cartelera</h3>
-                            <p className="text-[10px] opacity-80 uppercase tracking-wider">Novedades recientes</p>
-                        </div>
-                        {canPost && (
-                            <button 
-                                onClick={() => setShowAnnounceModal(true)} 
-                                className="bg-white/20 hover:bg-white/40 p-2 rounded-full transition shadow-sm"
-                                title="Publicar nuevo mensaje"
-                            >
-                                <Edit3 size={18} />
-                            </button>
-                        )}
+                        <div><h3 className="text-lg font-bold flex items-center gap-2"><Bell size={20}/> Cartelera</h3><p className="text-[10px] opacity-80 uppercase tracking-wider">Novedades</p></div>
+                        {canPost && (<button onClick={() => setShowAnnounceModal(true)} className="bg-white/20 hover:bg-white/40 p-2 rounded-full transition shadow-sm"><Edit3 size={18} /></button>)}
                     </div>
-                    
-                    {/* Lista de Mensajes (Scrollable si hay muchos) */}
                     <div className="relative z-10 space-y-3 max-h-[300px] overflow-y-auto pr-2 scrollbar-hide">
                         {announcements.length > 0 ? (
                             announcements.map((anuncio) => (
                                 <div key={anuncio.id} className="bg-black/20 p-3 rounded-xl border border-white/10 relative group">
                                     <p className="text-md font-medium leading-snug">"{anuncio.message}"</p>
-                                    <div className="mt-2 flex items-center justify-between text-[10px] opacity-75">
-                                        <span className="font-bold uppercase tracking-wide">{anuncio.author}</span>
-                                        <span>hace {anuncio.timeAgo === 0 ? 'instantes' : `${anuncio.timeAgo}h`}</span>
-                                    </div>
-                                    {/* Botón borrar individual */}
-                                    {canPost && (
-                                        <button 
-                                            onClick={() => deleteAnnouncement(anuncio.id)}
-                                            className="absolute top-2 right-2 text-white/40 hover:text-white bg-black/20 hover:bg-red-500/80 p-1 rounded transition opacity-0 group-hover:opacity-100"
-                                        >
-                                            <X size={12} />
-                                        </button>
-                                    )}
+                                    <div className="mt-2 flex items-center justify-between text-[10px] opacity-75"><span className="font-bold uppercase tracking-wide">{anuncio.author}</span><span>hace {anuncio.timeAgo}h</span></div>
+                                    {canPost && (<button onClick={() => deleteAnnouncement(anuncio.id)} className="absolute top-2 right-2 text-white/40 hover:text-white bg-black/20 hover:bg-red-500/80 p-1 rounded transition opacity-0 group-hover:opacity-100"><X size={12} /></button>)}
                                 </div>
                             ))
-                        ) : (
-                            <div className="text-center py-4 text-white/60 italic text-sm border-t border-white/10">
-                                <p>No hay comunicados activos.</p>
-                            </div>
-                        )}
+                        ) : (<div className="text-center py-4 text-white/60 italic text-sm border-t border-white/10"><p>No hay comunicados activos.</p></div>)}
                     </div>
-                    
-                    {/* Decoración Fondo */}
                     <Bell className="absolute -bottom-6 -right-6 w-32 h-32 opacity-10 text-white rotate-12" />
                 </div>
             </div>
-
-            {/* TAREAS URGENTES */}
-            {highPriority.length > 0 && (
-                <div className="bg-red-50 rounded-3xl p-5 border border-red-100">
-                    <div className="flex items-center gap-2 mb-3 text-red-600 font-bold">
-                        <AlertTriangle size={20} />
-                        <h3>Requieren Atención</h3>
-                    </div>
-                    <div className="space-y-2">
-                        {highPriority.slice(0, 3).map(t => (
-                            <div key={t.id} className="bg-white p-3 rounded-xl border border-red-100 shadow-sm flex justify-between items-center">
-                                <span className="text-sm font-bold text-gray-700 truncate">{t.title}</span>
-                                <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-lg font-bold">URGENTE</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* AGENDA DE HOY */}
-            {eventsToday.length > 0 && (
-                <div className="bg-white rounded-3xl p-5 border border-violet-50 shadow-sm">
-                    <div className="flex items-center gap-2 mb-3 text-violet-800 font-bold">
-                        <Clock size={20} />
-                        <h3>Agenda de Hoy</h3>
-                    </div>
-                    <div className="space-y-2">
-                        {eventsToday.map(e => (
-                            <div key={e.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-xl transition">
-                                <div className="w-10 h-10 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center font-bold text-xs shrink-0">
-                                    {new Date(e.date + 'T00:00:00').getDate()}
-                                </div>
-                                <div>
-                                    <p className="text-sm font-bold text-gray-800">{e.title}</p>
-                                    <p className="text-xs text-gray-500 font-medium uppercase">{e.type}</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* MODAL PARA PUBLICAR */}
+            {/* MODAL CARTELERA */}
             {showAnnounceModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95">
                         <h3 className="text-xl font-bold mb-2 text-rose-600">Nuevo Comunicado</h3>
-                        <p className="text-xs text-gray-500 mb-4">Se agregará a la cartelera visible para todos.</p>
-                        
                         <form onSubmit={handlePostAnnouncement}>
-                            <textarea 
-                                name="message" 
-                                required 
-                                className="w-full p-3 bg-rose-50 rounded-xl outline-none focus:ring-2 focus:ring-rose-400 text-sm min-h-[100px] resize-none border border-rose-100" 
-                                placeholder="Escribe el mensaje aquí..."
-                                autoFocus
-                            ></textarea>
-                            
-                            <div className="flex gap-3 mt-6">
-                                <button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl transition">Cancelar</button>
-                                <button type="submit" className="flex-1 py-3 bg-rose-600 text-white font-bold rounded-xl shadow-lg hover:bg-rose-700 transition">Publicar</button>
-                            </div>
+                            <textarea name="message" required className="w-full p-3 bg-rose-50 rounded-xl outline-none focus:ring-2 focus:ring-rose-400 text-sm min-h-[100px] resize-none border border-rose-100" placeholder="Escribe el mensaje aquí..."></textarea>
+                            <div className="flex gap-3 mt-6"><button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl transition">Cancelar</button><button type="submit" className="flex-1 py-3 bg-rose-600 text-white font-bold rounded-xl shadow-lg hover:bg-rose-700 transition">Publicar</button></div>
                         </form>
                     </div>
                 </div>
@@ -899,35 +631,20 @@ function DashboardView({ user, tasks, events }) {
         </div>
     );
 }
-// --- VISTA RECURSOS (MEJORADA) ---
+
+// --- VISTA RECURSOS (LINKS CORREGIDOS) ---
 function ResourcesView({ resources, canEdit }) {
     const [showModal, setShowModal] = useState(false);
-
-    // 1. Función auxiliar para arreglar links rotos
-    const formatUrl = (url) => {
-        if (!url) return '#';
-        // Si ya tiene http o https, lo dejamos igual
-        if (url.startsWith('http://') || url.startsWith('https://')) return url;
-        // Si no, le agregamos https:// por defecto
-        return `https://${url}`;
-    };
-
+    const formatUrl = (url) => { if (!url) return '#'; if (url.startsWith('http://') || url.startsWith('https://')) return url; return `https://${url}`; };
     const addResource = async (e) => { e.preventDefault(); const title = e.target.title.value; const url = e.target.url.value; const category = e.target.category.value; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), { title, url, category, createdAt: serverTimestamp() }); setShowModal(false); };
     const deleteResource = async (id) => { if(confirm('¿Borrar recurso?')) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', id)); };
-    
     return (
         <div className="animate-in fade-in duration-500">
             <div className="flex justify-between items-center mb-6"><div><h2 className="text-2xl font-bold text-violet-900">Recursos</h2><p className="text-xs text-gray-500">Documentos y Enlaces</p></div>{canEdit && <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:bg-orange-600 transition"><Plus size={24} /></button>}</div>
             <div className="grid gap-3">
                 {resources.length === 0 ? <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200"><LinkIcon size={48} className="mx-auto mb-4 text-violet-100" /><p className="text-gray-500">No hay recursos compartidos.</p></div> : 
                 resources.map(res => (
-                    <a 
-                        key={res.id} 
-                        href={formatUrl(res.url)} // <--- AQUÍ USAMOS LA FUNCIÓN MÁGICA
-                        target="_blank"           // <--- ESTO FUERZA PESTAÑA NUEVA
-                        rel="noopener noreferrer" // <--- SEGURIDAD
-                        className="bg-white p-4 rounded-2xl shadow-sm border border-violet-50 flex items-center gap-4 hover:shadow-md transition group relative"
-                    >
+                    <a key={res.id} href={formatUrl(res.url)} target="_blank" rel="noopener noreferrer" className="bg-white p-4 rounded-2xl shadow-sm border border-violet-50 flex items-center gap-4 hover:shadow-md transition group relative">
                         <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0"><FileText size={24} /></div>
                         <div className="flex-1 min-w-0"><h3 className="font-bold text-gray-800 text-sm truncate pr-6">{res.title}</h3><span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded uppercase font-bold tracking-wide">{res.category || 'General'}</span></div>
                         <ExternalLink size={16} className="text-gray-300 group-hover:text-blue-500" />
@@ -935,12 +652,12 @@ function ResourcesView({ resources, canEdit }) {
                     </a>
                 ))}
             </div>
-            {showModal && (<div className="fixed inset-0 bg-violet-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200"><h3 className="text-xl font-bold mb-6 text-violet-900">Nuevo Recurso</h3><form onSubmit={addResource} className="space-y-4"><input name="title" required className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Título (Ej: Licencias)" /><input name="url" required className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Enlace (www.abc.gob.ar)" /><select name="category" className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400 text-gray-700"><option>Documentos</option><option>Planillas</option><option>Normativa</option><option>Utilidades</option></select><div className="flex gap-3 mt-6"><button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button><button type="submit" className="flex-1 py-3 bg-violet-800 text-white font-bold rounded-xl shadow-lg">Guardar</button></div></form></div></div>)}
+            {showModal && (<div className="fixed inset-0 bg-violet-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200"><h3 className="text-xl font-bold mb-6 text-violet-900">Nuevo Recurso</h3><form onSubmit={addResource} className="space-y-4"><input name="title" required className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Título" /><input name="url" required className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Enlace" /><select name="category" className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400 text-gray-700"><option>Documentos</option><option>Planillas</option><option>Normativa</option><option>Utilidades</option></select><div className="flex gap-3 mt-6"><button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button><button type="submit" className="flex-1 py-3 bg-violet-800 text-white font-bold rounded-xl shadow-lg">Guardar</button></div></form></div></div>)}
         </div>
     );
 }
 
-// --- VISTA TAREAS ---
+// --- VISTA TAREAS (SIN CAMBIOS) ---
 function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [targetType, setTargetType] = useState('all'); 
@@ -960,11 +677,7 @@ function TasksView({ tasks, user, canEdit }) {
     }
   }, [canEdit, showModal]);
 
-  const toggleSelection = (item, list, setList) => {
-    if (list.includes(item)) setList(list.filter(i => i !== item));
-    else setList([...list, item]);
-  };
-
+  const toggleSelection = (item, list, setList) => { if (list.includes(item)) setList(list.filter(i => i !== item)); else setList([...list, item]); };
   const addTask = async (e) => {
     e.preventDefault();
     const title = e.target.title.value;
@@ -986,12 +699,7 @@ function TasksView({ tasks, user, canEdit }) {
   const sendReminder = async (task) => { if (!confirm(`¿Enviar notificación?`)) return; const ref = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id); await updateDoc(ref, { lastReminder: serverTimestamp() }); alert("Recordatorio enviado."); };
   const getStatusColor = (s) => { if(s === 'completed') return 'bg-green-100 text-green-700 border-green-200'; if(s === 'in_progress') return 'bg-blue-100 text-blue-700 border-blue-200'; return 'bg-gray-100 text-gray-500 border-gray-200'; };
 
-  const filteredTasks = tasks.filter(t => {
-      if (filterRole === 'all') return true;
-      if (t.targetType === 'all') return true; 
-      if (t.targetType === 'roles' && t.targetRoles?.includes(filterRole)) return true;
-      return false;
-  });
+  const filteredTasks = tasks.filter(t => { if (filterRole === 'all') return true; if (t.targetType === 'all') return true; if (t.targetType === 'roles' && t.targetRoles?.includes(filterRole)) return true; return false; });
 
   return (
     <div className="animate-in fade-in duration-500">
@@ -1027,7 +735,7 @@ function TasksView({ tasks, user, canEdit }) {
   );
 }
 
-// --- VISTAS RESTANTES ---
+// --- VISTA NOTIFICACIONES ---
 function NotificationsView({ notifications, canEdit }) {
   const deleteRequest = async (id) => { if(confirm('¿Has resuelto esta solicitud?')) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'requests', id)); };
   return (
@@ -1052,6 +760,7 @@ function NotificationsView({ notifications, canEdit }) {
   );
 }
 
+// --- VISTA USUARIOS ---
 function UsersView({ user }) {
   const [usersList, setUsersList] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -1141,6 +850,7 @@ function UsersView({ user }) {
   );
 }
 
+// --- VISTA CALENDARIO (SIN CAMBIOS) ---
 function CalendarView({ events, canEdit, user }) {
   const [showModal, setShowModal] = useState(false);
   const [viewMode, setViewMode] = useState('list');
@@ -1211,93 +921,60 @@ function CalendarView({ events, canEdit, user }) {
   );
 }
 
+// --- VISTA PERFIL ---
 function ProfileView({ user, tasks, onLogout }) {
-  const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({ firstName: user.firstName || '', lastName: user.lastName || '', photoUrl: user.photoUrl || '' });
   const [uploading, setUploading] = useState(false);
-
-  // --- NUEVA LÓGICA DE ACTIVACIÓN ---
-  const activarNotificaciones = async () => {
-    try {
-      // 1. LIMPIEZA DE LA LLAVE (Pega tu clave real aquí)
-      const myVapidKey = "BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw"; // <--- ¡TU CLAVE VAPID AQUÍ!
-      const cleanKey = myVapidKey.trim();
-
-      const permission = await Notification.requestPermission();
-      
-      if (permission === 'granted') {
-        const messaging = getMessaging(app);
-        const currentToken = await getToken(messaging, { vapidKey: cleanKey });
-
-        if (currentToken) {
-          // 2. AQUÍ ESTÁ LA MAGIA: GUARDAR EN LA BASE DE DATOS
-          // Usamos la ruta exacta donde están tus usuarios
-          // (Asegúrate de que 'appId' y 'user.id' estén disponibles en este componente)
-          const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-          
-          await updateDoc(userRef, { 
-              fcmToken: currentToken,
-              lastTokenUpdate: serverTimestamp(),
-              deviceType: 'mobile' // (Opcional) Para saber que es un celu
-          });
-
-          alert("✅ Token GUARDADO en la base de datos. Ahora sí te llegarán.");
-          
-          // Prueba de sonido local
-          new Notification("Conexión Exitosa", { 
-              body: "Tu dispositivo ya figura en el sistema.",
-              icon: '/icon-192.png'
-          });
-          
-        } else {
-          alert("No se pudo generar el token.");
-        }
-      } else {
-        alert("Necesitamos tu permiso para enviarte avisos.");
-      }
-    } catch (error) {
-      console.error("Error FCM:", error);
-      alert("Error al guardar: " + error.message);
+  const resizeImage = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 300; 
+          const scaleSize = MAX_WIDTH / img.width;
+          canvas.width = MAX_WIDTH;
+          canvas.height = img.height * scaleSize;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setUploading(true);
+      try {
+        const resized = await resizeImage(file);
+        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+        await updateDoc(userRef, { photoUrl: resized });
+        setFormData({ ...formData, photoUrl: resized });
+        alert("Foto actualizada.");
+      } catch (error) { alert("Error al subir."); } finally { setUploading(false); }
     }
   };
-  // ----------------------------------
-
-  const resizeImage = (file) => { /* ... código igual ... */ };
-  const handleFileChange = async (e) => { /* ... código igual ... */ };
-  const handleSave = async () => { /* ... código igual ... */ };
-  const exportData = () => { /* ... código igual ... */ };
-
   return (
     <div className="animate-in fade-in duration-500 p-4">
-      {/* ... (SECCIÓN DE FOTO DE PERFIL IGUAL QUE ANTES) ... */}
-      
       <div className="bg-white rounded-3xl shadow-sm border border-violet-50 overflow-hidden mb-6 relative">
-         {/* ... código de la foto ... */}
          <div className="bg-gradient-to-r from-violet-600 to-orange-500 h-28 relative"></div>
          <div className="px-6 pb-6 pt-12 relative">
             <div className="absolute -top-10 left-6 w-24 h-24 bg-white p-1 rounded-2xl shadow-lg group">
-               <div className="w-full h-full rounded-xl overflow-hidden relative border border-violet-100 bg-violet-50 flex items-center justify-center">
+               <div className="w-full h-full rounded-xl overflow-hidden relative border border-violet-100 bg-violet-50 flex items-center justify-center cursor-pointer">
                   {formData.photoUrl ? <img src={formData.photoUrl} className="w-full h-full object-cover" alt="Perfil" /> : <div className="text-violet-600 font-bold text-3xl">{user.firstName?.[0]}{user.lastName?.[0]}</div>}
+                  <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileChange} />
+                  {uploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><RefreshCw className="text-white animate-spin" /></div>}
                </div>
             </div>
             <div className="flex justify-between items-start"><div className="pl-2"><h2 className="text-2xl font-bold text-gray-800 mt-2">{user.fullName}</h2><p className="text-orange-600 font-bold text-xs uppercase tracking-wider">{user.role}</p></div></div>
          </div>
       </div>
-
       <h3 className="text-lg font-bold text-violet-900 mb-4 px-2">Acciones</h3>
-      
       <div className="grid gap-3">
-        <button onClick={exportData} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]">
-            <div className="bg-green-100 text-green-700 p-3 rounded-xl"><Download size={24} /></div>
-            <div className="text-left"><h4 className="font-bold text-gray-800">Exportar Reporte</h4><p className="text-xs text-gray-500">Descargar mis tareas</p></div>
-        </button>
-
-        {/* BOTÓN CONECTADO A LA NUEVA FUNCIÓN */}
-        <button onClick={activarNotificaciones} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]">
-            <div className="bg-yellow-100 text-yellow-700 p-3 rounded-xl"><Bell size={24} /></div>
-            <div className="text-left"><h4 className="font-bold text-gray-800">Activar Notificaciones</h4><p className="text-xs text-gray-500">Recibir alertas en el celular</p></div>
-        </button>
-
         <button onClick={() => { if(confirm("¿Cerrar sesión?")) onLogout(); }} className="bg-red-50 p-4 rounded-2xl border border-red-100 shadow-sm flex items-center gap-4 hover:bg-red-100 transition active:scale-[0.98]">
             <div className="bg-white text-red-500 p-3 rounded-xl"><LogOut size={24} /></div>
             <div className="text-left"><h4 className="font-bold text-red-600">Cerrar Sesión</h4><p className="text-xs text-red-400">Salir de la cuenta segura</p></div>
@@ -1306,39 +983,23 @@ function ProfileView({ user, tasks, onLogout }) {
     </div>
   );
 }
-// --- VISTA MATRÍCULA (FINAL: Permisos Super-Admin aplicados) ---
+
+// --- VISTA MATRÍCULA (EXCEL COMPLETO) ---
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
   const [filterText, setFilterText] = useState('');
-   
-  // ESTADOS DE MODALES
   const [viewingStudent, setViewingStudent] = useState(null);
   const [showStats, setShowStats] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showDataManagement, setShowDataManagement] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
-
-  // --- PERMISOS ---
-  // Solo el super-admin puede editar, crear, borrar o ver estadísticas complejas
   const isSuperAdmin = user.rol === 'super-admin';
-
-  // ESTADO PARA LA CALCULADORA ESTADÍSTICA
-  const [statFilters, setStatFilters] = useState({
-      level: 'all', dx: 'all', gender: 'all', journey: 'all', turn: 'all'
-  });
-
-  // Estado Importación y Procesos
+  const [statFilters, setStatFilters] = useState({ level: 'all', dx: 'all', gender: 'all', journey: 'all', turn: 'all' });
   const [importJson, setImportJson] = useState('');
   const [processing, setProcessing] = useState(false);
-
-  // Estado foto
   const [photoPreview, setPhotoPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
-
-  // --- FILTROS DE LA LISTA PRINCIPAL ---
-  const [filters, setFilters] = useState({
-    level: 'all', dx: 'all', gender: 'all', journey: 'all', group: 'all', teacher: 'all'
-  });
+  const [filters, setFilters] = useState({ level: 'all', dx: 'all', gender: 'all', journey: 'all', group: 'all', teacher: 'all' });
 
   const calculateAge = (dateString) => {
     if (!dateString) return '-';
@@ -1381,13 +1042,11 @@ function MatriculaView({ user }) {
     } catch (error) { alert("Error imagen"); } finally { setUploading(false); }
   };
 
-  // --- INTELIGENCIA DE GÉNERO ---
   const predictGender = (fullName) => {
       if (!fullName) return '';
       const name = fullName.trim().split(' ')[0].toUpperCase();
       const maleExceptions = ['LUCA', 'LUKA', 'NICOLA', 'ANDREA', 'BAUTISTA', 'SANTINO', 'MATIAS', 'TOMAS', 'LUCAS', 'NICOLAS', 'JOAQUIN', 'AGUSTIN', 'FELIPE', 'ELIAS', 'JONAS', 'TOBIAS', 'ISAIAS', 'NOAH', 'VALENTIN'];
       const femaleExceptions = ['SOL', 'BELEN', 'ABRIL', 'AZUL', 'LUZ', 'PILAR', 'ROCIO', 'TRINIDAD', 'NAHIR', 'RUTH', 'ESTER', 'JAZMIN', 'ZOE', 'MIA', 'UMA'];
-
       if (maleExceptions.includes(name)) return 'M';
       if (femaleExceptions.includes(name)) return 'F';
       if (name.endsWith('A')) return 'F';
@@ -1411,41 +1070,31 @@ function MatriculaView({ user }) {
     return () => unsub();
   }, []);
 
-  // Lógica de Filtrado LISTA PRINCIPAL
   const filteredStudents = students.filter(s => {
-    const textMatch = 
-      s.firstName?.toLowerCase().includes(filterText.toLowerCase()) || 
-      s.lastName?.toLowerCase().includes(filterText.toLowerCase()) || 
-      s.dni?.toString().includes(filterText);
-    
+    const textMatch = s.firstName?.toLowerCase().includes(filterText.toLowerCase()) || s.lastName?.toLowerCase().includes(filterText.toLowerCase()) || s.dni?.toString().includes(filterText);
     const levelMatch = filters.level === 'all' || s.level === filters.level;
     const dxMatch = filters.dx === 'all' || s.dx === filters.dx;
     const genderMatch = filters.gender === 'all' || s.gender === filters.gender;
     const journeyMatch = filters.journey === 'all' || s.journey === filters.journey;
     const groupMatch = filters.group === 'all' || (s.groupMorning === filters.group) || (s.groupAfternoon === filters.group);
     const teacherMatch = filters.teacher === 'all' || s.teacherMorning?.includes(filters.teacher) || s.teacherAfternoon?.includes(filters.teacher);
-
     return textMatch && levelMatch && dxMatch && genderMatch && journeyMatch && groupMatch && teacherMatch;
   });
 
-  // Lógica de Filtrado CALCULADORA ESTADÍSTICA
   const statsResults = students.filter(s => {
       const levelMatch = statFilters.level === 'all' || s.level === statFilters.level;
       const dxMatch = statFilters.dx === 'all' || s.dx === statFilters.dx;
       const genderMatch = statFilters.gender === 'all' || s.gender === statFilters.gender;
       const journeyMatch = statFilters.journey === 'all' || s.journey === statFilters.journey;
-      
       let turnMatch = true;
       if (statFilters.turn === 'Mañana') turnMatch = !!s.groupMorning;
       if (statFilters.turn === 'Tarde') turnMatch = !!s.groupAfternoon;
-
       return levelMatch && dxMatch && genderMatch && journeyMatch && turnMatch;
   });
 
   const uniqueGroups = [...new Set([...students.map(s => s.groupMorning), ...students.map(s => s.groupAfternoon)].filter(Boolean))].sort();
   const uniqueTeachers = [...new Set([...students.map(s => s.teacherMorning), ...students.map(s => s.teacherAfternoon)].filter(Boolean))].sort();
 
-  // --- MANEJO DE FORMULARIOS ---
   const openNew = () => { setEditingStudent(null); setPhotoPreview(null); setShowForm(true); };
   const openEdit = (student) => { setEditingStudent(student); setPhotoPreview(student.photoUrl); setViewingStudent(null); setShowForm(true); };
 
@@ -1463,7 +1112,6 @@ function MatriculaView({ user }) {
       motherContact: formData.get('motherContact'), fatherName: formData.get('fatherName'), fatherContact: formData.get('fatherContact'),
       photoUrl: photoPreview || editingStudent?.photoUrl || '', updatedAt: serverTimestamp()
     };
-
     try {
       if (editingStudent) {
         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', editingStudent.id), data);
@@ -1505,7 +1153,7 @@ function MatriculaView({ user }) {
   };
 
   const handleAutoAssignGenders = async () => {
-      if(!confirm("¿Detectar y completar géneros faltantes automáticamente?\n\nEsto analizará los nombres de los alumnos sin género asignado.")) return;
+      if(!confirm("¿Detectar y completar géneros faltantes automáticamente?")) return;
       setProcessing(true);
       let count = 0;
       const updates = [];
@@ -1521,130 +1169,40 @@ function MatriculaView({ user }) {
       try { await Promise.all(updates); alert(`✅ ¡Listo! Se completaron ${count} legajos.`); setShowDataManagement(false); } catch (e) { alert("Error: " + e.message); } finally { setProcessing(false); }
   };
 
-  const handleDelete = async (id) => {
-    if(confirm("¿Borrar legajo permanentemente?")) {
-      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id));
-      setViewingStudent(null); setEditingStudent(null); setShowForm(false);
-    }
-  };
+  const handleDelete = async (id) => { if(confirm("¿Borrar legajo permanentemente?")) { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id)); setViewingStudent(null); setEditingStudent(null); setShowForm(false); } };
 
-// --- EXPORTACIÓN EXCEL COMPLETA (TODOS LOS DATOS) ---
+  // --- EXPORTACIÓN EXCEL COMPLETA (TODOS LOS DATOS) ---
   const exportFiltered = () => {
-    if (filteredStudents.length === 0) {
-      alert("No hay datos para exportar.");
-      return;
-    }
-
-    // 1. Encabezados COMPLETOS (Separados por ;)
-    const headers = [
-      "Apellido", 
-      "Nombre", 
-      "DNI", 
-      "Nivel", 
-      "Edad", 
-      "Fecha Nacimiento", // Nuevo
-      "Género",           // Nuevo
-      "DX", 
-      "Obra Social",      // Nuevo
-      "Vencimiento CUD",  // Nuevo
-      "Jornada", 
-      "Grupo T. Mañana", 
-      "Docente TM",       // Nuevo
-      "Auxiliar TM",      // Nuevo
-      "Grupo T. Tarde", 
-      "Docente TT",       // Nuevo
-      "Auxiliar TT",      // Nuevo
-      "Dirección",        // Nuevo
-      "Madre",            // Nuevo
-      "Contacto Madre",   // Nuevo
-      "Padre",            // Nuevo
-      "Contacto Padre"    // Nuevo
-    ];
-    
-    // 2. Armamos las filas con TODOS los campos
+    if (filteredStudents.length === 0) { alert("No hay datos para exportar."); return; }
+    const headers = ["Apellido", "Nombre", "DNI", "Nivel", "Edad", "Fecha Nacimiento", "Género", "DX", "Obra Social", "Vencimiento CUD", "Jornada", "Grupo T. Mañana", "Docente TM", "Auxiliar TM", "Grupo T. Tarde", "Docente TT", "Auxiliar TT", "Dirección", "Madre", "Contacto Madre", "Padre", "Contacto Padre"];
     const csvContent = [
       headers.join(';'), 
       ...filteredStudents.map(s => {
         const age = calculateAge(s.birthDate);
-        
-        // Formatear fechas para que se vean bien
         const fechaNac = s.birthDate ? new Date(s.birthDate + 'T00:00:00').toLocaleDateString('es-AR') : '-';
         const vencCUD = s.cudExpiration ? new Date(s.cudExpiration + 'T00:00:00').toLocaleDateString('es-AR') : '-';
-
-        return [
-          `"${s.lastName || ''}"`,
-          `"${s.firstName || ''}"`,
-          `"${s.dni || ''}"`,
-          `"${s.level || ''}"`,
-          `"${age}"`,
-          `"${fechaNac}"`,
-          `"${s.gender || ''}"`,
-          `"${s.dx || ''}"`,
-          `"${s.healthInsurance || ''}"`,
-          `"${vencCUD}"`,
-          `"${s.journey || ''}"`,
-          // Turno Mañana
-          `"${s.groupMorning || ''}"`,
-          `"${s.teacherMorning || ''}"`,
-          `"${s.auxMorning || ''}"`,
-          // Turno Tarde
-          `"${s.groupAfternoon || ''}"`,
-          `"${s.teacherAfternoon || ''}"`,
-          `"${s.auxAfternoon || ''}"`,
-          // Datos Familiares
-          `"${s.address || ''}"`,
-          `"${s.motherName || ''}"`,
-          `"${s.motherContact || ''}"`,
-          `"${s.fatherName || ''}"`,
-          `"${s.fatherContact || ''}"`
-        ].join(';');
+        return [`"${s.lastName || ''}"`,`"${s.firstName || ''}"`,`"${s.dni || ''}"`,`"${s.level || ''}"`,`"${age}"`,`"${fechaNac}"`,`"${s.gender || ''}"`,`"${s.dx || ''}"`,`"${s.healthInsurance || ''}"`,`"${vencCUD}"`,`"${s.journey || ''}"`,`"${s.groupMorning || ''}"`,`"${s.teacherMorning || ''}"`,`"${s.auxMorning || ''}"`,`"${s.groupAfternoon || ''}"`,`"${s.teacherAfternoon || ''}"`,`"${s.auxAfternoon || ''}"`,`"${s.address || ''}"`,`"${s.motherName || ''}"`,`"${s.motherContact || ''}"`,`"${s.fatherName || ''}"`,`"${s.fatherContact || ''}"`].join(';');
       })
     ].join('\n');
-
-    // 3. Crear el archivo Blob con BOM (\uFEFF) para tildes
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    
-    // 4. Descargar
-    const link = document.createElement('a');
-    link.href = url;
+    const link = document.createElement('a'); link.href = url;
     const fechaHoy = new Date().toLocaleDateString('es-AR').replace(/\//g, '-');
     link.setAttribute('download', `Matrícula_Completa_${fechaHoy}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
   };
 
   return (
     <div className="animate-in fade-in duration-500 pb-20">
-      {/* HEADER */}
       <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 rounded-3xl shadow-lg text-white mb-6">
         <div className="flex justify-between items-center flex-wrap gap-4">
-          <div>
-            <h2 className="text-3xl font-bold flex items-center gap-2"><GraduationCap /> Legajos 2026</h2>
-            <p className="text-blue-100 opacity-90">{filteredStudents.length} estudiantes</p>
-          </div>
+          <div><h2 className="text-3xl font-bold flex items-center gap-2"><GraduationCap /> Legajos 2026</h2><p className="text-blue-100 opacity-90">{filteredStudents.length} estudiantes</p></div>
           <div className="flex gap-2">
-             {/* SOLO VISIBLE PARA SUPER ADMIN */}
-             {isSuperAdmin && (
-                 <>
-                    <button onClick={() => setShowDataManagement(true)} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold border border-white/20">
-                        <UploadCloud size={20}/> Gestión BD
-                    </button>
-                    <button onClick={() => setShowStats(true)} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold border border-white/20">
-                        <PieChart size={20}/> Estadísticas
-                    </button>
-                 </>
-             )}
+             {isSuperAdmin && (<><button onClick={() => setShowDataManagement(true)} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold border border-white/20"><UploadCloud size={20}/> Gestión BD</button><button onClick={() => setShowStats(true)} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold border border-white/20"><PieChart size={20}/> Estadísticas</button></>)}
             <button onClick={exportFiltered} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold"><Download size={20}/></button>
-            {/* SOLO VISIBLE PARA SUPER ADMIN */}
-            {isSuperAdmin && (
-                <button onClick={openNew} className="bg-white text-blue-600 p-3 rounded-xl shadow-lg hover:bg-blue-50 transition font-bold"><Plus size={24} /></button>
-            )}
+            {isSuperAdmin && (<button onClick={openNew} className="bg-white text-blue-600 p-3 rounded-xl shadow-lg hover:bg-blue-50 transition font-bold"><Plus size={24} /></button>)}
           </div>
         </div>
-        
-        {/* BUSCADOR Y FILTROS PRINCIPALES */}
         <div className="mt-6 space-y-3">
           <div className="bg-white/10 backdrop-blur-md p-2 rounded-xl flex items-center gap-2 border border-white/20">
             <Search className="text-white ml-2 opacity-70" size={20} />
@@ -1652,27 +1210,15 @@ function MatriculaView({ user }) {
             {filterText && <button onClick={() => setFilterText('')}><X className="text-white opacity-70" size={16}/></button>}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-            <select value={filters.level} onChange={e => setFilters({...filters, level: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30">
-                <option value="all" className="text-gray-800">Nivel: Todos</option>
-                <option value="INICIAL">INICIAL</option>
-                <option value="1° Ciclo">1° Ciclo</option>
-                <option value="2° Ciclo">2° Ciclo</option>
-                <option value="CFI">CFI</option>
-            </select>
+            <select value={filters.level} onChange={e => setFilters({...filters, level: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">Nivel: Todos</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option></select>
             <select value={filters.dx} onChange={e => setFilters({...filters, dx: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">DX: Todos</option><option value="DI" className="text-gray-800">DI</option><option value="TES" className="text-gray-800">TES</option><option value="Otro" className="text-gray-800">Otro</option></select>
-            <select value={filters.gender} onChange={e => setFilters({...filters, gender: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30">
-                <option value="all" className="text-gray-800">Género: Todos</option>
-                <option value="F" className="text-gray-800">Mujer</option>
-                <option value="M" className="text-gray-800">Varón</option>
-            </select>
+            <select value={filters.gender} onChange={e => setFilters({...filters, gender: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">Género: Todos</option><option value="F" className="text-gray-800">Mujer</option><option value="M" className="text-gray-800">Varón</option></select>
             <select value={filters.journey} onChange={e => setFilters({...filters, journey: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">Jornada: Todas</option><option value="Simple Mañana" className="text-gray-800">Mañana</option><option value="Simple Tarde" className="text-gray-800">Tarde</option><option value="Doble" className="text-gray-800">Doble</option></select>
             <select value={filters.group} onChange={e => setFilters({...filters, group: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">Grupo: Todos</option>{uniqueGroups.map(g => <option key={g} value={g} className="text-gray-800">{g}</option>)}</select>
             <select value={filters.teacher} onChange={e => setFilters({...filters, teacher: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">Docente: Todos</option>{uniqueTeachers.map(t => <option key={t} value={t} className="text-gray-800">{t}</option>)}</select>
           </div>
         </div>
       </div>
-
-      {/* LISTA DE TARJETAS */}
       <div className="space-y-3">
         {filteredStudents.length === 0 ? <div className="text-center py-10 text-gray-400 bg-white rounded-3xl border border-dashed border-gray-200"><Filter size={40} className="mx-auto mb-2 text-gray-200"/><p>No hay coincidencias.</p></div> : filteredStudents.map(s => {
             const age = calculateAge(s.birthDate);
@@ -1689,298 +1235,18 @@ function MatriculaView({ user }) {
             </div>
           )})}
       </div>
-
-      {/* --- MODAL GESTIÓN BD (Con Botón Mágico) --- */}
       {showDataManagement && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl w-full max-w-2xl p-6 shadow-2xl animate-in zoom-in-95 overflow-y-auto max-h-[90vh]">
-                <div className="flex justify-between items-center mb-4"><h3 className="text-xl font-bold text-gray-800">Gestión de Base de Datos</h3><button onClick={() => setShowDataManagement(false)} className="text-gray-400 hover:text-gray-600"><X size={24}/></button></div>
-                
-                {/* ZONA DE RIESGO */}
-                <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 mb-6"><h4 className="font-bold text-orange-800 text-sm mb-2 flex items-center gap-2"><AlertTriangle size={16}/> Zona de Riesgo</h4><button onClick={handleDeleteAll} disabled={processing} className="w-full bg-white border border-red-200 text-red-600 font-bold py-2 rounded-lg text-sm hover:bg-red-50 transition flex items-center justify-center gap-2">{processing ? <RefreshCw className="animate-spin" size={16}/> : <Trash2 size={16}/>} ELIMINAR TODOS LOS ALUMNOS</button></div>
-                
-                {/* HERRAMIENTAS DE CORRECCIÓN */}
-                <h4 className="font-bold text-gray-800 text-sm mb-2">Herramientas</h4>
-                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-6">
-                    <p className="text-xs text-blue-800 mb-3">Si importaste datos sin género, usa esto para detectarlo automáticamente según el nombre.</p>
-                    <button onClick={handleAutoAssignGenders} disabled={processing} className="w-full bg-white border border-blue-200 text-blue-700 font-bold py-2 rounded-lg text-sm hover:bg-blue-100 transition flex items-center justify-center gap-2">
-                         {processing ? <RefreshCw className="animate-spin" size={16}/> : <><Users size={16}/> ✨ Auto-completar Géneros</>}
-                    </button>
-                </div>
-
-                {/* IMPORTACIÓN */}
-                <h4 className="font-bold text-gray-800 text-sm mb-2">Importar Nuevos Datos (JSON)</h4><textarea value={importJson} onChange={e => setImportJson(e.target.value)} placeholder='[ { "firstName": "Juan"... } ]' className="w-full h-40 p-3 bg-gray-50 rounded-xl border border-gray-200 font-mono text-xs outline-none focus:ring-2 focus:ring-blue-400"></textarea>
-                <div className="flex gap-3 mt-4"><button onClick={() => setShowDataManagement(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button><button onClick={handleBulkImport} disabled={processing || !importJson} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex justify-center items-center gap-2">{processing ? <RefreshCw className="animate-spin" /> : <><UploadCloud size={20} /> Procesar Datos</>}</button></div>
-            </div>
-        </div>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl p-6 shadow-2xl animate-in zoom-in-95 overflow-y-auto max-h-[90vh]"><div className="flex justify-between items-center mb-4"><h3 className="text-xl font-bold text-gray-800">Gestión de Base de Datos</h3><button onClick={() => setShowDataManagement(false)} className="text-gray-400 hover:text-gray-600"><X size={24}/></button></div><div className="bg-orange-50 p-4 rounded-xl border border-orange-100 mb-6"><h4 className="font-bold text-orange-800 text-sm mb-2 flex items-center gap-2"><AlertTriangle size={16}/> Zona de Riesgo</h4><button onClick={handleDeleteAll} disabled={processing} className="w-full bg-white border border-red-200 text-red-600 font-bold py-2 rounded-lg text-sm hover:bg-red-50 transition flex items-center justify-center gap-2">{processing ? <RefreshCw className="animate-spin" size={16}/> : <Trash2 size={16}/>} ELIMINAR TODOS LOS ALUMNOS</button></div><h4 className="font-bold text-gray-800 text-sm mb-2">Herramientas</h4><div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-6"><p className="text-xs text-blue-800 mb-3">Si importaste datos sin género, usa esto para detectarlo automáticamente.</p><button onClick={handleAutoAssignGenders} disabled={processing} className="w-full bg-white border border-blue-200 text-blue-700 font-bold py-2 rounded-lg text-sm hover:bg-blue-100 transition flex items-center justify-center gap-2">{processing ? <RefreshCw className="animate-spin" size={16}/> : <><Users size={16}/> ✨ Auto-completar Géneros</>}</button></div><h4 className="font-bold text-gray-800 text-sm mb-2">Importar Nuevos Datos (JSON)</h4><textarea value={importJson} onChange={e => setImportJson(e.target.value)} placeholder='[ { "firstName": "Juan"... } ]' className="w-full h-40 p-3 bg-gray-50 rounded-xl border border-gray-200 font-mono text-xs outline-none focus:ring-2 focus:ring-blue-400"></textarea><div className="flex gap-3 mt-4"><button onClick={() => setShowDataManagement(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button><button onClick={handleBulkImport} disabled={processing || !importJson} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex justify-center items-center gap-2">{processing ? <RefreshCw className="animate-spin" /> : <><UploadCloud size={20} /> Procesar Datos</>}</button></div></div></div>
       )}
-
-      {/* --- MODAL CALCULADORA ESTADÍSTICA (VARÓN / MUJER) --- */}
       {showStats && (
-        <div className="fixed inset-0 bg-violet-900/80 backdrop-blur-md z-[60] flex items-center justify-center p-4">
-             <div className="bg-white rounded-3xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl animate-in zoom-in-95 overflow-hidden">
-                <div className="p-6 border-b bg-gray-50 flex justify-between items-center">
-                    <div>
-                        <h2 className="text-2xl font-bold text-violet-900 flex items-center gap-2"><PieChart/> Calculadora de Matrícula</h2>
-                        <p className="text-gray-500 text-xs">Cruza datos para obtener cifras exactas</p>
-                    </div>
-                    <button onClick={() => setShowStats(false)} className="bg-white p-2 rounded-full hover:bg-gray-100 shadow-sm"><X size={24}/></button>
-                </div>
-                
-                {/* CONTROLES DE LA CALCULADORA */}
-                <div className="p-6 bg-white border-b border-gray-100">
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                         <div>
-                             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Nivel</label>
-                             <select value={statFilters.level} onChange={e => setStatFilters({...statFilters, level: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none border focus:border-violet-500">
-                                <option value="all">Todos</option>
-                                <option value="INICIAL">INICIAL</option>
-                                <option value="1° Ciclo">1° Ciclo</option>
-                                <option value="2° Ciclo">2° Ciclo</option>
-                                <option value="CFI">CFI</option>
-                             </select>
-                         </div>
-                         <div>
-                             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Diagnóstico</label>
-                             <select value={statFilters.dx} onChange={e => setStatFilters({...statFilters, dx: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none border focus:border-violet-500"><option value="all">Todos</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select>
-                         </div>
-                         <div>
-                             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Género</label>
-                             <select value={statFilters.gender} onChange={e => setStatFilters({...statFilters, gender: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none border focus:border-violet-500">
-                                <option value="all">Todos</option>
-                                <option value="M">Varones</option>
-                                <option value="F">Mujeres</option>
-                             </select>
-                         </div>
-                         <div>
-                             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Jornada</label>
-                             <select value={statFilters.journey} onChange={e => setStatFilters({...statFilters, journey: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none border focus:border-violet-500"><option value="all">Todas</option><option value="Simple Mañana">Simple Mañana</option><option value="Simple Tarde">Simple Tarde</option><option value="Doble">Doble</option></select>
-                         </div>
-                         <div>
-                             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Turno Asist.</label>
-                             <select value={statFilters.turn} onChange={e => setStatFilters({...statFilters, turn: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none border focus:border-violet-500"><option value="all">Indistinto</option><option value="Mañana">Va a la Mañana</option><option value="Tarde">Va a la Tarde</option></select>
-                         </div>
-                    </div>
-                </div>
-
-                {/* RESULTADOS */}
-                <div className="flex-1 overflow-y-auto bg-gray-50 p-6">
-                    {/* TARJETA DE RESULTADO PRINCIPAL */}
-                    <div className="bg-gradient-to-br from-violet-600 to-indigo-600 rounded-3xl p-8 text-white shadow-lg flex items-center justify-between mb-8">
-                        <div>
-                            <p className="text-violet-200 font-medium text-lg mb-1">Coincidencias encontradas</p>
-                            <h3 className="text-6xl font-extrabold tracking-tight">{statsResults.length}</h3>
-                            <p className="text-sm opacity-60 mt-2">Estudiantes que cumplen con <b>todos</b> los criterios.</p>
-                        </div>
-                        <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm">
-                            <PieChart size={64} className="text-white opacity-80" />
-                        </div>
-                    </div>
-
-                    {/* LISTA DETALLADA DE ESOS ALUMNOS */}
-                    <h3 className="font-bold text-gray-800 mb-4 ml-1 flex items-center gap-2"><List size={18}/> Detalle del Grupo Seleccionado</h3>
-                    
-                    {statsResults.length === 0 ? (
-                        <div className="text-center py-12 text-gray-400 bg-white rounded-2xl border border-dashed"><p>No hay alumnos con esa combinación exacta.</p></div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {statsResults.map(s => (
-                                <div key={s.id} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500 text-xs overflow-hidden">
-                                        {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName[0]}
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="font-bold text-gray-800 text-sm truncate">{s.lastName}, {s.firstName}</p>
-                                        <p className="text-xs text-gray-500 flex gap-1">
-                                            <span>{s.level}</span> • <span className="font-bold text-violet-600">{s.dx}</span>
-                                        </p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-             </div>
-        </div>
+        <div className="fixed inset-0 bg-violet-900/80 backdrop-blur-md z-[60] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl animate-in zoom-in-95 overflow-hidden"><div className="p-6 border-b bg-gray-50 flex justify-between items-center"><div><h2 className="text-2xl font-bold text-violet-900 flex items-center gap-2"><PieChart/> Calculadora de Matrícula</h2><p className="text-gray-500 text-xs">Cruza datos para obtener cifras exactas</p></div><button onClick={() => setShowStats(false)} className="bg-white p-2 rounded-full hover:bg-gray-100 shadow-sm"><X size={24}/></button></div><div className="p-6 bg-white border-b border-gray-100"><div className="grid grid-cols-2 md:grid-cols-5 gap-3"><div><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Nivel</label><select value={statFilters.level} onChange={e => setStatFilters({...statFilters, level: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none border focus:border-violet-500"><option value="all">Todos</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option></select></div><div><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Diagnóstico</label><select value={statFilters.dx} onChange={e => setStatFilters({...statFilters, dx: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none border focus:border-violet-500"><option value="all">Todos</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select></div><div><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Género</label><select value={statFilters.gender} onChange={e => setStatFilters({...statFilters, gender: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none border focus:border-violet-500"><option value="all">Todos</option><option value="M">Varones</option><option value="F">Mujeres</option></select></div><div><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Jornada</label><select value={statFilters.journey} onChange={e => setStatFilters({...statFilters, journey: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none border focus:border-violet-500"><option value="all">Todas</option><option value="Simple Mañana">Simple Mañana</option><option value="Simple Tarde">Simple Tarde</option><option value="Doble">Doble</option></select></div><div><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Turno Asist.</label><select value={statFilters.turn} onChange={e => setStatFilters({...statFilters, turn: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none border focus:border-violet-500"><option value="all">Indistinto</option><option value="Mañana">Va a la Mañana</option><option value="Tarde">Va a la Tarde</option></select></div></div></div><div className="flex-1 overflow-y-auto bg-gray-50 p-6"><div className="bg-gradient-to-br from-violet-600 to-indigo-600 rounded-3xl p-8 text-white shadow-lg flex items-center justify-between mb-8"><div><p className="text-violet-200 font-medium text-lg mb-1">Coincidencias encontradas</p><h3 className="text-6xl font-extrabold tracking-tight">{statsResults.length}</h3><p className="text-sm opacity-60 mt-2">Estudiantes que cumplen con <b>todos</b> los criterios.</p></div><div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm"><PieChart size={64} className="text-white opacity-80" /></div></div><h3 className="font-bold text-gray-800 mb-4 ml-1 flex items-center gap-2"><List size={18}/> Detalle del Grupo Seleccionado</h3>{statsResults.length === 0 ? (<div className="text-center py-12 text-gray-400 bg-white rounded-2xl border border-dashed"><p>No hay alumnos con esa combinación exacta.</p></div>) : (<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">{statsResults.map(s => (<div key={s.id} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500 text-xs overflow-hidden">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName[0]}</div><div className="min-w-0"><p className="font-bold text-gray-800 text-sm truncate">{s.lastName}, {s.firstName}</p><p className="text-xs text-gray-500 flex gap-1"><span>{s.level}</span> • <span className="font-bold text-violet-600">{s.dx}</span></p></div></div>))}</div>)}</div></div></div>
       )}
-
-      {/* --- MODAL VER FICHA (Igual que antes) --- */}
       {viewingStudent && !showForm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]">
-                <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0">
-                    <button onClick={() => setViewingStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition"><X size={20}/></button>
-                    <div className="flex items-center gap-4">
-                        <div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">
-                            {viewingStudent.photoUrl ? <img src={viewingStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}
-                        </div>
-                        <div>
-                            <h2 className="text-2xl font-bold">{viewingStudent.lastName}, {viewingStudent.firstName}</h2>
-                            <p className="opacity-90 flex gap-2 text-sm mt-1">
-                                <span className="bg-white/20 px-2 py-0.5 rounded">{calculateAge(viewingStudent.birthDate)} años</span>
-                                <span className="bg-white/20 px-2 py-0.5 rounded">{viewingStudent.dni}</span>
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <div className="p-6 overflow-y-auto space-y-6">
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-                        <div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase">Nivel</p><p className="font-bold text-gray-800">{viewingStudent.level || '-'}</p></div>
-                        <div className="bg-purple-50 p-3 rounded-xl border border-purple-100"><p className="text-xs text-purple-400 font-bold uppercase">DX</p><p className="font-bold text-purple-800">{viewingStudent.dx || '-'}</p></div>
-                        <div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase">Género</p><p className="font-bold text-gray-800">{viewingStudent.gender || '-'}</p></div>
-                        <div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase">Jornada</p><p className="font-bold text-gray-800">{viewingStudent.journey || '-'}</p></div>
-                    </div>
-                    <div className="space-y-3">
-                         <h3 className="font-bold text-gray-900 flex items-center gap-2"><Briefcase size={18} className="text-blue-500"/> Escolaridad 2026</h3>
-                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100 relative overflow-hidden">
-                                <div className="absolute top-0 right-0 bg-yellow-200 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">MAÑANA</div>
-                                <div className="space-y-2 text-sm">
-                                    <p><span className="text-gray-500 font-bold">Grupo:</span> {viewingStudent.groupMorning || '-'}</p>
-                                    <p><span className="text-gray-500 font-bold">Docente:</span> {viewingStudent.teacherMorning || '-'}</p>
-                                    <p><span className="text-gray-500 font-bold">Auxiliar:</span> {viewingStudent.auxMorning || '-'}</p>
-                                </div>
-                            </div>
-                            <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 relative overflow-hidden">
-                                <div className="absolute top-0 right-0 bg-indigo-200 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">TARDE</div>
-                                <div className="space-y-2 text-sm">
-                                    <p><span className="text-gray-500 font-bold">Grupo:</span> {viewingStudent.groupAfternoon || '-'}</p>
-                                    <p><span className="text-gray-500 font-bold">Docente:</span> {viewingStudent.teacherAfternoon || '-'}</p>
-                                    <p><span className="text-gray-500 font-bold">Auxiliar:</span> {viewingStudent.auxAfternoon || '-'}</p>
-                                </div>
-                            </div>
-                         </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div className="space-y-3">
-                             <h3 className="font-bold text-gray-900 flex items-center gap-2"><Activity size={18} className="text-green-500"/> Salud</h3>
-                             <div className="bg-white p-4 rounded-xl border border-gray-100 text-sm space-y-2 shadow-sm">
-                                <p><span className="text-gray-500 font-bold block text-xs uppercase">Obra Social</span> {viewingStudent.healthInsurance || 'No declara'}</p>
-                                <p><span className="text-gray-500 font-bold block text-xs uppercase">Vencimiento CUD</span> {viewingStudent.cudExpiration ? formatDate(viewingStudent.cudExpiration) : '-'}</p>
-                             </div>
-                        </div>
-                        <div className="space-y-3">
-                             <h3 className="font-bold text-gray-900 flex items-center gap-2"><User size={18} className="text-orange-500"/> Familia</h3>
-                             <div className="bg-white p-4 rounded-xl border border-gray-100 text-sm space-y-2 shadow-sm">
-                                <p><span className="text-gray-500 font-bold block text-xs uppercase">Madre</span> {viewingStudent.motherName} <span className="text-gray-400">({viewingStudent.motherContact})</span></p>
-                                <p><span className="text-gray-500 font-bold block text-xs uppercase">Padre</span> {viewingStudent.fatherName} <span className="text-gray-400">({viewingStudent.fatherContact})</span></p>
-                                <p><span className="text-gray-500 font-bold block text-xs uppercase">Dirección</span> {viewingStudent.address}</p>
-                             </div>
-                        </div>
-                    </div>
-                </div>
-                <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3 shrink-0">
-                    {/* SOLO SUPER ADMIN PUEDE EDITAR */}
-                    {isSuperAdmin && (
-                        <button onClick={() => openEdit(viewingStudent)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-lg"><Edit3 size={18}/> Editar Ficha</button>
-                    )}
-                </div>
-            </div>
-        </div>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]"><div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0"><button onClick={() => setViewingStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition"><X size={20}/></button><div className="flex items-center gap-4"><div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">{viewingStudent.photoUrl ? <img src={viewingStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}</div><div><h2 className="text-2xl font-bold">{viewingStudent.lastName}, {viewingStudent.firstName}</h2><p className="opacity-90 flex gap-2 text-sm mt-1"><span className="bg-white/20 px-2 py-0.5 rounded">{calculateAge(viewingStudent.birthDate)} años</span><span className="bg-white/20 px-2 py-0.5 rounded">{viewingStudent.dni}</span></p></div></div></div><div className="p-6 overflow-y-auto space-y-6"><div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center"><div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase">Nivel</p><p className="font-bold text-gray-800">{viewingStudent.level || '-'}</p></div><div className="bg-purple-50 p-3 rounded-xl border border-purple-100"><p className="text-xs text-purple-400 font-bold uppercase">DX</p><p className="font-bold text-purple-800">{viewingStudent.dx || '-'}</p></div><div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase">Género</p><p className="font-bold text-gray-800">{viewingStudent.gender || '-'}</p></div><div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase">Jornada</p><p className="font-bold text-gray-800">{viewingStudent.journey || '-'}</p></div></div><div className="space-y-3"><h3 className="font-bold text-gray-900 flex items-center gap-2"><Briefcase size={18} className="text-blue-500"/> Escolaridad 2026</h3><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100 relative overflow-hidden"><div className="absolute top-0 right-0 bg-yellow-200 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">MAÑANA</div><div className="space-y-2 text-sm"><p><span className="text-gray-500 font-bold">Grupo:</span> {viewingStudent.groupMorning || '-'}</p><p><span className="text-gray-500 font-bold">Docente:</span> {viewingStudent.teacherMorning || '-'}</p><p><span className="text-gray-500 font-bold">Auxiliar:</span> {viewingStudent.auxMorning || '-'}</p></div></div><div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 relative overflow-hidden"><div className="absolute top-0 right-0 bg-indigo-200 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">TARDE</div><div className="space-y-2 text-sm"><p><span className="text-gray-500 font-bold">Grupo:</span> {viewingStudent.groupAfternoon || '-'}</p><p><span className="text-gray-500 font-bold">Docente:</span> {viewingStudent.teacherAfternoon || '-'}</p><p><span className="text-gray-500 font-bold">Auxiliar:</span> {viewingStudent.auxAfternoon || '-'}</p></div></div></div></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-6"><div className="space-y-3"><h3 className="font-bold text-gray-900 flex items-center gap-2"><Activity size={18} className="text-green-500"/> Salud</h3><div className="bg-white p-4 rounded-xl border border-gray-100 text-sm space-y-2 shadow-sm"><p><span className="text-gray-500 font-bold block text-xs uppercase">Obra Social</span> {viewingStudent.healthInsurance || 'No declara'}</p><p><span className="text-gray-500 font-bold block text-xs uppercase">Vencimiento CUD</span> {viewingStudent.cudExpiration ? formatDate(viewingStudent.cudExpiration) : '-'}</p></div></div><div className="space-y-3"><h3 className="font-bold text-gray-900 flex items-center gap-2"><User size={18} className="text-orange-500"/> Familia</h3><div className="bg-white p-4 rounded-xl border border-gray-100 text-sm space-y-2 shadow-sm"><p><span className="text-gray-500 font-bold block text-xs uppercase">Madre</span> {viewingStudent.motherName} <span className="text-gray-400">({viewingStudent.motherContact})</span></p><p><span className="text-gray-500 font-bold block text-xs uppercase">Padre</span> {viewingStudent.fatherName} <span className="text-gray-400">({viewingStudent.fatherContact})</span></p><p><span className="text-gray-500 font-bold block text-xs uppercase">Dirección</span> {viewingStudent.address}</p></div></div></div></div><div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3 shrink-0">{isSuperAdmin && (<button onClick={() => openEdit(viewingStudent)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-lg"><Edit3 size={18}/> Editar Ficha</button>)}</div></div></div>
       )}
-
-      {/* --- MODAL FORMULARIO (FINAL: Autocompletado Género) --- */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-2xl p-6 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">{editingStudent ? 'Editar Ficha' : 'Nueva Ficha'}</h3>
-            <form onSubmit={handleSave} className="space-y-6">
-              <div className="flex gap-4 flex-col sm:flex-row">
-                  <div className="flex flex-col items-center gap-2">
-                      <div className="w-24 h-24 rounded-2xl bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden relative group cursor-pointer">
-                          {photoPreview ? <img src={photoPreview} className="w-full h-full object-cover" /> : <span className="text-xs text-gray-400 text-center px-2">Subir Foto</span>}
-                          <input type="file" accept="image/*" onChange={handlePhotoChange} className="absolute inset-0 opacity-0 cursor-pointer" />
-                          {uploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><RefreshCw className="text-white animate-spin" /></div>}
-                      </div>
-                  </div>
-                  <div className="flex-1 space-y-3">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div><label className="text-xs font-bold text-gray-500">Apellido *</label><input name="lastName" defaultValue={editingStudent?.lastName || ''} required className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
-                        {/* INPUT NOMBRE CON AUTO-GÉNERO */}
-                        <div>
-                             <label className="text-xs font-bold text-gray-500">Nombre *</label>
-                             <input 
-                                name="firstName" 
-                                defaultValue={editingStudent?.firstName || ''} 
-                                required 
-                                onChange={handleNameChange} // <--- MAGIA AQUÍ
-                                className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" 
-                             />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-3 gap-3">
-                          <div><label className="text-xs font-bold text-gray-500">DNI</label><input name="dni" type="number" defaultValue={editingStudent?.dni || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
-                          <div><label className="text-xs font-bold text-gray-500">Nacimiento</label><input name="birthDate" type="date" defaultValue={editingStudent?.birthDate || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
-                          <div>
-                              <label className="text-xs font-bold text-gray-500">Género</label>
-                              <select 
-                                id="genderSelect" // <--- ID PARA REFERENCIA
-                                name="gender" 
-                                defaultValue={editingStudent?.gender || ''} 
-                                className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"
-                              >
-                                  <option value="">Seleccionar</option>
-                                  <option value="M">Varón</option>
-                                  <option value="F">Mujer</option>
-                              </select>
-                          </div>
-                      </div>
-                  </div>
-              </div>
-              <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 space-y-3">
-                  <p className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1"><Activity size={12}/> Datos Institucionales</p>
-                  <div className="grid grid-cols-2 gap-3">
-                      <div>
-                          <label className="text-xs font-bold text-gray-500">Nivel</label>
-                          <select name="level" defaultValue={editingStudent?.level || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
-                            <option value="">Seleccionar</option>
-                            <option value="INICIAL">INICIAL</option>
-                            <option value="1° Ciclo">1° Ciclo</option>
-                            <option value="2° Ciclo">2° Ciclo</option>
-                            <option value="CFI">CFI</option>
-                            <option value="TALLER">Taller</option>
-                            <option value="Pre-Taller">Pre-Taller</option>
-                            <option value="FINES">Fines</option>
-                          </select>
-                      </div>
-                      <div><label className="text-xs font-bold text-gray-500">Jornada</label><select name="journey" defaultValue={editingStudent?.journey || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"><option value="">Seleccionar</option><option value="Simple Mañana">Simple Mañana</option><option value="Simple Tarde">Simple Tarde</option><option value="Doble">Doble Jornada</option></select></div>
-                      <div><label className="text-xs font-bold text-gray-500">Diagnóstico</label><select name="dx" defaultValue={editingStudent?.dx || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"><option value="">Ninguno</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select></div>
-                  </div>
-              </div>
-              <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 space-y-3">
-                  <p className="text-xs font-bold text-indigo-800 uppercase tracking-wider flex items-center gap-1"><GraduationCap size={12}/> Ubicación 2026</p>
-                  <div className="bg-white/50 p-2 rounded-lg border border-indigo-100"><p className="text-[10px] font-bold text-indigo-400 mb-2">TURNO MAÑANA</p><div className="grid grid-cols-3 gap-2"><input name="groupMorning" defaultValue={editingStudent?.groupMorning || ''} placeholder="Grupo TM" className="p-2 bg-white rounded border text-xs outline-none" /><input name="teacherMorning" defaultValue={editingStudent?.teacherMorning || ''} placeholder="Docente TM" className="p-2 bg-white rounded border text-xs outline-none" /><input name="auxMorning" defaultValue={editingStudent?.auxMorning || ''} placeholder="Auxiliar TM" className="p-2 bg-white rounded border text-xs outline-none" /></div></div>
-                  <div className="bg-white/50 p-2 rounded-lg border border-indigo-100"><p className="text-[10px] font-bold text-indigo-400 mb-2">TURNO TARDE</p><div className="grid grid-cols-3 gap-2"><input name="groupAfternoon" defaultValue={editingStudent?.groupAfternoon || ''} placeholder="Grupo TT" className="p-2 bg-white rounded border text-xs outline-none" /><input name="teacherAfternoon" defaultValue={editingStudent?.teacherAfternoon || ''} placeholder="Docente TT" className="p-2 bg-white rounded border text-xs outline-none" /><input name="auxAfternoon" defaultValue={editingStudent?.auxAfternoon || ''} placeholder="Auxiliar TT" className="p-2 bg-white rounded border text-xs outline-none" /></div></div>
-              </div>
-              <div className="space-y-3 pt-2 border-t border-gray-100">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Salud y Familia</p>
-                  <div className="grid grid-cols-2 gap-3"><input name="healthInsurance" defaultValue={editingStudent?.healthInsurance || ''} placeholder="Obra Social" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /><input name="cudExpiration" type="date" defaultValue={editingStudent?.cudExpiration || ''} className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /></div>
-                  <input name="address" defaultValue={editingStudent?.address || ''} className="w-full p-2 bg-gray-50 rounded-lg border outline-none" placeholder="Dirección" />
-                  <div className="grid grid-cols-2 gap-3"><input name="motherName" defaultValue={editingStudent?.motherName || ''} placeholder="Madre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /><input name="motherContact" defaultValue={editingStudent?.motherContact || ''} placeholder="Contacto Madre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /></div>
-                  <div className="grid grid-cols-2 gap-3"><input name="fatherName" defaultValue={editingStudent?.fatherName || ''} placeholder="Padre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /><input name="fatherContact" defaultValue={editingStudent?.fatherContact || ''} placeholder="Contacto Padre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /></div>
-              </div>
-              <div className="flex gap-3 mt-6 pt-4 border-t border-gray-100">
-                <button type="button" onClick={() => {setShowForm(false); setEditingStudent(null); setPhotoPreview(null);}} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button>
-                <button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg">Guardar</button>
-                {editingStudent && <button type="button" onClick={() => handleDelete(editingStudent.id)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition"><Trash2 size={20}/></button>}
-              </div>
-            </form>
-          </div>
-        </div>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl p-6 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto"><h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">{editingStudent ? 'Editar Ficha' : 'Nueva Ficha'}</h3><form onSubmit={handleSave} className="space-y-6"><div className="flex gap-4 flex-col sm:flex-row"><div className="flex flex-col items-center gap-2"><div className="w-24 h-24 rounded-2xl bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden relative group cursor-pointer">{photoPreview ? <img src={photoPreview} className="w-full h-full object-cover" /> : <span className="text-xs text-gray-400 text-center px-2">Subir Foto</span>}<input type="file" accept="image/*" onChange={handlePhotoChange} className="absolute inset-0 opacity-0 cursor-pointer" />{uploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><RefreshCw className="text-white animate-spin" /></div>}</div></div><div className="flex-1 space-y-3"><div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-gray-500">Apellido *</label><input name="lastName" defaultValue={editingStudent?.lastName || ''} required className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div><div><label className="text-xs font-bold text-gray-500">Nombre *</label><input name="firstName" defaultValue={editingStudent?.firstName || ''} required onChange={handleNameChange} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div></div><div className="grid grid-cols-3 gap-3"><div><label className="text-xs font-bold text-gray-500">DNI</label><input name="dni" type="number" defaultValue={editingStudent?.dni || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div><div><label className="text-xs font-bold text-gray-500">Nacimiento</label><input name="birthDate" type="date" defaultValue={editingStudent?.birthDate || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div><div><label className="text-xs font-bold text-gray-500">Género</label><select id="genderSelect" name="gender" defaultValue={editingStudent?.gender || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"><option value="">Seleccionar</option><option value="M">Varón</option><option value="F">Mujer</option></select></div></div></div></div><div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 space-y-3"><p className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1"><Activity size={12}/> Datos Institucionales</p><div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-gray-500">Nivel</label><select name="level" defaultValue={editingStudent?.level || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"><option value="">Seleccionar</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option><option value="TALLER">Taller</option><option value="Pre-Taller">Pre-Taller</option><option value="FINES">Fines</option></select></div><div><label className="text-xs font-bold text-gray-500">Jornada</label><select name="journey" defaultValue={editingStudent?.journey || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"><option value="">Seleccionar</option><option value="Simple Mañana">Simple Mañana</option><option value="Simple Tarde">Simple Tarde</option><option value="Doble">Doble Jornada</option></select></div><div><label className="text-xs font-bold text-gray-500">Diagnóstico</label><select name="dx" defaultValue={editingStudent?.dx || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"><option value="">Ninguno</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select></div></div></div><div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 space-y-3"><p className="text-xs font-bold text-indigo-800 uppercase tracking-wider flex items-center gap-1"><GraduationCap size={12}/> Ubicación 2026</p><div className="bg-white/50 p-2 rounded-lg border border-indigo-100"><p className="text-[10px] font-bold text-indigo-400 mb-2">TURNO MAÑANA</p><div className="grid grid-cols-3 gap-2"><input name="groupMorning" defaultValue={editingStudent?.groupMorning || ''} placeholder="Grupo TM" className="p-2 bg-white rounded border text-xs outline-none" /><input name="teacherMorning" defaultValue={editingStudent?.teacherMorning || ''} placeholder="Docente TM" className="p-2 bg-white rounded border text-xs outline-none" /><input name="auxMorning" defaultValue={editingStudent?.auxMorning || ''} placeholder="Auxiliar TM" className="p-2 bg-white rounded border text-xs outline-none" /></div></div><div className="bg-white/50 p-2 rounded-lg border border-indigo-100"><p className="text-[10px] font-bold text-indigo-400 mb-2">TURNO TARDE</p><div className="grid grid-cols-3 gap-2"><input name="groupAfternoon" defaultValue={editingStudent?.groupAfternoon || ''} placeholder="Grupo TT" className="p-2 bg-white rounded border text-xs outline-none" /><input name="teacherAfternoon" defaultValue={editingStudent?.teacherAfternoon || ''} placeholder="Docente TT" className="p-2 bg-white rounded border text-xs outline-none" /><input name="auxAfternoon" defaultValue={editingStudent?.auxAfternoon || ''} placeholder="Auxiliar TT" className="p-2 bg-white rounded border text-xs outline-none" /></div></div></div><div className="space-y-3 pt-2 border-t border-gray-100"><p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Salud y Familia</p><div className="grid grid-cols-2 gap-3"><input name="healthInsurance" defaultValue={editingStudent?.healthInsurance || ''} placeholder="Obra Social" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /><input name="cudExpiration" type="date" defaultValue={editingStudent?.cudExpiration || ''} className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /></div><input name="address" defaultValue={editingStudent?.address || ''} className="w-full p-2 bg-gray-50 rounded-lg border outline-none" placeholder="Dirección" /><div className="grid grid-cols-2 gap-3"><input name="motherName" defaultValue={editingStudent?.motherName || ''} placeholder="Madre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /><input name="motherContact" defaultValue={editingStudent?.motherContact || ''} placeholder="Contacto Madre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /></div><div className="grid grid-cols-2 gap-3"><input name="fatherName" defaultValue={editingStudent?.fatherName || ''} placeholder="Padre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /><input name="fatherContact" defaultValue={editingStudent?.fatherContact || ''} placeholder="Contacto Padre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /></div></div><div className="flex gap-3 mt-6 pt-4 border-t border-gray-100"><button type="button" onClick={() => {setShowForm(false); setEditingStudent(null); setPhotoPreview(null);}} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg">Guardar</button>{editingStudent && <button type="button" onClick={() => handleDelete(editingStudent.id)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition"><Trash2 size={20}/></button>}</div></form></div></div>
       )}
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
