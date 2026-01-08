@@ -698,7 +698,7 @@ function NavButton({ active, onClick, icon, label, badge }) {
   );
 }
 
-// --- VISTA DASHBOARD (Con Comunicados 24hs) ---
+// --- VISTA DASHBOARD (Mejorada: Múltiples Comunicados) ---
 function DashboardView({ user, tasks, events }) {
     // Estados básicos
     const todayStr = new Date().toISOString().split('T')[0];
@@ -706,37 +706,43 @@ function DashboardView({ user, tasks, events }) {
     const myPending = tasks.filter(t => t.status !== 'completed');
     const highPriority = myPending.filter(t => t.priority === 'high');
 
-    // Estado para Comunicados
-    const [announcement, setAnnouncement] = useState(null);
+    // Estado para MÚLTIPLES Comunicados
+    const [announcements, setAnnouncements] = useState([]); // <--- Antes era null, ahora es array []
     const [showAnnounceModal, setShowAnnounceModal] = useState(false);
 
-    // Permisos: Solo Admin, Super-Admin o Equipo Directivo pueden publicar
+    // Permisos
     const canPost = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
 
-    // Cargar el último comunicado
+    // Cargar TODOS los comunicados recientes
     useEffect(() => {
+        // Traemos todos los mensajes ordenados por fecha
         const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc'));
+        
         const unsub = onSnapshot(q, (snapshot) => {
-            if (!snapshot.empty) {
-                const docData = snapshot.docs[0].data();
-                const msgDate = docData.createdAt ? new Date(docData.createdAt.seconds * 1000) : new Date();
-                const now = new Date();
+            const now = new Date();
+            const validMessages = [];
+
+            snapshot.docs.forEach(doc => {
+                const data = doc.data();
+                const msgDate = data.createdAt ? new Date(data.createdAt.seconds * 1000) : new Date();
                 const diffHours = (now - msgDate) / (1000 * 60 * 60);
 
-                // Solo mostrar si tiene menos de 24 horas
-                if (diffHours < 24) {
-                    setAnnouncement({ ...docData, timeAgo: Math.floor(diffHours) });
-                } else {
-                    setAnnouncement(null); // Expiró
+                // Filtramos: Solo guardar si tiene menos de 48 horas (damos un poco más de margen)
+                if (diffHours < 48) {
+                    validMessages.push({ 
+                        id: doc.id, 
+                        ...data, 
+                        timeAgo: Math.floor(diffHours),
+                        isRecent: diffHours < 24 // Marca visual para los muy nuevos
+                    });
                 }
-            } else {
-                setAnnouncement(null);
-            }
+            });
+            setAnnouncements(validMessages);
         });
         return () => unsub();
     }, []);
 
-    // Guardar comunicado
+    // Guardar nuevo comunicado
     const handlePostAnnouncement = async (e) => {
         e.preventDefault();
         const text = e.target.message.value;
@@ -750,9 +756,14 @@ function DashboardView({ user, tasks, events }) {
         });
         
         setShowAnnounceModal(false);
-        // Notificación visual rápida
-        if("Notification" in window && Notification.permission === "granted") {
-             new Notification("Comunicado Publicado", { body: "Estará visible por 24 horas." });
+        // Notificación de éxito
+        alert("✅ Comunicado publicado. Se agregó a la cartelera.");
+    };
+
+    // Función para borrar (Solo admin)
+    const deleteAnnouncement = async (id) => {
+        if(confirm("¿Borrar este comunicado?")) {
+            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'announcements', id));
         }
     };
 
@@ -764,7 +775,6 @@ function DashboardView({ user, tasks, events }) {
                     <h2 className="text-2xl font-bold text-violet-900">Hola, {user.firstName}! 👋</h2>
                     <p className="text-gray-500 text-sm">Bienvenido a tu portal digital.</p>
                 </div>
-                {/* Logo o Icono extra si quisieras */}
             </div>
 
             {/* TARJETAS PRINCIPALES */}
@@ -785,18 +795,20 @@ function DashboardView({ user, tasks, events }) {
                 </div>
             </div>
 
-            {/* --- NUEVO: COMUNICADOS (CARTELERA DIGITAL) --- */}
-            <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-1 rounded-3xl shadow-lg relative group">
-                <div className="bg-white/10 backdrop-blur-sm p-5 rounded-[20px] text-white h-full flex flex-col justify-between relative overflow-hidden">
-                    <div className="flex justify-between items-start z-10">
+            {/* --- CARTELERA DIGITAL (Múltiples Mensajes) --- */}
+            <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-1 rounded-3xl shadow-lg relative">
+                <div className="bg-white/10 backdrop-blur-sm p-5 rounded-[20px] text-white min-h-[140px] relative overflow-hidden">
+                    
+                    {/* Cabecera Cartelera */}
+                    <div className="flex justify-between items-center z-10 relative mb-4">
                         <div>
-                            <h3 className="text-lg font-bold flex items-center gap-2"><Bell size={20}/> Comunicados</h3>
-                            <p className="text-[10px] opacity-80 uppercase tracking-wider">Duración: 24hs</p>
+                            <h3 className="text-lg font-bold flex items-center gap-2"><Bell size={20}/> Cartelera</h3>
+                            <p className="text-[10px] opacity-80 uppercase tracking-wider">Novedades recientes</p>
                         </div>
                         {canPost && (
                             <button 
                                 onClick={() => setShowAnnounceModal(true)} 
-                                className="bg-white/20 hover:bg-white/40 p-2 rounded-full transition"
+                                className="bg-white/20 hover:bg-white/40 p-2 rounded-full transition shadow-sm"
                                 title="Publicar nuevo mensaje"
                             >
                                 <Edit3 size={18} />
@@ -804,21 +816,35 @@ function DashboardView({ user, tasks, events }) {
                         )}
                     </div>
                     
-                    <div className="mt-4 relative z-10">
-                        {announcement ? (
-                            <div className="animate-in slide-in-from-bottom-2">
-                                <p className="text-lg font-medium leading-relaxed">"{announcement.message}"</p>
-                                <div className="mt-3 flex items-center justify-between text-xs opacity-75 border-t border-white/20 pt-2">
-                                    <span className="font-bold">{announcement.author}</span>
-                                    <span>hace {announcement.timeAgo === 0 ? 'instantes' : `${announcement.timeAgo}h`}</span>
+                    {/* Lista de Mensajes (Scrollable si hay muchos) */}
+                    <div className="relative z-10 space-y-3 max-h-[300px] overflow-y-auto pr-2 scrollbar-hide">
+                        {announcements.length > 0 ? (
+                            announcements.map((anuncio) => (
+                                <div key={anuncio.id} className="bg-black/20 p-3 rounded-xl border border-white/10 relative group">
+                                    <p className="text-md font-medium leading-snug">"{anuncio.message}"</p>
+                                    <div className="mt-2 flex items-center justify-between text-[10px] opacity-75">
+                                        <span className="font-bold uppercase tracking-wide">{anuncio.author}</span>
+                                        <span>hace {anuncio.timeAgo === 0 ? 'instantes' : `${anuncio.timeAgo}h`}</span>
+                                    </div>
+                                    {/* Botón borrar individual */}
+                                    {canPost && (
+                                        <button 
+                                            onClick={() => deleteAnnouncement(anuncio.id)}
+                                            className="absolute top-2 right-2 text-white/40 hover:text-white bg-black/20 hover:bg-red-500/80 p-1 rounded transition opacity-0 group-hover:opacity-100"
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                    )}
                                 </div>
-                            </div>
+                            ))
                         ) : (
-                            <p className="text-white/60 italic text-sm mt-2">No hay comunicados activos en este momento.</p>
+                            <div className="text-center py-4 text-white/60 italic text-sm border-t border-white/10">
+                                <p>No hay comunicados activos.</p>
+                            </div>
                         )}
                     </div>
                     
-                    {/* Decoración de fondo */}
+                    {/* Decoración Fondo */}
                     <Bell className="absolute -bottom-6 -right-6 w-32 h-32 opacity-10 text-white rotate-12" />
                 </div>
             </div>
@@ -864,19 +890,19 @@ function DashboardView({ user, tasks, events }) {
                 </div>
             )}
 
-            {/* MODAL PARA PUBLICAR COMUNICADO */}
+            {/* MODAL PARA PUBLICAR */}
             {showAnnounceModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95">
                         <h3 className="text-xl font-bold mb-2 text-rose-600">Nuevo Comunicado</h3>
-                        <p className="text-xs text-gray-500 mb-4">Este mensaje será visible para todos por 24 horas y luego desaparecerá automáticamente.</p>
+                        <p className="text-xs text-gray-500 mb-4">Se agregará a la cartelera visible para todos.</p>
                         
                         <form onSubmit={handlePostAnnouncement}>
                             <textarea 
                                 name="message" 
                                 required 
                                 className="w-full p-3 bg-rose-50 rounded-xl outline-none focus:ring-2 focus:ring-rose-400 text-sm min-h-[100px] resize-none border border-rose-100" 
-                                placeholder="Escribe el mensaje aquí... (Ej: Reunión suspendida por lluvia)"
+                                placeholder="Escribe el mensaje aquí..."
                                 autoFocus
                             ></textarea>
                             
@@ -891,7 +917,6 @@ function DashboardView({ user, tasks, events }) {
         </div>
     );
 }
-
 // --- VISTA RECURSOS ---
 function ResourcesView({ resources, canEdit }) {
     const [showModal, setShowModal] = useState(false);
@@ -1939,6 +1964,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
