@@ -1036,7 +1036,7 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
     </div>
   );
 }
-// --- VISTA MATRÍCULA (FINAL: Varón/Mujer + Predicción de Nombre) ---
+// --- VISTA MATRÍCULA (FINAL: Permisos Super-Admin aplicados) ---
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
   const [filterText, setFilterText] = useState('');
@@ -1048,12 +1048,16 @@ function MatriculaView({ user }) {
   const [showDataManagement, setShowDataManagement] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
 
+  // --- PERMISOS ---
+  // Solo el super-admin puede editar, crear, borrar o ver estadísticas complejas
+  const isSuperAdmin = user.rol === 'super-admin';
+
   // ESTADO PARA LA CALCULADORA ESTADÍSTICA
   const [statFilters, setStatFilters] = useState({
       level: 'all', dx: 'all', gender: 'all', journey: 'all', turn: 'all'
   });
 
-  // Estado Importación
+  // Estado Importación y Procesos
   const [importJson, setImportJson] = useState('');
   const [processing, setProcessing] = useState(false);
 
@@ -1110,17 +1114,12 @@ function MatriculaView({ user }) {
   // --- INTELIGENCIA DE GÉNERO ---
   const predictGender = (fullName) => {
       if (!fullName) return '';
-      // Tomamos el primer nombre, quitamos espacios y pasamos a mayúsculas
       const name = fullName.trim().split(' ')[0].toUpperCase();
-
-      // LISTA DE EXCEPCIONES (Nombres que terminan en A pero son Varones, o viceversa)
       const maleExceptions = ['LUCA', 'LUKA', 'NICOLA', 'ANDREA', 'BAUTISTA', 'SANTINO', 'MATIAS', 'TOMAS', 'LUCAS', 'NICOLAS', 'JOAQUIN', 'AGUSTIN', 'FELIPE', 'ELIAS', 'JONAS', 'TOBIAS', 'ISAIAS', 'NOAH', 'VALENTIN'];
       const femaleExceptions = ['SOL', 'BELEN', 'ABRIL', 'AZUL', 'LUZ', 'PILAR', 'ROCIO', 'TRINIDAD', 'NAHIR', 'RUTH', 'ESTER', 'JAZMIN', 'ZOE', 'MIA', 'UMA'];
 
       if (maleExceptions.includes(name)) return 'M';
       if (femaleExceptions.includes(name)) return 'F';
-
-      // REGLA GENERAL: Si termina en 'A', suele ser Mujer. Si no, Varón.
       if (name.endsWith('A')) return 'F';
       return 'M';
   };
@@ -1129,7 +1128,6 @@ function MatriculaView({ user }) {
       const name = e.target.value;
       const guess = predictGender(name);
       const genderSelect = document.getElementById('genderSelect');
-      // Solo sugerimos si hay una predicción clara y el usuario no ha seleccionado nada manualmente aún
       if (genderSelect && guess) {
           genderSelect.value = guess;
       }
@@ -1236,6 +1234,23 @@ function MatriculaView({ user }) {
     } catch (e) { alert("Error JSON: " + e.message); } finally { setProcessing(false); }
   };
 
+  const handleAutoAssignGenders = async () => {
+      if(!confirm("¿Detectar y completar géneros faltantes automáticamente?\n\nEsto analizará los nombres de los alumnos sin género asignado.")) return;
+      setProcessing(true);
+      let count = 0;
+      const updates = [];
+      for (const s of students) {
+          if (!s.gender) {
+              const prediction = predictGender(s.firstName);
+              if (prediction) {
+                  updates.push(updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { gender: prediction }));
+                  count++;
+              }
+          }
+      }
+      try { await Promise.all(updates); alert(`✅ ¡Listo! Se completaron ${count} legajos.`); setShowDataManagement(false); } catch (e) { alert("Error: " + e.message); } finally { setProcessing(false); }
+  };
+
   const handleDelete = async (id) => {
     if(confirm("¿Borrar legajo permanentemente?")) {
       await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id));
@@ -1262,18 +1277,26 @@ function MatriculaView({ user }) {
             <p className="text-blue-100 opacity-90">{filteredStudents.length} estudiantes</p>
           </div>
           <div className="flex gap-2">
-             <button onClick={() => setShowDataManagement(true)} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold border border-white/20">
-                <UploadCloud size={20}/> Gestión BD
-            </button>
-             <button onClick={() => setShowStats(true)} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold border border-white/20">
-                <PieChart size={20}/> Estadísticas
-            </button>
+             {/* SOLO VISIBLE PARA SUPER ADMIN */}
+             {isSuperAdmin && (
+                 <>
+                    <button onClick={() => setShowDataManagement(true)} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold border border-white/20">
+                        <UploadCloud size={20}/> Gestión BD
+                    </button>
+                    <button onClick={() => setShowStats(true)} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold border border-white/20">
+                        <PieChart size={20}/> Estadísticas
+                    </button>
+                 </>
+             )}
             <button onClick={exportFiltered} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold"><Download size={20}/></button>
-            <button onClick={openNew} className="bg-white text-blue-600 p-3 rounded-xl shadow-lg hover:bg-blue-50 transition font-bold"><Plus size={24} /></button>
+            {/* SOLO VISIBLE PARA SUPER ADMIN */}
+            {isSuperAdmin && (
+                <button onClick={openNew} className="bg-white text-blue-600 p-3 rounded-xl shadow-lg hover:bg-blue-50 transition font-bold"><Plus size={24} /></button>
+            )}
           </div>
         </div>
         
-        {/* BUSCADOR Y FILTROS PRINCIPALES (VARÓN / MUJER) */}
+        {/* BUSCADOR Y FILTROS PRINCIPALES */}
         <div className="mt-6 space-y-3">
           <div className="bg-white/10 backdrop-blur-md p-2 rounded-xl flex items-center gap-2 border border-white/20">
             <Search className="text-white ml-2 opacity-70" size={20} />
@@ -1283,16 +1306,16 @@ function MatriculaView({ user }) {
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
             <select value={filters.level} onChange={e => setFilters({...filters, level: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30">
                 <option value="all" className="text-gray-800">Nivel: Todos</option>
-                <option value="INICIAL" className="text-gray-800">INICIAL</option>
-                <option value="1° Ciclo" className="text-gray-800">1° Ciclo</option>
-                <option value="2° Ciclo" className="text-gray-800">2° Ciclo</option>
-                <option value="CFI" className="text-gray-800">CFI</option>
+                <option value="INICIAL">INICIAL</option>
+                <option value="1° Ciclo">1° Ciclo</option>
+                <option value="2° Ciclo">2° Ciclo</option>
+                <option value="CFI">CFI</option>
             </select>
             <select value={filters.dx} onChange={e => setFilters({...filters, dx: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">DX: Todos</option><option value="DI" className="text-gray-800">DI</option><option value="TES" className="text-gray-800">TES</option><option value="Otro" className="text-gray-800">Otro</option></select>
             <select value={filters.gender} onChange={e => setFilters({...filters, gender: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30">
                 <option value="all" className="text-gray-800">Género: Todos</option>
-                <option value="F" className="text-gray-800">Mujer</option> {/* CAMBIO */}
-                <option value="M" className="text-gray-800">Varón</option> {/* CAMBIO */}
+                <option value="F" className="text-gray-800">Mujer</option>
+                <option value="M" className="text-gray-800">Varón</option>
             </select>
             <select value={filters.journey} onChange={e => setFilters({...filters, journey: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">Jornada: Todas</option><option value="Simple Mañana" className="text-gray-800">Mañana</option><option value="Simple Tarde" className="text-gray-800">Tarde</option><option value="Doble" className="text-gray-800">Doble</option></select>
             <select value={filters.group} onChange={e => setFilters({...filters, group: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">Grupo: Todos</option>{uniqueGroups.map(g => <option key={g} value={g} className="text-gray-800">{g}</option>)}</select>
@@ -1319,12 +1342,25 @@ function MatriculaView({ user }) {
           )})}
       </div>
 
-      {/* --- MODAL GESTIÓN BD --- */}
+      {/* --- MODAL GESTIÓN BD (Con Botón Mágico) --- */}
       {showDataManagement && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl w-full max-w-2xl p-6 shadow-2xl animate-in zoom-in-95">
+            <div className="bg-white rounded-3xl w-full max-w-2xl p-6 shadow-2xl animate-in zoom-in-95 overflow-y-auto max-h-[90vh]">
                 <div className="flex justify-between items-center mb-4"><h3 className="text-xl font-bold text-gray-800">Gestión de Base de Datos</h3><button onClick={() => setShowDataManagement(false)} className="text-gray-400 hover:text-gray-600"><X size={24}/></button></div>
+                
+                {/* ZONA DE RIESGO */}
                 <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 mb-6"><h4 className="font-bold text-orange-800 text-sm mb-2 flex items-center gap-2"><AlertTriangle size={16}/> Zona de Riesgo</h4><button onClick={handleDeleteAll} disabled={processing} className="w-full bg-white border border-red-200 text-red-600 font-bold py-2 rounded-lg text-sm hover:bg-red-50 transition flex items-center justify-center gap-2">{processing ? <RefreshCw className="animate-spin" size={16}/> : <Trash2 size={16}/>} ELIMINAR TODOS LOS ALUMNOS</button></div>
+                
+                {/* HERRAMIENTAS DE CORRECCIÓN */}
+                <h4 className="font-bold text-gray-800 text-sm mb-2">Herramientas</h4>
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-6">
+                    <p className="text-xs text-blue-800 mb-3">Si importaste datos sin género, usa esto para detectarlo automáticamente según el nombre.</p>
+                    <button onClick={handleAutoAssignGenders} disabled={processing} className="w-full bg-white border border-blue-200 text-blue-700 font-bold py-2 rounded-lg text-sm hover:bg-blue-100 transition flex items-center justify-center gap-2">
+                         {processing ? <RefreshCw className="animate-spin" size={16}/> : <><Users size={16}/> ✨ Auto-completar Géneros</>}
+                    </button>
+                </div>
+
+                {/* IMPORTACIÓN */}
                 <h4 className="font-bold text-gray-800 text-sm mb-2">Importar Nuevos Datos (JSON)</h4><textarea value={importJson} onChange={e => setImportJson(e.target.value)} placeholder='[ { "firstName": "Juan"... } ]' className="w-full h-40 p-3 bg-gray-50 rounded-xl border border-gray-200 font-mono text-xs outline-none focus:ring-2 focus:ring-blue-400"></textarea>
                 <div className="flex gap-3 mt-4"><button onClick={() => setShowDataManagement(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button><button onClick={handleBulkImport} disabled={processing || !importJson} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex justify-center items-center gap-2">{processing ? <RefreshCw className="animate-spin" /> : <><UploadCloud size={20} /> Procesar Datos</>}</button></div>
             </div>
@@ -1364,8 +1400,8 @@ function MatriculaView({ user }) {
                              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Género</label>
                              <select value={statFilters.gender} onChange={e => setStatFilters({...statFilters, gender: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none border focus:border-violet-500">
                                 <option value="all">Todos</option>
-                                <option value="M">Varones</option> {/* CAMBIO */}
-                                <option value="F">Mujeres</option> {/* CAMBIO */}
+                                <option value="M">Varones</option>
+                                <option value="F">Mujeres</option>
                              </select>
                          </div>
                          <div>
@@ -1486,7 +1522,10 @@ function MatriculaView({ user }) {
                     </div>
                 </div>
                 <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3 shrink-0">
-                    <button onClick={() => openEdit(viewingStudent)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-lg"><Edit3 size={18}/> Editar Ficha</button>
+                    {/* SOLO SUPER ADMIN PUEDE EDITAR */}
+                    {isSuperAdmin && (
+                        <button onClick={() => openEdit(viewingStudent)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-lg"><Edit3 size={18}/> Editar Ficha</button>
+                    )}
                 </div>
             </div>
         </div>
@@ -1533,8 +1572,8 @@ function MatriculaView({ user }) {
                                 className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"
                               >
                                   <option value="">Seleccionar</option>
-                                  <option value="M">Varón</option> {/* CAMBIO */}
-                                  <option value="F">Mujer</option> {/* CAMBIO */}
+                                  <option value="M">Varón</option>
+                                  <option value="F">Mujer</option>
                               </select>
                           </div>
                       </div>
@@ -1584,5 +1623,3 @@ function MatriculaView({ user }) {
     </div>
   );
 }
-
-
