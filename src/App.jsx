@@ -1496,46 +1496,88 @@ function MatriculaView({ user }) {
     }
   };
 
-// --- EXPORTACIÓN EXCEL PROFESIONAL (Versión Argentina 🇦🇷) ---
+// --- EXPORTACIÓN EXCEL COMPLETA (TODOS LOS DATOS) ---
   const exportFiltered = () => {
     if (filteredStudents.length === 0) {
       alert("No hay datos para exportar.");
       return;
     }
 
-    // 1. Encabezados de las columnas (Separados por ;)
-    const headers = ["Apellido", "Nombre", "DNI", "Nivel", "Edad", "DX", "Jornada", "Turno Mañana", "Turno Tarde"];
+    // 1. Encabezados COMPLETOS (Separados por ;)
+    const headers = [
+      "Apellido", 
+      "Nombre", 
+      "DNI", 
+      "Nivel", 
+      "Edad", 
+      "Fecha Nacimiento", // Nuevo
+      "Género",           // Nuevo
+      "DX", 
+      "Obra Social",      // Nuevo
+      "Vencimiento CUD",  // Nuevo
+      "Jornada", 
+      "Grupo T. Mañana", 
+      "Docente TM",       // Nuevo
+      "Auxiliar TM",      // Nuevo
+      "Grupo T. Tarde", 
+      "Docente TT",       // Nuevo
+      "Auxiliar TT",      // Nuevo
+      "Dirección",        // Nuevo
+      "Madre",            // Nuevo
+      "Contacto Madre",   // Nuevo
+      "Padre",            // Nuevo
+      "Contacto Padre"    // Nuevo
+    ];
     
-    // 2. Armamos las filas
+    // 2. Armamos las filas con TODOS los campos
     const csvContent = [
-      headers.join(';'), // <--- CAMBIO CLAVE AQUÍ (Usamos punto y coma)
+      headers.join(';'), 
       ...filteredStudents.map(s => {
         const age = calculateAge(s.birthDate);
-        // "Limpiamos" los datos para que no rompan el Excel
+        
+        // Formatear fechas para que se vean bien
+        const fechaNac = s.birthDate ? new Date(s.birthDate + 'T00:00:00').toLocaleDateString('es-AR') : '-';
+        const vencCUD = s.cudExpiration ? new Date(s.cudExpiration + 'T00:00:00').toLocaleDateString('es-AR') : '-';
+
         return [
           `"${s.lastName || ''}"`,
           `"${s.firstName || ''}"`,
           `"${s.dni || ''}"`,
           `"${s.level || ''}"`,
           `"${age}"`,
+          `"${fechaNac}"`,
+          `"${s.gender || ''}"`,
           `"${s.dx || ''}"`,
+          `"${s.healthInsurance || ''}"`,
+          `"${vencCUD}"`,
           `"${s.journey || ''}"`,
+          // Turno Mañana
           `"${s.groupMorning || ''}"`,
-          `"${s.groupAfternoon || ''}"`
-        ].join(';'); // <--- CAMBIO CLAVE AQUÍ TAMBIÉN
+          `"${s.teacherMorning || ''}"`,
+          `"${s.auxMorning || ''}"`,
+          // Turno Tarde
+          `"${s.groupAfternoon || ''}"`,
+          `"${s.teacherAfternoon || ''}"`,
+          `"${s.auxAfternoon || ''}"`,
+          // Datos Familiares
+          `"${s.address || ''}"`,
+          `"${s.motherName || ''}"`,
+          `"${s.motherContact || ''}"`,
+          `"${s.fatherName || ''}"`,
+          `"${s.fatherContact || ''}"`
+        ].join(';');
       })
-    ].join('\n'); // Unimos todo con saltos de línea
+    ].join('\n');
 
-    // 3. Crear el archivo Blob con la marca BOM (\uFEFF) para que Excel reconozca las tildes/Ñ
+    // 3. Crear el archivo Blob con BOM (\uFEFF) para tildes
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     
     // 4. Descargar
     const link = document.createElement('a');
     link.href = url;
-    // Le ponemos fecha al nombre del archivo
     const fechaHoy = new Date().toLocaleDateString('es-AR').replace(/\//g, '-');
-    link.setAttribute('download', `Matrícula_${fechaHoy}.csv`);
+    link.setAttribute('download', `Matrícula_Completa_${fechaHoy}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1897,6 +1939,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
