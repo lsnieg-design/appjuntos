@@ -40,7 +40,7 @@ import {
   Search,        // <--- NUEVO
   X,             // <--- NUEVO
   UploadCloud,   // <--- NUEVO
-  ChevronRight   // <--- NUEVO
+
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -1391,6 +1391,7 @@ function MatriculaView({ canEdit }) {
     </div>
   );
 }
+
 
 
 
