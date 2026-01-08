@@ -177,30 +177,35 @@ const formatDate = (dateString) => {
   if (!dateString) return '';
   const date = new Date(dateString + 'T00:00:00');
   return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
-};
-}
-  });
-// --- Componente Principal Wrapper (FUSIONADO) ---
-export default function App() {
-  const [firebaseUser, setFirebaseUser] = useState(null);
-  const [currentUserProfile, setCurrentUserProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [configError, setConfigError] = useState(false);
-
-  // Efecto para Notificaciones (Movido aquí adentro)
-  useEffect(() => {
-    // Intentar pedir permiso al cargar
-    requestPermission();
-    
-    // Escuchar mensajes en primer plano
-  const onMessageListener = () =>
+ const onMessageListener = () =>
   new Promise((resolve) => {
     if (messaging) {
       onMessage(messaging, (payload) => {
         resolve(payload);
       });
     }
-  });
+  });  
+export default function App() {
+  const [firebaseUser, setFirebaseUser] = useState(null);
+  const [currentUserProfile, setCurrentUserProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [configError, setConfigError] = useState(false);
+
+ 
+
+ // Efecto para Notificaciones (Línea 196 aprox)
+  useEffect(() => {
+    requestPermission();
+    
+    // Llamamos a la función que ahora sí existe afuera
+    onMessageListener().then((payload) => {
+      console.log('Notificación recibida:', payload);
+      if (payload.notification) {
+          triggerMobileNotification(payload.notification.title, payload.notification.body);
+      }
+    });
+  }, []);
+ 
   useEffect(() => {
     if (!auth) {
       setConfigError(true);
@@ -1366,6 +1371,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
