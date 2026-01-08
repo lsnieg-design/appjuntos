@@ -1036,22 +1036,21 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
     </div>
   );
 }
-// --- VISTA MATRÍCULA (CORREGIDA Y ESTABILIZADA) ---
-// --- VISTA MATRÍCULA (CON IMPORTACIÓN MASIVA) ---
+// --- VISTA MATRÍCULA (CON GESTIÓN DE BASE DE DATOS) ---
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
   const [filterText, setFilterText] = useState('');
-  
+   
   // ESTADOS DE MODALES
   const [viewingStudent, setViewingStudent] = useState(null);
   const [showStats, setShowStats] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [showImport, setShowImport] = useState(false); // <--- NUEVO
+  const [showDataManagement, setShowDataManagement] = useState(false); // <--- CAMBIO: Modal de Gestión
   const [editingStudent, setEditingStudent] = useState(null);
 
   // Estado Importación
   const [importJson, setImportJson] = useState('');
-  const [importing, setImporting] = useState(false);
+  const [processing, setProcessing] = useState(false); // <--- CAMBIO: Estado de carga general
 
   // Estado foto
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -1160,29 +1159,65 @@ function MatriculaView({ user }) {
     } catch (err) { alert("Error: " + err.message); }
   };
 
+  // --- NUEVA LÓGICA DE BORRADO MASIVO ---
+  const handleDeleteAll = async () => {
+      if(!confirm("⚠️ ¡PELIGRO CRÍTICO! ⚠️\n\nEstás a punto de ELIMINAR TODOS los alumnos de la base de datos.\n\nEsto se usa para limpiar el año anterior antes de cargar el nuevo.\n\n¿Estás 100% seguro?")) return;
+      if(!confirm("CONFIRMACIÓN FINAL:\n\nEsta acción NO se puede deshacer. ¿Proceder a vaciar la escuela?")) return;
+
+      setProcessing(true);
+      try {
+          // 1. Obtener todos los documentos
+          const snapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'students'));
+          if (snapshot.empty) {
+              alert("La base de datos ya está vacía.");
+              setProcessing(false);
+              return;
+          }
+
+          // 2. Borrar uno por uno (Firestore client no tiene deleteCollection)
+          // Usamos Promise.all para hacerlo en paralelo
+          const deletePromises = snapshot.docs.map(docSnap => 
+              deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', docSnap.id))
+          );
+
+          await Promise.all(deletePromises);
+          alert("✅ Base de datos vaciada con éxito.");
+      } catch (e) {
+          alert("Error al vaciar: " + e.message);
+      } finally {
+          setProcessing(false);
+      }
+  };
+
+  // --- LÓGICA DE IMPORTACIÓN ---
   const handleBulkImport = async () => {
     try {
-      setImporting(true);
+      setProcessing(true);
       const data = JSON.parse(importJson);
       if (!Array.isArray(data)) throw new Error("El formato debe ser una lista [...]");
 
       let count = 0;
-      for (const s of data) {
-        if (s.lastName && s.firstName) {
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), {
+      // Procesamos en lotes de promesas para velocidad
+      const promises = data.map(s => {
+          if (s.lastName && s.firstName) {
+            count++;
+            return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), {
                 ...s,
                 createdAt: serverTimestamp()
             });
-            count++;
-        }
-      }
+          }
+          return Promise.resolve();
+      });
+
+      await Promise.all(promises);
+      
       alert(`¡Éxito! Se importaron ${count} estudiantes.`);
-      setShowImport(false);
+      setShowDataManagement(false);
       setImportJson('');
     } catch (e) {
       alert("Error en el JSON: " + e.message);
     } finally {
-      setImporting(false);
+      setProcessing(false);
     }
   };
 
@@ -1215,8 +1250,9 @@ function MatriculaView({ user }) {
             <p className="text-blue-100 opacity-90">{filteredStudents.length} estudiantes</p>
           </div>
           <div className="flex gap-2">
-             <button onClick={() => setShowImport(true)} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold border border-white/20">
-                <UploadCloud size={20}/> Importar
+             {/* BOTÓN GESTIÓN DE DATOS */}
+             <button onClick={() => setShowDataManagement(true)} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold border border-white/20">
+                <UploadCloud size={20}/> Gestión BD
             </button>
              <button onClick={() => setShowStats(true)} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold border border-white/20">
                 <PieChart size={20}/> Estadísticas
@@ -1309,22 +1345,41 @@ function MatriculaView({ user }) {
         )}
       </div>
 
-      {/* --- MODAL DE IMPORTACIÓN (NUEVO) --- */}
-      {showImport && (
+      {/* --- MODAL GESTIÓN DE DATOS (NUEVO) --- */}
+      {showDataManagement && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl w-full max-w-2xl p-6 shadow-2xl animate-in zoom-in-95">
-                <h3 className="text-xl font-bold text-gray-800 mb-2">Importar JSON</h3>
-                <p className="text-sm text-gray-500 mb-4">Pega aquí el texto que generó el "Procesador de Legajos".</p>
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold text-gray-800">Gestión de Base de Datos</h3>
+                    <button onClick={() => setShowDataManagement(false)} className="text-gray-400 hover:text-gray-600"><X size={24}/></button>
+                </div>
+
+                <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 mb-6">
+                    <h4 className="font-bold text-orange-800 text-sm mb-2 flex items-center gap-2"><AlertTriangle size={16}/> Zona de Riesgo</h4>
+                    <p className="text-xs text-orange-700 mb-3">Si necesitas reiniciar el ciclo lectivo, puedes borrar todo aquí.</p>
+                    <button 
+                        onClick={handleDeleteAll} 
+                        disabled={processing}
+                        className="w-full bg-white border border-red-200 text-red-600 font-bold py-2 rounded-lg text-sm hover:bg-red-50 transition flex items-center justify-center gap-2"
+                    >
+                        {processing ? <RefreshCw className="animate-spin" size={16}/> : <Trash2 size={16}/>}
+                        ELIMINAR TODOS LOS ALUMNOS
+                    </button>
+                </div>
+
+                <h4 className="font-bold text-gray-800 text-sm mb-2">Importar Nuevos Datos (JSON)</h4>
+                <p className="text-xs text-gray-500 mb-2">Pega aquí el texto generado por el "Procesador de Legajos". Se agregarán a la lista actual.</p>
                 <textarea 
                     value={importJson} 
                     onChange={e => setImportJson(e.target.value)} 
                     placeholder='[ { "firstName": "Juan"... } ]'
-                    className="w-full h-64 p-3 bg-gray-50 rounded-xl border border-gray-200 font-mono text-xs outline-none focus:ring-2 focus:ring-blue-400"
+                    className="w-full h-40 p-3 bg-gray-50 rounded-xl border border-gray-200 font-mono text-xs outline-none focus:ring-2 focus:ring-blue-400"
                 ></textarea>
+                
                 <div className="flex gap-3 mt-4">
-                    <button onClick={() => setShowImport(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button>
-                    <button onClick={handleBulkImport} disabled={importing || !importJson} className="flex-1 py-3 bg-green-600 text-white font-bold rounded-xl shadow-lg flex justify-center items-center gap-2">
-                        {importing ? <RefreshCw className="animate-spin" /> : <><UploadCloud size={20} /> Procesar Datos</>}
+                    <button onClick={() => setShowDataManagement(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button>
+                    <button onClick={handleBulkImport} disabled={processing || !importJson} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex justify-center items-center gap-2">
+                        {processing ? <RefreshCw className="animate-spin" /> : <><UploadCloud size={20} /> Procesar Datos</>}
                     </button>
                 </div>
             </div>
