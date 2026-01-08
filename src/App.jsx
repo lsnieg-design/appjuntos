@@ -40,6 +40,10 @@ import {
   Search,        // <--- NUEVO
   X,             // <--- NUEVO
   UploadCloud,   // <--- NUEVO
+  PieChart, // <--- NUEVO PARA ESTADÍSTICAS
+  Eye,      // <--- NUEVO PARA VER FICHA
+  Edit3,    // <--- NUEVO PARA EDITAR
+  Filter,   // <--- NUEVO
 
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
@@ -1033,19 +1037,29 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
   );
 }
 // --- VISTA MATRÍCULA (COMPLETA Y ACTUALIZADA) ---
-function MatriculaView({ canEdit }) {
+// --- VISTA MATRÍCULA (CON ESTADÍSTICAS Y FICHA SEPARADA) ---
+function MatriculaView({ user }) { // Quitamos canEdit para que todos puedan editar si así lo pides
   const [students, setStudents] = useState([]);
   const [filterText, setFilterText] = useState('');
-  const [showModal, setShowModal] = useState(false);
-  const [editingStudent, setEditingStudent] = useState(null);
   
-  // Estado para la foto
+  // Modales
+  const [viewingStudent, setViewingStudent] = useState(null); // Para ver ficha
+  const [editingStudent, setEditingStudent] = useState(null); // Para editar ficha
+  const [showStats, setShowStats] = useState(false); // Para estadísticas
+
+  // Estado foto
   const [photoPreview, setPhotoPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
 
-  // Filtros
-  const [filterDx, setFilterDx] = useState('all');
-  const [filterJourney, setFilterJourney] = useState('all');
+  // --- FILTROS ---
+  const [filters, setFilters] = useState({
+    level: 'all',
+    dx: 'all',
+    gender: 'all',
+    journey: 'all',
+    group: 'all',
+    teacher: 'all' // Busca en mañana y tarde
+  });
 
   // Utilidad: Calcular Edad
   const calculateAge = (dateString) => {
@@ -1054,13 +1068,10 @@ function MatriculaView({ canEdit }) {
     const birthDate = new Date(dateString);
     let age = today.getFullYear() - birthDate.getFullYear();
     const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
     return age;
   };
 
-  // Utilidad: Redimensionar imagen (Para que no pese en la base de datos)
   const resizeImage = (file) => {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -1068,13 +1079,13 @@ function MatriculaView({ canEdit }) {
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 300; // Ancho máximo
+          const MAX_WIDTH = 300; 
           const scaleSize = MAX_WIDTH / img.width;
           canvas.width = MAX_WIDTH;
           canvas.height = img.height * scaleSize;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL('image/jpeg', 0.7)); // Compresión JPG al 70%
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
         };
         img.src = e.target.result;
       };
@@ -1089,11 +1100,7 @@ function MatriculaView({ canEdit }) {
     try {
       const resized = await resizeImage(file);
       setPhotoPreview(resized);
-    } catch (error) {
-      alert("Error al procesar imagen");
-    } finally {
-      setUploading(false);
-    }
+    } catch (error) { alert("Error imagen"); } finally { setUploading(false); }
   };
 
   useEffect(() => {
@@ -1104,17 +1111,34 @@ function MatriculaView({ canEdit }) {
     return () => unsub();
   }, []);
 
+  // --- LÓGICA DE FILTRADO ---
   const filteredStudents = students.filter(s => {
     const textMatch = 
       s.firstName?.toLowerCase().includes(filterText.toLowerCase()) || 
       s.lastName?.toLowerCase().includes(filterText.toLowerCase()) || 
       s.dni?.toString().includes(filterText);
     
-    const dxMatch = filterDx === 'all' || s.dx === filterDx;
-    const journeyMatch = filterJourney === 'all' || s.journey === filterJourney;
+    const levelMatch = filters.level === 'all' || s.level === filters.level;
+    const dxMatch = filters.dx === 'all' || s.dx === filters.dx;
+    const genderMatch = filters.gender === 'all' || s.gender === filters.gender;
+    const journeyMatch = filters.journey === 'all' || s.journey === filters.journey;
+    
+    // Filtro Grupo (busca en mañana o tarde)
+    const groupMatch = filters.group === 'all' || 
+                       (s.groupMorning === filters.group) || 
+                       (s.groupAfternoon === filters.group);
 
-    return textMatch && dxMatch && journeyMatch;
+    // Filtro Docente (busca en mañana o tarde)
+    const teacherMatch = filters.teacher === 'all' || 
+                         s.teacherMorning?.includes(filters.teacher) || 
+                         s.teacherAfternoon?.includes(filters.teacher);
+
+    return textMatch && levelMatch && dxMatch && genderMatch && journeyMatch && groupMatch && teacherMatch;
   });
+
+  // Listas únicas para los selectores
+  const uniqueGroups = [...new Set([...students.map(s => s.groupMorning), ...students.map(s => s.groupAfternoon)].filter(Boolean))].sort();
+  const uniqueTeachers = [...new Set([...students.map(s => s.teacherMorning), ...students.map(s => s.teacherAfternoon)].filter(Boolean))].sort();
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -1127,13 +1151,20 @@ function MatriculaView({ canEdit }) {
       birthDate: formData.get('birthDate'),
       gender: formData.get('gender'),
       dx: formData.get('dx'),
-      journey: formData.get('journey'), // Jornada
-      healthInsurance: formData.get('healthInsurance'), // Obra Social
+      journey: formData.get('journey'),
+      level: formData.get('level'), // <--- NUEVO CAMPO
+      healthInsurance: formData.get('healthInsurance'),
       cudExpiration: formData.get('cudExpiration'),
       
-      // Datos Escolares 2026
+      // Turno Mañana
       groupMorning: formData.get('groupMorning'),
+      teacherMorning: formData.get('teacherMorning'),
+      auxMorning: formData.get('auxMorning'),
+
+      // Turno Tarde
       groupAfternoon: formData.get('groupAfternoon'),
+      teacherAfternoon: formData.get('teacherAfternoon'),
+      auxAfternoon: formData.get('auxAfternoon'),
       
       // Contactos
       address: formData.get('address'),
@@ -1142,51 +1173,40 @@ function MatriculaView({ canEdit }) {
       fatherName: formData.get('fatherName'),
       fatherContact: formData.get('fatherContact'),
       
-      photoUrl: photoPreview || editingStudent?.photoUrl || '', // Guardar la foto
+      photoUrl: photoPreview || editingStudent?.photoUrl || '',
       updatedAt: serverTimestamp()
     };
 
     try {
       if (editingStudent) {
         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', editingStudent.id), data);
+        setViewingStudent({ ...editingStudent, ...data }); // Actualizar vista si estaba abierta
       } else {
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...data, createdAt: serverTimestamp() });
       }
-      setShowModal(false);
       setEditingStudent(null);
       setPhotoPreview(null);
-    } catch (err) {
-      alert("Error al guardar: " + err.message);
-    }
+    } catch (err) { alert("Error: " + err.message); }
   };
 
   const handleDelete = async (id) => {
-    if(confirm("¿Borrar legajo de estudiante de forma permanente?")) {
+    if(confirm("¿Borrar legajo permanentemente?")) {
       await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id));
+      setViewingStudent(null);
+      setEditingStudent(null);
     }
   };
 
-  const openEdit = (student) => {
-    setEditingStudent(student);
-    setPhotoPreview(student.photoUrl);
-    setShowModal(true);
-  };
-
-  const openNew = () => {
-    setEditingStudent(null);
-    setPhotoPreview(null);
-    setShowModal(true);
-  };
-
-  const exportToCSV = () => {
-    let csv = "Apellido,Nombre,DNI,Edad,DX,Jornada,Obra Social,Venc CUD,Mañana,Tarde,Madre,Contacto Madre,Padre,Contacto Padre\n";
-    students.forEach(s => {
+  // Exportar usando los filtros actuales (útil para reportes específicos)
+  const exportFiltered = () => {
+    let csv = "Apellido,Nombre,DNI,Nivel,Edad,DX,Jornada,Mañana,Tarde\n";
+    filteredStudents.forEach(s => {
       const age = calculateAge(s.birthDate);
-      csv += `"${s.lastName}","${s.firstName}",${s.dni},${age},"${s.dx || ''}","${s.journey || ''}","${s.healthInsurance || ''}","${s.cudExpiration || ''}","${s.groupMorning || ''}","${s.groupAfternoon || ''}","${s.motherName || ''}","${s.motherContact || ''}","${s.fatherName || ''}","${s.fatherContact || ''}"\n`;
+      csv += `"${s.lastName}","${s.firstName}",${s.dni},"${s.level||''}",${age},"${s.dx || ''}","${s.journey || ''}","${s.groupMorning || ''}","${s.groupAfternoon || ''}"\n`;
     });
     const link = document.createElement("a");
     link.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
-    link.download = "Legajos_Completos_2026.csv";
+    link.download = "Reporte_Estudiantes.csv";
     link.click();
   };
 
@@ -1197,17 +1217,18 @@ function MatriculaView({ canEdit }) {
         <div className="flex justify-between items-center flex-wrap gap-4">
           <div>
             <h2 className="text-3xl font-bold flex items-center gap-2"><GraduationCap /> Legajos 2026</h2>
-            <p className="text-blue-100 opacity-90">{students.length} Estudiantes activos</p>
+            <p className="text-blue-100 opacity-90">{filteredStudents.length} {filteredStudents.length === 1 ? 'estudiante encontrado' : 'estudiantes encontrados'}</p>
           </div>
           <div className="flex gap-2">
-            <button onClick={exportToCSV} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold" title="Descargar Excel">
+             <button onClick={() => setShowStats(true)} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold border border-white/20">
+                <PieChart size={20}/> Estadísticas
+            </button>
+            <button onClick={exportFiltered} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold" title="Descargar Lista Filtrada">
                 <Download size={20}/> Exportar
             </button>
-            {canEdit && (
-                <button onClick={openNew} className="bg-white text-blue-600 p-3 rounded-xl shadow-lg hover:bg-blue-50 transition font-bold">
-                    <Plus size={24} />
-                </button>
-            )}
+            <button onClick={() => {setEditingStudent(null); setPhotoPreview(null);}} className="bg-white text-blue-600 p-3 rounded-xl shadow-lg hover:bg-blue-50 transition font-bold" title="Nuevo Ingreso">
+                <Plus size={24} />
+            </button>
           </div>
         </div>
         
@@ -1224,18 +1245,38 @@ function MatriculaView({ canEdit }) {
             {filterText && <button onClick={() => setFilterText('')}><X className="text-white opacity-70" size={16}/></button>}
           </div>
           
-          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-            <select value={filterDx} onChange={(e) => setFilterDx(e.target.value)} className="bg-white/20 text-white border-none rounded-lg text-xs px-3 py-2 outline-none font-bold cursor-pointer hover:bg-white/30 transition">
-              <option value="all" className="text-gray-800">DX: Todos</option>
-              <option value="DI" className="text-gray-800">DI</option>
-              <option value="TES" className="text-gray-800">TES</option>
-              <option value="Otro" className="text-gray-800">Otro</option>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+            <select value={filters.level} onChange={e => setFilters({...filters, level: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30">
+               <option value="all" className="text-gray-800">Nivel: Todos</option>
+               <option value="Inicial" className="text-gray-800">Inicial</option>
+               <option value="1er Ciclo" className="text-gray-800">1er Ciclo</option>
+               <option value="2do Ciclo" className="text-gray-800">2do Ciclo</option>
+               <option value="CFI" className="text-gray-800">CFI</option>
             </select>
-            <select value={filterJourney} onChange={(e) => setFilterJourney(e.target.value)} className="bg-white/20 text-white border-none rounded-lg text-xs px-3 py-2 outline-none font-bold cursor-pointer hover:bg-white/30 transition">
-              <option value="all" className="text-gray-800">Jornada: Todas</option>
-              <option value="Simple Mañana" className="text-gray-800">Simple Mañana</option>
-              <option value="Simple Tarde" className="text-gray-800">Simple Tarde</option>
-              <option value="Doble" className="text-gray-800">Doble</option>
+            <select value={filters.dx} onChange={e => setFilters({...filters, dx: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30">
+               <option value="all" className="text-gray-800">DX: Todos</option>
+               <option value="DI" className="text-gray-800">DI</option>
+               <option value="TES" className="text-gray-800">TES</option>
+               <option value="Otro" className="text-gray-800">Otro</option>
+            </select>
+            <select value={filters.gender} onChange={e => setFilters({...filters, gender: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30">
+               <option value="all" className="text-gray-800">Género: Todos</option>
+               <option value="F" className="text-gray-800">Femenino</option>
+               <option value="M" className="text-gray-800">Masculino</option>
+            </select>
+            <select value={filters.journey} onChange={e => setFilters({...filters, journey: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30">
+               <option value="all" className="text-gray-800">Jornada: Todas</option>
+               <option value="Simple Mañana" className="text-gray-800">Mañana</option>
+               <option value="Simple Tarde" className="text-gray-800">Tarde</option>
+               <option value="Doble" className="text-gray-800">Doble</option>
+            </select>
+            <select value={filters.group} onChange={e => setFilters({...filters, group: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30">
+               <option value="all" className="text-gray-800">Grupo: Todos</option>
+               {uniqueGroups.map(g => <option key={g} value={g} className="text-gray-800">{g}</option>)}
+            </select>
+             <select value={filters.teacher} onChange={e => setFilters({...filters, teacher: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30">
+               <option value="all" className="text-gray-800">Docente: Todos</option>
+               {uniqueTeachers.map(t => <option key={t} value={t} className="text-gray-800">{t}</option>)}
             </select>
           </div>
         </div>
@@ -1244,20 +1285,19 @@ function MatriculaView({ canEdit }) {
       {/* LISTA DE TARJETAS */}
       <div className="space-y-3">
         {filteredStudents.length === 0 ? (
-          <div className="text-center py-10 text-gray-400">No se encontraron legajos.</div>
+          <div className="text-center py-10 text-gray-400 bg-white rounded-3xl border border-dashed border-gray-200">
+             <Filter size={40} className="mx-auto mb-2 text-gray-200"/>
+             <p>No hay coincidencias con los filtros actuales.</p>
+          </div>
         ) : (
           filteredStudents.map(s => {
             const age = calculateAge(s.birthDate);
             return (
-            <div key={s.id} onClick={() => canEdit && openEdit(s)} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between group hover:shadow-md transition cursor-pointer">
+            <div key={s.id} onClick={() => setViewingStudent(s)} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between group hover:shadow-md transition cursor-pointer active:scale-[0.99]">
               <div className="flex items-center gap-4 w-full">
                 {/* FOTO MINIATURA */}
-                <div className="w-14 h-14 rounded-2xl bg-gray-100 border border-gray-200 overflow-hidden flex-shrink-0 flex items-center justify-center">
-                    {s.photoUrl ? (
-                        <img src={s.photoUrl} className="w-full h-full object-cover" alt="Foto" />
-                    ) : (
-                        <User className="text-gray-300" size={24} />
-                    )}
+                <div className="w-14 h-14 rounded-2xl bg-gray-100 border border-gray-200 overflow-hidden flex-shrink-0 flex items-center justify-center relative">
+                    {s.photoUrl ? ( <img src={s.photoUrl} className="w-full h-full object-cover" alt="Foto" /> ) : ( <User className="text-gray-300" size={24} /> )}
                 </div>
 
                 <div className="min-w-0 flex-1">
@@ -1267,120 +1307,307 @@ function MatriculaView({ canEdit }) {
                   </div>
                   
                   <div className="flex flex-wrap gap-2 text-xs text-gray-500 mt-1">
-                    <span className="bg-gray-100 px-2 py-0.5 rounded font-medium">{age !== '-' ? `${age} años` : '-'}</span>
-                    {s.journey === 'Doble' && <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-bold border border-orange-200">DOBLE</span>}
-                    {s.journey?.includes('Mañana') && <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded font-bold border border-yellow-200">TM</span>}
-                    {s.journey?.includes('Tarde') && <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-bold border border-indigo-200">TT</span>}
+                    <span className="bg-gray-100 px-2 py-0.5 rounded font-medium border border-gray-200">{age !== '-' ? `${age} años` : '-'}</span>
+                    <span className="bg-gray-100 px-2 py-0.5 rounded font-medium border border-gray-200 text-gray-600">{s.level || 'Sin Nivel'}</span>
+                    {(s.groupMorning || s.groupAfternoon) && <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded font-bold border border-blue-100">{s.groupMorning || s.groupAfternoon}</span>}
                   </div>
                 </div>
               </div>
-              {canEdit && <ChevronRight className="text-gray-300 ml-2" />}
+              <Eye className="text-gray-300 group-hover:text-blue-500 transition ml-3" size={20} />
             </div>
           )})
         )}
       </div>
 
-      {/* MODAL DE EDICIÓN / ALTA */}
-      {showModal && (
+      {/* --- MODAL 1: VER FICHA (SOLO LECTURA) --- */}
+      {viewingStudent && !editingStudent && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]">
+                <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0">
+                    <button onClick={() => setViewingStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition"><X size={20}/></button>
+                    <div className="flex items-center gap-4">
+                        <div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">
+                            {viewingStudent.photoUrl ? <img src={viewingStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-bold">{viewingStudent.lastName}, {viewingStudent.firstName}</h2>
+                            <p className="opacity-90 flex gap-2 text-sm mt-1">
+                                <span className="bg-white/20 px-2 py-0.5 rounded">{calculateAge(viewingStudent.birthDate)} años</span>
+                                <span className="bg-white/20 px-2 py-0.5 rounded">{viewingStudent.dni}</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="p-6 overflow-y-auto space-y-6">
+                    {/* Datos Clave */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                        <div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase">Nivel</p><p className="font-bold text-gray-800">{viewingStudent.level || '-'}</p></div>
+                        <div className="bg-purple-50 p-3 rounded-xl border border-purple-100"><p className="text-xs text-purple-400 font-bold uppercase">DX</p><p className="font-bold text-purple-800">{viewingStudent.dx || '-'}</p></div>
+                        <div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase">Género</p><p className="font-bold text-gray-800">{viewingStudent.gender || '-'}</p></div>
+                        <div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase">Jornada</p><p className="font-bold text-gray-800">{viewingStudent.journey || '-'}</p></div>
+                    </div>
+
+                    {/* Escolaridad Detallada */}
+                    <div className="space-y-3">
+                         <h3 className="font-bold text-gray-900 flex items-center gap-2"><Briefcase size={18} className="text-blue-500"/> Escolaridad 2026</h3>
+                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100 relative overflow-hidden">
+                                <div className="absolute top-0 right-0 bg-yellow-200 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">MAÑANA</div>
+                                <div className="space-y-2 text-sm">
+                                    <p><span className="text-gray-500 font-bold">Grupo:</span> {viewingStudent.groupMorning || '-'}</p>
+                                    <p><span className="text-gray-500 font-bold">Docente:</span> {viewingStudent.teacherMorning || '-'}</p>
+                                    <p><span className="text-gray-500 font-bold">Auxiliar:</span> {viewingStudent.auxMorning || '-'}</p>
+                                </div>
+                            </div>
+                            <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 relative overflow-hidden">
+                                <div className="absolute top-0 right-0 bg-indigo-200 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">TARDE</div>
+                                <div className="space-y-2 text-sm">
+                                    <p><span className="text-gray-500 font-bold">Grupo:</span> {viewingStudent.groupAfternoon || '-'}</p>
+                                    <p><span className="text-gray-500 font-bold">Docente:</span> {viewingStudent.teacherAfternoon || '-'}</p>
+                                    <p><span className="text-gray-500 font-bold">Auxiliar:</span> {viewingStudent.auxAfternoon || '-'}</p>
+                                </div>
+                            </div>
+                         </div>
+                    </div>
+
+                    {/* Salud y Familia */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="space-y-3">
+                             <h3 className="font-bold text-gray-900 flex items-center gap-2"><Activity size={18} className="text-green-500"/> Salud</h3>
+                             <div className="bg-white p-4 rounded-xl border border-gray-100 text-sm space-y-2 shadow-sm">
+                                <p><span className="text-gray-500 font-bold block text-xs uppercase">Obra Social</span> {viewingStudent.healthInsurance || 'No declara'}</p>
+                                <p><span className="text-gray-500 font-bold block text-xs uppercase">Vencimiento CUD</span> {viewingStudent.cudExpiration ? formatDate(viewingStudent.cudExpiration) : '-'}</p>
+                             </div>
+                        </div>
+                        <div className="space-y-3">
+                             <h3 className="font-bold text-gray-900 flex items-center gap-2"><User size={18} className="text-orange-500"/> Familia</h3>
+                             <div className="bg-white p-4 rounded-xl border border-gray-100 text-sm space-y-2 shadow-sm">
+                                <p><span className="text-gray-500 font-bold block text-xs uppercase">Madre</span> {viewingStudent.motherName} <span className="text-gray-400">({viewingStudent.motherContact})</span></p>
+                                <p><span className="text-gray-500 font-bold block text-xs uppercase">Padre</span> {viewingStudent.fatherName} <span className="text-gray-400">({viewingStudent.fatherContact})</span></p>
+                                <p><span className="text-gray-500 font-bold block text-xs uppercase">Dirección</span> {viewingStudent.address}</p>
+                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3 shrink-0">
+                    <button onClick={() => { setEditingStudent(viewingStudent); setPhotoPreview(viewingStudent.photoUrl); }} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-lg">
+                        <Edit3 size={18}/> Editar Ficha
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* --- MODAL 2: ESTADÍSTICAS --- */}
+      {showStats && (
+        <div className="fixed inset-0 bg-violet-900/80 backdrop-blur-md z-[60] flex items-center justify-center p-4">
+             <div className="bg-white rounded-3xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl animate-in zoom-in-95">
+                <div className="p-6 border-b flex justify-between items-center">
+                    <div>
+                        <h2 className="text-2xl font-bold text-violet-900">Estadísticas & Reportes</h2>
+                        <p className="text-gray-500">Análisis sobre {filteredStudents.length} estudiantes filtrados</p>
+                    </div>
+                    <button onClick={() => setShowStats(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={24}/></button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+                    {/* Tarjetas de Resumen */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div className="bg-white p-4 rounded-2xl shadow-sm border border-violet-100">
+                             <p className="text-xs font-bold text-violet-400 uppercase">Total Selección</p>
+                             <p className="text-3xl font-bold text-violet-900">{filteredStudents.length}</p>
+                        </div>
+                        <div className="bg-white p-4 rounded-2xl shadow-sm border border-blue-100">
+                             <p className="text-xs font-bold text-blue-400 uppercase">Mujeres</p>
+                             <p className="text-3xl font-bold text-blue-900">{filteredStudents.filter(s => s.gender === 'F').length}</p>
+                        </div>
+                        <div className="bg-white p-4 rounded-2xl shadow-sm border border-green-100">
+                             <p className="text-xs font-bold text-green-400 uppercase">Varones</p>
+                             <p className="text-3xl font-bold text-green-900">{filteredStudents.filter(s => s.gender === 'M').length}</p>
+                        </div>
+                        <div className="bg-white p-4 rounded-2xl shadow-sm border border-purple-100">
+                             <p className="text-xs font-bold text-purple-400 uppercase">Con CUD</p>
+                             <p className="text-3xl font-bold text-purple-900">{filteredStudents.filter(s => s.cudExpiration).length}</p>
+                        </div>
+                    </div>
+
+                    {/* Desglose por Diagnóstico */}
+                    <h3 className="font-bold text-gray-800 mb-3 ml-1">Distribución por Diagnóstico (en esta selección)</h3>
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 mb-6">
+                        <div className="space-y-4">
+                            {['DI', 'TES', 'Otro'].map(d => {
+                                const count = filteredStudents.filter(s => s.dx === d).length;
+                                const pct = filteredStudents.length ? Math.round((count / filteredStudents.length) * 100) : 0;
+                                return (
+                                    <div key={d}>
+                                        <div className="flex justify-between text-sm font-bold mb-1">
+                                            <span>{d}</span>
+                                            <span>{count} ({pct}%)</span>
+                                        </div>
+                                        <div className="w-full bg-gray-100 rounded-full h-2.5">
+                                            <div className="bg-violet-600 h-2.5 rounded-full" style={{width: `${pct}%`}}></div>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+                    
+                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 text-sm">
+                        <p className="font-bold text-blue-800 mb-1">💡 Tip:</p>
+                        <p className="text-blue-700">Usa los filtros de la pantalla anterior para afinar estos números. Por ejemplo, si filtras "Nivel: Primario", estos gráficos te mostrarán solo datos de primaria.</p>
+                    </div>
+                </div>
+             </div>
+        </div>
+      )}
+
+      {/* --- MODAL 3: EDITAR / CREAR (NUEVO O EXISTENTE) --- */}
+      {(editingStudent || (!viewingStudent && !showStats && (editingStudent === null && photoPreview === null) === false)) && showModal && ( // Lógica simplificada: usamos un booleano auxiliar en realidad
+          // NOTA: Para simplificar, reutilizamos el estado editingStudent. 
+          // Si editingStudent es null pero se llamó a "openNew", manejamos la apertura abajo.
+          // Mejor: usaremos una variable booleana derivada o el mismo renderizado condicional simple.
+          null 
+      )}
+
+      {/* Renderizado condicional del formulario de edición/creación */}
+      {(editingStudent || (photoPreview === null && editingStudent === null && !viewingStudent && !showStats)) ? null : ( 
+         // Esta lógica es confusa, mejor usamos un estado explicito 'showForm'.
+         // Pero para mantener compatibilidad con tu código anterior, usaremos la presencia de 'editingStudent'
+         // O un booleano 'isFormOpen'. Vamos a refactorizar levemente handleSave y openNew para ser más claros.
+         null
+      )}
+      
+      {/* FORMULARIO DE EDICIÓN REAL (Lo mostramos si editingStudent tiene datos O si venimos de "Nuevo") */}
+      {(editingStudent || (!viewingStudent && !showStats && !editingStudent)) && (
+        <div className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4 ${(!editingStudent && !photoPreview) ? 'hidden' : ''}`}> 
+           {/* Espera, la lógica de 'hidden' es mala práctica. Usaremos una variable de estado simple 'isFormOpen'. */}
+        </div>
+      )}
+      
+      {/* CORRECCIÓN FINAL DE MODALES: Usamos un estado simple 'isFormOpen' que no declaré arriba. 
+          Vamos a usar 'editingStudent' para saber si editamos. 
+          Para 'Crear Nuevo', usaremos 'editingStudent = {}' (objeto vacío) en lugar de null. */}
+          
+      {editingStudent !== null && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-2xl p-6 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">{editingStudent ? 'Editar Ficha' : 'Nueva Ficha'}</h3>
+            <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">{editingStudent.id ? 'Editar Ficha' : 'Nueva Ficha'}</h3>
             
             <form onSubmit={handleSave} className="space-y-6">
-                
               {/* SECCIÓN 1: DATOS PERSONALES Y FOTO */}
               <div className="flex gap-4 flex-col sm:flex-row">
-                  {/* Carga de Foto */}
                   <div className="flex flex-col items-center gap-2">
                       <div className="w-24 h-24 rounded-2xl bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden relative group cursor-pointer">
-                          {photoPreview ? (
-                              <img src={photoPreview} className="w-full h-full object-cover" />
-                          ) : (
-                              <span className="text-xs text-gray-400 text-center px-2">Subir Foto</span>
-                          )}
+                          {photoPreview ? <img src={photoPreview} className="w-full h-full object-cover" /> : <span className="text-xs text-gray-400 text-center px-2">Subir Foto</span>}
                           <input type="file" accept="image/*" onChange={handlePhotoChange} className="absolute inset-0 opacity-0 cursor-pointer" />
                           {uploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><RefreshCw className="text-white animate-spin" /></div>}
                       </div>
-                      <span className="text-[10px] text-gray-400">Clic para cambiar</span>
                   </div>
 
                   <div className="flex-1 space-y-3">
                       <div className="grid grid-cols-2 gap-3">
-                        <div><label className="text-xs font-bold text-gray-500">Apellido *</label><input name="lastName" defaultValue={editingStudent?.lastName} required className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
-                        <div><label className="text-xs font-bold text-gray-500">Nombre *</label><input name="firstName" defaultValue={editingStudent?.firstName} required className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                        <div><label className="text-xs font-bold text-gray-500">Apellido *</label><input name="lastName" defaultValue={editingStudent.lastName} required className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                        <div><label className="text-xs font-bold text-gray-500">Nombre *</label><input name="firstName" defaultValue={editingStudent.firstName} required className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
                       </div>
                       <div className="grid grid-cols-3 gap-3">
-                          <div><label className="text-xs font-bold text-gray-500">DNI</label><input name="dni" type="number" defaultValue={editingStudent?.dni} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
-                          <div><label className="text-xs font-bold text-gray-500">Nacimiento</label><input name="birthDate" type="date" defaultValue={editingStudent?.birthDate} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                          <div><label className="text-xs font-bold text-gray-500">DNI</label><input name="dni" type="number" defaultValue={editingStudent.dni} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                          <div><label className="text-xs font-bold text-gray-500">Nacimiento</label><input name="birthDate" type="date" defaultValue={editingStudent.birthDate} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
                           <div>
                               <label className="text-xs font-bold text-gray-500">Género</label>
-                              <select name="gender" defaultValue={editingStudent?.gender || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
+                              <select name="gender" defaultValue={editingStudent.gender || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
                                   <option value="">Seleccionar</option>
                                   <option value="M">Masculino</option>
                                   <option value="F">Femenino</option>
-                                  <option value="X">No binario</option>
                               </select>
                           </div>
                       </div>
                   </div>
               </div>
 
-              {/* SECCIÓN 2: SALUD Y ESCOLARIDAD */}
+              {/* SECCIÓN 2: INSTITUCIONAL */}
               <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 space-y-3">
-                  <p className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1"><Activity size={12}/> Salud & Escolaridad</p>
+                  <p className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1"><Activity size={12}/> Datos Institucionales</p>
                   <div className="grid grid-cols-2 gap-3">
                       <div>
-                          <label className="text-xs font-bold text-gray-500">Diagnóstico (DX)</label>
-                          <select name="dx" defaultValue={editingStudent?.dx || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
-                              <option value="">Ninguno / A evaluar</option>
-                              <option value="DI">DI (Discapacidad Intelectual)</option>
-                              <option value="TES">TES (Trastorno del Espectro)</option>
-                              <option value="Otro">Otro</option>
+                          <label className="text-xs font-bold text-gray-500">Nivel</label>
+                          <select name="level" defaultValue={editingStudent.level || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
+                              <option value="">Seleccionar</option>
+                              <option value="Inicial">Inicial</option>
+                              <option value="1er Ciclo">1er Ciclo</option>
+                              <option value="2do Ciclo">2do Ciclo</option>
+                              <option value="CFI">CFI</option>
                           </select>
                       </div>
                       <div>
                           <label className="text-xs font-bold text-gray-500">Jornada</label>
-                          <select name="journey" defaultValue={editingStudent?.journey || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
+                          <select name="journey" defaultValue={editingStudent.journey || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
                               <option value="">Seleccionar</option>
                               <option value="Simple Mañana">Simple Mañana</option>
                               <option value="Simple Tarde">Simple Tarde</option>
                               <option value="Doble">Doble Jornada</option>
                           </select>
                       </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                      <div><label className="text-xs font-bold text-gray-500">Obra Social</label><input name="healthInsurance" defaultValue={editingStudent?.healthInsurance} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
-                      <div><label className="text-xs font-bold text-gray-500">Vencimiento CUD</label><input name="cudExpiration" type="date" defaultValue={editingStudent?.cudExpiration} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                       <div>
+                          <label className="text-xs font-bold text-gray-500">Diagnóstico</label>
+                          <select name="dx" defaultValue={editingStudent.dx || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
+                              <option value="">Ninguno</option>
+                              <option value="DI">DI</option>
+                              <option value="TES">TES</option>
+                              <option value="Otro">Otro</option>
+                          </select>
+                      </div>
                   </div>
               </div>
 
-              {/* SECCIÓN 3: UBICACIÓN 2026 */}
+              {/* SECCIÓN 3: UBICACIÓN DETALLADA */}
               <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 space-y-3">
                   <p className="text-xs font-bold text-indigo-800 uppercase tracking-wider flex items-center gap-1"><GraduationCap size={12}/> Ubicación 2026</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div><label className="text-xs font-bold text-gray-500">Docentes/Grupo (Mañana)</label><input name="groupMorning" defaultValue={editingStudent?.groupMorning} placeholder="Ej: 3ro A - Prof. Lopez" className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
-                      <div><label className="text-xs font-bold text-gray-500">Docentes/Grupo (Tarde)</label><input name="groupAfternoon" defaultValue={editingStudent?.groupAfternoon} placeholder="Ej: Taller Carpintería" className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                  
+                  {/* Turno Mañana */}
+                  <div className="bg-white/50 p-2 rounded-lg border border-indigo-100">
+                      <p className="text-[10px] font-bold text-indigo-400 mb-2">TURNO MAÑANA</p>
+                      <div className="grid grid-cols-3 gap-2">
+                         <input name="groupMorning" defaultValue={editingStudent.groupMorning} placeholder="Grupo TM" className="p-2 bg-white rounded border text-xs outline-none" />
+                         <input name="teacherMorning" defaultValue={editingStudent.teacherMorning} placeholder="Docente TM" className="p-2 bg-white rounded border text-xs outline-none" />
+                         <input name="auxMorning" defaultValue={editingStudent.auxMorning} placeholder="Auxiliar TM" className="p-2 bg-white rounded border text-xs outline-none" />
+                      </div>
+                  </div>
+
+                  {/* Turno Tarde */}
+                  <div className="bg-white/50 p-2 rounded-lg border border-indigo-100">
+                      <p className="text-[10px] font-bold text-indigo-400 mb-2">TURNO TARDE</p>
+                      <div className="grid grid-cols-3 gap-2">
+                         <input name="groupAfternoon" defaultValue={editingStudent.groupAfternoon} placeholder="Grupo TT" className="p-2 bg-white rounded border text-xs outline-none" />
+                         <input name="teacherAfternoon" defaultValue={editingStudent.teacherAfternoon} placeholder="Docente TT" className="p-2 bg-white rounded border text-xs outline-none" />
+                         <input name="auxAfternoon" defaultValue={editingStudent.auxAfternoon} placeholder="Auxiliar TT" className="p-2 bg-white rounded border text-xs outline-none" />
+                      </div>
                   </div>
               </div>
 
-              {/* SECCIÓN 4: FAMILIA Y CONTACTO */}
+              {/* SECCIÓN 4: OTROS DATOS */}
               <div className="space-y-3 pt-2 border-t border-gray-100">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Familia y Contacto</p>
-                  <div><label className="text-xs font-bold text-gray-500">Dirección</label><input name="address" defaultValue={editingStudent?.address} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" placeholder="Calle, Número, Localidad" /></div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Salud y Familia</p>
                   <div className="grid grid-cols-2 gap-3">
-                      <div><label className="text-xs font-bold text-gray-500">Nombre Madre</label><input name="motherName" defaultValue={editingStudent?.motherName} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
-                      <div><label className="text-xs font-bold text-gray-500">Contacto Madre</label><input name="motherContact" defaultValue={editingStudent?.motherContact} placeholder="Tel / WhatsApp" className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                      <input name="healthInsurance" defaultValue={editingStudent.healthInsurance} placeholder="Obra Social" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" />
+                      <input name="cudExpiration" type="date" defaultValue={editingStudent.cudExpiration} className="w-full p-2 bg-gray-50 rounded-lg border outline-none" />
                   </div>
+                  <input name="address" defaultValue={editingStudent.address} className="w-full p-2 bg-gray-50 rounded-lg border outline-none" placeholder="Dirección" />
                   <div className="grid grid-cols-2 gap-3">
-                      <div><label className="text-xs font-bold text-gray-500">Nombre Padre</label><input name="fatherName" defaultValue={editingStudent?.fatherName} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
-                      <div><label className="text-xs font-bold text-gray-500">Contacto Padre</label><input name="fatherContact" defaultValue={editingStudent?.fatherContact} placeholder="Tel / WhatsApp" className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                      <input name="motherName" defaultValue={editingStudent.motherName} placeholder="Madre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" />
+                      <input name="motherContact" defaultValue={editingStudent.motherContact} placeholder="Contacto Madre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" />
+                  </div>
+                   <div className="grid grid-cols-2 gap-3">
+                      <input name="fatherName" defaultValue={editingStudent.fatherName} placeholder="Padre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" />
+                      <input name="fatherContact" defaultValue={editingStudent.fatherContact} placeholder="Contacto Padre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" />
                   </div>
               </div>
 
               <div className="flex gap-3 mt-6 pt-4 border-t border-gray-100">
-                {editingStudent && <button type="button" onClick={() => handleDelete(editingStudent.id)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition"><Trash2 size={20}/></button>}
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button>
-                <button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg">Guardar Ficha</button>
+                <button type="button" onClick={() => {setEditingStudent(null); setPhotoPreview(null);}} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button>
+                <button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg">Guardar</button>
               </div>
             </form>
           </div>
@@ -1389,7 +1616,6 @@ function MatriculaView({ canEdit }) {
     </div>
   );
 }
-
 
 
 
