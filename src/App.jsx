@@ -104,18 +104,26 @@ const VAPID_KEY = "BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHt
 
 const requestPermission = async () => {
   try {
+    // 1. ESPERAR a que el Service Worker esté registrado y listo
+    if ('serviceWorker' in navigator) {
+      const registration = await navigator.serviceWorker.ready;
+      console.log('Service Worker listo para suscripción:', registration);
+    }
+
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
+      // 2. Ahora que el SW está listo, pedimos el Token
       const currentToken = await getToken(messaging, {
         vapidKey: VAPID_KEY
       });
+      
       if (currentToken) {
-        console.log('Token generado:', currentToken);
+        console.log('Token generado correctamente:', currentToken);
         return currentToken;
       }
     }
   } catch (error) {
-    console.error('Error al pedir permiso:', error);
+    console.error('Error al pedir permiso (reintentando...):', error);
   }
 };
 
@@ -1361,3 +1369,4 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
