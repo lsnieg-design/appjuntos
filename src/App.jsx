@@ -1,4 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect } from 'react';
+import { requestPermission, onMessageListener } from './firebase';
+
+function App() {
+  useEffect(() => {
+    requestPermission();
+    
+    onMessageListener().then((payload) => {
+      console.log('Notificación recibida:', payload);
+      alert(`Mensaje: ${payload.notification.title}`);
+    });
+  }, []);
+  import React, { useState, useEffect } from 'react';
 import { 
   Calendar as CalendarIcon, 
   CheckSquare, 
@@ -120,7 +132,34 @@ const app = Object.keys(firebaseConfig).length > 0 ? initializeApp(firebaseConfi
 const auth = app ? getAuth(app) : null;
 const db = app ? getFirestore(app) : null;
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'escuela-app-prod';
+// --- INICIO CONFIGURACIÓN MESSAGING ---
+const messaging = app ? getMessaging(app) : null;
 
+const requestPermission = async () => {
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      const currentToken = await getToken(messaging, {
+        vapidKey: "AQUI_TU_VAPID_KEY" // <--- PEGA TU CLAVE DE LA CONSOLA AQUÍ
+      });
+      if (currentToken) {
+        console.log('Token generado:', currentToken);
+      }
+    }
+  } catch (error) {
+    console.error('Error al pedir permiso:', error);
+  }
+};
+
+const onMessageListener = () =>
+  new Promise((resolve) => {
+    if (messaging) {
+      onMessage(messaging, (payload) => {
+        resolve(payload);
+      });
+    }
+  });
+// --- FIN CONFIGURACIÓN MESSAGING ---
 // --- Constantes ---
 const ROLES = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor'];
 const EVENT_TYPES = ['SALIDA EDUCATIVA', 'GENERAL', 'ADMINISTRATIVO', 'INFORMES', 'EVENTOS', 'ACTOS', 'EFEMÉRIDES', 'CUMPLEAÑOS'];
@@ -1315,4 +1354,5 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
