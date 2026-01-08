@@ -172,11 +172,6 @@ const calculateDaysLeft = (dateString) => {
   const diffTime = eventDate - today;
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };
-
-const formatDate = (dateString) => {
-  if (!dateString) return '';
-  const date = new Date(dateString + 'T00:00:00');
-  return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const onMessageListener = () =>
   new Promise((resolve) => {
     if (messaging) {
@@ -184,7 +179,7 @@ const onMessageListener = () =>
         resolve(payload);
       });
     }
-  }); // <--- ESTA ES LA LÍNEA QUE TE FALTA CERRAR BIEN
+  });
 
 // --- Componente Principal Wrapper (FUSIONADO) ---
 export default function App() {
@@ -1373,6 +1368,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
