@@ -19,7 +19,7 @@ messaging.onBackgroundMessage(function(payload) {
   const notificationTitle = payload.notification.title;
   const notificationOptions = {
     body: payload.notification.body,
-    icon: '/icon-192.png',
+    icon: '/favicon.ico',
     badge: '/icon-192.png' // Asegúrate de tener este icono en public
   };
 
