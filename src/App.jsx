@@ -43,7 +43,7 @@ import {
   PieChart, // <--- NUEVO PARA ESTADÍSTICAS
   Eye,      // <--- NUEVO PARA VER FICHA
   Edit3,    // <--- NUEVO PARA EDITAR
-  Filter,   // <--- NUEVO
+  
 
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
@@ -1616,6 +1616,7 @@ function MatriculaView({ user }) { // Quitamos canEdit para que todos puedan edi
     </div>
   );
 }
+
 
 
 
