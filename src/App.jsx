@@ -104,25 +104,27 @@ const VAPID_KEY = "BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHt
 
 const requestPermission = async () => {
   try {
-    // 1. Verificar registro del SW
-    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-    
-    // 2. ESPERAR a que el estado sea 'activated'
-    await navigator.serviceWorker.ready; 
-    
+    // 1. ESPERAR a que el Service Worker esté listo
+    const registration = await navigator.serviceWorker.ready; //
+    console.log('Service Worker detectado y activo:', registration);
+
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
+      // 2. Pedir el Token pasando el registro explícitamente
       const currentToken = await getToken(messaging, {
         vapidKey: "BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw",
-        serviceWorkerRegistration: registration // Pasa el registro explícitamente
+        serviceWorkerRegistration: registration // Esto evita el AbortError
       });
-      console.log("Token generado:", currentToken);
+      
+      if (currentToken) {
+        console.log('Token final generado:', currentToken);
+        // Aquí podrías guardar el token en Firestore si es necesario
+      }
     }
   } catch (error) {
-    console.error("Error detallado:", error);
+    console.error('Error en el proceso de suscripción:', error);
   }
-};
-const onMessageListener = () =>
+};sageListener = () =>
   new Promise((resolve) => {
     if (messaging) {
       onMessage(messaging, (payload) => {
@@ -1364,5 +1366,6 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
