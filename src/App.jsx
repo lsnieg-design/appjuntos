@@ -178,7 +178,8 @@ const formatDate = (dateString) => {
   const date = new Date(dateString + 'T00:00:00');
   return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
-
+}
+  });
 // --- Componente Principal Wrapper (FUSIONADO) ---
 export default function App() {
   const [firebaseUser, setFirebaseUser] = useState(null);
@@ -1365,6 +1366,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
