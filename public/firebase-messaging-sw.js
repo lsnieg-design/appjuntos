@@ -1,6 +1,6 @@
  // Archivo: public/firebase-messaging-sw.js
-importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js');
 
 const firebaseConfig = {
   apiKey: "AIzaSyAsa-o1ykRaY4sy4AhSSrCFApWh-XBhb8M", // (Por seguridad no lo pongo aquí, COPIA EL DE TU FOTO)
