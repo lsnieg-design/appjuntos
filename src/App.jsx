@@ -1,3 +1,4 @@
+import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import React, { useState, useEffect } from 'react';
 import { 
   Calendar as CalendarIcon, 
@@ -558,6 +559,89 @@ function MainApp({ user, onLogout }) {
       default: return <DashboardView user={user} tasks={tasks} events={events} />;
     }
   };
+  // --- ACTIVAR NOTIFICACIONES PUSH (APP CERRADA) ---
+
+  useEffect(() => {
+
+    // 1. Inicializamos la mensajería
+
+    const messaging = getMessaging(app);
+
+
+
+    const activarMensajes = async () => {
+
+      try {
+
+        // 2. Pedir permiso al usuario (el navegador mostrará el cartelito)
+
+        const permission = await Notification.requestPermission();
+
+        
+
+        if (permission === 'granted') {
+
+          // 3. Obtener el Token Único de este dispositivo
+
+          const currentToken = await getToken(messaging, {
+
+            vapidKey: "PEGA_AQUÍ_LA_CLAVE_LARGA_QUE_COPIASTE_DE_FIREBASE" 
+
+          });
+
+
+
+          if (currentToken) {
+
+            console.log("BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw", currentToken);
+
+            // (Opcional) Aquí podríamos guardar este token en la base de datos del usuario
+
+            // para saber a quién enviarle mensajes específicos en el futuro.
+
+          }
+
+        } else {
+
+          console.log("No se dio permiso para notificaciones.");
+
+        }
+
+      } catch (error) {
+
+        console.error("Error al activar notificaciones:", error);
+
+      }
+
+    };
+
+
+
+    activarMensajes();
+
+
+
+    // 4. Escuchar mensajes si la app está ABIERTA (Foreground)
+
+    // Esto complementa al Service Worker (que se encarga cuando está cerrada)
+
+    onMessage(messaging, (payload) => {
+
+      // console.log('Mensaje recibido en primer plano:', payload);
+
+      // Usamos tu función de notificación visual que ya tienes
+
+      if (payload.notification) {
+
+          triggerMobileNotification(payload.notification.title, payload.notification.body, 'fcm-msg');
+
+      }
+
+    });
+
+
+
+  }, []); // Se ejecuta una sola vez al abrir la app
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 font-sans text-slate-800">
@@ -1780,5 +1864,6 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
