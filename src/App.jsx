@@ -1036,16 +1036,16 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
     </div>
   );
 }
-// --- VISTA MATRÍCULA (COMPLETA Y ACTUALIZADA) ---
-// --- VISTA MATRÍCULA (CON ESTADÍSTICAS Y FICHA SEPARADA) ---
-function MatriculaView({ user }) { // Quitamos canEdit para que todos puedan editar si así lo pides
+// --- VISTA MATRÍCULA (CORREGIDA Y ESTABILIZADA) ---
+function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
   const [filterText, setFilterText] = useState('');
   
-  // Modales
-  const [viewingStudent, setViewingStudent] = useState(null); // Para ver ficha
-  const [editingStudent, setEditingStudent] = useState(null); // Para editar ficha
-  const [showStats, setShowStats] = useState(false); // Para estadísticas
+  // ESTADOS DE MODALES
+  const [viewingStudent, setViewingStudent] = useState(null); // Ver ficha (lectura)
+  const [showStats, setShowStats] = useState(false);          // Ver estadísticas
+  const [showForm, setShowForm] = useState(false);            // Abrir/Cerrar formulario
+  const [editingStudent, setEditingStudent] = useState(null); // Datos del estudiante a editar (null = nuevo)
 
   // Estado foto
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -1058,7 +1058,7 @@ function MatriculaView({ user }) { // Quitamos canEdit para que todos puedan edi
     gender: 'all',
     journey: 'all',
     group: 'all',
-    teacher: 'all' // Busca en mañana y tarde
+    teacher: 'all'
   });
 
   // Utilidad: Calcular Edad
@@ -1136,9 +1136,22 @@ function MatriculaView({ user }) { // Quitamos canEdit para que todos puedan edi
     return textMatch && levelMatch && dxMatch && genderMatch && journeyMatch && groupMatch && teacherMatch;
   });
 
-  // Listas únicas para los selectores
   const uniqueGroups = [...new Set([...students.map(s => s.groupMorning), ...students.map(s => s.groupAfternoon)].filter(Boolean))].sort();
   const uniqueTeachers = [...new Set([...students.map(s => s.teacherMorning), ...students.map(s => s.teacherAfternoon)].filter(Boolean))].sort();
+
+  // --- MANEJO DEL FORMULARIO ---
+  const openNew = () => {
+      setEditingStudent(null); // Limpiamos para nuevo
+      setPhotoPreview(null);
+      setShowForm(true);       // Abrimos el modal
+  };
+
+  const openEdit = (student) => {
+      setEditingStudent(student);        // Cargamos datos
+      setPhotoPreview(student.photoUrl); // Cargamos foto
+      setViewingStudent(null);           // Cerramos la vista de lectura si estaba abierta
+      setShowForm(true);                 // Abrimos el modal
+  };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -1152,21 +1165,18 @@ function MatriculaView({ user }) { // Quitamos canEdit para que todos puedan edi
       gender: formData.get('gender'),
       dx: formData.get('dx'),
       journey: formData.get('journey'),
-      level: formData.get('level'), // <--- NUEVO CAMPO
+      level: formData.get('level'),
       healthInsurance: formData.get('healthInsurance'),
       cudExpiration: formData.get('cudExpiration'),
       
-      // Turno Mañana
       groupMorning: formData.get('groupMorning'),
       teacherMorning: formData.get('teacherMorning'),
       auxMorning: formData.get('auxMorning'),
 
-      // Turno Tarde
       groupAfternoon: formData.get('groupAfternoon'),
       teacherAfternoon: formData.get('teacherAfternoon'),
       auxAfternoon: formData.get('auxAfternoon'),
       
-      // Contactos
       address: formData.get('address'),
       motherName: formData.get('motherName'),
       motherContact: formData.get('motherContact'),
@@ -1180,10 +1190,10 @@ function MatriculaView({ user }) { // Quitamos canEdit para que todos puedan edi
     try {
       if (editingStudent) {
         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', editingStudent.id), data);
-        setViewingStudent({ ...editingStudent, ...data }); // Actualizar vista si estaba abierta
       } else {
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...data, createdAt: serverTimestamp() });
       }
+      setShowForm(false);
       setEditingStudent(null);
       setPhotoPreview(null);
     } catch (err) { alert("Error: " + err.message); }
@@ -1194,10 +1204,10 @@ function MatriculaView({ user }) { // Quitamos canEdit para que todos puedan edi
       await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id));
       setViewingStudent(null);
       setEditingStudent(null);
+      setShowForm(false);
     }
   };
 
-  // Exportar usando los filtros actuales (útil para reportes específicos)
   const exportFiltered = () => {
     let csv = "Apellido,Nombre,DNI,Nivel,Edad,DX,Jornada,Mañana,Tarde\n";
     filteredStudents.forEach(s => {
@@ -1226,7 +1236,7 @@ function MatriculaView({ user }) { // Quitamos canEdit para que todos puedan edi
             <button onClick={exportFiltered} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold" title="Descargar Lista Filtrada">
                 <Download size={20}/> Exportar
             </button>
-            <button onClick={() => {setEditingStudent(null); setPhotoPreview(null);}} className="bg-white text-blue-600 p-3 rounded-xl shadow-lg hover:bg-blue-50 transition font-bold" title="Nuevo Ingreso">
+            <button onClick={openNew} className="bg-white text-blue-600 p-3 rounded-xl shadow-lg hover:bg-blue-50 transition font-bold" title="Nuevo Ingreso">
                 <Plus size={24} />
             </button>
           </div>
@@ -1320,7 +1330,7 @@ function MatriculaView({ user }) { // Quitamos canEdit para que todos puedan edi
       </div>
 
       {/* --- MODAL 1: VER FICHA (SOLO LECTURA) --- */}
-      {viewingStudent && !editingStudent && (
+      {viewingStudent && !showForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]">
                 <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0">
@@ -1392,7 +1402,7 @@ function MatriculaView({ user }) { // Quitamos canEdit para que todos puedan edi
                 </div>
 
                 <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3 shrink-0">
-                    <button onClick={() => { setEditingStudent(viewingStudent); setPhotoPreview(viewingStudent.photoUrl); }} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-lg">
+                    <button onClick={() => openEdit(viewingStudent)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-lg">
                         <Edit3 size={18}/> Editar Ficha
                     </button>
                 </div>
@@ -1465,36 +1475,10 @@ function MatriculaView({ user }) { // Quitamos canEdit para que todos puedan edi
       )}
 
       {/* --- MODAL 3: EDITAR / CREAR (NUEVO O EXISTENTE) --- */}
-      {(editingStudent || (!viewingStudent && !showStats && (editingStudent === null && photoPreview === null) === false)) && showModal && ( // Lógica simplificada: usamos un booleano auxiliar en realidad
-          // NOTA: Para simplificar, reutilizamos el estado editingStudent. 
-          // Si editingStudent es null pero se llamó a "openNew", manejamos la apertura abajo.
-          // Mejor: usaremos una variable booleana derivada o el mismo renderizado condicional simple.
-          null 
-      )}
-
-      {/* Renderizado condicional del formulario de edición/creación */}
-      {(editingStudent || (photoPreview === null && editingStudent === null && !viewingStudent && !showStats)) ? null : ( 
-         // Esta lógica es confusa, mejor usamos un estado explicito 'showForm'.
-         // Pero para mantener compatibilidad con tu código anterior, usaremos la presencia de 'editingStudent'
-         // O un booleano 'isFormOpen'. Vamos a refactorizar levemente handleSave y openNew para ser más claros.
-         null
-      )}
-      
-      {/* FORMULARIO DE EDICIÓN REAL (Lo mostramos si editingStudent tiene datos O si venimos de "Nuevo") */}
-      {(editingStudent || (!viewingStudent && !showStats && !editingStudent)) && (
-        <div className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4 ${(!editingStudent && !photoPreview) ? 'hidden' : ''}`}> 
-           {/* Espera, la lógica de 'hidden' es mala práctica. Usaremos una variable de estado simple 'isFormOpen'. */}
-        </div>
-      )}
-      
-      {/* CORRECCIÓN FINAL DE MODALES: Usamos un estado simple 'isFormOpen' que no declaré arriba. 
-          Vamos a usar 'editingStudent' para saber si editamos. 
-          Para 'Crear Nuevo', usaremos 'editingStudent = {}' (objeto vacío) en lugar de null. */}
-          
-      {editingStudent !== null && (
+      {showForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-2xl p-6 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">{editingStudent.id ? 'Editar Ficha' : 'Nueva Ficha'}</h3>
+            <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">{editingStudent ? 'Editar Ficha' : 'Nueva Ficha'}</h3>
             
             <form onSubmit={handleSave} className="space-y-6">
               {/* SECCIÓN 1: DATOS PERSONALES Y FOTO */}
@@ -1509,15 +1493,15 @@ function MatriculaView({ user }) { // Quitamos canEdit para que todos puedan edi
 
                   <div className="flex-1 space-y-3">
                       <div className="grid grid-cols-2 gap-3">
-                        <div><label className="text-xs font-bold text-gray-500">Apellido *</label><input name="lastName" defaultValue={editingStudent.lastName} required className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
-                        <div><label className="text-xs font-bold text-gray-500">Nombre *</label><input name="firstName" defaultValue={editingStudent.firstName} required className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                        <div><label className="text-xs font-bold text-gray-500">Apellido *</label><input name="lastName" defaultValue={editingStudent?.lastName || ''} required className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                        <div><label className="text-xs font-bold text-gray-500">Nombre *</label><input name="firstName" defaultValue={editingStudent?.firstName || ''} required className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
                       </div>
                       <div className="grid grid-cols-3 gap-3">
-                          <div><label className="text-xs font-bold text-gray-500">DNI</label><input name="dni" type="number" defaultValue={editingStudent.dni} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
-                          <div><label className="text-xs font-bold text-gray-500">Nacimiento</label><input name="birthDate" type="date" defaultValue={editingStudent.birthDate} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                          <div><label className="text-xs font-bold text-gray-500">DNI</label><input name="dni" type="number" defaultValue={editingStudent?.dni || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                          <div><label className="text-xs font-bold text-gray-500">Nacimiento</label><input name="birthDate" type="date" defaultValue={editingStudent?.birthDate || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
                           <div>
                               <label className="text-xs font-bold text-gray-500">Género</label>
-                              <select name="gender" defaultValue={editingStudent.gender || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
+                              <select name="gender" defaultValue={editingStudent?.gender || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
                                   <option value="">Seleccionar</option>
                                   <option value="M">Masculino</option>
                                   <option value="F">Femenino</option>
@@ -1533,7 +1517,7 @@ function MatriculaView({ user }) { // Quitamos canEdit para que todos puedan edi
                   <div className="grid grid-cols-2 gap-3">
                       <div>
                           <label className="text-xs font-bold text-gray-500">Nivel</label>
-                          <select name="level" defaultValue={editingStudent.level || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
+                          <select name="level" defaultValue={editingStudent?.level || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
                               <option value="">Seleccionar</option>
                               <option value="Inicial">Inicial</option>
                               <option value="1er Ciclo">1er Ciclo</option>
@@ -1543,7 +1527,7 @@ function MatriculaView({ user }) { // Quitamos canEdit para que todos puedan edi
                       </div>
                       <div>
                           <label className="text-xs font-bold text-gray-500">Jornada</label>
-                          <select name="journey" defaultValue={editingStudent.journey || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
+                          <select name="journey" defaultValue={editingStudent?.journey || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
                               <option value="">Seleccionar</option>
                               <option value="Simple Mañana">Simple Mañana</option>
                               <option value="Simple Tarde">Simple Tarde</option>
@@ -1552,7 +1536,7 @@ function MatriculaView({ user }) { // Quitamos canEdit para que todos puedan edi
                       </div>
                        <div>
                           <label className="text-xs font-bold text-gray-500">Diagnóstico</label>
-                          <select name="dx" defaultValue={editingStudent.dx || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
+                          <select name="dx" defaultValue={editingStudent?.dx || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
                               <option value="">Ninguno</option>
                               <option value="DI">DI</option>
                               <option value="TES">TES</option>
@@ -1570,9 +1554,9 @@ function MatriculaView({ user }) { // Quitamos canEdit para que todos puedan edi
                   <div className="bg-white/50 p-2 rounded-lg border border-indigo-100">
                       <p className="text-[10px] font-bold text-indigo-400 mb-2">TURNO MAÑANA</p>
                       <div className="grid grid-cols-3 gap-2">
-                         <input name="groupMorning" defaultValue={editingStudent.groupMorning} placeholder="Grupo TM" className="p-2 bg-white rounded border text-xs outline-none" />
-                         <input name="teacherMorning" defaultValue={editingStudent.teacherMorning} placeholder="Docente TM" className="p-2 bg-white rounded border text-xs outline-none" />
-                         <input name="auxMorning" defaultValue={editingStudent.auxMorning} placeholder="Auxiliar TM" className="p-2 bg-white rounded border text-xs outline-none" />
+                         <input name="groupMorning" defaultValue={editingStudent?.groupMorning || ''} placeholder="Grupo TM" className="p-2 bg-white rounded border text-xs outline-none" />
+                         <input name="teacherMorning" defaultValue={editingStudent?.teacherMorning || ''} placeholder="Docente TM" className="p-2 bg-white rounded border text-xs outline-none" />
+                         <input name="auxMorning" defaultValue={editingStudent?.auxMorning || ''} placeholder="Auxiliar TM" className="p-2 bg-white rounded border text-xs outline-none" />
                       </div>
                   </div>
 
@@ -1580,9 +1564,9 @@ function MatriculaView({ user }) { // Quitamos canEdit para que todos puedan edi
                   <div className="bg-white/50 p-2 rounded-lg border border-indigo-100">
                       <p className="text-[10px] font-bold text-indigo-400 mb-2">TURNO TARDE</p>
                       <div className="grid grid-cols-3 gap-2">
-                         <input name="groupAfternoon" defaultValue={editingStudent.groupAfternoon} placeholder="Grupo TT" className="p-2 bg-white rounded border text-xs outline-none" />
-                         <input name="teacherAfternoon" defaultValue={editingStudent.teacherAfternoon} placeholder="Docente TT" className="p-2 bg-white rounded border text-xs outline-none" />
-                         <input name="auxAfternoon" defaultValue={editingStudent.auxAfternoon} placeholder="Auxiliar TT" className="p-2 bg-white rounded border text-xs outline-none" />
+                         <input name="groupAfternoon" defaultValue={editingStudent?.groupAfternoon || ''} placeholder="Grupo TT" className="p-2 bg-white rounded border text-xs outline-none" />
+                         <input name="teacherAfternoon" defaultValue={editingStudent?.teacherAfternoon || ''} placeholder="Docente TT" className="p-2 bg-white rounded border text-xs outline-none" />
+                         <input name="auxAfternoon" defaultValue={editingStudent?.auxAfternoon || ''} placeholder="Auxiliar TT" className="p-2 bg-white rounded border text-xs outline-none" />
                       </div>
                   </div>
               </div>
@@ -1591,22 +1575,22 @@ function MatriculaView({ user }) { // Quitamos canEdit para que todos puedan edi
               <div className="space-y-3 pt-2 border-t border-gray-100">
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Salud y Familia</p>
                   <div className="grid grid-cols-2 gap-3">
-                      <input name="healthInsurance" defaultValue={editingStudent.healthInsurance} placeholder="Obra Social" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" />
-                      <input name="cudExpiration" type="date" defaultValue={editingStudent.cudExpiration} className="w-full p-2 bg-gray-50 rounded-lg border outline-none" />
+                      <input name="healthInsurance" defaultValue={editingStudent?.healthInsurance || ''} placeholder="Obra Social" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" />
+                      <input name="cudExpiration" type="date" defaultValue={editingStudent?.cudExpiration || ''} className="w-full p-2 bg-gray-50 rounded-lg border outline-none" />
                   </div>
-                  <input name="address" defaultValue={editingStudent.address} className="w-full p-2 bg-gray-50 rounded-lg border outline-none" placeholder="Dirección" />
+                  <input name="address" defaultValue={editingStudent?.address || ''} className="w-full p-2 bg-gray-50 rounded-lg border outline-none" placeholder="Dirección" />
                   <div className="grid grid-cols-2 gap-3">
-                      <input name="motherName" defaultValue={editingStudent.motherName} placeholder="Madre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" />
-                      <input name="motherContact" defaultValue={editingStudent.motherContact} placeholder="Contacto Madre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" />
+                      <input name="motherName" defaultValue={editingStudent?.motherName || ''} placeholder="Madre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" />
+                      <input name="motherContact" defaultValue={editingStudent?.motherContact || ''} placeholder="Contacto Madre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" />
                   </div>
                    <div className="grid grid-cols-2 gap-3">
-                      <input name="fatherName" defaultValue={editingStudent.fatherName} placeholder="Padre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" />
-                      <input name="fatherContact" defaultValue={editingStudent.fatherContact} placeholder="Contacto Padre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" />
+                      <input name="fatherName" defaultValue={editingStudent?.fatherName || ''} placeholder="Padre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" />
+                      <input name="fatherContact" defaultValue={editingStudent?.fatherContact || ''} placeholder="Contacto Padre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" />
                   </div>
               </div>
 
               <div className="flex gap-3 mt-6 pt-4 border-t border-gray-100">
-                <button type="button" onClick={() => {setEditingStudent(null); setPhotoPreview(null);}} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button>
+                <button type="button" onClick={() => {setShowForm(false); setEditingStudent(null); setPhotoPreview(null);}} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button>
                 <button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg">Guardar</button>
               </div>
             </form>
@@ -1616,6 +1600,7 @@ function MatriculaView({ user }) { // Quitamos canEdit para que todos puedan edi
     </div>
   );
 }
+
 
 
 
