@@ -1036,7 +1036,7 @@ function ProfileView({ user, tasks, onLogout, canEdit }) {
     </div>
   );
 }
-// --- VISTA MATRÍCULA (FINAL: Corrección INICIAL mayúsculas) ---
+// --- VISTA MATRÍCULA (FINAL: Varón/Mujer + Predicción de Nombre) ---
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
   const [filterText, setFilterText] = useState('');
@@ -1050,11 +1050,7 @@ function MatriculaView({ user }) {
 
   // ESTADO PARA LA CALCULADORA ESTADÍSTICA
   const [statFilters, setStatFilters] = useState({
-      level: 'all',
-      dx: 'all',
-      gender: 'all',
-      journey: 'all',
-      turn: 'all'
+      level: 'all', dx: 'all', gender: 'all', journey: 'all', turn: 'all'
   });
 
   // Estado Importación
@@ -1109,6 +1105,34 @@ function MatriculaView({ user }) {
       const resized = await resizeImage(file);
       setPhotoPreview(resized);
     } catch (error) { alert("Error imagen"); } finally { setUploading(false); }
+  };
+
+  // --- INTELIGENCIA DE GÉNERO ---
+  const predictGender = (fullName) => {
+      if (!fullName) return '';
+      // Tomamos el primer nombre, quitamos espacios y pasamos a mayúsculas
+      const name = fullName.trim().split(' ')[0].toUpperCase();
+
+      // LISTA DE EXCEPCIONES (Nombres que terminan en A pero son Varones, o viceversa)
+      const maleExceptions = ['LUCA', 'LUKA', 'NICOLA', 'ANDREA', 'BAUTISTA', 'SANTINO', 'MATIAS', 'TOMAS', 'LUCAS', 'NICOLAS', 'JOAQUIN', 'AGUSTIN', 'FELIPE', 'ELIAS', 'JONAS', 'TOBIAS', 'ISAIAS', 'NOAH', 'VALENTIN'];
+      const femaleExceptions = ['SOL', 'BELEN', 'ABRIL', 'AZUL', 'LUZ', 'PILAR', 'ROCIO', 'TRINIDAD', 'NAHIR', 'RUTH', 'ESTER', 'JAZMIN', 'ZOE', 'MIA', 'UMA'];
+
+      if (maleExceptions.includes(name)) return 'M';
+      if (femaleExceptions.includes(name)) return 'F';
+
+      // REGLA GENERAL: Si termina en 'A', suele ser Mujer. Si no, Varón.
+      if (name.endsWith('A')) return 'F';
+      return 'M';
+  };
+
+  const handleNameChange = (e) => {
+      const name = e.target.value;
+      const guess = predictGender(name);
+      const genderSelect = document.getElementById('genderSelect');
+      // Solo sugerimos si hay una predicción clara y el usuario no ha seleccionado nada manualmente aún
+      if (genderSelect && guess) {
+          genderSelect.value = guess;
+      }
   };
 
   useEffect(() => {
@@ -1249,7 +1273,7 @@ function MatriculaView({ user }) {
           </div>
         </div>
         
-        {/* BUSCADOR Y FILTROS PRINCIPALES (Corregido: INICIAL) */}
+        {/* BUSCADOR Y FILTROS PRINCIPALES (VARÓN / MUJER) */}
         <div className="mt-6 space-y-3">
           <div className="bg-white/10 backdrop-blur-md p-2 rounded-xl flex items-center gap-2 border border-white/20">
             <Search className="text-white ml-2 opacity-70" size={20} />
@@ -1259,13 +1283,17 @@ function MatriculaView({ user }) {
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
             <select value={filters.level} onChange={e => setFilters({...filters, level: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30">
                 <option value="all" className="text-gray-800">Nivel: Todos</option>
-                <option value="INICIAL" className="text-gray-800">INICIAL</option> {/* CORREGIDO */}
+                <option value="INICIAL" className="text-gray-800">INICIAL</option>
                 <option value="1° Ciclo" className="text-gray-800">1° Ciclo</option>
                 <option value="2° Ciclo" className="text-gray-800">2° Ciclo</option>
                 <option value="CFI" className="text-gray-800">CFI</option>
             </select>
             <select value={filters.dx} onChange={e => setFilters({...filters, dx: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">DX: Todos</option><option value="DI" className="text-gray-800">DI</option><option value="TES" className="text-gray-800">TES</option><option value="Otro" className="text-gray-800">Otro</option></select>
-            <select value={filters.gender} onChange={e => setFilters({...filters, gender: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">Género: Todos</option><option value="F" className="text-gray-800">Femenino</option><option value="M" className="text-gray-800">Masculino</option></select>
+            <select value={filters.gender} onChange={e => setFilters({...filters, gender: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30">
+                <option value="all" className="text-gray-800">Género: Todos</option>
+                <option value="F" className="text-gray-800">Mujer</option> {/* CAMBIO */}
+                <option value="M" className="text-gray-800">Varón</option> {/* CAMBIO */}
+            </select>
             <select value={filters.journey} onChange={e => setFilters({...filters, journey: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">Jornada: Todas</option><option value="Simple Mañana" className="text-gray-800">Mañana</option><option value="Simple Tarde" className="text-gray-800">Tarde</option><option value="Doble" className="text-gray-800">Doble</option></select>
             <select value={filters.group} onChange={e => setFilters({...filters, group: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">Grupo: Todos</option>{uniqueGroups.map(g => <option key={g} value={g} className="text-gray-800">{g}</option>)}</select>
             <select value={filters.teacher} onChange={e => setFilters({...filters, teacher: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">Docente: Todos</option>{uniqueTeachers.map(t => <option key={t} value={t} className="text-gray-800">{t}</option>)}</select>
@@ -1303,7 +1331,7 @@ function MatriculaView({ user }) {
         </div>
       )}
 
-      {/* --- MODAL CALCULADORA ESTADÍSTICA (Corregido: INICIAL) --- */}
+      {/* --- MODAL CALCULADORA ESTADÍSTICA (VARÓN / MUJER) --- */}
       {showStats && (
         <div className="fixed inset-0 bg-violet-900/80 backdrop-blur-md z-[60] flex items-center justify-center p-4">
              <div className="bg-white rounded-3xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl animate-in zoom-in-95 overflow-hidden">
@@ -1322,7 +1350,7 @@ function MatriculaView({ user }) {
                              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Nivel</label>
                              <select value={statFilters.level} onChange={e => setStatFilters({...statFilters, level: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none border focus:border-violet-500">
                                 <option value="all">Todos</option>
-                                <option value="INICIAL">INICIAL</option> {/* CORREGIDO */}
+                                <option value="INICIAL">INICIAL</option>
                                 <option value="1° Ciclo">1° Ciclo</option>
                                 <option value="2° Ciclo">2° Ciclo</option>
                                 <option value="CFI">CFI</option>
@@ -1334,7 +1362,11 @@ function MatriculaView({ user }) {
                          </div>
                          <div>
                              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Género</label>
-                             <select value={statFilters.gender} onChange={e => setStatFilters({...statFilters, gender: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none border focus:border-violet-500"><option value="all">Todos</option><option value="M">Varones</option><option value="F">Mujeres</option></select>
+                             <select value={statFilters.gender} onChange={e => setStatFilters({...statFilters, gender: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none border focus:border-violet-500">
+                                <option value="all">Todos</option>
+                                <option value="M">Varones</option> {/* CAMBIO */}
+                                <option value="F">Mujeres</option> {/* CAMBIO */}
+                             </select>
                          </div>
                          <div>
                              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Jornada</label>
@@ -1460,7 +1492,7 @@ function MatriculaView({ user }) {
         </div>
       )}
 
-      {/* --- MODAL FORMULARIO (Corregido: INICIAL) --- */}
+      {/* --- MODAL FORMULARIO (FINAL: Autocompletado Género) --- */}
       {showForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-2xl p-6 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
@@ -1477,12 +1509,34 @@ function MatriculaView({ user }) {
                   <div className="flex-1 space-y-3">
                       <div className="grid grid-cols-2 gap-3">
                         <div><label className="text-xs font-bold text-gray-500">Apellido *</label><input name="lastName" defaultValue={editingStudent?.lastName || ''} required className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
-                        <div><label className="text-xs font-bold text-gray-500">Nombre *</label><input name="firstName" defaultValue={editingStudent?.firstName || ''} required className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
+                        {/* INPUT NOMBRE CON AUTO-GÉNERO */}
+                        <div>
+                             <label className="text-xs font-bold text-gray-500">Nombre *</label>
+                             <input 
+                                name="firstName" 
+                                defaultValue={editingStudent?.firstName || ''} 
+                                required 
+                                onChange={handleNameChange} // <--- MAGIA AQUÍ
+                                className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" 
+                             />
+                        </div>
                       </div>
                       <div className="grid grid-cols-3 gap-3">
                           <div><label className="text-xs font-bold text-gray-500">DNI</label><input name="dni" type="number" defaultValue={editingStudent?.dni || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
                           <div><label className="text-xs font-bold text-gray-500">Nacimiento</label><input name="birthDate" type="date" defaultValue={editingStudent?.birthDate || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div>
-                          <div><label className="text-xs font-bold text-gray-500">Género</label><select name="gender" defaultValue={editingStudent?.gender || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"><option value="">Seleccionar</option><option value="M">Masculino</option><option value="F">Femenino</option></select></div>
+                          <div>
+                              <label className="text-xs font-bold text-gray-500">Género</label>
+                              <select 
+                                id="genderSelect" // <--- ID PARA REFERENCIA
+                                name="gender" 
+                                defaultValue={editingStudent?.gender || ''} 
+                                className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"
+                              >
+                                  <option value="">Seleccionar</option>
+                                  <option value="M">Varón</option> {/* CAMBIO */}
+                                  <option value="F">Mujer</option> {/* CAMBIO */}
+                              </select>
+                          </div>
                       </div>
                   </div>
               </div>
@@ -1493,7 +1547,7 @@ function MatriculaView({ user }) {
                           <label className="text-xs font-bold text-gray-500">Nivel</label>
                           <select name="level" defaultValue={editingStudent?.level || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none">
                             <option value="">Seleccionar</option>
-                            <option value="INICIAL">INICIAL</option> {/* CORREGIDO */}
+                            <option value="INICIAL">INICIAL</option>
                             <option value="1° Ciclo">1° Ciclo</option>
                             <option value="2° Ciclo">2° Ciclo</option>
                             <option value="CFI">CFI</option>
@@ -1530,4 +1584,5 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
