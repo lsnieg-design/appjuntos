@@ -1496,19 +1496,19 @@ function MatriculaView({ user }) {
     }
   };
 
-// --- EXPORTACIÓN EXCEL PROFESIONAL ---
+// --- EXPORTACIÓN EXCEL PROFESIONAL (Versión Argentina 🇦🇷) ---
   const exportFiltered = () => {
     if (filteredStudents.length === 0) {
       alert("No hay datos para exportar.");
       return;
     }
 
-    // 1. Encabezados de las columnas
+    // 1. Encabezados de las columnas (Separados por ;)
     const headers = ["Apellido", "Nombre", "DNI", "Nivel", "Edad", "DX", "Jornada", "Turno Mañana", "Turno Tarde"];
     
     // 2. Armamos las filas
     const csvContent = [
-      headers.join(','), // Fila de títulos
+      headers.join(';'), // <--- CAMBIO CLAVE AQUÍ (Usamos punto y coma)
       ...filteredStudents.map(s => {
         const age = calculateAge(s.birthDate);
         // "Limpiamos" los datos para que no rompan el Excel
@@ -1522,7 +1522,7 @@ function MatriculaView({ user }) {
           `"${s.journey || ''}"`,
           `"${s.groupMorning || ''}"`,
           `"${s.groupAfternoon || ''}"`
-        ].join(',');
+        ].join(';'); // <--- CAMBIO CLAVE AQUÍ TAMBIÉN
       })
     ].join('\n'); // Unimos todo con saltos de línea
 
@@ -1897,6 +1897,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
