@@ -248,8 +248,8 @@ export default function App() {
   if (configError) return <div className="flex flex-col items-center justify-center h-screen bg-red-50 p-6 text-center"><AlertCircle className="text-red-500 w-16 h-16 mb-4" /><h1 className="text-xl font-bold text-red-700">Error de Configuración</h1></div>;
   if (!currentUserProfile) return <LoginScreen onLogin={handleLogin} />;
 
-  return <MainApp user={currentUserProfile} onLogout={handleLogout} />;
-}
+ return <MainApp user={currentUserProfile} onLogout={handleLogout} />;
+} // <--- ESTA LLAVE ES LA QUE TE FALTA. Agrégala ahí mismo.
 
 // --- PANTALLA LOGIN ---
 function LoginScreen({ onLogin }) {
@@ -1368,6 +1368,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
