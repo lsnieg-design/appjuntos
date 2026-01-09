@@ -124,14 +124,7 @@ const requestPermission = async () => {
   } catch (error) {
     console.error('Error en el proceso de suscripción:', error);
   }
-const onMessageListener = () =>
-  new Promise((resolve) => {
-    if (messaging) {
-      onMessage(messaging, (payload) => {
-        resolve(payload);
-      });
-    }
-  });
+
 
 // --- FUNCIÓN SEGURA PARA NOTIFICACIONES MÓVILES ---
 const triggerMobileNotification = (title, body) => {
@@ -172,14 +165,7 @@ const calculateDaysLeft = (dateString) => {
   const diffTime = eventDate - today;
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };
-const onMessageListener = () =>
-  new Promise((resolve) => {
-    if (messaging) {
-      onMessage(messaging, (payload) => {
-        resolve(payload);
-      });
-    }
-  });
+
 
 // --- Componente Principal Wrapper (FUSIONADO) ---
 export default function App() {
@@ -1368,6 +1354,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
