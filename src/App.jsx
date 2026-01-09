@@ -124,8 +124,14 @@ const requestPermission = async () => {
   } catch (error) {
     console.error('Error en el proceso de suscripción:', error);
   }
-};
-
+};sageListener = () =>
+  new Promise((resolve) => {
+    if (messaging) {
+      onMessage(messaging, (payload) => {
+        resolve(payload);
+      });
+    }
+  });
 
 // --- FUNCIÓN SEGURA PARA NOTIFICACIONES MÓVILES ---
 const triggerMobileNotification = (title, body) => {
@@ -166,6 +172,11 @@ const calculateDaysLeft = (dateString) => {
   const diffTime = eventDate - today;
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };
+
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString + 'T00:00:00');
+  return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
 // --- Componente Principal Wrapper (FUSIONADO) ---
@@ -175,21 +186,21 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [configError, setConfigError] = useState(false);
 
- 
-
- // Efecto para Notificaciones (Línea 196 aprox)
+  // Efecto para Notificaciones (Movido aquí adentro)
   useEffect(() => {
+    // Intentar pedir permiso al cargar
     requestPermission();
     
-    // Llamamos a la función que ahora sí existe afuera
+    // Escuchar mensajes en primer plano
     onMessageListener().then((payload) => {
       console.log('Notificación recibida:', payload);
+      // Usamos la función segura para mostrarla
       if (payload.notification) {
-          triggerMobileNotification(payload.notification.title, payload.notification.body);
+         triggerMobileNotification(payload.notification.title, payload.notification.body);
       }
     });
   }, []);
- 
+
   useEffect(() => {
     if (!auth) {
       setConfigError(true);
@@ -233,7 +244,7 @@ export default function App() {
 
   if (loading) return <div className="flex items-center justify-center h-screen bg-violet-50"><div className="animate-spin rounded-full h-12 w-12 border-b-4 border-violet-600"></div></div>;
   if (configError) return <div className="flex flex-col items-center justify-center h-screen bg-red-50 p-6 text-center"><AlertCircle className="text-red-500 w-16 h-16 mb-4" /><h1 className="text-xl font-bold text-red-700">Error de Configuración</h1></div>;
- if (!currentUserProfile) return <LoginScreen onLogin={handleLogin} />;
+  if (!currentUserProfile) return <LoginScreen onLogin={handleLogin} />;
 
   return <MainApp user={currentUserProfile} onLogout={handleLogout} />;
 }
@@ -1355,22 +1366,5 @@ function MatriculaView({ user }) {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
