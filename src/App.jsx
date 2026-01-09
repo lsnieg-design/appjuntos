@@ -124,6 +124,7 @@ const requestPermission = async () => {
   } catch (error) {
     console.error('Error en el proceso de suscripción:', error);
   }
+};
 
 
 // --- FUNCIÓN SEGURA PARA NOTIFICACIONES MÓVILES ---
@@ -165,7 +166,7 @@ const calculateDaysLeft = (dateString) => {
   const diffTime = eventDate - today;
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };
-
+};
 
 // --- Componente Principal Wrapper (FUSIONADO) ---
 export default function App() {
@@ -232,10 +233,10 @@ export default function App() {
 
   if (loading) return <div className="flex items-center justify-center h-screen bg-violet-50"><div className="animate-spin rounded-full h-12 w-12 border-b-4 border-violet-600"></div></div>;
   if (configError) return <div className="flex flex-col items-center justify-center h-screen bg-red-50 p-6 text-center"><AlertCircle className="text-red-500 w-16 h-16 mb-4" /><h1 className="text-xl font-bold text-red-700">Error de Configuración</h1></div>;
-  if (!currentUserProfile) return <LoginScreen onLogin={handleLogin} />;
+ if (!currentUserProfile) return <LoginScreen onLogin={handleLogin} />;
 
- return <MainApp user={currentUserProfile} onLogout={handleLogout} />;
-} // <--- ESTA LLAVE ES LA QUE TE FALTA. Agrégala ahí mismo.
+  return <MainApp user={currentUserProfile} onLogout={handleLogout} />;
+}
 
 // --- PANTALLA LOGIN ---
 function LoginScreen({ onLogin }) {
@@ -1354,6 +1355,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
