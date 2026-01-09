@@ -1315,4 +1315,3 @@ function MatriculaView({ user }) {
     </div>
   );
 }
-
