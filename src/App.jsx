@@ -336,23 +336,36 @@ function MainApp({ user, onLogout }) {
   setNotifications(newNotifs);
  }, [tasks, adminRequests]);
 
- useEffect(() => {
-  const activarMensajes = async () => {
-   try {
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted' && messaging) {
-     const currentToken = await getToken(messaging, { vapidKey: "BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw" });
-     if (currentToken && user?.id) {
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { fcmTokens: arrayUnion(currentToken), lastTokenUpdate: serverTimestamp() });
-     }
-    }
-   } catch (error) { console.error("Error notificaciones:", error); }
-  };
-  if(user?.id) activarMensajes();
-  onMessage(messaging, (payload) => {
-   if (payload.notification) triggerMobileNotification(payload.notification.title, payload.notification.body);
-  });
- }, [user]);
+ // --- LÓGICA DEL ROBOT: CAPTURA Y GUARDADO DE TOKENS ---
+  useEffect(() => {
+    const conectarRobot = async () => {
+      try {
+        const token = await requestPermission();
+        if (token && user?.id) {
+          console.log("Robot: Token detectado para", user.fullName);
+          const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+          
+          // Guardamos el token en un array para que el robot pueda enviarlo a varios dispositivos del mismo usuario
+          await updateDoc(userRef, { 
+            fcmTokens: arrayUnion(token),
+            lastTokenUpdate: serverTimestamp() 
+          });
+          console.log("Robot: Token sincronizado en la base de datos.");
+        }
+      } catch (error) {
+        console.error("Robot: Error al sincronizar token:", error);
+      }
+    };
+
+    if(user?.id) conectarRobot();
+
+    // Escuchar mensajes cuando la App está abierta
+    onMessage(messaging, (payload) => {
+      if (payload.notification) {
+        triggerMobileNotification(payload.notification.title, payload.notification.body);
+      }
+    });
+  }, [user]);
 
  const renderContent = () => {
   switch (activeTab) {
@@ -704,3 +717,4 @@ function ProfileView({ user, onLogout }) {
   </div>
  );
 }
+
