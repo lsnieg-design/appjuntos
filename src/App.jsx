@@ -449,10 +449,11 @@ function DashboardView({ user, tasks, events }) {
   const [notes, setNotes] = useState(() => JSON.parse(localStorage.getItem(`notes_${user.id}`) || '[]'));
   const [newNote, setNewNote] = useState('');
 
+  // Permisos para publicar en cartelera
   const canPost = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
 
   useEffect(() => {
-    // Cargar anuncios de las últimas 24hs
+    // Cargar anuncios de las últimas 48hs (Aumenté a 48hs para que duren un poco más)
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(q, (snapshot) => {
         const now = new Date();
@@ -461,7 +462,11 @@ function DashboardView({ user, tasks, events }) {
             const data = doc.data();
             const msgDate = data.createdAt ? new Date(data.createdAt.seconds * 1000) : new Date();
             const diffHours = (now - msgDate) / (1000 * 60 * 60);
-            if (diffHours < 24) validMessages.push({ id: doc.id, ...data });
+            
+            // Muestra mensajes de hasta 48 horas
+            if (diffHours < 48) {
+                validMessages.push({ id: doc.id, ...data });
+            }
         });
         setAnnouncements(validMessages);
     });
@@ -473,7 +478,7 @@ function DashboardView({ user, tasks, events }) {
       const text = e.target.message.value;
       if(!text.trim()) return;
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), {
-          message: text, author: user.fullName, role: user.role, createdAt: serverTimestamp()
+          message: text, author: user.fullName || user.firstName, role: user.role, createdAt: serverTimestamp()
       });
       setShowAnnounceModal(false);
   };
@@ -489,6 +494,7 @@ function DashboardView({ user, tasks, events }) {
 
   return (
     <div className="space-y-6 animate-in fade-in pb-10">
+      
       {/* SECCIÓN BIENVENIDA Y CARTELERA */}
       <div className="bg-white p-6 rounded-[40px] shadow-sm border border-violet-100 relative overflow-hidden">
         <div className="relative z-10 flex justify-between items-start">
@@ -496,19 +502,33 @@ function DashboardView({ user, tasks, events }) {
                 <h2 className="text-3xl font-black text-slate-800 tracking-tighter italic">¡Hola, {user.firstName}! 👋</h2>
                 <p className="text-slate-500 mt-1 font-medium italic">Hay {tasks.filter(t => t.status !== 'completed').length} tareas pendientes.</p>
             </div>
-            {canPost && <button onClick={() => setShowAnnounceModal(true)} className="bg-violet-100 text-violet-700 p-2 rounded-xl hover:bg-violet-200"><Edit3 size={18}/></button>}
+            {/* Botón para publicar aviso (Solo directivos) */}
+            {canPost && (
+                <button onClick={() => setShowAnnounceModal(true)} className="bg-red-50 text-red-600 p-2 rounded-xl hover:bg-red-100 transition shadow-sm border border-red-100 flex items-center gap-1">
+                    <Plus size={16}/> <span className="text-[10px] font-black uppercase">Aviso</span>
+                </button>
+            )}
         </div>
         
-        {/* CARTELERA DE 24HS */}
-        {announcements.length > 0 && (
-            <div className="mt-6 space-y-2 relative z-10">
-                <h3 className="text-xs font-black text-red-500 uppercase tracking-widest flex items-center gap-1"><Bell size={12}/> Avisos de Dirección (24hs)</h3>
-                {announcements.map(a => (
-                    <div key={a.id} className="bg-red-50 p-3 rounded-2xl border border-red-100 text-sm text-red-900 italic">
-                        <p>"{a.message}"</p>
-                        <p className="text-[10px] text-red-400 font-bold mt-1 text-right">- {a.author} ({a.role})</p>
+        {/* CARTELERA DE NOVEDADES (Se muestra si hay mensajes O si eres quien puede publicar) */}
+        {(announcements.length > 0 || canPost) && (
+            <div className="mt-6 p-4 bg-gray-50 rounded-3xl border border-gray-100">
+                <h3 className="text-xs font-black text-red-500 uppercase tracking-widest flex items-center gap-2 mb-3">
+                    <Bell size={14} className="animate-pulse"/> Novedades de Dirección
+                </h3>
+                
+                {announcements.length === 0 ? (
+                    <p className="text-xs text-gray-400 italic text-center">No hay avisos urgentes en las últimas 48hs.</p>
+                ) : (
+                    <div className="space-y-2">
+                        {announcements.map(a => (
+                            <div key={a.id} className="bg-white p-3 rounded-2xl border-l-4 border-red-500 shadow-sm text-sm text-gray-700">
+                                <p className="italic font-medium">"{a.message}"</p>
+                                <p className="text-[9px] text-gray-400 font-bold mt-2 text-right uppercase tracking-wider">— {a.author}</p>
+                            </div>
+                        ))}
                     </div>
-                ))}
+                )}
             </div>
         )}
       </div>
@@ -517,30 +537,31 @@ function DashboardView({ user, tasks, events }) {
       <div className="bg-yellow-50 p-6 rounded-[35px] border border-yellow-100 shadow-sm">
         <h3 className="font-black text-yellow-700 uppercase tracking-widest text-xs mb-4 flex items-center gap-2"><Lock size={12}/> Mis Notas Privadas</h3>
         <form onSubmit={saveNote} className="flex gap-2 mb-4">
-          <input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Agregar recordatorio..." className="flex-1 p-3 rounded-xl border-none outline-none text-sm bg-white shadow-sm" />
-          <button type="submit" className="bg-yellow-400 text-yellow-900 p-3 rounded-xl font-bold"><Plus size={16}/></button>
+          <input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Agregar recordatorio..." className="flex-1 p-3 rounded-xl border-none outline-none text-sm bg-white shadow-sm placeholder:italic" />
+          <button type="submit" className="bg-yellow-400 text-yellow-900 p-3 rounded-xl font-bold hover:scale-105 transition"><Plus size={16}/></button>
         </form>
         <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
           {notes.map(n => (
-            <div key={n.id} className="flex items-center gap-3 bg-white/60 p-2 rounded-lg">
-              <button onClick={() => toggleNote(n.id)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${n.done ? 'bg-yellow-400 border-yellow-400' : 'border-yellow-300'}`}>{n.done && <Check size={12} className="text-white"/>}</button>
+            <div key={n.id} className="flex items-center gap-3 bg-white/60 p-2 rounded-lg transition hover:bg-white">
+              <button onClick={() => toggleNote(n.id)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${n.done ? 'bg-yellow-400 border-yellow-400' : 'border-yellow-300'}`}>{n.done && <Check size={12} className="text-white"/>}</button>
               <span className={`text-sm flex-1 ${n.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>{n.text}</span>
               <button onClick={() => deleteNote(n.id)} className="text-gray-300 hover:text-red-400"><Trash2 size={14}/></button>
             </div>
           ))}
-          {notes.length === 0 && <p className="text-xs text-center text-gray-400 italic">No tienes notas personales.</p>}
+          {notes.length === 0 && <p className="text-xs text-center text-gray-400 italic">Tu bloc de notas está vacío.</p>}
         </div>
       </div>
 
       {/* MODAL NUEVO AVISO */}
       {showAnnounceModal && (
-          <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
               <form onSubmit={handlePost} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95">
-                  <h3 className="text-lg font-black text-violet-900 mb-4">Publicar Aviso (24hs)</h3>
-                  <textarea name="message" className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-sm h-32 resize-none border border-gray-100" placeholder="Escribe el comunicado..." required></textarea>
+                  <h3 className="text-lg font-black text-red-500 mb-2 uppercase italic">Nuevo Aviso</h3>
+                  <p className="text-xs text-gray-400 mb-4">Este mensaje será visible para todos por 48hs.</p>
+                  <textarea name="message" className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-sm h-32 resize-none border border-gray-100 focus:ring-2 ring-red-100" placeholder="Escribe el comunicado..." required></textarea>
                   <div className="flex gap-2 mt-4">
-                      <button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 text-gray-400 font-bold text-xs uppercase">Cancelar</button>
-                      <button type="submit" className="flex-1 bg-violet-600 text-white py-3 rounded-2xl font-bold shadow-lg uppercase text-xs">Publicar</button>
+                      <button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 text-gray-400 font-bold text-xs uppercase tracking-widest">Cancelar</button>
+                      <button type="submit" className="flex-1 bg-red-500 text-white py-3 rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-red-600 transition">Publicar</button>
                   </div>
               </form>
           </div>
@@ -1087,6 +1108,7 @@ function ProfileView({ user, tasks, onLogout }) {
   );
 }
 // --- VISTA PROYECTO 360 ---
+// --- VISTA PROYECTO 360 (MOSAICO) ---
 function ProyectoView({ user }) {
   const [periods, setPeriods] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState(null);
@@ -1095,12 +1117,17 @@ function ProyectoView({ user }) {
   const isAdmin = user.rol === 'admin' || user.rol === 'super-admin';
   const PERIOD_NAMES = ["MARZO", "ABRIL Y MAYO", "JUNIO Y JULIO", "AGOSTO Y SEPTIEMBRE", "OCTUBRE Y NOVIEMBRE", "DICIEMBRE"];
 
+  // Helper para saber si es el mes actual
+  const isCurrentPeriod = (name) => {
+    const currentMonth = new Date().toLocaleString('es-ES', { month: 'long' }).toLowerCase(); // ej: "enero"
+    return name.toLowerCase().includes(currentMonth);
+  };
+
   useEffect(() => {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'proyecto2026_periods'));
     const unsub = onSnapshot(q, (snap) => {
         const dataMap = {};
         snap.docs.forEach(d => dataMap[d.id] = d.data());
-        // Forzamos la creación de la lista basada en los nombres fijos
         const builtPeriods = PERIOD_NAMES.map(name => {
             const id = name.replace(/\s+/g, '_');
             return { id, name, ...(dataMap[id] || {}) };
@@ -1120,7 +1147,6 @@ function ProyectoView({ user }) {
           paises: fd.get('paises'),
           updatedAt: serverTimestamp()
       };
-      // Usamos setDoc para asegurar que si no existe, se cree
       const { setDoc, doc: docRef } = await import('firebase/firestore'); 
       await setDoc(docRef(db, 'artifacts', appId, 'public', 'data', 'proyecto2026_periods', selectedPeriod.id), data, { merge: true });
       
@@ -1130,40 +1156,66 @@ function ProyectoView({ user }) {
 
   return (
     <div className="space-y-6 pb-24 animate-in slide-in-from-bottom-6 duration-700">
-      <div className="bg-indigo-900 p-12 rounded-[60px] text-white shadow-2xl relative overflow-hidden text-center border-b-8 border-orange-500">
-        <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none tracking-[1px]">Proyecto 2026</h2>
-        <p className="text-[10px] font-bold opacity-60 uppercase mt-4 tracking-[8px] italic tracking-[10px]">La Vuelta al Mundo</p>
-        <Globe className="absolute -left-10 -bottom-10 w-40 h-40 text-white opacity-5 rotate-12" />
+      <div className="bg-indigo-900 p-8 rounded-[40px] text-white shadow-2xl relative overflow-hidden text-center border-b-8 border-orange-500">
+        <h2 className="text-2xl font-black italic tracking-tighter uppercase leading-none tracking-[1px]">Proyecto 2026</h2>
+        <p className="text-[10px] font-bold opacity-60 uppercase mt-2 tracking-[6px] italic">Vuelta al Mundo</p>
+        <Globe className="absolute -left-5 -bottom-5 w-32 h-32 text-white opacity-5 rotate-12" />
+        
+        {/* Botón inicializar solo para admins si está vacío */}
+        {isAdmin && periods.every(p => !p.updatedAt) && (
+             <button onClick={async () => {
+                 const { setDoc, doc: docRef } = await import('firebase/firestore');
+                 for(const name of PERIOD_NAMES) {
+                     const id = name.replace(/\s+/g, '_');
+                     await setDoc(docRef(db, 'artifacts', appId, 'public', 'data', 'proyecto2026_periods', id), { name, ejes: "Eje temático" }, {merge: true});
+                 }
+                 alert("Estructura base creada.");
+             }} className="mt-4 bg-white/10 px-4 py-2 rounded-xl text-[10px] uppercase font-bold hover:bg-white/20 transition">Generar Base</button>
+        )}
       </div>
 
-      <div className="grid gap-4">
-        {periods.map(period => (
-            <div key={period.id} onClick={() => setSelectedPeriod(period)} className="bg-white p-6 rounded-[35px] shadow-sm border border-violet-50 flex items-center justify-between cursor-pointer hover:shadow-lg transition group border-l-8 border-indigo-100">
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center font-black text-[10px] border border-indigo-100 group-hover:bg-indigo-600 group-hover:text-white transition uppercase">
-                        {period.name.substring(0,3)}
+      {/* GRILLA TIPO MOSAICO */}
+      <div className="grid grid-cols-2 gap-3">
+        {periods.map(period => {
+            const isCurrent = isCurrentPeriod(period.name);
+            return (
+                <div 
+                    key={period.id} 
+                    onClick={() => setSelectedPeriod(period)} 
+                    className={`
+                        relative p-4 rounded-[30px] border shadow-sm cursor-pointer hover:scale-[1.02] transition-all flex flex-col justify-between aspect-square
+                        ${isCurrent ? 'col-span-2 bg-gradient-to-br from-orange-500 to-orange-400 border-orange-300 text-white aspect-auto h-32' : 'bg-white border-gray-100 text-gray-700'}
+                    `}
+                >
+                    <div className="flex justify-between items-start">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-[10px] uppercase ${isCurrent ? 'bg-white text-orange-500' : 'bg-indigo-50 text-indigo-600'}`}>
+                            {period.name.substring(0,3)}
+                        </div>
+                        {isCurrent && <span className="bg-white/20 px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest">Mes Actual</span>}
                     </div>
+                    
                     <div>
-                        <h3 className="font-black text-gray-800 uppercase italic tracking-tighter">{period.name}</h3>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest group-hover:text-indigo-500 transition">Ver Planificación</p>
+                        <h3 className={`font-black uppercase italic tracking-tighter leading-none ${isCurrent ? 'text-2xl' : 'text-sm'}`}>{period.name}</h3>
+                        <p className={`text-[9px] font-bold uppercase tracking-widest mt-1 ${isCurrent ? 'text-orange-100' : 'text-gray-300'}`}>Ver Planificación</p>
                     </div>
+
+                    {!isCurrent && <ChevronRight className="absolute bottom-4 right-4 text-gray-200" size={16} />}
                 </div>
-                <ChevronRight className="text-gray-300 group-hover:translate-x-1 transition" />
-            </div>
-        ))}
+            );
+        })}
       </div>
 
       {/* MODAL DETALLE PERIODO */}
       {selectedPeriod && (
           <div className="fixed inset-0 bg-indigo-900/90 backdrop-blur-md z-[200] flex flex-col p-4 animate-in slide-in-from-bottom">
               <div className="flex justify-between items-center text-white mb-6">
-                  <h2 className="text-2xl font-black italic uppercase tracking-tighter">{selectedPeriod.name}</h2>
+                  <h2 className="text-xl font-black italic uppercase tracking-tighter w-2/3 leading-tight">{selectedPeriod.name}</h2>
                   <button onClick={() => {setSelectedPeriod(null); setEditing(false);}} className="bg-white/10 p-2 rounded-full hover:bg-white/20"><X/></button>
               </div>
 
               {!editing ? (
                   <div className="flex-1 bg-white rounded-[40px] overflow-hidden flex flex-col shadow-2xl">
-                      <div className="flex overflow-x-auto p-2 bg-gray-50 border-b gap-2 scrollbar-hide">
+                      <div className="flex overflow-x-auto p-2 bg-gray-50 border-b gap-2 scrollbar-hide shrink-0">
                           {['contenidos', 'actividades', 'fundamentacion', 'paises'].map(tab => (
                               <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition ${activeTab === tab ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-100'}`}>
                                   {tab}
@@ -1172,20 +1224,40 @@ function ProyectoView({ user }) {
                       </div>
                       
                       <div className="flex-1 p-8 overflow-y-auto">
-                          {activeTab === 'contenidos' && <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.contenidos || 'Sin contenidos cargados.'}</p>}
-                          {activeTab === 'actividades' && <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.actividades || 'Sin actividades cargadas.'}</p>}
-                          {activeTab === 'fundamentacion' && <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.fundamentacion || 'Sin fundamentación cargada.'}</p>}
-                          {activeTab === 'paises' && <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.paises || 'Sin información.'}</p>}
+                          {activeTab === 'contenidos' && (
+                            <div className="animate-in fade-in">
+                                <div className="flex items-center gap-2 text-indigo-600 mb-2"><BookOpen size={20}/><h4 className="font-black text-xs uppercase tracking-widest">Contenidos</h4></div>
+                                <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.contenidos || 'Sin contenidos cargados.'}</p>
+                            </div>
+                          )}
+                          {activeTab === 'actividades' && (
+                            <div className="animate-in fade-in">
+                                <div className="flex items-center gap-2 text-orange-600 mb-2"><Activity size={20}/><h4 className="font-black text-xs uppercase tracking-widest">Propuestas</h4></div>
+                                <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.actividades || 'Sin actividades cargadas.'}</p>
+                            </div>
+                          )}
+                          {activeTab === 'fundamentacion' && (
+                            <div className="animate-in fade-in">
+                                <div className="flex items-center gap-2 text-pink-600 mb-2"><MessageSquare size={20}/><h4 className="font-black text-xs uppercase tracking-widest">Fundamentación</h4></div>
+                                <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.fundamentacion || 'Sin fundamentación cargada.'}</p>
+                            </div>
+                          )}
+                          {activeTab === 'paises' && (
+                            <div className="animate-in fade-in">
+                                <div className="flex items-center gap-2 text-green-600 mb-2"><Globe size={20}/><h4 className="font-black text-xs uppercase tracking-widest">Países y Ejes</h4></div>
+                                <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.paises || 'Sin información.'}</p>
+                            </div>
+                          )}
                       </div>
-                      {isAdmin && (<div className="p-4 border-t bg-gray-50 text-center"><button onClick={() => setEditing(true)} className="bg-indigo-100 text-indigo-700 px-6 py-3 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-200 transition shadow-sm">Editar Contenido</button></div>)}
+                      {isAdmin && (<div className="p-4 border-t bg-gray-50 text-center shrink-0"><button onClick={() => setEditing(true)} className="bg-indigo-100 text-indigo-700 px-6 py-3 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-200 transition shadow-sm">Editar Contenido</button></div>)}
                   </div>
               ) : (
                   <form onSubmit={handleSave} className="flex-1 bg-white rounded-[40px] p-6 overflow-y-auto flex flex-col gap-4">
-                      <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 ml-2 uppercase tracking-widest">CONTENIDOS</label><textarea name="contenidos" defaultValue={selectedPeriod.contenidos} className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-mono border-none outline-none h-32 resize-none shadow-inner" /></div>
-                      <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 ml-2 uppercase tracking-widest">ACTIVIDADES</label><textarea name="actividades" defaultValue={selectedPeriod.actividades} className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-mono border-none outline-none h-32 resize-none shadow-inner" /></div>
-                      <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 ml-2 uppercase tracking-widest">FUNDAMENTACIÓN</label><textarea name="fundamentacion" defaultValue={selectedPeriod.fundamentacion} className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-mono border-none outline-none h-24 resize-none shadow-inner" /></div>
-                      <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 ml-2 uppercase tracking-widest">PAÍSES / EJES</label><textarea name="paises" defaultValue={selectedPeriod.paises} className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-mono border-none outline-none h-24 resize-none shadow-inner" /></div>
-                      <div className="flex gap-2 pt-4">
+                      <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 ml-2 uppercase tracking-widest">CONTENIDOS</label><textarea name="contenidos" defaultValue={selectedPeriod.contenidos} className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-mono border-none outline-none h-24 resize-none shadow-inner bg-indigo-50/30" /></div>
+                      <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 ml-2 uppercase tracking-widest">ACTIVIDADES</label><textarea name="actividades" defaultValue={selectedPeriod.actividades} className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-mono border-none outline-none h-24 resize-none shadow-inner bg-orange-50/30" /></div>
+                      <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 ml-2 uppercase tracking-widest">FUNDAMENTACIÓN</label><textarea name="fundamentacion" defaultValue={selectedPeriod.fundamentacion} className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-mono border-none outline-none h-20 resize-none shadow-inner bg-pink-50/30" /></div>
+                      <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 ml-2 uppercase tracking-widest">PAÍSES / EJES</label><textarea name="paises" defaultValue={selectedPeriod.paises} className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-mono border-none outline-none h-20 resize-none shadow-inner bg-green-50/30" /></div>
+                      <div className="flex gap-2 pt-4 shrink-0">
                           <button type="button" onClick={() => setEditing(false)} className="flex-1 py-3 text-gray-400 font-bold text-xs uppercase tracking-widest">CANCELAR</button>
                           <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-black shadow-lg text-xs uppercase tracking-widest">GUARDAR</button>
                       </div>
@@ -1462,6 +1534,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
