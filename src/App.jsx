@@ -285,7 +285,7 @@ function LoginScreen({ onLogin }) {
 }
 
 // --- VISTA MATRÍCULA ---
-// --- VISTA MATRÍCULA ---
+
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
   const [filterText, setFilterText] = useState('');
@@ -520,17 +520,7 @@ function MatriculaView({ user }) {
         </div>
       )}
 
-      {/* NAV (queda como lo tenías) */}
-      <nav className="fixed bottom-0 w-full bg-white border-t h-20 z-30 shadow-lg">
-        <div className="flex justify-around items-center h-full max-w-4xl mx-auto px-2">
-          <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={24} />} label="Inicio" />
-          <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={24} />} label="Tareas" />
-          <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={24} />} label="Agenda" />
-          <NavButton active={activeTab === 'matricula'} onClick={() => setActiveTab('matricula')} icon={<GraduationCap size={24} />} label="Matrícula" />
-          <NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<Folder size={24} />} label="Recursos" />
-          <NavButton active={activeTab === 'proyecto'} onClick={() => setActiveTab('proyecto')} icon={<PieChart size={24} />} label="P.I." />
-        </div>
-      </nav>
+  
     </div>
   );
 }
@@ -1052,6 +1042,7 @@ function ProyectoView({ user }) {
     </div>
   );
 }
+
 
 
 
