@@ -578,19 +578,32 @@ function MatriculaView({ user }) {
     ))}
    </div>
 
-   {showStats && (
-    <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
-     <div className="bg-white rounded-3xl w-full max-w-2xl p-6 h-[80vh] flex flex-col shadow-2xl">
-      <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold flex items-center gap-2"></> Estadísticas Matrícula</h3><button onClick={() => setShowStats(false)}><X/></button></div>
-      <div className="bg-violet-600 text-white p-10 rounded-3xl text-center mb-6 shadow-xl">
-       <p className="text-lg opacity-80">Coincidencias</p>
-       <h4 className="text-6xl font-black">{statsResults.length}</h4>
-      </div>
-      <div className="flex-1 overflow-y-auto"><div className="grid grid-cols-1 gap-2">{statsResults.map(s => <div key={s.id} className="p-3 bg-gray-50 rounded-xl text-sm border flex justify-between"><span>{s.lastName}, {s.firstName}</span><span className="font-bold text-violet-600 uppercase">{s.level}</span></div>)}</div></div>
-     </div>
-    </div>
-   )}
+  {showStats && (
+        <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl flex flex-col max-h-[80vh]">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-violet-900">Estadísticas</h3>
+              <button onClick={() => setShowStats(false)}><X size={24} className="text-gray-400" /></button>
+            </div>
+            
+            <div className="bg-violet-600 text-white p-6 rounded-3xl text-center mb-6 shadow-xl">
+              <h4 className="text-4xl font-black">{statsResults.length}</h4>
+              <p className="text-sm opacity-80 uppercase font-bold tracking-widest">Alumnos Registrados</p>
+            </div>
 
+            <div className="flex-1 overflow-y-auto">
+              <div className="grid grid-cols-1 gap-2">
+                {statsResults.map(s => (
+                  <div key={s.id} className="p-4 bg-gray-50 rounded-2xl text-xs border border-gray-100 flex justify-between items-center">
+                    <span className="font-bold text-gray-700">{s.apellido?.toUpperCase()}, {s.nombre}</span>
+                    <span className="font-black text-violet-600 bg-violet-50 px-2 py-1 rounded-lg uppercase">{s.nivel}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
    {viewingStudent && (
     <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4" onClick={() => setViewingStudent(null)}>
      <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -1107,5 +1120,6 @@ function ProyectoView({ user }) {
     </div>
   );
 }
+
 
 
