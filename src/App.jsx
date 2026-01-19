@@ -502,222 +502,124 @@ function NavButton({ active, onClick, icon, label, badge }) {
 
 // --- VISTA DASHBOARD (CARTELERA MULTIPLE) ---
 function DashboardView({ user, tasks, events }) {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const eventsToday = events.filter(e => e.date === todayStr);
-    const myPending = tasks.filter(t => t.status !== 'completed');
-    const highPriority = myPending.filter(t => t.priority === 'high');
-    const [announcements, setAnnouncements] = useState([]); 
-    const [showAnnounceModal, setShowAnnounceModal] = useState(false);
-    const canPost = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayEvents = (events || []).filter(e => e.date === todayStr);
+  
+  // Lógica de Notas Privadas (Local Storage)
+  const [notes, setNotes] = useState(() => JSON.parse(localStorage.getItem(`notes_${user.id}`) || '[]'));
+  const [newNote, setNewNote] = useState('');
 
-    useEffect(() => {
-        const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc'));
-        const unsub = onSnapshot(q, (snapshot) => {
-            const now = new Date();
-            const validMessages = [];
-            snapshot.docs.forEach(doc => {
-                const data = doc.data();
-                const msgDate = data.createdAt ? new Date(data.createdAt.seconds * 1000) : new Date();
-                const diffHours = (now - msgDate) / (1000 * 60 * 60);
-                if (diffHours < 48) {
-                    validMessages.push({ id: doc.id, ...data, timeAgo: Math.floor(diffHours) });
-                }
-            });
-            setAnnouncements(validMessages);
-        });
-        return () => unsub();
-    }, []);
+  const saveNote = (e) => {
+    e.preventDefault();
+    if (!newNote.trim()) return;
+    const updated = [...notes, { id: Date.now(), text: newNote, done: false }];
+    setNotes(updated);
+    localStorage.setItem(`notes_${user.id}`, JSON.stringify(updated));
+    setNewNote('');
+  };
 
-    const handlePostAnnouncement = async (e) => {
-        e.preventDefault();
-        const text = e.target.message.value;
-        if(!text.trim()) return;
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), {
-            message: text, author: user.fullName, role: user.role, createdAt: serverTimestamp()
-        });
-        setShowAnnounceModal(false);
-        alert("✅ Comunicado publicado.");
-    };
+  const toggleNote = (id) => {
+    const updated = notes.map(n => n.id === id ? { ...n, done: !n.done } : n);
+    setNotes(updated);
+    localStorage.setItem(`notes_${user.id}`, JSON.stringify(updated));
+  };
 
-    const deleteAnnouncement = async (id) => {
-        if(confirm("¿Borrar este comunicado?")) {
-            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'announcements', id));
-        }
-    };
+  const deleteNote = (id) => {
+    const updated = notes.filter(n => n.id !== id);
+    setNotes(updated);
+    localStorage.setItem(`notes_${user.id}`, JSON.stringify(updated));
+  };
 
-    return (
-        <div className="animate-in fade-in duration-500 space-y-6">
-            <div className="bg-white p-6 rounded-3xl shadow-sm border border-violet-50 flex justify-between items-center">
-                <div><h2 className="text-2xl font-bold text-violet-900">Hola, {user.firstName}! 👋</h2><p className="text-gray-500 text-sm">Bienvenido a tu portal digital.</p></div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gradient-to-br from-orange-400 to-orange-600 p-5 rounded-3xl text-white shadow-lg relative overflow-hidden">
-                    <div className="relative z-10"><h3 className="text-3xl font-bold">{myPending.length}</h3><p className="text-xs font-bold opacity-90 uppercase tracking-wide">Pendientes</p></div>
-                    <CheckSquare className="absolute -bottom-4 -right-4 opacity-20 w-24 h-24" />
-                </div>
-                <div className="bg-gradient-to-br from-violet-600 to-violet-800 p-5 rounded-3xl text-white shadow-lg relative overflow-hidden">
-                    <div className="relative z-10"><h3 className="text-3xl font-bold">{eventsToday.length}</h3><p className="text-xs font-bold opacity-90 uppercase tracking-wide">Eventos Hoy</p></div>
-                    <CalendarIcon className="absolute -bottom-4 -right-4 opacity-20 w-24 h-24" />
-                </div>
-            </div>
-            {/* CARTELERA */}
-            <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-1 rounded-3xl shadow-lg relative">
-                <div className="bg-white/10 backdrop-blur-sm p-5 rounded-[20px] text-white min-h-[140px] relative overflow-hidden">
-                    <div className="flex justify-between items-center z-10 relative mb-4">
-                        <div><h3 className="text-lg font-bold flex items-center gap-2"><Bell size={20}/> Cartelera</h3><p className="text-[10px] opacity-80 uppercase tracking-wider">Novedades</p></div>
-                        {canPost && (<button onClick={() => setShowAnnounceModal(true)} className="bg-white/20 hover:bg-white/40 p-2 rounded-full transition shadow-sm"><Edit3 size={18} /></button>)}
-                    </div>
-                    <div className="relative z-10 space-y-3 max-h-[300px] overflow-y-auto pr-2 scrollbar-hide">
-                        {announcements.length > 0 ? (
-                            announcements.map((anuncio) => (
-                                <div key={anuncio.id} className="bg-black/20 p-3 rounded-xl border border-white/10 relative group">
-                                    <p className="text-md font-medium leading-snug">"{anuncio.message}"</p>
-                                    <div className="mt-2 flex items-center justify-between text-[10px] opacity-75"><span className="font-bold uppercase tracking-wide">{anuncio.author}</span><span>hace {anuncio.timeAgo}h</span></div>
-                                    {canPost && (<button onClick={() => deleteAnnouncement(anuncio.id)} className="absolute top-2 right-2 text-white/40 hover:text-white bg-black/20 hover:bg-red-500/80 p-1 rounded transition opacity-0 group-hover:opacity-100"><X size={12} /></button>)}
-                                </div>
-                            ))
-                        ) : (<div className="text-center py-4 text-white/60 italic text-sm border-t border-white/10"><p>No hay comunicados activos.</p></div>)}
-                    </div>
-                    <Bell className="absolute -bottom-6 -right-6 w-32 h-32 opacity-10 text-white rotate-12" />
-                </div>
-            </div>
-            {/* MODAL CARTELERA */}
-            {showAnnounceModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95">
-                        <h3 className="text-xl font-bold mb-2 text-rose-600">Nuevo Comunicado</h3>
-                        <form onSubmit={handlePostAnnouncement}>
-                            <textarea name="message" required className="w-full p-3 bg-rose-50 rounded-xl outline-none focus:ring-2 focus:ring-rose-400 text-sm min-h-[100px] resize-none border border-rose-100" placeholder="Escribe el mensaje aquí..."></textarea>
-                            <div className="flex gap-3 mt-6"><button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl transition">Cancelar</button><button type="submit" className="flex-1 py-3 bg-rose-600 text-white font-bold rounded-xl shadow-lg hover:bg-rose-700 transition">Publicar</button></div>
-                        </form>
-                    </div>
-                </div>
-            )}
+  return (
+    <div className="space-y-6 animate-in fade-in duration-700 pb-10">
+      {/* Bienvenida */}
+      <div className="bg-white p-8 rounded-[40px] shadow-sm border border-violet-100 relative overflow-hidden">
+        <div className="relative z-10">
+          <h2 className="text-3xl font-black text-slate-800 italic tracking-tighter">¡Hola, {user.firstName}! 👋</h2>
+          <p className="text-slate-500 mt-2 font-medium italic">Hay {(tasks || []).filter(t => t.status !== 'completed').length} tareas pendientes.</p>
         </div>
-    );
+        <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-violet-50 rounded-full opacity-50 shadow-inner"></div>
+      </div>
+
+      {/* Notas Personales Privadas */}
+      <div className="bg-yellow-50 p-6 rounded-[35px] border border-yellow-100 shadow-sm">
+        <h3 className="font-black text-yellow-700 uppercase tracking-widest text-xs mb-4 flex items-center gap-2"><Lock size={12}/> Mis Notas Privadas</h3>
+        <form onSubmit={saveNote} className="flex gap-2 mb-4">
+          <input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Agregar recordatorio personal..." className="flex-1 p-3 rounded-xl border-none outline-none text-sm bg-white shadow-sm" />
+          <button type="submit" className="bg-yellow-400 text-yellow-900 p-3 rounded-xl font-bold"><Plus size={16}/></button>
+        </form>
+        <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+          {notes.map(n => (
+            <div key={n.id} className="flex items-center gap-3 bg-white/60 p-2 rounded-lg">
+              <button onClick={() => toggleNote(n.id)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${n.done ? 'bg-yellow-400 border-yellow-400' : 'border-yellow-300'}`}>{n.done && <Check size={12} className="text-white"/>}</button>
+              <span className={`text-sm flex-1 ${n.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>{n.text}</span>
+              <button onClick={() => deleteNote(n.id)} className="text-gray-300 hover:text-red-400"><Trash2 size={14}/></button>
+            </div>
+          ))}
+          {notes.length === 0 && <p className="text-xs text-center text-gray-400 italic">No tienes notas personales.</p>}
+        </div>
+      </div>
+
+      {/* Resumen */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-orange-500 p-6 rounded-[35px] text-white shadow-lg relative overflow-hidden">
+          <h4 className="text-3xl font-black">{(tasks || []).length}</h4><p className="text-[10px] font-bold uppercase opacity-80 italic tracking-widest">Tareas</p>
+        </div>
+        <div className="bg-violet-600 p-6 rounded-[35px] text-white shadow-lg relative overflow-hidden">
+          <h4 className="text-3xl font-black">{todayEvents.length}</h4><p className="text-[10px] font-bold uppercase opacity-80 italic tracking-widest">Eventos Hoy</p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // --- VISTA RECURSOS (LINKS CORREGIDOS) ---
 function ResourcesView({ resources, canEdit }) {
+  const [folder, setFolder] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [currentFolder, setCurrentFolder] = useState(null); // Estado para saber qué carpeta está abierta
-
-  const addResource = async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), {
-      title: fd.get('title'),
-      url: fd.get('url'),
-      category: fd.get('category'), // Carpeta
-      createdAt: serverTimestamp()
-    });
-    setShowModal(false);
-  };
-
-  // Agrupamos los recursos por categoría (Carpetas)
-  const folders = resources.reduce((acc, res) => {
-    const cat = res.category || 'VARIOS';
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(res);
-    return acc;
-  }, {});
-
-  const folderNames = Object.keys(folders);
+  const folders = (resources || []).reduce((acc, r) => { const cat = r.category || 'VARIOS'; if (!acc[cat]) acc[cat] = []; acc[cat].push(r); return acc; }, {});
+  
+  const addResource = async (e) => { e.preventDefault(); const title = e.target.title.value; const url = e.target.url.value; const category = e.target.category.value; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), { title, url, category, createdAt: serverTimestamp() }); setShowModal(false); };
 
   return (
-    <div className="animate-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10">
       <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-black text-violet-900">Recursos</h2>
-          <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">
-            {currentFolder ? `Carpeta: ${currentFolder}` : 'Documentos y Enlaces'}
-          </p>
-        </div>
+        <h2 className="text-2xl font-black text-violet-900 italic tracking-tighter uppercase italic">Recursos</h2>
         <div className="flex gap-2">
-          {currentFolder && (
-            <button onClick={() => setCurrentFolder(null)} className="bg-gray-100 text-gray-600 p-3 rounded-xl">
-              <ChevronLeft size={20} />
-            </button>
-          )}
-          {canEdit && (
-            <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg">
-              <Plus />
-            </button>
-          )}
+            {folder && <button onClick={() => setFolder(null)} className="bg-gray-100 p-2 rounded-xl text-xs font-black uppercase text-violet-700 shadow-sm border border-gray-100 flex items-center gap-1 hover:bg-violet-100 transition"><ChevronLeft size={16}/> Volver</button>}
+            {canEdit && <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-2 rounded-xl shadow-lg"><Plus size={20}/></button>}
         </div>
       </div>
-
-      {/* VISTA DE CARPETAS */}
-      {!currentFolder ? (
-        <div className="grid grid-cols-2 gap-4">
-          {folderNames.map(name => (
-            <div 
-              key={name} 
-              onClick={() => setCurrentFolder(name)}
-              className="bg-white p-6 rounded-[35px] border border-gray-100 shadow-sm hover:shadow-md transition cursor-pointer group flex flex-col items-center text-center"
-            >
-              <div className="w-16 h-16 bg-violet-50 text-violet-600 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-violet-600 group-hover:text-white transition duration-300">
-                <Folder size={32} fill="currentColor" opacity="0.2" />
-              </div>
-              <h3 className="font-black text-gray-700 uppercase text-[11px] tracking-tight">{name}</h3>
-              <p className="text-[10px] text-gray-400 mt-1">{folders[name].length} elementos</p>
+      {!folder ? (
+        <div className="grid grid-cols-2 gap-4 pb-10">
+          {Object.keys(folders).map(name => (
+            <div key={name} onClick={() => setFolder(name)} className="bg-white p-10 rounded-[50px] border border-violet-50 text-center cursor-pointer shadow-sm hover:scale-105 transition-all group border-b-4 border-orange-500">
+              <div className="w-16 h-16 bg-violet-50 text-violet-200 rounded-3xl flex items-center justify-center mb-4 mx-auto group-hover:bg-violet-600 group-hover:text-white transition-all shadow-inner"><Folder size={32} /></div>
+              <h3 className="font-black text-[11px] uppercase tracking-widest text-gray-700 leading-none italic">{name}</h3>
+              <p className="text-[9px] font-bold text-gray-300 mt-4 uppercase tracking-[4px]">{folders[name].length} Docs</p>
             </div>
           ))}
+          {Object.keys(folders).length === 0 && <p className="col-span-2 text-center text-gray-400 italic text-xs">No hay carpetas creadas aún.</p>}
         </div>
       ) : (
-        /* VISTA DE ARCHIVOS DENTRO DE LA CARPETA */
-        <div className="grid gap-3">
-          {folders[currentFolder].map(res => (
-            <a 
-              key={res.id} 
-              href={res.url} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between group hover:border-orange-200 transition"
-            >
-              <div className="flex items-center gap-4">
-                <div className="p-2 bg-gray-50 text-gray-400 rounded-lg group-hover:bg-orange-50 group-hover:text-orange-500">
-                  <LinkIcon size={18} />
-                </div>
-                <span className="font-bold text-gray-700 text-sm">{res.title}</span>
-              </div>
-              <ChevronRight size={16} className="text-gray-300" />
+        <div className="grid gap-3 pb-20">
+          {folders[folder].map(r => (
+            <a key={r.id} href={r.url} target="_blank" rel="noopener noreferrer" className="bg-white p-5 rounded-[30px] border border-violet-50 font-black text-sm text-gray-700 hover:border-violet-300 transition-all flex justify-between items-center group shadow-sm">
+              <span className="flex items-center gap-5 italic tracking-tight"><FileText size={20} className="text-violet-200" /> {r.title}</span><ExternalLink size={20} className="text-gray-200" />
             </a>
           ))}
         </div>
       )}
-
-      {/* MODAL NUEVO RECURSO */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95">
-            <h3 className="text-xl font-black mb-6 italic text-violet-900">Nuevo Recurso</h3>
-            <form onSubmit={addResource} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 ml-2">TÍTULO DEL DOCUMENTO</label>
-                <input name="title" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none" placeholder="Ej: Protocolo de Convivencia" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 ml-2">ENLACE (URL)</label>
-                <input name="url" type="url" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none" placeholder="https://drive.google.com/..." />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 ml-2">CARPETA / CATEGORÍA</label>
-                <select name="category" className="w-full p-4 bg-gray-50 rounded-2xl outline-none appearance-none">
-                  <option value="DOCUMENTOS">Documentos</option>
-                  <option value="UTILIDADES">Utilidades</option>
-                  <option value="NORMATIVAS">Normativas</option>
-                  <option value="ACTAS">Actas</option>
-                  <option value="PROYECTOS">Proyectos</option>
-                </select>
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-4 font-bold text-gray-400">CANCELAR</button>
-                <button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-bold shadow-lg">GUARDAR</button>
-              </div>
-            </form>
+          <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4">
+              <form onSubmit={addResource} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl space-y-4">
+                  <h3 className="text-xl font-bold text-violet-900 uppercase italic">Nuevo Recurso</h3>
+                  <input name="title" placeholder="Título del documento" className="w-full p-3 bg-gray-50 rounded-xl outline-none border border-gray-100 font-bold text-xs" required />
+                  <input name="url" placeholder="Enlace (URL)" className="w-full p-3 bg-gray-50 rounded-xl outline-none border border-gray-100 font-bold text-xs" required />
+                  <input name="category" placeholder="Carpeta (Ej: Actas)" className="w-full p-3 bg-gray-50 rounded-xl outline-none border border-gray-100 font-bold text-xs" required />
+                  <div className="flex gap-2 pt-2"><button type="button" onClick={() => setShowModal(false)} className="flex-1 text-gray-400 font-bold text-xs uppercase">CANCELAR</button><button type="submit" className="flex-1 bg-violet-600 text-white py-3 rounded-xl font-bold text-xs uppercase shadow-lg">GUARDAR</button></div>
+              </form>
           </div>
-        </div>
       )}
     </div>
   );
@@ -727,146 +629,133 @@ function ResourcesView({ resources, canEdit }) {
 function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
-  const [expandedTask, setExpandedTask] = useState(null); // Para ver el "signo +"
-  const [newComment, setNewComment] = useState("");
+  const [assignType, setAssignType] = useState('user'); // 'user' o 'roles'
+  const [selectedRoles, setSelectedRoles] = useState([]);
+  const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor'];
 
   useEffect(() => {
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
     const unsub = onSnapshot(q, snap => setUsersList(snap.docs.map(d => ({id: d.id, ...d.data()}))));
     return () => unsub();
   }, []);
 
+  const getPriorityStyle = (p) => {
+    if (p === 'alta') return 'border-l-red-500 bg-red-50';
+    if (p === 'media') return 'border-l-orange-500 bg-orange-50';
+    return 'border-l-green-500 bg-green-50';
+  };
+
   const addTask = async (e) => {
-    e.preventDefault();
+    e.preventDefault(); 
     const fd = new FormData(e.target);
-    const targetUserId = fd.get('targetUser');
-    const targetUser = usersList.find(u => u.id === targetUserId);
+    let assignedName = "Todos";
+    let targetUserId = null;
+    let targetRoles = [];
 
-    const taskData = {
-      title: fd.get('title'),
-      dueDate: fd.get('dueDate'),
-      priority: fd.get('priority'),
-      createdBy: user.fullName, // Quién la pide
-      createdById: user.id,
-      assignedToId: targetUserId, // Para quién es
-      assignedToName: targetUser ? targetUser.fullName : "Todos",
-      status: 'pending',
-      updates: [], // Aquí van los comentarios de cada uno
-      createdAt: serverTimestamp()
-    };
+    if (assignType === 'user') {
+        const uId = fd.get('targetUser');
+        const uObj = usersList.find(u => u.id === uId);
+        assignedName = uObj ? uObj.fullName : "Desconocido";
+        targetUserId = uId;
+    } else {
+        assignedName = selectedRoles.length > 0 ? selectedRoles.join(", ") : "Varios Roles";
+        targetRoles = selectedRoles;
+    }
 
-    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), taskData);
-    setShowModal(false);
+    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
+        title: fd.get('title'), 
+        dueDate: fd.get('dueDate'), 
+        priority: fd.get('priority'), 
+        targetType: assignType, 
+        targetUserId,
+        targetRoles,
+        assignedToName: assignedName, 
+        createdByName: user.fullName || user.firstName,
+        createdById: user.id,
+        status: 'pending', 
+        createdAt: serverTimestamp() 
+    });
+    setShowModal(false); setSelectedRoles([]);
   };
 
-  const addUpdate = async (taskId, currentUpdates) => {
-    if (!newComment.trim()) return;
-    const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId);
-    const update = {
-      user: user.firstName,
-      text: newComment,
-      date: new Date().toLocaleString(),
-      status: "comentó"
-    };
-    await updateDoc(taskRef, {
-      updates: arrayUnion(update)
-    });
-    setNewComment("");
-  };
-
-  const markAsDone = async (task) => {
-    const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id);
-    await updateDoc(taskRef, { status: 'completed' });
-    
-    // CREAR AVISO INTERNO PARA EL SOLICITANTE
-    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), {
-      title: "Tarea Finalizada",
-      message: `${user.fullName} terminó: ${task.title}`,
-      toUserId: task.createdById,
-      fromUser: user.fullName,
-      date: new Date().toISOString(),
-      read: false
-    });
-    alert("¡Tarea finalizada! Se le avisó a " + task.createdBy);
+  const changeStatus = async (task, newStatus) => {
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus });
+    // Notificar al creador si es otro usuario
+    if (task.createdById && task.createdById !== user.id) {
+       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), {
+           toUserId: task.createdById,
+           title: "Actualización de Tarea",
+           message: `${user.firstName} cambió "${task.title}" a ${newStatus === 'completed' ? 'FINALIZADO' : 'EN PROCESO'}.`,
+           read: false,
+           date: new Date().toISOString(),
+           createdAt: serverTimestamp()
+       });
+    }
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-black text-violet-900">Tareas</h2>
-        <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg"><Plus/></button>
-      </div>
-
-      <div className="grid gap-4">
-        {tasks.map(t => (
-          <div key={t.id} className={`bg-white p-5 rounded-[30px] border-l-[12px] shadow-sm transition ${t.status === 'completed' ? 'border-green-400 opacity-60' : 'border-violet-400'}`}>
+    <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10">
+      <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas Institucionales</h2><button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:scale-110 transition-all"><Plus/></button></div>
+      <div className="grid gap-3 pb-10">
+        {(tasks || []).map(t => (
+          <div key={t.id} className={`p-5 rounded-[30px] border-l-8 shadow-sm flex flex-col gap-3 bg-white ${getPriorityStyle(t.priority)}`}>
             <div className="flex justify-between items-start">
               <div className="flex-1">
-                <p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">Solicitado por: {t.createdBy}</p>
-                <h3 className="font-bold text-gray-800 text-lg">{t.title}</h3>
-                <p className="text-xs text-gray-400 mt-1">Para: {t.assignedToName} • Vence: {formatDate(t.dueDate)}</p>
+                <p className="text-[9px] font-black text-violet-600 uppercase tracking-widest italic mb-1">Para: {t.assignedToName}</p>
+                <h3 className="font-bold text-gray-800 text-sm uppercase italic tracking-tighter leading-none">{t.title}</h3>
+                <p className="text-[9px] text-gray-400 mt-1 italic">Solicitado por: {t.createdByName}</p>
               </div>
-              <div className="flex gap-2">
-                <button onClick={() => setExpandedTask(expandedTask === t.id ? null : t.id)} className="bg-gray-100 p-2 rounded-xl text-gray-500">
-                  {expandedTask === t.id ? <X size={18}/> : <Plus size={18}/>}
-                </button>
-                {t.status !== 'completed' && (
-                  <button onClick={() => markAsDone(t)} className="bg-green-100 text-green-600 p-2 rounded-xl"><Check size={18}/></button>
-                )}
-              </div>
+              <div className="text-[9px] font-black bg-white px-2 py-1 rounded-full text-gray-400 border uppercase tracking-tighter italic shadow-inner">{t.dueDate}</div>
             </div>
-
-            {/* SECCIÓN EXPANDIBLE (HISTORIAL DE AVANCES) */}
-            {expandedTask === t.id && (
-              <div className="mt-4 pt-4 border-t border-dashed border-gray-100 space-y-3">
-                <div className="max-h-32 overflow-y-auto space-y-2">
-                  {t.updates?.map((upd, i) => (
-                    <div key={i} className="bg-violet-50 p-2 rounded-xl text-[11px]">
-                      <span className="font-bold text-violet-700">{upd.user}:</span> {upd.text}
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribir avance..." className="flex-1 text-xs p-2 bg-gray-50 rounded-lg outline-none" />
-                  <button onClick={() => addUpdate(t.id, t.updates)} className="bg-violet-600 text-white p-2 rounded-lg text-xs font-bold">Enviar</button>
-                </div>
-              </div>
-            )}
+            <div className="pt-2 border-t border-black/5 flex justify-end">
+              <select value={t.status || 'pending'} onChange={(e) => changeStatus(t, e.target.value)} className="text-xs bg-white/50 border rounded-lg p-1 font-bold text-gray-600 outline-none cursor-pointer">
+                <option value="pending">Pendiente</option>
+                <option value="in_process">En Proceso</option>
+                <option value="completed">Finalizado</option>
+              </select>
+            </div>
           </div>
         ))}
       </div>
-
-      {/* MODAL NUEVA TAREA */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95">
-            <h3 className="text-xl font-black mb-6">Pedir Tarea</h3>
-            <form onSubmit={addTask} className="space-y-4">
-              <input name="title" placeholder="¿Qué hay que hacer?" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-orange-400" />
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 ml-2">PARA QUIÉN</label>
-                  <select name="targetUser" className="w-full p-3 bg-gray-50 rounded-xl outline-none">
-                    <option value="all">Todos</option>
-                    {usersList.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
-                  </select>
+          <form onSubmit={addTask} className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-black text-violet-900 uppercase italic">Nueva Tarea</h3>
+            <input name="title" placeholder="¿Qué tarea asignar?" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm shadow-inner" />
+            
+            <div className="flex gap-2 bg-gray-100 p-1 rounded-xl">
+                <button type="button" onClick={() => setAssignType('user')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'user' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Persona</button>
+                <button type="button" onClick={() => setAssignType('roles')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'roles' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Roles</button>
+            </div>
+
+            {assignType === 'user' ? (
+                <select name="targetUser" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs uppercase tracking-widest border border-gray-100">
+                  {usersList.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+                </select>
+            ) : (
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 max-h-32 overflow-y-auto">
+                    {ROLES_OPTIONS.map(role => (
+                        <label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600 cursor-pointer">
+                            <input type="checkbox" checked={selectedRoles.includes(role)} onChange={(e) => {
+                                if(e.target.checked) setSelectedRoles([...selectedRoles, role]);
+                                else setSelectedRoles(selectedRoles.filter(r => r !== role));
+                            }} className="accent-violet-600"/> {role}
+                        </label>
+                    ))}
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 ml-2">FECHA LÍMITE</label>
-                  <input name="dueDate" type="date" required className="w-full p-3 bg-gray-50 rounded-xl outline-none" />
-                </div>
-              </div>
-              <select name="priority" className="w-full p-3 bg-gray-50 rounded-xl outline-none">
-                <option value="low">Prioridad Baja</option>
-                <option value="medium">Media</option>
-                <option value="high">Urgente 🔴</option>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <input name="dueDate" type="date" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs text-gray-400" />
+              <select name="priority" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs uppercase text-orange-600 italic">
+                <option value="baja">Baja</option><option value="media">Media</option><option value="alta">Alta</option>
               </select>
-              <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-4 font-bold text-gray-400">CANCELAR</button>
-                <button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-bold shadow-lg">SOLICITAR</button>
-              </div>
-            </form>
-          </div>
+            </div>
+            <div className="flex gap-2 pt-4">
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 font-bold text-gray-400 text-xs">CANCELAR</button>
+                <button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">CREAR</button>
+            </div>
+          </form>
         </div>
       )}
     </div>
@@ -989,78 +878,24 @@ function UsersView({ user }) {
 
 // --- VISTA CALENDARIO (SIN CAMBIOS) ---
 function CalendarView({ events, canEdit, user }) {
-  const [showModal, setShowModal] = useState(false);
-  // CAMBIO CLAVE: Ahora el estado inicial es 'grid'
-  const [viewMode, setViewMode] = useState('grid'); 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState(null);
-  const [filterType, setFilterType] = useState('all');
-
-  const addEvent = async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), {
-      title: fd.get('title'),
-      date: fd.get('date'),
-      type: fd.get('type'),
-      description: fd.get('description'),
-      createdBy: user.id,
-      createdAt: serverTimestamp()
-    });
-    setShowModal(false);
-  };
-
-  const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
-  const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
-  const changeMonth = (offset) => {
-    const newDate = new Date(currentDate.setMonth(currentDate.getMonth() + offset));
-    setCurrentDate(new Date(newDate));
-  };
-
-  const getTypeStyle = (type) => {
-    const styles = { 
-      'SALIDA EDUCATIVA': 'bg-green-100 text-green-800 border-green-200', 
-      'GENERAL': 'bg-gray-100 text-gray-800 border-gray-200', 
-      'ADMINISTRATIVO': 'bg-blue-100 text-blue-800 border-blue-200', 
-      'INFORMES': 'bg-amber-100 text-amber-800 border-amber-200', 
-      'EVENTOS': 'bg-violet-100 text-violet-800 border-violet-200', 
-      'ACTOS': 'bg-red-100 text-red-800 border-red-200', 
-      'EFEMÉRIDES': 'bg-cyan-100 text-cyan-800 border-cyan-200', 
-      'CUMPLEAÑOS': 'bg-pink-100 text-pink-800 border-pink-200' 
-    };
-    return styles[type] || styles['GENERAL'];
-  };
-
-  const renderCalendarGrid = () => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    const daysInMonth = getDaysInMonth(year, month);
-    const firstDay = getFirstDayOfMonth(year, month);
-    const days = [];
-
-    // Espacios vacíos del mes anterior
-    for (let i = 0; i < firstDay; i++) {
-      days.push(<div key={`empty-${i}`} className="min-h-[70px] bg-gray-50/30 border border-gray-100"></div>);
-    }
-
-    // Días del mes
-    for (let d = 1; d <= daysInMonth; d++) {
-      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const dayEvents = events.filter(e => e.date === dateStr);
-      
+  const [showModal, setShowModal] = useState(false);
+  
+  const changeMonth = (offset) => { const d = new Date(currentDate); d.setMonth(d.getMonth() + offset); setCurrentDate(new Date(d)); };
+  
+  const renderGrid = () => {
+    const year = currentDate.getFullYear(); const month = currentDate.getMonth();
+    const days = []; const firstDay = new Date(year, month, 1).getDay();
+    for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} className="min-h-[70px] bg-gray-50/20 border-b border-r border-gray-100"></div>);
+    for (let d = 1; d <= new Date(year, month + 1, 0).getDate(); d++) {
+      const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const dayEvents = (events || []).filter(e => e.date === dateStr);
       days.push(
-        <div key={d} className="min-h-[70px] border border-gray-100 p-1 bg-white hover:bg-violet-50 transition group overflow-hidden">
-          <span className={`text-[10px] font-bold block mb-1 ${dayEvents.length > 0 ? 'text-violet-700' : 'text-gray-400'}`}>{d}</span>
-          <div className="flex flex-col gap-0.5">
-            {dayEvents.map((ev, idx) => (
-              <button 
-                key={idx} 
-                onClick={() => setSelectedEvent(ev)} 
-                className={`text-[8px] text-left truncate px-1 py-0.5 rounded font-bold w-full ${getTypeStyle(ev.type)} shadow-sm`}
-              >
-                {ev.title}
-              </button>
-            ))}
+        <div key={d} className="min-h-[70px] border-b border-r border-gray-100 p-1 bg-white hover:bg-violet-50 transition text-center overflow-hidden">
+          <span className={`text-[10px] font-black ${dayEvents.length > 0 ? 'text-violet-700 underline' : 'text-gray-400'}`}>{d}</span>
+          <div className="flex flex-col gap-0.5 mt-1">
+            {dayEvents.map((ev, idx) => (<button key={idx} onClick={() => setSelectedEvent(ev)} className="text-[6px] bg-violet-100 text-violet-700 rounded-sm p-0.5 truncate font-black uppercase shadow-sm border border-violet-200">{ev.title}</button>))}
           </div>
         </div>
       );
@@ -1068,60 +903,60 @@ function CalendarView({ events, canEdit, user }) {
     return days;
   };
 
-  return (
-    <div className="animate-in fade-in duration-500">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-black text-violet-900">Agenda</h2>
-          <p className="text-xs text-gray-400 uppercase font-bold tracking-widest">{currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}</p>
-        </div>
-        <div className="flex gap-2">
-          <div className="bg-white p-1 rounded-xl border flex shadow-sm">
-            <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition ${viewMode === 'grid' ? 'bg-violet-100 text-violet-700' : 'text-gray-400'}`}><Grid size={20}/></button>
-            <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition ${viewMode === 'list' ? 'bg-violet-100 text-violet-700' : 'text-gray-400'}`}><List size={20}/></button>
-          </div>
-          {canEdit && <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg"><Plus/></button>}
-        </div>
-      </div>
+  const handleAddEvent = async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), { 
+          title: fd.get('title'), 
+          date: fd.get('date'), 
+          type: fd.get('type'), 
+          description: fd.get('description'), 
+          createdAt: serverTimestamp() 
+      });
+      setShowModal(false);
+  };
 
-      {viewMode === 'grid' ? (
-        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
-          <div className="p-4 flex justify-between items-center bg-violet-50 border-b">
-            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700"><ChevronLeft size={24} /></button>
-            <span className="font-bold text-violet-900 capitalize">{currentDate.toLocaleDateString('es-ES', { month: 'long' })}</span>
-            <button onClick={() => changeMonth(1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700"><ChevronRight size={24} /></button>
-          </div>
-          <div className="grid grid-cols-7 text-center py-2 bg-white text-[9px] font-black text-gray-400 uppercase border-b">
-            <div>Dom</div><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div>
-          </div>
-          <div className="grid grid-cols-7 bg-gray-50 gap-px border-b">
-            {renderCalendarGrid()}
-          </div>
+  return (
+    <div className="space-y-4 pb-10 animate-in fade-in">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-black text-violet-900 italic uppercase">Agenda</h2>
+        <div className="flex gap-2 items-center bg-white p-1 rounded-xl shadow-sm border border-gray-100">
+          <button onClick={() => changeMonth(-1)} className="p-2 text-violet-700 hover:bg-violet-50 rounded-lg transition-all"><ChevronLeft size={18}/></button>
+          <span className="font-black text-violet-900 capitalize text-[10px] min-w-[120px] text-center italic tracking-widest">{currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}</span>
+          <button onClick={() => changeMonth(1)} className="p-2 text-violet-700 hover:bg-violet-50 rounded-lg transition-all"><ChevronRight size={18}/></button>
         </div>
-      ) : (
-        <div className="space-y-3">
-          {events.map(e => (
-            <div key={e.id} onClick={() => setSelectedEvent(e)} className="bg-white p-4 rounded-2xl border flex items-center gap-4 cursor-pointer">
-               <div className="w-12 h-12 bg-violet-50 text-violet-600 rounded-xl flex flex-col items-center justify-center font-bold">
-                 <span className="text-[8px] uppercase">{new Date(e.date + 'T00:00:00').toLocaleDateString('es-ES', {month: 'short'})}</span>
-                 <span>{new Date(e.date + 'T00:00:00').getDate()}</span>
-               </div>
-               <h3 className="font-bold text-sm text-gray-800">{e.title}</h3>
+        {canEdit && <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg hover:scale-110 transition-all"><Plus size={20}/></button>}
+      </div>
+      <div className="bg-white rounded-[40px] shadow-xl border border-gray-100 overflow-hidden grid grid-cols-7 border-t-8 border-violet-600">
+        {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d => <div key={d} className="text-[9px] font-black text-violet-400 uppercase p-3 border-b text-center bg-violet-50/50 italic tracking-[2px]">{d}</div>)}
+        {renderGrid()}
+      </div>
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
+          <form onSubmit={handleAddEvent} className="bg-white rounded-[50px] w-full max-w-sm p-10 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-orange-500">
+            <h3 className="text-xl font-black italic uppercase text-violet-900 tracking-tighter leading-none">Publicar Evento</h3>
+            <input name="title" placeholder="Título del evento" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm italic shadow-inner" />
+            <input name="date" type="date" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs" />
+            <select name="type" className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-[10px] font-black uppercase tracking-[3px] border border-gray-100 shadow-inner">
+              {['GENERAL', 'SALIDA EDUCATIVA', 'EFEMÉRIDES', 'ACTO', 'REUNIÓN'].map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <textarea name="description" placeholder="Observaciones..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none italic text-xs font-medium border border-gray-100 shadow-inner" />
+            <div className="flex gap-2">
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-4 text-gray-400 font-bold text-xs uppercase">Cancelar</button>
+                <button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-[10px] italic">Agendar</button>
             </div>
-          ))}
+          </form>
         </div>
       )}
-
-      {/* MODAL VER EVENTO */}
       {selectedEvent && (
         <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4" onClick={() => setSelectedEvent(null)}>
-          <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
-            <span className={`text-[10px] font-black px-2 py-1 rounded-lg uppercase border ${getTypeStyle(selectedEvent.type)}`}>{selectedEvent.type}</span>
-            <h2 className="text-2xl font-black text-gray-800 mt-4 leading-tight">{selectedEvent.title}</h2>
-            <p className="text-gray-500 text-sm mt-4 leading-relaxed">{selectedEvent.description || 'Sin descripción adicional.'}</p>
-            <div className="mt-8 pt-6 border-t flex justify-between items-center text-gray-400">
-               <div className="flex items-center gap-2"><Clock size={16}/> <span className="text-xs font-bold uppercase">{formatDate(selectedEvent.date)}</span></div>
-               <button onClick={() => setSelectedEvent(null)} className="font-black text-violet-600 text-sm">CERRAR</button>
+          <div className="bg-white rounded-[50px] w-full max-w-sm p-10 shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+            <span className="text-[9px] font-black text-orange-600 bg-orange-50 px-3 py-1 rounded-full uppercase tracking-[3px] border border-orange-100 italic shadow-sm">{selectedEvent.type || 'Evento'}</span>
+            <h2 className="text-2xl font-black text-gray-800 leading-tight italic uppercase mt-5 tracking-tighter italic leading-none">{selectedEvent.title}</h2>
+            <p className="text-gray-500 text-xs mt-6 leading-relaxed font-medium italic border-l-4 border-violet-100 pl-4 bg-gray-50 p-4 rounded-r-3xl shadow-inner">{selectedEvent.description || 'Sin detalles institucionales cargados.'}</p>
+            <div className="mt-10 pt-6 border-t flex justify-between items-center text-gray-400 text-[10px] font-black uppercase tracking-[3px] italic">
+              <div className="flex items-center gap-2"><Clock size={16}/> {formatDate(selectedEvent.date)}</div>
+              <button onClick={() => setSelectedEvent(null)} className="text-violet-600 font-black tracking-widest">Cerrar</button>
             </div>
           </div>
         </div>
@@ -1260,138 +1095,140 @@ function ProfileView({ user, tasks, onLogout }) {
 }
 // --- VISTA PROYECTO 360 ---
 function ProyectoView({ user }) {
-  const [meses, setMeses] = useState([]);
-  const [editing, setEditing] = useState(null);
+  const [periods, setPeriods] = useState([]);
+  const [selectedPeriod, setSelectedPeriod] = useState(null);
+  const [activeTab, setActiveTab] = useState('contenidos'); 
+  const [editing, setEditing] = useState(false);
   const isAdmin = user.rol === 'admin' || user.rol === 'super-admin';
 
+  // Nombres fijos de los bloques
+  const PERIOD_NAMES = [
+      "MARZO", "ABRIL Y MAYO", "JUNIO Y JULIO", "AGOSTO Y SEPTIEMBRE", "OCTUBRE Y NOVIEMBRE", "DICIEMBRE"
+  ];
+
   useEffect(() => {
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'proyecto2026'), orderBy('orden', 'asc'));
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'proyecto2026_periods'));
     const unsub = onSnapshot(q, (snap) => {
-      setMeses(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        const dataMap = {};
+        snap.docs.forEach(d => dataMap[d.id] = d.data());
+        // Fusionamos los nombres fijos con los datos de DB
+        const builtPeriods = PERIOD_NAMES.map(name => {
+            const id = name.replace(/\s+/g, '_');
+            return { id, name, ...(dataMap[id] || {}) };
+        });
+        setPeriods(builtPeriods);
     });
     return () => unsub();
   }, []);
 
-  const inicializar = async () => {
-    if (!confirm("¿Generar estructura anual? Esto creará los meses de Marzo a Diciembre.")) return;
-    const names = ["Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-    try {
-      for (let i = 0; i < names.length; i++) {
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'proyecto2026'), {
-          nombre: names[i],
-          orden: i,
-          eje: "Eje temático...",
-          contenidos: "Contenidos curriculares...",
-          actividades: "Propuestas sugeridas..."
-        });
-      }
-      alert("✅ Proyecto inicializado con éxito.");
-    } catch (e) {
-      alert("Error: " + e.message);
-    }
-  };
-
   const handleSave = async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    try {
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'proyecto2026', editing.id), {
-        eje: fd.get('eje'),
-        contenidos: fd.get('contenidos'),
-        actividades: fd.get('actividades') // Nuevo campo para actividades
-      });
-      setEditing(null);
-    } catch (e) {
-      alert("Error al guardar: " + e.message);
-    }
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const data = {
+          fundamentacion: fd.get('fundamentacion'),
+          contenidos: fd.get('contenidos'),
+          actividades: fd.get('actividades'),
+          paises: fd.get('paises'),
+          updatedAt: serverTimestamp()
+      };
+      // Usamos setDoc con merge para crear o actualizar
+      const { setDoc, doc: docRef } = await import('firebase/firestore'); 
+      await setDoc(docRef(db, 'artifacts', appId, 'public', 'data', 'proyecto2026_periods', selectedPeriod.id), data, { merge: true });
+      
+      setEditing(false);
+      setSelectedPeriod({...selectedPeriod, ...data});
   };
 
   return (
     <div className="space-y-6 pb-24 animate-in slide-in-from-bottom-6 duration-700">
       <div className="bg-indigo-900 p-12 rounded-[60px] text-white shadow-2xl relative overflow-hidden text-center border-b-8 border-orange-500">
-        <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Proyecto 360</h2>
-        <p className="text-[10px] font-bold opacity-60 uppercase mt-4 tracking-[8px] italic">Vuelta al Mundo</p>
-        
-        {/* Botón solo visible si no hay meses y eres admin */}
-        {isAdmin && meses.length === 0 && (
-          <button onClick={inicializar} className="mt-8 bg-orange-500 px-10 py-4 rounded-full text-[10px] font-black shadow-lg uppercase tracking-[4px] hover:scale-110 transition shadow-orange-500/20 active:scale-95">
-            Generar Estructura Anual
-          </button>
-        )}
-        <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-white opacity-5 rounded-full"></div>
+        <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none tracking-[1px]">Proyecto 2026</h2>
+        <p className="text-[10px] font-bold opacity-60 uppercase mt-4 tracking-[8px] italic tracking-[10px]">La Vuelta al Mundo</p>
+        <Globe className="absolute -left-10 -bottom-10 w-40 h-40 text-white opacity-5 rotate-12" />
       </div>
 
-      <div className="space-y-6">
-        {meses.map((m) => (
-          <div key={m.id} className="bg-white p-8 rounded-[45px] border border-violet-50 shadow-sm relative group hover:shadow-2xl transition-all border-l-[12px] border-violet-100">
-            <div className="flex justify-between items-center mb-6">
-              <div className="space-y-1">
-                <h3 className="font-black text-violet-900 uppercase text-base tracking-widest italic">{m.nombre}</h3>
-                <span className="text-[8px] bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full font-black uppercase tracking-widest border border-orange-100 block w-fit">
-                  {m.eje}
-                </span>
-              </div>
-              {isAdmin && (
-                <button onClick={() => setEditing(m)} className="p-3 bg-gray-50 text-gray-300 rounded-2xl hover:text-orange-500 hover:bg-orange-50 transition-all opacity-0 group-hover:opacity-100">
-                  <Edit3 size={20}/>
-                </button>
-              )}
-            </div>
-            
-            <div className="space-y-4">
-              <div className="bg-gray-50 p-6 rounded-[35px] border border-gray-100">
-                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Contenidos</p>
-                <div className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed italic font-medium font-serif">
-                  {m.contenidos}
+      <div className="grid gap-4">
+        {periods.map(period => (
+            <div key={period.id} onClick={() => setSelectedPeriod(period)} className="bg-white p-6 rounded-[35px] shadow-sm border border-violet-50 flex items-center justify-between cursor-pointer hover:shadow-lg transition group border-l-8 border-indigo-100">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center font-black text-[10px] border border-indigo-100 group-hover:bg-indigo-600 group-hover:text-white transition uppercase">
+                        {period.name.substring(0,3)}
+                    </div>
+                    <div>
+                        <h3 className="font-black text-gray-800 uppercase italic tracking-tighter">{period.name}</h3>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest group-hover:text-indigo-500 transition">Ver Planificación</p>
+                    </div>
                 </div>
-              </div>
-              
-              {m.actividades && (
-                <div className="bg-blue-50/50 p-6 rounded-[35px] border border-blue-50">
-                  <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-2">Actividades</p>
-                  <div className="text-xs text-blue-900 whitespace-pre-wrap leading-relaxed font-medium">
-                    {m.actividades}
-                  </div>
-                </div>
-              )}
+                <ChevronRight className="text-gray-300 group-hover:translate-x-1 transition" />
             </div>
-          </div>
         ))}
       </div>
 
-      {/* MODAL DE EDICIÓN */}
-      {editing && (
-        <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-md">
-          <form onSubmit={handleSave} className="bg-white rounded-[60px] w-full max-w-2xl p-10 shadow-2xl space-y-6 animate-in zoom-in-95 border-t-[12px] border-violet-600 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-black italic text-violet-900 uppercase italic tracking-[4px] text-center">
-              Editando {editing.nombre}
-            </h3>
-            
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">Eje Temático</label>
-              <input name="eje" defaultValue={editing.eje} className="w-full p-5 bg-gray-50 rounded-3xl outline-none font-black uppercase text-xs tracking-widest border border-gray-100 shadow-inner focus:ring-2 ring-violet-200" />
-            </div>
+      {/* MODAL DETALLE PERIODO */}
+      {selectedPeriod && (
+          <div className="fixed inset-0 bg-indigo-900/90 backdrop-blur-md z-[200] flex flex-col p-4 animate-in slide-in-from-bottom">
+              <div className="flex justify-between items-center text-white mb-6">
+                  <h2 className="text-2xl font-black italic uppercase tracking-tighter">{selectedPeriod.name}</h2>
+                  <button onClick={() => {setSelectedPeriod(null); setEditing(false);}} className="bg-white/10 p-2 rounded-full hover:bg-white/20"><X/></button>
+              </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">Contenidos</label>
-              <textarea name="contenidos" defaultValue={editing.contenidos} rows="6" className="w-full p-8 bg-gray-50 rounded-[45px] outline-none text-xs font-serif italic border border-gray-100 shadow-inner leading-relaxed focus:ring-2 ring-violet-200" />
-            </div>
+              {!editing ? (
+                  <div className="flex-1 bg-white rounded-[40px] overflow-hidden flex flex-col shadow-2xl">
+                      {/* TABS */}
+                      <div className="flex overflow-x-auto p-2 bg-gray-50 border-b gap-2 scrollbar-hide">
+                          {['contenidos', 'actividades', 'fundamentacion', 'paises'].map(tab => (
+                              <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition ${activeTab === tab ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-100'}`}>
+                                  {tab}
+                              </button>
+                          ))}
+                      </div>
+                      
+                      <div className="flex-1 p-8 overflow-y-auto">
+                          {activeTab === 'contenidos' && (
+                              <div className="space-y-4 animate-in fade-in">
+                                  <div className="flex items-center gap-2 text-indigo-600 mb-2"><BookOpen size={20}/><h4 className="font-black text-xs uppercase tracking-widest">Contenidos Curriculares</h4></div>
+                                  <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.contenidos || 'Sin contenidos cargados.'}</p>
+                              </div>
+                          )}
+                          {activeTab === 'actividades' && (
+                              <div className="space-y-4 animate-in fade-in">
+                                  <div className="flex items-center gap-2 text-orange-600 mb-2"><Activity size={20}/><h4 className="font-black text-xs uppercase tracking-widest">Propuestas</h4></div>
+                                  <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.actividades || 'Sin actividades cargadas.'}</p>
+                              </div>
+                          )}
+                          {activeTab === 'fundamentacion' && (
+                              <div className="space-y-4 animate-in fade-in">
+                                  <div className="flex items-center gap-2 text-pink-600 mb-2"><MessageSquare size={20}/><h4 className="font-black text-xs uppercase tracking-widest">Fundamentación</h4></div>
+                                  <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.fundamentacion || 'Sin fundamentación cargada.'}</p>
+                              </div>
+                          )}
+                          {activeTab === 'paises' && (
+                              <div className="space-y-4 animate-in fade-in">
+                                  <div className="flex items-center gap-2 text-green-600 mb-2"><Globe size={20}/><h4 className="font-black text-xs uppercase tracking-widest">Países y Ejes</h4></div>
+                                  <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.paises || 'Sin información.'}</p>
+                              </div>
+                          )}
+                      </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">Actividades Sugeridas</label>
-              <textarea name="actividades" defaultValue={editing.actividades} rows="6" className="w-full p-8 bg-blue-50/50 rounded-[45px] outline-none text-xs font-medium border border-blue-100 shadow-inner leading-relaxed focus:ring-2 ring-blue-200" />
-            </div>
-
-            <div className="flex gap-4 pt-4 border-t border-gray-100">
-              <button type="button" onClick={() => setEditing(null)} className="flex-1 font-black text-gray-400 uppercase tracking-widest text-xs hover:text-gray-600 transition">
-                Cancelar
-              </button>
-              <button type="submit" className="flex-1 py-5 bg-violet-800 text-white rounded-3xl font-black shadow-xl uppercase tracking-widest text-xs shadow-violet-500/20 active:scale-95 hover:bg-violet-900 transition">
-                Guardar Cambios
-              </button>
-            </div>
-          </form>
-        </div>
+                      {isAdmin && (
+                          <div className="p-4 border-t bg-gray-50 text-center">
+                              <button onClick={() => setEditing(true)} className="bg-indigo-100 text-indigo-700 px-6 py-3 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-200 transition shadow-sm">Editar Contenido</button>
+                          </div>
+                      )}
+                  </div>
+              ) : (
+                  <form onSubmit={handleSave} className="flex-1 bg-white rounded-[40px] p-6 overflow-y-auto flex flex-col gap-4">
+                      <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 ml-2 uppercase tracking-widest">CONTENIDOS</label><textarea name="contenidos" defaultValue={selectedPeriod.contenidos} className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-mono border-none outline-none h-32 resize-none shadow-inner" /></div>
+                      <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 ml-2 uppercase tracking-widest">ACTIVIDADES</label><textarea name="actividades" defaultValue={selectedPeriod.actividades} className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-mono border-none outline-none h-32 resize-none shadow-inner" /></div>
+                      <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 ml-2 uppercase tracking-widest">FUNDAMENTACIÓN</label><textarea name="fundamentacion" defaultValue={selectedPeriod.fundamentacion} className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-mono border-none outline-none h-24 resize-none shadow-inner" /></div>
+                      <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 ml-2 uppercase tracking-widest">PAÍSES / EJES</label><textarea name="paises" defaultValue={selectedPeriod.paises} className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-mono border-none outline-none h-24 resize-none shadow-inner" /></div>
+                      <div className="flex gap-2 pt-4">
+                          <button type="button" onClick={() => setEditing(false)} className="flex-1 py-3 text-gray-400 font-bold text-xs uppercase tracking-widest">CANCELAR</button>
+                          <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-black shadow-lg text-xs uppercase tracking-widest">GUARDAR</button>
+                      </div>
+                  </form>
+              )}
+          </div>
       )}
     </div>
   );
@@ -1662,4 +1499,5 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
