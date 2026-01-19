@@ -636,21 +636,155 @@ function CalendarView({ events }) {
  );
 }
 
-function TasksView({ tasks }) {
- return (
-  <div className="space-y-4">
-   <h2 className="text-2xl font-bold text-violet-900 mb-6">Tareas</h2>
-   <div className="grid gap-4">
-    {tasks.map(t => (
-     <div key={t.id} className="bg-white p-6 rounded-[35px] shadow-sm border-l-[12px] border-violet-500 flex justify-between items-center group">
-      <div><h3 className="font-bold text-gray-800 text-lg leading-tight mb-2">{t.title}</h3><div className="flex gap-2"><span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-lg font-bold">{formatDate(t.dueDate)}</span></div></div>
-      <span className="bg-violet-100 text-violet-600 p-3 rounded-2xl group-hover:rotate-12 transition"><CheckCircle size={20}/></span>
-     </div>
-    ))}
-   </div>
-  </div>
- );
+function TasksView({ tasks, user, canEdit }) {
+  const [showModal, setShowModal] = useState(false);
+  const [usersList, setUsersList] = useState([]);
+  const [expandedTask, setExpandedTask] = useState(null); // Para ver el "signo +"
+  const [newComment, setNewComment] = useState("");
+
+  useEffect(() => {
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
+    const unsub = onSnapshot(q, snap => setUsersList(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+    return () => unsub();
+  }, []);
+
+  const addTask = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const targetUserId = fd.get('targetUser');
+    const targetUser = usersList.find(u => u.id === targetUserId);
+
+    const taskData = {
+      title: fd.get('title'),
+      dueDate: fd.get('dueDate'),
+      priority: fd.get('priority'),
+      createdBy: user.fullName, // Quién la pide
+      createdById: user.id,
+      assignedToId: targetUserId, // Para quién es
+      assignedToName: targetUser ? targetUser.fullName : "Todos",
+      status: 'pending',
+      updates: [], // Aquí van los comentarios de cada uno
+      createdAt: serverTimestamp()
+    };
+
+    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), taskData);
+    setShowModal(false);
+  };
+
+  const addUpdate = async (taskId, currentUpdates) => {
+    if (!newComment.trim()) return;
+    const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId);
+    const update = {
+      user: user.firstName,
+      text: newComment,
+      date: new Date().toLocaleString(),
+      status: "comentó"
+    };
+    await updateDoc(taskRef, {
+      updates: arrayUnion(update)
+    });
+    setNewComment("");
+  };
+
+  const markAsDone = async (task) => {
+    const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id);
+    await updateDoc(taskRef, { status: 'completed' });
+    
+    // CREAR AVISO INTERNO PARA EL SOLICITANTE
+    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), {
+      title: "Tarea Finalizada",
+      message: `${user.fullName} terminó: ${task.title}`,
+      toUserId: task.createdById,
+      fromUser: user.fullName,
+      date: new Date().toISOString(),
+      read: false
+    });
+    alert("¡Tarea finalizada! Se le avisó a " + task.createdBy);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-black text-violet-900">Tareas</h2>
+        <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg"><Plus/></button>
+      </div>
+
+      <div className="grid gap-4">
+        {tasks.map(t => (
+          <div key={t.id} className={`bg-white p-5 rounded-[30px] border-l-[12px] shadow-sm transition ${t.status === 'completed' ? 'border-green-400 opacity-60' : 'border-violet-400'}`}>
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">Solicitado por: {t.createdBy}</p>
+                <h3 className="font-bold text-gray-800 text-lg">{t.title}</h3>
+                <p className="text-xs text-gray-400 mt-1">Para: {t.assignedToName} • Vence: {formatDate(t.dueDate)}</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setExpandedTask(expandedTask === t.id ? null : t.id)} className="bg-gray-100 p-2 rounded-xl text-gray-500">
+                  {expandedTask === t.id ? <X size={18}/> : <Plus size={18}/>}
+                </button>
+                {t.status !== 'completed' && (
+                  <button onClick={() => markAsDone(t)} className="bg-green-100 text-green-600 p-2 rounded-xl"><Check size={18}/></button>
+                )}
+              </div>
+            </div>
+
+            {/* SECCIÓN EXPANDIBLE (HISTORIAL DE AVANCES) */}
+            {expandedTask === t.id && (
+              <div className="mt-4 pt-4 border-t border-dashed border-gray-100 space-y-3">
+                <div className="max-h-32 overflow-y-auto space-y-2">
+                  {t.updates?.map((upd, i) => (
+                    <div key={i} className="bg-violet-50 p-2 rounded-xl text-[11px]">
+                      <span className="font-bold text-violet-700">{upd.user}:</span> {upd.text}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribir avance..." className="flex-1 text-xs p-2 bg-gray-50 rounded-lg outline-none" />
+                  <button onClick={() => addUpdate(t.id, t.updates)} className="bg-violet-600 text-white p-2 rounded-lg text-xs font-bold">Enviar</button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* MODAL NUEVA TAREA */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95">
+            <h3 className="text-xl font-black mb-6">Pedir Tarea</h3>
+            <form onSubmit={addTask} className="space-y-4">
+              <input name="title" placeholder="¿Qué hay que hacer?" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-orange-400" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 ml-2">PARA QUIÉN</label>
+                  <select name="targetUser" className="w-full p-3 bg-gray-50 rounded-xl outline-none">
+                    <option value="all">Todos</option>
+                    {usersList.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 ml-2">FECHA LÍMITE</label>
+                  <input name="dueDate" type="date" required className="w-full p-3 bg-gray-50 rounded-xl outline-none" />
+                </div>
+              </div>
+              <select name="priority" className="w-full p-3 bg-gray-50 rounded-xl outline-none">
+                <option value="low">Prioridad Baja</option>
+                <option value="medium">Media</option>
+                <option value="high">Urgente 🔴</option>
+              </select>
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-4 font-bold text-gray-400">CANCELAR</button>
+                <button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-bold shadow-lg">SOLICITAR</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
+
 
 function ResourcesView({ resources }) {
  const formatUrl = (url) => (url.startsWith('http') ? url : `https://${url}`);
@@ -717,4 +851,5 @@ function ProfileView({ user, onLogout }) {
   </div>
  );
 }
+
 
