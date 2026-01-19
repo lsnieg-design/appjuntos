@@ -934,6 +934,122 @@ function ProfileView({ user, onLogout }) {
   </div>
  );
 }
+function ProyectoView({ user }) {
+  const [meses, setMeses] = useState([]);
+  const [editingMes, setEditingMes] = useState(null);
+  const [expandedMes, setExpandedMes] = useState(null);
+  const isAdmin = user.rol === 'admin' || user.rol === 'super-admin';
+
+  // Cargar el cronograma desde Firebase
+  useEffect(() => {
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'proyecto2026'), orderBy('orden', 'asc'));
+    return onSnapshot(q, (snap) => {
+      setMeses(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+  }, []);
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const data = {
+      nombre: fd.get('nombre'),
+      eje: fd.get('eje'),
+      contenidos: fd.get('contenidos'),
+      actividades: fd.get('actividades'),
+      updatedAt: serverTimestamp()
+    };
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'proyecto2026', editingMes.id), data);
+    setEditingMes(null);
+  };
+
+  return (
+    <div className="animate-in fade-in duration-700 pb-20">
+      <div className="bg-gradient-to-br from-violet-600 to-indigo-800 p-8 rounded-[40px] text-white mb-8 shadow-xl relative overflow-hidden">
+        <h2 className="text-3xl font-black tracking-tight">Proyecto 2026</h2>
+        <p className="opacity-80 text-sm font-bold uppercase tracking-widest mt-1">Cronograma Institucional</p>
+        <PieChart size={100} className="absolute -right-5 -bottom-5 opacity-10 rotate-12" />
+      </div>
+
+      <div className="space-y-4">
+        {meses.map((m) => (
+          <div key={m.id} className="bg-white rounded-[30px] border border-gray-100 shadow-sm overflow-hidden transition-all">
+            {/* CABECERA DEL MES */}
+            <div 
+              onClick={() => setExpandedMes(expandedMes === m.id ? null : m.id)}
+              className="p-5 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center font-black text-xs">
+                  {m.nombre.substring(0, 3).toUpperCase()}
+                </div>
+                <div>
+                  <h3 className="font-black text-gray-800 uppercase text-sm tracking-tighter">{m.nombre}</h3>
+                  <p className="text-[10px] text-orange-500 font-bold uppercase">{m.eje || 'Eje no definido'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {isAdmin && (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setEditingMes(m); }}
+                    className="p-2 text-gray-400 hover:text-violet-600 transition"
+                  >
+                    <Edit3 size={18} />
+                  </button>
+                )}
+                <ChevronRight className={`text-gray-300 transition-transform ${expandedMes === m.id ? 'rotate-90' : ''}`} />
+              </div>
+            </div>
+
+            {/* CONTENIDO EXPANDIBLE */}
+            {expandedMes === m.id && (
+              <div className="p-6 bg-gray-50 border-t border-dashed border-gray-200 animate-in slide-in-from-top-2">
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-[10px] font-black text-violet-900 uppercase tracking-widest mb-1">Contenidos Curriculares</h4>
+                    <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{m.contenidos || 'Sin contenidos cargados.'}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-[10px] font-black text-violet-900 uppercase tracking-widest mb-1">Actividades Sugeridas</h4>
+                    <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{m.actividades || 'Sin actividades cargadas.'}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* MODAL DE EDICIÓN PARA ADMINISTRACIÓN */}
+      {editingMes && (
+        <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-[40px] w-full max-w-xl p-8 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-2xl font-black mb-6 flex items-center gap-2 text-violet-900"><Edit3/> Editar {editingMes.nombre}</h3>
+            <form onSubmit={handleSave} className="space-y-6">
+              <div className="space-y-1">
+                <label className="text-xs font-black text-gray-400 ml-2">EJE VERTEBRADOR / TEMÁTICA</label>
+                <input name="eje" defaultValue={editingMes.eje} className="w-full p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-orange-400" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-black text-gray-400 ml-2">CONTENIDOS (CURRICULARES/ESI)</label>
+                <textarea name="contenidos" defaultValue={editingMes.contenidos} rows="4" className="w-full p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-orange-400 resize-none" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-black text-gray-400 ml-2">ACTIVIDADES Y PROPUESTAS</label>
+                <textarea name="actividades" defaultValue={editingMes.actividades} rows="4" className="w-full p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-orange-400 resize-none" />
+              </div>
+              <div className="flex gap-4 pt-4">
+                <button type="button" onClick={() => setEditingMes(null)} className="flex-1 py-4 bg-gray-100 text-gray-400 rounded-2xl font-black">CANCELAR</button>
+                <button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg">GUARDAR CAMBIOS</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 
 
 
