@@ -366,7 +366,7 @@ function MainApp({ user, onLogout }) {
       </header>
 
       <main className="flex-1 overflow-y-auto pb-24 px-4 pt-6 max-w-4xl mx-auto w-full">
-        {activeTab === 'dashboard' && <DashboardView user={user} tasks={tasks} events={events} />}
+        {activeTab === 'dashboard' && < user={user} tasks={tasks} events={events} />}
         {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
         {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} canEdit={canManageContent} />}
         {activeTab === 'matricula' && <MatriculaView user={user} />}
@@ -655,17 +655,20 @@ function MatriculaView({ user }) {
     </div>
    )}
 
-   {showDataManagement && (
-    <div className="fixed inset-0 bg-black/60 z-[120] flex items-center justify-center p-4">
-     <div className="bg-white rounded-3xl w-full max-w-lg p-8 shadow-2xl">
-      <h3 className="text-2xl font-bold mb-4 text-blue-600 flex items-center gap-2"><UploadCloud/> Carga Masiva</h3>
-      <textarea value={importJson} onChange={e => setImportJson(e.target.value)} placeholder='[ { "lastName": "Gomez", "firstName": "Ana"... } ]' className="w-full h-48 p-4 bg-gray-50 border rounded-2xl font-mono text-xs mb-6 outline-none" />
-      <div className="flex gap-3"><button onClick={() => setShowDataManagement(false)} className="flex-1 py-4 bg-gray-100 rounded-2xl font-bold">CERRAR</button><button onClick={handleBulkImport} disabled={processing || !importJson} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg">{processing ? <RefreshCw className="animate-spin" /> : 'IMPORTAR'}</button></div>
-     </div>
+ {showDataManagement && (
+        <div className="fixed inset-0 bg-black/60 z-[120] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-lg p-8 shadow-2xl">
+            <h3 className="text-2xl font-bold mb-4 text-blue-600 flex items-center gap-2"><UploadCloud/> Carga Masiva</h3>
+            <textarea value={importJson} onChange={e => setImportJson(e.target.value)} placeholder='[ { "lastName": "Gomez", "firstName": "Ana"... } ]' className="w-full h-48 p-4 bg-gray-50 border rounded-2xl font-mono text-xs mb-6 outline-none" />
+            <div className="flex gap-3">
+              <button onClick={() => setShowDataManagement(false)} className="flex-1 py-4 bg-gray-100 rounded-2xl font-bold">CERRAR</button>
+              <button onClick={handleBulkImport} disabled={processing || !importJson} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg">{processing ? <RefreshCw className="animate-spin" /> : 'IMPORTAR'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-   )}
-  </div>
- );
+  );
 }
 
 // --- VISTAS RESTANTES ---
@@ -1155,6 +1158,7 @@ function ProyectoView({ user }) {
     </div>
   );
 }
+
 
 
 
