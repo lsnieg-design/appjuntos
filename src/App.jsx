@@ -284,246 +284,6 @@ function LoginScreen({ onLogin }) {
  );
 }
 
-// --- VISTA MATRÍCULA ---
-
-function MatriculaView({ user }) {
-  const [students, setStudents] = useState([]);
-  const [filterText, setFilterText] = useState('');
-  const [viewingStudent, setViewingStudent] = useState(null);
-  const [showStats, setShowStats] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [showDataManagement, setShowDataManagement] = useState(false);
-  const [editingStudent, setEditingStudent] = useState(null);
-  const isSuperAdmin = user.rol === 'super-admin';
-  const [filters, setFilters] = useState({ level: 'all', dx: 'all', gender: 'all', journey: 'all', group: 'all', teacher: 'all' });
-  const [statFilters, setStatFilters] = useState({ level: 'all', dx: 'all', gender: 'all', journey: 'all', turn: 'all' });
-  const [importJson, setImportJson] = useState('');
-  const [processing, setProcessing] = useState(false);
-  const [photoPreview, setPhotoPreview] = useState(null);
-
-  const calculateAge = (dateString) => {
-    if (!dateString) return '-';
-    const birthDate = new Date(dateString);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-    return age;
-  };
-
-  useEffect(() => {
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), orderBy('lastName', 'asc'));
-    return onSnapshot(q, (snap) => setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-  }, []);
-
-  const filteredStudents = students.filter(s => {
-    const textMatch =
-      (s.lastName + s.firstName).toLowerCase().includes(filterText.toLowerCase()) ||
-      s.dni?.toString().includes(filterText);
-    const levelMatch = filters.level === 'all' || s.level === filters.level;
-    const dxMatch = filters.dx === 'all' || s.dx === filters.dx;
-    return textMatch && levelMatch && dxMatch;
-  });
-
-  const statsResults = students.filter(s => {
-    const levelMatch = statFilters.level === 'all' || s.level === statFilters.level;
-    const genderMatch = statFilters.gender === 'all' || s.gender === statFilters.gender;
-    return levelMatch && genderMatch;
-  });
-
-  const handleSave = async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const data = Object.fromEntries(fd.entries());
-    data.photoUrl = photoPreview || editingStudent?.photoUrl || '';
-    if (editingStudent) {
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', editingStudent.id), data);
-    } else {
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...data, createdAt: serverTimestamp() });
-    }
-    setShowForm(false);
-    setEditingStudent(null);
-    setPhotoPreview(null);
-  };
-
-  const handleBulkImport = async () => {
-    setProcessing(true);
-    try {
-      const data = JSON.parse(importJson);
-      for (const s of data) {
-        if (s.lastName) {
-          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...s, createdAt: serverTimestamp() });
-        }
-      }
-      alert("Importación completa");
-      setShowDataManagement(false);
-    } catch (e) {
-      alert("Error en JSON");
-    }
-    setProcessing(false);
-  };
-
-  return (
-    <div className="animate-in fade-in">
-      {/* HEADER */}
-      <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 rounded-3xl shadow-lg text-white mb-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold flex items-center gap-2"><GraduationCap /> Legajos 2026</h2>
-            <p className="opacity-90">{filteredStudents.length} alumnos</p>
-          </div>
-
-          <div className="flex gap-2">
-            {isSuperAdmin && (
-              <button onClick={() => setShowDataManagement(true)} className="bg-white/20 p-2 rounded-xl">
-                <UploadCloud size={20} />
-              </button>
-            )}
-
-            <button onClick={() => setShowStats(true)} className="bg-white/20 p-2 rounded-xl">
-              <Activity size={20} />
-            </button>
-
-            {isSuperAdmin && (
-              <button
-                onClick={() => { setEditingStudent(null); setShowForm(true); }}
-                className="bg-white text-blue-600 p-2 rounded-xl"
-              >
-                <Plus size={20} />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* BUSCADOR (lo dejo dentro del header como estaba tu estructura) */}
-        <input
-          value={filterText}
-          onChange={e => setFilterText(e.target.value)}
-          placeholder="Buscar alumno..."
-          className="w-full p-4 bg-white rounded-2xl shadow-sm mt-4 outline-none border"
-        />
-      </div>
-
-      {/* LISTA */}
-      <div className="space-y-3">
-        {filteredStudents.map(s => (
-          <div
-            key={s.id}
-            onClick={() => setViewingStudent(s)}
-            className="bg-white p-4 rounded-2xl border flex items-center gap-4 cursor-pointer hover:shadow-md transition"
-          >
-            <div className="w-12 h-12 bg-gray-100 rounded-xl overflow-hidden flex items-center justify-center">
-              {s.photoUrl
-                ? <img src={s.photoUrl} className="w-full h-full object-cover" />
-                : <User className="text-gray-300" />
-              }
-            </div>
-            <div className="flex-1">
-              <h4 className="font-bold text-gray-800">{s.lastName}, {s.firstName}</h4>
-              <p className="text-xs text-gray-400">DNI: {s.dni} • {calculateAge(s.birthDate)} años</p>
-            </div>
-            <span className="text-[10px] font-bold bg-blue-50 text-blue-600 px-2 py-1 rounded uppercase">{s.level}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* MODAL STATS */}
-      {showStats && (
-        <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl flex flex-col max-h-[80vh]">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-black text-violet-900">Estadísticas</h3>
-              <button onClick={() => setShowStats(false)}><X size={24} className="text-gray-400" /></button>
-            </div>
-
-            <div className="bg-violet-600 text-white p-6 rounded-3xl text-center mb-6 shadow-xl">
-              <h4 className="text-4xl font-black">{statsResults.length}</h4>
-              <p className="text-sm opacity-80 uppercase font-bold tracking-widest">Alumnos Registrados</p>
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-              <div className="grid grid-cols-1 gap-2">
-                {statsResults.map(s => (
-                  <div
-                    key={s.id}
-                    className="p-4 bg-gray-50 rounded-2xl text-xs border border-gray-100 flex justify-between items-center"
-                  >
-                    <span className="font-bold text-gray-700">
-                      {(s.lastName || 'S/A').toUpperCase()}, {s.firstName || 'S/N'}
-                    </span>
-                    <span className="font-black text-violet-600 bg-violet-50 px-2 py-1 rounded-lg uppercase">
-                      {s.level || 'Nivel'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* MODAL VER ALUMNO */}
-      {viewingStudent && (
-        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4" onClick={() => setViewingStudent(null)}>
-          <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="bg-blue-600 p-8 text-white relative">
-              <button onClick={() => setViewingStudent(null)} className="absolute top-4 right-4 text-white/50 hover:text-white"><X /></button>
-              <div className="flex items-center gap-6">
-                <div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">
-                  {viewingStudent.photoUrl ? <img src={viewingStudent.photoUrl} className="w-full h-full object-cover" /> : <User size={40} />}
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold">{viewingStudent.lastName}, {viewingStudent.firstName}</h2>
-                  <p className="opacity-80">DNI: {viewingStudent.dni}</p>
-                </div>
-              </div>
-            </div>
-            <div className="p-8 space-y-4 bg-white">
-              <p><strong>Nivel:</strong> {viewingStudent.level}</p>
-              <p><strong>DX:</strong> {viewingStudent.dx || '-'}</p>
-              <p><strong>Género:</strong> {viewingStudent.gender}</p>
-              <p><strong>Jornada:</strong> {viewingStudent.journey}</p>
-              {isSuperAdmin && (
-                <button
-                  onClick={() => { setEditingStudent(viewingStudent); setShowForm(true); setViewingStudent(null); }}
-                  className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg"
-                >
-                  EDITAR FICHA
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL FORM */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-2xl p-8 max-h-[90vh] overflow-y-auto shadow-2xl">
-            <h3 className="text-2xl font-bold mb-8 border-b pb-4 text-gray-800">{editingStudent ? 'Editar Legajo' : 'Nueva Ficha'}</h3>
-            <form onSubmit={handleSave} className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <input name="lastName" defaultValue={editingStudent?.lastName} placeholder="Apellido" required className="w-full p-3 bg-gray-50 border rounded-xl" />
-                <input name="firstName" defaultValue={editingStudent?.firstName} placeholder="Nombre" required className="w-full p-3 bg-gray-50 border rounded-xl" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <input name="dni" type="number" defaultValue={editingStudent?.dni} placeholder="DNI" className="w-full p-3 bg-gray-50 border rounded-xl" />
-                <input name="birthDate" type="date" defaultValue={editingStudent?.birthDate} className="w-full p-3 bg-gray-50 border rounded-xl" />
-              </div>
-              <div className="flex gap-4 pt-4 border-t">
-                <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-4 bg-gray-100 rounded-2xl font-bold">CANCELAR</button>
-                <button type="submit" className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg">GUARDAR</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-  
-    </div>
-  );
-}
 // --- MAIN APP ---
 function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -628,7 +388,7 @@ function MainApp({ user, onLogout }) {
     </div>
   );
 }
-    
+
 function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
@@ -717,13 +477,261 @@ function NavButton({ active, onClick, icon, label, badge }) {
  );
 }
 
+// --- VISTA MATRÍCULA ---
+function MatriculaView({ user }) {
+ const [students, setStudents] = useState([]);
+ const [filterText, setFilterText] = useState('');
+ const [viewingStudent, setViewingStudent] = useState(null);
+ const [showStats, setShowStats] = useState(false);
+ const [showForm, setShowForm] = useState(false);
+ const [showDataManagement, setShowDataManagement] = useState(false);
+ const [editingStudent, setEditingStudent] = useState(null);
+ const isSuperAdmin = user.rol === 'super-admin';
+ const [filters, setFilters] = useState({ level: 'all', dx: 'all', gender: 'all', journey: 'all', group: 'all', teacher: 'all' });
+ const [statFilters, setStatFilters] = useState({ level: 'all', dx: 'all', gender: 'all', journey: 'all', turn: 'all' });
+ const [importJson, setImportJson] = useState('');
+ const [processing, setProcessing] = useState(false);
+ const [photoPreview, setPhotoPreview] = useState(null);
 
+ const calculateAge = (dateString) => {
+  if (!dateString) return '-';
+  const birthDate = new Date(dateString);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+  return age;
+ };
+
+ useEffect(() => {
+  const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), orderBy('lastName', 'asc'));
+  return onSnapshot(q, (snap) => setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+ }, []);
+
+ const filteredStudents = students.filter(s => {
+  const textMatch = (s.lastName + s.firstName).toLowerCase().includes(filterText.toLowerCase()) || s.dni?.toString().includes(filterText);
+  const levelMatch = filters.level === 'all' || s.level === filters.level;
+  const dxMatch = filters.dx === 'all' || s.dx === filters.dx;
+  return textMatch && levelMatch && dxMatch;
+ });
+
+ const statsResults = students.filter(s => {
+  const levelMatch = statFilters.level === 'all' || s.level === statFilters.level;
+  const genderMatch = statFilters.gender === 'all' || s.gender === statFilters.gender;
+  return levelMatch && genderMatch;
+ });
+
+ const handleSave = async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const data = Object.fromEntries(fd.entries());
+  data.photoUrl = photoPreview || editingStudent?.photoUrl || '';
+  if (editingStudent) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', editingStudent.id), data);
+  else await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...data, createdAt: serverTimestamp() });
+  setShowForm(false); setEditingStudent(null); setPhotoPreview(null);
+ };
+
+ const handleBulkImport = async () => {
+  setProcessing(true);
+  try {
+   const data = JSON.parse(importJson);
+   for(const s of data) if(s.lastName) await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...s, createdAt: serverTimestamp() });
+   alert("Importación completa");
+   setShowDataManagement(false);
+  } catch(e) { alert("Error en JSON"); }
+  setProcessing(false);
+ };
+
+ return (
+  <div className="animate-in fade-in">
+   <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 rounded-3xl shadow-lg text-white mb-6">
+    <div className="flex justify-between items-center">
+     <div><h2 className="text-2xl font-bold flex items-center gap-2"><GraduationCap /> Legajos 2026</h2><p className="opacity-90">{filteredStudents.length} alumnos</p></div>
+     <div className="flex gap-2">
+          {isSuperAdmin && (
+            <button onClick={() => setShowDataManagement(true)} className="bg-white/20 p-2 rounded-xl">
+              <UploadCloud size={20}/>
+            </button>
+          )}
+          <button onClick={() => setShowStats(true)} className="bg-white/20 p-2 rounded-xl">
+            <Activity size={20}/>
+          </button>
+          {isSuperAdmin && (
+            <button 
+              onClick={() => {setEditingStudent(null); setShowForm(true);}} 
+              className="bg-white text-blue-600 p-2 rounded-xl"
+            >
+              <Plus size={20}/>
+            </button>
+          )}
+        </div>
+      </div>
+   <input value={filterText} onChange={e => setFilterText(e.target.value)} placeholder="Buscar alumno..." className="w-full p-4 bg-white rounded-2xl shadow-sm mb-4 outline-none border" />
+   <div className="space-y-3">
+    {filteredStudents.map(s => (
+     <div key={s.id} onClick={() => setViewingStudent(s)} className="bg-white p-4 rounded-2xl border flex items-center gap-4 cursor-pointer hover:shadow-md transition">
+      <div className="w-12 h-12 bg-gray-100 rounded-xl overflow-hidden flex items-center justify-center">
+       {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover" /> : <User className="text-gray-300"/>}
+      </div>
+      <div className="flex-1"><h4 className="font-bold text-gray-800">{s.lastName}, {s.firstName}</h4><p className="text-xs text-gray-400">DNI: {s.dni} • {calculateAge(s.birthDate)} años</p></div>
+      <span className="text-[10px] font-bold bg-blue-50 text-blue-600 px-2 py-1 rounded uppercase">{s.level}</span>
+     </div>
+    ))}
+   </div>
+
+  {showStats && (
+        <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl flex flex-col max-h-[80vh]">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-violet-900">Estadísticas</h3>
+              <button onClick={() => setShowStats(false)}><X size={24} className="text-gray-400" /></button>
+            </div>
+            
+            <div className="bg-violet-600 text-white p-6 rounded-3xl text-center mb-6 shadow-xl">
+              <h4 className="text-4xl font-black">{statsResults.length}</h4>
+              <p className="text-sm opacity-80 uppercase font-bold tracking-widest">Alumnos Registrados</p>
+            </div>
+
+          <div className="flex-1 overflow-y-auto">
+  <div className="grid grid-cols-1 gap-2">
+    {statsResults.map(s => (
+      <div key={s.id} className="p-4 bg-gray-50 rounded-2xl text-xs border border-gray-100 flex justify-between items-center">
+        <span className="font-bold text-gray-700">
+          {(s.lastName || 'S/A').toUpperCase()}, {s.firstName || 'S/N'}
+        </span>
+        <span className="font-black text-violet-600 bg-violet-50 px-2 py-1 rounded-lg uppercase">
+          {s.level || 'Nivel'}
+        </span>
+      </div>
+    ))}
+  </div>
+</div>
+          </div>
+        </div>
+      )}
+   {viewingStudent && (
+    <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4" onClick={() => setViewingStudent(null)}>
+     <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="bg-blue-600 p-8 text-white relative">
+       <button onClick={() => setViewingStudent(null)} className="absolute top-4 right-4 text-white/50 hover:text-white"><X/></button>
+       <div className="flex items-center gap-6">
+        <div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">
+         {viewingStudent.photoUrl ? <img src={viewingStudent.photoUrl} className="w-full h-full object-cover" /> : <User size={40}/>}
+        </div>
+        <div><h2 className="text-2xl font-bold">{viewingStudent.lastName}, {viewingStudent.firstName}</h2><p className="opacity-80">DNI: {viewingStudent.dni}</p></div>
+       </div>
+      </div>
+      <div className="p-8 space-y-4 bg-white">
+       <p><strong>Nivel:</strong> {viewingStudent.level}</p>
+       <p><strong>DX:</strong> {viewingStudent.dx || '-'}</p>
+       <p><strong>Género:</strong> {viewingStudent.gender}</p>
+       <p><strong>Jornada:</strong> {viewingStudent.journey}</p>
+       {isSuperAdmin && <button onClick={() => {setEditingStudent(viewingStudent); setShowForm(true); setViewingStudent(null);}} className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg">EDITAR FICHA</button>}
+      </div>
+     </div>
+    </div>
+   )}
+
+   {showForm && (
+    <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
+     <div className="bg-white rounded-3xl w-full max-w-2xl p-8 max-h-[90vh] overflow-y-auto shadow-2xl">
+      <h3 className="text-2xl font-bold mb-8 border-b pb-4 text-gray-800">{editingStudent ? 'Editar Legajo' : 'Nueva Ficha'}</h3>
+      <form onSubmit={handleSave} className="space-y-6">
+       <div className="grid grid-cols-2 gap-4">
+        <input name="lastName" defaultValue={editingStudent?.lastName} placeholder="Apellido" required className="w-full p-3 bg-gray-50 border rounded-xl" />
+        <input name="firstName" defaultValue={editingStudent?.firstName} placeholder="Nombre" required className="w-full p-3 bg-gray-50 border rounded-xl" />
+       </div>
+       <div className="grid grid-cols-2 gap-4">
+        <input name="dni" type="number" defaultValue={editingStudent?.dni} placeholder="DNI" className="w-full p-3 bg-gray-50 border rounded-xl" />
+        <input name="birthDate" type="date" defaultValue={editingStudent?.birthDate} className="w-full p-3 bg-gray-50 border rounded-xl" />
+       </div>
+       <div className="flex gap-4 pt-4 border-t"><button type="button" onClick={() => setShowForm(false)} className="flex-1 py-4 bg-gray-100 rounded-2xl font-bold">CANCELAR</button><button type="submit" className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg">GUARDAR</button></div>
+      </form>
+     </div>
+    </div>
+   )}
+
+   {showDataManagement && (
+    <div className="fixed inset-0 bg-black/60 z-[120] flex items-center justify-center p-4">
+     <div className="bg-white rounded-3xl w-full max-w-lg p-8 shadow-2xl">
+      <h3 className="text-2xl font-bold mb-4 text-blue-600 flex items-center gap-2"><UploadCloud/> Carga Masiva</h3>
+      <textarea value={importJson} onChange={e => setImportJson(e.target.value)} placeholder='[ { "lastName": "Gomez", "firstName": "Ana"... } ]' className="w-full h-48 p-4 bg-gray-50 border rounded-2xl font-mono text-xs mb-6 outline-none" />
+      <div className="flex gap-3"><button onClick={() => setShowDataManagement(false)} className="flex-1 py-4 bg-gray-100 rounded-2xl font-bold">CERRAR</button><button onClick={handleBulkImport} disabled={processing || !importJson} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg">{processing ? <RefreshCw className="animate-spin" /> : 'IMPORTAR'}</button></div>
+     </div>
+    </div>
+   )}
+  </div>
+ );
+}
+
+// --- VISTAS RESTANTES ---
+function DashboardView({ user, tasks, events }) {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayEvents = (events || []).filter(e => e.date === todayStr);
+  const [announcements, setAnnouncements] = useState([]);
+
+  useEffect(() => {
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc'));
+    const unsub = onSnapshot(q, (snap) => {
+      setAnnouncements(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, []);
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-700">
+      {/* Bienvenida */}
+      <div className="bg-white p-8 rounded-[40px] shadow-sm border border-violet-100 relative overflow-hidden">
+        <div className="relative z-10">
+          <h2 className="text-3xl font-black text-slate-800 tracking-tight">¡Hola, {user.firstName}! 👋</h2>
+          <p className="text-slate-500 font-medium mt-1">Tu agenda para hoy en Juntos a la Par.</p>
+        </div>
+        <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-violet-50 rounded-full opacity-50"></div>
+      </div>
+
+      {/* Info Rápida */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-orange-500 p-6 rounded-[35px] text-white shadow-lg shadow-orange-200">
+          <div className="flex justify-between items-start mb-4">
+            <div className="bg-white/20 p-2 rounded-xl"><CheckSquare size={20}/></div>
+            <span className="text-2xl font-black">{(tasks || []).filter(t => t.status !== 'completed').length}</span>
+          </div>
+          <p className="text-[10px] font-bold uppercase tracking-wider opacity-80">Tareas Pendientes</p>
+        </div>
+        <div className="bg-violet-600 p-6 rounded-[35px] text-white shadow-lg shadow-violet-200">
+          <div className="flex justify-between items-start mb-4">
+            <div className="bg-white/20 p-2 rounded-xl"><CalendarIcon size={20}/></div>
+            <span className="text-2xl font-black">{todayEvents.length}</span>
+          </div>
+          <p className="text-[10px] font-bold uppercase tracking-wider opacity-80">Eventos Hoy</p>
+        </div>
+      </div>
+
+      {/* Eventos de Hoy */}
+      <div className="space-y-3">
+        <h3 className="font-black text-slate-800 ml-2 uppercase text-xs tracking-widest text-violet-900">Agenda del día</h3>
+        {todayEvents.length > 0 ? todayEvents.map(e => (
+          <div key={e.id} className="bg-white p-4 rounded-3xl border-l-8 border-orange-400 shadow-sm flex items-center justify-between">
+            <span className="font-bold text-slate-700">{e.title}</span>
+            <span className="text-[10px] font-black text-orange-500 uppercase">{e.type}</span>
+          </div>
+        )) : (
+          <div className="bg-slate-100/50 p-6 rounded-3xl border-2 border-dashed border-slate-200 text-center">
+            <p className="text-slate-400 text-xs font-bold italic">No hay eventos para hoy</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
      
 function CalendarView({ events, canEdit, user }) {
   const [showModal, setShowModal] = useState(false);
+  // CAMBIO CLAVE: Ahora el estado inicial es 'grid'
   const [viewMode, setViewMode] = useState('grid'); 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [filterType, setFilterType] = useState('all');
 
   const addEvent = async (e) => {
     e.preventDefault();
@@ -741,7 +749,6 @@ function CalendarView({ events, canEdit, user }) {
 
   const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
   const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
-  
   const changeMonth = (offset) => {
     const newDate = new Date(currentDate.setMonth(currentDate.getMonth() + offset));
     setCurrentDate(new Date(newDate));
@@ -768,16 +775,18 @@ function CalendarView({ events, canEdit, user }) {
     const firstDay = getFirstDayOfMonth(year, month);
     const days = [];
 
+    // Espacios vacíos del mes anterior
     for (let i = 0; i < firstDay; i++) {
       days.push(<div key={`empty-${i}`} className="min-h-[70px] bg-gray-50/30 border border-gray-100"></div>);
     }
 
+    // Días del mes
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const dayEvents = (events || []).filter(e => e.date === dateStr);
+      const dayEvents = events.filter(e => e.date === dateStr);
       
       days.push(
-        <div key={d} className="min-h-[70px] border border-gray-100 p-1 bg-white hover:bg-violet-50 transition overflow-hidden">
+        <div key={d} className="min-h-[70px] border border-gray-100 p-1 bg-white hover:bg-violet-50 transition group overflow-hidden">
           <span className={`text-[10px] font-bold block mb-1 ${dayEvents.length > 0 ? 'text-violet-700' : 'text-gray-400'}`}>{d}</span>
           <div className="flex flex-col gap-0.5">
             {dayEvents.map((ev, idx) => (
@@ -815,13 +824,9 @@ function CalendarView({ events, canEdit, user }) {
       {viewMode === 'grid' ? (
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
           <div className="p-4 flex justify-between items-center bg-violet-50 border-b">
-            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700">
-              <ChevronLeft size={24} />
-            </button>
+            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700"><ChevronLeft size={24} />.</button>
             <span className="font-bold text-violet-900 capitalize">{currentDate.toLocaleDateString('es-ES', { month: 'long' })}</span>
-            <button onClick={() => changeMonth(1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700">
-              <ChevronRight size={24} />
-            </button>
+            <button onClick={() => changeMonth(1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700"><ChevronRight size={24} /></button>
           </div>
           <div className="grid grid-cols-7 text-center py-2 bg-white text-[9px] font-black text-gray-400 uppercase border-b">
             <div>Dom</div><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div>
@@ -832,7 +837,7 @@ function CalendarView({ events, canEdit, user }) {
         </div>
       ) : (
         <div className="space-y-3">
-          {(events || []).map(e => (
+          {events.map(e => (
             <div key={e.id} onClick={() => setSelectedEvent(e)} className="bg-white p-4 rounded-2xl border flex items-center gap-4 cursor-pointer">
                <div className="w-12 h-12 bg-violet-50 text-violet-600 rounded-xl flex flex-col items-center justify-center font-bold">
                  <span className="text-[8px] uppercase">{new Date(e.date + 'T00:00:00').toLocaleDateString('es-ES', {month: 'short'})}</span>
@@ -844,6 +849,7 @@ function CalendarView({ events, canEdit, user }) {
         </div>
       )}
 
+      {/* MODAL VER EVENTO */}
       {selectedEvent && (
         <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4" onClick={() => setSelectedEvent(null)}>
           <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
@@ -860,6 +866,7 @@ function CalendarView({ events, canEdit, user }) {
     </div>
   );
 }
+
 
 function ResourcesView({ resources, canEdit }) {
   const [showModal, setShowModal] = useState(false);
@@ -1145,17 +1152,6 @@ function ProyectoView({ user }) {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
 
 
 
