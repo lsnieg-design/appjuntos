@@ -375,14 +375,14 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'profile' && <ProfileView user={user} onLogout={onLogout} />}
       </main>
 
-      <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-20 z-30 shadow-lg pb-safe">
+    <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-20 z-30 shadow-lg pb-safe">
         <div className="flex justify-around items-center h-full max-w-4xl mx-auto px-2">
           <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={24} />} label="Inicio" />
           <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={24} />} label="Tareas" />
           <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={24} />} label="Agenda" />
           <NavButton active={activeTab === 'matricula'} onClick={() => setActiveTab('matricula')} icon={<GraduationCap size={24} />} label="Matrícula" />
           <NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<Folder size={24} />} label="Recursos" />
-          <NavButton active={activeTab === 'proyecto'} onClick={() => setActiveTab('proyecto')} icon={< size={24} />} label="P.I." />
+          <NavButton active={activeTab === 'proyecto'} onClick={() => setActiveTab('proyecto')} icon={<PieChart size={24} />} label="P.I." />
         </div>
       </nav>
     </div>
@@ -1096,3 +1096,4 @@ function ProyectoView({ user }) {
     </div>
   );
 }
+
