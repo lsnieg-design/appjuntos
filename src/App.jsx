@@ -504,71 +504,92 @@ function NavButton({ active, onClick, icon, label, badge }) {
 function DashboardView({ user, tasks, events }) {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEvents = (events || []).filter(e => e.date === todayStr);
+  const [announcements, setAnnouncements] = useState([]);
+  const [showAnnounceModal, setShowAnnounceModal] = useState(false);
   
-  // Lógica de Notas Privadas (Local Storage)
-  const [notes, setNotes] = useState(() => JSON.parse(localStorage.getItem(`notes_${user.id}`) || '[]'));
-  const [newNote, setNewNote] = useState('');
+  // Roles permitidos para publicar anuncios importantes
+  const canPost = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
 
-  const saveNote = (e) => {
-    e.preventDefault();
-    if (!newNote.trim()) return;
-    const updated = [...notes, { id: Date.now(), text: newNote, done: false }];
-    setNotes(updated);
-    localStorage.setItem(`notes_${user.id}`, JSON.stringify(updated));
-    setNewNote('');
-  };
+  useEffect(() => {
+    // Traemos los anuncios ordenados por fecha
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc'));
+    const unsub = onSnapshot(q, (snapshot) => {
+        const now = new Date();
+        const validMessages = [];
+        snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            const msgDate = data.createdAt ? new Date(data.createdAt.seconds * 1000) : new Date();
+            const diffHours = (now - msgDate) / (1000 * 60 * 60);
+            // SOLO MOSTRAMOS SI TIENE MENOS DE 24 HORAS
+            if (diffHours < 24) {
+                validMessages.push({ id: doc.id, ...data });
+            }
+        });
+        setAnnouncements(validMessages);
+    });
+    return () => unsub();
+  }, []);
 
-  const toggleNote = (id) => {
-    const updated = notes.map(n => n.id === id ? { ...n, done: !n.done } : n);
-    setNotes(updated);
-    localStorage.setItem(`notes_${user.id}`, JSON.stringify(updated));
-  };
-
-  const deleteNote = (id) => {
-    const updated = notes.filter(n => n.id !== id);
-    setNotes(updated);
-    localStorage.setItem(`notes_${user.id}`, JSON.stringify(updated));
+  const handlePost = async (e) => {
+      e.preventDefault();
+      const text = e.target.message.value;
+      if(!text.trim()) return;
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), {
+          message: text,
+          author: user.fullName,
+          role: user.role,
+          createdAt: serverTimestamp()
+      });
+      setShowAnnounceModal(false);
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-700 pb-10">
-      {/* Bienvenida */}
-      <div className="bg-white p-8 rounded-[40px] shadow-sm border border-violet-100 relative overflow-hidden">
-        <div className="relative z-10">
-          <h2 className="text-3xl font-black text-slate-800 italic tracking-tighter">¡Hola, {user.firstName}! 👋</h2>
-          <p className="text-slate-500 mt-2 font-medium italic">Hay {(tasks || []).filter(t => t.status !== 'completed').length} tareas pendientes.</p>
-        </div>
-        <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-violet-50 rounded-full opacity-50 shadow-inner"></div>
-      </div>
-
-      {/* Notas Personales Privadas */}
-      <div className="bg-yellow-50 p-6 rounded-[35px] border border-yellow-100 shadow-sm">
-        <h3 className="font-black text-yellow-700 uppercase tracking-widest text-xs mb-4 flex items-center gap-2"><Lock size={12}/> Mis Notas Privadas</h3>
-        <form onSubmit={saveNote} className="flex gap-2 mb-4">
-          <input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Agregar recordatorio personal..." className="flex-1 p-3 rounded-xl border-none outline-none text-sm bg-white shadow-sm" />
-          <button type="submit" className="bg-yellow-400 text-yellow-900 p-3 rounded-xl font-bold"><Plus size={16}/></button>
-        </form>
-        <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
-          {notes.map(n => (
-            <div key={n.id} className="flex items-center gap-3 bg-white/60 p-2 rounded-lg">
-              <button onClick={() => toggleNote(n.id)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${n.done ? 'bg-yellow-400 border-yellow-400' : 'border-yellow-300'}`}>{n.done && <Check size={12} className="text-white"/>}</button>
-              <span className={`text-sm flex-1 ${n.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>{n.text}</span>
-              <button onClick={() => deleteNote(n.id)} className="text-gray-300 hover:text-red-400"><Trash2 size={14}/></button>
+    <div className="space-y-6 animate-in fade-in pb-10">
+      {/* SECCIÓN BIENVENIDA Y CARTELERA URGENTE */}
+      <div className="bg-white p-6 rounded-[40px] shadow-sm border border-violet-100 relative overflow-hidden">
+        <div className="relative z-10 flex justify-between items-start">
+            <div>
+                <h2 className="text-3xl font-black text-slate-800 tracking-tighter italic">¡Hola, {user.firstName}! 👋</h2>
+                <p className="text-slate-500 mt-1 font-medium italic">Hay {tasks.filter(t => t.status !== 'completed').length} tareas pendientes.</p>
             </div>
-          ))}
-          {notes.length === 0 && <p className="text-xs text-center text-gray-400 italic">No tienes notas personales.</p>}
+            {canPost && <button onClick={() => setShowAnnounceModal(true)} className="bg-violet-100 text-violet-700 p-2 rounded-xl hover:bg-violet-200"><Edit3 size={18}/></button>}
         </div>
+        
+        {/* CARTELERA DE 24HS */}
+        {announcements.length > 0 && (
+            <div className="mt-6 space-y-2">
+                <h3 className="text-xs font-black text-red-500 uppercase tracking-widest flex items-center gap-1"><Bell size={12}/> Avisos de Dirección (24hs)</h3>
+                {announcements.map(a => (
+                    <div key={a.id} className="bg-red-50 p-3 rounded-2xl border border-red-100 text-sm text-red-900 italic">
+                        <p>"{a.message}"</p>
+                        <p className="text-[10px] text-red-400 font-bold mt-1 text-right">- {a.author} ({a.role})</p>
+                    </div>
+                ))}
+            </div>
+        )}
       </div>
 
-      {/* Resumen */}
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-orange-500 p-6 rounded-[35px] text-white shadow-lg relative overflow-hidden">
-          <h4 className="text-3xl font-black">{(tasks || []).length}</h4><p className="text-[10px] font-bold uppercase opacity-80 italic tracking-widest">Tareas</p>
+          <h4 className="text-3xl font-black">{tasks.length}</h4><p className="text-[10px] font-bold uppercase opacity-80 italic tracking-widest">Tareas</p>
         </div>
         <div className="bg-violet-600 p-6 rounded-[35px] text-white shadow-lg relative overflow-hidden">
           <h4 className="text-3xl font-black">{todayEvents.length}</h4><p className="text-[10px] font-bold uppercase opacity-80 italic tracking-widest">Eventos Hoy</p>
         </div>
       </div>
+
+      {showAnnounceModal && (
+          <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4">
+              <form onSubmit={handlePost} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95">
+                  <h3 className="text-lg font-black text-violet-900 mb-4">Publicar Aviso (Dura 24hs)</h3>
+                  <textarea name="message" className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-sm h-32" placeholder="Escribe el comunicado aquí..." required></textarea>
+                  <div className="flex gap-2 mt-4">
+                      <button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 text-gray-400 font-bold text-xs">Cancelar</button>
+                      <button type="submit" className="flex-1 bg-violet-600 text-white py-3 rounded-2xl font-bold shadow-lg">Publicar</button>
+                  </div>
+              </form>
+          </div>
+      )}
     </div>
   );
 }
@@ -577,6 +598,7 @@ function DashboardView({ user, tasks, events }) {
 function ResourcesView({ resources, canEdit }) {
   const [folder, setFolder] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  // Corrección: Validamos que resources sea un array antes del reduce
   const folders = (resources || []).reduce((acc, r) => { const cat = r.category || 'VARIOS'; if (!acc[cat]) acc[cat] = []; acc[cat].push(r); return acc; }, {});
   
   const addResource = async (e) => { e.preventDefault(); const title = e.target.title.value; const url = e.target.url.value; const category = e.target.category.value; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), { title, url, category, createdAt: serverTimestamp() }); setShowModal(false); };
@@ -616,7 +638,7 @@ function ResourcesView({ resources, canEdit }) {
                   <h3 className="text-xl font-bold text-violet-900 uppercase italic">Nuevo Recurso</h3>
                   <input name="title" placeholder="Título del documento" className="w-full p-3 bg-gray-50 rounded-xl outline-none border border-gray-100 font-bold text-xs" required />
                   <input name="url" placeholder="Enlace (URL)" className="w-full p-3 bg-gray-50 rounded-xl outline-none border border-gray-100 font-bold text-xs" required />
-                  <input name="category" placeholder="Carpeta (Ej: Actas)" className="w-full p-3 bg-gray-50 rounded-xl outline-none border border-gray-100 font-bold text-xs" required />
+                  <input name="category" placeholder="Carpeta (Ej: Documentos)" className="w-full p-3 bg-gray-50 rounded-xl outline-none border border-gray-100 font-bold text-xs" required />
                   <div className="flex gap-2 pt-2"><button type="button" onClick={() => setShowModal(false)} className="flex-1 text-gray-400 font-bold text-xs uppercase">CANCELAR</button><button type="submit" className="flex-1 bg-violet-600 text-white py-3 rounded-xl font-bold text-xs uppercase shadow-lg">GUARDAR</button></div>
               </form>
           </div>
@@ -625,14 +647,18 @@ function ResourcesView({ resources, canEdit }) {
   );
 }
 
-// --- VISTA TAREAS (SIN CAMBIOS) ---
+
 // --- VISTA TAREAS ---
 function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
   const [assignType, setAssignType] = useState('user'); 
   const [selectedRoles, setSelectedRoles] = useState([]);
+  const [openCommentsId, setOpenCommentsId] = useState(null); // ID de tarea para ver comentarios
+  const [newComment, setNewComment] = useState("");
+
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor'];
+  const canDelete = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
 
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc')), snap => setUsersList(snap.docs.map(d => ({id: d.id, ...d.data()}))));
@@ -650,46 +676,75 @@ function TasksView({ tasks, user, canEdit }) {
     const fd = new FormData(e.target);
     let assignedName = "Todos";
     let targetUserId = null;
-    let targetRoles = [];
-
+    
     if (assignType === 'user') {
         const uId = fd.get('targetUser');
         const uObj = usersList.find(u => u.id === uId);
         assignedName = uObj ? uObj.fullName : "Desconocido";
         targetUserId = uId;
     } else {
-        assignedName = selectedRoles.length > 0 ? selectedRoles.join(", ") : "Varios Roles";
-        targetRoles = selectedRoles;
+        assignedName = selectedRoles.join(", ");
     }
 
-    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
+    // 1. Crear Tarea
+    const newTaskRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
         title: fd.get('title'), 
         dueDate: fd.get('dueDate'), 
         priority: fd.get('priority'), 
         targetType: assignType, 
         targetUserId,
-        targetRoles,
+        targetRoles: selectedRoles,
         assignedToName: assignedName, 
         createdByName: user.fullName || user.firstName,
         createdById: user.id,
         status: 'pending', 
-        createdAt: serverTimestamp() 
+        createdAt: serverTimestamp(),
+        comments: [] // Array para comentarios
     });
+
+    // 2. Crear Notificación (Aviso Reciente)
+    if (targetUserId && targetUserId !== user.id) {
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), {
+            toUserId: targetUserId,
+            title: "Nueva Tarea Asignada",
+            message: `${user.firstName} te asignó: "${fd.get('title')}"`,
+            read: false,
+            date: new Date().toISOString(),
+            createdAt: serverTimestamp()
+        });
+    }
+
     setShowModal(false); setSelectedRoles([]);
+  };
+
+  const addComment = async (task) => {
+      if (!newComment.trim()) return;
+      const commentData = { text: newComment, author: user.firstName, date: new Date().toISOString() };
+      const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id);
+      await updateDoc(taskRef, { comments: arrayUnion(commentData) });
+      
+      // Notificar al creador si comenta otro
+      if (task.createdById && task.createdById !== user.id) {
+          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), {
+            toUserId: task.createdById,
+            title: "Nuevo Comentario",
+            message: `${user.firstName} comentó en "${task.title}"`,
+            read: false,
+            date: new Date().toISOString(),
+            createdAt: serverTimestamp()
+        });
+      }
+      setNewComment("");
+  };
+
+  const handleDelete = async (id) => {
+      if(confirm("¿Seguro que deseas eliminar esta tarea?")) {
+          await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id));
+      }
   };
 
   const changeStatus = async (task, newStatus) => {
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus });
-    if (task.createdById && task.createdById !== user.id) {
-       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), {
-           toUserId: task.createdById,
-           title: "Actualización de Tarea",
-           message: `${user.firstName} cambió "${task.title}" a ${newStatus === 'completed' ? 'FINALIZADO' : 'EN PROCESO'}.`,
-           read: false,
-           date: new Date().toISOString(),
-           createdAt: serverTimestamp()
-       });
-    }
   };
 
   return (
@@ -697,16 +752,37 @@ function TasksView({ tasks, user, canEdit }) {
       <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas Institucionales</h2><button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:scale-110 transition-all"><Plus/></button></div>
       <div className="grid gap-3 pb-10">
         {tasks.map(t => (
-          <div key={t.id} className={`p-5 rounded-[30px] border-l-8 shadow-sm flex flex-col gap-2 bg-white ${getPriorityStyle(t.priority)} hover:shadow-xl transition-all`}>
+          <div key={t.id} className={`p-5 rounded-[30px] border-l-8 shadow-sm flex flex-col gap-3 bg-white ${getPriorityStyle(t.priority)} transition-all`}>
             <div className="flex justify-between items-start">
               <div className="flex-1">
                 <p className="text-[9px] font-black text-violet-600 uppercase tracking-widest italic mb-1">Para: {t.assignedToName}</p>
                 <h3 className="font-bold text-gray-800 text-sm uppercase italic tracking-tighter leading-none">{t.title}</h3>
                 <p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName}</p>
               </div>
-              <div className="text-[9px] font-black bg-gray-50 px-2 py-1 rounded-full text-gray-400 border uppercase tracking-tighter italic shadow-inner">{t.dueDate}</div>
+              <div className="flex flex-col items-end gap-2">
+                 <div className="text-[9px] font-black bg-white px-2 py-1 rounded-full text-gray-400 border uppercase tracking-tighter italic shadow-inner">{t.dueDate}</div>
+                 {canDelete && <button onClick={() => handleDelete(t.id)} className="text-red-400 hover:text-red-600"><Trash2 size={16}/></button>}
+              </div>
             </div>
-            <div className="pt-2 border-t border-black/5 flex justify-end">
+            
+            {/* SECCION COMENTARIOS */}
+            {openCommentsId === t.id && (
+                <div className="bg-white/50 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in">
+                    <div className="max-h-32 overflow-y-auto space-y-2 mb-2">
+                        {(t.comments || []).map((c, idx) => (
+                            <p key={idx} className="text-xs text-gray-600"><span className="font-bold text-violet-700">{c.author}:</span> {c.text}</p>
+                        ))}
+                        {(!t.comments || t.comments.length === 0) && <p className="text-[10px] text-gray-400 italic">Sin comentarios.</p>}
+                    </div>
+                    <div className="flex gap-2">
+                        <input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribir..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" />
+                        <button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button>
+                    </div>
+                </div>
+            )}
+
+            <div className="pt-2 border-t border-black/5 flex justify-between items-center">
+              <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-violet-600"><MessageSquare size={14}/> {t.comments?.length || 0}</button>
               <select value={t.status || 'pending'} onChange={(e) => changeStatus(t, e.target.value)} className="text-xs bg-white/50 border rounded-lg p-1 font-bold text-gray-600 outline-none cursor-pointer">
                 <option value="pending">Pendiente</option>
                 <option value="in_process">En Proceso</option>
@@ -718,15 +794,13 @@ function TasksView({ tasks, user, canEdit }) {
       </div>
       {showModal && (
         <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
-          <form onSubmit={addTask} className="bg-white rounded-[50px] w-full max-w-sm p-10 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
+          <form onSubmit={addTask} className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-black text-violet-900 uppercase italic">Nueva Tarea</h3>
             <input name="title" placeholder="¿Qué tarea asignar?" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm shadow-inner" />
-            
             <div className="flex gap-2 bg-gray-100 p-1 rounded-xl">
                 <button type="button" onClick={() => setAssignType('user')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'user' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Persona</button>
                 <button type="button" onClick={() => setAssignType('roles')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'roles' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Roles</button>
             </div>
-
             {assignType === 'user' ? (
                 <select name="targetUser" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs uppercase tracking-widest border border-gray-100">
                   {usersList.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
@@ -743,7 +817,6 @@ function TasksView({ tasks, user, canEdit }) {
                     ))}
                 </div>
             )}
-
             <div className="grid grid-cols-2 gap-4">
               <input name="dueDate" type="date" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs text-gray-400" />
               <select name="priority" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs uppercase text-orange-600 italic">
@@ -1091,7 +1164,6 @@ function ProfileView({ user, tasks, onLogout }) {
   );
 }
 // --- VISTA PROYECTO 360 ---
-// --- VISTA PROYECTO 360 ---
 function ProyectoView({ user }) {
   const [periods, setPeriods] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState(null);
@@ -1105,6 +1177,7 @@ function ProyectoView({ user }) {
     const unsub = onSnapshot(q, (snap) => {
         const dataMap = {};
         snap.docs.forEach(d => dataMap[d.id] = d.data());
+        // Forzamos la creación de la lista basada en los nombres fijos
         const builtPeriods = PERIOD_NAMES.map(name => {
             const id = name.replace(/\s+/g, '_');
             return { id, name, ...(dataMap[id] || {}) };
@@ -1124,8 +1197,10 @@ function ProyectoView({ user }) {
           paises: fd.get('paises'),
           updatedAt: serverTimestamp()
       };
+      // Usamos setDoc para asegurar que si no existe, se cree
       const { setDoc, doc: docRef } = await import('firebase/firestore'); 
       await setDoc(docRef(db, 'artifacts', appId, 'public', 'data', 'proyecto2026_periods', selectedPeriod.id), data, { merge: true });
+      
       setEditing(false);
       setSelectedPeriod({...selectedPeriod, ...data});
   };
@@ -1155,6 +1230,7 @@ function ProyectoView({ user }) {
         ))}
       </div>
 
+      {/* MODAL DETALLE PERIODO */}
       {selectedPeriod && (
           <div className="fixed inset-0 bg-indigo-900/90 backdrop-blur-md z-[200] flex flex-col p-4 animate-in slide-in-from-bottom">
               <div className="flex justify-between items-center text-white mb-6">
@@ -1166,9 +1242,12 @@ function ProyectoView({ user }) {
                   <div className="flex-1 bg-white rounded-[40px] overflow-hidden flex flex-col shadow-2xl">
                       <div className="flex overflow-x-auto p-2 bg-gray-50 border-b gap-2 scrollbar-hide">
                           {['contenidos', 'actividades', 'fundamentacion', 'paises'].map(tab => (
-                              <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition ${activeTab === tab ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-100'}`}>{tab}</button>
+                              <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition ${activeTab === tab ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-100'}`}>
+                                  {tab}
+                              </button>
                           ))}
                       </div>
+                      
                       <div className="flex-1 p-8 overflow-y-auto">
                           {activeTab === 'contenidos' && <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.contenidos || 'Sin contenidos cargados.'}</p>}
                           {activeTab === 'actividades' && <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.actividades || 'Sin actividades cargadas.'}</p>}
@@ -1183,7 +1262,10 @@ function ProyectoView({ user }) {
                       <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 ml-2 uppercase tracking-widest">ACTIVIDADES</label><textarea name="actividades" defaultValue={selectedPeriod.actividades} className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-mono border-none outline-none h-32 resize-none shadow-inner" /></div>
                       <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 ml-2 uppercase tracking-widest">FUNDAMENTACIÓN</label><textarea name="fundamentacion" defaultValue={selectedPeriod.fundamentacion} className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-mono border-none outline-none h-24 resize-none shadow-inner" /></div>
                       <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 ml-2 uppercase tracking-widest">PAÍSES / EJES</label><textarea name="paises" defaultValue={selectedPeriod.paises} className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-mono border-none outline-none h-24 resize-none shadow-inner" /></div>
-                      <div className="flex gap-2 pt-4"><button type="button" onClick={() => setEditing(false)} className="flex-1 py-3 text-gray-400 font-bold text-xs uppercase tracking-widest">CANCELAR</button><button type="submit" className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-black shadow-lg text-xs uppercase tracking-widest">GUARDAR</button></div>
+                      <div className="flex gap-2 pt-4">
+                          <button type="button" onClick={() => setEditing(false)} className="flex-1 py-3 text-gray-400 font-bold text-xs uppercase tracking-widest">CANCELAR</button>
+                          <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-black shadow-lg text-xs uppercase tracking-widest">GUARDAR</button>
+                      </div>
                   </form>
               )}
           </div>
@@ -1457,6 +1539,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
