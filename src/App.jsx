@@ -618,162 +618,265 @@ function DashboardView({ user, tasks, events }) {
  );
 }
 
-function CalendarView({ events }) {
- return (
-  <div className="space-y-4">
-   <h2 className="text-2xl font-bold text-violet-900 mb-6">Agenda</h2>
-   <div className="grid gap-3">
-    {events.map(e => (
-     <div key={e.id} className="bg-white p-4 rounded-3xl shadow-sm border flex items-center gap-6">
-      <div className="w-16 h-16 bg-violet-800 text-white rounded-2xl flex flex-col items-center justify-center shadow-lg font-black"><span className="text-[10px] uppercase opacity-70">{e.date ? new Date(e.date + 'T00:00:00').toLocaleDateString('es-ES', {month: 'short'}) : ''}</span><span className="text-2xl">{e.date ? new Date(e.date + 'T00:00:00').getDate() : ''}</span></div>
-      <div className="flex-1 min-w-0"><h3 className="font-bold text-gray-800 truncate">{e.title}</h3><span className="text-[10px] bg-orange-100 text-orange-600 px-2 py-0.5 rounded-lg font-black uppercase">{e.type}</span></div>
-     </div>
-    ))}
-   </div>
-  </div>
- );
-}
-
-function TasksView({ tasks, user, canEdit }) {
+function CalendarView({ events, canEdit, user }) {
   const [showModal, setShowModal] = useState(false);
-  const [usersList, setUsersList] = useState([]);
-  const [expandedTask, setExpandedTask] = useState(null); // Para ver el "signo +"
-  const [newComment, setNewComment] = useState("");
+  // CAMBIO CLAVE: Ahora el estado inicial es 'grid'
+  const [viewMode, setViewMode] = useState('grid'); 
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [filterType, setFilterType] = useState('all');
 
-  useEffect(() => {
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
-    const unsub = onSnapshot(q, snap => setUsersList(snap.docs.map(d => ({id: d.id, ...d.data()}))));
-    return () => unsub();
-  }, []);
-
-  const addTask = async (e) => {
+  const addEvent = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const targetUserId = fd.get('targetUser');
-    const targetUser = usersList.find(u => u.id === targetUserId);
-
-    const taskData = {
+    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), {
       title: fd.get('title'),
-      dueDate: fd.get('dueDate'),
-      priority: fd.get('priority'),
-      createdBy: user.fullName, // Quién la pide
-      createdById: user.id,
-      assignedToId: targetUserId, // Para quién es
-      assignedToName: targetUser ? targetUser.fullName : "Todos",
-      status: 'pending',
-      updates: [], // Aquí van los comentarios de cada uno
+      date: fd.get('date'),
+      type: fd.get('type'),
+      description: fd.get('description'),
+      createdBy: user.id,
       createdAt: serverTimestamp()
-    };
-
-    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), taskData);
+    });
     setShowModal(false);
   };
 
-  const addUpdate = async (taskId, currentUpdates) => {
-    if (!newComment.trim()) return;
-    const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId);
-    const update = {
-      user: user.firstName,
-      text: newComment,
-      date: new Date().toLocaleString(),
-      status: "comentó"
-    };
-    await updateDoc(taskRef, {
-      updates: arrayUnion(update)
-    });
-    setNewComment("");
+  const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
+  const changeMonth = (offset) => {
+    const newDate = new Date(currentDate.setMonth(currentDate.getMonth() + offset));
+    setCurrentDate(new Date(newDate));
   };
 
-  const markAsDone = async (task) => {
-    const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id);
-    await updateDoc(taskRef, { status: 'completed' });
-    
-    // CREAR AVISO INTERNO PARA EL SOLICITANTE
-    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), {
-      title: "Tarea Finalizada",
-      message: `${user.fullName} terminó: ${task.title}`,
-      toUserId: task.createdById,
-      fromUser: user.fullName,
-      date: new Date().toISOString(),
-      read: false
-    });
-    alert("¡Tarea finalizada! Se le avisó a " + task.createdBy);
+  const getTypeStyle = (type) => {
+    const styles = { 
+      'SALIDA EDUCATIVA': 'bg-green-100 text-green-800 border-green-200', 
+      'GENERAL': 'bg-gray-100 text-gray-800 border-gray-200', 
+      'ADMINISTRATIVO': 'bg-blue-100 text-blue-800 border-blue-200', 
+      'INFORMES': 'bg-amber-100 text-amber-800 border-amber-200', 
+      'EVENTOS': 'bg-violet-100 text-violet-800 border-violet-200', 
+      'ACTOS': 'bg-red-100 text-red-800 border-red-200', 
+      'EFEMÉRIDES': 'bg-cyan-100 text-cyan-800 border-cyan-200', 
+      'CUMPLEAÑOS': 'bg-pink-100 text-pink-800 border-pink-200' 
+    };
+    return styles[type] || styles['GENERAL'];
+  };
+
+  const renderCalendarGrid = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const daysInMonth = getDaysInMonth(year, month);
+    const firstDay = getFirstDayOfMonth(year, month);
+    const days = [];
+
+    // Espacios vacíos del mes anterior
+    for (let i = 0; i < firstDay; i++) {
+      days.push(<div key={`empty-${i}`} className="min-h-[70px] bg-gray-50/30 border border-gray-100"></div>);
+    }
+
+    // Días del mes
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const dayEvents = events.filter(e => e.date === dateStr);
+      
+      days.push(
+        <div key={d} className="min-h-[70px] border border-gray-100 p-1 bg-white hover:bg-violet-50 transition group overflow-hidden">
+          <span className={`text-[10px] font-bold block mb-1 ${dayEvents.length > 0 ? 'text-violet-700' : 'text-gray-400'}`}>{d}</span>
+          <div className="flex flex-col gap-0.5">
+            {dayEvents.map((ev, idx) => (
+              <button 
+                key={idx} 
+                onClick={() => setSelectedEvent(ev)} 
+                className={`text-[8px] text-left truncate px-1 py-0.5 rounded font-bold w-full ${getTypeStyle(ev.type)} shadow-sm`}
+              >
+                {ev.title}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    return days;
   };
 
   return (
-    <div className="space-y-4">
+    <div className="animate-in fade-in duration-500">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-black text-violet-900">Tareas</h2>
-        <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg"><Plus/></button>
-      </div>
-
-      <div className="grid gap-4">
-        {tasks.map(t => (
-          <div key={t.id} className={`bg-white p-5 rounded-[30px] border-l-[12px] shadow-sm transition ${t.status === 'completed' ? 'border-green-400 opacity-60' : 'border-violet-400'}`}>
-            <div className="flex justify-between items-start">
-              <div className="flex-1">
-                <p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">Solicitado por: {t.createdBy}</p>
-                <h3 className="font-bold text-gray-800 text-lg">{t.title}</h3>
-                <p className="text-xs text-gray-400 mt-1">Para: {t.assignedToName} • Vence: {formatDate(t.dueDate)}</p>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => setExpandedTask(expandedTask === t.id ? null : t.id)} className="bg-gray-100 p-2 rounded-xl text-gray-500">
-                  {expandedTask === t.id ? <X size={18}/> : <Plus size={18}/>}
-                </button>
-                {t.status !== 'completed' && (
-                  <button onClick={() => markAsDone(t)} className="bg-green-100 text-green-600 p-2 rounded-xl"><Check size={18}/></button>
-                )}
-              </div>
-            </div>
-
-            {/* SECCIÓN EXPANDIBLE (HISTORIAL DE AVANCES) */}
-            {expandedTask === t.id && (
-              <div className="mt-4 pt-4 border-t border-dashed border-gray-100 space-y-3">
-                <div className="max-h-32 overflow-y-auto space-y-2">
-                  {t.updates?.map((upd, i) => (
-                    <div key={i} className="bg-violet-50 p-2 rounded-xl text-[11px]">
-                      <span className="font-bold text-violet-700">{upd.user}:</span> {upd.text}
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribir avance..." className="flex-1 text-xs p-2 bg-gray-50 rounded-lg outline-none" />
-                  <button onClick={() => addUpdate(t.id, t.updates)} className="bg-violet-600 text-white p-2 rounded-lg text-xs font-bold">Enviar</button>
-                </div>
-              </div>
-            )}
+        <div>
+          <h2 className="text-2xl font-black text-violet-900">Agenda</h2>
+          <p className="text-xs text-gray-400 uppercase font-bold tracking-widest">{currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}</p>
+        </div>
+        <div className="flex gap-2">
+          <div className="bg-white p-1 rounded-xl border flex shadow-sm">
+            <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition ${viewMode === 'grid' ? 'bg-violet-100 text-violet-700' : 'text-gray-400'}`}><Grid size={20}/></button>
+            <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition ${viewMode === 'list' ? 'bg-violet-100 text-violet-700' : 'text-gray-400'}`}><List size={20}/></button>
           </div>
-        ))}
+          {canEdit && <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg"><Plus/></button>}
+        </div>
       </div>
 
-      {/* MODAL NUEVA TAREA */}
+      {viewMode === 'grid' ? (
+        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+          <div className="p-4 flex justify-between items-center bg-violet-50 border-b">
+            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700"><ChevronLeft size={24} /></button>
+            <span className="font-bold text-violet-900 capitalize">{currentDate.toLocaleDateString('es-ES', { month: 'long' })}</span>
+            <button onClick={() => changeMonth(1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700"><ChevronRight size={24} /></button>
+          </div>
+          <div className="grid grid-cols-7 text-center py-2 bg-white text-[9px] font-black text-gray-400 uppercase border-b">
+            <div>Dom</div><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div>
+          </div>
+          <div className="grid grid-cols-7 bg-gray-50 gap-px border-b">
+            {renderCalendarGrid()}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {events.map(e => (
+            <div key={e.id} onClick={() => setSelectedEvent(e)} className="bg-white p-4 rounded-2xl border flex items-center gap-4 cursor-pointer">
+               <div className="w-12 h-12 bg-violet-50 text-violet-600 rounded-xl flex flex-col items-center justify-center font-bold">
+                 <span className="text-[8px] uppercase">{new Date(e.date + 'T00:00:00').toLocaleDateString('es-ES', {month: 'short'})}</span>
+                 <span>{new Date(e.date + 'T00:00:00').getDate()}</span>
+               </div>
+               <h3 className="font-bold text-sm text-gray-800">{e.title}</h3>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* MODAL VER EVENTO */}
+      {selectedEvent && (
+        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4" onClick={() => setSelectedEvent(null)}>
+          <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+            <span className={`text-[10px] font-black px-2 py-1 rounded-lg uppercase border ${getTypeStyle(selectedEvent.type)}`}>{selectedEvent.type}</span>
+            <h2 className="text-2xl font-black text-gray-800 mt-4 leading-tight">{selectedEvent.title}</h2>
+            <p className="text-gray-500 text-sm mt-4 leading-relaxed">{selectedEvent.description || 'Sin descripción adicional.'}</p>
+            <div className="mt-8 pt-6 border-t flex justify-between items-center text-gray-400">
+               <div className="flex items-center gap-2"><Clock size={16}/> <span className="text-xs font-bold uppercase">{formatDate(selectedEvent.date)}</span></div>
+               <button onClick={() => setSelectedEvent(null)} className="font-black text-violet-600 text-sm">CERRAR</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+function ResourcesView({ resources, canEdit }) {
+  const [showModal, setShowModal] = useState(false);
+  const [currentFolder, setCurrentFolder] = useState(null); // Estado para saber qué carpeta está abierta
+
+  const addResource = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), {
+      title: fd.get('title'),
+      url: fd.get('url'),
+      category: fd.get('category'), // Carpeta
+      createdAt: serverTimestamp()
+    });
+    setShowModal(false);
+  };
+
+  // Agrupamos los recursos por categoría (Carpetas)
+  const folders = resources.reduce((acc, res) => {
+    const cat = res.category || 'VARIOS';
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(res);
+    return acc;
+  }, {});
+
+  const folderNames = Object.keys(folders);
+
+  return (
+    <div className="animate-in slide-in-from-bottom-4 duration-500">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-black text-violet-900">Recursos</h2>
+          <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">
+            {currentFolder ? `Carpeta: ${currentFolder}` : 'Documentos y Enlaces'}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {currentFolder && (
+            <button onClick={() => setCurrentFolder(null)} className="bg-gray-100 text-gray-600 p-3 rounded-xl">
+              <ChevronLeft size={20} />
+            </button>
+          )}
+          {canEdit && (
+            <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg">
+              <Plus />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* VISTA DE CARPETAS */}
+      {!currentFolder ? (
+        <div className="grid grid-cols-2 gap-4">
+          {folderNames.map(name => (
+            <div 
+              key={name} 
+              onClick={() => setCurrentFolder(name)}
+              className="bg-white p-6 rounded-[35px] border border-gray-100 shadow-sm hover:shadow-md transition cursor-pointer group flex flex-col items-center text-center"
+            >
+              <div className="w-16 h-16 bg-violet-50 text-violet-600 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-violet-600 group-hover:text-white transition duration-300">
+                <Folder size={32} fill="currentColor" opacity="0.2" />
+              </div>
+              <h3 className="font-black text-gray-700 uppercase text-[11px] tracking-tight">{name}</h3>
+              <p className="text-[10px] text-gray-400 mt-1">{folders[name].length} elementos</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        /* VISTA DE ARCHIVOS DENTRO DE LA CARPETA */
+        <div className="grid gap-3">
+          {folders[currentFolder].map(res => (
+            <a 
+              key={res.id} 
+              href={res.url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between group hover:border-orange-200 transition"
+            >
+              <div className="flex items-center gap-4">
+                <div className="p-2 bg-gray-50 text-gray-400 rounded-lg group-hover:bg-orange-50 group-hover:text-orange-500">
+                  <LinkIcon size={18} />
+                </div>
+                <span className="font-bold text-gray-700 text-sm">{res.title}</span>
+              </div>
+              <ChevronRight size={16} className="text-gray-300" />
+            </a>
+          ))}
+        </div>
+      )}
+
+      {/* MODAL NUEVO RECURSO */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
           <div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95">
-            <h3 className="text-xl font-black mb-6">Pedir Tarea</h3>
-            <form onSubmit={addTask} className="space-y-4">
-              <input name="title" placeholder="¿Qué hay que hacer?" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-orange-400" />
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 ml-2">PARA QUIÉN</label>
-                  <select name="targetUser" className="w-full p-3 bg-gray-50 rounded-xl outline-none">
-                    <option value="all">Todos</option>
-                    {usersList.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 ml-2">FECHA LÍMITE</label>
-                  <input name="dueDate" type="date" required className="w-full p-3 bg-gray-50 rounded-xl outline-none" />
-                </div>
+            <h3 className="text-xl font-black mb-6 italic text-violet-900">Nuevo Recurso</h3>
+            <form onSubmit={addResource} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 ml-2">TÍTULO DEL DOCUMENTO</label>
+                <input name="title" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none" placeholder="Ej: Protocolo de Convivencia" />
               </div>
-              <select name="priority" className="w-full p-3 bg-gray-50 rounded-xl outline-none">
-                <option value="low">Prioridad Baja</option>
-                <option value="medium">Media</option>
-                <option value="high">Urgente 🔴</option>
-              </select>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 ml-2">ENLACE (URL)</label>
+                <input name="url" type="url" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none" placeholder="https://drive.google.com/..." />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 ml-2">CARPETA / CATEGORÍA</label>
+                <select name="category" className="w-full p-4 bg-gray-50 rounded-2xl outline-none appearance-none">
+                  <option value="DOCUMENTOS">Documentos</option>
+                  <option value="UTILIDADES">Utilidades</option>
+                  <option value="NORMATIVAS">Normativas</option>
+                  <option value="ACTAS">Actas</option>
+                  <option value="PROYECTOS">Proyectos</option>
+                </select>
+              </div>
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-4 font-bold text-gray-400">CANCELAR</button>
-                <button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-bold shadow-lg">SOLICITAR</button>
+                <button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-bold shadow-lg">GUARDAR</button>
               </div>
             </form>
           </div>
@@ -783,24 +886,6 @@ function TasksView({ tasks, user, canEdit }) {
   );
 }
 
-
-function ResourcesView({ resources }) {
- const formatUrl = (url) => (url.startsWith('http') ? url : `https://${url}`);
- return (
-  <div className="space-y-4">
-   <h2 className="text-2xl font-bold text-violet-900 mb-6">Recursos</h2>
-   <div className="grid gap-3">
-    {resources.map(r => (
-     <a key={r.id} href={formatUrl(r.url)} target="_blank" className="bg-white p-5 rounded-[30px] border flex items-center gap-5 hover:bg-blue-50 transition">
-      <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-inner"><FileText size={28} /></div>
-      <div className="flex-1 min-w-0"><h3 className="font-bold text-gray-800 text-sm truncate">{r.title}</h3><p className="text-[9px] text-gray-400 uppercase font-black mt-1">{r.category}</p></div>
-      <ExternalLink size={18} className="text-gray-300" />
-     </a>
-    ))}
-   </div>
-  </div>
- );
-}
 
 function NotificationsView({ notifications }) {
  return (
@@ -849,6 +934,7 @@ function ProfileView({ user, onLogout }) {
   </div>
  );
 }
+
 
 
 
