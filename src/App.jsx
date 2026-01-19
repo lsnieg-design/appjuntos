@@ -548,12 +548,23 @@ function MatriculaView({ user }) {
     <div className="flex justify-between items-center">
      <div><h2 className="text-2xl font-bold flex items-center gap-2"><GraduationCap /> Legajos 2026</h2><p className="opacity-90">{filteredStudents.length} alumnos</p></div>
      <div className="flex gap-2">
-      {isSuperAdmin && <button onClick={() => setShowDataManagement(true)} className="bg-white/20 p-2 rounded-xl"><UploadCloud size={20}/></button>}
-      <button onClick={() => setShowStats(true)} className="bg-white/20 p-2 rounded-xl">< size={20}/></button>
-      {isSuperAdmin && <button onClick={() => {setEditingStudent(null); setShowForm(true);}} className="bg-white text-blue-600 p-2 rounded-xl"><Plus/></button>}
-     </div>
-    </div>
-   </div>
+          {isSuperAdmin && (
+            <button onClick={() => setShowDataManagement(true)} className="bg-white/20 p-2 rounded-xl">
+              <UploadCloud size={20}/>
+            </button>
+          )}
+          <button onClick={() => setShowStats(true)} className="bg-white/20 p-2 rounded-xl">
+            <Activity size={20}/>
+          </button>
+          {isSuperAdmin && (
+            <button 
+              onClick={() => {setEditingStudent(null); setShowForm(true);}} 
+              className="bg-white text-blue-600 p-2 rounded-xl"
+            >
+              <Plus size={20}/>
+            </button>
+          )}
+        </div>
    <input value={filterText} onChange={e => setFilterText(e.target.value)} placeholder="Buscar alumno..." className="w-full p-4 bg-white rounded-2xl shadow-sm mb-4 outline-none border" />
    <div className="space-y-3">
     {filteredStudents.map(s => (
@@ -1096,4 +1107,5 @@ function ProyectoView({ user }) {
     </div>
   );
 }
+
 
