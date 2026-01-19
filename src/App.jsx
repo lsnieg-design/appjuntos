@@ -393,6 +393,80 @@ function MainApp({ user, onLogout }) {
   );
 }
 
+function TasksView({ tasks, user, canEdit }) {
+  const [showModal, setShowModal] = useState(false);
+  const [usersList, setUsersList] = useState([]);
+
+  useEffect(() => {
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
+    const unsub = onSnapshot(q, snap => {
+      setUsersList(snap.docs.map(d => ({id: d.id, ...d.data()})));
+    }, () => {});
+    return () => unsub();
+  }, []);
+
+  const addTask = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const targetUserId = fd.get('targetUser');
+    const targetUser = usersList.find(u => u.id === targetUserId);
+
+    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), {
+      title: fd.get('title'),
+      dueDate: fd.get('dueDate'),
+      priority: fd.get('priority'),
+      createdBy: user.firstName || "Admin",
+      createdById: user.id,
+      assignedToId: targetUserId,
+      assignedToName: targetUser ? (targetUser.fullName || targetUser.firstName) : "Todos",
+      status: 'pending',
+      createdAt: serverTimestamp()
+    });
+    setShowModal(false);
+  };
+
+  return (
+    <div className="animate-in slide-in-from-bottom-4">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-black text-violet-900">Tareas</h2>
+        <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg"><Plus/></button>
+      </div>
+      <div className="grid gap-3">
+        {tasks && tasks.length > 0 ? tasks.map(t => (
+          <div key={t.id} className="bg-white p-5 rounded-[30px] border border-gray-100 shadow-sm flex justify-between items-center">
+            <div>
+              <p className="text-[10px] font-bold text-orange-500 uppercase">{t.assignedToName}</p>
+              <h3 className="font-bold text-gray-800">{t.title}</h3>
+            </div>
+            <div className="text-[10px] font-black bg-gray-50 px-3 py-1 rounded-full text-gray-400">
+              {t.dueDate}
+            </div>
+          </div>
+        )) : <p className="text-center text-gray-400 py-10 italic text-sm">No hay tareas pendientes</p>}
+      </div>
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl">
+            <h3 className="text-xl font-black mb-6">Nueva Tarea</h3>
+            <form onSubmit={addTask} className="space-y-4">
+              <input name="title" placeholder="¿Qué hay que hacer?" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none" />
+              <select name="targetUser" className="w-full p-4 bg-gray-50 rounded-2xl outline-none">
+                <option value="all">Asignar a: Todos</option>
+                {usersList.map(u => <option key={u.id} value={u.id}>{u.fullName || u.firstName}</option>)}
+              </select>
+              <input name="dueDate" type="date" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none" />
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-4 font-bold text-gray-400">CANCELAR</button>
+                <button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-bold">GUARDAR</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 
 function NavButton({ active, onClick, icon, label, badge }) {
@@ -915,120 +989,8 @@ function ProfileView({ user, onLogout }) {
   </div>
  );
 }
-function ProyectoView({ user }) {
-  const [meses, setMeses] = useState([]);
-  const [editingMes, setEditingMes] = useState(null);
-  const [expandedMes, setExpandedMes] = useState(null);
-  const isAdmin = user.rol === 'admin' || user.rol === 'super-admin';
 
-  // Cargar el cronograma desde Firebase
-  useEffect(() => {
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'proyecto2026'), orderBy('orden', 'asc'));
-    return onSnapshot(q, (snap) => {
-      setMeses(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-  }, []);
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const data = {
-      nombre: fd.get('nombre'),
-      eje: fd.get('eje'),
-      contenidos: fd.get('contenidos'),
-      actividades: fd.get('actividades'),
-      updatedAt: serverTimestamp()
-    };
-    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'proyecto2026', editingMes.id), data);
-    setEditingMes(null);
-  };
-
-  return (
-    <div className="animate-in fade-in duration-700 pb-20">
-      <div className="bg-gradient-to-br from-violet-600 to-indigo-800 p-8 rounded-[40px] text-white mb-8 shadow-xl relative overflow-hidden">
-        <h2 className="text-3xl font-black tracking-tight">Proyecto 2026</h2>
-        <p className="opacity-80 text-sm font-bold uppercase tracking-widest mt-1">Cronograma Institucional</p>
-        <PieChart size={100} className="absolute -right-5 -bottom-5 opacity-10 rotate-12" />
-      </div>
-
-      <div className="space-y-4">
-        {meses.map((m) => (
-          <div key={m.id} className="bg-white rounded-[30px] border border-gray-100 shadow-sm overflow-hidden transition-all">
-            {/* CABECERA DEL MES */}
-            <div 
-              onClick={() => setExpandedMes(expandedMes === m.id ? null : m.id)}
-              className="p-5 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center font-black text-xs">
-                  {m.nombre.substring(0, 3).toUpperCase()}
-                </div>
-                <div>
-                  <h3 className="font-black text-gray-800 uppercase text-sm tracking-tighter">{m.nombre}</h3>
-                  <p className="text-[10px] text-orange-500 font-bold uppercase">{m.eje || 'Eje no definido'}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {isAdmin && (
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); setEditingMes(m); }}
-                    className="p-2 text-gray-400 hover:text-violet-600 transition"
-                  >
-                    <Edit3 size={18} />
-                  </button>
-                )}
-                <ChevronRight className={`text-gray-300 transition-transform ${expandedMes === m.id ? 'rotate-90' : ''}`} />
-              </div>
-            </div>
-
-            {/* CONTENIDO EXPANDIBLE */}
-            {expandedMes === m.id && (
-              <div className="p-6 bg-gray-50 border-t border-dashed border-gray-200 animate-in slide-in-from-top-2">
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="text-[10px] font-black text-violet-900 uppercase tracking-widest mb-1">Contenidos Curriculares</h4>
-                    <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{m.contenidos || 'Sin contenidos cargados.'}</p>
-                  </div>
-                  <div>
-                    <h4 className="text-[10px] font-black text-violet-900 uppercase tracking-widest mb-1">Actividades Sugeridas</h4>
-                    <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{m.actividades || 'Sin actividades cargadas.'}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* MODAL DE EDICIÓN PARA ADMINISTRACIÓN */}
-      {editingMes && (
-        <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-[40px] w-full max-w-xl p-8 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-2xl font-black mb-6 flex items-center gap-2 text-violet-900"><Edit3/> Editar {editingMes.nombre}</h3>
-            <form onSubmit={handleSave} className="space-y-6">
-              <div className="space-y-1">
-                <label className="text-xs font-black text-gray-400 ml-2">EJE VERTEBRADOR / TEMÁTICA</label>
-                <input name="eje" defaultValue={editingMes.eje} className="w-full p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-orange-400" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-black text-gray-400 ml-2">CONTENIDOS (CURRICULARES/ESI)</label>
-                <textarea name="contenidos" defaultValue={editingMes.contenidos} rows="4" className="w-full p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-orange-400 resize-none" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-black text-gray-400 ml-2">ACTIVIDADES Y PROPUESTAS</label>
-                <textarea name="actividades" defaultValue={editingMes.actividades} rows="4" className="w-full p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-orange-400 resize-none" />
-              </div>
-              <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setEditingMes(null)} className="flex-1 py-4 bg-gray-100 text-gray-400 rounded-2xl font-black">CANCELAR</button>
-                <button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg">GUARDAR CAMBIOS</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 
 
