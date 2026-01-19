@@ -366,7 +366,7 @@ function MainApp({ user, onLogout }) {
       </header>
 
       <main className="flex-1 overflow-y-auto pb-24 px-4 pt-6 max-w-4xl mx-auto w-full">
-        {activeTab === 'dashboard' && < user={user} tasks={tasks} events={events} />}
+        {activeTab === 'dashboard' && <DashboardView user={user} tasks={tasks} events={events} />}
         {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
         {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} canEdit={canManageContent} />}
         {activeTab === 'matricula' && <MatriculaView user={user} />}
@@ -1158,6 +1158,7 @@ function ProyectoView({ user }) {
     </div>
   );
 }
+
 
 
 
