@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Calendar as CalendarIcon, CheckSquare, User, FileText, CheckCircle, Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, Lock, List, Grid, ChevronLeft, ChevronRight, Bell, Check, HelpCircle, Mail, Send, Key, Filter, LayoutDashboard, Link as LinkIcon, ExternalLink, AlertTriangle, Clock, Shield, Crown, Activity, Share, PlusSquare, Smartphone, GraduationCap, Search, X, UploadCloud, PieChart, Eye, Edit3, Folder 
+  Calendar as CalendarIcon, PieChart, CheckSquare, User, FileText, CheckCircle, Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, Lock, List, Grid, ChevronLeft, ChevronRight, Bell, Check, HelpCircle, Mail, Send, Key, Filter, LayoutDashboard, Link as LinkIcon, ExternalLink, AlertTriangle, Clock, Shield, Crown, Activity, Share, PlusSquare, Smartphone, GraduationCap, Search, X, UploadCloud, PieChart, Eye, Edit3, Folder 
 } from 'lucide-react';
 
 import { initializeApp } from 'firebase/app';
@@ -772,7 +772,7 @@ function CalendarView({ events, canEdit, user }) {
       {viewMode === 'grid' ? (
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
           <div className="p-4 flex justify-between items-center bg-violet-50 border-b">
-            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700"><ChevronLeft size={24} /></button>
+            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700">< size={24} /></button>
             <span className="font-bold text-violet-900 capitalize">{currentDate.toLocaleDateString('es-ES', { month: 'long' })}</span>
             <button onClick={() => changeMonth(1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700"><ChevronRight size={24} /></button>
           </div>
@@ -854,7 +854,7 @@ function ResourcesView({ resources, canEdit }) {
         <div className="flex gap-2">
           {currentFolder && (
             <button onClick={() => setCurrentFolder(null)} className="bg-gray-100 text-gray-600 p-3 rounded-xl">
-              <ChevronLeft size={20} />
+              < size={20} />
             </button>
           )}
           {canEdit && (
@@ -990,6 +990,128 @@ function ProfileView({ user, onLogout }) {
  );
 }
 
+function ProyectoView({ user }) {
+  const [meses, setMeses] = useState([]);
+  const [editingMes, setEditingMes] = useState(null);
+  const isAdmin = user.rol === 'admin' || user.rol === 'super-admin';
+
+  useEffect(() => {
+    // Escuchamos la colección específica del proyecto
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'proyecto2026'), orderBy('orden', 'asc'));
+    const unsub = onSnapshot(q, (snap) => {
+      setMeses(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (error) => console.error("Error en Proyecto:", error));
+    return () => unsub();
+  }, []);
+
+  const inicializarProyecto = async () => {
+    const estructuraBase = "🌍 EJE: La Vuelta al Mundo en 360 días\n\n📍 PAÍS:\n🚩 BANDERA:\n🍱 COSTUMBRES:\n🐾 ANIMALES:\n🏛️ CAPITAL:\n🎨 COLORES:\n📖 LEYENDAS:";
+    const mesesNombres = ["Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+    
+    try {
+      for (let i = 0; i < mesesNombres.length; i++) {
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'proyecto2026'), {
+          nombre: mesesNombres[i],
+          orden: i,
+          eje: "La Vuelta al Mundo en 360 días",
+          contenidos: estructuraBase,
+          actividades: "Propuestas de cada eje..."
+        });
+      }
+      alert("¡Estructura 360 creada con éxito!");
+    } catch (e) {
+      alert("Error al crear: " + e.message);
+    }
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    try {
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'proyecto2026', editingMes.id), {
+        eje: fd.get('eje'),
+        contenidos: fd.get('contenidos'),
+        actividades: fd.get('actividades')
+      });
+      setEditingMes(null);
+    } catch (e) {
+      alert("Error al guardar: " + e.message);
+    }
+  };
+
+  return (
+    <div className="pb-24 animate-in fade-in duration-500">
+      <div className="bg-gradient-to-br from-indigo-900 to-violet-800 p-8 rounded-[40px] text-white mb-6 shadow-xl">
+        <h2 className="text-2xl font-black italic">Proyecto 360</h2>
+        <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest">La Vuelta al Mundo en un Año</p>
+        
+        {isAdmin && meses.length === 0 && (
+          <button 
+            onClick={inicializarProyecto} 
+            className="mt-4 bg-orange-500 hover:bg-orange-600 px-6 py-3 rounded-2xl text-xs font-black shadow-lg transition-all active:scale-95"
+          >
+            CARGAR ESTRUCTURA ANUAL
+          </button>
+        )}
+      </div>
+
+      <div className="space-y-4">
+        {meses.length > 0 ? meses.map(m => (
+          <div key={m.id} className="bg-white p-6 rounded-[35px] border border-gray-100 shadow-sm">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="font-black text-violet-900 uppercase text-sm tracking-tight">{m.nombre}</h3>
+                <span className="text-[9px] bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-bold uppercase">
+                  {m.eje || "Sin Eje"}
+                </span>
+              </div>
+              {isAdmin && (
+                <button onClick={() => setEditingMes(m)} className="p-2 bg-gray-50 text-gray-300 rounded-xl hover:text-orange-500 transition">
+                  <Edit3 size={18}/>
+                </button>
+              )}
+            </div>
+            
+            <div className="text-[11px] text-gray-600 whitespace-pre-wrap leading-relaxed bg-gray-50/50 p-5 rounded-3xl border border-gray-50">
+              {m.contenidos || "Sin contenidos cargados"}
+            </div>
+          </div>
+        )) : (
+          <div className="text-center py-20 opacity-20">
+            <PieChart size={64} className="mx-auto mb-4" />
+            <p className="font-bold text-sm italic">Esperando datos del proyecto...</p>
+          </div>
+        )}
+      </div>
+
+      {/* MODAL DE EDICIÓN */}
+      {editingMes && (
+        <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4 backdrop-blur-md">
+          <div className="bg-white rounded-[45px] w-full max-w-2xl p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-violet-900">Editar {editingMes.nombre}</h3>
+              <button onClick={() => setEditingMes(null)} className="text-gray-400"><X size={24}/></button>
+            </div>
+            <form onSubmit={handleSave} className="space-y-5">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-gray-400 ml-4 uppercase">Eje Transversal</label>
+                <input name="eje" defaultValue={editingMes.eje} className="w-full p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 ring-violet-200" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-gray-400 ml-4 uppercase">Contenidos Esquematizados</label>
+                <textarea name="contenidos" defaultValue={editingMes.contenidos} rows="12" className="w-full p-5 bg-gray-50 rounded-[30px] outline-none text-xs font-mono leading-relaxed" />
+              </div>
+              <div className="flex gap-4 pt-4">
+                <button type="button" onClick={() => setEditingMes(null)} className="flex-1 py-4 font-bold text-gray-400">DESCARTAR</button>
+                <button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-bold shadow-xl">GUARDAR CAMBIOS</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 
 
