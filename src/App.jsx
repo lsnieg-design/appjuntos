@@ -284,116 +284,197 @@ function LoginScreen({ onLogin }) {
  );
 }
 
-// --- MAIN APP ---
-function MainApp({ user, onLogout }) {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [tasks, setTasks] = useState([]);
-  const [events, setEvents] = useState([]);
-  const [resources, setResources] = useState([]);
-  const [notifications, setNotifications] = useState([]);
-  const [showNotifPanel, setShowNotifPanel] = useState(false);
+// --- VISTA MATRÍCULA ---
+function MatriculaView({ user }) {
+ const [students, setStudents] = useState([]);
+ const [filterText, setFilterText] = useState('');
+ const [viewingStudent, setViewingStudent] = useState(null);
+ const [showStats, setShowStats] = useState(false);
+ const [showForm, setShowForm] = useState(false);
+ const [showDataManagement, setShowDataManagement] = useState(false);
+ const [editingStudent, setEditingStudent] = useState(null);
+ const isSuperAdmin = user.rol === 'super-admin';
+ const [filters, setFilters] = useState({ level: 'all', dx: 'all', gender: 'all', journey: 'all', group: 'all', teacher: 'all' });
+ const [statFilters, setStatFilters] = useState({ level: 'all', dx: 'all', gender: 'all', journey: 'all', turn: 'all' });
+ const [importJson, setImportJson] = useState('');
+ const [processing, setProcessing] = useState(false);
+ const [photoPreview, setPhotoPreview] = useState(null);
 
-  const isSuperAdmin = user.rol === 'super-admin';
-  const canManageContent = user.rol === 'admin' || isSuperAdmin;
+ const calculateAge = (dateString) => {
+  if (!dateString) return '-';
+  const birthDate = new Date(dateString);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+  return age;
+ };
 
-  useEffect(() => {
-    // 1. Tareas
-    const qTasks = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('dueDate', 'asc'));
-    const unsubTasks = onSnapshot(qTasks, (snapshot) => {
-      setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-    
-    // 2. Avisos (Filtrados por el ID del usuario actual)
-    const qNotifs = query(
-      collection(db, 'artifacts', appId, 'public', 'data', 'notifications'),
-      where('toUserId', '==', user.id)
-    );
-    const unsubNotifs = onSnapshot(qNotifs, (snap) => {
-      setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
+ useEffect(() => {
+  const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), orderBy('lastName', 'asc'));
+  return onSnapshot(q, (snap) => setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+ }, []);
 
-    // 3. Otros datos
-    const qEvents = query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc'));
-    const unsubEvents = onSnapshot(qEvents, (snap) => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-    
-    const qResources = query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc'));
-    const unsubResources = onSnapshot(qResources, (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+ const filteredStudents = students.filter(s => {
+  const textMatch = (s.lastName + s.firstName).toLowerCase().includes(filterText.toLowerCase()) || s.dni?.toString().includes(filterText);
+  const levelMatch = filters.level === 'all' || s.level === filters.level;
+  const dxMatch = filters.dx === 'all' || s.dx === filters.dx;
+  return textMatch && levelMatch && dxMatch;
+ });
 
-    return () => { unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); };
-  }, [user.id]);
+ const statsResults = students.filter(s => {
+  const levelMatch = statFilters.level === 'all' || s.level === statFilters.level;
+  const genderMatch = statFilters.gender === 'all' || s.gender === statFilters.gender;
+  return levelMatch && genderMatch;
+ });
 
-  const unreadCount = (notifications || []).filter(n => !n.read).length;
+ const handleSave = async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const data = Object.fromEntries(fd.entries());
+  data.photoUrl = photoPreview || editingStudent?.photoUrl || '';
+  if (editingStudent) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', editingStudent.id), data);
+  else await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...data, createdAt: serverTimestamp() });
+  setShowForm(false); setEditingStudent(null); setPhotoPreview(null);
+ };
 
-  return (
-    <div className="flex flex-col h-screen bg-gray-50 font-sans text-slate-800">
-      <header className="bg-violet-800 text-white shadow-lg px-4 py-3 flex justify-between items-center z-50 sticky top-0">
-        <div className="flex items-center space-x-3">
-          <img src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" alt="Logo" className="w-10 h-8 object-contain" />
-          <div>
-            <h1 className="font-bold text-sm leading-tight">Juntos a la Par</h1>
-            <p className="text-[10px] text-orange-200 uppercase font-bold">{user.firstName}</p>
-          </div>
-        </div>
+ const handleBulkImport = async () => {
+  setProcessing(true);
+  try {
+   const data = JSON.parse(importJson);
+   for(const s of data) if(s.lastName) await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...s, createdAt: serverTimestamp() });
+   alert("Importación completa");
+   setShowDataManagement(false);
+  } catch(e) { alert("Error en JSON"); }
+  setProcessing(false);
+ };
 
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <button onClick={() => setShowNotifPanel(!showNotifPanel)} className={`p-2 rounded-full transition ${showNotifPanel ? 'bg-orange-500' : 'bg-violet-900/50'}`}>
-              <Bell size={20} />
-              {unreadCount > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-pulse">{unreadCount}</span>}
+ return (
+  <div className="animate-in fade-in">
+   <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 rounded-3xl shadow-lg text-white mb-6">
+    <div className="flex justify-between items-center">
+     <div><h2 className="text-2xl font-bold flex items-center gap-2"><GraduationCap /> Legajos 2026</h2><p className="opacity-90">{filteredStudents.length} alumnos</p></div>
+     <div className="flex gap-2">
+          {isSuperAdmin && (
+            <button onClick={() => setShowDataManagement(true)} className="bg-white/20 p-2 rounded-xl">
+              <UploadCloud size={20}/>
             </button>
-            {showNotifPanel && (
-              <div className="absolute right-0 mt-3 w-72 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 z-[100]">
-                <div className="p-4 bg-violet-50 border-b flex justify-between items-center">
-                  <h3 className="font-bold text-violet-900 text-sm">Avisos Recientes</h3>
-                  <button onClick={() => setShowNotifPanel(false)}><X size={16} className="text-gray-400"/></button>
-                </div>
-                <div className="max-h-80 overflow-y-auto">
-                  {notifications.length === 0 ? <p className="p-8 text-center text-xs text-gray-400 italic">No tienes avisos nuevos</p> : 
-                  notifications.map(n => (
-                    <div key={n.id} className="p-4 border-b hover:bg-gray-50 transition">
-                      <p className="text-[10px] font-bold text-orange-600 mb-1 uppercase">{n.title}</p>
-                      <p className="text-xs text-gray-700">{n.message}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-          <div onClick={() => {setActiveTab('profile'); setShowNotifPanel(false);}} className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold border-2 border-orange-400 overflow-hidden cursor-pointer">
-            {user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover" /> : user.firstName?.[0]}
+          )}
+          <button onClick={() => setShowStats(true)} className="bg-white/20 p-2 rounded-xl">
+            <Activity size={20}/>
+          </button>
+          {isSuperAdmin && (
+            <button 
+              onClick={() => {setEditingStudent(null); setShowForm(true);}} 
+              className="bg-white text-blue-600 p-2 rounded-xl"
+            >
+              <Plus size={20}/>
+            </button>
+          )}
+        </div>
+
+    </div> {/* ✅ ESTE </div> ES EL ÚNICO CAMBIO: cierra el flex antes del input */}
+
+   <input value={filterText} onChange={e => setFilterText(e.target.value)} placeholder="Buscar alumno..." className="w-full p-4 bg-white rounded-2xl shadow-sm mb-4 outline-none border" />
+   <div className="space-y-3">
+    {filteredStudents.map(s => (
+     <div key={s.id} onClick={() => setViewingStudent(s)} className="bg-white p-4 rounded-2xl border flex items-center gap-4 cursor-pointer hover:shadow-md transition">
+      <div className="w-12 h-12 bg-gray-100 rounded-xl overflow-hidden flex items-center justify-center">
+       {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover" /> : <User className="text-gray-300"/>}
+      </div>
+      <div className="flex-1"><h4 className="font-bold text-gray-800">{s.lastName}, {s.firstName}</h4><p className="text-xs text-gray-400">DNI: {s.dni} • {calculateAge(s.birthDate)} años</p></div>
+      <span className="text-[10px] font-bold bg-blue-50 text-blue-600 px-2 py-1 rounded uppercase">{s.level}</span>
+     </div>
+    ))}
+   </div>
+
+  {showStats && (
+        <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl flex flex-col max-h-[80vh]">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-violet-900">Estadísticas</h3>
+              <button onClick={() => setShowStats(false)}><X size={24} className="text-gray-400" /></button>
+            </div>
+            
+            <div className="bg-violet-600 text-white p-6 rounded-3xl text-center mb-6 shadow-xl">
+              <h4 className="text-4xl font-black">{statsResults.length}</h4>
+              <p className="text-sm opacity-80 uppercase font-bold tracking-widest">Alumnos Registrados</p>
+            </div>
+
+          <div className="flex-1 overflow-y-auto">
+  <div className="grid grid-cols-1 gap-2">
+    {statsResults.map(s => (
+      <div key={s.id} className="p-4 bg-gray-50 rounded-2xl text-xs border border-gray-100 flex justify-between items-center">
+        <span className="font-bold text-gray-700">
+          {(s.lastName || 'S/A').toUpperCase()}, {s.firstName || 'S/N'}
+        </span>
+        <span className="font-black text-violet-600 bg-violet-50 px-2 py-1 rounded-lg uppercase">
+          {s.level || 'Nivel'}
+        </span>
+      </div>
+    ))}
+  </div>
+</div>
           </div>
         </div>
-      </header>
+      )}
+   {viewingStudent && (
+    <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4" onClick={() => setViewingStudent(null)}>
+     <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="bg-blue-600 p-8 text-white relative">
+       <button onClick={() => setViewingStudent(null)} className="absolute top-4 right-4 text-white/50 hover:text-white"><X/></button>
+       <div className="flex items-center gap-6">
+        <div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">
+         {viewingStudent.photoUrl ? <img src={viewingStudent.photoUrl} className="w-full h-full object-cover" /> : <User size={40}/>}
+        </div>
+        <div><h2 className="text-2xl font-bold">{viewingStudent.lastName}, {viewingStudent.firstName}</h2><p className="opacity-80">DNI: {viewingStudent.dni}</p></div>
+       </div>
+      </div>
+      <div className="p-8 space-y-4 bg-white">
+       <p><strong>Nivel:</strong> {viewingStudent.level}</p>
+       <p><strong>DX:</strong> {viewingStudent.dx || '-'}</p>
+       <p><strong>Género:</strong> {viewingStudent.gender}</p>
+       <p><strong>Jornada:</strong> {viewingStudent.journey}</p>
+       {isSuperAdmin && <button onClick={() => {setEditingStudent(viewingStudent); setShowForm(true); setViewingStudent(null);}} className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg">EDITAR FICHA</button>}
+      </div>
+     </div>
+    </div>
+   )}
 
-      <main className="flex-1 overflow-y-auto pb-24 px-4 pt-6 max-w-4xl mx-auto w-full">
-        {activeTab === 'dashboard' && <DashboardView user={user} tasks={tasks} events={events} />}
-        {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
-        {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} canEdit={canManageContent} />}
-        {activeTab === 'matricula' && <MatriculaView user={user} />}
-        {activeTab === 'resources' && <ResourcesView resources={resources} canEdit={canManageContent} />}
-        {activeTab === 'proyecto' && <ProyectoView user={user} />}
-        {activeTab === 'profile' && <ProfileView user={user} onLogout={onLogout} />}
-      </main>
+   {showForm && (
+    <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
+     <div className="bg-white rounded-3xl w-full max-w-2xl p-8 max-h-[90vh] overflow-y-auto shadow-2xl">
+      <h3 className="text-2xl font-bold mb-8 border-b pb-4 text-gray-800">{editingStudent ? 'Editar Legajo' : 'Nueva Ficha'}</h3>
+      <form onSubmit={handleSave} className="space-y-6">
+       <div className="grid grid-cols-2 gap-4">
+        <input name="lastName" defaultValue={editingStudent?.lastName} placeholder="Apellido" required className="w-full p-3 bg-gray-50 border rounded-xl" />
+        <input name="firstName" defaultValue={editingStudent?.firstName} placeholder="Nombre" required className="w-full p-3 bg-gray-50 border rounded-xl" />
+       </div>
+       <div className="grid grid-cols-2 gap-4">
+        <input name="dni" type="number" defaultValue={editingStudent?.dni} placeholder="DNI" className="w-full p-3 bg-gray-50 border rounded-xl" />
+        <input name="birthDate" type="date" defaultValue={editingStudent?.birthDate} className="w-full p-3 bg-gray-50 border rounded-xl" />
+       </div>
+       <div className="flex gap-4 pt-4 border-t"><button type="button" onClick={() => setShowForm(false)} className="flex-1 py-4 bg-gray-100 rounded-2xl font-bold">CANCELAR</button><button type="submit" className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg">GUARDAR</button></div>
+      </form>
+     </div>
+    </div>
+   )}
+     </div>
 
-    <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-20 z-30 shadow-lg pb-safe">
+<nav className="fixed bottom-0 w-full bg-white border-t h-20 z-30 shadow-lg">
         <div className="flex justify-around items-center h-full max-w-4xl mx-auto px-2">
           <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={24} />} label="Inicio" />
           <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={24} />} label="Tareas" />
           <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={24} />} label="Agenda" />
           <NavButton active={activeTab === 'matricula'} onClick={() => setActiveTab('matricula')} icon={<GraduationCap size={24} />} label="Matrícula" />
           <NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<Folder size={24} />} label="Recursos" />
-         <NavButton 
-  active={activeTab === 'proyecto'} 
-  onClick={() => setActiveTab('proyecto')} 
-  icon={<PieChart size={24} />} 
-  label="P.I." 
-/>
+          <NavButton active={activeTab === 'proyecto'} onClick={() => setActiveTab('proyecto')} icon={<PieChart size={24} />} label="P.I." />
         </div>
       </nav>
     </div>
   );
 }
-
+    
 function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
@@ -1156,6 +1237,7 @@ function ProyectoView({ user }) {
     </div>
   );
 }
+
 
 
 
