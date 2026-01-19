@@ -441,15 +441,18 @@ function NavButton({ active, onClick, icon, label, badge }) {
 // --- VISTA DASHBOARD (CARTELERA MULTIPLE) ---
 function DashboardView({ user, tasks, events }) {
   const todayStr = new Date().toISOString().split('T')[0];
-  const todayEvents = (events || []).filter(e => e.date === todayStr);
+  const todayEvents = events.filter(e => e.date === todayStr);
+  
+  // Estados para Cartelera y Notas
   const [announcements, setAnnouncements] = useState([]);
   const [showAnnounceModal, setShowAnnounceModal] = useState(false);
-  
-  // Roles permitidos para publicar anuncios importantes
+  const [notes, setNotes] = useState(() => JSON.parse(localStorage.getItem(`notes_${user.id}`) || '[]'));
+  const [newNote, setNewNote] = useState('');
+
   const canPost = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
 
   useEffect(() => {
-    // Traemos los anuncios ordenados por fecha
+    // Cargar anuncios de las últimas 24hs
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(q, (snapshot) => {
         const now = new Date();
@@ -458,10 +461,7 @@ function DashboardView({ user, tasks, events }) {
             const data = doc.data();
             const msgDate = data.createdAt ? new Date(data.createdAt.seconds * 1000) : new Date();
             const diffHours = (now - msgDate) / (1000 * 60 * 60);
-            // SOLO MOSTRAMOS SI TIENE MENOS DE 24 HORAS
-            if (diffHours < 24) {
-                validMessages.push({ id: doc.id, ...data });
-            }
+            if (diffHours < 24) validMessages.push({ id: doc.id, ...data });
         });
         setAnnouncements(validMessages);
     });
@@ -473,17 +473,23 @@ function DashboardView({ user, tasks, events }) {
       const text = e.target.message.value;
       if(!text.trim()) return;
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), {
-          message: text,
-          author: user.fullName,
-          role: user.role,
-          createdAt: serverTimestamp()
+          message: text, author: user.fullName, role: user.role, createdAt: serverTimestamp()
       });
       setShowAnnounceModal(false);
   };
 
+  // Gestión de Notas Personales
+  const saveNote = (e) => {
+    e.preventDefault(); if (!newNote.trim()) return;
+    const updated = [...notes, { id: Date.now(), text: newNote, done: false }];
+    setNotes(updated); localStorage.setItem(`notes_${user.id}`, JSON.stringify(updated)); setNewNote('');
+  };
+  const toggleNote = (id) => { const updated = notes.map(n => n.id === id ? { ...n, done: !n.done } : n); setNotes(updated); localStorage.setItem(`notes_${user.id}`, JSON.stringify(updated)); };
+  const deleteNote = (id) => { const updated = notes.filter(n => n.id !== id); setNotes(updated); localStorage.setItem(`notes_${user.id}`, JSON.stringify(updated)); };
+
   return (
     <div className="space-y-6 animate-in fade-in pb-10">
-      {/* SECCIÓN BIENVENIDA Y CARTELERA URGENTE */}
+      {/* SECCIÓN BIENVENIDA Y CARTELERA */}
       <div className="bg-white p-6 rounded-[40px] shadow-sm border border-violet-100 relative overflow-hidden">
         <div className="relative z-10 flex justify-between items-start">
             <div>
@@ -495,7 +501,7 @@ function DashboardView({ user, tasks, events }) {
         
         {/* CARTELERA DE 24HS */}
         {announcements.length > 0 && (
-            <div className="mt-6 space-y-2">
+            <div className="mt-6 space-y-2 relative z-10">
                 <h3 className="text-xs font-black text-red-500 uppercase tracking-widest flex items-center gap-1"><Bell size={12}/> Avisos de Dirección (24hs)</h3>
                 {announcements.map(a => (
                     <div key={a.id} className="bg-red-50 p-3 rounded-2xl border border-red-100 text-sm text-red-900 italic">
@@ -507,23 +513,34 @@ function DashboardView({ user, tasks, events }) {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-orange-500 p-6 rounded-[35px] text-white shadow-lg relative overflow-hidden">
-          <h4 className="text-3xl font-black">{tasks.length}</h4><p className="text-[10px] font-bold uppercase opacity-80 italic tracking-widest">Tareas</p>
-        </div>
-        <div className="bg-violet-600 p-6 rounded-[35px] text-white shadow-lg relative overflow-hidden">
-          <h4 className="text-3xl font-black">{todayEvents.length}</h4><p className="text-[10px] font-bold uppercase opacity-80 italic tracking-widest">Eventos Hoy</p>
+      {/* NOTAS PERSONALES */}
+      <div className="bg-yellow-50 p-6 rounded-[35px] border border-yellow-100 shadow-sm">
+        <h3 className="font-black text-yellow-700 uppercase tracking-widest text-xs mb-4 flex items-center gap-2"><Lock size={12}/> Mis Notas Privadas</h3>
+        <form onSubmit={saveNote} className="flex gap-2 mb-4">
+          <input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Agregar recordatorio..." className="flex-1 p-3 rounded-xl border-none outline-none text-sm bg-white shadow-sm" />
+          <button type="submit" className="bg-yellow-400 text-yellow-900 p-3 rounded-xl font-bold"><Plus size={16}/></button>
+        </form>
+        <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+          {notes.map(n => (
+            <div key={n.id} className="flex items-center gap-3 bg-white/60 p-2 rounded-lg">
+              <button onClick={() => toggleNote(n.id)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${n.done ? 'bg-yellow-400 border-yellow-400' : 'border-yellow-300'}`}>{n.done && <Check size={12} className="text-white"/>}</button>
+              <span className={`text-sm flex-1 ${n.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>{n.text}</span>
+              <button onClick={() => deleteNote(n.id)} className="text-gray-300 hover:text-red-400"><Trash2 size={14}/></button>
+            </div>
+          ))}
+          {notes.length === 0 && <p className="text-xs text-center text-gray-400 italic">No tienes notas personales.</p>}
         </div>
       </div>
 
+      {/* MODAL NUEVO AVISO */}
       {showAnnounceModal && (
           <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4">
               <form onSubmit={handlePost} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95">
-                  <h3 className="text-lg font-black text-violet-900 mb-4">Publicar Aviso (Dura 24hs)</h3>
-                  <textarea name="message" className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-sm h-32" placeholder="Escribe el comunicado aquí..." required></textarea>
+                  <h3 className="text-lg font-black text-violet-900 mb-4">Publicar Aviso (24hs)</h3>
+                  <textarea name="message" className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-sm h-32 resize-none border border-gray-100" placeholder="Escribe el comunicado..." required></textarea>
                   <div className="flex gap-2 mt-4">
-                      <button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 text-gray-400 font-bold text-xs">Cancelar</button>
-                      <button type="submit" className="flex-1 bg-violet-600 text-white py-3 rounded-2xl font-bold shadow-lg">Publicar</button>
+                      <button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 text-gray-400 font-bold text-xs uppercase">Cancelar</button>
+                      <button type="submit" className="flex-1 bg-violet-600 text-white py-3 rounded-2xl font-bold shadow-lg uppercase text-xs">Publicar</button>
                   </div>
               </form>
           </div>
@@ -592,9 +609,8 @@ function TasksView({ tasks, user, canEdit }) {
   const [usersList, setUsersList] = useState([]);
   const [assignType, setAssignType] = useState('user'); 
   const [selectedRoles, setSelectedRoles] = useState([]);
-  const [openCommentsId, setOpenCommentsId] = useState(null); // ID de tarea para ver comentarios
+  const [openCommentsId, setOpenCommentsId] = useState(null); 
   const [newComment, setNewComment] = useState("");
-
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor'];
   const canDelete = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
 
@@ -612,94 +628,51 @@ function TasksView({ tasks, user, canEdit }) {
   const addTask = async (e) => {
     e.preventDefault(); 
     const fd = new FormData(e.target);
-    let assignedName = "Todos";
-    let targetUserId = null;
-    
+    let assignedName = "Todos", targetUserId = null, targetRoles = [];
     if (assignType === 'user') {
-        const uId = fd.get('targetUser');
-        const uObj = usersList.find(u => u.id === uId);
-        assignedName = uObj ? uObj.fullName : "Desconocido";
-        targetUserId = uId;
+        const uId = fd.get('targetUser'); const uObj = usersList.find(u => u.id === uId);
+        assignedName = uObj ? uObj.fullName : "Desconocido"; targetUserId = uId;
     } else {
-        assignedName = selectedRoles.join(", ");
+        assignedName = selectedRoles.join(", "); targetRoles = selectedRoles;
     }
-
-    // 1. Crear Tarea
-    const newTaskRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
-        title: fd.get('title'), 
-        dueDate: fd.get('dueDate'), 
-        priority: fd.get('priority'), 
-        targetType: assignType, 
-        targetUserId,
-        targetRoles: selectedRoles,
-        assignedToName: assignedName, 
-        createdByName: user.fullName || user.firstName,
-        createdById: user.id,
-        status: 'pending', 
-        createdAt: serverTimestamp(),
-        comments: [] // Array para comentarios
+    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
+        title: fd.get('title'), dueDate: fd.get('dueDate'), priority: fd.get('priority'), targetType: assignType, targetUserId, targetRoles: selectedRoles, assignedToName: assignedName, createdByName: user.fullName || user.firstName, createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: [] 
     });
-
-    // 2. Crear Notificación (Aviso Reciente)
     if (targetUserId && targetUserId !== user.id) {
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), {
-            toUserId: targetUserId,
-            title: "Nueva Tarea Asignada",
-            message: `${user.firstName} te asignó: "${fd.get('title')}"`,
-            read: false,
-            date: new Date().toISOString(),
-            createdAt: serverTimestamp()
-        });
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { toUserId: targetUserId, title: "Nueva Tarea Asignada", message: `${user.firstName} te asignó: "${fd.get('title')}"`, read: false, date: new Date().toISOString(), createdAt: serverTimestamp() });
     }
-
     setShowModal(false); setSelectedRoles([]);
   };
 
   const addComment = async (task) => {
       if (!newComment.trim()) return;
       const commentData = { text: newComment, author: user.firstName, date: new Date().toISOString() };
-      const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id);
-      await updateDoc(taskRef, { comments: arrayUnion(commentData) });
-      
-      // Notificar al creador si comenta otro
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion(commentData) });
       if (task.createdById && task.createdById !== user.id) {
-          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), {
-            toUserId: task.createdById,
-            title: "Nuevo Comentario",
-            message: `${user.firstName} comentó en "${task.title}"`,
-            read: false,
-            date: new Date().toISOString(),
-            createdAt: serverTimestamp()
-        });
+          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { toUserId: task.createdById, title: "Nuevo Comentario", message: `${user.firstName} comentó en "${task.title}"`, read: false, date: new Date().toISOString(), createdAt: serverTimestamp() });
       }
       setNewComment("");
   };
 
-  const handleDelete = async (id) => {
-      if(confirm("¿Seguro que deseas eliminar esta tarea?")) {
-          await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id));
-      }
-  };
-
-  const changeStatus = async (task, newStatus) => {
-    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus });
-  };
+  const handleDelete = async (id) => { if(confirm("¿Seguro que deseas eliminar esta tarea?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
+  const changeStatus = async (task, newStatus) => { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
 
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10">
-      <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas Institucionales</h2><button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:scale-110 transition-all"><Plus/></button></div>
+      <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2><button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:scale-110 transition-all"><Plus/></button></div>
       <div className="grid gap-3 pb-10">
         {tasks.map(t => (
-          <div key={t.id} className={`p-5 rounded-[30px] border-l-8 shadow-sm flex flex-col gap-3 bg-white ${getPriorityStyle(t.priority)} transition-all`}>
+          <div key={t.id} className={`p-5 rounded-[30px] border-l-8 shadow-sm flex flex-col gap-3 bg-white ${getPriorityStyle(t.priority)} transition-all relative`}>
             <div className="flex justify-between items-start">
-              <div className="flex-1">
+              <div className="flex-1 pr-6">
                 <p className="text-[9px] font-black text-violet-600 uppercase tracking-widest italic mb-1">Para: {t.assignedToName}</p>
                 <h3 className="font-bold text-gray-800 text-sm uppercase italic tracking-tighter leading-none">{t.title}</h3>
                 <p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName}</p>
               </div>
               <div className="flex flex-col items-end gap-2">
                  <div className="text-[9px] font-black bg-white px-2 py-1 rounded-full text-gray-400 border uppercase tracking-tighter italic shadow-inner">{t.dueDate}</div>
-                 {canDelete && <button onClick={() => handleDelete(t.id)} className="text-red-400 hover:text-red-600"><Trash2 size={16}/></button>}
+                 {/* BOTÓN ELIMINAR AGREGADO */}
+                 {canDelete && <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm"><Trash2 size={14}/></button>}
               </div>
             </div>
             
@@ -708,7 +681,7 @@ function TasksView({ tasks, user, canEdit }) {
                 <div className="bg-white/50 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in">
                     <div className="max-h-32 overflow-y-auto space-y-2 mb-2">
                         {(t.comments || []).map((c, idx) => (
-                            <p key={idx} className="text-xs text-gray-600"><span className="font-bold text-violet-700">{c.author}:</span> {c.text}</p>
+                            <p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p>
                         ))}
                         {(!t.comments || t.comments.length === 0) && <p className="text-[10px] text-gray-400 italic">Sin comentarios.</p>}
                     </div>
@@ -720,7 +693,7 @@ function TasksView({ tasks, user, canEdit }) {
             )}
 
             <div className="pt-2 border-t border-black/5 flex justify-between items-center">
-              <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-violet-600"><MessageSquare size={14}/> {t.comments?.length || 0}</button>
+              <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-violet-600 bg-gray-50 px-2 py-1 rounded-lg"><MessageSquare size={14}/> {t.comments?.length || 0}</button>
               <select value={t.status || 'pending'} onChange={(e) => changeStatus(t, e.target.value)} className="text-xs bg-white/50 border rounded-lg p-1 font-bold text-gray-600 outline-none cursor-pointer">
                 <option value="pending">Pendiente</option>
                 <option value="in_process">En Proceso</option>
@@ -735,36 +708,10 @@ function TasksView({ tasks, user, canEdit }) {
           <form onSubmit={addTask} className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-black text-violet-900 uppercase italic">Nueva Tarea</h3>
             <input name="title" placeholder="¿Qué tarea asignar?" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm shadow-inner" />
-            <div className="flex gap-2 bg-gray-100 p-1 rounded-xl">
-                <button type="button" onClick={() => setAssignType('user')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'user' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Persona</button>
-                <button type="button" onClick={() => setAssignType('roles')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'roles' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Roles</button>
-            </div>
-            {assignType === 'user' ? (
-                <select name="targetUser" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs uppercase tracking-widest border border-gray-100">
-                  {usersList.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
-                </select>
-            ) : (
-                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 max-h-32 overflow-y-auto">
-                    {ROLES_OPTIONS.map(role => (
-                        <label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600 cursor-pointer">
-                            <input type="checkbox" checked={selectedRoles.includes(role)} onChange={(e) => {
-                                if(e.target.checked) setSelectedRoles([...selectedRoles, role]);
-                                else setSelectedRoles(selectedRoles.filter(r => r !== role));
-                            }} className="accent-violet-600"/> {role}
-                        </label>
-                    ))}
-                </div>
-            )}
-            <div className="grid grid-cols-2 gap-4">
-              <input name="dueDate" type="date" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs text-gray-400" />
-              <select name="priority" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs uppercase text-orange-600 italic">
-                <option value="baja">Baja</option><option value="media">Media</option><option value="alta">Alta</option>
-              </select>
-            </div>
-            <div className="flex gap-2 pt-4">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 font-bold text-gray-400 text-xs uppercase">Cancelar</button>
-                <button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">CREAR</button>
-            </div>
+            <div className="flex gap-2 bg-gray-100 p-1 rounded-xl"><button type="button" onClick={() => setAssignType('user')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'user' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Persona</button><button type="button" onClick={() => setAssignType('roles')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'roles' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Roles</button></div>
+            {assignType === 'user' ? (<select name="targetUser" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs uppercase tracking-widest border border-gray-100">{usersList.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}</select>) : (<div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 max-h-32 overflow-y-auto">{ROLES_OPTIONS.map(role => (<label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={selectedRoles.includes(role)} onChange={(e) => { if(e.target.checked) setSelectedRoles([...selectedRoles, role]); else setSelectedRoles(selectedRoles.filter(r => r !== role)); }} className="accent-violet-600"/> {role}</label>))}</div>)}
+            <div className="grid grid-cols-2 gap-4"><input name="dueDate" type="date" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs text-gray-400" /><select name="priority" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs uppercase text-orange-600 italic"><option value="baja">Baja</option><option value="media">Media</option><option value="alta">Alta</option></select></div>
+            <div className="flex gap-2 pt-4"><button type="button" onClick={() => setShowModal(false)} className="flex-1 font-bold text-gray-400 text-xs uppercase">Cancelar</button><button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">CREAR</button></div>
           </form>
         </div>
       )}
@@ -890,23 +837,47 @@ function UsersView({ user }) {
 // --- VISTA AGENDA ---
 function CalendarView({ events, canEdit, user }) {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedDayEvents, setSelectedDayEvents] = useState(null); // Ahora guardamos una lista de eventos
   const [showModal, setShowModal] = useState(false);
   
   const changeMonth = (offset) => { const d = new Date(currentDate); d.setMonth(d.getMonth() + offset); setCurrentDate(new Date(d)); };
   
+  // Función al hacer clic en un evento o día
+  const handleDayClick = (dateStr) => {
+      const eventsOnDay = events.filter(e => e.date === dateStr);
+      if (eventsOnDay.length > 0) {
+          setSelectedDayEvents({ date: dateStr, events: eventsOnDay });
+      }
+  };
+
+  const deleteEvent = async (id) => {
+      if(confirm("¿Eliminar este evento?")) {
+          await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', id));
+          // Actualizamos la vista modal eliminando el evento de la lista local
+          setSelectedDayEvents(prev => ({
+              ...prev,
+              events: prev.events.filter(e => e.id !== id)
+          }));
+          if (selectedDayEvents.events.length <= 1) setSelectedDayEvents(null); // Cerrar si era el único
+      }
+  };
+
   const renderGrid = () => {
     const year = currentDate.getFullYear(); const month = currentDate.getMonth();
     const days = []; const firstDay = new Date(year, month, 1).getDay();
-    for (let i = 0; i < firstDay; i++) days.push(<div key={`e-${i}`} className="min-h-[70px] bg-gray-50/20 border-b border-r border-gray-100"></div>);
+    for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} className="min-h-[80px] bg-gray-50/20 border-b border-r border-gray-100"></div>);
     for (let d = 1; d <= new Date(year, month + 1, 0).getDate(); d++) {
       const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const dayEvents = events.filter(e => e.date === dateStr);
       days.push(
-        <div key={d} className="min-h-[70px] border-b border-r border-gray-100 p-1 bg-white hover:bg-violet-50 transition text-center overflow-hidden">
+        <div key={d} onClick={() => handleDayClick(dateStr)} className="min-h-[80px] border-b border-r border-gray-100 p-1 bg-white hover:bg-violet-50 transition text-center overflow-hidden cursor-pointer group">
           <span className={`text-[10px] font-black ${dayEvents.length > 0 ? 'text-violet-700 underline' : 'text-gray-400'}`}>{d}</span>
-          <div className="flex flex-col gap-0.5 mt-1">
-            {dayEvents.map((ev, idx) => (<button key={idx} onClick={() => setSelectedEvent(ev)} className="text-[6px] bg-violet-100 text-violet-700 rounded-sm p-0.5 truncate font-black uppercase shadow-sm border border-violet-200">{ev.title}</button>))}
+          <div className="flex flex-col gap-1 mt-1">
+            {dayEvents.map((ev, idx) => (
+                <div key={idx} className="text-[6px] bg-violet-100 text-violet-700 rounded-sm p-1 truncate font-black uppercase shadow-sm border border-violet-200">
+                    {ev.title}
+                </div>
+            ))}
           </div>
         </div>
       );
@@ -915,14 +886,9 @@ function CalendarView({ events, canEdit, user }) {
   };
 
   const handleAddEvent = async (e) => {
-      e.preventDefault();
-      const fd = new FormData(e.target);
+      e.preventDefault(); const fd = new FormData(e.target);
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), { 
-          title: fd.get('title'), 
-          date: fd.get('date'), 
-          type: fd.get('type'), 
-          description: fd.get('description'), 
-          createdAt: serverTimestamp() 
+          title: fd.get('title'), date: fd.get('date'), type: fd.get('type'), description: fd.get('description'), createdAt: serverTimestamp() 
       });
       setShowModal(false);
   };
@@ -942,16 +908,18 @@ function CalendarView({ events, canEdit, user }) {
         {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d => <div key={d} className="text-[9px] font-black text-violet-400 uppercase p-3 border-b text-center bg-violet-50/50 italic tracking-[2px]">{d}</div>)}
         {renderGrid()}
       </div>
+
+      {/* MODAL AGREGAR EVENTO */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
           <form onSubmit={handleAddEvent} className="bg-white rounded-[50px] w-full max-w-sm p-10 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-orange-500">
-            <h3 className="text-xl font-black italic uppercase text-violet-900 tracking-tighter leading-none">Publicar Evento</h3>
-            <input name="title" placeholder="Título del evento" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm italic shadow-inner" />
+            <h3 className="text-xl font-black italic uppercase text-violet-900 tracking-tighter">Publicar Evento</h3>
+            <input name="title" placeholder="Título" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm italic shadow-inner" />
             <input name="date" type="date" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs" />
-            <select name="type" className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-[10px] font-black uppercase tracking-[3px] border border-gray-100 shadow-inner">
+            <select name="type" className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-[10px] font-black uppercase tracking-[3px] border border-gray-100">
               {['GENERAL', 'SALIDA EDUCATIVA', 'EFEMÉRIDES', 'ACTO', 'REUNIÓN'].map(t => <option key={t} value={t}>{t}</option>)}
             </select>
-            <textarea name="description" placeholder="Observaciones..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none italic text-xs font-medium border border-gray-100 shadow-inner" />
+            <textarea name="description" placeholder="Observaciones..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none italic text-xs font-medium border border-gray-100 shadow-inner h-24 resize-none" />
             <div className="flex gap-2">
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-4 text-gray-400 font-bold text-xs uppercase">Cancelar</button>
                 <button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-[10px] italic">Agendar</button>
@@ -959,13 +927,30 @@ function CalendarView({ events, canEdit, user }) {
           </form>
         </div>
       )}
-      {selectedEvent && (
-        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4" onClick={() => setSelectedEvent(null)}>
-          <div className="bg-white rounded-[50px] w-full max-w-sm p-10 shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
-            <span className="text-[9px] font-black text-orange-600 bg-orange-50 px-3 py-1 rounded-full uppercase tracking-[3px] border border-orange-100 italic shadow-sm">{selectedEvent.type || 'Evento'}</span>
-            <h2 className="text-2xl font-black text-gray-800 leading-tight italic uppercase mt-5 tracking-tighter italic leading-none">{selectedEvent.title}</h2>
-            <p className="text-gray-500 text-xs mt-6 leading-relaxed font-medium italic border-l-4 border-violet-100 pl-4 bg-gray-50 p-4 rounded-r-3xl shadow-inner">{selectedEvent.description || 'Sin descripción adicional cargada.'}</p>
-            <button onClick={() => setSelectedEvent(null)} className="w-full mt-10 py-4 bg-gray-100 text-gray-400 rounded-3xl font-black uppercase text-[10px] tracking-widest italic">Cerrar Detalle</button>
+
+      {/* MODAL VER EVENTOS DEL DÍA */}
+      {selectedDayEvents && (
+        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4" onClick={() => setSelectedDayEvents(null)}>
+          <div className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-6 border-b pb-4">
+                <h2 className="text-xl font-black text-violet-900 uppercase italic tracking-tighter">Eventos del {formatDate(selectedDayEvents.date)}</h2>
+                <button onClick={() => setSelectedDayEvents(null)}><X size={24} className="text-gray-400"/></button>
+            </div>
+            
+            <div className="space-y-4">
+                {selectedDayEvents.events.map(ev => (
+                    <div key={ev.id} className="bg-gray-50 p-4 rounded-3xl border border-gray-100 relative">
+                        <span className="text-[9px] font-black text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full uppercase tracking-widest border border-orange-200">{ev.type}</span>
+                        <h3 className="font-bold text-gray-800 mt-2 text-sm uppercase italic">{ev.title}</h3>
+                        <p className="text-xs text-gray-500 mt-1 italic">{ev.description || 'Sin descripción.'}</p>
+                        {canEdit && (
+                            <button onClick={() => deleteEvent(ev.id)} className="absolute top-4 right-4 text-red-300 hover:text-red-500 p-1 rounded-full hover:bg-red-50">
+                                <Trash2 size={16}/>
+                            </button>
+                        )}
+                    </div>
+                ))}
+            </div>
           </div>
         </div>
       )}
@@ -1477,6 +1462,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
