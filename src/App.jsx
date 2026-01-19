@@ -60,7 +60,15 @@ const db = app ? getFirestore(app) : null;
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'escuela-app-prod';
 
 // --- Constantes ---
-const ROLES = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor'];
+const ROLES = [
+  'Docente', 
+  'Equipo Directivo', 
+  'Equipo Técnico', 
+  'Auxiliar/Preceptor', 
+  'Inclusión', 
+  'Profes Especiales', 
+  'Administración'
+];
 const EVENT_TYPES = ['SALIDA EDUCATIVA', 'GENERAL', 'ADMINISTRATIVO', 'INFORMES', 'EVENTOS', 'ACTOS', 'EFEMÉRIDES', 'CUMPLEAÑOS'];
 
 // --- Utils ---
@@ -763,25 +771,76 @@ function TasksView({ tasks, user, canEdit }) {
   );
 }
 // --- VISTA NOTIFICACIONES ---
-function NotificationsView({ notifications, canEdit }) {
-  const deleteRequest = async (id) => { if(confirm('¿Has resuelto esta solicitud?')) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'requests', id)); };
+// --- MODIFICACIÓN 2: VISTA NOTIFICACIONES MEJORADA ---
+function NotificationsView({ notifications, canEdit, user }) {
+  // Ordenar: Más nuevas arriba
+  const sortedNotifs = [...notifications].sort((a, b) => {
+    const dateA = a.createdAt ? a.createdAt.seconds : new Date(a.date).getTime() / 1000;
+    const dateB = b.createdAt ? b.createdAt.seconds : new Date(b.date).getTime() / 1000;
+    return dateB - dateA;
+  });
+
+  // Solo mostramos las NO leídas (o las que no tienen la propiedad read)
+  const visibleNotifs = sortedNotifs.filter(n => !n.read);
+
+  const markAsRead = async (id) => {
+    // Al marcarla, se actualiza en la BD y desaparece de la lista local por el filtro
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', id), { read: true });
+  };
+
+  const deleteRequest = async (id) => { 
+    if(confirm('¿Has resuelto esta solicitud?')) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'requests', id)); 
+  };
+
+  const formatTime = (timestamp) => {
+    if(!timestamp) return '';
+    const d = new Date(timestamp.seconds * 1000);
+    return d.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + 'hs';
+  };
+
   return (
-    <div className="animate-in fade-in duration-500">
-      <h2 className="text-2xl font-bold text-violet-900 mb-6">Avisos</h2>
+    <div className="animate-in fade-in duration-500 pb-20">
+      <h2 className="text-2xl font-bold text-violet-900 mb-6 flex items-center gap-2">
+        <Bell className="text-orange-500"/> Avisos Pendientes
+      </h2>
+      
       <div className="space-y-3">
-        {notifications.length === 0 ? <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200"><Bell size={48} className="mx-auto mb-4 text-violet-100" /><p className="text-gray-500">Sin novedades.</p></div> : 
-          notifications.map(notif => (
-            <div key={notif.id} className={`p-4 rounded-2xl border-l-4 shadow-sm bg-white relative ${notif.type === 'admin_alert' ? 'border-red-600 bg-red-50' : notif.type === 'reminder' ? 'border-orange-500 bg-orange-50/50' : 'border-violet-500'}`}>
+        {visibleNotifs.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200">
+            <CheckCircle size={48} className="mx-auto mb-4 text-green-100" />
+            <p className="text-gray-500 font-medium">¡Estás al día! No hay notificaciones nuevas.</p>
+          </div>
+        ) : (
+          visibleNotifs.map(notif => (
+            <div key={notif.id} className={`p-4 rounded-2xl border-l-4 shadow-sm bg-white relative transition-all hover:shadow-md ${notif.type === 'admin_alert' ? 'border-red-600 bg-red-50' : 'border-violet-500'}`}>
                <div className="flex justify-between items-start mb-1">
-                 <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${notif.type === 'admin_alert' ? 'bg-red-600 text-white animate-pulse' : notif.type === 'reminder' ? 'bg-orange-100 text-orange-600' : 'bg-violet-100 text-violet-600'}`}>{notif.type === 'admin_alert' ? 'SOLICITUD' : notif.type === 'reminder' ? 'Urgente' : 'Aviso'}</span>
-                 <span className="text-xs text-gray-400">{formatDate(notif.date)}</span>
+                 <div className="flex gap-2 items-center">
+                    <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded ${notif.type === 'admin_alert' ? 'bg-red-600 text-white animate-pulse' : 'bg-violet-100 text-violet-600'}`}>
+                      {notif.type === 'admin_alert' ? 'URGENTE' : 'AVISO'}
+                    </span>
+                    <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
+                      <Clock size={10}/> {notif.createdAt ? formatTime(notif.createdAt) : formatDate(notif.date)}
+                    </span>
+                 </div>
+                 {/* BOTÓN PARA MARCAR COMO LEÍDO */}
+                 <button onClick={() => markAsRead(notif.id)} className="text-gray-300 hover:text-green-500 transition" title="Marcar como leída">
+                    <CheckSquare size={20} />
+                 </button>
                </div>
-               <h3 className="font-bold text-gray-800">{notif.title}</h3>
-               <p className="text-sm text-gray-600 mt-1">{notif.message}</p>
-               {notif.isRequest && canEdit && <div className="mt-3 flex justify-end"><button onClick={() => deleteRequest(notif.id)} className="flex items-center gap-1 text-xs font-bold text-red-500 bg-white border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition shadow-sm"><Check size={14} /> Resuelto</button></div>}
+               
+               <h3 className="font-bold text-gray-800 text-sm">{notif.title}</h3>
+               <p className="text-xs text-gray-600 mt-1 leading-relaxed">{notif.message}</p>
+               
+               {notif.isRequest && canEdit && (
+                 <div className="mt-3 flex justify-end">
+                   <button onClick={() => deleteRequest(notif.id)} className="flex items-center gap-1 text-xs font-bold text-red-500 bg-white border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition shadow-sm">
+                     <Check size={14} /> Finalizar Solicitud
+                   </button>
+                 </div>
+               )}
             </div>
           ))
-        }
+        )}
       </div>
     </div>
   );
@@ -1131,17 +1190,71 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
   );
 }
 // --- VISTA ADMINISTRACIÓN DE USUARIOS (FALTANTE) ---
+// --- MODIFICACIÓN 3: GESTIÓN DE USUARIOS CON CARGA MASIVA ---
 function UsersAdminView() {
- const [users, setUsers] = useState([]);
- const [showAdd, setShowAdd] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [showAdd, setShowAdd] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [csvContent, setCsvContent] = useState('');
+  const [importing, setImporting] = useState(false);
 
- useEffect(() => {
-  const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
-  const unsub = onSnapshot(q, snap => setUsers(snap.docs.map(d => ({id: d.id, ...d.data()}))));
-  return () => unsub();
- }, []);
+  useEffect(() => {
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
+    const unsub = onSnapshot(q, snap => setUsers(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+    return () => unsub();
+  }, []);
 
- const addUser = async (e) => {
+  // --- FUNCIÓN DE IMPORTACIÓN MASIVA ---
+  const handleBulkImport = async () => {
+    if (!csvContent.trim()) return;
+    setImporting(true);
+    try {
+      // 1. Procesar líneas del CSV (Formato esperado: Nombre,Apellido,Usuario,DNI,Rol)
+      const rows = csvContent.split('\n').filter(r => r.trim() !== '');
+      let count = 0;
+      let errors = 0;
+
+      for (let row of rows) {
+        const cols = row.split(',').map(c => c.trim());
+        // Validamos que tenga al menos 5 columnas
+        if (cols.length >= 5) {
+          const [nombre, apellido, usuario, dni, rolInput] = cols;
+          
+          // Chequear si ya existe el usuario
+          const exists = users.some(u => u.username === usuario);
+          if (!exists) {
+             // Determinar si es admin del sistema (solo directivos o admin explícito)
+             const esAdminSistema = rolInput.toLowerCase().includes('directivo') || rolInput.toLowerCase() === 'admin';
+             
+             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), {
+               firstName: nombre,
+               lastName: apellido,
+               fullName: `${nombre} ${apellido}`,
+               username: usuario,
+               password: dni, // DNI como contraseña inicial
+               role: rolInput, // El rol visual (ej: Preceptora)
+               rol: esAdminSistema ? 'admin' : 'user', // El permiso de sistema
+               createdAt: serverTimestamp(),
+               firstLogin: true // Flag por si querés obligar a cambiar pass
+             });
+             count++;
+          } else {
+            errors++;
+          }
+        }
+      }
+      alert(`✅ Proceso finalizado.\nImportados: ${count}\nDuplicados/Omitidos: ${errors}`);
+      setShowImport(false);
+      setCsvContent('');
+    } catch (e) {
+      alert("Error en la importación: " + e.message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // --- FUNCIÓN AGREGAR INDIVIDUAL (Mantenemos la tuya con ajustes) ---
+  const addUser = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const userData = {
@@ -1155,74 +1268,114 @@ function UsersAdminView() {
         createdAt: serverTimestamp()
     };
     
-    // Validar si existe
     const qCheck = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), where('username', '==', userData.username));
     const checkSnap = await getDocs(qCheck);
-    if (!checkSnap.empty) {
-        alert("El nombre de usuario ya existe.");
-        return;
-    }
+    if (!checkSnap.empty) { alert("El nombre de usuario ya existe."); return; }
 
     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), userData);
     setShowAdd(false);
- };
+  };
 
- const deleteUser = async (id) => {
-     if(confirm("¿Estás seguro de eliminar este usuario?")) {
-         await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id));
-     }
- };
+  const deleteUser = async (id) => {
+      if(confirm("¿Estás seguro de eliminar este usuario?")) {
+          await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id));
+      }
+  };
 
- return (
-  <div className="flex-1 flex flex-col min-h-0 bg-white/5 rounded-3xl p-4 mt-4">
-   <div className="flex justify-between items-center mb-6">
-       <h3 className="text-white font-bold text-sm uppercase tracking-widest">{users.length} Usuarios Registrados</h3>
-       <button onClick={() => setShowAdd(true)} className="bg-orange-500 text-white px-4 py-2 rounded-xl font-black text-xs uppercase shadow-lg hover:scale-105 transition">Agregar</button>
-   </div>
-   
-   <div className="grid gap-3 pb-20 overflow-y-auto">
-    {users.map(u => (
-     <div key={u.id} className="bg-white p-4 rounded-2xl border border-white/50 shadow-sm flex items-center justify-between">
-      <div className="flex items-center gap-4">
-       <div className="w-10 h-10 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center font-black text-xs uppercase border border-violet-200">{u.firstName?.[0]}{u.lastName?.[0]}</div>
-       <div>
-           <p className="font-bold text-sm text-gray-800 uppercase italic tracking-tighter">{u.fullName}</p>
-           <p className="text-orange-500 font-bold text-[9px] uppercase tracking-widest">{u.role} ({u.rol})</p>
-       </div>
-      </div>
-      {u.username !== 'admin' && (
-        <button onClick={() => deleteUser(u.id)} className="p-2 bg-red-50 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition"><Trash2 size={16}/></button>
-      )}
-     </div>
-    ))}
-   </div>
-
-   {showAdd && (
-    <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4">
-     <form onSubmit={addUser} className="bg-white rounded-[40px] w-full max-w-sm p-8 space-y-4 shadow-2xl border-t-8 border-orange-500 animate-in zoom-in-95">
-      <h3 className="text-xl font-black italic uppercase text-violet-900 tracking-tighter">Nuevo Usuario</h3>
-      <div className="grid grid-cols-2 gap-3">
-          <input name="firstName" placeholder="Nombre" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
-          <input name="lastName" placeholder="Apellido" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
-      </div>
-      <input name="username" placeholder="Usuario Acceso" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
-      <input name="password" placeholder="Contraseña" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
-      <select name="role" className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs font-black uppercase border border-gray-100 shadow-inner">
-       <option value="Docente">Docente</option><option value="Directivo">Directivo</option><option value="Gabinete">Gabinete</option><option value="Auxiliar">Auxiliar</option><option value="Administración">Administración</option>
-      </select>
-      <div className="flex items-center gap-2 p-2 bg-violet-50 rounded-xl">
-          <input type="checkbox" name="isAdmin" className="w-4 h-4 accent-violet-600" />
-          <label className="text-xs font-bold text-violet-900">¿Es Administrador?</label>
-      </div>
-      <div className="flex gap-2 pt-2">
-          <button type="button" onClick={() => setShowAdd(false)} className="flex-1 text-gray-400 font-bold uppercase text-[10px]">Volver</button>
-          <button type="submit" className="flex-1 py-3 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">Registrar</button>
-      </div>
-     </form>
+  return (
+   <div className="flex-1 flex flex-col min-h-0 bg-white/5 rounded-3xl p-4 mt-4">
+    <div className="flex justify-between items-center mb-6">
+        <div>
+          <h3 className="text-white font-bold text-sm uppercase tracking-widest">{users.length} Usuarios</h3>
+          <p className="text-[10px] text-gray-400">Administración de personal</p>
+        </div>
+        <div className="flex gap-2">
+          {/* BOTÓN IMPORTAR */}
+          <button onClick={() => setShowImport(true)} className="bg-emerald-500 text-white px-3 py-2 rounded-xl font-black text-xs uppercase shadow-lg hover:scale-105 transition flex items-center gap-1">
+            <UploadCloud size={16}/> Importar CSV
+          </button>
+          <button onClick={() => setShowAdd(true)} className="bg-orange-500 text-white px-3 py-2 rounded-xl font-black text-xs uppercase shadow-lg hover:scale-105 transition flex items-center gap-1">
+            <Plus size={16}/> Manual
+          </button>
+        </div>
     </div>
-   )}
-  </div>
- );
+    
+    <div className="grid gap-3 pb-20 overflow-y-auto max-h-[60vh]">
+     {users.map(u => (
+      <div key={u.id} className="bg-white p-4 rounded-2xl border border-white/50 shadow-sm flex items-center justify-between">
+       <div className="flex items-center gap-4">
+        <div className="w-10 h-10 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center font-black text-xs uppercase border border-violet-200">{u.firstName?.[0]}{u.lastName?.[0]}</div>
+        <div>
+            <p className="font-bold text-sm text-gray-800 uppercase italic tracking-tighter">{u.fullName}</p>
+            <div className="flex gap-2 text-[9px] uppercase tracking-widest font-bold">
+               <span className="text-orange-500">{u.role}</span>
+               {u.rol === 'admin' && <span className="text-violet-600 bg-violet-100 px-1 rounded">ADMIN</span>}
+            </div>
+            <p className="text-[10px] text-gray-400 mt-0.5">Usuario: {u.username} | Clave: {u.password}</p>
+        </div>
+       </div>
+       {u.username !== 'admin' && (
+         <button onClick={() => deleteUser(u.id)} className="p-2 bg-red-50 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition"><Trash2 size={16}/></button>
+       )}
+      </div>
+     ))}
+    </div>
+
+    {/* MODAL IMPORTAR CSV */}
+    {showImport && (
+      <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4">
+         <div className="bg-white rounded-[40px] w-full max-w-lg p-8 shadow-2xl border-t-8 border-emerald-500 animate-in zoom-in-95">
+            <h3 className="text-xl font-black italic uppercase text-emerald-700 mb-2">Carga Masiva</h3>
+            <p className="text-xs text-gray-500 mb-4">
+              Copia y pega desde tu Excel. El orden de columnas debe ser:<br/>
+              <b>Nombre, Apellido, Usuario, DNI, Rol</b> (separado por comas)
+            </p>
+            <textarea 
+              value={csvContent}
+              onChange={(e) => setCsvContent(e.target.value)}
+              placeholder={`Ejemplo:\nLucia,Snieg,lucia.s,30123456,Directivo\nMaria,Gomez,maria.g,29111222,Docente`}
+              className="w-full h-48 p-4 bg-gray-50 rounded-2xl text-xs font-mono border border-gray-200 outline-none focus:border-emerald-500"
+            />
+            <div className="flex gap-2 pt-4">
+               <button onClick={() => setShowImport(false)} className="flex-1 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
+               <button onClick={handleBulkImport} disabled={importing} className="flex-1 py-3 bg-emerald-600 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs flex justify-center items-center gap-2">
+                 {importing ? <RefreshCw className="animate-spin"/> : 'Procesar Datos'}
+               </button>
+            </div>
+         </div>
+      </div>
+    )}
+
+    {/* MODAL MANUAL (EXISTENTE) */}
+    {showAdd && (
+     <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4">
+      <form onSubmit={addUser} className="bg-white rounded-[40px] w-full max-w-sm p-8 space-y-4 shadow-2xl border-t-8 border-orange-500 animate-in zoom-in-95">
+       <h3 className="text-xl font-black italic uppercase text-violet-900 tracking-tighter">Nuevo Usuario</h3>
+       <div className="grid grid-cols-2 gap-3">
+           <input name="firstName" placeholder="Nombre" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
+           <input name="lastName" placeholder="Apellido" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
+       </div>
+       <input name="username" placeholder="Usuario Acceso" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
+       <input name="password" placeholder="Contraseña" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
+       <select name="role" className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs font-black uppercase border border-gray-100 shadow-inner">
+         {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+       </select>
+       <div className="flex items-center gap-2 p-2 bg-violet-50 rounded-xl">
+           <input type="checkbox" name="isAdmin" className="w-4 h-4 accent-violet-600" />
+           <div className="flex flex-col">
+             <label className="text-xs font-bold text-violet-900">¿Es Administrador?</label>
+             <span className="text-[9px] text-gray-500 leading-tight">Acceso total al sistema y edición.</span>
+           </div>
+       </div>
+       <div className="flex gap-2 pt-2">
+           <button type="button" onClick={() => setShowAdd(false)} className="flex-1 text-gray-400 font-bold uppercase text-[10px]">Volver</button>
+           <button type="submit" className="flex-1 py-3 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">Registrar</button>
+       </div>
+      </form>
+     </div>
+    )}
+   </div>
+  );
 }
 // --- VISTA PROYECTO 360 ---
 function ProyectoView({ user }) {
@@ -1601,6 +1754,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
