@@ -677,7 +677,6 @@ function DashboardView({ user, tasks, events }) {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
-      {/* Bienvenida */}
       <div className="bg-white p-8 rounded-[40px] shadow-sm border border-violet-100 relative overflow-hidden">
         <div className="relative z-10">
           <h2 className="text-3xl font-black text-slate-800 tracking-tight">¡Hola, {user.firstName}! 👋</h2>
@@ -686,7 +685,6 @@ function DashboardView({ user, tasks, events }) {
         <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-violet-50 rounded-full opacity-50"></div>
       </div>
 
-      {/* Info Rápida */}
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-orange-500 p-6 rounded-[35px] text-white shadow-lg shadow-orange-200">
           <div className="flex justify-between items-start mb-4">
@@ -704,7 +702,6 @@ function DashboardView({ user, tasks, events }) {
         </div>
       </div>
 
-      {/* Eventos de Hoy */}
       <div className="space-y-3">
         <h3 className="font-black text-slate-800 ml-2 uppercase text-xs tracking-widest text-violet-900">Agenda del día</h3>
         {todayEvents.length > 0 ? todayEvents.map(e => (
@@ -721,7 +718,6 @@ function DashboardView({ user, tasks, events }) {
     </div>
   );
 }
-
 function CalendarView({ events, canEdit, user }) {
   const [showModal, setShowModal] = useState(false);
   // CAMBIO CLAVE: Ahora el estado inicial es 'grid'
@@ -1149,6 +1145,7 @@ function ProyectoView({ user }) {
     </div>
   );
 }
+
 
 
 
