@@ -655,18 +655,16 @@ function MatriculaView({ user }) {
     </div>
    )}
 
- {showDataManagement && (
-        <div className="fixed inset-0 bg-black/60 z-[120] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-lg p-8 shadow-2xl">
-            <h3 className="text-2xl font-bold mb-4 text-blue-600 flex items-center gap-2"><UploadCloud/> Carga Masiva</h3>
-            <textarea value={importJson} onChange={e => setImportJson(e.target.value)} placeholder='[ { "lastName": "Gomez", "firstName": "Ana"... } ]' className="w-full h-48 p-4 bg-gray-50 border rounded-2xl font-mono text-xs mb-6 outline-none" />
-            <div className="flex gap-3">
-              <button onClick={() => setShowDataManagement(false)} className="flex-1 py-4 bg-gray-100 rounded-2xl font-bold">CERRAR</button>
-              <button onClick={handleBulkImport} disabled={processing || !importJson} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg">{processing ? <RefreshCw className="animate-spin" /> : 'IMPORTAR'}</button>
-            </div>
-          </div>
+<nav className="fixed bottom-0 w-full bg-white border-t h-20 z-30 shadow-lg">
+        <div className="flex justify-around items-center h-full max-w-4xl mx-auto px-2">
+          <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={24} />} label="Inicio" />
+          <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={24} />} label="Tareas" />
+          <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={24} />} label="Agenda" />
+          <NavButton active={activeTab === 'matricula'} onClick={() => setActiveTab('matricula')} icon={<GraduationCap size={24} />} label="Matrícula" />
+          <NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<Folder size={24} />} label="Recursos" />
+          <NavButton active={activeTab === 'proyecto'} onClick={() => setActiveTab('proyecto')} icon={<PieChart size={24} />} label="P.I." />
         </div>
-      )}
+      </nav>
     </div>
   );
 }
@@ -1158,6 +1156,7 @@ function ProyectoView({ user }) {
     </div>
   );
 }
+
 
 
 
