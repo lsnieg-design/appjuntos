@@ -309,10 +309,9 @@ function MainApp({ user, onLogout }) {
   const [notifications, setNotifications] = useState([]);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
 
-  // Definir si es Super Admin (para ver el botón de Gestión de Personal)
-  const isSuperAdmin = user.rol === 'super-admin';
-  // Definir si puede gestionar contenido (para ver botones de editar/agregar)
-  const canManageContent = user.rol === 'admin' || isSuperAdmin;
+  // Verificación de permisos
+  const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin'; // Ajusta según tus roles exactos
+  const canManageContent = user.rol === 'admin' || isSuperAdmin || user.role === 'Equipo Directivo';
 
   useEffect(() => {
     // 1. Tareas
@@ -320,21 +319,27 @@ function MainApp({ user, onLogout }) {
     const unsubTasks = onSnapshot(qTasks, (snapshot) => {
       setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
-    
-    // 2. Avisos y Notificaciones
+
+    // 2. Notificaciones (CORREGIDO: Quitamos orderBy para evitar error de índice de Firebase)
     const qNotifs = query(
       collection(db, 'artifacts', appId, 'public', 'data', 'notifications'),
-      where('toUserId', '==', user.id),
-      orderBy('createdAt', 'desc')
+      where('toUserId', '==', user.id)
     );
-    const unsubNotifs = onSnapshot(qNotifs, (snap) => {
-      setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    const unsubNotifs = onSnapshot(qNotifs, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Ordenamos manualmente por fecha (descendente) aquí en el cliente
+      data.sort((a, b) => {
+          const dateA = a.createdAt ? a.createdAt.seconds : 0;
+          const dateB = b.createdAt ? b.createdAt.seconds : 0;
+          return dateB - dateA;
+      });
+      setNotifications(data);
     });
 
     // 3. Eventos
     const qEvents = query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc'));
     const unsubEvents = onSnapshot(qEvents, (snap) => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-    
+
     // 4. Recursos
     const qResources = query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc'));
     const unsubResources = onSnapshot(qResources, (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
@@ -363,7 +368,7 @@ function MainApp({ user, onLogout }) {
             >
               <Bell size={20} />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-pulse">
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-pulse border border-white">
                   {unreadCount}
                 </span>
               )}
@@ -383,7 +388,9 @@ function MainApp({ user, onLogout }) {
                       <div key={n.id} className={`p-4 border-b last:border-none hover:bg-gray-50 transition ${!n.read ? 'bg-orange-50/30' : ''}`}>
                         <p className="text-[10px] font-bold text-orange-600 mb-1 uppercase tracking-tighter">{n.title}</p>
                         <p className="text-xs text-gray-700 leading-tight">{n.message}</p>
-                        <p className="text-[9px] text-gray-400 mt-2">{n.createdAt ? new Date(n.createdAt.seconds * 1000).toLocaleString() : '-'}</p>
+                        <p className="text-[9px] text-gray-400 mt-2">
+                            {n.createdAt ? new Date(n.createdAt.seconds * 1000).toLocaleString() : (n.date ? new Date(n.date).toLocaleString() : '-')}
+                        </p>
                       </div>
                     ))
                   )}
@@ -392,7 +399,7 @@ function MainApp({ user, onLogout }) {
             )}
           </div>
 
-          <div onClick={() => {setActiveTab('profile'); setShowNotifPanel(false);}} className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold border-2 border-orange-400 overflow-hidden cursor-pointer active:scale-90 transition">
+          <div onClick={() => {setActiveTab('profile'); setShowNotifPanel(false);}} className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold border-2 border-orange-400 overflow-hidden cursor-pointer active:scale-95 transition">
             {user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover" /> : user.firstName?.[0]}
           </div>
         </div>
@@ -404,8 +411,10 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} canEdit={canManageContent} />}
         {activeTab === 'matricula' && <MatriculaView user={user} />}
         {activeTab === 'resources' && <ResourcesView resources={resources} canEdit={canManageContent} />}
-        {/* CORRECCIÓN AQUÍ: Pasamos la propiedad isSuperAdmin */}
+        
+        {/* CORRECCIÓN: Ahora pasamos isSuperAdmin a ProfileView */}
         {activeTab === 'profile' && <ProfileView user={user} onLogout={onLogout} isSuperAdmin={isSuperAdmin} />}
+        
         {activeTab === 'proyecto' && <ProyectoView user={user} />}
       </main>
 
@@ -441,11 +450,14 @@ function DashboardView({ user, tasks, events }) {
   
   const [announcements, setAnnouncements] = useState([]);
   const [showAnnounceModal, setShowAnnounceModal] = useState(false);
-  const [notes, setNotes] = useState(() => JSON.parse(localStorage.getItem(`notes_${user.id}`) || '[]'));
+  
+  // --- AHORA LAS NOTAS VIENEN DE LA BASE DE DATOS (NUBE) ---
+  const [notes, setNotes] = useState([]);
   const [newNote, setNewNote] = useState('');
 
   const canPost = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
 
+  // 1. Cargar Anuncios (Igual que antes)
   useEffect(() => {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(q, (snapshot) => {
@@ -464,6 +476,19 @@ function DashboardView({ user, tasks, events }) {
     return () => unsub();
   }, []);
 
+  // 2. Cargar Notas Personales desde la NUBE (Solo las mías)
+  useEffect(() => {
+      const qNotes = query(
+          collection(db, 'artifacts', appId, 'public', 'data', 'notes'),
+          where('userId', '==', user.id), // FILTRO CLAVE: Solo mis notas
+          orderBy('createdAt', 'desc')
+      );
+      const unsub = onSnapshot(qNotes, (snap) => {
+          setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      });
+      return () => unsub();
+  }, [user.id]);
+
   const handlePost = async (e) => {
       e.preventDefault();
       const text = e.target.message.value;
@@ -474,18 +499,34 @@ function DashboardView({ user, tasks, events }) {
       setShowAnnounceModal(false);
   };
 
-  const saveNote = (e) => {
-    e.preventDefault(); if (!newNote.trim()) return;
-    const updated = [...notes, { id: Date.now(), text: newNote, done: false }];
-    setNotes(updated); localStorage.setItem(`notes_${user.id}`, JSON.stringify(updated)); setNewNote('');
+  // --- NUEVAS FUNCIONES DE NOTAS EN LA NUBE ---
+  const saveNote = async (e) => {
+    e.preventDefault(); 
+    if (!newNote.trim()) return;
+    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), {
+        text: newNote,
+        userId: user.id, // Se guarda con TU id para que sea privada
+        done: false,
+        createdAt: serverTimestamp()
+    });
+    setNewNote('');
   };
-  const toggleNote = (id) => { const updated = notes.map(n => n.id === id ? { ...n, done: !n.done } : n); setNotes(updated); localStorage.setItem(`notes_${user.id}`, JSON.stringify(updated)); };
-  const deleteNote = (id) => { const updated = notes.filter(n => n.id !== id); setNotes(updated); localStorage.setItem(`notes_${user.id}`, JSON.stringify(updated)); };
+
+  const toggleNote = async (note) => {
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', note.id), {
+        done: !note.done
+    });
+  };
+
+  const deleteNote = async (id) => {
+    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', id));
+  };
 
   return (
-    <div className="space-y-5 animate-in fade-in pb-10">
-      {/* BIENVENIDA Y CARTELERA */}
-      <div className="bg-white p-6 rounded-[35px] shadow-sm border border-violet-50 relative overflow-hidden">
+    <div className="space-y-6 animate-in fade-in pb-10">
+      
+      {/* SECCIÓN BIENVENIDA Y CARTELERA */}
+      <div className="bg-white p-6 rounded-[40px] shadow-sm border border-violet-50 relative overflow-hidden">
         <div className="relative z-10 flex justify-between items-start">
             <div>
                 <h2 className="text-2xl font-black text-slate-800 tracking-tighter italic">¡Hola, {user.firstName}! 👋</h2>
@@ -494,7 +535,7 @@ function DashboardView({ user, tasks, events }) {
             {canPost && <button onClick={() => setShowAnnounceModal(true)} className="bg-orange-50 text-orange-600 p-2 rounded-xl hover:bg-orange-100 transition"><Edit3 size={18}/></button>}
         </div>
         
-        {/* CARTELERA DE 48HS (AHORA EN NARANJA) */}
+        {/* CARTELERA DE 48HS */}
         {announcements.length > 0 && (
             <div className="mt-4 space-y-2 relative z-10">
                 <h3 className="text-[10px] font-black text-orange-500 uppercase tracking-widest flex items-center gap-1"><Bell size={12}/> Avisos de Dirección</h3>
@@ -508,9 +549,9 @@ function DashboardView({ user, tasks, events }) {
         )}
       </div>
 
-      {/* NOTAS PERSONALES (DISEÑO LIMPIO GRIS/VIOLETA) */}
+      {/* NOTAS PERSONALES (EN LA NUBE) */}
       <div className="bg-gray-50 p-5 rounded-[35px] border border-gray-100 shadow-inner">
-        <h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px] mb-3 flex items-center gap-2"><Lock size={12}/> Mis Notas</h3>
+        <h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px] mb-3 flex items-center gap-2"><Lock size={12}/> Mis Notas (Privadas y en la Nube)</h3>
         <form onSubmit={saveNote} className="flex gap-2 mb-3">
           <input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Escribir nota..." className="flex-1 p-3 rounded-xl border-none outline-none text-xs bg-white shadow-sm placeholder:text-gray-300 font-medium" />
           <button type="submit" className="bg-violet-600 text-white p-3 rounded-xl font-bold hover:scale-105 transition shadow-lg shadow-violet-200"><Plus size={16}/></button>
@@ -518,12 +559,12 @@ function DashboardView({ user, tasks, events }) {
         <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
           {notes.map(n => (
             <div key={n.id} className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-gray-100 shadow-sm group">
-              <button onClick={() => toggleNote(n.id)} className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${n.done ? 'bg-violet-400 border-violet-400' : 'border-violet-200'}`}>{n.done && <Check size={10} className="text-white"/>}</button>
+              <button onClick={() => toggleNote(n)} className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${n.done ? 'bg-violet-400 border-violet-400' : 'border-violet-200'}`}>{n.done && <Check size={10} className="text-white"/>}</button>
               <span className={`text-xs flex-1 font-medium ${n.done ? 'line-through text-gray-300' : 'text-gray-600'}`}>{n.text}</span>
               <button onClick={() => deleteNote(n.id)} className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"><Trash2 size={12}/></button>
             </div>
           ))}
-          {notes.length === 0 && <p className="text-[10px] text-center text-gray-300 italic mt-2">Tu bloc está vacío.</p>}
+          {notes.length === 0 && <p className="text-[10px] text-center text-gray-300 italic mt-2">Tus notas se guardarán aquí.</p>}
         </div>
       </div>
 
@@ -962,43 +1003,30 @@ function CalendarView({ events, canEdit, user }) {
 }
 
 // --- VISTA PERFIL (COMPLETA Y RESTAURADA) ---
-function ProfileView({ user, tasks, onLogout }) {
+function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
   const [formData, setFormData] = useState({ firstName: user.firstName || '', lastName: user.lastName || '', photoUrl: user.photoUrl || '' });
   const [uploading, setUploading] = useState(false);
+  const [showAdminUsers, setShowAdminUsers] = useState(false);
 
-  // 1. Lógica para Activar Notificaciones (Multidispositivo)
+  // 1. Activar Notificaciones (Lógica Real)
   const activarNotificaciones = async () => {
     try {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
         const messaging = getMessaging(app);
-        // TU CLAVE VAPID
-        const currentToken = await getToken(messaging, { 
-            vapidKey: "BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw" 
-        });
+        const currentToken = await getToken(messaging, { vapidKey: VAPID_KEY });
         
         if (currentToken) {
-           // Guardamos el token en la lista sin borrar los anteriores
            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-           await updateDoc(userRef, { 
-               fcmTokens: arrayUnion(currentToken),
-               lastTokenUpdate: serverTimestamp()
-           });
-           alert("✅ Notificaciones activadas para este dispositivo.");
-           
-           // Prueba visual
+           await updateDoc(userRef, { fcmTokens: arrayUnion(currentToken), lastTokenUpdate: serverTimestamp() });
+           alert("✅ Notificaciones activadas.");
            triggerMobileNotification("Dispositivo Conectado", "Ahora recibirás los comunicados aquí.");
         }
-      } else {
-        alert("Necesitamos tu permiso para enviarte avisos.");
-      }
-    } catch (e) {
-      console.error(e);
-      alert("Error al activar: " + e.message);
-    }
+      } else { alert("Necesitamos tu permiso para enviarte avisos."); }
+    } catch (e) { console.error(e); alert("Error al activar: " + e.message); }
   };
 
-  // 2. Lógica para subir foto
+  // 2. Subir Foto (Con resize)
   const resizeImage = (file) => {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -1034,7 +1062,7 @@ function ProfileView({ user, tasks, onLogout }) {
     }
   };
 
-  // 3. Lógica simple para exportar mis tareas
+  // 3. Exportar Tareas
   const exportData = () => {
       if(!tasks || tasks.length === 0) return alert("No hay tareas para exportar.");
       const csvContent = "Titulo,Fecha Limite,Estado\n" + tasks.map(t => `${t.title},${t.dueDate},${t.status}`).join("\n");
@@ -1044,33 +1072,39 @@ function ProfileView({ user, tasks, onLogout }) {
   };
 
   return (
-    <div className="animate-in fade-in duration-500 p-4">
+    <div className="space-y-6 text-center animate-in fade-in duration-700 pb-20">
+      
       {/* TARJETA DE PERFIL */}
       <div className="bg-white rounded-3xl shadow-sm border border-violet-50 overflow-hidden mb-6 relative">
-         <div className="bg-gradient-to-r from-violet-600 to-orange-500 h-28 relative"></div>
-         <div className="px-6 pb-6 pt-12 relative">
-            <div className="absolute -top-10 left-6 w-24 h-24 bg-white p-1 rounded-2xl shadow-lg group">
-               <div className="w-full h-full rounded-xl overflow-hidden relative border border-violet-100 bg-violet-50 flex items-center justify-center cursor-pointer hover:opacity-80 transition">
-                  {formData.photoUrl ? <img src={formData.photoUrl} className="w-full h-full object-cover" alt="Perfil" /> : <div className="text-violet-600 font-bold text-3xl">{user.firstName?.[0]}{user.lastName?.[0]}</div>}
-                  {/* INPUT INVISIBLE PARA SUBIR FOTO */}
-                  <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileChange} accept="image/*" />
-                  {uploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><RefreshCw className="text-white animate-spin" /></div>}
-               </div>
-            </div>
-            <div className="flex justify-between items-start">
-                <div className="pl-2">
-                    <h2 className="text-2xl font-bold text-gray-800 mt-2">{user.fullName}</h2>
-                    <p className="text-orange-600 font-bold text-xs uppercase tracking-wider">{user.role}</p>
-                    <p className="text-gray-400 text-[10px] mt-1">Toca la foto para cambiarla</p>
+          <div className="bg-gradient-to-r from-violet-600 to-orange-500 h-28 relative"></div>
+          <div className="px-6 pb-6 pt-12 relative">
+             <div className="absolute -top-10 left-6 w-24 h-24 bg-white p-1 rounded-2xl shadow-lg group">
+                <div className="w-full h-full rounded-xl overflow-hidden relative border border-violet-100 bg-violet-50 flex items-center justify-center cursor-pointer hover:opacity-80 transition">
+                   {formData.photoUrl ? <img src={formData.photoUrl} className="w-full h-full object-cover" alt="Perfil" /> : <div className="text-violet-600 font-bold text-3xl">{user.firstName?.[0]}{user.lastName?.[0]}</div>}
+                   <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileChange} accept="image/*" />
+                   {uploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><RefreshCw className="text-white animate-spin" /></div>}
                 </div>
-            </div>
-         </div>
+             </div>
+             <div className="flex justify-between items-start">
+                 <div className="pl-2 text-left pt-2">
+                     <h2 className="text-2xl font-bold text-gray-800 leading-tight">{user.fullName}</h2>
+                     <p className="text-orange-600 font-bold text-xs uppercase tracking-wider">{user.role}</p>
+                 </div>
+             </div>
+          </div>
       </div>
 
-      <h3 className="text-lg font-bold text-violet-900 mb-4 px-2">Acciones</h3>
+      <h3 className="text-lg font-bold text-violet-900 mb-4 px-2 text-left">Acciones</h3>
       
       {/* BOTONES DE ACCIÓN */}
       <div className="grid gap-3">
+        {isSuperAdmin && (
+            <button onClick={() => setShowAdminUsers(true)} className="bg-orange-600 p-4 rounded-2xl shadow-xl flex items-center gap-4 hover:scale-[1.02] transition text-white">
+                <div className="bg-white/20 p-3 rounded-xl"><Users size={24} /></div>
+                <div className="text-left"><h4 className="font-bold">Gestionar Personal</h4><p className="text-xs opacity-80">Administración de usuarios</p></div>
+            </button>
+        )}
+
         <button onClick={exportData} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]">
             <div className="bg-green-100 text-green-700 p-3 rounded-xl"><Download size={24} /></div>
             <div className="text-left"><h4 className="font-bold text-gray-800">Exportar Reporte</h4><p className="text-xs text-gray-500">Descargar mis tareas en Excel</p></div>
@@ -1086,6 +1120,13 @@ function ProfileView({ user, tasks, onLogout }) {
             <div className="text-left"><h4 className="font-bold text-red-600">Cerrar Sesión</h4><p className="text-xs text-red-400">Salir de la cuenta segura</p></div>
         </button>
       </div>
+
+      {showAdminUsers && (
+        <div className="fixed inset-0 bg-violet-900/95 z-[200] flex flex-col p-6 animate-in slide-in-from-bottom duration-500 overflow-y-auto">
+         <div className="flex justify-between items-center text-white mb-8"><h2 className="text-2xl font-black uppercase italic tracking-tighter">Administración Personal</h2><button onClick={() => setShowAdminUsers(false)}><X size={32} /></button></div>
+         <UsersAdminView />
+        </div>
+       )}
     </div>
   );
 }
@@ -1466,6 +1507,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
