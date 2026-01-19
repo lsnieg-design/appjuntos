@@ -30,7 +30,6 @@ const triggerMobileNotification = (title, body) => {
     }
   }
 };
-
 // --- CONFIGURACIÓN DE FIREBASE ---
 const getFirebaseConfig = () => {
   try {
@@ -1754,6 +1753,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
