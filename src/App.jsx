@@ -1,73 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Calendar as CalendarIcon, 
-  CheckSquare, 
-  User, 
-  FileText, 
-  CheckCircle, 
-  Download, 
-  RefreshCw, 
-  Plus, 
-  Trash2, 
-  Users, 
-  AlertCircle, 
-  LogOut, 
-  Briefcase, 
-  Lock, 
-  List, 
-  Grid, 
-  ChevronLeft, 
-  ChevronRight, 
-  Bell, 
-  Check,
-  HelpCircle,
-  Mail,
-  Send,
-  Key,
-  Filter,
-  LayoutDashboard,
-  Link as LinkIcon,
-  ExternalLink,
-  AlertTriangle,
-  Clock,
-  Shield,
-  Crown,
-  Activity,
-  Share,
-  PlusSquare,
-  Smartphone,
-  GraduationCap,
-  Search,
-  X,
-  UploadCloud,
-  PieChart,
-  Eye,
-  Edit3
+  Calendar as CalendarIcon, CheckSquare, User, FileText, CheckCircle, Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, Lock, List, Grid, ChevronLeft, ChevronRight, Bell, Check, HelpCircle, Mail, Send, Key, Filter, LayoutDashboard, Link as LinkIcon, ExternalLink, AlertTriangle, Clock, Shield, Crown, Activity, Share, PlusSquare, Smartphone, GraduationCap, Search, X, UploadCloud, PieChart, Eye, Edit3, Folder, MessageSquare, Globe, BookOpen, Lightbulb 
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
-import { 
-  getAuth, 
-  signInAnonymously, 
-  onAuthStateChanged, 
-  signInWithCustomToken 
-} from 'firebase/auth';
-import { 
-  getFirestore, 
-  collection, 
-  addDoc, 
-  query, 
-  orderBy, 
-  onSnapshot, 
-  doc, 
-  updateDoc, 
-  deleteDoc, 
-  where, 
-  getDocs,
-  serverTimestamp,
-  arrayUnion 
-} from 'firebase/firestore';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
+import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, where, getDocs, serverTimestamp, arrayUnion } from 'firebase/firestore';
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
-
 // --- FUNCIÓN SEGURA PARA NOTIFICACIONES (SOLUCIONA EL ERROR DE TABLET) ---
 const triggerMobileNotification = (title, body) => {
   if (!("Notification" in window)) return;
@@ -1539,6 +1477,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
