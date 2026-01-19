@@ -726,11 +726,9 @@ function DashboardView({ user, tasks, events }) {
      
 function CalendarView({ events, canEdit, user }) {
   const [showModal, setShowModal] = useState(false);
-  // CAMBIO CLAVE: Ahora el estado inicial es 'grid'
   const [viewMode, setViewMode] = useState('grid'); 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState(null);
-  const [filterType, setFilterType] = useState('all');
 
   const addEvent = async (e) => {
     e.preventDefault();
@@ -748,6 +746,7 @@ function CalendarView({ events, canEdit, user }) {
 
   const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
   const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
+  
   const changeMonth = (offset) => {
     const newDate = new Date(currentDate.setMonth(currentDate.getMonth() + offset));
     setCurrentDate(new Date(newDate));
@@ -774,18 +773,16 @@ function CalendarView({ events, canEdit, user }) {
     const firstDay = getFirstDayOfMonth(year, month);
     const days = [];
 
-    // Espacios vacíos del mes anterior
     for (let i = 0; i < firstDay; i++) {
       days.push(<div key={`empty-${i}`} className="min-h-[70px] bg-gray-50/30 border border-gray-100"></div>);
     }
 
-    // Días del mes
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const dayEvents = events.filter(e => e.date === dateStr);
+      const dayEvents = (events || []).filter(e => e.date === dateStr);
       
       days.push(
-        <div key={d} className="min-h-[70px] border border-gray-100 p-1 bg-white hover:bg-violet-50 transition group overflow-hidden">
+        <div key={d} className="min-h-[70px] border border-gray-100 p-1 bg-white hover:bg-violet-50 transition overflow-hidden">
           <span className={`text-[10px] font-bold block mb-1 ${dayEvents.length > 0 ? 'text-violet-700' : 'text-gray-400'}`}>{d}</span>
           <div className="flex flex-col gap-0.5">
             {dayEvents.map((ev, idx) => (
@@ -823,9 +820,13 @@ function CalendarView({ events, canEdit, user }) {
       {viewMode === 'grid' ? (
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
           <div className="p-4 flex justify-between items-center bg-violet-50 border-b">
-            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700"><ChevronLeft size={24} />.</button>
+            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700">
+              <ChevronLeft size={24} />
+            </button>
             <span className="font-bold text-violet-900 capitalize">{currentDate.toLocaleDateString('es-ES', { month: 'long' })}</span>
-            <button onClick={() => changeMonth(1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700"><ChevronRight size={24} /></button>
+            <button onClick={() => changeMonth(1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700">
+              <ChevronRight size={24} />
+            </button>
           </div>
           <div className="grid grid-cols-7 text-center py-2 bg-white text-[9px] font-black text-gray-400 uppercase border-b">
             <div>Dom</div><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div>
@@ -836,7 +837,7 @@ function CalendarView({ events, canEdit, user }) {
         </div>
       ) : (
         <div className="space-y-3">
-          {events.map(e => (
+          {(events || []).map(e => (
             <div key={e.id} onClick={() => setSelectedEvent(e)} className="bg-white p-4 rounded-2xl border flex items-center gap-4 cursor-pointer">
                <div className="w-12 h-12 bg-violet-50 text-violet-600 rounded-xl flex flex-col items-center justify-center font-bold">
                  <span className="text-[8px] uppercase">{new Date(e.date + 'T00:00:00').toLocaleDateString('es-ES', {month: 'short'})}</span>
@@ -848,7 +849,6 @@ function CalendarView({ events, canEdit, user }) {
         </div>
       )}
 
-      {/* MODAL VER EVENTO */}
       {selectedEvent && (
         <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4" onClick={() => setSelectedEvent(null)}>
           <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
@@ -865,7 +865,6 @@ function CalendarView({ events, canEdit, user }) {
     </div>
   );
 }
-
 
 function ResourcesView({ resources, canEdit }) {
   const [showModal, setShowModal] = useState(false);
@@ -1151,6 +1150,7 @@ function ProyectoView({ user }) {
     </div>
   );
 }
+
 
 
 
