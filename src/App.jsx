@@ -382,7 +382,12 @@ function MainApp({ user, onLogout }) {
           <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={24} />} label="Agenda" />
           <NavButton active={activeTab === 'matricula'} onClick={() => setActiveTab('matricula')} icon={<GraduationCap size={24} />} label="Matrícula" />
           <NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<Folder size={24} />} label="Recursos" />
-          <NavButton active={activeTab === 'proyecto'} onClick={() => setActiveTab('proyecto')} icon={<PieChart size={24} />} label="P.I." />
+         <NavButton 
+  active={activeTab === 'proyecto'} 
+  onClick={() => setActiveTab('proyecto')} 
+  icon={<PieChart size={24} />} 
+  label="P.I." 
+/>
         </div>
       </nav>
     </div>
@@ -1150,6 +1155,7 @@ function ProyectoView({ user }) {
     </div>
   );
 }
+
 
 
 
