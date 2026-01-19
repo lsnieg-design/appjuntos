@@ -289,6 +289,109 @@ function LoginScreen({ onLogin }) {
 }
 
 // --- MAIN APP ---
+function MainApp({ user, onLogout }) {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [tasks, setTasks] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [resources, setResources] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifPanel, setShowNotifPanel] = useState(false);
+
+  const isSuperAdmin = user.rol === 'super-admin';
+  const canManageContent = user.rol === 'admin' || isSuperAdmin;
+
+  useEffect(() => {
+    // 1. Tareas
+    const qTasks = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('dueDate', 'asc'));
+    const unsubTasks = onSnapshot(qTasks, (snapshot) => {
+      setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    
+    // 2. Avisos (Filtrados por el ID del usuario actual)
+    const qNotifs = query(
+      collection(db, 'artifacts', appId, 'public', 'data', 'notifications'),
+      where('toUserId', '==', user.id)
+    );
+    const unsubNotifs = onSnapshot(qNotifs, (snap) => {
+      setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    // 3. Otros datos
+    const qEvents = query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc'));
+    const unsubEvents = onSnapshot(qEvents, (snap) => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    
+    const qResources = query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc'));
+    const unsubResources = onSnapshot(qResources, (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+
+    return () => { unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); };
+  }, [user.id]);
+
+  const unreadCount = (notifications || []).filter(n => !n.read).length;
+
+  return (
+    <div className="flex flex-col h-screen bg-gray-50 font-sans text-slate-800">
+      <header className="bg-violet-800 text-white shadow-lg px-4 py-3 flex justify-between items-center z-50 sticky top-0">
+        <div className="flex items-center space-x-3">
+          <img src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" alt="Logo" className="w-10 h-8 object-contain" />
+          <div>
+            <h1 className="font-bold text-sm leading-tight">Juntos a la Par</h1>
+            <p className="text-[10px] text-orange-200 uppercase font-bold">{user.firstName}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <button onClick={() => setShowNotifPanel(!showNotifPanel)} className={`p-2 rounded-full transition ${showNotifPanel ? 'bg-orange-500' : 'bg-violet-900/50'}`}>
+              <Bell size={20} />
+              {unreadCount > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-pulse">{unreadCount}</span>}
+            </button>
+            {showNotifPanel && (
+              <div className="absolute right-0 mt-3 w-72 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 z-[100]">
+                <div className="p-4 bg-violet-50 border-b flex justify-between items-center">
+                  <h3 className="font-bold text-violet-900 text-sm">Avisos Recientes</h3>
+                  <button onClick={() => setShowNotifPanel(false)}><X size={16} className="text-gray-400"/></button>
+                </div>
+                <div className="max-h-80 overflow-y-auto">
+                  {notifications.length === 0 ? <p className="p-8 text-center text-xs text-gray-400 italic">No tienes avisos nuevos</p> : 
+                  notifications.map(n => (
+                    <div key={n.id} className="p-4 border-b hover:bg-gray-50 transition">
+                      <p className="text-[10px] font-bold text-orange-600 mb-1 uppercase">{n.title}</p>
+                      <p className="text-xs text-gray-700">{n.message}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <div onClick={() => {setActiveTab('profile'); setShowNotifPanel(false);}} className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold border-2 border-orange-400 overflow-hidden cursor-pointer">
+            {user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover" /> : user.firstName?.[0]}
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 overflow-y-auto pb-24 px-4 pt-6 max-w-4xl mx-auto w-full">
+        {activeTab === 'dashboard' && <DashboardView user={user} tasks={tasks} events={events} />}
+        {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
+        {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} canEdit={canManageContent} />}
+        {activeTab === 'matricula' && <MatriculaView user={user} />}
+        {activeTab === 'resources' && <ResourcesView resources={resources} canEdit={canManageContent} />}
+        {activeTab === 'proyecto' && <ProyectoView user={user} />}
+        {activeTab === 'profile' && <ProfileView user={user} onLogout={onLogout} />}
+      </main>
+
+      <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-20 z-30 shadow-lg pb-safe">
+        <div className="flex justify-around items-center h-full max-w-4xl mx-auto px-2">
+          <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={24} />} label="Inicio" />
+          <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={24} />} label="Tareas" />
+          <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={24} />} label="Agenda" />
+          <NavButton active={activeTab === 'matricula'} onClick={() => setActiveTab('matricula')} icon={<GraduationCap size={24} />} label="Matrícula" />
+          <NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<Folder size={24} />} label="Recursos" />
+          <NavButton active={activeTab === 'proyecto'} onClick={() => setActiveTab('proyecto')} icon={<PieChart size={24} />} label="P.I." />
+        </div>
+      </nav>
+    </div>
+  );
+}
 
 
 
@@ -926,6 +1029,7 @@ function ProyectoView({ user }) {
     </div>
   );
 }
+
 
 
 
