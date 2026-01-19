@@ -1130,6 +1130,100 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
     </div>
   );
 }
+// --- VISTA ADMINISTRACIÓN DE USUARIOS (FALTANTE) ---
+function UsersAdminView() {
+ const [users, setUsers] = useState([]);
+ const [showAdd, setShowAdd] = useState(false);
+
+ useEffect(() => {
+  const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
+  const unsub = onSnapshot(q, snap => setUsers(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+  return () => unsub();
+ }, []);
+
+ const addUser = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const userData = {
+        firstName: fd.get('firstName'),
+        lastName: fd.get('lastName'),
+        fullName: `${fd.get('firstName')} ${fd.get('lastName')}`,
+        username: fd.get('username'),
+        password: fd.get('password'),
+        role: fd.get('role'),
+        rol: fd.get('isAdmin') === 'on' ? 'admin' : 'user',
+        createdAt: serverTimestamp()
+    };
+    
+    // Validar si existe
+    const qCheck = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), where('username', '==', userData.username));
+    const checkSnap = await getDocs(qCheck);
+    if (!checkSnap.empty) {
+        alert("El nombre de usuario ya existe.");
+        return;
+    }
+
+    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), userData);
+    setShowAdd(false);
+ };
+
+ const deleteUser = async (id) => {
+     if(confirm("¿Estás seguro de eliminar este usuario?")) {
+         await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id));
+     }
+ };
+
+ return (
+  <div className="flex-1 flex flex-col min-h-0 bg-white/5 rounded-3xl p-4 mt-4">
+   <div className="flex justify-between items-center mb-6">
+       <h3 className="text-white font-bold text-sm uppercase tracking-widest">{users.length} Usuarios Registrados</h3>
+       <button onClick={() => setShowAdd(true)} className="bg-orange-500 text-white px-4 py-2 rounded-xl font-black text-xs uppercase shadow-lg hover:scale-105 transition">Agregar</button>
+   </div>
+   
+   <div className="grid gap-3 pb-20 overflow-y-auto">
+    {users.map(u => (
+     <div key={u.id} className="bg-white p-4 rounded-2xl border border-white/50 shadow-sm flex items-center justify-between">
+      <div className="flex items-center gap-4">
+       <div className="w-10 h-10 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center font-black text-xs uppercase border border-violet-200">{u.firstName?.[0]}{u.lastName?.[0]}</div>
+       <div>
+           <p className="font-bold text-sm text-gray-800 uppercase italic tracking-tighter">{u.fullName}</p>
+           <p className="text-orange-500 font-bold text-[9px] uppercase tracking-widest">{u.role} ({u.rol})</p>
+       </div>
+      </div>
+      {u.username !== 'admin' && (
+        <button onClick={() => deleteUser(u.id)} className="p-2 bg-red-50 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition"><Trash2 size={16}/></button>
+      )}
+     </div>
+    ))}
+   </div>
+
+   {showAdd && (
+    <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4">
+     <form onSubmit={addUser} className="bg-white rounded-[40px] w-full max-w-sm p-8 space-y-4 shadow-2xl border-t-8 border-orange-500 animate-in zoom-in-95">
+      <h3 className="text-xl font-black italic uppercase text-violet-900 tracking-tighter">Nuevo Usuario</h3>
+      <div className="grid grid-cols-2 gap-3">
+          <input name="firstName" placeholder="Nombre" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
+          <input name="lastName" placeholder="Apellido" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
+      </div>
+      <input name="username" placeholder="Usuario Acceso" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
+      <input name="password" placeholder="Contraseña" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
+      <select name="role" className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs font-black uppercase border border-gray-100 shadow-inner">
+       <option value="Docente">Docente</option><option value="Directivo">Directivo</option><option value="Gabinete">Gabinete</option><option value="Auxiliar">Auxiliar</option><option value="Administración">Administración</option>
+      </select>
+      <div className="flex items-center gap-2 p-2 bg-violet-50 rounded-xl">
+          <input type="checkbox" name="isAdmin" className="w-4 h-4 accent-violet-600" />
+          <label className="text-xs font-bold text-violet-900">¿Es Administrador?</label>
+      </div>
+      <div className="flex gap-2 pt-2">
+          <button type="button" onClick={() => setShowAdd(false)} className="flex-1 text-gray-400 font-bold uppercase text-[10px]">Volver</button>
+          <button type="submit" className="flex-1 py-3 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">Registrar</button>
+      </div>
+     </form>
+    </div>
+   )}
+  </div>
+ );
+}
 // --- VISTA PROYECTO 360 ---
 function ProyectoView({ user }) {
   const [periods, setPeriods] = useState([]);
@@ -1507,6 +1601,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
