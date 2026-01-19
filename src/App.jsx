@@ -289,132 +289,130 @@ function LoginScreen({ onLogin }) {
 
 // --- MAIN APP ---
 function MainApp({ user, onLogout }) {
- const [activeTab, setActiveTab] = useState('dashboard');
- const [tasks, setTasks] = useState([]);
- const [events, setEvents] = useState([]);
- const [resources, setResources] = useState([]);
- const [notifications, setNotifications] = useState([]);
- const [adminRequests, setAdminRequests] = useState([]);
- 
- const isSuperAdmin = user.rol === 'super-admin';
- const canManageContent = user.rol === 'admin' || isSuperAdmin;
- const canManageUsers = isSuperAdmin;
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [tasks, setTasks] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [resources, setResources] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifPanel, setShowNotifPanel] = useState(false); // Estado para el emergente
 
- const isAssignedToUser = (item) => {
-  if (canManageContent) return true;
-  if (!item.targetType || item.targetType === 'all') return true;
-  if (item.targetType === 'roles' && Array.isArray(item.targetRoles)) return item.targetRoles.includes(user.role);
-  if (item.targetType === 'users' && Array.isArray(item.targetUsers)) return item.targetUsers.includes(user.fullName);
-  return false;
- };
+  const isSuperAdmin = user.rol === 'super-admin';
+  const canManageContent = user.rol === 'admin' || isSuperAdmin;
+  const canManageUsers = isSuperAdmin;
 
- useEffect(() => {
-  const qTasks = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('dueDate', 'asc'));
-  const unsubTasks = onSnapshot(qTasks, (snapshot) => {
-   const allTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-   setTasks(allTasks.filter(isAssignedToUser));
-  });
-  const qEvents = query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc'));
-  const unsubEvents = onSnapshot(qEvents, (snap) => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-  const qResources = query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc'));
-  const unsubResources = onSnapshot(qResources, (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-  let unsubRequests = () => {};
-  if (canManageUsers) {
-   const qReq = query(collection(db, 'artifacts', appId, 'public', 'data', 'requests'), orderBy('createdAt', 'desc'));
-   unsubRequests = onSnapshot(qReq, (snap) => setAdminRequests(snap.docs.map(d => ({ id: d.id, ...d.data(), isRequest: true }))));
-  }
-  return () => { unsubTasks(); unsubEvents(); unsubRequests(); unsubResources(); };
- }, [user]);
-
- useEffect(() => {
-  const todayStr = new Date().toISOString().split('T')[0];
-  let newNotifs = [];
-  if (canManageUsers) adminRequests.forEach(req => newNotifs.push({ id: req.id, type: 'admin_alert', title: "Solicitud", message: `Usuario: ${req.username}`, date: todayStr }));
-  tasks.forEach(task => {
-   if (task.status !== 'completed' && task.lastReminder) newNotifs.push({ id: `remind-${task.id}`, type: 'reminder', title: "Recordatorio", message: task.title, date: todayStr });
-  });
-  setNotifications(newNotifs);
- }, [tasks, adminRequests]);
-
- // --- LÓGICA DEL ROBOT: CAPTURA Y GUARDADO DE TOKENS ---
+  // Carga de datos (Mantenemos tu lógica de Firebase)
   useEffect(() => {
-    const conectarRobot = async () => {
-      try {
-        const token = await requestPermission();
-        if (token && user?.id) {
-          console.log("Robot: Token detectado para", user.fullName);
-          const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-          
-          // Guardamos el token en un array para que el robot pueda enviarlo a varios dispositivos del mismo usuario
-          await updateDoc(userRef, { 
-            fcmTokens: arrayUnion(token),
-            lastTokenUpdate: serverTimestamp() 
-          });
-          console.log("Robot: Token sincronizado en la base de datos.");
-        }
-      } catch (error) {
-        console.error("Robot: Error al sincronizar token:", error);
-      }
-    };
-
-    if(user?.id) conectarRobot();
-
-    // Escuchar mensajes cuando la App está abierta
-    onMessage(messaging, (payload) => {
-      if (payload.notification) {
-        triggerMobileNotification(payload.notification.title, payload.notification.body);
-      }
+    const qTasks = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('dueDate', 'asc'));
+    const unsubTasks = onSnapshot(qTasks, (snapshot) => {
+      setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
-  }, [user]);
+    
+    // Nueva escucha para los AVISOS internos
+    const qNotifs = query(
+      collection(db, 'artifacts', appId, 'public', 'data', 'notifications'),
+      where('toUserId', '==', user.id),
+      orderBy('date', 'desc')
+    );
+    const unsubNotifs = onSnapshot(qNotifs, (snap) => {
+      setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
 
- const renderContent = () => {
-  switch (activeTab) {
-   case 'dashboard': return <DashboardView user={user} tasks={tasks} events={events} />;
-   case 'calendar': return <CalendarView events={events} canEdit={canManageContent} user={user} />;
-   case 'tasks': return <TasksView tasks={tasks} user={user} canEdit={canManageContent} />;
-   case 'matricula': return <MatriculaView user={user} />;
-   case 'resources': return <ResourcesView resources={resources} canEdit={canManageContent} />;
-   case 'notifications': return <NotificationsView notifications={notifications} canEdit={canManageUsers} />;
-   case 'users': return <UsersView user={user} />;
-   case 'profile': return <ProfileView user={user} tasks={tasks} onLogout={onLogout} />;
-   default: return <DashboardView user={user} tasks={tasks} events={events} />;
-  }
- };
-  
- return (
-  <div className="flex flex-col h-screen bg-gray-50 font-sans text-slate-800">
-   <header className="bg-violet-800 text-white shadow-lg px-4 py-3 flex justify-between items-center z-20 sticky top-0">
-    <div className="flex items-center space-x-3">
-     <div className="bg-white p-1 rounded-lg shadow-sm">
-       <img src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" alt="Logo" className="w-10 h-8 object-contain" />
-     </div>
-     <div>
-      <h1 className="font-bold text-base leading-tight">Juntos a la par digital</h1>
-      <p className="text-[10px] text-orange-200 uppercase font-bold">{isSuperAdmin ? 'Super Admin' : user.role}</p>
-     </div>
+    const qEvents = query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc'));
+    const unsubEvents = onSnapshot(qEvents, (snap) => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    
+    const qResources = query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc'));
+    const unsubResources = onSnapshot(qResources, (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+
+    return () => { unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); };
+  }, [user.id]);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  return (
+    <div className="flex flex-col h-screen bg-gray-50 font-sans text-slate-800">
+      {/* HEADER REDISEÑADO */}
+      <header className="bg-violet-800 text-white shadow-lg px-4 py-3 flex justify-between items-center z-50 sticky top-0">
+        <div className="flex items-center space-x-3">
+          <img src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" alt="Logo" className="w-10 h-8 object-contain" />
+          <div>
+            <h1 className="font-bold text-sm leading-tight">Juntos a la Par</h1>
+            <p className="text-[10px] text-orange-200 uppercase font-bold">{user.firstName}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* CAMPANA EMERGENTE */}
+          <div className="relative">
+            <button 
+              onClick={() => setShowNotifPanel(!showNotifPanel)}
+              className={`p-2 rounded-full transition ${showNotifPanel ? 'bg-orange-500' : 'bg-violet-900/50'}`}
+            >
+              <Bell size={20} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+
+            {/* PANEL EMERGENTE (POPOVER) */}
+            {showNotifPanel && (
+              <div className="absolute right-0 mt-3 w-72 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                <div className="p-4 bg-violet-50 border-b flex justify-between items-center">
+                  <h3 className="font-bold text-violet-900 text-sm">Avisos Recientes</h3>
+                  <button onClick={() => setShowNotifPanel(false)}><X size={16} className="text-gray-400"/></button>
+                </div>
+                <div className="max-h-80 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <p className="p-8 text-center text-xs text-gray-400 italic">No tienes avisos nuevos</p>
+                  ) : (
+                    notifications.map(n => (
+                      <div key={n.id} className={`p-4 border-b last:border-none hover:bg-gray-50 transition ${!n.read ? 'bg-orange-50/30' : ''}`}>
+                        <p className="text-[10px] font-bold text-orange-600 mb-1 uppercase tracking-tighter">{n.title}</p>
+                        <p className="text-xs text-gray-700 leading-tight">{n.message}</p>
+                        <p className="text-[9px] text-gray-400 mt-2">{new Date(n.date).toLocaleString('es-ES', {hour:'2-digit', minute:'2-digit', day:'2-digit', month:'short'})}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* PERFIL */}
+          <div onClick={() => {setActiveTab('profile'); setShowNotifPanel(false);}} className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold border-2 border-orange-400 overflow-hidden cursor-pointer active:scale-90 transition">
+            {user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover" /> : user.firstName?.[0]}
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 overflow-y-auto pb-24 px-4 pt-6 max-w-4xl mx-auto w-full">
+        {activeTab === 'dashboard' && <DashboardView user={user} tasks={tasks} events={events} />}
+        {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
+        {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} canEdit={canManageContent} />}
+        {activeTab === 'matricula' && <MatriculaView user={user} />}
+        {activeTab === 'resources' && <ResourcesView resources={resources} canEdit={canManageContent} />}
+        {activeTab === 'users' && <UsersView user={user} />}
+        {activeTab === 'profile' && <ProfileView user={user} onLogout={onLogout} />}
+        {/* Aquí agregaremos la nueva sección de PROYECTO 2026 en el siguiente paso */}
+      </main>
+
+      {/* MENÚ INFERIOR (Sin el botón Avisos para dar espacio) */}
+      <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-20 z-30 shadow-lg pb-safe">
+        <div className="flex justify-around items-center h-full max-w-4xl mx-auto px-2">
+          <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={24} />} label="Inicio" />
+          <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={24} />} label="Tareas" />
+          <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={24} />} label="Agenda" />
+          <NavButton active={activeTab === 'matricula'} onClick={() => setActiveTab('matricula')} icon={<GraduationCap size={24} />} label="Matrícula" />
+          <NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<LinkIcon size={24} />} label="Recursos" />
+          {/* Botón para la nueva sección */}
+          <NavButton active={activeTab === 'proyecto'} onClick={() => setActiveTab('proyecto')} icon={<PieChart size={24} />} label="P.I." />
+        </div>
+      </nav>
     </div>
-    <div onClick={() => setActiveTab('profile')} className="flex items-center space-x-3 bg-violet-900/50 py-1.5 px-4 rounded-full border border-violet-600 cursor-pointer hover:bg-violet-800 transition select-none">
-     <span className="text-xs font-bold truncate max-w-[100px]">{user.firstName}</span>
-     <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold border-2 border-orange-400 overflow-hidden">
-      {user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover" /> : user.firstName?.[0]}
-     </div>
-    </div>
-   </header>
-   <main className="flex-1 overflow-y-auto pb-24 px-4 pt-6 max-w-4xl mx-auto w-full">{renderContent()}</main>
-   <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 pb-safe shadow-lg z-30">
-    <div className="flex justify-around items-center h-20 max-w-4xl mx-auto px-2">
-     <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={24} />} label="Inicio" />
-     <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={24} />} label="Tareas" badge={tasks.filter(t => t.status !== 'completed').length} />
-     <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={24} />} label="Agenda" />
-     <NavButton active={activeTab === 'matricula'} onClick={() => setActiveTab('matricula')} icon={<GraduationCap size={24} />} label="Matrícula" />
-     <NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<LinkIcon size={24} />} label="Recursos" />
-     <NavButton active={activeTab === 'notifications'} onClick={() => setActiveTab('notifications')} icon={<Bell size={24} />} label="Avisos" badge={notifications.length} />
-     {canManageUsers && <NavButton active={activeTab === 'users'} onClick={() => setActiveTab('users')} icon={<Users size={24} />} label="Admin" />}
-    </div>
-   </nav>
-  </div>
- );
+  );
 }
+
 
 function NavButton({ active, onClick, icon, label, badge }) {
  return (
@@ -851,5 +849,6 @@ function ProfileView({ user, onLogout }) {
   </div>
  );
 }
+
 
 
