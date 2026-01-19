@@ -1,15 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Calendar as CalendarIcon, PieChart, CheckSquare, User, FileText, CheckCircle, Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, Lock, List, Grid, ChevronLeft, ChevronRight, Bell, Check, HelpCircle, Mail, Send, Key, Filter, LayoutDashboard, Link as LinkIcon, ExternalLink, AlertTriangle, Clock, Shield, Crown, Activity, Share, PlusSquare, Smartphone, GraduationCap, Search, X, UploadCloud, PieChart, Eye, Edit3, Folder 
+  Calendar as CalendarIcon, CheckSquare, User, FileText, CheckCircle, Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, Lock, List, Grid, ChevronLeft, ChevronRight, Bell, Check, HelpCircle, Mail, Send, Key, Filter, LayoutDashboard, Link as LinkIcon, ExternalLink, AlertTriangle, Clock, Shield, Crown, Activity, Share, PlusSquare, Smartphone, GraduationCap, Search, X, UploadCloud, PieChart, Eye, Edit3, Folder 
 } from 'lucide-react';
 
 import { initializeApp } from 'firebase/app';
-import { 
- getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken 
-} from 'firebase/auth';
-import { 
- getFirestore, collection, addDoc, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, where, getDocs, serverTimestamp, arrayUnion 
-} from 'firebase/firestore';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
+import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, where, getDocs, serverTimestamp, arrayUnion } from 'firebase/firestore';
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
 // --- CONFIGURACIÓN DE FIREBASE ---
@@ -386,7 +382,7 @@ function MainApp({ user, onLogout }) {
           <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={24} />} label="Agenda" />
           <NavButton active={activeTab === 'matricula'} onClick={() => setActiveTab('matricula')} icon={<GraduationCap size={24} />} label="Matrícula" />
           <NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<Folder size={24} />} label="Recursos" />
-          <NavButton active={activeTab === 'proyecto'} onClick={() => setActiveTab('proyecto')} icon={<PieChart size={24} />} label="P.I." />
+          <NavButton active={activeTab === 'proyecto'} onClick={() => setActiveTab('proyecto')} icon={< size={24} />} label="P.I." />
         </div>
       </nav>
     </div>
@@ -553,7 +549,7 @@ function MatriculaView({ user }) {
      <div><h2 className="text-2xl font-bold flex items-center gap-2"><GraduationCap /> Legajos 2026</h2><p className="opacity-90">{filteredStudents.length} alumnos</p></div>
      <div className="flex gap-2">
       {isSuperAdmin && <button onClick={() => setShowDataManagement(true)} className="bg-white/20 p-2 rounded-xl"><UploadCloud size={20}/></button>}
-      <button onClick={() => setShowStats(true)} className="bg-white/20 p-2 rounded-xl"><PieChart size={20}/></button>
+      <button onClick={() => setShowStats(true)} className="bg-white/20 p-2 rounded-xl">< size={20}/></button>
       {isSuperAdmin && <button onClick={() => {setEditingStudent(null); setShowForm(true);}} className="bg-white text-blue-600 p-2 rounded-xl"><Plus/></button>}
      </div>
     </div>
@@ -574,7 +570,7 @@ function MatriculaView({ user }) {
    {showStats && (
     <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
      <div className="bg-white rounded-3xl w-full max-w-2xl p-6 h-[80vh] flex flex-col shadow-2xl">
-      <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold flex items-center gap-2"><PieChart/> Estadísticas Matrícula</h3><button onClick={() => setShowStats(false)}><X/></button></div>
+      <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold flex items-center gap-2"></> Estadísticas Matrícula</h3><button onClick={() => setShowStats(false)}><X/></button></div>
       <div className="bg-violet-600 text-white p-10 rounded-3xl text-center mb-6 shadow-xl">
        <p className="text-lg opacity-80">Coincidencias</p>
        <h4 className="text-6xl font-black">{statsResults.length}</h4>
@@ -996,7 +992,6 @@ function ProyectoView({ user }) {
   const isAdmin = user.rol === 'admin' || user.rol === 'super-admin';
 
   useEffect(() => {
-    // Escuchamos la colección específica del proyecto
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'proyecto2026'), orderBy('orden', 'asc'));
     const unsub = onSnapshot(q, (snap) => {
       setMeses(snap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -1007,7 +1002,6 @@ function ProyectoView({ user }) {
   const inicializarProyecto = async () => {
     const estructuraBase = "🌍 EJE: La Vuelta al Mundo en 360 días\n\n📍 PAÍS:\n🚩 BANDERA:\n🍱 COSTUMBRES:\n🐾 ANIMALES:\n🏛️ CAPITAL:\n🎨 COLORES:\n📖 LEYENDAS:";
     const mesesNombres = ["Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-    
     try {
       for (let i = 0; i < mesesNombres.length; i++) {
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'proyecto2026'), {
@@ -1018,10 +1012,8 @@ function ProyectoView({ user }) {
           actividades: "Propuestas de cada eje..."
         });
       }
-      alert("¡Estructura 360 creada con éxito!");
-    } catch (e) {
-      alert("Error al crear: " + e.message);
-    }
+      alert("¡Proyecto inicializado!");
+    } catch (e) { alert("Error: " + e.message); }
   };
 
   const handleSave = async (e) => {
@@ -1034,33 +1026,27 @@ function ProyectoView({ user }) {
         actividades: fd.get('actividades')
       });
       setEditingMes(null);
-    } catch (e) {
-      alert("Error al guardar: " + e.message);
-    }
+    } catch (e) { alert("Error al guardar: " + e.message); }
   };
 
   return (
     <div className="pb-24 animate-in fade-in duration-500">
       <div className="bg-gradient-to-br from-indigo-900 to-violet-800 p-8 rounded-[40px] text-white mb-6 shadow-xl">
         <h2 className="text-2xl font-black italic">Proyecto 360</h2>
-        <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest">La Vuelta al Mundo en un Año</p>
-        
+        <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest text-white">La Vuelta al Mundo en un Año</p>
         {isAdmin && meses.length === 0 && (
-          <button 
-            onClick={inicializarProyecto} 
-            className="mt-4 bg-orange-500 hover:bg-orange-600 px-6 py-3 rounded-2xl text-xs font-black shadow-lg transition-all active:scale-95"
-          >
+          <button onClick={inicializarProyecto} className="mt-4 bg-orange-500 px-6 py-3 rounded-2xl text-xs font-black shadow-lg">
             CARGAR ESTRUCTURA ANUAL
           </button>
         )}
       </div>
 
       <div className="space-y-4">
-        {meses.length > 0 ? meses.map(m => (
+        {meses.length > 0 ? meses.map((m) => (
           <div key={m.id} className="bg-white p-6 rounded-[35px] border border-gray-100 shadow-sm">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h3 className="font-black text-violet-900 uppercase text-sm tracking-tight">{m.nombre}</h3>
+                <h3 className="font-black text-violet-900 uppercase text-sm">{m.nombre}</h3>
                 <span className="text-[9px] bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-bold uppercase">
                   {m.eje || "Sin Eje"}
                 </span>
@@ -1071,7 +1057,6 @@ function ProyectoView({ user }) {
                 </button>
               )}
             </div>
-            
             <div className="text-[11px] text-gray-600 whitespace-pre-wrap leading-relaxed bg-gray-50/50 p-5 rounded-3xl border border-gray-50">
               {m.contenidos || "Sin contenidos cargados"}
             </div>
@@ -1079,31 +1064,30 @@ function ProyectoView({ user }) {
         )) : (
           <div className="text-center py-20 opacity-20">
             <PieChart size={64} className="mx-auto mb-4" />
-            <p className="font-bold text-sm italic">Esperando datos del proyecto...</p>
+            <p className="font-black text-sm italic">Cargando proyecto...</p>
           </div>
         )}
       </div>
 
-      {/* MODAL DE EDICIÓN */}
       {editingMes && (
         <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4 backdrop-blur-md">
           <div className="bg-white rounded-[45px] w-full max-w-2xl p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-black text-violet-900">Editar {editingMes.nombre}</h3>
-              <button onClick={() => setEditingMes(null)} className="text-gray-400"><X size={24}/></button>
+              <button onClick={() => setEditingMes(null)}><X size={24} className="text-gray-400" /></button>
             </div>
             <form onSubmit={handleSave} className="space-y-5">
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-gray-400 ml-4 uppercase">Eje Transversal</label>
-                <input name="eje" defaultValue={editingMes.eje} className="w-full p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 ring-violet-200" />
+                <input name="eje" defaultValue={editingMes.eje} className="w-full p-4 bg-gray-50 rounded-2xl outline-none" />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-gray-400 ml-4 uppercase">Contenidos Esquematizados</label>
-                <textarea name="contenidos" defaultValue={editingMes.contenidos} rows="12" className="w-full p-5 bg-gray-50 rounded-[30px] outline-none text-xs font-mono leading-relaxed" />
+                <label className="text-[10px] font-bold text-gray-400 ml-4 uppercase">Contenidos</label>
+                <textarea name="contenidos" defaultValue={editingMes.contenidos} rows="10" className="w-full p-5 bg-gray-50 rounded-[30px] outline-none text-xs font-mono" />
               </div>
               <div className="flex gap-4 pt-4">
                 <button type="button" onClick={() => setEditingMes(null)} className="flex-1 py-4 font-bold text-gray-400">DESCARTAR</button>
-                <button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-bold shadow-xl">GUARDAR CAMBIOS</button>
+                <button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-bold shadow-xl">GUARDAR</button>
               </div>
             </form>
           </div>
@@ -1112,12 +1096,3 @@ function ProyectoView({ user }) {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
