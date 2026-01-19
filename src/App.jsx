@@ -626,16 +626,16 @@ function ResourcesView({ resources, canEdit }) {
 }
 
 // --- VISTA TAREAS (SIN CAMBIOS) ---
+// --- VISTA TAREAS ---
 function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
-  const [assignType, setAssignType] = useState('user'); // 'user' o 'roles'
+  const [assignType, setAssignType] = useState('user'); 
   const [selectedRoles, setSelectedRoles] = useState([]);
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor'];
 
   useEffect(() => {
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
-    const unsub = onSnapshot(q, snap => setUsersList(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+    const unsub = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc')), snap => setUsersList(snap.docs.map(d => ({id: d.id, ...d.data()}))));
     return () => unsub();
   }, []);
 
@@ -680,7 +680,6 @@ function TasksView({ tasks, user, canEdit }) {
 
   const changeStatus = async (task, newStatus) => {
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus });
-    // Notificar al creador si es otro usuario
     if (task.createdById && task.createdById !== user.id) {
        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), {
            toUserId: task.createdById,
@@ -697,15 +696,15 @@ function TasksView({ tasks, user, canEdit }) {
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10">
       <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas Institucionales</h2><button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:scale-110 transition-all"><Plus/></button></div>
       <div className="grid gap-3 pb-10">
-        {(tasks || []).map(t => (
-          <div key={t.id} className={`p-5 rounded-[30px] border-l-8 shadow-sm flex flex-col gap-3 bg-white ${getPriorityStyle(t.priority)}`}>
+        {tasks.map(t => (
+          <div key={t.id} className={`p-5 rounded-[30px] border-l-8 shadow-sm flex flex-col gap-2 bg-white ${getPriorityStyle(t.priority)} hover:shadow-xl transition-all`}>
             <div className="flex justify-between items-start">
               <div className="flex-1">
                 <p className="text-[9px] font-black text-violet-600 uppercase tracking-widest italic mb-1">Para: {t.assignedToName}</p>
                 <h3 className="font-bold text-gray-800 text-sm uppercase italic tracking-tighter leading-none">{t.title}</h3>
-                <p className="text-[9px] text-gray-400 mt-1 italic">Solicitado por: {t.createdByName}</p>
+                <p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName}</p>
               </div>
-              <div className="text-[9px] font-black bg-white px-2 py-1 rounded-full text-gray-400 border uppercase tracking-tighter italic shadow-inner">{t.dueDate}</div>
+              <div className="text-[9px] font-black bg-gray-50 px-2 py-1 rounded-full text-gray-400 border uppercase tracking-tighter italic shadow-inner">{t.dueDate}</div>
             </div>
             <div className="pt-2 border-t border-black/5 flex justify-end">
               <select value={t.status || 'pending'} onChange={(e) => changeStatus(t, e.target.value)} className="text-xs bg-white/50 border rounded-lg p-1 font-bold text-gray-600 outline-none cursor-pointer">
@@ -719,7 +718,7 @@ function TasksView({ tasks, user, canEdit }) {
       </div>
       {showModal && (
         <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
-          <form onSubmit={addTask} className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
+          <form onSubmit={addTask} className="bg-white rounded-[50px] w-full max-w-sm p-10 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-black text-violet-900 uppercase italic">Nueva Tarea</h3>
             <input name="title" placeholder="¿Qué tarea asignar?" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm shadow-inner" />
             
@@ -752,7 +751,7 @@ function TasksView({ tasks, user, canEdit }) {
               </select>
             </div>
             <div className="flex gap-2 pt-4">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 font-bold text-gray-400 text-xs">CANCELAR</button>
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 font-bold text-gray-400 text-xs uppercase">Cancelar</button>
                 <button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">CREAR</button>
             </div>
           </form>
@@ -877,6 +876,7 @@ function UsersView({ user }) {
 }
 
 // --- VISTA CALENDARIO (SIN CAMBIOS) ---
+// --- VISTA AGENDA ---
 function CalendarView({ events, canEdit, user }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -887,10 +887,10 @@ function CalendarView({ events, canEdit, user }) {
   const renderGrid = () => {
     const year = currentDate.getFullYear(); const month = currentDate.getMonth();
     const days = []; const firstDay = new Date(year, month, 1).getDay();
-    for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} className="min-h-[70px] bg-gray-50/20 border-b border-r border-gray-100"></div>);
+    for (let i = 0; i < firstDay; i++) days.push(<div key={`e-${i}`} className="min-h-[70px] bg-gray-50/20 border-b border-r border-gray-100"></div>);
     for (let d = 1; d <= new Date(year, month + 1, 0).getDate(); d++) {
       const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      const dayEvents = (events || []).filter(e => e.date === dateStr);
+      const dayEvents = events.filter(e => e.date === dateStr);
       days.push(
         <div key={d} className="min-h-[70px] border-b border-r border-gray-100 p-1 bg-white hover:bg-violet-50 transition text-center overflow-hidden">
           <span className={`text-[10px] font-black ${dayEvents.length > 0 ? 'text-violet-700 underline' : 'text-gray-400'}`}>{d}</span>
@@ -953,11 +953,8 @@ function CalendarView({ events, canEdit, user }) {
           <div className="bg-white rounded-[50px] w-full max-w-sm p-10 shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
             <span className="text-[9px] font-black text-orange-600 bg-orange-50 px-3 py-1 rounded-full uppercase tracking-[3px] border border-orange-100 italic shadow-sm">{selectedEvent.type || 'Evento'}</span>
             <h2 className="text-2xl font-black text-gray-800 leading-tight italic uppercase mt-5 tracking-tighter italic leading-none">{selectedEvent.title}</h2>
-            <p className="text-gray-500 text-xs mt-6 leading-relaxed font-medium italic border-l-4 border-violet-100 pl-4 bg-gray-50 p-4 rounded-r-3xl shadow-inner">{selectedEvent.description || 'Sin detalles institucionales cargados.'}</p>
-            <div className="mt-10 pt-6 border-t flex justify-between items-center text-gray-400 text-[10px] font-black uppercase tracking-[3px] italic">
-              <div className="flex items-center gap-2"><Clock size={16}/> {formatDate(selectedEvent.date)}</div>
-              <button onClick={() => setSelectedEvent(null)} className="text-violet-600 font-black tracking-widest">Cerrar</button>
-            </div>
+            <p className="text-gray-500 text-xs mt-6 leading-relaxed font-medium italic border-l-4 border-violet-100 pl-4 bg-gray-50 p-4 rounded-r-3xl shadow-inner">{selectedEvent.description || 'Sin descripción adicional cargada.'}</p>
+            <button onClick={() => setSelectedEvent(null)} className="w-full mt-10 py-4 bg-gray-100 text-gray-400 rounded-3xl font-black uppercase text-[10px] tracking-widest italic">Cerrar Detalle</button>
           </div>
         </div>
       )}
@@ -1094,24 +1091,20 @@ function ProfileView({ user, tasks, onLogout }) {
   );
 }
 // --- VISTA PROYECTO 360 ---
+// --- VISTA PROYECTO 360 ---
 function ProyectoView({ user }) {
   const [periods, setPeriods] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState(null);
   const [activeTab, setActiveTab] = useState('contenidos'); 
   const [editing, setEditing] = useState(false);
   const isAdmin = user.rol === 'admin' || user.rol === 'super-admin';
-
-  // Nombres fijos de los bloques
-  const PERIOD_NAMES = [
-      "MARZO", "ABRIL Y MAYO", "JUNIO Y JULIO", "AGOSTO Y SEPTIEMBRE", "OCTUBRE Y NOVIEMBRE", "DICIEMBRE"
-  ];
+  const PERIOD_NAMES = ["MARZO", "ABRIL Y MAYO", "JUNIO Y JULIO", "AGOSTO Y SEPTIEMBRE", "OCTUBRE Y NOVIEMBRE", "DICIEMBRE"];
 
   useEffect(() => {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'proyecto2026_periods'));
     const unsub = onSnapshot(q, (snap) => {
         const dataMap = {};
         snap.docs.forEach(d => dataMap[d.id] = d.data());
-        // Fusionamos los nombres fijos con los datos de DB
         const builtPeriods = PERIOD_NAMES.map(name => {
             const id = name.replace(/\s+/g, '_');
             return { id, name, ...(dataMap[id] || {}) };
@@ -1131,10 +1124,8 @@ function ProyectoView({ user }) {
           paises: fd.get('paises'),
           updatedAt: serverTimestamp()
       };
-      // Usamos setDoc con merge para crear o actualizar
       const { setDoc, doc: docRef } = await import('firebase/firestore'); 
       await setDoc(docRef(db, 'artifacts', appId, 'public', 'data', 'proyecto2026_periods', selectedPeriod.id), data, { merge: true });
-      
       setEditing(false);
       setSelectedPeriod({...selectedPeriod, ...data});
   };
@@ -1164,7 +1155,6 @@ function ProyectoView({ user }) {
         ))}
       </div>
 
-      {/* MODAL DETALLE PERIODO */}
       {selectedPeriod && (
           <div className="fixed inset-0 bg-indigo-900/90 backdrop-blur-md z-[200] flex flex-col p-4 animate-in slide-in-from-bottom">
               <div className="flex justify-between items-center text-white mb-6">
@@ -1174,47 +1164,18 @@ function ProyectoView({ user }) {
 
               {!editing ? (
                   <div className="flex-1 bg-white rounded-[40px] overflow-hidden flex flex-col shadow-2xl">
-                      {/* TABS */}
                       <div className="flex overflow-x-auto p-2 bg-gray-50 border-b gap-2 scrollbar-hide">
                           {['contenidos', 'actividades', 'fundamentacion', 'paises'].map(tab => (
-                              <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition ${activeTab === tab ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-100'}`}>
-                                  {tab}
-                              </button>
+                              <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition ${activeTab === tab ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-100'}`}>{tab}</button>
                           ))}
                       </div>
-                      
                       <div className="flex-1 p-8 overflow-y-auto">
-                          {activeTab === 'contenidos' && (
-                              <div className="space-y-4 animate-in fade-in">
-                                  <div className="flex items-center gap-2 text-indigo-600 mb-2"><BookOpen size={20}/><h4 className="font-black text-xs uppercase tracking-widest">Contenidos Curriculares</h4></div>
-                                  <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.contenidos || 'Sin contenidos cargados.'}</p>
-                              </div>
-                          )}
-                          {activeTab === 'actividades' && (
-                              <div className="space-y-4 animate-in fade-in">
-                                  <div className="flex items-center gap-2 text-orange-600 mb-2"><Activity size={20}/><h4 className="font-black text-xs uppercase tracking-widest">Propuestas</h4></div>
-                                  <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.actividades || 'Sin actividades cargadas.'}</p>
-                              </div>
-                          )}
-                          {activeTab === 'fundamentacion' && (
-                              <div className="space-y-4 animate-in fade-in">
-                                  <div className="flex items-center gap-2 text-pink-600 mb-2"><MessageSquare size={20}/><h4 className="font-black text-xs uppercase tracking-widest">Fundamentación</h4></div>
-                                  <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.fundamentacion || 'Sin fundamentación cargada.'}</p>
-                              </div>
-                          )}
-                          {activeTab === 'paises' && (
-                              <div className="space-y-4 animate-in fade-in">
-                                  <div className="flex items-center gap-2 text-green-600 mb-2"><Globe size={20}/><h4 className="font-black text-xs uppercase tracking-widest">Países y Ejes</h4></div>
-                                  <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.paises || 'Sin información.'}</p>
-                              </div>
-                          )}
+                          {activeTab === 'contenidos' && <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.contenidos || 'Sin contenidos cargados.'}</p>}
+                          {activeTab === 'actividades' && <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.actividades || 'Sin actividades cargadas.'}</p>}
+                          {activeTab === 'fundamentacion' && <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.fundamentacion || 'Sin fundamentación cargada.'}</p>}
+                          {activeTab === 'paises' && <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.paises || 'Sin información.'}</p>}
                       </div>
-
-                      {isAdmin && (
-                          <div className="p-4 border-t bg-gray-50 text-center">
-                              <button onClick={() => setEditing(true)} className="bg-indigo-100 text-indigo-700 px-6 py-3 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-200 transition shadow-sm">Editar Contenido</button>
-                          </div>
-                      )}
+                      {isAdmin && (<div className="p-4 border-t bg-gray-50 text-center"><button onClick={() => setEditing(true)} className="bg-indigo-100 text-indigo-700 px-6 py-3 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-200 transition shadow-sm">Editar Contenido</button></div>)}
                   </div>
               ) : (
                   <form onSubmit={handleSave} className="flex-1 bg-white rounded-[40px] p-6 overflow-y-auto flex flex-col gap-4">
@@ -1222,10 +1183,7 @@ function ProyectoView({ user }) {
                       <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 ml-2 uppercase tracking-widest">ACTIVIDADES</label><textarea name="actividades" defaultValue={selectedPeriod.actividades} className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-mono border-none outline-none h-32 resize-none shadow-inner" /></div>
                       <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 ml-2 uppercase tracking-widest">FUNDAMENTACIÓN</label><textarea name="fundamentacion" defaultValue={selectedPeriod.fundamentacion} className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-mono border-none outline-none h-24 resize-none shadow-inner" /></div>
                       <div className="space-y-1"><label className="text-[10px] font-black text-gray-400 ml-2 uppercase tracking-widest">PAÍSES / EJES</label><textarea name="paises" defaultValue={selectedPeriod.paises} className="w-full p-4 bg-gray-50 rounded-2xl text-xs font-mono border-none outline-none h-24 resize-none shadow-inner" /></div>
-                      <div className="flex gap-2 pt-4">
-                          <button type="button" onClick={() => setEditing(false)} className="flex-1 py-3 text-gray-400 font-bold text-xs uppercase tracking-widest">CANCELAR</button>
-                          <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-black shadow-lg text-xs uppercase tracking-widest">GUARDAR</button>
-                      </div>
+                      <div className="flex gap-2 pt-4"><button type="button" onClick={() => setEditing(false)} className="flex-1 py-3 text-gray-400 font-bold text-xs uppercase tracking-widest">CANCELAR</button><button type="submit" className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-black shadow-lg text-xs uppercase tracking-widest">GUARDAR</button></div>
                   </form>
               )}
           </div>
@@ -1499,5 +1457,6 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
