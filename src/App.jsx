@@ -591,16 +591,20 @@ function MatriculaView({ user }) {
               <p className="text-sm opacity-80 uppercase font-bold tracking-widest">Alumnos Registrados</p>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
-              <div className="grid grid-cols-1 gap-2">
-                {statsResults.map(s => (
-                  <div key={s.id} className="p-4 bg-gray-50 rounded-2xl text-xs border border-gray-100 flex justify-between items-center">
-                    <span className="font-bold text-gray-700">{s.apellido?.toUpperCase()}, {s.nombre}</span>
-                    <span className="font-black text-violet-600 bg-violet-50 px-2 py-1 rounded-lg uppercase">{s.nivel}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+          <div className="flex-1 overflow-y-auto">
+  <div className="grid grid-cols-1 gap-2">
+    {statsResults.map(s => (
+      <div key={s.id} className="p-4 bg-gray-50 rounded-2xl text-xs border border-gray-100 flex justify-between items-center">
+        <span className="font-bold text-gray-700">
+          {(s.lastName || 'S/A').toUpperCase()}, {s.firstName || 'S/N'}
+        </span>
+        <span className="font-black text-violet-600 bg-violet-50 px-2 py-1 rounded-lg uppercase">
+          {s.level || 'Nivel'}
+        </span>
+      </div>
+    ))}
+  </div>
+</div>
           </div>
         </div>
       )}
@@ -660,37 +664,62 @@ function MatriculaView({ user }) {
 }
 
 // --- VISTAS RESTANTES ---
+// --- VISTAS RESTANTES ---
 function DashboardView({ user, tasks, events }) {
- const todayStr = new Date().toISOString().split('T')[0];
- const eventsToday = events.filter(e => e.date === todayStr);
- const [announcements, setAnnouncements] = useState([]);
- useEffect(() => {
-  const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc'));
-  return onSnapshot(q, (snapshot) => {
-   const now = new Date();
-   setAnnouncements(snapshot.docs.map(doc => {
-    const data = doc.data();
-    const msgDate = data.createdAt ? new Date(data.createdAt.seconds * 1000) : new Date();
-    return { id: doc.id, ...data, timeAgo: Math.floor((now - msgDate) / (1000 * 60 * 60)) };
-   }).filter(a => a.timeAgo < 48));
-  });
- }, []);
- return (
-  <div className="space-y-6">
-   <div className="bg-white p-6 rounded-3xl border shadow-sm"><h2 className="text-2xl font-bold text-violet-900 tracking-tight">¡Hola, {user.firstName}! 👋</h2></div>
-   <div className="grid grid-cols-2 gap-4">
-    <div className="bg-orange-500 text-white p-6 rounded-[35px] shadow-lg relative overflow-hidden"><h3 className="text-4xl font-black">{tasks.length}</h3><p className="text-xs font-bold opacity-80 uppercase tracking-widest mt-1">Tareas</p><CheckSquare className="absolute -right-4 -bottom-4 opacity-20" size={90}/></div>
-    <div className="bg-violet-600 text-white p-6 rounded-[35px] shadow-lg relative overflow-hidden"><h3 className="text-4xl font-black">{eventsToday.length}</h3><p className="text-xs font-bold opacity-80 uppercase tracking-widest mt-1">Hoy</p><CalendarIcon className="absolute -right-4 -bottom-4 opacity-20" size={90}/></div>
-   </div>
-   <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-5 rounded-3xl text-white shadow-lg relative overflow-hidden">
-    <h3 className="font-bold flex items-center gap-2 mb-4"><Bell size={20}/> Cartelera</h3>
-    <div className="space-y-3">
-     {announcements.map(a => (<div key={a.id} className="bg-black/20 p-3 rounded-xl"><p className="text-sm font-medium leading-relaxed">"{a.message}"</p><div className="mt-2 flex justify-between text-[10px] opacity-70 font-bold uppercase"><span>{a.author}</span><span>hace {a.timeAgo}h</span></div></div>))}
-     {announcements.length === 0 && <div className="text-center py-6 opacity-60 italic text-sm">No hay comunicados.</div>}
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayEvents = events.filter(e => e.date === todayStr);
+  const [announcements, setAnnouncements] = useState([]);
+
+  useEffect(() => {
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc'));
+    return onSnapshot(q, (snap) => setAnnouncements(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+  }, []);
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-700">
+      {/* Bienvenida */}
+      <div className="bg-white p-8 rounded-[40px] shadow-sm border border-violet-100 relative overflow-hidden">
+        <div className="relative z-10">
+          <h2 className="text-3xl font-black text-slate-800 tracking-tight">¡Hola, {user.firstName}! 👋</h2>
+          <p className="text-slate-500 font-medium mt-1">Tu agenda para hoy en Juntos a la Par.</p>
+        </div>
+        <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-violet-50 rounded-full opacity-50"></div>
+      </div>
+
+      {/* Info Rápida */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-orange-500 p-6 rounded-[35px] text-white shadow-lg shadow-orange-200">
+          <div className="flex justify-between items-start mb-4">
+            <div className="bg-white/20 p-2 rounded-xl"><CheckSquare size={20}/></div>
+            <span className="text-2xl font-black">{tasks.filter(t => t.status !== 'completed').length}</span>
+          </div>
+          <p className="text-[10px] font-bold uppercase tracking-wider opacity-80">Tareas Pendientes</p>
+        </div>
+        <div className="bg-violet-600 p-6 rounded-[35px] text-white shadow-lg shadow-violet-200">
+          <div className="flex justify-between items-start mb-4">
+            <div className="bg-white/20 p-2 rounded-xl"><CalendarIcon size={20}/></div>
+            <span className="text-2xl font-black">{todayEvents.length}</span>
+          </div>
+          <p className="text-[10px] font-bold uppercase tracking-wider opacity-80">Eventos Hoy</p>
+        </div>
+      </div>
+
+      {/* Eventos de Hoy */}
+      <div className="space-y-3">
+        <h3 className="font-black text-slate-800 ml-2 uppercase text-xs tracking-widest text-violet-900">Agenda del día</h3>
+        {todayEvents.length > 0 ? todayEvents.map(e => (
+          <div key={e.id} className="bg-white p-4 rounded-3xl border-l-8 border-orange-400 shadow-sm flex items-center justify-between">
+            <span className="font-bold text-slate-700">{e.title}</span>
+            <span className="text-[10px] font-black text-orange-500 uppercase">{e.type}</span>
+          </div>
+        )) : (
+          <div className="bg-slate-100/50 p-6 rounded-3xl border-2 border-dashed border-slate-200 text-center">
+            <p className="text-slate-400 text-xs font-bold italic">No hay eventos para hoy</p>
+          </div>
+        )}
+      </div>
     </div>
-   </div>
-  </div>
- );
+  );
 }
 
 function CalendarView({ events, canEdit, user }) {
@@ -792,7 +821,7 @@ function CalendarView({ events, canEdit, user }) {
       {viewMode === 'grid' ? (
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
           <div className="p-4 flex justify-between items-center bg-violet-50 border-b">
-            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700">< size={24} /></button>
+            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700"><ChevronLeft size={24} />.</button>
             <span className="font-bold text-violet-900 capitalize">{currentDate.toLocaleDateString('es-ES', { month: 'long' })}</span>
             <button onClick={() => changeMonth(1)} className="p-2 hover:bg-white rounded-full transition shadow-sm text-violet-700"><ChevronRight size={24} /></button>
           </div>
@@ -874,7 +903,7 @@ function ResourcesView({ resources, canEdit }) {
         <div className="flex gap-2">
           {currentFolder && (
             <button onClick={() => setCurrentFolder(null)} className="bg-gray-100 text-gray-600 p-3 rounded-xl">
-              < size={20} />
+             <ChevronLeft size={20} />.
             </button>
           )}
           {canEdit && (
@@ -1120,6 +1149,7 @@ function ProyectoView({ user }) {
     </div>
   );
 }
+
 
 
 
