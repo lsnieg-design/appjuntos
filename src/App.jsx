@@ -467,42 +467,25 @@ function DashboardView({ user, tasks, events }) {
   const [announcements, setAnnouncements] = useState([]);
   const [showAnnounceModal, setShowAnnounceModal] = useState(false);
   
-  // --- AHORA LAS NOTAS VIENEN DE LA BASE DE DATOS (NUBE) ---
+  // Notas Personales
   const [notes, setNotes] = useState([]);
   const [newNote, setNewNote] = useState('');
 
   const canPost = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
 
-  // 1. Cargar Anuncios (Igual que antes)
   useEffect(() => {
+    // Cargar Anuncios
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(q, (snapshot) => {
-        const now = new Date();
-        const validMessages = [];
-        snapshot.docs.forEach(doc => {
-            const data = doc.data();
-            const msgDate = data.createdAt ? new Date(data.createdAt.seconds * 1000) : new Date();
-            const diffHours = (now - msgDate) / (1000 * 60 * 60);
-            if (diffHours < 48) {
-                validMessages.push({ id: doc.id, ...data });
-            }
-        });
+        const validMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setAnnouncements(validMessages);
     });
-    return () => unsub();
-  }, []);
 
-  // 2. Cargar Notas Personales desde la NUBE (Solo las mías)
-  useEffect(() => {
-      const qNotes = query(
-          collection(db, 'artifacts', appId, 'public', 'data', 'notes'),
-          where('userId', '==', user.id), // FILTRO CLAVE: Solo mis notas
-          orderBy('createdAt', 'desc')
-      );
-      const unsub = onSnapshot(qNotes, (snap) => {
-          setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      });
-      return () => unsub();
+    // Cargar Notas
+    const qNotes = query(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), where('userId', '==', user.id), orderBy('createdAt', 'desc'));
+    const unsubNotes = onSnapshot(qNotes, (snap) => setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    
+    return () => { unsub(); unsubNotes(); };
   }, [user.id]);
 
   const handlePost = async (e) => {
@@ -515,62 +498,83 @@ function DashboardView({ user, tasks, events }) {
       setShowAnnounceModal(false);
   };
 
-  // --- NUEVAS FUNCIONES DE NOTAS EN LA NUBE ---
+  const deleteAnnouncement = async (id) => {
+      if(confirm("¿Borrar este aviso de la cartelera?")) {
+          await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'announcements', id));
+      }
+  };
+
   const saveNote = async (e) => {
     e.preventDefault(); 
     if (!newNote.trim()) return;
-    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), {
-        text: newNote,
-        userId: user.id, // Se guarda con TU id para que sea privada
-        done: false,
-        createdAt: serverTimestamp()
-    });
+    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), { text: newNote, userId: user.id, done: false, createdAt: serverTimestamp() });
     setNewNote('');
   };
 
-  const toggleNote = async (note) => {
-    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', note.id), {
-        done: !note.done
-    });
-  };
-
-  const deleteNote = async (id) => {
-    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', id));
-  };
+  const toggleNote = async (note) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', note.id), { done: !note.done });
+  const deleteNote = async (id) => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', id));
 
   return (
     <div className="space-y-6 animate-in fade-in pb-10">
+      {/* 1. BIENVENIDA */}
+      <div className="flex justify-between items-center px-2">
+           <div>
+               <h2 className="text-2xl font-black text-slate-800 tracking-tighter italic">¡Hola, {user.firstName}! 👋</h2>
+               <p className="text-slate-500 font-medium text-xs">Panel de Control</p>
+           </div>
+           {canPost && <button onClick={() => setShowAnnounceModal(true)} className="bg-orange-500 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg hover:scale-105 transition flex items-center gap-1"><Edit3 size={14}/> NUEVO AVISO</button>}
+      </div>
       
-      {/* SECCIÓN BIENVENIDA Y CARTELERA */}
-      <div className="bg-white p-6 rounded-[40px] shadow-sm border border-violet-50 relative overflow-hidden">
-        <div className="relative z-10 flex justify-between items-start">
-            <div>
-                <h2 className="text-2xl font-black text-slate-800 tracking-tighter italic">¡Hola, {user.firstName}! 👋</h2>
-                <p className="text-slate-500 mt-1 font-medium text-xs">Hay {tasks.filter(t => t.status !== 'completed').length} tareas pendientes.</p>
-            </div>
-            {canPost && <button onClick={() => setShowAnnounceModal(true)} className="bg-orange-50 text-orange-600 p-2 rounded-xl hover:bg-orange-100 transition"><Edit3 size={18}/></button>}
+      {/* 2. AVISOS DE DIRECCIÓN (CAJA DIFERENCIADA) */}
+      {announcements.length > 0 && (
+          <div className="bg-yellow-100 p-5 rounded-[30px] border-2 border-yellow-200 shadow-sm relative overflow-hidden">
+             <h3 className="text-[10px] font-black text-yellow-700 uppercase tracking-widest flex items-center gap-1 mb-3"><Bell size={12}/> Cartelera Oficial</h3>
+             <div className="space-y-3">
+                 {announcements.map(a => (
+                    <div key={a.id} className="bg-white/80 p-3 rounded-2xl border border-yellow-200/50 text-sm text-gray-800 flex justify-between items-start">
+                        <div>
+                            <p className="italic font-medium">"{a.message}"</p>
+                            <p className="text-[9px] text-yellow-600 font-bold mt-1 uppercase tracking-wider">- {a.author}</p>
+                        </div>
+                        {canPost && (
+                            <button onClick={() => deleteAnnouncement(a.id)} className="text-yellow-600 hover:text-red-500 p-1 bg-yellow-50 rounded-lg transition"><Trash2 size={14}/></button>
+                        )}
+                    </div>
+                 ))}
+             </div>
+          </div>
+      )}
+
+      {/* 3. RESUMEN TAREAS Y EVENTOS */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-white p-5 rounded-[30px] border border-orange-100 shadow-sm">
+          <h4 className="text-3xl font-black text-orange-500">{tasks.filter(t=>t.status!=='completed').length}</h4>
+          <p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Tareas Pendientes</p>
         </div>
         
-        {/* CARTELERA DE 48HS */}
-        {announcements.length > 0 && (
-            <div className="mt-4 space-y-2 relative z-10">
-                <h3 className="text-[10px] font-black text-orange-500 uppercase tracking-widest flex items-center gap-1"><Bell size={12}/> Avisos de Dirección</h3>
-                {announcements.map(a => (
-                    <div key={a.id} className="bg-orange-50 p-3 rounded-2xl border border-orange-100 text-sm text-orange-900 italic">
-                        <p>"{a.message}"</p>
-                        <p className="text-[9px] text-orange-400 font-bold mt-1 text-right uppercase tracking-wider">- {a.author}</p>
-                    </div>
-                ))}
-            </div>
-        )}
+        {/* CAJA DE EVENTOS: Muestra el evento si hay */}
+        <div className={`p-5 rounded-[30px] border shadow-sm relative overflow-hidden ${todayEvents.length > 0 ? 'bg-violet-600 text-white border-violet-600' : 'bg-white border-violet-100'}`}>
+          {todayEvents.length > 0 ? (
+              <>
+                <h4 className="text-lg font-black leading-tight mb-1">{todayEvents[0].title}</h4>
+                <p className="text-[9px] opacity-80 uppercase tracking-widest font-bold">Es Hoy</p>
+                {todayEvents.length > 1 && <span className="absolute top-4 right-4 text-[10px] bg-white/20 px-2 rounded-full">+{todayEvents.length - 1} más</span>}
+              </>
+          ) : (
+              <>
+                <h4 className="text-3xl font-black text-violet-600">0</h4>
+                <p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Eventos Hoy</p>
+              </>
+          )}
+        </div>
       </div>
 
-      {/* NOTAS PERSONALES (EN LA NUBE) */}
+      {/* 4. TAREAS PERSONALES (ABAJO) */}
       <div className="bg-gray-50 p-5 rounded-[35px] border border-gray-100 shadow-inner">
-        <h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px] mb-3 flex items-center gap-2"><Lock size={12}/> Mis Notas (Privadas y en la Nube)</h3>
+        <h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px] mb-3 flex items-center gap-2"><Lock size={12}/> Tareas Personales</h3>
         <form onSubmit={saveNote} className="flex gap-2 mb-3">
-          <input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Escribir nota..." className="flex-1 p-3 rounded-xl border-none outline-none text-xs bg-white shadow-sm placeholder:text-gray-300 font-medium" />
-          <button type="submit" className="bg-violet-600 text-white p-3 rounded-xl font-bold hover:scale-105 transition shadow-lg shadow-violet-200"><Plus size={16}/></button>
+          <input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Nueva nota..." className="flex-1 p-3 rounded-xl border-none outline-none text-xs bg-white shadow-sm font-medium" />
+          <button type="submit" className="bg-violet-600 text-white p-3 rounded-xl font-bold shadow-lg"><Plus size={16}/></button>
         </form>
         <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
           {notes.map(n => (
@@ -580,24 +584,15 @@ function DashboardView({ user, tasks, events }) {
               <button onClick={() => deleteNote(n.id)} className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"><Trash2 size={12}/></button>
             </div>
           ))}
-          {notes.length === 0 && <p className="text-[10px] text-center text-gray-300 italic mt-2">Tus notas se guardarán aquí.</p>}
+          {notes.length === 0 && <p className="text-[10px] text-center text-gray-300 italic mt-2">No tienes notas.</p>}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white p-5 rounded-[30px] border border-orange-100 shadow-sm relative overflow-hidden">
-          <h4 className="text-3xl font-black text-orange-500">{tasks.length}</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Tareas</p>
-        </div>
-        <div className="bg-white p-5 rounded-[30px] border border-violet-100 shadow-sm relative overflow-hidden">
-          <h4 className="text-3xl font-black text-violet-600">{todayEvents.length}</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Eventos</p>
-        </div>
-      </div>
-
+      {/* MODAL NUEVO AVISO */}
       {showAnnounceModal && (
           <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
               <form onSubmit={handlePost} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95">
                   <h3 className="text-lg font-black text-orange-500 mb-2 uppercase italic">Nuevo Aviso</h3>
-                  <p className="text-[10px] text-gray-400 mb-4 font-bold">VISIBLE POR 48 HORAS</p>
                   <textarea name="message" className="w-full p-4 bg-orange-50 rounded-2xl outline-none text-sm h-32 resize-none border border-orange-100 focus:ring-2 ring-orange-200 text-gray-700" placeholder="Escribe aquí..." required></textarea>
                   <div className="flex gap-2 mt-4">
                       <button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 text-gray-400 font-bold text-xs uppercase tracking-widest">Cancelar</button>
@@ -613,10 +608,30 @@ function DashboardView({ user, tasks, events }) {
 function ResourcesView({ resources, canEdit }) {
   const [folder, setFolder] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  // Corrección: Validamos que resources sea un array antes del reduce
+  const [editingRes, setEditingRes] = useState(null); // Estado para editar
+
   const folders = (resources || []).reduce((acc, r) => { const cat = r.category || 'VARIOS'; if (!acc[cat]) acc[cat] = []; acc[cat].push(r); return acc; }, {});
   
-  const addResource = async (e) => { e.preventDefault(); const title = e.target.title.value; const url = e.target.url.value; const category = e.target.category.value; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), { title, url, category, createdAt: serverTimestamp() }); setShowModal(false); };
+  const handleSaveResource = async (e) => { 
+      e.preventDefault(); 
+      const data = { 
+          title: e.target.title.value, 
+          url: e.target.url.value, 
+          category: e.target.category.value 
+      };
+      if(editingRes) {
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', editingRes.id), data);
+      } else {
+          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), { ...data, createdAt: serverTimestamp() });
+      }
+      setShowModal(false); 
+      setEditingRes(null);
+  };
+
+  const deleteResource = async (id) => { if(confirm("¿Borrar recurso?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', id)); };
+  
+  const openNew = () => { setEditingRes(null); setShowModal(true); };
+  const openEdit = (r) => { setEditingRes(r); setShowModal(true); };
 
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10">
@@ -624,7 +639,7 @@ function ResourcesView({ resources, canEdit }) {
         <h2 className="text-2xl font-black text-violet-900 italic tracking-tighter uppercase italic">Recursos</h2>
         <div className="flex gap-2">
             {folder && <button onClick={() => setFolder(null)} className="bg-gray-100 p-2 rounded-xl text-xs font-black uppercase text-violet-700 shadow-sm border border-gray-100 flex items-center gap-1 hover:bg-violet-100 transition"><ChevronLeft size={16}/> Volver</button>}
-            {canEdit && <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-2 rounded-xl shadow-lg"><Plus size={20}/></button>}
+            {canEdit && <button onClick={openNew} className="bg-orange-500 text-white p-2 rounded-xl shadow-lg"><Plus size={20}/></button>}
         </div>
       </div>
       {!folder ? (
@@ -641,19 +656,30 @@ function ResourcesView({ resources, canEdit }) {
       ) : (
         <div className="grid gap-3 pb-20">
           {folders[folder].map(r => (
-            <a key={r.id} href={r.url} target="_blank" rel="noopener noreferrer" className="bg-white p-5 rounded-[30px] border border-violet-50 font-black text-sm text-gray-700 hover:border-violet-300 transition-all flex justify-between items-center group shadow-sm">
-              <span className="flex items-center gap-5 italic tracking-tight"><FileText size={20} className="text-violet-200" /> {r.title}</span><ExternalLink size={20} className="text-gray-200" />
-            </a>
+            <div key={r.id} className="bg-white p-5 rounded-[30px] border border-violet-50 flex justify-between items-center group shadow-sm">
+                <a href={r.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-5 italic tracking-tight font-black text-sm text-gray-700 hover:text-violet-600 flex-1">
+                    <FileText size={20} className="text-violet-200" /> {r.title}
+                </a>
+                <div className="flex items-center gap-2">
+                    <a href={r.url} target="_blank" rel="noopener noreferrer"><ExternalLink size={20} className="text-gray-200 hover:text-gray-400" /></a>
+                    {canEdit && (
+                        <>
+                            <button onClick={() => openEdit(r)} className="text-blue-300 hover:text-blue-500"><Edit3 size={18}/></button>
+                            <button onClick={() => deleteResource(r.id)} className="text-red-300 hover:text-red-500"><Trash2 size={18}/></button>
+                        </>
+                    )}
+                </div>
+            </div>
           ))}
         </div>
       )}
       {showModal && (
           <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4">
-              <form onSubmit={addResource} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl space-y-4">
-                  <h3 className="text-xl font-bold text-violet-900 uppercase italic">Nuevo Recurso</h3>
-                  <input name="title" placeholder="Título del documento" className="w-full p-3 bg-gray-50 rounded-xl outline-none border border-gray-100 font-bold text-xs" required />
-                  <input name="url" placeholder="Enlace (URL)" className="w-full p-3 bg-gray-50 rounded-xl outline-none border border-gray-100 font-bold text-xs" required />
-                  <input name="category" placeholder="Carpeta (Ej: Documentos)" className="w-full p-3 bg-gray-50 rounded-xl outline-none border border-gray-100 font-bold text-xs" required />
+              <form onSubmit={handleSaveResource} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl space-y-4">
+                  <h3 className="text-xl font-bold text-violet-900 uppercase italic">{editingRes ? 'Editar Recurso' : 'Nuevo Recurso'}</h3>
+                  <input name="title" defaultValue={editingRes?.title} placeholder="Título del documento" className="w-full p-3 bg-gray-50 rounded-xl outline-none border border-gray-100 font-bold text-xs" required />
+                  <input name="url" defaultValue={editingRes?.url} placeholder="Enlace (URL)" className="w-full p-3 bg-gray-50 rounded-xl outline-none border border-gray-100 font-bold text-xs" required />
+                  <input name="category" defaultValue={editingRes?.category} placeholder="Carpeta (Ej: Documentos)" className="w-full p-3 bg-gray-50 rounded-xl outline-none border border-gray-100 font-bold text-xs" required />
                   <div className="flex gap-2 pt-2"><button type="button" onClick={() => setShowModal(false)} className="flex-1 text-gray-400 font-bold text-xs uppercase">CANCELAR</button><button type="submit" className="flex-1 bg-violet-600 text-white py-3 rounded-xl font-bold text-xs uppercase shadow-lg">GUARDAR</button></div>
               </form>
           </div>
@@ -671,8 +697,10 @@ function TasksView({ tasks, user, canEdit }) {
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [openCommentsId, setOpenCommentsId] = useState(null); 
   const [newComment, setNewComment] = useState("");
+  const [editingTask, setEditingTask] = useState(null); // Estado edición
+
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor'];
-  const canDelete = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
+  const canManage = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
 
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc')), snap => setUsersList(snap.docs.map(d => ({id: d.id, ...d.data()}))));
@@ -685,7 +713,7 @@ function TasksView({ tasks, user, canEdit }) {
     return 'border-l-green-500 bg-green-50';
   };
 
-  const addTask = async (e) => {
+  const handleSaveTask = async (e) => {
     e.preventDefault(); 
     const fd = new FormData(e.target);
     let assignedName = "Todos", targetUserId = null, targetRoles = [];
@@ -695,31 +723,40 @@ function TasksView({ tasks, user, canEdit }) {
     } else {
         assignedName = selectedRoles.join(", "); targetRoles = selectedRoles;
     }
-    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
-        title: fd.get('title'), dueDate: fd.get('dueDate'), priority: fd.get('priority'), targetType: assignType, targetUserId, targetRoles: selectedRoles, assignedToName: assignedName, createdByName: user.fullName || user.firstName, createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: [] 
-    });
-    if (targetUserId && targetUserId !== user.id) {
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { toUserId: targetUserId, title: "Nueva Tarea Asignada", message: `${user.firstName} te asignó: "${fd.get('title')}"`, read: false, date: new Date().toISOString(), createdAt: serverTimestamp() });
+
+    const taskData = { 
+        title: fd.get('title'), dueDate: fd.get('dueDate'), priority: fd.get('priority'), 
+        targetType: assignType, targetUserId, targetRoles: selectedRoles, assignedToName: assignedName 
+    };
+
+    if (editingTask) {
+         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData);
+    } else {
+         const newTask = { ...taskData, createdByName: user.fullName || user.firstName, createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: [] };
+         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), newTask);
+         if (targetUserId && targetUserId !== user.id) {
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { toUserId: targetUserId, title: "Nueva Tarea", message: `${user.firstName} te asignó: "${fd.get('title')}"`, read: false, createdAt: serverTimestamp() });
+         }
     }
-    setShowModal(false); setSelectedRoles([]);
+    setShowModal(false); setSelectedRoles([]); setEditingTask(null);
   };
 
   const addComment = async (task) => {
       if (!newComment.trim()) return;
       const commentData = { text: newComment, author: user.firstName, date: new Date().toISOString() };
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion(commentData) });
-      if (task.createdById && task.createdById !== user.id) {
-          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { toUserId: task.createdById, title: "Nuevo Comentario", message: `${user.firstName} comentó en "${task.title}"`, read: false, date: new Date().toISOString(), createdAt: serverTimestamp() });
-      }
       setNewComment("");
   };
 
   const handleDelete = async (id) => { if(confirm("¿Seguro que deseas eliminar esta tarea?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
   const changeStatus = async (task, newStatus) => { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
+  
+  const openNew = () => { setEditingTask(null); setShowModal(true); };
+  const openEdit = (t) => { setEditingTask(t); setAssignType(t.targetType || 'user'); setSelectedRoles(t.targetRoles || []); setShowModal(true); };
 
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10">
-      <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2><button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:scale-110 transition-all"><Plus/></button></div>
+      <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2><button onClick={openNew} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:scale-110 transition-all"><Plus/></button></div>
       <div className="grid gap-3 pb-10">
         {tasks.map(t => (
           <div key={t.id} className={`p-5 rounded-[30px] border-l-8 shadow-sm flex flex-col gap-3 bg-white ${getPriorityStyle(t.priority)} transition-all relative`}>
@@ -731,47 +768,39 @@ function TasksView({ tasks, user, canEdit }) {
               </div>
               <div className="flex flex-col items-end gap-2">
                  <div className="text-[9px] font-black bg-white px-2 py-1 rounded-full text-gray-400 border uppercase tracking-tighter italic shadow-inner">{t.dueDate}</div>
-                 {/* BOTÓN ELIMINAR AGREGADO */}
-                 {canDelete && <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm"><Trash2 size={14}/></button>}
+                 {canManage && (
+                     <div className="flex gap-1">
+                        <button onClick={() => openEdit(t)} className="text-blue-300 hover:text-blue-600 p-1 bg-white rounded-full shadow-sm"><Edit3 size={14}/></button>
+                        <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm"><Trash2 size={14}/></button>
+                     </div>
+                 )}
               </div>
             </div>
-            
-            {/* SECCION COMENTARIOS */}
             {openCommentsId === t.id && (
                 <div className="bg-white/50 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in">
                     <div className="max-h-32 overflow-y-auto space-y-2 mb-2">
-                        {(t.comments || []).map((c, idx) => (
-                            <p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p>
-                        ))}
+                        {(t.comments || []).map((c, idx) => (<p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p>))}
                         {(!t.comments || t.comments.length === 0) && <p className="text-[10px] text-gray-400 italic">Sin comentarios.</p>}
                     </div>
-                    <div className="flex gap-2">
-                        <input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribir..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" />
-                        <button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button>
-                    </div>
+                    <div className="flex gap-2"><input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribir..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" /><button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button></div>
                 </div>
             )}
-
             <div className="pt-2 border-t border-black/5 flex justify-between items-center">
               <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-violet-600 bg-gray-50 px-2 py-1 rounded-lg"><MessageSquare size={14}/> {t.comments?.length || 0}</button>
-              <select value={t.status || 'pending'} onChange={(e) => changeStatus(t, e.target.value)} className="text-xs bg-white/50 border rounded-lg p-1 font-bold text-gray-600 outline-none cursor-pointer">
-                <option value="pending">Pendiente</option>
-                <option value="in_process">En Proceso</option>
-                <option value="completed">Finalizado</option>
-              </select>
+              <select value={t.status || 'pending'} onChange={(e) => changeStatus(t, e.target.value)} className="text-xs bg-white/50 border rounded-lg p-1 font-bold text-gray-600 outline-none cursor-pointer"><option value="pending">Pendiente</option><option value="in_process">En Proceso</option><option value="completed">Finalizado</option></select>
             </div>
           </div>
         ))}
       </div>
       {showModal && (
         <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
-          <form onSubmit={addTask} className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-black text-violet-900 uppercase italic">Nueva Tarea</h3>
-            <input name="title" placeholder="¿Qué tarea asignar?" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm shadow-inner" />
+          <form onSubmit={handleSaveTask} className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-black text-violet-900 uppercase italic">{editingTask ? 'Editar Tarea' : 'Nueva Tarea'}</h3>
+            <input name="title" defaultValue={editingTask?.title} placeholder="¿Qué tarea asignar?" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm shadow-inner" />
             <div className="flex gap-2 bg-gray-100 p-1 rounded-xl"><button type="button" onClick={() => setAssignType('user')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'user' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Persona</button><button type="button" onClick={() => setAssignType('roles')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'roles' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Roles</button></div>
-            {assignType === 'user' ? (<select name="targetUser" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs uppercase tracking-widest border border-gray-100">{usersList.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}</select>) : (<div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 max-h-32 overflow-y-auto">{ROLES_OPTIONS.map(role => (<label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={selectedRoles.includes(role)} onChange={(e) => { if(e.target.checked) setSelectedRoles([...selectedRoles, role]); else setSelectedRoles(selectedRoles.filter(r => r !== role)); }} className="accent-violet-600"/> {role}</label>))}</div>)}
-            <div className="grid grid-cols-2 gap-4"><input name="dueDate" type="date" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs text-gray-400" /><select name="priority" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs uppercase text-orange-600 italic"><option value="baja">Baja</option><option value="media">Media</option><option value="alta">Alta</option></select></div>
-            <div className="flex gap-2 pt-4"><button type="button" onClick={() => setShowModal(false)} className="flex-1 font-bold text-gray-400 text-xs uppercase">Cancelar</button><button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">CREAR</button></div>
+            {assignType === 'user' ? (<select name="targetUser" defaultValue={editingTask?.targetUserId} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs uppercase tracking-widest border border-gray-100">{usersList.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}</select>) : (<div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 max-h-32 overflow-y-auto">{ROLES_OPTIONS.map(role => (<label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={selectedRoles.includes(role)} onChange={(e) => { if(e.target.checked) setSelectedRoles([...selectedRoles, role]); else setSelectedRoles(selectedRoles.filter(r => r !== role)); }} className="accent-violet-600"/> {role}</label>))}</div>)}
+            <div className="grid grid-cols-2 gap-4"><input name="dueDate" type="date" defaultValue={editingTask?.dueDate} required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs text-gray-400" /><select name="priority" defaultValue={editingTask?.priority} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs uppercase text-orange-600 italic"><option value="baja">Baja</option><option value="media">Media</option><option value="alta">Alta</option></select></div>
+            <div className="flex gap-2 pt-4"><button type="button" onClick={() => setShowModal(false)} className="flex-1 font-bold text-gray-400 text-xs uppercase">Cancelar</button><button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">GUARDAR</button></div>
           </form>
         </div>
       )}
@@ -939,33 +968,41 @@ function UsersView({ user }) {
 }
 
 // --- VISTA CALENDARIO (SIN CAMBIOS) ---
-// --- VISTA AGENDA ---
 function CalendarView({ events, canEdit, user }) {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDayEvents, setSelectedDayEvents] = useState(null); // Ahora guardamos una lista de eventos
+  const [selectedDayEvents, setSelectedDayEvents] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null); // Nuevo estado
   
   const changeMonth = (offset) => { const d = new Date(currentDate); d.setMonth(d.getMonth() + offset); setCurrentDate(new Date(d)); };
   
-  // Función al hacer clic en un evento o día
   const handleDayClick = (dateStr) => {
       const eventsOnDay = events.filter(e => e.date === dateStr);
-      if (eventsOnDay.length > 0) {
-          setSelectedDayEvents({ date: dateStr, events: eventsOnDay });
-      }
+      if (eventsOnDay.length > 0) setSelectedDayEvents({ date: dateStr, events: eventsOnDay });
   };
 
   const deleteEvent = async (id) => {
       if(confirm("¿Eliminar este evento?")) {
           await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', id));
-          // Actualizamos la vista modal eliminando el evento de la lista local
-          setSelectedDayEvents(prev => ({
-              ...prev,
-              events: prev.events.filter(e => e.id !== id)
-          }));
-          if (selectedDayEvents.events.length <= 1) setSelectedDayEvents(null); // Cerrar si era el único
+          setSelectedDayEvents(prev => ({ ...prev, events: prev.events.filter(e => e.id !== id) }));
+          if (selectedDayEvents.events.length <= 1) setSelectedDayEvents(null);
       }
   };
+
+  const handleSaveEvent = async (e) => {
+      e.preventDefault(); const fd = new FormData(e.target);
+      const data = { title: fd.get('title'), date: fd.get('date'), type: fd.get('type'), description: fd.get('description') };
+      
+      if (editingEvent) {
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', editingEvent.id), data);
+      } else {
+          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), { ...data, createdAt: serverTimestamp() });
+      }
+      setShowModal(false); setEditingEvent(null);
+  };
+  
+  const openNew = () => { setEditingEvent(null); setShowModal(true); };
+  const openEdit = (ev) => { setEditingEvent(ev); setShowModal(true); };
 
   const renderGrid = () => {
     const year = currentDate.getFullYear(); const month = currentDate.getMonth();
@@ -978,24 +1015,12 @@ function CalendarView({ events, canEdit, user }) {
         <div key={d} onClick={() => handleDayClick(dateStr)} className="min-h-[80px] border-b border-r border-gray-100 p-1 bg-white hover:bg-violet-50 transition text-center overflow-hidden cursor-pointer group">
           <span className={`text-[10px] font-black ${dayEvents.length > 0 ? 'text-violet-700 underline' : 'text-gray-400'}`}>{d}</span>
           <div className="flex flex-col gap-1 mt-1">
-            {dayEvents.map((ev, idx) => (
-                <div key={idx} className="text-[6px] bg-violet-100 text-violet-700 rounded-sm p-1 truncate font-black uppercase shadow-sm border border-violet-200">
-                    {ev.title}
-                </div>
-            ))}
+            {dayEvents.map((ev, idx) => (<div key={idx} className="text-[6px] bg-violet-100 text-violet-700 rounded-sm p-1 truncate font-black uppercase shadow-sm border border-violet-200">{ev.title}</div>))}
           </div>
         </div>
       );
     }
     return days;
-  };
-
-  const handleAddEvent = async (e) => {
-      e.preventDefault(); const fd = new FormData(e.target);
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), { 
-          title: fd.get('title'), date: fd.get('date'), type: fd.get('type'), description: fd.get('description'), createdAt: serverTimestamp() 
-      });
-      setShowModal(false);
   };
 
   return (
@@ -1007,33 +1032,31 @@ function CalendarView({ events, canEdit, user }) {
           <span className="font-black text-violet-900 capitalize text-[10px] min-w-[120px] text-center italic tracking-widest">{currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}</span>
           <button onClick={() => changeMonth(1)} className="p-2 text-violet-700 hover:bg-violet-50 rounded-lg transition-all"><ChevronRight size={18}/></button>
         </div>
-        {canEdit && <button onClick={() => setShowModal(true)} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg hover:scale-110 transition-all"><Plus size={20}/></button>}
+        {canEdit && <button onClick={openNew} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg hover:scale-110 transition-all"><Plus size={20}/></button>}
       </div>
       <div className="bg-white rounded-[40px] shadow-xl border border-gray-100 overflow-hidden grid grid-cols-7 border-t-8 border-violet-600">
         {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d => <div key={d} className="text-[9px] font-black text-violet-400 uppercase p-3 border-b text-center bg-violet-50/50 italic tracking-[2px]">{d}</div>)}
         {renderGrid()}
       </div>
 
-      {/* MODAL AGREGAR EVENTO */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
-          <form onSubmit={handleAddEvent} className="bg-white rounded-[50px] w-full max-w-sm p-10 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-orange-500">
-            <h3 className="text-xl font-black italic uppercase text-violet-900 tracking-tighter">Publicar Evento</h3>
-            <input name="title" placeholder="Título" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm italic shadow-inner" />
-            <input name="date" type="date" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs" />
-            <select name="type" className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-[10px] font-black uppercase tracking-[3px] border border-gray-100">
+          <form onSubmit={handleSaveEvent} className="bg-white rounded-[50px] w-full max-w-sm p-10 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-orange-500">
+            <h3 className="text-xl font-black italic uppercase text-violet-900 tracking-tighter">{editingEvent ? 'Editar Evento' : 'Publicar Evento'}</h3>
+            <input name="title" defaultValue={editingEvent?.title} placeholder="Título" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm italic shadow-inner" />
+            <input name="date" type="date" defaultValue={editingEvent?.date} required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs" />
+            <select name="type" defaultValue={editingEvent?.type} className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-[10px] font-black uppercase tracking-[3px] border border-gray-100">
               {['GENERAL', 'SALIDA EDUCATIVA', 'EFEMÉRIDES', 'ACTO', 'REUNIÓN'].map(t => <option key={t} value={t}>{t}</option>)}
             </select>
-            <textarea name="description" placeholder="Observaciones..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none italic text-xs font-medium border border-gray-100 shadow-inner h-24 resize-none" />
+            <textarea name="description" defaultValue={editingEvent?.description} placeholder="Observaciones..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none italic text-xs font-medium border border-gray-100 shadow-inner h-24 resize-none" />
             <div className="flex gap-2">
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-4 text-gray-400 font-bold text-xs uppercase">Cancelar</button>
-                <button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-[10px] italic">Agendar</button>
+                <button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-[10px] italic">Guardar</button>
             </div>
           </form>
         </div>
       )}
 
-      {/* MODAL VER EVENTOS DEL DÍA */}
       {selectedDayEvents && (
         <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4" onClick={() => setSelectedDayEvents(null)}>
           <div className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -1041,17 +1064,17 @@ function CalendarView({ events, canEdit, user }) {
                 <h2 className="text-xl font-black text-violet-900 uppercase italic tracking-tighter">Eventos del {formatDate(selectedDayEvents.date)}</h2>
                 <button onClick={() => setSelectedDayEvents(null)}><X size={24} className="text-gray-400"/></button>
             </div>
-            
             <div className="space-y-4">
                 {selectedDayEvents.events.map(ev => (
-                    <div key={ev.id} className="bg-gray-50 p-4 rounded-3xl border border-gray-100 relative">
+                    <div key={ev.id} className="bg-gray-50 p-4 rounded-3xl border border-gray-100 relative group">
                         <span className="text-[9px] font-black text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full uppercase tracking-widest border border-orange-200">{ev.type}</span>
                         <h3 className="font-bold text-gray-800 mt-2 text-sm uppercase italic">{ev.title}</h3>
                         <p className="text-xs text-gray-500 mt-1 italic">{ev.description || 'Sin descripción.'}</p>
                         {canEdit && (
-                            <button onClick={() => deleteEvent(ev.id)} className="absolute top-4 right-4 text-red-300 hover:text-red-500 p-1 rounded-full hover:bg-red-50">
-                                <Trash2 size={16}/>
-                            </button>
+                            <div className="absolute top-4 right-4 flex gap-2">
+                                <button onClick={() => openEdit(ev)} className="text-blue-300 hover:text-blue-500 p-1 rounded-full hover:bg-blue-50"><Edit3 size={16}/></button>
+                                <button onClick={() => deleteEvent(ev.id)} className="text-red-300 hover:text-red-500 p-1 rounded-full hover:bg-red-50"><Trash2 size={16}/></button>
+                            </div>
                         )}
                     </div>
                 ))}
@@ -1194,10 +1217,11 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
 // --- VISTA ADMINISTRACIÓN DE USUARIOS (FALTANTE) ---
 function UsersAdminView() {
   const [users, setUsers] = useState([]);
-  const [showAdd, setShowAdd] = useState(false);
+  const [showModal, setShowModal] = useState(false); // Usamos un solo modal para Alta y Edición
   const [showImport, setShowImport] = useState(false);
   const [csvContent, setCsvContent] = useState('');
   const [importing, setImporting] = useState(false);
+  const [editingUser, setEditingUser] = useState(null); // Nuevo estado para edición
 
   useEffect(() => {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
@@ -1232,33 +1256,46 @@ function UsersAdminView() {
     } catch (e) { alert("Error: " + e.message); } finally { setImporting(false); }
   };
 
-  const addUser = async (e) => {
-    e.preventDefault(); const fd = new FormData(e.target);
+  const handleSaveUser = async (e) => {
+    e.preventDefault(); 
+    const fd = new FormData(e.target);
     const userData = {
         firstName: fd.get('firstName'), lastName: fd.get('lastName'), fullName: `${fd.get('firstName')} ${fd.get('lastName')}`,
         username: fd.get('username'), password: fd.get('password'), role: fd.get('role'),
-        rol: fd.get('isAdmin') === 'on' ? 'admin' : 'user', createdAt: serverTimestamp()
+        rol: fd.get('isAdmin') === 'on' ? 'admin' : 'user'
     };
-    const qCheck = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), where('username', '==', userData.username));
-    const checkSnap = await getDocs(qCheck);
-    if (!checkSnap.empty) { alert("Usuario existente."); return; }
-    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), userData); setShowAdd(false);
+    
+    if (editingUser) {
+        // MODO EDICIÓN
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', editingUser.id), userData);
+        setEditingUser(null);
+    } else {
+        // MODO CREACIÓN
+        const qCheck = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), where('username', '==', userData.username));
+        const checkSnap = await getDocs(qCheck);
+        if (!checkSnap.empty) { alert("Usuario existente."); return; }
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), { ...userData, createdAt: serverTimestamp() });
+    }
+    setShowModal(false);
   };
 
   const deleteUser = async (id) => { if(confirm("¿Eliminar usuario?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id)); };
+  
+  const openEdit = (u) => { setEditingUser(u); setShowModal(true); };
+  const openNew = () => { setEditingUser(null); setShowModal(true); };
 
   return (
    <div className="flex-1 flex flex-col min-h-0 bg-white/5 rounded-3xl p-4 mt-4">
     <div className="flex justify-between items-center mb-6">
         <div><h3 className="text-white font-bold text-sm uppercase tracking-widest">{users.length} Usuarios</h3></div>
         <div className="flex gap-2">
-          <button onClick={() => setShowImport(true)} className="bg-emerald-500 text-white px-3 py-2 rounded-xl font-black text-xs uppercase shadow-lg flex items-center gap-1"><UploadCloud size={16}/> Importar CSV</button>
-          <button onClick={() => setShowAdd(true)} className="bg-orange-500 text-white px-3 py-2 rounded-xl font-black text-xs uppercase shadow-lg flex items-center gap-1"><Plus size={16}/> Manual</button>
+          <button onClick={() => setShowImport(true)} className="bg-emerald-500 text-white px-3 py-2 rounded-xl font-black text-xs uppercase shadow-lg flex items-center gap-1"><UploadCloud size={16}/> Importar</button>
+          <button onClick={openNew} className="bg-orange-500 text-white px-3 py-2 rounded-xl font-black text-xs uppercase shadow-lg flex items-center gap-1"><Plus size={16}/> Manual</button>
         </div>
     </div>
     <div className="grid gap-3 pb-20 overflow-y-auto max-h-[60vh]">
      {users.map(u => (
-      <div key={u.id} className="bg-white p-4 rounded-2xl border border-white/50 shadow-sm flex items-center justify-between">
+      <div key={u.id} className="bg-white p-4 rounded-2xl border border-white/50 shadow-sm flex items-center justify-between group">
        <div className="flex items-center gap-4">
         <div className="w-10 h-10 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center font-black text-xs uppercase border border-violet-200">{u.firstName?.[0]}{u.lastName?.[0]}</div>
         <div>
@@ -1266,30 +1303,42 @@ function UsersAdminView() {
             <p className="text-[10px] text-gray-400 mt-0.5">{u.role} | {u.username}</p>
         </div>
        </div>
-       {u.username !== 'admin' && <button onClick={() => deleteUser(u.id)} className="p-2 bg-red-50 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition"><Trash2 size={16}/></button>}
+       <div className="flex gap-2">
+           <button onClick={() => openEdit(u)} className="p-2 bg-blue-50 text-blue-500 rounded-full hover:bg-blue-500 hover:text-white transition"><Edit3 size={16}/></button>
+           {u.username !== 'admin' && <button onClick={() => deleteUser(u.id)} className="p-2 bg-red-50 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition"><Trash2 size={16}/></button>}
+       </div>
       </div>
      ))}
     </div>
+
+    {/* MODAL IMPORTAR */}
     {showImport && (
       <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4">
          <div className="bg-white rounded-[40px] w-full max-w-lg p-8 shadow-2xl border-t-8 border-emerald-500 animate-in zoom-in-95">
-            <h3 className="text-xl font-black italic uppercase text-emerald-700 mb-2">Carga Masiva (Excel)</h3>
-            <p className="text-xs text-gray-500 mb-4">Orden: <b>Nombre, Apellido, Usuario, DNI, Rol</b> (separado por comas)</p>
+            <h3 className="text-xl font-black italic uppercase text-emerald-700 mb-2">Carga Masiva</h3>
+            <p className="text-xs text-gray-500 mb-4">Orden: <b>Nombre, Apellido, Usuario, DNI, Rol</b></p>
             <textarea value={csvContent} onChange={(e) => setCsvContent(e.target.value)} placeholder="Ej: Lucia,Snieg,lucia.s,30123456,Directivo" className="w-full h-48 p-4 bg-gray-50 rounded-2xl text-xs font-mono border border-gray-200 outline-none focus:border-emerald-500" />
             <div className="flex gap-2 pt-4"><button onClick={() => setShowImport(false)} className="flex-1 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button><button onClick={handleBulkImport} disabled={importing} className="flex-1 py-3 bg-emerald-600 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">{importing ? <RefreshCw className="animate-spin"/> : 'Procesar'}</button></div>
          </div>
       </div>
     )}
-    {showAdd && (
+
+    {/* MODAL MANUAL (CREAR Y EDITAR) */}
+    {showModal && (
      <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4">
-      <form onSubmit={addUser} className="bg-white rounded-[40px] w-full max-w-sm p-8 space-y-4 shadow-2xl border-t-8 border-orange-500 animate-in zoom-in-95">
-       <h3 className="text-xl font-black italic uppercase text-violet-900">Nuevo Usuario</h3>
-       <div className="grid grid-cols-2 gap-3"><input name="firstName" placeholder="Nombre" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" /><input name="lastName" placeholder="Apellido" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" /></div>
-       <input name="username" placeholder="Usuario" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
-       <input name="password" placeholder="Contraseña" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
-       <select name="role" className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs font-black uppercase border border-gray-100">{ROLES.map(r => <option key={r} value={r}>{r}</option>)}</select>
-       <div className="flex items-center gap-2 p-2 bg-violet-50 rounded-xl"><input type="checkbox" name="isAdmin" className="w-4 h-4 accent-violet-600" /><label className="text-xs font-bold text-violet-900">¿Es Administrador?</label></div>
-       <div className="flex gap-2 pt-2"><button type="button" onClick={() => setShowAdd(false)} className="flex-1 text-gray-400 font-bold uppercase text-[10px]">Volver</button><button type="submit" className="flex-1 py-3 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">Registrar</button></div>
+      <form onSubmit={handleSaveUser} className="bg-white rounded-[40px] w-full max-w-sm p-8 space-y-4 shadow-2xl border-t-8 border-orange-500 animate-in zoom-in-95">
+       <h3 className="text-xl font-black italic uppercase text-violet-900">{editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}</h3>
+       <div className="grid grid-cols-2 gap-3">
+           <input name="firstName" defaultValue={editingUser?.firstName} placeholder="Nombre" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
+           <input name="lastName" defaultValue={editingUser?.lastName} placeholder="Apellido" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
+       </div>
+       <input name="username" defaultValue={editingUser?.username} placeholder="Usuario" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
+       <input name="password" defaultValue={editingUser?.password} placeholder="Contraseña" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
+       <select name="role" defaultValue={editingUser?.role || ROLES[0]} className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs font-black uppercase border border-gray-100">
+          {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+       </select>
+       <div className="flex items-center gap-2 p-2 bg-violet-50 rounded-xl"><input type="checkbox" name="isAdmin" defaultChecked={editingUser?.rol === 'admin'} className="w-4 h-4 accent-violet-600" /><label className="text-xs font-bold text-violet-900">¿Es Administrador?</label></div>
+       <div className="flex gap-2 pt-2"><button type="button" onClick={() => setShowModal(false)} className="flex-1 text-gray-400 font-bold uppercase text-[10px]">Volver</button><button type="submit" className="flex-1 py-3 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">Guardar</button></div>
       </form>
      </div>
     )}
@@ -1673,4 +1722,5 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
