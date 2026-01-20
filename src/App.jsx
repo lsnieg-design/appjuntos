@@ -388,8 +388,7 @@ function MainApp({ user, onLogout }) {
                   <button onClick={() => setShowNotifPanel(false)}><X size={16} className="text-gray-400"/></button>
                   <button 
   onClick={() => { setActiveTab('notifications'); setShowNotifPanel(false); }}
-  className="w-full p-3 text-center text-xs font-bold text-violet-600 bg-violet-50 hover:bg-violet-100 border-t"
->
+  className="w-full p-3 text-center text-xs font-bold text-violet-600 bg-violet-50 hover:bg-violet-100 border-t">
   VER TODOS LOS AVISOS
 </button>
                 </div>
@@ -426,6 +425,7 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'resources' && <ResourcesView resources={resources} canEdit={canManageContent} />}
         {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={canManageContent} user={user} />}
         {activeTab === 'profile' && <ProfileView user={user} onLogout={onLogout} isSuperAdmin={isSuperAdmin} />}
+        
 
         
         {/* CORRECCIÓN: Ahora pasamos isSuperAdmin a ProfileView */}
@@ -1673,3 +1673,4 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
