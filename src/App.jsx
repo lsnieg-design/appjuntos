@@ -307,6 +307,7 @@ function LoginScreen({ onLogin }) {
   );
 }
 
+
 // --- APP PRINCIPAL (CON TODAS LAS MEJORAS INTEGRADAS) ---
 function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -1769,5 +1770,6 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
