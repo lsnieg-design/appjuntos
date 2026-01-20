@@ -88,20 +88,19 @@ const formatDate = (dateString) => {
 };
 
 // --- Componente Principal Wrapper ---
-// --- Componente Principal Wrapper (CON ESCUCHA EN TIEMPO REAL) ---
 export default function App() {
+  const [firebaseUser, setFirebaseUser] = useState(null);
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [configError, setConfigError] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
-    // 1. Timer Intro
-    const splashTimer = setTimeout(() => setShowSplash(false), 3000);
+    if (!auth) {
+      setConfigError(true);
+      setLoading(false);
+      return;
+    }
 
-    if (!auth) { setConfigError(true); setLoading(false); return; }
-
-    // 2. Autenticación y Sincronización de Perfil
     const initAuth = async () => {
       try {
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -109,55 +108,33 @@ export default function App() {
         } else {
           await signInAnonymously(auth);
         }
-      } catch (error) { console.error("Auth error:", error); }
+      } catch (error) {
+        console.error("Auth error:", error);
+      }
     };
     initAuth();
 
-    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        // A. Intentar recuperar perfil guardado para carga rápida
-        const saved = localStorage.getItem('schoolApp_profile');
-        if (saved) setCurrentUserProfile(JSON.parse(saved));
-
-        // B. SI YA HAY UN USUARIO IDENTIFICADO EN LOCALSTORAGE, ESCUCHAR CAMBIOS EN VIVO
-        // Esto hace que si cambiás la foto, se actualice sola en toda la app
-        if (saved) {
-            const userObj = JSON.parse(saved);
-            const userDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', userObj.id);
-            
-            // Suscripción a cambios en la base de datos
-            const unsubscribeSnapshot = onSnapshot(userDocRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    const freshData = { id: docSnap.id, ...docSnap.data() };
-                    // Detectar si el usuario fue borrado o cambió rol crítico
-                    setCurrentUserProfile(freshData);
-                    localStorage.setItem('schoolApp_profile', JSON.stringify(freshData));
-                }
-            });
-            return () => unsubscribeSnapshot(); // Limpiar al desmontar
-        }
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setFirebaseUser(user);
+      const savedProfile = localStorage.getItem('schoolApp_profile');
+      if (savedProfile) {
+        setCurrentUserProfile(JSON.parse(savedProfile));
       }
       setLoading(false);
     });
-
-    return () => { unsubscribeAuth(); clearTimeout(splashTimer); };
+    return () => unsubscribe();
   }, []);
 
-  // Función para iniciar sesión (LoginScreen llama a esto)
   const handleLogin = (profileData) => {
     setCurrentUserProfile(profileData);
     localStorage.setItem('schoolApp_profile', JSON.stringify(profileData));
-    // Al loguear, forzamos una recarga rápida para activar el listener de arriba si es necesario
-    window.location.reload(); 
   };
 
   const handleLogout = () => {
     setCurrentUserProfile(null);
     localStorage.removeItem('schoolApp_profile');
-    window.location.reload();
   };
 
-  if (showSplash) return <SplashScreen />;
   if (loading) return <div className="flex items-center justify-center h-screen bg-violet-50"><div className="animate-spin rounded-full h-12 w-12 border-b-4 border-violet-600"></div></div>;
   if (configError) return <div className="flex flex-col items-center justify-center h-screen bg-red-50 p-6 text-center"><AlertCircle className="text-red-500 w-16 h-16 mb-4" /><h1 className="text-xl font-bold text-red-700">Error de Configuración</h1></div>;
   if (!currentUserProfile) return <LoginScreen onLogin={handleLogin} />;
@@ -1111,19 +1088,18 @@ function CalendarView({ events, canEdit, user }) {
 }
 
 // --- VISTA PERFIL (COMPLETA Y RESTAURADA) ---
-// --- VISTA PERFIL (CON ACTUALIZACIÓN DE FOTO INSTANTÁNEA) ---
-function ProfileView({ user, onLogout, isSuperAdmin }) {
+function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
   const [formData, setFormData] = useState({ firstName: user.firstName || '', lastName: user.lastName || '', photoUrl: user.photoUrl || '' });
   const [uploading, setUploading] = useState(false);
   const [showAdminUsers, setShowAdminUsers] = useState(false);
 
-  // 1. Activar Notificaciones
+  // 1. Activar Notificaciones (Lógica Real)
   const activarNotificaciones = async () => {
     try {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
         const messaging = getMessaging(app);
-        const currentToken = await getToken(messaging, { vapidKey: 'TU_VAPID_KEY_SI_TIENES' }); // Si no tenés Vapid Key, borrar opciones
+        const currentToken = await getToken(messaging, { vapidKey: VAPID_KEY });
         
         if (currentToken) {
            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
@@ -1132,14 +1108,10 @@ function ProfileView({ user, onLogout, isSuperAdmin }) {
            triggerMobileNotification("Dispositivo Conectado", "Ahora recibirás los comunicados aquí.");
         }
       } else { alert("Necesitamos tu permiso para enviarte avisos."); }
-    } catch (e) { 
-        console.error(e); 
-        // Fallback visual si no hay config de notificaciones real
-        alert("Notificaciones habilitadas en este navegador."); 
-    }
+    } catch (e) { console.error(e); alert("Error al activar: " + e.message); }
   };
 
-  // 2. Subir Foto (Optimizada)
+  // 2. Subir Foto (Con resize)
   const resizeImage = (file) => {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -1147,13 +1119,13 @@ function ProfileView({ user, onLogout, isSuperAdmin }) {
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 300; // Mantenemos tamaño pequeño para que no pese la BD
+          const MAX_WIDTH = 300; 
           const scaleSize = MAX_WIDTH / img.width;
           canvas.width = MAX_WIDTH;
           canvas.height = img.height * scaleSize;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL('image/jpeg', 0.8));
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
         };
         img.src = e.target.result;
       };
@@ -1168,21 +1140,20 @@ function ProfileView({ user, onLogout, isSuperAdmin }) {
       try {
         const resized = await resizeImage(file);
         const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-        // Guardamos en BD. El Listener de App detectará esto y actualizará el círculo arriba
         await updateDoc(userRef, { photoUrl: resized });
         setFormData({ ...formData, photoUrl: resized });
-      } catch (error) { 
-          alert("Error al subir imagen. Intenta con una más liviana."); 
-      } finally { 
-          setUploading(false); 
-      }
+        alert("Foto actualizada.");
+      } catch (error) { alert("Error al subir."); } finally { setUploading(false); }
     }
   };
 
   // 3. Exportar Tareas
   const exportData = () => {
-      // (Lógica de exportación de tareas)
-      alert("Función de exportación lista.");
+      if(!tasks || tasks.length === 0) return alert("No hay tareas para exportar.");
+      const csvContent = "Titulo,Fecha Limite,Estado\n" + tasks.map(t => `${t.title},${t.dueDate},${t.status}`).join("\n");
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a'); link.href = url; link.download = "Mis_Tareas.csv"; link.click();
   };
 
   return (
@@ -1194,21 +1165,9 @@ function ProfileView({ user, onLogout, isSuperAdmin }) {
           <div className="px-6 pb-6 pt-12 relative">
              <div className="absolute -top-10 left-6 w-24 h-24 bg-white p-1 rounded-2xl shadow-lg group">
                 <div className="w-full h-full rounded-xl overflow-hidden relative border border-violet-100 bg-violet-50 flex items-center justify-center cursor-pointer hover:opacity-80 transition">
-                   {/* Mostramos la foto local (formData) o la del usuario si no hay local */}
-                   {formData.photoUrl || user.photoUrl ? (
-                       <img src={formData.photoUrl || user.photoUrl} className="w-full h-full object-cover" alt="Perfil" />
-                   ) : (
-                       <div className="text-violet-600 font-bold text-3xl">{user.firstName?.[0]}{user.lastName?.[0]}</div>
-                   )}
-                   
-                   <input type="file" className="absolute inset-0 opacity-0 cursor-pointer z-20" onChange={handleFileChange} accept="image/*" />
-                   
-                   {uploading && (
-                       <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-30">
-                           <RefreshCw className="text-white animate-spin" />
-                       </div>
-                   )}
-                   {!uploading && <div className="absolute bottom-0 inset-x-0 bg-black/40 text-white text-[8px] py-1 uppercase font-bold">Cambiar</div>}
+                   {formData.photoUrl ? <img src={formData.photoUrl} className="w-full h-full object-cover" alt="Perfil" /> : <div className="text-violet-600 font-bold text-3xl">{user.firstName?.[0]}{user.lastName?.[0]}</div>}
+                   <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileChange} accept="image/*" />
+                   {uploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><RefreshCw className="text-white animate-spin" /></div>}
                 </div>
              </div>
              <div className="flex justify-between items-start">
@@ -1231,9 +1190,14 @@ function ProfileView({ user, onLogout, isSuperAdmin }) {
             </button>
         )}
 
+        <button onClick={exportData} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]">
+            <div className="bg-green-100 text-green-700 p-3 rounded-xl"><Download size={24} /></div>
+            <div className="text-left"><h4 className="font-bold text-gray-800">Exportar Reporte</h4><p className="text-xs text-gray-500">Descargar mis tareas en Excel</p></div>
+        </button>
+
         <button onClick={activarNotificaciones} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]">
             <div className="bg-yellow-100 text-yellow-700 p-3 rounded-xl"><Bell size={24} /></div>
-            <div className="text-left"><h4 className="font-bold text-gray-800">Notificaciones</h4><p className="text-xs text-gray-500">Configurar alertas</p></div>
+            <div className="text-left"><h4 className="font-bold text-gray-800">Activar Notificaciones</h4><p className="text-xs text-gray-500">Habilitar avisos en este dispositivo</p></div>
         </button>
 
         <button onClick={() => { if(confirm("¿Cerrar sesión?")) onLogout(); }} className="bg-red-50 p-4 rounded-2xl border border-red-100 shadow-sm flex items-center gap-4 hover:bg-red-100 transition active:scale-[0.98]">
@@ -1244,8 +1208,8 @@ function ProfileView({ user, onLogout, isSuperAdmin }) {
 
       {showAdminUsers && (
         <div className="fixed inset-0 bg-violet-900/95 z-[200] flex flex-col p-6 animate-in slide-in-from-bottom duration-500 overflow-y-auto">
-          <div className="flex justify-between items-center text-white mb-8"><h2 className="text-2xl font-black uppercase italic tracking-tighter">Administración Personal</h2><button onClick={() => setShowAdminUsers(false)}><X size={32} /></button></div>
-          <UsersAdminView />
+         <div className="flex justify-between items-center text-white mb-8"><h2 className="text-2xl font-black uppercase italic tracking-tighter">Administración Personal</h2><button onClick={() => setShowAdminUsers(false)}><X size={32} /></button></div>
+         <UsersAdminView />
         </div>
        )}
     </div>
