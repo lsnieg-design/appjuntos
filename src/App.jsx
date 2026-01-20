@@ -346,11 +346,7 @@ function MainApp({ user, onLogout }) {
     const qNotifs = query(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), where('toUserId', '==', user.id));
     const unsubNotifs = onSnapshot(qNotifs, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      data.sort((a, b) => {
-          const dateA = a.createdAt ? a.createdAt.seconds : 0;
-          const dateB = b.createdAt ? b.createdAt.seconds : 0;
-          return dateB - dateA;
-      });
+      data.sort((a, b) => { const dateA = a.createdAt ? a.createdAt.seconds : 0; const dateB = b.createdAt ? b.createdAt.seconds : 0; return dateB - dateA; });
       setNotifications(data.filter(n => !n.read));
     });
 
@@ -363,27 +359,13 @@ function MainApp({ user, onLogout }) {
     return () => { unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); };
   }, [user.id]);
 
-  // --- FUNCIÓN MÁGICA DE REDIRECCIÓN ---
   const handleNotificationClick = async (notif) => {
-      // 1. Marcar como leída
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', notif.id), { read: true });
-      
-      // 2. Redirigir
-      if (notif.targetTab) {
-          setActiveTab(notif.targetTab);
-      } else {
-          // Heurística para notificaciones antiguas
-          const t = notif.title.toLowerCase();
-          if (t.includes('tarea') || t.includes('comentario')) setActiveTab('tasks');
-          else if (t.includes('evento') || t.includes('agenda')) setActiveTab('calendar');
-          else if (t.includes('recurso')) setActiveTab('resources');
-          else if (t.includes('legajo') || t.includes('alumno')) setActiveTab('matricula');
-      }
-      setShowNotifPanel(false);
+      if (notif.targetTab) { setActiveTab(notif.targetTab); } else { const t = notif.title.toLowerCase(); if (t.includes('tarea') || t.includes('comentario')) setActiveTab('tasks'); else if (t.includes('evento') || t.includes('agenda')) setActiveTab('calendar'); else if (t.includes('recurso')) setActiveTab('resources'); else if (t.includes('legajo') || t.includes('alumno')) setActiveTab('matricula'); } setShowNotifPanel(false);
   };
 
   const dismissNotification = async (e, id) => {
-      e.stopPropagation(); // Para que no active el click de redirección
+      e.stopPropagation(); 
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', id), { read: true });
   };
 
@@ -409,13 +391,14 @@ function MainApp({ user, onLogout }) {
                   <button onClick={() => setShowNotifPanel(false)}><X size={16} className="text-gray-400"/></button>
                 </div>
                 <div className="max-h-80 overflow-y-auto">
+                  {/* --- AQUÍ ESTABA EL CAMBIO --- */}
                   {notifications.length === 0 ? (
-    <div className="p-10 text-center flex flex-col items-center">
-        <div className="bg-gray-50 p-3 rounded-full mb-3">
-            <Bell size={24} className="text-gray-300" />
-        </div>
-        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Sin novedades</p>
-    </div>
+                    <div className="p-10 text-center flex flex-col items-center">
+                        <div className="bg-gray-50 p-3 rounded-full mb-3">
+                            <Bell size={24} className="text-gray-300" />
+                        </div>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Sin novedades</p>
+                    </div>
                   ) : (
                     notifications.map(n => (
                       <div key={n.id} onClick={() => handleNotificationClick(n)} className="p-4 border-b last:border-none hover:bg-gray-50 transition relative group cursor-pointer">
@@ -708,7 +691,6 @@ function ResourcesView({ resources, canEdit }) {
 
 
 // --- VISTA TAREAS ---
-// --- VISTA TAREAS (CON REDIRECCIÓN) ---
 function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
@@ -741,43 +723,25 @@ function TasksView({ tasks, user, canEdit }) {
   };
 
   const handleSaveTask = async (e) => {
-    e.preventDefault(); 
-    const fd = new FormData(e.target);
+    e.preventDefault(); const fd = new FormData(e.target);
     let assignedName = "Todos", targetUserId = null, targetRoles = [];
+    if (assignType === 'user') { const uId = fd.get('targetUser'); const uObj = usersList.find(u => u.id === uId); assignedName = uObj ? uObj.fullName : "Desconocido"; targetUserId = uId; } 
+    else { assignedName = selectedRoles.join(", "); targetRoles = selectedRoles; }
     
-    if (assignType === 'user') {
-        const uId = fd.get('targetUser'); const uObj = usersList.find(u => u.id === uId);
-        assignedName = uObj ? uObj.fullName : "Desconocido"; targetUserId = uId;
-    } else {
-        assignedName = selectedRoles.join(", "); targetRoles = selectedRoles;
-    }
+    const taskData = { title: fd.get('title'), dueDate: fd.get('dueDate'), priority: fd.get('priority'), targetType: assignType, targetUserId, targetRoles: selectedRoles, assignedToName: assignedName };
 
-    const taskData = { 
-        title: fd.get('title'), dueDate: fd.get('dueDate'), priority: fd.get('priority'), 
-        targetType: assignType, targetUserId, targetRoles: selectedRoles, assignedToName: assignedName 
-    };
-
-    if (editingTask) {
-         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData);
+    if (editingTask) { 
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData); 
     } else {
          const newTask = { ...taskData, createdByName: user.fullName || user.firstName, createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: [] };
          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), newTask);
          
-         // --- NOTIFICACIONES CON LINK ---
          if (assignType === 'user' && targetUserId && targetUserId !== user.id) {
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { 
-                toUserId: targetUserId, title: "Nueva Tarea", message: `${user.firstName} te asignó: "${fd.get('title')}"`, 
-                read: false, createdAt: serverTimestamp(), targetTab: 'tasks' // <--- ESTO AGREGA EL LINK
-            });
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { toUserId: targetUserId, title: "Nueva Tarea", message: `${user.firstName} te asignó: "${fd.get('title')}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks' });
          }
          if (assignType === 'roles' && selectedRoles.length > 0) {
              const recipients = usersList.filter(u => selectedRoles.includes(u.role) && u.id !== user.id);
-             const notifPromises = recipients.map(recipient => {
-                 return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), {
-                     toUserId: recipient.id, title: "Nueva Tarea de Área", message: `${user.firstName} asignó a ${selectedRoles.join(', ')}: "${fd.get('title')}"`,
-                     read: false, createdAt: serverTimestamp(), targetTab: 'tasks' // <--- ESTO AGREGA EL LINK
-                 });
-             });
+             const notifPromises = recipients.map(recipient => { return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { toUserId: recipient.id, title: "Nueva Tarea de Área", message: `${user.firstName} asignó a ${selectedRoles.join(', ')}: "${fd.get('title')}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks' }); });
              await Promise.all(notifPromises);
          }
     }
@@ -788,34 +752,31 @@ function TasksView({ tasks, user, canEdit }) {
       if (!newComment.trim()) return;
       const commentData = { text: newComment, author: user.firstName, date: new Date().toISOString() };
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion(commentData) });
-      
       if (task.createdById && task.createdById !== user.id) {
-          // Notificación de comentario con link
-          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { 
-              toUserId: task.createdById, title: "Nuevo Comentario", message: `${user.firstName} comentó en "${task.title}"`, 
-              read: false, createdAt: serverTimestamp(), targetTab: 'tasks' 
-          });
+          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { toUserId: task.createdById, title: "Nuevo Comentario", message: `${user.firstName} comentó en "${task.title}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks' });
       }
       setNewComment("");
   };
 
   const handleDelete = async (id) => { if(confirm("¿Seguro que deseas eliminar esta tarea?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
   const changeStatus = async (task, newStatus) => { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
-  
   const openNew = () => { setEditingTask(null); setShowModal(true); };
   const openEdit = (t) => { setEditingTask(t); setAssignType(t.targetType || 'user'); setSelectedRoles(t.targetRoles || []); setShowModal(true); };
 
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10">
       <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2><button onClick={openNew} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:scale-110 transition-all"><Plus/></button></div>
+      
+      {/* --- AQUÍ ESTABA EL ERROR: ESTADO VACÍO VISUAL --- */}
       {filteredTasks.length === 0 ? (
-    <div className="flex flex-col items-center justify-center py-16 bg-white rounded-[40px] border-2 border-dashed border-gray-100 opacity-80">
-        <div className="bg-green-50 p-4 rounded-full mb-3">
-            <CheckCircle size={40} className="text-green-400" />
+        <div className="flex flex-col items-center justify-center py-16 bg-white rounded-[40px] border-2 border-dashed border-gray-100 opacity-80">
+            <div className="bg-green-50 p-4 rounded-full mb-3">
+                <CheckCircle size={40} className="text-green-400" />
+            </div>
+            <h3 className="font-black text-gray-400 text-sm uppercase tracking-widest">¡Todo listo!</h3>
+            <p className="text-xs text-gray-300 font-medium">No tenés tareas pendientes</p>
         </div>
-        <h3 className="font-black text-gray-400 text-sm uppercase tracking-widest">¡Todo listo!</h3>
-        <p className="text-xs text-gray-300 font-medium">No tenés tareas pendientes</p>
-    </div> : (
+      ) : (
         <div className="grid gap-3 pb-10">
             {filteredTasks.map(t => (
             <div key={t.id} className={`p-5 rounded-[30px] border-l-8 shadow-sm flex flex-col gap-3 bg-white ${getPriorityStyle(t.priority)} transition-all relative`}>
@@ -844,6 +805,7 @@ function TasksView({ tasks, user, canEdit }) {
             ))}
         </div>
       )}
+
       {showModal && (
         <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
           <form onSubmit={handleSaveTask} className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
@@ -1761,6 +1723,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
