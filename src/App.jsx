@@ -86,15 +86,46 @@ const formatDate = (dateString) => {
   const date = new Date(dateString + 'T00:00:00');
   return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
-
+// --- INTRO / SPLASH SCREEN ---
+function SplashScreen() {
+  return (
+    <div className="fixed inset-0 bg-white z-[9999] flex flex-col items-center justify-center animate-out fade-out duration-700 delay-[2000ms] fill-mode-forwards">
+      <div className="animate-bounce">
+        <img 
+          src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" 
+          alt="Logo Intro" 
+          className="w-40 h-auto object-contain drop-shadow-2xl" 
+        />
+      </div>
+      <h1 className="mt-6 text-2xl font-black text-violet-900 tracking-widest uppercase italic animate-pulse">
+        Juntos a la Par
+      </h1>
+      <div className="mt-8 flex gap-2">
+        <div className="w-3 h-3 bg-orange-500 rounded-full animate-ping"></div>
+        <div className="w-3 h-3 bg-violet-600 rounded-full animate-ping delay-75"></div>
+        <div className="w-3 h-3 bg-blue-500 rounded-full animate-ping delay-150"></div>
+      </div>
+    </div>
+  );
+}
 // --- Componente Principal Wrapper ---
+// --- Componente Principal Wrapper (MODIFICADO CON INTRO) ---
 export default function App() {
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [configError, setConfigError] = useState(false);
+  
+  // Nuevo estado para la intro
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
+    // 1. Timer para la Intro (3 segundos)
+    const splashTimer = setTimeout(() => {
+      setShowSplash(false);
+    }, 3000);
+
+    // 2. Lógica de Auth original
     if (!auth) {
       setConfigError(true);
       setLoading(false);
@@ -122,27 +153,33 @@ export default function App() {
       }
       setLoading(false);
     });
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribe();
+      clearTimeout(splashTimer);
+    };
   }, []);
 
-  const handleLogin = (profileData) => {
-    setCurrentUserProfile(profileData);
-    localStorage.setItem('schoolApp_profile', JSON.stringify(profileData));
-  };
+  // --- RENDERIZADO ---
+  
+  // 1. Primero mostramos SIEMPRE la intro mientras el timer corra
+  if (showSplash) return <SplashScreen />;
 
-  const handleLogout = () => {
-    setCurrentUserProfile(null);
-    localStorage.removeItem('schoolApp_profile');
-  };
-
+  // 2. Si terminó la intro pero sigue cargando Firebase (raro, pero posible)
   if (loading) return <div className="flex items-center justify-center h-screen bg-violet-50"><div className="animate-spin rounded-full h-12 w-12 border-b-4 border-violet-600"></div></div>;
+  
+  // 3. Errores de config
   if (configError) return <div className="flex flex-col items-center justify-center h-screen bg-red-50 p-6 text-center"><AlertCircle className="text-red-500 w-16 h-16 mb-4" /><h1 className="text-xl font-bold text-red-700">Error de Configuración</h1></div>;
+  
+  // 4. Si no está logueado -> Login
   if (!currentUserProfile) return <LoginScreen onLogin={handleLogin} />;
 
+  // 5. Si está logueado -> App Principal
   return <MainApp user={currentUserProfile} onLogout={handleLogout} />;
 }
 
 // --- PANTALLA LOGIN ---
+// --- CORRECCIÓN URGENTE: LOGIN INSENSIBLE A MAYÚSCULAS ---
 function LoginScreen({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -152,7 +189,7 @@ function LoginScreen({ onLogin }) {
   const [recoverUser, setRecoverUser] = useState('');
   const [recoverStatus, setRecoverStatus] = useState('idle');
   
-  // Lógica de instalación PWA
+  // Lógica de instalación PWA (Se mantiene igual)
   const [showInstall, setShowInstall] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [esIos, setEsIos] = useState(false);
@@ -161,35 +198,29 @@ function LoginScreen({ onLogin }) {
   useEffect(() => {
     const iosCheck = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
     setEsIos(iosCheck);
-
     const handleBeforeInstallPrompt = (e) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
+      e.preventDefault(); setDeferredPrompt(e);
       if (!isStandalone) setShowInstall(true);
     };
-
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    if (iosCheck && !isStandalone) {
-       const timer = setTimeout(() => setShowInstall(true), 3000);
-       return () => clearTimeout(timer);
-    }
+    if (iosCheck && !isStandalone) { const timer = setTimeout(() => setShowInstall(true), 3000); return () => clearTimeout(timer); }
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, [isStandalone]);
 
   const handleInstalarClick = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') setShowInstall(false);
-      setDeferredPrompt(null);
-    }
+    if (deferredPrompt) { deferredPrompt.prompt(); const { outcome } = await deferredPrompt.userChoice; if (outcome === 'accepted') setShowInstall(false); setDeferredPrompt(null); }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setChecking(true);
-  if (userLower === 'admin' && password === 'admin123') {
+
+    // Normalizamos lo que escribió el usuario para comparar después
+    const inputUser = username.toLowerCase().trim();
+
+    // Acceso Super Admin Hardcoded (Backdoor de emergencia)
+    if (inputUser === 'admin' && password === 'admin123') {
       onLogin({
         id: 'super-admin', firstName: 'Super', lastName: 'Admin', fullName: 'Super Admin',
         role: 'Equipo Directivo', rol: 'super-admin', isAdmin: true, username: 'admin' 
@@ -199,16 +230,21 @@ function LoginScreen({ onLogin }) {
 
     try {
       const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
-      // Buscamos por el usuario en minúsculas
-      const q = query(usersRef, where('username', '==', userLower), where('password', '==', password));
+      
+      // ESTRATEGIA CORREGIDA:
+      // 1. Buscamos usuarios que coincidan con la CONTRASEÑA (que es exacta).
+      // 2. Filtramos en Javascript el nombre de usuario ignorando mayúsculas/minúsculas.
+      const q = query(usersRef, where('password', '==', password));
       const querySnapshot = await getDocs(q);
 
-      if (!querySnapshot.empty) {
-        const userDoc = querySnapshot.docs[0];
+      // Buscamos si alguno de los que tiene esa contraseña, coincide en nombre (ignorando mayúsculas)
+      const userDoc = querySnapshot.docs.find(doc => doc.data().username.toLowerCase() === inputUser);
+
+      if (userDoc) {
         const userData = userDoc.data();
         const userDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', userDoc.id);
         
-        // Guardamos la última conexión
+        // Actualizar última conexión
         await updateDoc(userDocRef, { lastLogin: serverTimestamp() });
         
         const esAdmin = userData.rol === 'admin';
@@ -218,7 +254,7 @@ function LoginScreen({ onLogin }) {
       }
     } catch (err) {
       console.error(err);
-      setError('Error de conexión.');
+      setError('Error de conexión o datos incorrectos.');
     } finally {
       setChecking(false);
     }
@@ -229,17 +265,19 @@ function LoginScreen({ onLogin }) {
     if(!recoverUser.trim()) return;
     setRecoverStatus('sending');
     try {
+        // Para recuperar contraseña, traemos todos los usuarios y filtramos en JS para evitar problemas de mayúsculas
         const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
-        const q = query(usersRef, where('username', '==', recoverUser.toLowerCase())); // También en minúsculas aquí
-        const snapshot = await getDocs(q);
-        if (snapshot.empty) {
+        const snapshot = await getDocs(usersRef);
+        const userExists = snapshot.docs.some(doc => doc.data().username.toLowerCase() === recoverUser.toLowerCase().trim());
+
+        if (!userExists) {
             setRecoverStatus('error');
             setTimeout(() => setRecoverStatus('idle'), 3000);
             return;
         }
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'requests'), {
             type: 'password_reset',
-            username: recoverUser.toLowerCase(),
+            username: recoverUser,
             status: 'pending',
             createdAt: serverTimestamp()
         });
@@ -249,8 +287,23 @@ function LoginScreen({ onLogin }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-900 to-fuchsia-900 flex items-center justify-center p-6 relative">
+      {!isStandalone && showInstall && (
+         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+             <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm text-center">
+                 <div className="mx-auto bg-purple-100 w-20 h-20 rounded-full flex items-center justify-center mb-5 animate-bounce"><Smartphone className="text-violet-600" size={40} /></div>
+                 <h3 className="text-2xl font-extrabold text-gray-800 mb-2">¡Instala la App! 📲</h3>
+                 <p className="text-gray-600 mb-6 text-sm">Para mejor experiencia, descarga la aplicación ahora.</p>
+                 <div className="flex flex-col gap-3">
+                     {!esIos ? (<button onClick={handleInstalarClick} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg">INSTALAR AHORA</button>) : (<div className="text-left bg-gray-50 p-4 rounded-xl border text-sm text-gray-700"><p className="mb-2 font-bold">En iPhone:</p>1. Toca <strong>Compartir</strong> <Share size={12} className="inline"/><br/>2. Selecciona <strong>"Agregar a Inicio"</strong> <PlusSquare size={12} className="inline"/></div>)}
+                     <button onClick={() => setShowInstall(false)} className="text-gray-400 text-sm font-medium hover:text-gray-600 underline mt-2">Quizás más tarde</button>
+                 </div>
+             </div>
+         </div>
+      )}
+
       <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md border-t-8 border-orange-500 relative z-0">
         <div className="text-center mb-8">
+            <div className="flex justify-center mb-4"><img src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" alt="Logo" className="h-24 w-auto object-contain drop-shadow-md" /></div>
             <h1 className="text-2xl font-extrabold text-violet-900 tracking-tight uppercase">PORTAL INSTITUCIONAL<br/><span className="text-orange-500">JUNTOS A LA PAR</span></h1>
         </div>
 
@@ -267,7 +320,7 @@ function LoginScreen({ onLogin }) {
               <div className="bg-violet-50 p-6 rounded-2xl text-center mb-6 border border-violet-100">
                 <Key className="mx-auto text-violet-500 mb-2" size={40} />
                 <h3 className="font-bold text-violet-900 text-lg mb-2">Solicitar Blanqueo</h3>
-                <p className="text-sm text-gray-600 mb-4">Ingresa tu usuario.</p>
+                <p className="text-sm text-gray-600 mb-4">Ingresa tu usuario para notificar a administración.</p>
                 {recoverStatus === 'sent' ? (
                     <div className="bg-green-100 text-green-700 p-3 rounded-xl mb-4 text-sm font-bold flex items-center justify-center gap-2"><CheckCircle size={18} /> ¡Solicitud Enviada!</div>
                 ) : (
@@ -1747,6 +1800,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
