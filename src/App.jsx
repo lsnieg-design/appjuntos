@@ -1771,5 +1771,3 @@ function MatriculaView({ user }) {
 
 
 
-
-
