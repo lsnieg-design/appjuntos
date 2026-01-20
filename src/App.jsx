@@ -386,6 +386,12 @@ function MainApp({ user, onLogout }) {
                 <div className="p-4 bg-violet-50 border-b flex justify-between items-center">
                   <h3 className="font-bold text-violet-900 text-sm">Avisos Recientes</h3>
                   <button onClick={() => setShowNotifPanel(false)}><X size={16} className="text-gray-400"/></button>
+                  <button 
+  onClick={() => { setActiveTab('notifications'); setShowNotifPanel(false); }}
+  className="w-full p-3 text-center text-xs font-bold text-violet-600 bg-violet-50 hover:bg-violet-100 border-t"
+>
+  VER TODOS LOS AVISOS
+</button>
                 </div>
                 <div className="max-h-80 overflow-y-auto">
                   {notifications.length === 0 ? (
@@ -418,6 +424,9 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} canEdit={canManageContent} />}
         {activeTab === 'matricula' && <MatriculaView user={user} />}
         {activeTab === 'resources' && <ResourcesView resources={resources} canEdit={canManageContent} />}
+        {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={canManageContent} user={user} />}
+        {activeTab === 'profile' && <ProfileView user={user} onLogout={onLogout} isSuperAdmin={isSuperAdmin} />}
+
         
         {/* CORRECCIÓN: Ahora pasamos isSuperAdmin a ProfileView */}
         {activeTab === 'profile' && <ProfileView user={user} onLogout={onLogout} isSuperAdmin={isSuperAdmin} />}
@@ -770,7 +779,6 @@ function TasksView({ tasks, user, canEdit }) {
   );
 }
 // --- VISTA NOTIFICACIONES ---
-// --- MODIFICACIÓN 2: VISTA NOTIFICACIONES MEJORADA ---
 function NotificationsView({ notifications, canEdit, user }) {
   // Ordenar: Más nuevas arriba
   const sortedNotifs = [...notifications].sort((a, b) => {
@@ -779,11 +787,10 @@ function NotificationsView({ notifications, canEdit, user }) {
     return dateB - dateA;
   });
 
-  // Solo mostramos las NO leídas (o las que no tienen la propiedad read)
+  // Solo mostramos las NO leídas
   const visibleNotifs = sortedNotifs.filter(n => !n.read);
 
   const markAsRead = async (id) => {
-    // Al marcarla, se actualiza en la BD y desaparece de la lista local por el filtro
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', id), { read: true });
   };
 
@@ -802,7 +809,6 @@ function NotificationsView({ notifications, canEdit, user }) {
       <h2 className="text-2xl font-bold text-violet-900 mb-6 flex items-center gap-2">
         <Bell className="text-orange-500"/> Avisos Pendientes
       </h2>
-      
       <div className="space-y-3">
         {visibleNotifs.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200">
@@ -821,15 +827,12 @@ function NotificationsView({ notifications, canEdit, user }) {
                       <Clock size={10}/> {notif.createdAt ? formatTime(notif.createdAt) : formatDate(notif.date)}
                     </span>
                  </div>
-                 {/* BOTÓN PARA MARCAR COMO LEÍDO */}
                  <button onClick={() => markAsRead(notif.id)} className="text-gray-300 hover:text-green-500 transition" title="Marcar como leída">
                     <CheckSquare size={20} />
                  </button>
                </div>
-               
                <h3 className="font-bold text-gray-800 text-sm">{notif.title}</h3>
                <p className="text-xs text-gray-600 mt-1 leading-relaxed">{notif.message}</p>
-               
                {notif.isRequest && canEdit && (
                  <div className="mt-3 flex justify-end">
                    <button onClick={() => deleteRequest(notif.id)} className="flex items-center gap-1 text-xs font-bold text-red-500 bg-white border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition shadow-sm">
@@ -1189,7 +1192,6 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
   );
 }
 // --- VISTA ADMINISTRACIÓN DE USUARIOS (FALTANTE) ---
-// --- MODIFICACIÓN 3: GESTIÓN DE USUARIOS CON CARGA MASIVA ---
 function UsersAdminView() {
   const [users, setUsers] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
@@ -1203,102 +1205,57 @@ function UsersAdminView() {
     return () => unsub();
   }, []);
 
-  // --- FUNCIÓN DE IMPORTACIÓN MASIVA ---
   const handleBulkImport = async () => {
     if (!csvContent.trim()) return;
     setImporting(true);
     try {
-      // 1. Procesar líneas del CSV (Formato esperado: Nombre,Apellido,Usuario,DNI,Rol)
       const rows = csvContent.split('\n').filter(r => r.trim() !== '');
       let count = 0;
-      let errors = 0;
-
       for (let row of rows) {
         const cols = row.split(',').map(c => c.trim());
-        // Validamos que tenga al menos 5 columnas
         if (cols.length >= 5) {
           const [nombre, apellido, usuario, dni, rolInput] = cols;
-          
-          // Chequear si ya existe el usuario
           const exists = users.some(u => u.username === usuario);
           if (!exists) {
-             // Determinar si es admin del sistema (solo directivos o admin explícito)
              const esAdminSistema = rolInput.toLowerCase().includes('directivo') || rolInput.toLowerCase() === 'admin';
-             
              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), {
-               firstName: nombre,
-               lastName: apellido,
-               fullName: `${nombre} ${apellido}`,
-               username: usuario,
-               password: dni, // DNI como contraseña inicial
-               role: rolInput, // El rol visual (ej: Preceptora)
-               rol: esAdminSistema ? 'admin' : 'user', // El permiso de sistema
-               createdAt: serverTimestamp(),
-               firstLogin: true // Flag por si querés obligar a cambiar pass
+               firstName: nombre, lastName: apellido, fullName: `${nombre} ${apellido}`,
+               username: usuario, password: dni, role: rolInput, rol: esAdminSistema ? 'admin' : 'user',
+               createdAt: serverTimestamp()
              });
              count++;
-          } else {
-            errors++;
           }
         }
       }
-      alert(`✅ Proceso finalizado.\nImportados: ${count}\nDuplicados/Omitidos: ${errors}`);
-      setShowImport(false);
-      setCsvContent('');
-    } catch (e) {
-      alert("Error en la importación: " + e.message);
-    } finally {
-      setImporting(false);
-    }
+      alert(`✅ Importados: ${count} usuarios.`);
+      setShowImport(false); setCsvContent('');
+    } catch (e) { alert("Error: " + e.message); } finally { setImporting(false); }
   };
 
-  // --- FUNCIÓN AGREGAR INDIVIDUAL (Mantenemos la tuya con ajustes) ---
   const addUser = async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
+    e.preventDefault(); const fd = new FormData(e.target);
     const userData = {
-        firstName: fd.get('firstName'),
-        lastName: fd.get('lastName'),
-        fullName: `${fd.get('firstName')} ${fd.get('lastName')}`,
-        username: fd.get('username'),
-        password: fd.get('password'),
-        role: fd.get('role'),
-        rol: fd.get('isAdmin') === 'on' ? 'admin' : 'user',
-        createdAt: serverTimestamp()
+        firstName: fd.get('firstName'), lastName: fd.get('lastName'), fullName: `${fd.get('firstName')} ${fd.get('lastName')}`,
+        username: fd.get('username'), password: fd.get('password'), role: fd.get('role'),
+        rol: fd.get('isAdmin') === 'on' ? 'admin' : 'user', createdAt: serverTimestamp()
     };
-    
     const qCheck = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), where('username', '==', userData.username));
     const checkSnap = await getDocs(qCheck);
-    if (!checkSnap.empty) { alert("El nombre de usuario ya existe."); return; }
-
-    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), userData);
-    setShowAdd(false);
+    if (!checkSnap.empty) { alert("Usuario existente."); return; }
+    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), userData); setShowAdd(false);
   };
 
-  const deleteUser = async (id) => {
-      if(confirm("¿Estás seguro de eliminar este usuario?")) {
-          await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id));
-      }
-  };
+  const deleteUser = async (id) => { if(confirm("¿Eliminar usuario?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id)); };
 
   return (
    <div className="flex-1 flex flex-col min-h-0 bg-white/5 rounded-3xl p-4 mt-4">
     <div className="flex justify-between items-center mb-6">
-        <div>
-          <h3 className="text-white font-bold text-sm uppercase tracking-widest">{users.length} Usuarios</h3>
-          <p className="text-[10px] text-gray-400">Administración de personal</p>
-        </div>
+        <div><h3 className="text-white font-bold text-sm uppercase tracking-widest">{users.length} Usuarios</h3></div>
         <div className="flex gap-2">
-          {/* BOTÓN IMPORTAR */}
-          <button onClick={() => setShowImport(true)} className="bg-emerald-500 text-white px-3 py-2 rounded-xl font-black text-xs uppercase shadow-lg hover:scale-105 transition flex items-center gap-1">
-            <UploadCloud size={16}/> Importar CSV
-          </button>
-          <button onClick={() => setShowAdd(true)} className="bg-orange-500 text-white px-3 py-2 rounded-xl font-black text-xs uppercase shadow-lg hover:scale-105 transition flex items-center gap-1">
-            <Plus size={16}/> Manual
-          </button>
+          <button onClick={() => setShowImport(true)} className="bg-emerald-500 text-white px-3 py-2 rounded-xl font-black text-xs uppercase shadow-lg flex items-center gap-1"><UploadCloud size={16}/> Importar CSV</button>
+          <button onClick={() => setShowAdd(true)} className="bg-orange-500 text-white px-3 py-2 rounded-xl font-black text-xs uppercase shadow-lg flex items-center gap-1"><Plus size={16}/> Manual</button>
         </div>
     </div>
-    
     <div className="grid gap-3 pb-20 overflow-y-auto max-h-[60vh]">
      {users.map(u => (
       <div key={u.id} className="bg-white p-4 rounded-2xl border border-white/50 shadow-sm flex items-center justify-between">
@@ -1306,70 +1263,33 @@ function UsersAdminView() {
         <div className="w-10 h-10 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center font-black text-xs uppercase border border-violet-200">{u.firstName?.[0]}{u.lastName?.[0]}</div>
         <div>
             <p className="font-bold text-sm text-gray-800 uppercase italic tracking-tighter">{u.fullName}</p>
-            <div className="flex gap-2 text-[9px] uppercase tracking-widest font-bold">
-               <span className="text-orange-500">{u.role}</span>
-               {u.rol === 'admin' && <span className="text-violet-600 bg-violet-100 px-1 rounded">ADMIN</span>}
-            </div>
-            <p className="text-[10px] text-gray-400 mt-0.5">Usuario: {u.username} | Clave: {u.password}</p>
+            <p className="text-[10px] text-gray-400 mt-0.5">{u.role} | {u.username}</p>
         </div>
        </div>
-       {u.username !== 'admin' && (
-         <button onClick={() => deleteUser(u.id)} className="p-2 bg-red-50 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition"><Trash2 size={16}/></button>
-       )}
+       {u.username !== 'admin' && <button onClick={() => deleteUser(u.id)} className="p-2 bg-red-50 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition"><Trash2 size={16}/></button>}
       </div>
      ))}
     </div>
-
-    {/* MODAL IMPORTAR CSV */}
     {showImport && (
       <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4">
          <div className="bg-white rounded-[40px] w-full max-w-lg p-8 shadow-2xl border-t-8 border-emerald-500 animate-in zoom-in-95">
-            <h3 className="text-xl font-black italic uppercase text-emerald-700 mb-2">Carga Masiva</h3>
-            <p className="text-xs text-gray-500 mb-4">
-              Copia y pega desde tu Excel. El orden de columnas debe ser:<br/>
-              <b>Nombre, Apellido, Usuario, DNI, Rol</b> (separado por comas)
-            </p>
-            <textarea 
-              value={csvContent}
-              onChange={(e) => setCsvContent(e.target.value)}
-              placeholder={`Ejemplo:\nLucia,Snieg,lucia.s,30123456,Directivo\nMaria,Gomez,maria.g,29111222,Docente`}
-              className="w-full h-48 p-4 bg-gray-50 rounded-2xl text-xs font-mono border border-gray-200 outline-none focus:border-emerald-500"
-            />
-            <div className="flex gap-2 pt-4">
-               <button onClick={() => setShowImport(false)} className="flex-1 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
-               <button onClick={handleBulkImport} disabled={importing} className="flex-1 py-3 bg-emerald-600 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs flex justify-center items-center gap-2">
-                 {importing ? <RefreshCw className="animate-spin"/> : 'Procesar Datos'}
-               </button>
-            </div>
+            <h3 className="text-xl font-black italic uppercase text-emerald-700 mb-2">Carga Masiva (Excel)</h3>
+            <p className="text-xs text-gray-500 mb-4">Orden: <b>Nombre, Apellido, Usuario, DNI, Rol</b> (separado por comas)</p>
+            <textarea value={csvContent} onChange={(e) => setCsvContent(e.target.value)} placeholder="Ej: Lucia,Snieg,lucia.s,30123456,Directivo" className="w-full h-48 p-4 bg-gray-50 rounded-2xl text-xs font-mono border border-gray-200 outline-none focus:border-emerald-500" />
+            <div className="flex gap-2 pt-4"><button onClick={() => setShowImport(false)} className="flex-1 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button><button onClick={handleBulkImport} disabled={importing} className="flex-1 py-3 bg-emerald-600 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">{importing ? <RefreshCw className="animate-spin"/> : 'Procesar'}</button></div>
          </div>
       </div>
     )}
-
-    {/* MODAL MANUAL (EXISTENTE) */}
     {showAdd && (
      <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4">
       <form onSubmit={addUser} className="bg-white rounded-[40px] w-full max-w-sm p-8 space-y-4 shadow-2xl border-t-8 border-orange-500 animate-in zoom-in-95">
-       <h3 className="text-xl font-black italic uppercase text-violet-900 tracking-tighter">Nuevo Usuario</h3>
-       <div className="grid grid-cols-2 gap-3">
-           <input name="firstName" placeholder="Nombre" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
-           <input name="lastName" placeholder="Apellido" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
-       </div>
-       <input name="username" placeholder="Usuario Acceso" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
+       <h3 className="text-xl font-black italic uppercase text-violet-900">Nuevo Usuario</h3>
+       <div className="grid grid-cols-2 gap-3"><input name="firstName" placeholder="Nombre" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" /><input name="lastName" placeholder="Apellido" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" /></div>
+       <input name="username" placeholder="Usuario" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
        <input name="password" placeholder="Contraseña" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
-       <select name="role" className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs font-black uppercase border border-gray-100 shadow-inner">
-         {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-       </select>
-       <div className="flex items-center gap-2 p-2 bg-violet-50 rounded-xl">
-           <input type="checkbox" name="isAdmin" className="w-4 h-4 accent-violet-600" />
-           <div className="flex flex-col">
-             <label className="text-xs font-bold text-violet-900">¿Es Administrador?</label>
-             <span className="text-[9px] text-gray-500 leading-tight">Acceso total al sistema y edición.</span>
-           </div>
-       </div>
-       <div className="flex gap-2 pt-2">
-           <button type="button" onClick={() => setShowAdd(false)} className="flex-1 text-gray-400 font-bold uppercase text-[10px]">Volver</button>
-           <button type="submit" className="flex-1 py-3 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">Registrar</button>
-       </div>
+       <select name="role" className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs font-black uppercase border border-gray-100">{ROLES.map(r => <option key={r} value={r}>{r}</option>)}</select>
+       <div className="flex items-center gap-2 p-2 bg-violet-50 rounded-xl"><input type="checkbox" name="isAdmin" className="w-4 h-4 accent-violet-600" /><label className="text-xs font-bold text-violet-900">¿Es Administrador?</label></div>
+       <div className="flex gap-2 pt-2"><button type="button" onClick={() => setShowAdd(false)} className="flex-1 text-gray-400 font-bold uppercase text-[10px]">Volver</button><button type="submit" className="flex-1 py-3 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">Registrar</button></div>
       </form>
      </div>
     )}
@@ -1753,6 +1673,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
