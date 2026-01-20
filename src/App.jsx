@@ -189,7 +189,8 @@ function LoginScreen({ onLogin }) {
     e.preventDefault();
     setError('');
     setChecking(true);
-  if (userLower === 'admin' && password === 'admin123') {
+
+    if (username === 'admin' && password === 'admin123') {
       onLogin({
         id: 'super-admin', firstName: 'Super', lastName: 'Admin', fullName: 'Super Admin',
         role: 'Equipo Directivo', rol: 'super-admin', isAdmin: true, username: 'admin' 
@@ -199,18 +200,14 @@ function LoginScreen({ onLogin }) {
 
     try {
       const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
-      // Buscamos por el usuario en minúsculas
-      const q = query(usersRef, where('username', '==', userLower), where('password', '==', password));
+      const q = query(usersRef, where('username', '==', username), where('password', '==', password));
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
         const userDoc = querySnapshot.docs[0];
         const userData = userDoc.data();
         const userDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', userDoc.id);
-        
-        // Guardamos la última conexión
         await updateDoc(userDocRef, { lastLogin: serverTimestamp() });
-        
         const esAdmin = userData.rol === 'admin';
         onLogin({ ...userData, id: userDoc.id, isAdmin: esAdmin });
       } else {
@@ -224,13 +221,14 @@ function LoginScreen({ onLogin }) {
     }
   };
 
+  // Resto del login (Recuperar contraseña)
   const handleRequestReset = async (e) => {
     e.preventDefault();
     if(!recoverUser.trim()) return;
     setRecoverStatus('sending');
     try {
         const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
-        const q = query(usersRef, where('username', '==', recoverUser.toLowerCase())); // También en minúsculas aquí
+        const q = query(usersRef, where('username', '==', recoverUser));
         const snapshot = await getDocs(q);
         if (snapshot.empty) {
             setRecoverStatus('error');
@@ -239,18 +237,41 @@ function LoginScreen({ onLogin }) {
         }
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'requests'), {
             type: 'password_reset',
-            username: recoverUser.toLowerCase(),
+            username: recoverUser,
             status: 'pending',
             createdAt: serverTimestamp()
         });
         setRecoverStatus('sent');
-    } catch (error) { setRecoverStatus('error'); }
+    } catch (error) {
+        setRecoverStatus('error');
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-900 to-fuchsia-900 flex items-center justify-center p-6 relative">
+      {!isStandalone && showInstall && (
+         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+             <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm text-center">
+                 <div className="mx-auto bg-purple-100 w-20 h-20 rounded-full flex items-center justify-center mb-5 animate-bounce">
+                    <Smartphone className="text-violet-600" size={40} />
+                 </div>
+                 <h3 className="text-2xl font-extrabold text-gray-800 mb-2">¡Instala la App! 📲</h3>
+                 <p className="text-gray-600 mb-6 text-sm">Para mejor experiencia, descarga la aplicación ahora.</p>
+                 <div className="flex flex-col gap-3">
+                     {!esIos ? (
+                         <button onClick={handleInstalarClick} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg">INSTALAR AHORA</button>
+                     ) : (
+                         <div className="text-left bg-gray-50 p-4 rounded-xl border text-sm text-gray-700"><p className="mb-2 font-bold">En iPhone:</p>1. Toca <strong>Compartir</strong> <Share size={12} className="inline"/><br/>2. Selecciona <strong>"Agregar a Inicio"</strong> <PlusSquare size={12} className="inline"/></div>
+                     )}
+                     <button onClick={() => setShowInstall(false)} className="text-gray-400 text-sm font-medium hover:text-gray-600 underline mt-2">Quizás más tarde</button>
+                 </div>
+             </div>
+         </div>
+      )}
+
       <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md border-t-8 border-orange-500 relative z-0">
         <div className="text-center mb-8">
+            <div className="flex justify-center mb-4"><img src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" alt="Logo" className="h-24 w-auto object-contain drop-shadow-md" /></div>
             <h1 className="text-2xl font-extrabold text-violet-900 tracking-tight uppercase">PORTAL INSTITUCIONAL<br/><span className="text-orange-500">JUNTOS A LA PAR</span></h1>
         </div>
 
@@ -267,7 +288,7 @@ function LoginScreen({ onLogin }) {
               <div className="bg-violet-50 p-6 rounded-2xl text-center mb-6 border border-violet-100">
                 <Key className="mx-auto text-violet-500 mb-2" size={40} />
                 <h3 className="font-bold text-violet-900 text-lg mb-2">Solicitar Blanqueo</h3>
-                <p className="text-sm text-gray-600 mb-4">Ingresa tu usuario.</p>
+                <p className="text-sm text-gray-600 mb-4">Ingresa tu usuario para notificar a administración.</p>
                 {recoverStatus === 'sent' ? (
                     <div className="bg-green-100 text-green-700 p-3 rounded-xl mb-4 text-sm font-bold flex items-center justify-center gap-2"><CheckCircle size={18} /> ¡Solicitud Enviada!</div>
                 ) : (
@@ -285,6 +306,7 @@ function LoginScreen({ onLogin }) {
     </div>
   );
 }
+
 // --- APP PRINCIPAL (CON TODAS LAS MEJORAS INTEGRADAS) ---
 function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -295,7 +317,7 @@ function MainApp({ user, onLogout }) {
   const [showNotifPanel, setShowNotifPanel] = useState(false);
 
   // Verificación de permisos
-  const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin'; 
+  const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin'; // Ajusta según tus roles exactos
   const canManageContent = user.rol === 'admin' || isSuperAdmin || user.role === 'Equipo Directivo';
 
   useEffect(() => {
@@ -305,21 +327,20 @@ function MainApp({ user, onLogout }) {
       setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
 
-    // 2. Notificaciones (Solo las NO leídas)
+    // 2. Notificaciones (CORREGIDO: Quitamos orderBy para evitar error de índice de Firebase)
     const qNotifs = query(
       collection(db, 'artifacts', appId, 'public', 'data', 'notifications'),
       where('toUserId', '==', user.id)
     );
     const unsubNotifs = onSnapshot(qNotifs, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      // Ordenamos manualmente por fecha (descendente)
+      // Ordenamos manualmente por fecha (descendente) aquí en el cliente
       data.sort((a, b) => {
           const dateA = a.createdAt ? a.createdAt.seconds : 0;
           const dateB = b.createdAt ? b.createdAt.seconds : 0;
           return dateB - dateA;
       });
-      // Filtramos las leídas visualmente
-      setNotifications(data.filter(n => !n.read));
+      setNotifications(data);
     });
 
     // 3. Eventos
@@ -333,10 +354,7 @@ function MainApp({ user, onLogout }) {
     return () => { unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); };
   }, [user.id]);
 
-  const dismissNotification = async (id) => {
-      // Marcar como leída directamente desde el panel
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', id), { read: true });
-  };
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 font-sans text-slate-800">
@@ -356,9 +374,9 @@ function MainApp({ user, onLogout }) {
               className={`p-2 rounded-full transition ${showNotifPanel ? 'bg-orange-500' : 'bg-violet-900/50'}`}
             >
               <Bell size={20} />
-              {notifications.length > 0 && (
+              {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-pulse border border-white">
-                  {notifications.length}
+                  {unreadCount}
                 </span>
               )}
             </button>
@@ -368,25 +386,23 @@ function MainApp({ user, onLogout }) {
                 <div className="p-4 bg-violet-50 border-b flex justify-between items-center">
                   <h3 className="font-bold text-violet-900 text-sm">Avisos Recientes</h3>
                   <button onClick={() => setShowNotifPanel(false)}><X size={16} className="text-gray-400"/></button>
+                  <button 
+  onClick={() => { setActiveTab('notifications'); setShowNotifPanel(false); }}
+  className="w-full p-3 text-center text-xs font-bold text-violet-600 bg-violet-50 hover:bg-violet-100 border-t">
+  VER TODOS LOS AVISOS
+</button>
                 </div>
                 <div className="max-h-80 overflow-y-auto">
                   {notifications.length === 0 ? (
-                    <p className="p-8 text-center text-xs text-gray-400 italic">Estás al día. Sin avisos.</p>
+                    <p className="p-8 text-center text-xs text-gray-400 italic">No tienes avisos nuevos</p>
                   ) : (
                     notifications.map(n => (
-                      <div key={n.id} className="p-4 border-b last:border-none hover:bg-gray-50 transition relative group">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-[10px] font-bold text-orange-600 mb-1 uppercase tracking-tighter">{n.title}</p>
-                                <p className="text-xs text-gray-700 leading-tight pr-6">{n.message}</p>
-                                <p className="text-[9px] text-gray-400 mt-2">
-                                    {n.createdAt ? new Date(n.createdAt.seconds * 1000).toLocaleString() : '-'}
-                                </p>
-                            </div>
-                            <button onClick={() => dismissNotification(n.id)} className="text-gray-300 hover:text-red-500 transition p-1">
-                                <X size={16} />
-                            </button>
-                        </div>
+                      <div key={n.id} className={`p-4 border-b last:border-none hover:bg-gray-50 transition ${!n.read ? 'bg-orange-50/30' : ''}`}>
+                        <p className="text-[10px] font-bold text-orange-600 mb-1 uppercase tracking-tighter">{n.title}</p>
+                        <p className="text-xs text-gray-700 leading-tight">{n.message}</p>
+                        <p className="text-[9px] text-gray-400 mt-2">
+                            {n.createdAt ? new Date(n.createdAt.seconds * 1000).toLocaleString() : (n.date ? new Date(n.date).toLocaleString() : '-')}
+                        </p>
                       </div>
                     ))
                   )}
@@ -407,7 +423,14 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} canEdit={canManageContent} />}
         {activeTab === 'matricula' && <MatriculaView user={user} />}
         {activeTab === 'resources' && <ResourcesView resources={resources} canEdit={canManageContent} />}
+        {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={canManageContent} user={user} />}
         {activeTab === 'profile' && <ProfileView user={user} onLogout={onLogout} isSuperAdmin={isSuperAdmin} />}
+        
+
+        
+        {/* CORRECCIÓN: Ahora pasamos isSuperAdmin a ProfileView */}
+        {activeTab === 'profile' && <ProfileView user={user} onLogout={onLogout} isSuperAdmin={isSuperAdmin} />}
+        
         {activeTab === 'proyecto' && <ProyectoView user={user} />}
       </main>
 
@@ -674,35 +697,15 @@ function TasksView({ tasks, user, canEdit }) {
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [openCommentsId, setOpenCommentsId] = useState(null); 
   const [newComment, setNewComment] = useState("");
-  const [editingTask, setEditingTask] = useState(null); 
+  const [editingTask, setEditingTask] = useState(null); // Estado edición
 
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor'];
-  
-  // Permisos de GESTIÓN (Editar/Borrar)
   const canManage = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
 
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc')), snap => setUsersList(snap.docs.map(d => ({id: d.id, ...d.data()}))));
     return () => unsub();
   }, []);
-
-  // --- LÓGICA DE FILTRADO (PRIVACIDAD) ---
-  const filteredTasks = tasks.filter(t => {
-      // 1. Si soy Admin o Directivo, veo TODAS para supervisar
-      if (canManage) return true;
-      
-      // 2. Si yo la creé, la veo
-      if (t.createdById === user.id) return true;
-
-      // 3. Si está asignada específicamente a MI usuario
-      if (t.targetType === 'user' && t.targetUserId === user.id) return true;
-
-      // 4. Si está asignada a MI ROL (ej: 'Docente')
-      if (t.targetType === 'roles' && t.targetRoles && t.targetRoles.includes(user.role)) return true;
-
-      // Si no cumple nada, se oculta
-      return false;
-  });
 
   const getPriorityStyle = (p) => {
     if (p === 'alta') return 'border-l-red-500 bg-red-50';
@@ -731,18 +734,9 @@ function TasksView({ tasks, user, canEdit }) {
     } else {
          const newTask = { ...taskData, createdByName: user.fullName || user.firstName, createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: [] };
          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), newTask);
-         
-         // Notificar si es a usuario específico
          if (targetUserId && targetUserId !== user.id) {
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { 
-                toUserId: targetUserId, 
-                title: "Nueva Tarea", 
-                message: `${user.firstName} te asignó: "${fd.get('title')}"`, 
-                read: false, 
-                createdAt: serverTimestamp() 
-            });
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { toUserId: targetUserId, title: "Nueva Tarea", message: `${user.firstName} te asignó: "${fd.get('title')}"`, read: false, createdAt: serverTimestamp() });
          }
-         // (Opcional) Si quisieras notificar a Roles masivamente, iría aquí, pero suele generar mucho spam.
     }
     setShowModal(false); setSelectedRoles([]); setEditingTask(null);
   };
@@ -751,11 +745,6 @@ function TasksView({ tasks, user, canEdit }) {
       if (!newComment.trim()) return;
       const commentData = { text: newComment, author: user.firstName, date: new Date().toISOString() };
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion(commentData) });
-      
-      // Notificar al creador si comenta otro
-      if (task.createdById && task.createdById !== user.id) {
-          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { toUserId: task.createdById, title: "Nuevo Comentario", message: `${user.firstName} comentó en "${task.title}"`, read: false, createdAt: serverTimestamp() });
-      }
       setNewComment("");
   };
 
@@ -768,47 +757,41 @@ function TasksView({ tasks, user, canEdit }) {
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10">
       <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2><button onClick={openNew} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:scale-110 transition-all"><Plus/></button></div>
-      
-      {filteredTasks.length === 0 ? (
-          <div className="text-center py-10 text-gray-400 bg-white rounded-3xl border border-dashed border-gray-200"><p>No hay tareas asignadas para vos.</p></div>
-      ) : (
-        <div className="grid gap-3 pb-10">
-            {filteredTasks.map(t => (
-            <div key={t.id} className={`p-5 rounded-[30px] border-l-8 shadow-sm flex flex-col gap-3 bg-white ${getPriorityStyle(t.priority)} transition-all relative`}>
-                <div className="flex justify-between items-start">
-                <div className="flex-1 pr-6">
-                    <p className="text-[9px] font-black text-violet-600 uppercase tracking-widest italic mb-1">Para: {t.assignedToName}</p>
-                    <h3 className="font-bold text-gray-800 text-sm uppercase italic tracking-tighter leading-none">{t.title}</h3>
-                    <p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName}</p>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                    <div className="text-[9px] font-black bg-white px-2 py-1 rounded-full text-gray-400 border uppercase tracking-tighter italic shadow-inner">{t.dueDate}</div>
-                    {canManage && (
-                        <div className="flex gap-1">
-                            <button onClick={() => openEdit(t)} className="text-blue-300 hover:text-blue-600 p-1 bg-white rounded-full shadow-sm"><Edit3 size={14}/></button>
-                            <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm"><Trash2 size={14}/></button>
-                        </div>
-                    )}
-                </div>
-                </div>
-                {openCommentsId === t.id && (
-                    <div className="bg-white/50 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in">
-                        <div className="max-h-32 overflow-y-auto space-y-2 mb-2">
-                            {(t.comments || []).map((c, idx) => (<p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p>))}
-                            {(!t.comments || t.comments.length === 0) && <p className="text-[10px] text-gray-400 italic">Sin comentarios.</p>}
-                        </div>
-                        <div className="flex gap-2"><input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribir..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" /><button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button></div>
-                    </div>
-                )}
-                <div className="pt-2 border-t border-black/5 flex justify-between items-center">
-                <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-violet-600 bg-gray-50 px-2 py-1 rounded-lg"><MessageSquare size={14}/> {t.comments?.length || 0}</button>
-                <select value={t.status || 'pending'} onChange={(e) => changeStatus(t, e.target.value)} className="text-xs bg-white/50 border rounded-lg p-1 font-bold text-gray-600 outline-none cursor-pointer"><option value="pending">Pendiente</option><option value="in_process">En Proceso</option><option value="completed">Finalizado</option></select>
-                </div>
+      <div className="grid gap-3 pb-10">
+        {tasks.map(t => (
+          <div key={t.id} className={`p-5 rounded-[30px] border-l-8 shadow-sm flex flex-col gap-3 bg-white ${getPriorityStyle(t.priority)} transition-all relative`}>
+            <div className="flex justify-between items-start">
+              <div className="flex-1 pr-6">
+                <p className="text-[9px] font-black text-violet-600 uppercase tracking-widest italic mb-1">Para: {t.assignedToName}</p>
+                <h3 className="font-bold text-gray-800 text-sm uppercase italic tracking-tighter leading-none">{t.title}</h3>
+                <p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName}</p>
+              </div>
+              <div className="flex flex-col items-end gap-2">
+                 <div className="text-[9px] font-black bg-white px-2 py-1 rounded-full text-gray-400 border uppercase tracking-tighter italic shadow-inner">{t.dueDate}</div>
+                 {canManage && (
+                     <div className="flex gap-1">
+                        <button onClick={() => openEdit(t)} className="text-blue-300 hover:text-blue-600 p-1 bg-white rounded-full shadow-sm"><Edit3 size={14}/></button>
+                        <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm"><Trash2 size={14}/></button>
+                     </div>
+                 )}
+              </div>
             </div>
-            ))}
-        </div>
-      )}
-
+            {openCommentsId === t.id && (
+                <div className="bg-white/50 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in">
+                    <div className="max-h-32 overflow-y-auto space-y-2 mb-2">
+                        {(t.comments || []).map((c, idx) => (<p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p>))}
+                        {(!t.comments || t.comments.length === 0) && <p className="text-[10px] text-gray-400 italic">Sin comentarios.</p>}
+                    </div>
+                    <div className="flex gap-2"><input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribir..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" /><button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button></div>
+                </div>
+            )}
+            <div className="pt-2 border-t border-black/5 flex justify-between items-center">
+              <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-violet-600 bg-gray-50 px-2 py-1 rounded-lg"><MessageSquare size={14}/> {t.comments?.length || 0}</button>
+              <select value={t.status || 'pending'} onChange={(e) => changeStatus(t, e.target.value)} className="text-xs bg-white/50 border rounded-lg p-1 font-bold text-gray-600 outline-none cursor-pointer"><option value="pending">Pendiente</option><option value="in_process">En Proceso</option><option value="completed">Finalizado</option></select>
+            </div>
+          </div>
+        ))}
+      </div>
       {showModal && (
         <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
           <form onSubmit={handleSaveTask} className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
@@ -1234,11 +1217,11 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
 // --- VISTA ADMINISTRACIÓN DE USUARIOS (FALTANTE) ---
 function UsersAdminView() {
   const [users, setUsers] = useState([]);
-  const [showModal, setShowModal] = useState(false);
+  const [showModal, setShowModal] = useState(false); // Usamos un solo modal para Alta y Edición
   const [showImport, setShowImport] = useState(false);
   const [csvContent, setCsvContent] = useState('');
   const [importing, setImporting] = useState(false);
-  const [editingUser, setEditingUser] = useState(null);
+  const [editingUser, setEditingUser] = useState(null); // Nuevo estado para edición
 
   useEffect(() => {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
@@ -1256,14 +1239,12 @@ function UsersAdminView() {
         const cols = row.split(',').map(c => c.trim());
         if (cols.length >= 5) {
           const [nombre, apellido, usuario, dni, rolInput] = cols;
-          // Guardamos usuario en MINÚSCULAS
-          const usuarioLower = usuario.toLowerCase();
-          const exists = users.some(u => u.username === usuarioLower);
+          const exists = users.some(u => u.username === usuario);
           if (!exists) {
              const esAdminSistema = rolInput.toLowerCase().includes('directivo') || rolInput.toLowerCase() === 'admin';
              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), {
                firstName: nombre, lastName: apellido, fullName: `${nombre} ${apellido}`,
-               username: usuarioLower, password: dni, role: rolInput, rol: esAdminSistema ? 'admin' : 'user',
+               username: usuario, password: dni, role: rolInput, rol: esAdminSistema ? 'admin' : 'user',
                createdAt: serverTimestamp()
              });
              count++;
@@ -1278,20 +1259,19 @@ function UsersAdminView() {
   const handleSaveUser = async (e) => {
     e.preventDefault(); 
     const fd = new FormData(e.target);
-    // Guardamos usuario en MINÚSCULAS
-    const userLower = fd.get('username').toLowerCase();
-    
     const userData = {
         firstName: fd.get('firstName'), lastName: fd.get('lastName'), fullName: `${fd.get('firstName')} ${fd.get('lastName')}`,
-        username: userLower, password: fd.get('password'), role: fd.get('role'),
+        username: fd.get('username'), password: fd.get('password'), role: fd.get('role'),
         rol: fd.get('isAdmin') === 'on' ? 'admin' : 'user'
     };
     
     if (editingUser) {
+        // MODO EDICIÓN
         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', editingUser.id), userData);
         setEditingUser(null);
     } else {
-        const qCheck = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), where('username', '==', userLower));
+        // MODO CREACIÓN
+        const qCheck = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), where('username', '==', userData.username));
         const checkSnap = await getDocs(qCheck);
         if (!checkSnap.empty) { alert("Usuario existente."); return; }
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), { ...userData, createdAt: serverTimestamp() });
@@ -1303,11 +1283,6 @@ function UsersAdminView() {
   
   const openEdit = (u) => { setEditingUser(u); setShowModal(true); };
   const openNew = () => { setEditingUser(null); setShowModal(true); };
-
-  const formatLastLogin = (timestamp) => {
-      if (!timestamp) return 'Nunca';
-      return new Date(timestamp.seconds * 1000).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-  };
 
   return (
    <div className="flex-1 flex flex-col min-h-0 bg-white/5 rounded-3xl p-4 mt-4">
@@ -1326,8 +1301,6 @@ function UsersAdminView() {
         <div>
             <p className="font-bold text-sm text-gray-800 uppercase italic tracking-tighter">{u.fullName}</p>
             <p className="text-[10px] text-gray-400 mt-0.5">{u.role} | {u.username}</p>
-            {/* AQUÍ ESTÁ LA ÚLTIMA CONEXIÓN */}
-            <p className="text-[9px] text-green-600 font-bold mt-1 flex items-center gap-1"><Activity size={8}/> Activo: {formatLastLogin(u.lastLogin)}</p>
         </div>
        </div>
        <div className="flex gap-2">
@@ -1338,6 +1311,7 @@ function UsersAdminView() {
      ))}
     </div>
 
+    {/* MODAL IMPORTAR */}
     {showImport && (
       <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4">
          <div className="bg-white rounded-[40px] w-full max-w-lg p-8 shadow-2xl border-t-8 border-emerald-500 animate-in zoom-in-95">
@@ -1349,6 +1323,7 @@ function UsersAdminView() {
       </div>
     )}
 
+    {/* MODAL MANUAL (CREAR Y EDITAR) */}
     {showModal && (
      <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4">
       <form onSubmit={handleSaveUser} className="bg-white rounded-[40px] w-full max-w-sm p-8 space-y-4 shadow-2xl border-t-8 border-orange-500 animate-in zoom-in-95">
@@ -1747,5 +1722,4 @@ function MatriculaView({ user }) {
     </div>
   );
 }
-
 
