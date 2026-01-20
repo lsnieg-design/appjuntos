@@ -1673,17 +1673,3 @@ function MatriculaView({ user }) {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
