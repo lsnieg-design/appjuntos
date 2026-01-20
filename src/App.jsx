@@ -86,20 +86,38 @@ const formatDate = (dateString) => {
   const date = new Date(dateString + 'T00:00:00');
   return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
-
+// --- COMPONENTE VISUAL: INTRO ---
+function SplashScreen() {
+  return (
+    <div className="fixed inset-0 bg-gradient-to-br from-violet-600 to-indigo-700 z-[9999] flex flex-col items-center justify-center animate-out fade-out duration-1000 fill-mode-forwards">
+      <div className="bg-white p-6 rounded-[40px] shadow-2xl animate-bounce">
+        <img 
+          src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" 
+          alt="Logo" 
+          className="w-32 h-auto" 
+        />
+      </div>
+      <h1 className="mt-8 text-3xl font-black text-white tracking-widest uppercase italic animate-pulse">
+        Juntos a la Par
+      </h1>
+      <p className="text-white/60 text-xs font-bold mt-2 uppercase tracking-[4px]">Cargando Sistema...</p>
+    </div>
+  );
+}
 // --- Componente Principal Wrapper ---
 export default function App() {
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [configError, setConfigError] = useState(false);
+  // Estado para controlar el tiempo mínimo de la intro (2 segundos)
+  const [minTimePassed, setMinTimePassed] = useState(false);
 
   useEffect(() => {
-    if (!auth) {
-      setConfigError(true);
-      setLoading(false);
-      return;
-    }
+    // Timer visual: fuerza que la intro se vea al menos 2.5 segundos
+    setTimeout(() => setMinTimePassed(true), 2500);
+
+    if (!auth) { setConfigError(true); setLoading(false); return; }
 
     const initAuth = async () => {
       try {
@@ -392,7 +410,12 @@ function MainApp({ user, onLogout }) {
                 </div>
                 <div className="max-h-80 overflow-y-auto">
                   {notifications.length === 0 ? (
-                    <p className="p-8 text-center text-xs text-gray-400 italic">Estás al día. Sin avisos.</p>
+    <div className="p-10 text-center flex flex-col items-center">
+        <div className="bg-gray-50 p-3 rounded-full mb-3">
+            <Bell size={24} className="text-gray-300" />
+        </div>
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Sin novedades</p>
+    </div>
                   ) : (
                     notifications.map(n => (
                       <div key={n.id} onClick={() => handleNotificationClick(n)} className="p-4 border-b last:border-none hover:bg-gray-50 transition relative group cursor-pointer">
@@ -785,7 +808,14 @@ function TasksView({ tasks, user, canEdit }) {
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10">
       <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2><button onClick={openNew} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:scale-110 transition-all"><Plus/></button></div>
-      {filteredTasks.length === 0 ? (<div className="text-center py-10 text-gray-400 bg-white rounded-3xl border border-dashed border-gray-200"><p>No hay tareas asignadas para vos.</p></div>) : (
+      {filteredTasks.length === 0 ? (
+    <div className="flex flex-col items-center justify-center py-16 bg-white rounded-[40px] border-2 border-dashed border-gray-100 opacity-80">
+        <div className="bg-green-50 p-4 rounded-full mb-3">
+            <CheckCircle size={40} className="text-green-400" />
+        </div>
+        <h3 className="font-black text-gray-400 text-sm uppercase tracking-widest">¡Todo listo!</h3>
+        <p className="text-xs text-gray-300 font-medium">No tenés tareas pendientes</p>
+    </div> : (
         <div className="grid gap-3 pb-10">
             {filteredTasks.map(t => (
             <div key={t.id} className={`p-5 rounded-[30px] border-l-8 shadow-sm flex flex-col gap-3 bg-white ${getPriorityStyle(t.priority)} transition-all relative`}>
@@ -1731,6 +1761,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
