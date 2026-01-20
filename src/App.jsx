@@ -690,6 +690,7 @@ function ResourcesView({ resources, canEdit }) {
 
 
 // --- VISTA TAREAS ---
+// --- VISTA TAREAS (CORREGIDA: NOTIFICACIONES POR ROLES) ---
 function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
@@ -705,25 +706,17 @@ function TasksView({ tasks, user, canEdit }) {
   const canManage = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
 
   useEffect(() => {
+    // Necesitamos la lista de usuarios para saber a quién notificar cuando seleccionan un ROL
     const unsub = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc')), snap => setUsersList(snap.docs.map(d => ({id: d.id, ...d.data()}))));
     return () => unsub();
   }, []);
 
   // --- LÓGICA DE FILTRADO (PRIVACIDAD) ---
   const filteredTasks = tasks.filter(t => {
-      // 1. Si soy Admin o Directivo, veo TODAS para supervisar
-      if (canManage) return true;
-      
-      // 2. Si yo la creé, la veo
-      if (t.createdById === user.id) return true;
-
-      // 3. Si está asignada específicamente a MI usuario
-      if (t.targetType === 'user' && t.targetUserId === user.id) return true;
-
-      // 4. Si está asignada a MI ROL (ej: 'Docente')
-      if (t.targetType === 'roles' && t.targetRoles && t.targetRoles.includes(user.role)) return true;
-
-      // Si no cumple nada, se oculta
+      if (canManage) return true; // Directivos ven todo
+      if (t.createdById === user.id) return true; // Creador ve su tarea
+      if (t.targetType === 'user' && t.targetUserId === user.id) return true; // Asignado directo
+      if (t.targetType === 'roles' && t.targetRoles && t.targetRoles.includes(user.role)) return true; // Asignado a mi rol
       return false;
   });
 
@@ -737,6 +730,8 @@ function TasksView({ tasks, user, canEdit }) {
     e.preventDefault(); 
     const fd = new FormData(e.target);
     let assignedName = "Todos", targetUserId = null, targetRoles = [];
+    
+    // Configurar destinatarios
     if (assignType === 'user') {
         const uId = fd.get('targetUser'); const uObj = usersList.find(u => u.id === uId);
         assignedName = uObj ? uObj.fullName : "Desconocido"; targetUserId = uId;
@@ -752,11 +747,14 @@ function TasksView({ tasks, user, canEdit }) {
     if (editingTask) {
          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData);
     } else {
+         // 1. Crear la Tarea
          const newTask = { ...taskData, createdByName: user.fullName || user.firstName, createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: [] };
          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), newTask);
          
-         // Notificar si es a usuario específico
-         if (targetUserId && targetUserId !== user.id) {
+         // 2. Notificaciones (LA CORRECCIÓN ESTÁ AQUÍ)
+         
+         // CASO A: Notificar a Usuario Específico
+         if (assignType === 'user' && targetUserId && targetUserId !== user.id) {
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { 
                 toUserId: targetUserId, 
                 title: "Nueva Tarea", 
@@ -765,7 +763,24 @@ function TasksView({ tasks, user, canEdit }) {
                 createdAt: serverTimestamp() 
             });
          }
-         // (Opcional) Si quisieras notificar a Roles masivamente, iría aquí, pero suele generar mucho spam.
+
+         // CASO B: Notificar a Roles (Corrección aplicada)
+         if (assignType === 'roles' && selectedRoles.length > 0) {
+             // Filtramos todos los usuarios que tengan uno de los roles seleccionados
+             const recipients = usersList.filter(u => selectedRoles.includes(u.role) && u.id !== user.id);
+             
+             // Creamos una notificación para cada uno (Promise.all para que sea rápido)
+             const notifPromises = recipients.map(recipient => {
+                 return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), {
+                     toUserId: recipient.id,
+                     title: "Nueva Tarea de Área",
+                     message: `${user.firstName} asignó a ${selectedRoles.join(', ')}: "${fd.get('title')}"`,
+                     read: false,
+                     createdAt: serverTimestamp()
+                 });
+             });
+             await Promise.all(notifPromises);
+         }
     }
     setShowModal(false); setSelectedRoles([]); setEditingTask(null);
   };
@@ -775,7 +790,6 @@ function TasksView({ tasks, user, canEdit }) {
       const commentData = { text: newComment, author: user.firstName, date: new Date().toISOString() };
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion(commentData) });
       
-      // Notificar al creador si comenta otro
       if (task.createdById && task.createdById !== user.id) {
           await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { toUserId: task.createdById, title: "Nuevo Comentario", message: `${user.firstName} comentó en "${task.title}"`, read: false, createdAt: serverTimestamp() });
       }
@@ -1770,6 +1784,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+
 
 
 
