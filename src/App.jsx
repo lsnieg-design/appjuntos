@@ -1079,11 +1079,14 @@ function CalendarView({ events, canEdit, user }) {
   );
 }
 
-// --- VISTA PERFIL (COMPLETA Y RESTAURADA) ---
+// --- VISTA PERFIL (MODIFICADA SOLO PARA AGREGAR AUDITORÍA) ---
 function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
   const [formData, setFormData] = useState({ firstName: user.firstName || '', lastName: user.lastName || '', photoUrl: user.photoUrl || '' });
   const [uploading, setUploading] = useState(false);
   const [showAdminUsers, setShowAdminUsers] = useState(false);
+  
+  // NUEVO ESTADO PARA EL VISOR
+  const [showAudit, setShowAudit] = useState(false);
 
   // 1. Activar Notificaciones (Lógica Real)
   const activarNotificaciones = async () => {
@@ -1091,7 +1094,7 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
         const messaging = getMessaging(app);
-        const currentToken = await getToken(messaging, { vapidKey: VAPID_KEY });
+        const currentToken = await getToken(messaging, { vapidKey: 'TU_VAPID_KEY_SI_LA_TIENES_SINO_BORRAR_ESTO' });
         
         if (currentToken) {
            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
@@ -1176,10 +1179,18 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
       {/* BOTONES DE ACCIÓN */}
       <div className="grid gap-3">
         {isSuperAdmin && (
-            <button onClick={() => setShowAdminUsers(true)} className="bg-orange-600 p-4 rounded-2xl shadow-xl flex items-center gap-4 hover:scale-[1.02] transition text-white">
-                <div className="bg-white/20 p-3 rounded-xl"><Users size={24} /></div>
-                <div className="text-left"><h4 className="font-bold">Gestionar Personal</h4><p className="text-xs opacity-80">Administración de usuarios</p></div>
-            </button>
+            <>
+                <button onClick={() => setShowAdminUsers(true)} className="bg-orange-600 p-4 rounded-2xl shadow-xl flex items-center gap-4 hover:scale-[1.02] transition text-white">
+                    <div className="bg-white/20 p-3 rounded-xl"><Users size={24} /></div>
+                    <div className="text-left"><h4 className="font-bold">Gestionar Personal</h4><p className="text-xs opacity-80">Administración de usuarios</p></div>
+                </button>
+
+                {/* BOTÓN NUEVO: AUDITORÍA */}
+                <button onClick={() => setShowAudit(true)} className="bg-indigo-900 p-4 rounded-2xl shadow-xl flex items-center gap-4 hover:scale-[1.02] transition text-white border border-indigo-700">
+                    <div className="bg-white/20 p-3 rounded-xl"><Activity size={24} /></div>
+                    <div className="text-left"><h4 className="font-bold">Auditoría Global</h4><p className="text-xs opacity-80">Ver registro de todas las tareas</p></div>
+                </button>
+            </>
         )}
 
         <button onClick={exportData} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]">
@@ -1200,8 +1211,19 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
 
       {showAdminUsers && (
         <div className="fixed inset-0 bg-violet-900/95 z-[200] flex flex-col p-6 animate-in slide-in-from-bottom duration-500 overflow-y-auto">
-         <div className="flex justify-between items-center text-white mb-8"><h2 className="text-2xl font-black uppercase italic tracking-tighter">Administración Personal</h2><button onClick={() => setShowAdminUsers(false)}><X size={32} /></button></div>
-         <UsersAdminView />
+          <div className="flex justify-between items-center text-white mb-8"><h2 className="text-2xl font-black uppercase italic tracking-tighter">Administración Personal</h2><button onClick={() => setShowAdminUsers(false)}><X size={32} /></button></div>
+          <UsersAdminView />
+        </div>
+       )}
+
+       {/* MODAL NUEVO: AUDITORÍA */}
+       {showAudit && (
+        <div className="fixed inset-0 bg-gray-900/95 z-[200] flex flex-col p-6 animate-in slide-in-from-bottom duration-500 overflow-y-auto">
+          <div className="flex justify-between items-center text-white mb-8">
+              <h2 className="text-2xl font-black uppercase italic tracking-tighter">Auditoría Institucional</h2>
+              <button onClick={() => setShowAudit(false)}><X size={32} /></button>
+          </div>
+          <ActivityLogView />
         </div>
        )}
     </div>
@@ -1839,6 +1861,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
