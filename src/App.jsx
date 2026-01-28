@@ -690,29 +690,54 @@ function ResourcesView({ resources, canEdit }) {
 }
 
 
-// --- VISTA TAREAS ---
+// --- VISTA TAREAS (CORREGIDA: PRIVACIDAD ESTRICTA) ---
 function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
+  
+  // Estados del formulario
   const [assignType, setAssignType] = useState('user'); 
   const [selectedRoles, setSelectedRoles] = useState([]);
+  const [targetUserId, setTargetUserId] = useState(''); // Controlamos el input manualmente para evitar errores
+  
   const [openCommentsId, setOpenCommentsId] = useState(null); 
   const [newComment, setNewComment] = useState("");
   const [editingTask, setEditingTask] = useState(null); 
 
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor'];
+  
+  // Permisos de GESTIÓN (Ver todo / Editar todo)
   const canManage = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
 
   useEffect(() => {
-    const unsub = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc')), snap => setUsersList(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+    const unsub = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc')), (snap) => {
+        const users = snap.docs.map(d => ({id: d.id, ...d.data()}));
+        setUsersList(users);
+        // Si no hay usuario seleccionado y hay usuarios, seleccionar el primero por defecto
+        if (users.length > 0) setTargetUserId(users[0].id);
+    });
     return () => unsub();
   }, []);
 
+  // --- LÓGICA DE PRIVACIDAD (EL CORAZÓN DEL PROBLEMA) ---
   const filteredTasks = tasks.filter(t => {
+      // 1. Los Directivos/Admins ven TODO para controlar
       if (canManage) return true;
+      
+      // 2. Si yo creé la tarea, la tengo que ver (para ver si la cumplieron)
       if (t.createdById === user.id) return true;
-      if (t.targetType === 'user' && t.targetUserId === user.id) return true;
-      if (t.targetType === 'roles' && t.targetRoles && t.targetRoles.includes(user.role)) return true;
+
+      // 3. Si es para UNA PERSONA, solo esa persona la ve
+      if (t.targetType === 'user') {
+          return t.targetUserId === user.id;
+      }
+
+      // 4. Si es para UN ROL, solo los que tienen ese rol la ven
+      if (t.targetType === 'roles') {
+          return t.targetRoles && t.targetRoles.includes(user.role);
+      }
+
+      // Si no cumple nada, se oculta
       return false;
   });
 
@@ -723,29 +748,75 @@ function TasksView({ tasks, user, canEdit }) {
   };
 
   const handleSaveTask = async (e) => {
-    e.preventDefault(); const fd = new FormData(e.target);
-    let assignedName = "Todos", targetUserId = null, targetRoles = [];
-    if (assignType === 'user') { const uId = fd.get('targetUser'); const uObj = usersList.find(u => u.id === uId); assignedName = uObj ? uObj.fullName : "Desconocido"; targetUserId = uId; } 
-    else { assignedName = selectedRoles.join(", "); targetRoles = selectedRoles; }
+    e.preventDefault(); 
+    const fd = new FormData(e.target);
     
-    const taskData = { title: fd.get('title'), dueDate: fd.get('dueDate'), priority: fd.get('priority'), targetType: assignType, targetUserId, targetRoles: selectedRoles, assignedToName: assignedName };
+    let finalTargetId = null;
+    let finalAssignedName = "Todos";
+    let finalRoles = [];
 
-    if (editingTask) { 
-        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData); 
+    // Validación y Asignación
+    if (assignType === 'user') {
+        // Usamos el estado targetUserId para estar seguros de qué se eligió
+        const selectedUser = usersList.find(u => u.id === targetUserId);
+        if (!selectedUser) return alert("Error: Debes seleccionar un usuario.");
+        
+        finalTargetId = selectedUser.id;
+        finalAssignedName = selectedUser.fullName;
     } else {
-         const newTask = { ...taskData, createdByName: user.fullName || user.firstName, createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: [] };
-         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), newTask);
-         
-         if (assignType === 'user' && targetUserId && targetUserId !== user.id) {
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { toUserId: targetUserId, title: "Nueva Tarea", message: `${user.firstName} te asignó: "${fd.get('title')}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks' });
-         }
-         if (assignType === 'roles' && selectedRoles.length > 0) {
-             const recipients = usersList.filter(u => selectedRoles.includes(u.role) && u.id !== user.id);
-             const notifPromises = recipients.map(recipient => { return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { toUserId: recipient.id, title: "Nueva Tarea de Área", message: `${user.firstName} asignó a ${selectedRoles.join(', ')}: "${fd.get('title')}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks' }); });
-             await Promise.all(notifPromises);
-         }
+        if (selectedRoles.length === 0) return alert("Error: Debes elegir al menos un rol.");
+        finalRoles = selectedRoles;
+        finalAssignedName = selectedRoles.join(", ");
     }
-    setShowModal(false); setSelectedRoles([]); setEditingTask(null);
+
+    const taskData = { 
+        title: fd.get('title'), 
+        dueDate: fd.get('dueDate'), 
+        priority: fd.get('priority'), 
+        targetType: assignType, 
+        targetUserId: finalTargetId, 
+        targetRoles: finalRoles, 
+        assignedToName: finalAssignedName 
+    };
+
+    try {
+        if (editingTask) {
+             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData);
+        } else {
+             const newTask = { 
+                 ...taskData, 
+                 createdByName: user.fullName || user.firstName, 
+                 createdById: user.id, 
+                 status: 'pending', 
+                 createdAt: serverTimestamp(), 
+                 comments: [] 
+             };
+             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), newTask);
+             
+             // Notificaciones
+             if (assignType === 'user' && finalTargetId !== user.id) {
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { 
+                    toUserId: finalTargetId, 
+                    title: "Nueva Tarea", 
+                    message: `${user.firstName} te asignó: "${fd.get('title')}"`, 
+                    read: false, createdAt: serverTimestamp(), targetTab: 'tasks' 
+                });
+             }
+             if (assignType === 'roles') {
+                 const recipients = usersList.filter(u => finalRoles.includes(u.role) && u.id !== user.id);
+                 const notifPromises = recipients.map(recipient => {
+                     return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), {
+                         toUserId: recipient.id, title: "Nueva Tarea de Área", message: `${user.firstName} asignó a ${finalRoles.join(', ')}: "${fd.get('title')}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks'
+                     });
+                 });
+                 await Promise.all(notifPromises);
+             }
+        }
+        setShowModal(false);
+    } catch (err) {
+        console.error(err);
+        alert("Error al guardar tarea.");
+    }
   };
 
   const addComment = async (task) => {
@@ -753,26 +824,40 @@ function TasksView({ tasks, user, canEdit }) {
       const commentData = { text: newComment, author: user.firstName, date: new Date().toISOString() };
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion(commentData) });
       if (task.createdById && task.createdById !== user.id) {
-          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { toUserId: task.createdById, title: "Nuevo Comentario", message: `${user.firstName} comentó en "${task.title}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks' });
+          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { 
+              toUserId: task.createdById, title: "Nuevo Comentario", message: `${user.firstName} comentó en "${task.title}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks' 
+          });
       }
       setNewComment("");
   };
 
   const handleDelete = async (id) => { if(confirm("¿Seguro que deseas eliminar esta tarea?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
   const changeStatus = async (task, newStatus) => { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
-  const openNew = () => { setEditingTask(null); setShowModal(true); };
-  const openEdit = (t) => { setEditingTask(t); setAssignType(t.targetType || 'user'); setSelectedRoles(t.targetRoles || []); setShowModal(true); };
+  
+  // FUNCIONES PARA ABRIR MODAL (RESET LIMPIO)
+  const openNew = () => { 
+      setEditingTask(null); 
+      setAssignType('user'); // Reset a Persona
+      setSelectedRoles([]); 
+      if(usersList.length > 0) setTargetUserId(usersList[0].id); // Reset al primer usuario
+      setShowModal(true); 
+  };
+  
+  const openEdit = (t) => { 
+      setEditingTask(t); 
+      setAssignType(t.targetType || 'user'); 
+      setTargetUserId(t.targetUserId || (usersList[0]?.id));
+      setSelectedRoles(t.targetRoles || []); 
+      setShowModal(true); 
+  };
 
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10">
       <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2><button onClick={openNew} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:scale-110 transition-all"><Plus/></button></div>
       
-      {/* --- AQUÍ ESTABA EL ERROR: ESTADO VACÍO VISUAL --- */}
       {filteredTasks.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 bg-white rounded-[40px] border-2 border-dashed border-gray-100 opacity-80">
-            <div className="bg-green-50 p-4 rounded-full mb-3">
-                <CheckCircle size={40} className="text-green-400" />
-            </div>
+            <div className="bg-green-50 p-4 rounded-full mb-3"><CheckCircle size={40} className="text-green-400" /></div>
             <h3 className="font-black text-gray-400 text-sm uppercase tracking-widest">¡Todo listo!</h3>
             <p className="text-xs text-gray-300 font-medium">No tenés tareas pendientes</p>
         </div>
@@ -810,11 +895,43 @@ function TasksView({ tasks, user, canEdit }) {
         <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
           <form onSubmit={handleSaveTask} className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-black text-violet-900 uppercase italic">{editingTask ? 'Editar Tarea' : 'Nueva Tarea'}</h3>
+            
             <input name="title" defaultValue={editingTask?.title} placeholder="¿Qué tarea asignar?" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm shadow-inner" />
-            <div className="flex gap-2 bg-gray-100 p-1 rounded-xl"><button type="button" onClick={() => setAssignType('user')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'user' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Persona</button><button type="button" onClick={() => setAssignType('roles')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'roles' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Roles</button></div>
-            {assignType === 'user' ? (<select name="targetUser" defaultValue={editingTask?.targetUserId} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs uppercase tracking-widest border border-gray-100">{usersList.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}</select>) : (<div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 max-h-32 overflow-y-auto">{ROLES_OPTIONS.map(role => (<label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={selectedRoles.includes(role)} onChange={(e) => { if(e.target.checked) setSelectedRoles([...selectedRoles, role]); else setSelectedRoles(selectedRoles.filter(r => r !== role)); }} className="accent-violet-600"/> {role}</label>))}</div>)}
-            <div className="grid grid-cols-2 gap-4"><input name="dueDate" type="date" defaultValue={editingTask?.dueDate} required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs text-gray-400" /><select name="priority" defaultValue={editingTask?.priority} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs uppercase text-orange-600 italic"><option value="baja">Baja</option><option value="media">Media</option><option value="alta">Alta</option></select></div>
-            <div className="flex gap-2 pt-4"><button type="button" onClick={() => setShowModal(false)} className="flex-1 font-bold text-gray-400 text-xs uppercase">Cancelar</button><button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">GUARDAR</button></div>
+            
+            <div className="flex gap-2 bg-gray-100 p-1 rounded-xl">
+                <button type="button" onClick={() => setAssignType('user')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'user' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Persona</button>
+                <button type="button" onClick={() => setAssignType('roles')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'roles' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Roles</button>
+            </div>
+            
+            {assignType === 'user' ? (
+                <select 
+                    value={targetUserId} 
+                    onChange={(e) => setTargetUserId(e.target.value)} 
+                    className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs uppercase tracking-widest border border-gray-100"
+                >
+                    {usersList.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+                </select>
+            ) : (
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 max-h-32 overflow-y-auto">
+                    {ROLES_OPTIONS.map(role => (
+                        <label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600 cursor-pointer">
+                            <input type="checkbox" checked={selectedRoles.includes(role)} onChange={(e) => { if(e.target.checked) setSelectedRoles([...selectedRoles, role]); else setSelectedRoles(selectedRoles.filter(r => r !== role)); }} className="accent-violet-600"/> {role}
+                        </label>
+                    ))}
+                </div>
+            )}
+            
+            <div className="grid grid-cols-2 gap-4">
+                <input name="dueDate" type="date" defaultValue={editingTask?.dueDate} required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs text-gray-400" />
+                <select name="priority" defaultValue={editingTask?.priority} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs uppercase text-orange-600 italic">
+                    <option value="baja">Baja</option><option value="media">Media</option><option value="alta">Alta</option>
+                </select>
+            </div>
+            
+            <div className="flex gap-2 pt-4">
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 font-bold text-gray-400 text-xs uppercase">Cancelar</button>
+                <button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">GUARDAR</button>
+            </div>
           </form>
         </div>
       )}
@@ -1861,6 +1978,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
