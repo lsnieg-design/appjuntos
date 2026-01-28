@@ -1773,6 +1773,72 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+// --- NUEVA VISTA: AUDITORÍA DE TAREAS (GRAN HERMANO) ---
+function ActivityLogView() {
+  const [allTasks, setAllTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Escucha TODAS las tareas, ordenadas por la más reciente
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('createdAt', 'desc'));
+    const unsub = onSnapshot(q, (snapshot) => {
+      setAllTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLoading(false);
+    });
+    return () => unsub();
+  }, []);
+
+  const formatDate = (timestamp) => {
+    if (!timestamp) return '-';
+    // Formato: DD/MM HH:mm hs
+    return new Date(timestamp.seconds * 1000).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + 'hs';
+  };
+
+  return (
+    <div className="flex-1 flex flex-col min-h-0 bg-gray-50 rounded-3xl p-4 mt-4 h-[70vh]">
+      <div className="mb-4 border-b border-gray-200 pb-2">
+        <h3 className="text-violet-900 font-black text-lg uppercase tracking-widest flex items-center gap-2">
+          <Activity className="text-orange-500"/> Auditoría de Gestión
+        </h3>
+        <p className="text-xs text-gray-500">Historial completo de pedidos y tareas ({allTasks.length})</p>
+      </div>
+
+      <div className="flex-1 overflow-y-auto pr-1">
+        {loading ? (
+          <div className="text-center p-10"><RefreshCw className="animate-spin mx-auto text-violet-400"/></div>
+        ) : (
+          <div className="space-y-3">
+            {allTasks.map(t => (
+              <div key={t.id} className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm text-xs relative group hover:border-violet-300 transition">
+                <div className="flex justify-between items-start mb-1">
+                   <span className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-bold text-[10px]">{formatDate(t.createdAt)}</span>
+                   <span className={`px-2 py-0.5 rounded font-bold text-white uppercase text-[9px] ${t.status === 'completed' ? 'bg-green-500' : t.status === 'in_process' ? 'bg-blue-500' : 'bg-orange-400'}`}>
+                     {t.status === 'completed' ? 'Finalizado' : t.status === 'in_process' ? 'En Proceso' : 'Pendiente'}
+                   </span>
+                </div>
+
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="font-bold text-violet-700 uppercase bg-violet-50 px-1 rounded">{t.createdByName}</span>
+                    <span className="text-gray-300 text-[10px]">▶ le pidió a ▶</span>
+                    <span className="font-bold text-orange-600 uppercase bg-orange-50 px-1 rounded">{t.assignedToName}</span>
+                </div>
+
+                <p className="font-medium text-gray-800 text-sm mb-2 border-l-2 border-violet-200 pl-2">"{t.title}"</p>
+
+                {/* Detalles extra */}
+                <div className="flex gap-4 text-gray-400 text-[10px] mt-2 border-t pt-1">
+                    <span className="flex items-center gap-1"><MessageSquare size={10}/> {t.comments ? t.comments.length : 0} msj</span>
+                    <span className="flex items-center gap-1"><CalendarIcon size={10}/> Vence: {t.dueDate}</span>
+                    {t.priority === 'alta' && <span className="text-red-500 font-bold flex items-center gap-1"><AlertTriangle size={10}/> Alta Prioridad</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 
 
