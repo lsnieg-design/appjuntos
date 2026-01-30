@@ -326,7 +326,7 @@ function LoginScreen({ onLogin }) {
 }
 
 
-// --- APP PRINCIPAL (CON BUSCADOR GLOBAL POP-UP) ---
+// --- APP PRINCIPAL (CON BUSCADOR GLOBAL Y MENÚ COMPLETO) ---
 function MainApp({ user, onLogout, onProfileUpdate }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [tasks, setTasks] = useState([]);
@@ -339,7 +339,7 @@ function MainApp({ user, onLogout, onProfileUpdate }) {
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [globalViewingStudent, setGlobalViewingStudent] = useState(null); // Para ver el alumno desde el buscador
+  const [globalViewingStudent, setGlobalViewingStudent] = useState(null);
 
   const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin'; 
   const canManageContent = user.rol === 'admin' || isSuperAdmin || user.role === 'Equipo Directivo';
@@ -368,21 +368,23 @@ function MainApp({ user, onLogout, onProfileUpdate }) {
     return () => { unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); };
   }, [user.id]);
 
-  // Lógica del Buscador Global
+  // LÓGICA BUSCADOR
   const handleGlobalSearch = async (text) => {
       setSearchQuery(text);
       if (text.length < 2) { setSearchResults([]); return; }
-      
-      const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), orderBy('lastName'));
-      const snapshot = await getDocs(q); // Traemos todo y filtramos en cliente (optimización simple)
+      // Buscamos en memoria local (más rápido y barato)
+      // Nota: Para una base de datos gigante, esto se haría con una query de Firestore, 
+      // pero para < 500 alumnos esto es instantáneo.
+      const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'));
+      const snapshot = await getDocs(q); 
       const results = snapshot.docs
           .map(d => ({ id: d.id, ...d.data() }))
           .filter(s => 
-              s.isActive !== false && // Solo activos
+              (s.isActive === undefined || s.isActive === true) && 
               (s.firstName.toLowerCase().includes(text.toLowerCase()) || 
                s.lastName.toLowerCase().includes(text.toLowerCase()))
           );
-      setSearchResults(results.slice(0, 5)); // Limitamos a 5 resultados
+      setSearchResults(results.slice(0, 5));
   };
 
   const handleNotificationClick = async (notif) => {
@@ -403,6 +405,16 @@ function MainApp({ user, onLogout, onProfileUpdate }) {
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', id), { read: true });
   };
 
+  const calculateAge = (dateString) => {
+    if (!dateString) return '-';
+    const today = new Date();
+    const birthDate = new Date(dateString);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+    return age;
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-50 font-sans text-slate-800">
       <header className="bg-violet-800 text-white shadow-lg px-4 py-3 flex justify-between items-center z-50 sticky top-0">
@@ -412,7 +424,7 @@ function MainApp({ user, onLogout, onProfileUpdate }) {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* BOTÓN BUSCADOR GLOBAL */}
+          {/* LUPA BUSCADOR */}
           <button onClick={() => setShowSearch(true)} className="p-2 rounded-full bg-violet-900/50 hover:bg-orange-500 transition"><Search size={20} /></button>
 
           <div className="relative">
@@ -459,7 +471,7 @@ function MainApp({ user, onLogout, onProfileUpdate }) {
       </header>
 
       <main className="flex-1 overflow-y-auto pb-24 px-4 pt-6 max-w-4xl mx-auto w-full">
-        {activeTab === 'dashboard' && <DashboardView user={user} tasks={tasks} events={events} />}
+        {activeTab === 'dashboard' && <DashboardView user={user} tasks={tasks} events={events} setActiveTab={setActiveTab} />}
         {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
         {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} canEdit={canManageContent} />}
         {activeTab === 'matricula' && <MatriculaView user={user} />}
@@ -480,14 +492,14 @@ function MainApp({ user, onLogout, onProfileUpdate }) {
           <NavButton active={activeTab === 'proyecto'} onClick={() => setActiveTab('proyecto')} icon={<PieChart size={24} />} label="P.I." />
         </div>
       </nav>
-      
+
       <footer className="text-center pb-24 pt-6 opacity-50">
           <a href="https://www.somosnomade.com.ar" target="_blank" rel="noopener noreferrer" className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-violet-600 transition">
               Creado por NOMADE
           </a>
       </footer>
 
-      {/* MODAL DEL BUSCADOR GLOBAL */}
+      {/* MODAL BUSCADOR GLOBAL */}
       {showSearch && (
           <div className="fixed inset-0 bg-violet-900/90 z-[300] flex flex-col p-4 backdrop-blur-md animate-in fade-in">
               <div className="flex justify-between items-center text-white mb-4">
@@ -518,7 +530,7 @@ function MainApp({ user, onLogout, onProfileUpdate }) {
           </div>
       )}
 
-      {/* REUTILIZAMOS EL MODAL DE DETALLE DE GRUPOS PARA EL RESULTADO DEL BUSCADOR */}
+      {/* DETALLE ALUMNO DESDE BUSCADOR */}
       {globalViewingStudent && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[350] flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95">
@@ -532,24 +544,21 @@ function MainApp({ user, onLogout, onProfileUpdate }) {
                             {globalViewingStudent.photoUrl && <img src={globalViewingStudent.photoUrl} className="w-full h-full object-cover"/>}
                         </div>
                         <div>
+                            <p className="text-sm font-bold text-gray-600">Edad: {calculateAge(globalViewingStudent.birthDate)} años</p>
                             <p className="text-sm font-bold text-gray-600">DNI: {globalViewingStudent.dni}</p>
                             <p className="text-xs text-orange-500 font-bold mt-1 uppercase">{globalViewingStudent.dx}</p>
-                            <p className="text-xs text-gray-400 mt-1">{globalViewingStudent.groupMorning || globalViewingStudent.groupAfternoon || 'Sin asignar'}</p>
                         </div>
                     </div>
                     {/* ACCESO A FICHA COMPLETA */}
                     <button 
                         onClick={() => {
-                            setActiveTab('matricula'); // Navegar a matricula
-                            setShowSearch(false); // Cerrar buscador
-                            setGlobalViewingStudent(null); // Cerrar este modal
-                            // Nota: No podemos abrir el modal de MatriculaView desde aquí fácilmente sin contextos complejos,
-                            // así que llevamos al usuario a la sección donde puede buscarlo completo.
-                            alert("Te llevamos a la sección Legajos. Buscalo ahí para editar.");
+                            setActiveTab('matricula'); 
+                            setShowSearch(false);
+                            setGlobalViewingStudent(null);
                         }} 
                         className="w-full bg-violet-100 text-violet-700 py-3 rounded-xl font-bold text-xs uppercase hover:bg-violet-200 transition"
                     >
-                        Ver Legajo Completo
+                        Ir a Legajo Completo
                     </button>
                 </div>
             </div>
@@ -570,8 +579,8 @@ function NavButton({ active, onClick, icon, label, badge }) {
   );
 }
 
-// --- VISTA DASHBOARD (FINAL: CUMPLES + TUTORIAL + ALERTA SIN GRUPO + PROYECTO) ---
-function DashboardView({ user, tasks, events }) {
+// --- VISTA DASHBOARD (FINAL V2: PROYECTO VISIBLE SIEMPRE) ---
+function DashboardView({ user, tasks, events, setActiveTab }) { // Agregué setActiveTab aquí
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEvents = events.filter(e => e.date === todayStr);
   
@@ -584,8 +593,6 @@ function DashboardView({ user, tasks, events }) {
   const [newNote, setNewNote] = useState('');
   
   const [currentProject, setCurrentProject] = useState(null);
-  
-  // NUEVO: ESTADO PARA ALERTA DE SIN GRUPO
   const [ungroupedCount, setUngroupedCount] = useState(0);
 
   const canPost = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
@@ -598,22 +605,17 @@ function DashboardView({ user, tasks, events }) {
     const qNotes = query(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), where('userId', '==', user.id), orderBy('createdAt', 'desc'));
     const unsubNotes = onSnapshot(qNotes, (snap) => setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     
-    // FETCH ALUMNOS (Cumples + Alerta Sin Grupo)
+    // FETCH ALUMNOS
     const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
     const unsubStudents = onSnapshot(qStudents, (snap) => {
         const today = new Date();
         const nextWeek = new Date();
         nextWeek.setDate(today.getDate() + 7); 
-        
-        let noGroupCounter = 0; // Contador local
+        let noGroupCounter = 0;
 
         const upcoming = snap.docs.map(d => {
             const data = d.data();
-            
-            // Lógica de Alerta Sin Grupo
-            if (!data.groupMorning && !data.groupAfternoon) {
-                noGroupCounter++;
-            }
+            if (!data.groupMorning && !data.groupAfternoon) noGroupCounter++;
 
             if(!data.birthDate) return null;
             const dob = new Date(data.birthDate + 'T00:00:00');
@@ -623,18 +625,30 @@ function DashboardView({ user, tasks, events }) {
         }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday);
         
         setBirthdays(upcoming);
-        setUngroupedCount(noGroupCounter); // Guardamos el número de huérfanos
+        setUngroupedCount(noGroupCounter);
     });
 
+    // FETCH PROYECTO ACTUAL (Lógica Mejorada)
     const fetchProject = async () => {
         const currentMonth = new Date().toLocaleString('es-ES', { month: 'long' }).toUpperCase();
         const PERIOD_NAMES = ["MARZO", "ABRIL Y MAYO", "JUNIO Y JULIO", "AGOSTO Y SEPTIEMBRE", "OCTUBRE Y NOVIEMBRE", "DICIEMBRE"];
-        const currentName = PERIOD_NAMES.find(p => p.includes(currentMonth));
-        if (currentName) {
-            const id = currentName.replace(/\s+/g, '_');
+        
+        // 1. Intenta buscar el exacto
+        let targetName = PERIOD_NAMES.find(p => p.includes(currentMonth));
+        
+        // 2. Si no hay coincidencia (ej: Enero), muestra el primero (Marzo) como "Próximo"
+        if (!targetName) targetName = "MARZO";
+        
+        if (targetName) {
+            const id = targetName.replace(/\s+/g, '_');
             const { getDoc, doc } = await import('firebase/firestore');
             const docSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'proyecto2026_periods', id));
-            if (docSnap.exists()) setCurrentProject({ name: currentName, ...docSnap.data() });
+            // Aunque no exista en BD, mostramos la tarjeta con datos vacíos para que se vea
+            if (docSnap.exists()) {
+                setCurrentProject({ name: targetName, ...docSnap.data() });
+            } else {
+                setCurrentProject({ name: targetName, paises: 'Próximamente' });
+            }
         }
     };
     fetchProject();
@@ -642,7 +656,9 @@ function DashboardView({ user, tasks, events }) {
     return () => { unsub(); unsubNotes(); unsubStudents(); };
   }, [user.id]);
 
-  const goToProject = () => { alert("Ve a la pestaña 'P.I.' en el menú inferior para ver los detalles."); };
+  // AHORA SÍ NAVEGA
+  const goToProject = () => { if(setActiveTab) setActiveTab('proyecto'); };
+
   const handlePost = async (e) => { e.preventDefault(); const text = e.target.message.value; if(!text.trim()) return; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), { message: text, author: user.fullName || user.firstName, role: user.role, createdAt: serverTimestamp() }); setShowAnnounceModal(false); };
   const deleteAnnouncement = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'announcements', id)); };
   const saveNote = async (e) => { e.preventDefault(); if (!newNote.trim()) return; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), { text: newNote, userId: user.id, done: false, createdAt: serverTimestamp() }); setNewNote(''); };
@@ -659,32 +675,20 @@ function DashboardView({ user, tasks, events }) {
            </div>
       </div>
       
-      {/* ALERTA DE ALUMNOS SIN GRUPO (SOLO PARA DIRECTIVOS) */}
-      {isManagement && ungroupedCount > 0 && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl flex items-center justify-between shadow-sm animate-pulse">
-              <div className="flex items-center gap-3">
-                  <AlertTriangle className="text-red-500" size={24} />
-                  <div>
-                      <h4 className="font-black text-red-700 text-xs uppercase tracking-widest">Atención Administrativa</h4>
-                      <p className="text-xs text-red-600 font-bold">Hay {ungroupedCount} estudiantes activos sin grupo asignado.</p>
-                  </div>
-              </div>
-          </div>
-      )}
+      {isManagement && ungroupedCount > 0 && (<div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl flex items-center justify-between shadow-sm animate-pulse"><div className="flex items-center gap-3"><AlertTriangle className="text-red-500" size={24} /><div><h4 className="font-black text-red-700 text-xs uppercase tracking-widest">Atención Administrativa</h4><p className="text-xs text-red-600 font-bold">Hay {ungroupedCount} estudiantes activos sin grupo asignado.</p></div></div></div>)}
 
-      {/* WIDGET CUMPLEAÑOS */}
-      {birthdays.length > 0 && (
-          <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-5 rounded-[30px] shadow-lg text-white relative overflow-hidden">
-              <div className="flex items-center gap-2 mb-3"><span className="bg-white/20 p-2 rounded-lg"><Crown size={16} className="text-white"/></span><h3 className="font-bold text-sm uppercase tracking-widest">Cumples de la Semana</h3></div>
-              <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">{birthdays.map(b => (<div key={b.id} className="bg-white/10 p-2 rounded-xl flex items-center gap-3 min-w-[140px] border border-white/10"><div className="w-8 h-8 rounded-full bg-white/20 overflow-hidden shrink-0">{b.photoUrl ? <img src={b.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center font-bold text-xs">{b.firstName[0]}</div>}</div><div><p className="font-bold text-xs leading-none">{b.firstName}</p><p className="text-[10px] opacity-80">{new Date(b.nextBirthday).toLocaleDateString('es-AR', {day: 'numeric', month:'short'})}</p></div></div>))}</div>
-          </div>
-      )}
+      {birthdays.length > 0 && (<div className="bg-gradient-to-r from-pink-500 to-rose-500 p-5 rounded-[30px] shadow-lg text-white relative overflow-hidden"><div className="flex items-center gap-2 mb-3"><span className="bg-white/20 p-2 rounded-lg"><Crown size={16} className="text-white"/></span><h3 className="font-bold text-sm uppercase tracking-widest">Cumples de la Semana</h3></div><div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">{birthdays.map(b => (<div key={b.id} className="bg-white/10 p-2 rounded-xl flex items-center gap-3 min-w-[140px] border border-white/10"><div className="w-8 h-8 rounded-full bg-white/20 overflow-hidden shrink-0">{b.photoUrl ? <img src={b.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center font-bold text-xs">{b.firstName[0]}</div>}</div><div><p className="font-bold text-xs leading-none">{b.firstName}</p><p className="text-[10px] opacity-80">{new Date(b.nextBirthday).toLocaleDateString('es-AR', {day: 'numeric', month:'short'})}</p></div></div>))}</div></div>)}
 
-      {/* WIDGET PROYECTO */}
+      {/* WIDGET PROYECTO 360 */}
       {currentProject && (
-          <div className="bg-indigo-900 p-5 rounded-[30px] shadow-lg text-white relative overflow-hidden border-b-4 border-orange-500 group cursor-pointer" onClick={goToProject}>
+          <div className="bg-indigo-900 p-5 rounded-[30px] shadow-lg text-white relative overflow-hidden border-b-4 border-orange-500 group cursor-pointer hover:scale-[1.01] transition" onClick={goToProject}>
               <div className="absolute right-0 top-0 opacity-10 p-2"><Globe size={80}/></div>
-              <div className="relative z-10"><div className="flex items-center gap-2 mb-2"><span className="bg-orange-500 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">Proyecto 2026</span></div><h3 className="text-xl font-black italic uppercase tracking-tighter leading-none mb-1">{currentProject.name}</h3><p className="text-xs text-indigo-200 font-medium">Eje: <span className="text-white font-bold">{currentProject.paises || 'A definir'}</span></p></div>
+              <div className="relative z-10">
+                  <div className="flex items-center gap-2 mb-2"><span className="bg-orange-500 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">Proyecto 2026</span></div>
+                  <h3 className="text-xl font-black italic uppercase tracking-tighter leading-none mb-1">{currentProject.name}</h3>
+                  <p className="text-xs text-indigo-200 font-medium">Eje: <span className="text-white font-bold">{currentProject.paises || 'Preparando el viaje...'}</span></p>
+                  <div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-orange-300"><span>Ver planificación</span> <ChevronRight size={12}/></div>
+              </div>
           </div>
       )}
 
@@ -696,21 +700,7 @@ function DashboardView({ user, tasks, events }) {
 
       {showAnnounceModal && (<div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm"><form onSubmit={handlePost} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95"><h3 className="text-lg font-black text-orange-500 mb-2 uppercase italic">Nuevo Aviso</h3><textarea name="message" className="w-full p-4 bg-orange-50 rounded-2xl outline-none text-sm h-32 resize-none border border-orange-100 focus:ring-2 ring-orange-200 text-gray-700" placeholder="Escribe aquí..." required></textarea><div className="flex gap-2 mt-4"><button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 text-gray-400 font-bold text-xs uppercase tracking-widest">Cancelar</button><button type="submit" className="flex-1 bg-orange-500 text-white py-3 rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-orange-600 transition">Publicar</button></div></form></div>)}
 
-      {showTutorial && (
-          <div className="fixed inset-0 bg-violet-900/90 z-[300] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in">
-              <div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl max-h-[80vh] overflow-y-auto relative">
-                  <button onClick={() => setShowTutorial(false)} className="absolute top-4 right-4 bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button>
-                  <div className="text-center mb-6"><h2 className="text-2xl font-black text-violet-900 italic uppercase">Guía Rápida</h2><p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Para Docentes y Equipo</p></div>
-                  <div className="space-y-6">
-                      <div className="flex gap-4 items-start"><div className="bg-orange-100 p-3 rounded-2xl text-orange-600"><Grid size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">1. Mi Aula / Grupos</h4><p className="text-xs text-gray-500 mt-1">Aquí ves a tus alumnos. Toca las pestañas "Mañana" o "Tarde" para cambiar de grupo.</p></div></div>
-                      <div className="flex gap-4 items-start"><div className="bg-red-100 p-3 rounded-2xl text-red-600"><Activity size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">2. Bitácora Express (El Rayo)</h4><p className="text-xs text-gray-500 mt-1">En la tarjeta de cada alumno hay un ícono de rayo ⚡. Úsalo para registrar incidentes (golpes, crisis, salud) rápidamente con un solo toque.</p></div></div>
-                      <div className="flex gap-4 items-start"><div className="bg-blue-100 p-3 rounded-2xl text-blue-600"><CheckSquare size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">3. Pedidos a Administración</h4><p className="text-xs text-gray-500 mt-1">Usa la sección "Tareas" para pedir materiales o arreglos. Puedes asignar a un <b>Rol</b> o una <b>Persona</b>. <b>¡Es privado!</b> Solo lo ven tú y el destinatario.</p></div></div>
-                      <div className="flex gap-4 items-start"><div className="bg-green-100 p-3 rounded-2xl text-green-600"><LinkIcon size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">4. Recursos</h4><p className="text-xs text-gray-500 mt-1">Encuentra documentos, planillas y enlaces útiles organizados por carpetas.</p></div></div>
-                  </div>
-                  <button onClick={() => setShowTutorial(false)} className="w-full bg-violet-600 text-white py-3 rounded-2xl font-bold mt-8 shadow-lg uppercase text-xs tracking-widest">¡Entendido!</button>
-              </div>
-          </div>
-      )}
+      {showTutorial && (<div className="fixed inset-0 bg-violet-900/90 z-[300] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in"><div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl max-h-[80vh] overflow-y-auto relative"><button onClick={() => setShowTutorial(false)} className="absolute top-4 right-4 bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button><div className="text-center mb-6"><h2 className="text-2xl font-black text-violet-900 italic uppercase">Guía Rápida</h2><p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Para Docentes y Equipo</p></div><div className="space-y-6"><div className="flex gap-4 items-start"><div className="bg-orange-100 p-3 rounded-2xl text-orange-600"><Grid size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">1. Mi Aula / Grupos</h4><p className="text-xs text-gray-500 mt-1">Aquí ves a tus alumnos. Toca las pestañas "Mañana" o "Tarde" para cambiar de grupo.</p></div></div><div className="flex gap-4 items-start"><div className="bg-red-100 p-3 rounded-2xl text-red-600"><Activity size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">2. Bitácora Express (El Rayo)</h4><p className="text-xs text-gray-500 mt-1">En la tarjeta de cada alumno hay un ícono de rayo ⚡. Úsalo para registrar incidentes (golpes, crisis, salud) rápidamente con un solo toque.</p></div></div><div className="flex gap-4 items-start"><div className="bg-blue-100 p-3 rounded-2xl text-blue-600"><CheckSquare size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">3. Pedidos a Administración</h4><p className="text-xs text-gray-500 mt-1">En la sección "Tareas" puedes pedir materiales o arreglos. Puedes asignar a un <b>Rol</b> o una <b>Persona</b>. <b>¡Es privado!</b> Solo lo ven tú y el destinatario.</p></div></div><div className="flex gap-4 items-start"><div className="bg-green-100 p-3 rounded-2xl text-green-600"><LinkIcon size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">4. Recursos</h4><p className="text-xs text-gray-500 mt-1">Encuentra documentos, planillas y enlaces útiles organizados por carpetas.</p></div></div></div><button onClick={() => setShowTutorial(false)} className="w-full bg-violet-600 text-white py-3 rounded-2xl font-bold mt-8 shadow-lg uppercase text-xs tracking-widest">¡Entendido!</button></div></div>)}
     </div>
   );
 }
@@ -2076,7 +2066,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
-// --- VISTA TABLERO DE GRUPOS (FINAL: CON BITÁCORA E IMPRESIÓN) ---
+// --- VISTA TABLERO DE GRUPOS (FINAL: CON IMPRESIÓN DETALLADA) ---
 function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
   const [turn, setTurn] = useState('morning'); 
@@ -2088,7 +2078,6 @@ function GroupsView({ user }) {
 
   const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración'].includes(user.role) || user.rol === 'admin';
 
-  // Configuración Semáforo
   const INCIDENT_TYPES = [
       { label: "Agresión / Violencia", emoji: "👊", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
       { label: "Brote / Gritos", emoji: "🤬", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
@@ -2121,7 +2110,8 @@ function GroupsView({ user }) {
               students: [],
               teacher: turn === 'morning' ? s.teacherMorning : s.teacherAfternoon,
               aux: turn === 'morning' ? s.auxMorning : s.auxAfternoon,
-              classroom: s.classroom
+              classroom: s.classroom,
+              level: s.level // Capturamos el nivel del primer estudiante
           };
       }
       acc[groupName].students.push(s);
@@ -2156,20 +2146,49 @@ function GroupsView({ user }) {
     return age;
   };
 
-  // --- FUNCIÓN DE IMPRESIÓN (NUEVA) ---
+  // --- FUNCIÓN DE IMPRESIÓN (ACTUALIZADA) ---
   const handlePrint = () => {
     const printWindow = window.open('', '', 'height=600,width=800');
+    const fechaImpresion = new Date().toLocaleDateString('es-AR');
+    
     printWindow.document.write('<html><head><title>Listado de Grupos</title>');
-    printWindow.document.write('<style>body{font-family:sans-serif; padding: 20px;} table{width:100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px;} th, td{border: 1px solid #ddd; padding: 8px; text-align: left;} th{background-color: #f2f2f2;} h1{color: #000; text-transform: uppercase; font-size: 16px; border-bottom: 2px solid #000; padding-bottom: 10px;} .group-container{margin-bottom: 30px; page-break-inside: avoid;} .group-header{background: #eee; padding: 5px; font-weight: bold; border: 1px solid #000; font-size: 14px;}</style>');
+    printWindow.document.write('<style>body{font-family: sans-serif; padding: 20px;} table{width:100%; border-collapse: collapse; margin-bottom: 30px; font-size: 12px;} th, td{border: 1px solid #000; padding: 8px; text-align: left;} th{background-color: #f0f0f0; text-transform: uppercase;} h1{text-align: center; font-size: 18px; margin-bottom: 20px; text-decoration: underline;} .group-container{margin-bottom: 40px; page-break-inside: avoid;} .group-header { border: 1px solid #000; background: #eee; padding: 10px; margin-bottom: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 13px; } .header-item { margin-bottom: 2px; } </style>');
     printWindow.document.write('</head><body>');
-    printWindow.document.write(`<h1>Listado de Grupos - Turno ${turn === 'morning' ? 'MAÑANA' : 'TARDE'} - ${new Date().toLocaleDateString()}</h1>`);
+    printWindow.document.write(`<h1>LISTADO DE GRUPOS - CICLO LECTIVO 2026</h1>`);
     
     groups.forEach(g => {
+        const turnoTexto = turn === 'morning' ? 'MAÑANA' : 'TARDE';
+        
         printWindow.document.write(`<div class="group-container">`);
-        printWindow.document.write(`<div class="group-header">GRUPO: ${g.name} | Aula: ${g.classroom || '-'} | Docente: ${g.teacher || '-'} | Aux: ${g.aux || '-'}</div>`);
-        printWindow.document.write('<table><thead><tr><th>Apellido y Nombre</th><th>DNI</th><th>DX</th><th>Observaciones / Asistencia</th></tr></thead><tbody>');
+        
+        // Encabezado del Grupo
+        printWindow.document.write(`
+            <div class="group-header">
+                <div class="header-item"><strong>TURNO:</strong> ${turnoTexto}</div>
+                <div class="header-item"><strong>GRUPO:</strong> ${g.name}</div>
+                <div class="header-item"><strong>NIVEL:</strong> ${g.level || '-'}</div>
+                <div class="header-item"><strong>AULA:</strong> ${g.classroom || '-'}</div>
+                <div class="header-item"><strong>DOCENTE:</strong> ${g.teacher || '-'}</div>
+                <div class="header-item"><strong>AUXILIAR:</strong> ${g.aux || '-'}</div>
+            </div>
+        `);
+
+        // Tabla de Alumnos
+        printWindow.document.write('<table><thead><tr><th>Nombre</th><th>Apellido</th><th>DNI</th><th>Edad</th><th>Fecha Nac.</th></tr></thead><tbody>');
+        
         g.students.sort((a,b) => a.lastName.localeCompare(b.lastName)).forEach(s => {
-            printWindow.document.write(`<tr><td>${s.lastName}, ${s.firstName}</td><td>${s.dni}</td><td>${s.dx || '-'}</td><td></td></tr>`);
+            const edad = calculateAge(s.birthDate);
+            const fechaNac = s.birthDate ? new Date(s.birthDate + 'T00:00:00').toLocaleDateString('es-AR') : '-';
+            
+            printWindow.document.write(`
+                <tr>
+                    <td>${s.firstName}</td>
+                    <td>${s.lastName}</td>
+                    <td>${s.dni}</td>
+                    <td>${edad}</td>
+                    <td>${fechaNac}</td>
+                </tr>
+            `);
         });
         printWindow.document.write('</tbody></table></div>');
     });
@@ -2261,8 +2280,11 @@ function GroupsView({ user }) {
   );
 }
 
+// Icono auxiliar
+const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
 // Icono auxiliar necesario para GroupsView
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
