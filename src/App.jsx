@@ -1310,7 +1310,7 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
         const messaging = getMessaging(app);
-        const currentToken = await getToken(messaging, { vapidKey: 'TU_VAPID_KEY_SI_LA_TIENES_SINO_BORRAR_ESTO' });
+        const currentToken = await getToken(messaging, { vapidKey: 'BAEl7uzkT1NyeMtxaYgiCDlYNeyZ8WLqpB1Gc4UPx8B5EN1YVbcXPfDVsMixqIqpVGFxQGbBVogZHXZAScmCpMY' });
         
         if (currentToken) {
            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
@@ -2282,6 +2282,7 @@ function GroupsView({ user }) {
 
 // Icono auxiliar
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
