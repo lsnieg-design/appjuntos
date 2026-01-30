@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+aimport React, { useState, useEffect } from 'react';
 import { 
   Calendar as CalendarIcon, CheckSquare, User, FileText, CheckCircle, Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, Lock, List, Grid, ChevronLeft, ChevronRight, Bell, Check, HelpCircle, Mail, Send, Key, Filter, LayoutDashboard, Link as LinkIcon, ExternalLink, AlertTriangle, Clock, Shield, Crown, Activity, Share, PlusSquare, Smartphone, GraduationCap, Search, X, UploadCloud, PieChart, Eye, Edit3, Folder, MessageSquare, Globe, BookOpen, Lightbulb 
 } from 'lucide-react';
@@ -428,10 +428,11 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'dashboard' && <DashboardView user={user} tasks={tasks} events={events} />}
         {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
         {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} canEdit={canManageContent} />}
-        {activeTab === 'matricula' && <MatriculaView user={user} />}
+        {activeTab === 'matricula' && < user={user} />}
         {activeTab === 'resources' && <ResourcesView resources={resources} canEdit={canManageContent} />}
         {activeTab === 'profile' && <ProfileView user={user} onLogout={onLogout} isSuperAdmin={isSuperAdmin} />}
         {activeTab === 'proyecto' && <ProyectoView user={user} />}
+        {activeTab === 'groups' && <GroupsView user={user} />}
         {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={canManageContent} user={user} />}
       </main>
 
@@ -442,6 +443,7 @@ function MainApp({ user, onLogout }) {
           <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={24} />} label="Agenda" />
           <NavButton active={activeTab === 'matricula'} onClick={() => setActiveTab('matricula')} icon={<GraduationCap size={24} />} label="Legajos" />
           <NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<LinkIcon size={24} />} label="Recursos" />
+          <NavButton active={activeTab === 'groups'} onClick={() => setActiveTab('groups')} icon={<Grid size={24} />} label="Mi Aula" />
           <NavButton active={activeTab === 'proyecto'} onClick={() => setActiveTab('proyecto')} icon={<PieChart size={24} />} label="P.I." />
         </div>
       </nav>
@@ -1599,8 +1601,10 @@ function ProyectoView({ user }) {
 // --- VISTA MATRÍCULA (EXCEL COMPLETO) ---
 // --- VISTA MATRÍCULA (EDICIÓN LIBERADA PARA TODOS) ---
 // --- VISTA MATRÍCULA (CON ESTADO ACTIVO/INACTIVO) ---
+// --- VISTA MATRÍCULA (CON SELECTORES INTELIGENTES Y RESET DE CICLO) ---
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
+  const [usersList, setUsersList] = useState([]); // Nuevo: Para los selectores de docentes
   const [filterText, setFilterText] = useState('');
   const [viewingStudent, setViewingStudent] = useState(null);
   const [showStats, setShowStats] = useState(false);
@@ -1608,7 +1612,6 @@ function MatriculaView({ user }) {
   const [showDataManagement, setShowDataManagement] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   
-  // NUEVO ESTADO: Para alternar entre ver solo activos o ver el archivo
   const [showArchived, setShowArchived] = useState(false);
 
   const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin';
@@ -1618,6 +1621,22 @@ function MatriculaView({ user }) {
   const [photoPreview, setPhotoPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [filters, setFilters] = useState({ level: 'all', dx: 'all', gender: 'all', journey: 'all', group: 'all', teacher: 'all' });
+
+  // --- NUEVO: Cargar lista de usuarios para los desplegables ---
+  useEffect(() => {
+    // Cargar Alumnos
+    const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), orderBy('lastName', 'asc'));
+    const unsubStudents = onSnapshot(qStudents, (snap) => { setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
+    
+    // Cargar Usuarios (Docentes/Auxiliares)
+    const qUsers = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('lastName', 'asc'));
+    const unsubUsers = onSnapshot(qUsers, (snap) => { setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
+
+    return () => { unsubStudents(); unsubUsers(); };
+  }, []);
+
+  // Filtramos solo usuarios que puedan estar a cargo de grupo para los dropdowns
+  const staffOptions = usersList.filter(u => ['Docente', 'Auxiliar/Preceptor', 'Equipo Técnico', 'Profes Especiales'].includes(u.role));
 
   const calculateAge = (dateString) => {
     if (!dateString) return '-';
@@ -1670,17 +1689,8 @@ function MatriculaView({ user }) {
       if (genderSelect && guess) { genderSelect.value = guess; }
   };
 
-  useEffect(() => {
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), orderBy('lastName', 'asc'));
-    const unsub = onSnapshot(q, (snap) => { setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
-    return () => unsub();
-  }, []);
-
   const filteredStudents = students.filter(s => {
-    // LÓGICA DE ESTADO: Si s.isActive es undefined (viejos), asumimos true.
     const isStudentActive = s.isActive === undefined || s.isActive === true;
-    
-    // Si estamos viendo archivo, mostramos solo inactivos. Si no, solo activos.
     if (showArchived && isStudentActive) return false;
     if (!showArchived && !isStudentActive) return false;
 
@@ -1690,14 +1700,13 @@ function MatriculaView({ user }) {
     const genderMatch = filters.gender === 'all' || s.gender === filters.gender;
     const journeyMatch = filters.journey === 'all' || s.journey === filters.journey;
     const groupMatch = filters.group === 'all' || (s.groupMorning === filters.group) || (s.groupAfternoon === filters.group);
-    const teacherMatch = filters.teacher === 'all' || s.teacherMorning?.includes(filters.teacher) || s.teacherAfternoon?.includes(filters.teacher);
+    const teacherMatch = filters.teacher === 'all' || s.teacherMorning === filters.teacher || s.teacherAfternoon === filters.teacher;
     return textMatch && levelMatch && dxMatch && genderMatch && journeyMatch && groupMatch && teacherMatch;
   });
 
   const statsResults = students.filter(s => {
       const isStudentActive = s.isActive === undefined || s.isActive === true;
-      if (!isStudentActive) return false; // Las estadísticas SIEMPRE sobre activos
-
+      if (!isStudentActive) return false; 
       const levelMatch = statFilters.level === 'all' || s.level === statFilters.level;
       const dxMatch = statFilters.dx === 'all' || s.dx === statFilters.dx;
       const genderMatch = statFilters.gender === 'all' || s.gender === statFilters.gender;
@@ -1721,13 +1730,22 @@ function MatriculaView({ user }) {
       firstName: formData.get('firstName'), lastName: formData.get('lastName'), dni: formData.get('dni'),
       birthDate: formData.get('birthDate'), gender: formData.get('gender'), dx: formData.get('dx'),
       journey: formData.get('journey'), level: formData.get('level'), healthInsurance: formData.get('healthInsurance'),
-      cudExpiration: formData.get('cudExpiration'), groupMorning: formData.get('groupMorning'),
-      teacherMorning: formData.get('teacherMorning'), auxMorning: formData.get('auxMorning'),
-      groupAfternoon: formData.get('groupAfternoon'), teacherAfternoon: formData.get('teacherAfternoon'),
-      auxAfternoon: formData.get('auxAfternoon'), address: formData.get('address'), motherName: formData.get('motherName'),
+      cudExpiration: formData.get('cudExpiration'), 
+      
+      // Datos de Agrupamiento
+      groupMorning: formData.get('groupMorning'),
+      teacherMorning: formData.get('teacherMorning'), // Ahora viene del Select
+      auxMorning: formData.get('auxMorning'),         // Ahora viene del Select
+      
+      groupAfternoon: formData.get('groupAfternoon'),
+      teacherAfternoon: formData.get('teacherAfternoon'), // Ahora viene del Select
+      auxAfternoon: formData.get('auxAfternoon'),         // Ahora viene del Select
+      
+      classroom: formData.get('classroom'), // NUEVO CAMPO AULA
+
+      address: formData.get('address'), motherName: formData.get('motherName'),
       motherContact: formData.get('motherContact'), fatherName: formData.get('fatherName'), fatherContact: formData.get('fatherContact'),
       photoUrl: photoPreview || editingStudent?.photoUrl || '', 
-      // GUARDAMOS EL ESTADO (true/false)
       isActive: formData.get('isActive') === 'true',
       updatedAt: serverTimestamp()
     };
@@ -1735,19 +1753,38 @@ function MatriculaView({ user }) {
       if (editingStudent) {
         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', editingStudent.id), data);
       } else {
-        // Los nuevos nacen activos por defecto
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...data, isActive: true, createdAt: serverTimestamp() });
       }
       setShowForm(false); setEditingStudent(null); setPhotoPreview(null);
     } catch (err) { alert("Error: " + err.message); }
   };
 
-  const handleDeleteAll = async () => {
-      if(!confirm("⚠️ ¡PELIGRO CRÍTICO! ⚠️\n\nEstás a punto de ELIMINAR TODOS los alumnos.\n¿Seguro?")) return;
+  // --- NUEVO: Script de Reset Ciclo Lectivo ---
+  const handleResetCycle = async () => {
+      if(!confirm("⚠️ ATENCIÓN SUPER ADMIN ⚠️\n\n¿Estás seguro de REINICIAR EL CICLO LECTIVO?\n\nEsto borrará:\n- Todos los grupos asignados\n- Todas las docentes y auxiliares asignadas\n- Las aulas asignadas\n\nNO borrará los legajos ni datos personales.\n\n¿Continuar?")) return;
+      
       setProcessing(true);
       try {
           const snapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'students'));
-          if (snapshot.empty) { alert("Base vacía."); setProcessing(false); return; }
+          if (snapshot.empty) { alert("No hay alumnos."); setProcessing(false); return; }
+          
+          const updates = snapshot.docs.map(docSnap => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', docSnap.id), {
+              groupMorning: '', teacherMorning: '', auxMorning: '',
+              groupAfternoon: '', teacherAfternoon: '', auxAfternoon: '',
+              classroom: ''
+          }));
+          
+          await Promise.all(updates);
+          alert("✅ Ciclo reiniciado. Todos los alumnos están sin grupo.");
+      } catch (e) { alert("Error: " + e.message); } finally { setProcessing(false); }
+  };
+
+  const handleDeleteAll = async () => {
+      if(!confirm("⚠️ ¡PELIGRO CRÍTICO! ⚠️\n\nEstás a punto de ELIMINAR TODOS los alumnos.\n¿Seguro?")) return;
+      if(!confirm("CONFIRMACIÓN FINAL:\n\nEsta acción NO se puede deshacer.")) return;
+      setProcessing(true);
+      try {
+          const snapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'students'));
           const deletePromises = snapshot.docs.map(docSnap => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', docSnap.id)));
           await Promise.all(deletePromises);
           alert("✅ Base vaciada.");
@@ -1761,7 +1798,6 @@ function MatriculaView({ user }) {
       if (!Array.isArray(data)) throw new Error("Formato inválido");
       const promises = data.map(s => {
           if (s.lastName && s.firstName) {
-            // Al importar, asumimos que son activos
             return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...s, isActive: true, createdAt: serverTimestamp() });
           }
           return Promise.resolve();
@@ -1790,7 +1826,7 @@ function MatriculaView({ user }) {
 
   const exportFiltered = () => {
     if (filteredStudents.length === 0) { alert("No hay datos para exportar."); return; }
-    const headers = ["Estado", "Apellido", "Nombre", "DNI", "Nivel", "Edad", "Fecha Nacimiento", "Género", "DX", "Obra Social", "Vencimiento CUD", "Jornada", "Grupo T. Mañana", "Docente TM", "Auxiliar TM", "Grupo T. Tarde", "Docente TT", "Auxiliar TT", "Dirección", "Madre", "Contacto Madre", "Padre", "Contacto Padre"];
+    const headers = ["Estado", "Apellido", "Nombre", "DNI", "Nivel", "Edad", "Fecha Nacimiento", "Género", "DX", "Obra Social", "Vencimiento CUD", "Jornada", "Aula", "Grupo T. Mañana", "Docente TM", "Auxiliar TM", "Grupo T. Tarde", "Docente TT", "Auxiliar TT", "Dirección", "Madre", "Contacto Madre", "Padre", "Contacto Padre"];
     const csvContent = [
       headers.join(';'), 
       ...filteredStudents.map(s => {
@@ -1798,7 +1834,7 @@ function MatriculaView({ user }) {
         const fechaNac = s.birthDate ? new Date(s.birthDate + 'T00:00:00').toLocaleDateString('es-AR') : '-';
         const vencCUD = s.cudExpiration ? new Date(s.cudExpiration + 'T00:00:00').toLocaleDateString('es-AR') : '-';
         const estado = (s.isActive === undefined || s.isActive) ? "ACTIVO" : "BAJA";
-        return [`"${estado}"`,`"${s.lastName || ''}"`,`"${s.firstName || ''}"`,`"${s.dni || ''}"`,`"${s.level || ''}"`,`"${age}"`,`"${fechaNac}"`,`"${s.gender || ''}"`,`"${s.dx || ''}"`,`"${s.healthInsurance || ''}"`,`"${vencCUD}"`,`"${s.journey || ''}"`,`"${s.groupMorning || ''}"`,`"${s.teacherMorning || ''}"`,`"${s.auxMorning || ''}"`,`"${s.groupAfternoon || ''}"`,`"${s.teacherAfternoon || ''}"`,`"${s.auxAfternoon || ''}"`,`"${s.address || ''}"`,`"${s.motherName || ''}"`,`"${s.motherContact || ''}"`,`"${s.fatherName || ''}"`,`"${s.fatherContact || ''}"`].join(';');
+        return [`"${estado}"`,`"${s.lastName || ''}"`,`"${s.firstName || ''}"`,`"${s.dni || ''}"`,`"${s.level || ''}"`,`"${age}"`,`"${fechaNac}"`,`"${s.gender || ''}"`,`"${s.dx || ''}"`,`"${s.healthInsurance || ''}"`,`"${vencCUD}"`,`"${s.journey || ''}"`,`"${s.classroom || ''}"`,`"${s.groupMorning || ''}"`,`"${s.teacherMorning || ''}"`,`"${s.auxMorning || ''}"`,`"${s.groupAfternoon || ''}"`,`"${s.teacherAfternoon || ''}"`,`"${s.auxAfternoon || ''}"`,`"${s.address || ''}"`,`"${s.motherName || ''}"`,`"${s.motherContact || ''}"`,`"${s.fatherName || ''}"`,`"${s.fatherContact || ''}"`].join(';');
       })
     ].join('\n');
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -1819,18 +1855,16 @@ function MatriculaView({ user }) {
               <p className="text-white/80 opacity-90">{filteredStudents.length} estudiantes {showArchived ? 'archivados' : 'activos'}</p>
           </div>
           <div className="flex gap-2">
-             {/* BOTÓN TOGGLE ARCHIVO */}
              <button onClick={() => setShowArchived(!showArchived)} className={`px-4 py-2 rounded-xl text-xs font-black uppercase shadow-lg transition flex items-center gap-2 border ${showArchived ? 'bg-blue-500 border-blue-400 text-white' : 'bg-gray-800/40 border-white/20 hover:bg-gray-800/60'}`}>
                  {showArchived ? <><CheckCircle size={16}/> Ver Activos</> : <><LogOut size={16}/> Ver Bajas</>}
              </button>
 
-             {isSuperAdmin && (<><button onClick={() => setShowDataManagement(true)} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold border border-white/20"><UploadCloud size={20}/></button><button onClick={() => setShowStats(true)} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold border border-white/20"><PieChart size={20}/></button></>)}
+             {isSuperAdmin && (<><button onClick={() => setShowDataManagement(true)} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold border border-white/20"><UploadCloud size={20}/> Gestión BD</button><button onClick={() => setShowStats(true)} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold border border-white/20"><PieChart size={20}/></button></>)}
              <button onClick={exportFiltered} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold"><Download size={20}/></button>
              {!showArchived && <button onClick={openNew} className="bg-white text-blue-600 p-3 rounded-xl shadow-lg hover:bg-blue-50 transition font-bold"><Plus size={24} /></button>}
           </div>
         </div>
         
-        {/* BUSCADOR Y FILTROS SOLO SI ESTAMOS EN ACTIVOS */}
         {!showArchived && (
             <div className="mt-6 space-y-3">
             <div className="bg-white/10 backdrop-blur-md p-2 rounded-xl flex items-center gap-2 border border-white/20">
@@ -1841,8 +1875,8 @@ function MatriculaView({ user }) {
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
                 <select value={filters.level} onChange={e => setFilters({...filters, level: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">Nivel: Todos</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option></select>
                 <select value={filters.dx} onChange={e => setFilters({...filters, dx: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">DX: Todos</option><option value="DI" className="text-gray-800">DI</option><option value="TES" className="text-gray-800">TES</option><option value="Otro" className="text-gray-800">Otro</option></select>
-                <select value={filters.gender} onChange={e => setFilters({...filters, gender: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">Género: Todos</option><option value="F" className="text-gray-800">Mujer</option><option value="M" className="text-gray-800">Varón</option></select>
-                <select value={filters.journey} onChange={e => setFilters({...filters, journey: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">Jornada: Todas</option><option value="Simple Mañana" className="text-gray-800">Mañana</option><option value="Simple Tarde" className="text-gray-800">Tarde</option><option value="Doble" className="text-gray-800">Doble</option></select>
+                <select value={filters.gender} onChange={e => setFilters({...filters, gender: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">Género: Todos</option><option value="M">Varones</option><option value="F">Mujeres</option></select>
+                <select value={filters.journey} onChange={e => setFilters({...filters, journey: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">Jornada: Todas</option><option value="Simple Mañana">Mañana</option><option value="Simple Tarde">Tarde</option><option value="Doble">Doble</option></select>
                 <select value={filters.group} onChange={e => setFilters({...filters, group: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">Grupo: Todos</option>{uniqueGroups.map(g => <option key={g} value={g} className="text-gray-800">{g}</option>)}</select>
                 <select value={filters.teacher} onChange={e => setFilters({...filters, teacher: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">Docente: Todos</option>{uniqueTeachers.map(t => <option key={t} value={t} className="text-gray-800">{t}</option>)}</select>
             </div>
@@ -1863,7 +1897,12 @@ function MatriculaView({ user }) {
                       {showArchived && <span className="bg-red-100 text-red-600 text-[9px] px-2 py-1 rounded font-bold uppercase">BAJA</span>}
                       {s.dx && !showArchived && <span className="bg-purple-100 text-purple-700 text-[10px] px-2 py-0.5 rounded font-bold uppercase border border-purple-200 shrink-0">{s.dx}</span>}
                   </div>
-                  <div className="flex flex-wrap gap-2 text-xs text-gray-500 mt-1"><span className="bg-gray-100 px-2 py-0.5 rounded font-medium border border-gray-200">{age !== '-' ? `${age} años` : '-'}</span><span className="bg-gray-100 px-2 py-0.5 rounded font-medium border border-gray-200 text-gray-600">{s.level || 'Sin Nivel'}</span>{(s.groupMorning || s.groupAfternoon) && <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded font-bold border border-blue-100">{s.groupMorning || s.groupAfternoon}</span>}</div>
+                  <div className="flex flex-wrap gap-2 text-xs text-gray-500 mt-1">
+                      <span className="bg-gray-100 px-2 py-0.5 rounded font-medium border border-gray-200">{age !== '-' ? `${age} años` : '-'}</span>
+                      <span className="bg-gray-100 px-2 py-0.5 rounded font-medium border border-gray-200 text-gray-600">{s.level || 'Sin Nivel'}</span>
+                      {s.classroom && <span className="bg-orange-50 text-orange-600 px-2 py-0.5 rounded font-bold border border-orange-100">Aula {s.classroom}</span>}
+                      {(s.groupMorning || s.groupAfternoon) && <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded font-bold border border-blue-100">{s.groupMorning || s.groupAfternoon}</span>}
+                  </div>
                 </div>
               </div>
               <Eye className="text-gray-300 group-hover:text-blue-500 transition ml-3" size={20} />
@@ -1873,7 +1912,16 @@ function MatriculaView({ user }) {
 
       {/* MODAL GESTIÓN DE DATOS (Solo Super Admin) */}
       {showDataManagement && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl p-6 shadow-2xl animate-in zoom-in-95 overflow-y-auto max-h-[90vh]"><div className="flex justify-between items-center mb-4"><h3 className="text-xl font-bold text-gray-800">Gestión de Base de Datos</h3><button onClick={() => setShowDataManagement(false)} className="text-gray-400 hover:text-gray-600"><X size={24}/></button></div><div className="bg-orange-50 p-4 rounded-xl border border-orange-100 mb-6"><h4 className="font-bold text-orange-800 text-sm mb-2 flex items-center gap-2"><AlertTriangle size={16}/> Zona de Riesgo</h4><button onClick={handleDeleteAll} disabled={processing} className="w-full bg-white border border-red-200 text-red-600 font-bold py-2 rounded-lg text-sm hover:bg-red-50 transition flex items-center justify-center gap-2">{processing ? <RefreshCw className="animate-spin" size={16}/> : <Trash2 size={16}/>} ELIMINAR TODOS LOS ALUMNOS</button></div><h4 className="font-bold text-gray-800 text-sm mb-2">Herramientas</h4><div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-6"><p className="text-xs text-blue-800 mb-3">Si importaste datos sin género, usa esto para detectarlo automáticamente.</p><button onClick={handleAutoAssignGenders} disabled={processing} className="w-full bg-white border border-blue-200 text-blue-700 font-bold py-2 rounded-lg text-sm hover:bg-blue-100 transition flex items-center justify-center gap-2">{processing ? <RefreshCw className="animate-spin" size={16}/> : <><Users size={16}/> ✨ Auto-completar Géneros</>}</button></div><h4 className="font-bold text-gray-800 text-sm mb-2">Importar Nuevos Datos (JSON)</h4><textarea value={importJson} onChange={e => setImportJson(e.target.value)} placeholder='[ { "firstName": "Juan"... } ]' className="w-full h-40 p-3 bg-gray-50 rounded-xl border border-gray-200 font-mono text-xs outline-none focus:ring-2 focus:ring-blue-400"></textarea><div className="flex gap-3 mt-4"><button onClick={() => setShowDataManagement(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button><button onClick={handleBulkImport} disabled={processing || !importJson} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex justify-center items-center gap-2">{processing ? <RefreshCw className="animate-spin" /> : <><UploadCloud size={20} /> Procesar Datos</>}</button></div></div></div>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl p-6 shadow-2xl animate-in zoom-in-95 overflow-y-auto max-h-[90vh]"><div className="flex justify-between items-center mb-4"><h3 className="text-xl font-bold text-gray-800">Gestión de Base de Datos</h3><button onClick={() => setShowDataManagement(false)} className="text-gray-400 hover:text-gray-600"><X size={24}/></button></div>
+        
+        {/* ZONA DE RESET CICLO LECTIVO */}
+        <div className="bg-violet-50 p-4 rounded-xl border border-violet-200 mb-6">
+            <h4 className="font-bold text-violet-900 text-sm mb-2 flex items-center gap-2"><RefreshCw size={16}/> Inicio de Ciclo</h4>
+            <p className="text-xs text-violet-700 mb-3">Borra grupos, aulas y docentes asignados para empezar un nuevo año. Mantiene datos personales.</p>
+            <button onClick={handleResetCycle} disabled={processing} className="w-full bg-violet-600 text-white font-bold py-2 rounded-lg text-sm hover:bg-violet-700 transition shadow-lg">REINICIAR CICLO 2026</button>
+        </div>
+
+        <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 mb-6"><h4 className="font-bold text-orange-800 text-sm mb-2 flex items-center gap-2"><AlertTriangle size={16}/> Zona de Riesgo</h4><button onClick={handleDeleteAll} disabled={processing} className="w-full bg-white border border-red-200 text-red-600 font-bold py-2 rounded-lg text-sm hover:bg-red-50 transition flex items-center justify-center gap-2">{processing ? <RefreshCw className="animate-spin" size={16}/> : <Trash2 size={16}/>} ELIMINAR TODOS LOS ALUMNOS</button></div><h4 className="font-bold text-gray-800 text-sm mb-2">Herramientas</h4><div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-6"><p className="text-xs text-blue-800 mb-3">Si importaste datos sin género, usa esto para detectarlo automáticamente.</p><button onClick={handleAutoAssignGenders} disabled={processing} className="w-full bg-white border border-blue-200 text-blue-700 font-bold py-2 rounded-lg text-sm hover:bg-blue-100 transition flex items-center justify-center gap-2">{processing ? <RefreshCw className="animate-spin" size={16}/> : <><Users size={16}/> ✨ Auto-completar Géneros</>}</button></div><h4 className="font-bold text-gray-800 text-sm mb-2">Importar Nuevos Datos (JSON)</h4><textarea value={importJson} onChange={e => setImportJson(e.target.value)} placeholder='[ { "firstName": "Juan"... } ]' className="w-full h-40 p-3 bg-gray-50 rounded-xl border border-gray-200 font-mono text-xs outline-none focus:ring-2 focus:ring-blue-400"></textarea><div className="flex gap-3 mt-4"><button onClick={() => setShowDataManagement(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button><button onClick={handleBulkImport} disabled={processing || !importJson} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex justify-center items-center gap-2">{processing ? <RefreshCw className="animate-spin" /> : <><UploadCloud size={20} /> Procesar Datos</>}</button></div></div></div>
       )}
 
       {/* MODAL ESTADÍSTICAS */}
@@ -1885,7 +1933,11 @@ function MatriculaView({ user }) {
       {viewingStudent && !showForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]"><div className={`bg-gradient-to-r p-6 text-white relative shrink-0 ${!viewingStudent.isActive && viewingStudent.isActive !== undefined ? 'from-gray-500 to-gray-700' : 'from-blue-600 to-cyan-500'}`}><button onClick={() => setViewingStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition"><X size={20}/></button><div className="flex items-center gap-4"><div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">{viewingStudent.photoUrl ? <img src={viewingStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}</div><div><h2 className="text-2xl font-bold">{viewingStudent.lastName}, {viewingStudent.firstName}</h2><p className="opacity-90 flex gap-2 text-sm mt-1"><span className="bg-white/20 px-2 py-0.5 rounded">{calculateAge(viewingStudent.birthDate)} años</span><span className="bg-white/20 px-2 py-0.5 rounded">{viewingStudent.dni}</span></p>
         {(!viewingStudent.isActive && viewingStudent.isActive !== undefined) && <div className="mt-2 inline-block bg-red-500 px-3 py-1 rounded-lg text-xs font-black uppercase shadow-sm">⚠️ ALUMNO DADO DE BAJA</div>}
-        </div></div></div><div className="p-6 overflow-y-auto space-y-6"><div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center"><div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase">Nivel</p><p className="font-bold text-gray-800">{viewingStudent.level || '-'}</p></div><div className="bg-purple-50 p-3 rounded-xl border border-purple-100"><p className="text-xs text-purple-400 font-bold uppercase">DX</p><p className="font-bold text-purple-800">{viewingStudent.dx || '-'}</p></div><div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase">Género</p><p className="font-bold text-gray-800">{viewingStudent.gender || '-'}</p></div><div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase">Jornada</p><p className="font-bold text-gray-800">{viewingStudent.journey || '-'}</p></div></div><div className="space-y-3"><h3 className="font-bold text-gray-900 flex items-center gap-2"><Briefcase size={18} className="text-blue-500"/> Escolaridad 2026</h3><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100 relative overflow-hidden"><div className="absolute top-0 right-0 bg-yellow-200 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">MAÑANA</div><div className="space-y-2 text-sm"><p><span className="text-gray-500 font-bold">Grupo:</span> {viewingStudent.groupMorning || '-'}</p><p><span className="text-gray-500 font-bold">Docente:</span> {viewingStudent.teacherMorning || '-'}</p><p><span className="text-gray-500 font-bold">Auxiliar:</span> {viewingStudent.auxMorning || '-'}</p></div></div><div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 relative overflow-hidden"><div className="absolute top-0 right-0 bg-indigo-200 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">TARDE</div><div className="space-y-2 text-sm"><p><span className="text-gray-500 font-bold">Grupo:</span> {viewingStudent.groupAfternoon || '-'}</p><p><span className="text-gray-500 font-bold">Docente:</span> {viewingStudent.teacherAfternoon || '-'}</p><p><span className="text-gray-500 font-bold">Auxiliar:</span> {viewingStudent.auxAfternoon || '-'}</p></div></div></div></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-6"><div className="space-y-3"><h3 className="font-bold text-gray-900 flex items-center gap-2"><Activity size={18} className="text-green-500"/> Salud</h3><div className="bg-white p-4 rounded-xl border border-gray-100 text-sm space-y-2 shadow-sm"><p><span className="text-gray-500 font-bold block text-xs uppercase">Obra Social</span> {viewingStudent.healthInsurance || 'No declara'}</p><p><span className="text-gray-500 font-bold block text-xs uppercase">Vencimiento CUD</span> {viewingStudent.cudExpiration ? formatDate(viewingStudent.cudExpiration) : '-'}</p></div></div><div className="space-y-3"><h3 className="font-bold text-gray-900 flex items-center gap-2"><User size={18} className="text-orange-500"/> Familia</h3><div className="bg-white p-4 rounded-xl border border-gray-100 text-sm space-y-2 shadow-sm"><p><span className="text-gray-500 font-bold block text-xs uppercase">Madre</span> {viewingStudent.motherName} <span className="text-gray-400">({viewingStudent.motherContact})</span></p><p><span className="text-gray-500 font-bold block text-xs uppercase">Padre</span> {viewingStudent.fatherName} <span className="text-gray-400">({viewingStudent.fatherContact})</span></p><p><span className="text-gray-500 font-bold block text-xs uppercase">Dirección</span> {viewingStudent.address}</p></div></div></div></div><div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3 shrink-0">
+        </div></div></div><div className="p-6 overflow-y-auto space-y-6"><div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center"><div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase">Nivel</p><p className="font-bold text-gray-800">{viewingStudent.level || '-'}</p></div><div className="bg-purple-50 p-3 rounded-xl border border-purple-100"><p className="text-xs text-purple-400 font-bold uppercase">DX</p><p className="font-bold text-purple-800">{viewingStudent.dx || '-'}</p></div><div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase">Género</p><p className="font-bold text-gray-800">{viewingStudent.gender || '-'}</p></div><div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase">Jornada</p><p className="font-bold text-gray-800">{viewingStudent.journey || '-'}</p></div></div><div className="space-y-3"><h3 className="font-bold text-gray-900 flex items-center gap-2"><Briefcase size={18} className="text-blue-500"/> Escolaridad 2026</h3>
+        {/* SECCIÓN AULA */}
+        {viewingStudent.classroom && <div className="bg-orange-50 p-3 rounded-xl border border-orange-100 text-center font-bold text-orange-700">AULA / SALÓN: {viewingStudent.classroom}</div>}
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100 relative overflow-hidden"><div className="absolute top-0 right-0 bg-yellow-200 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">MAÑANA</div><div className="space-y-2 text-sm"><p><span className="text-gray-500 font-bold">Grupo:</span> {viewingStudent.groupMorning || '-'}</p><p><span className="text-gray-500 font-bold">Docente:</span> {viewingStudent.teacherMorning || '-'}</p><p><span className="text-gray-500 font-bold">Auxiliar:</span> {viewingStudent.auxMorning || '-'}</p></div></div><div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 relative overflow-hidden"><div className="absolute top-0 right-0 bg-indigo-200 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">TARDE</div><div className="space-y-2 text-sm"><p><span className="text-gray-500 font-bold">Grupo:</span> {viewingStudent.groupAfternoon || '-'}</p><p><span className="text-gray-500 font-bold">Docente:</span> {viewingStudent.teacherAfternoon || '-'}</p><p><span className="text-gray-500 font-bold">Auxiliar:</span> {viewingStudent.auxAfternoon || '-'}</p></div></div></div></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-6"><div className="space-y-3"><h3 className="font-bold text-gray-900 flex items-center gap-2"><Activity size={18} className="text-green-500"/> Salud</h3><div className="bg-white p-4 rounded-xl border border-gray-100 text-sm space-y-2 shadow-sm"><p><span className="text-gray-500 font-bold block text-xs uppercase">Obra Social</span> {viewingStudent.healthInsurance || 'No declara'}</p><p><span className="text-gray-500 font-bold block text-xs uppercase">Vencimiento CUD</span> {viewingStudent.cudExpiration ? formatDate(viewingStudent.cudExpiration) : '-'}</p></div></div><div className="space-y-3"><h3 className="font-bold text-gray-900 flex items-center gap-2"><User size={18} className="text-orange-500"/> Familia</h3><div className="bg-white p-4 rounded-xl border border-gray-100 text-sm space-y-2 shadow-sm"><p><span className="text-gray-500 font-bold block text-xs uppercase">Madre</span> {viewingStudent.motherName} <span className="text-gray-400">({viewingStudent.motherContact})</span></p><p><span className="text-gray-500 font-bold block text-xs uppercase">Padre</span> {viewingStudent.fatherName} <span className="text-gray-400">({viewingStudent.fatherContact})</span></p><p><span className="text-gray-500 font-bold block text-xs uppercase">Dirección</span> {viewingStudent.address}</p></div></div></div></div><div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3 shrink-0">
             {/* BOTÓN EDITAR VISIBLE PARA TODOS */}
             <button onClick={() => openEdit(viewingStudent)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-lg"><Edit3 size={18}/> Editar Ficha</button>
         </div></div></div>
@@ -1907,11 +1959,236 @@ function MatriculaView({ user }) {
                 </select>
             </div>
 
-            <div className="flex gap-4 flex-col sm:flex-row"><div className="flex flex-col items-center gap-2"><div className="w-24 h-24 rounded-2xl bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden relative group cursor-pointer">{photoPreview ? <img src={photoPreview} className="w-full h-full object-cover" /> : <span className="text-xs text-gray-400 text-center px-2">Subir Foto</span>}<input type="file" accept="image/*" onChange={handlePhotoChange} className="absolute inset-0 opacity-0 cursor-pointer" />{uploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><RefreshCw className="text-white animate-spin" /></div>}</div></div><div className="flex-1 space-y-3"><div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-gray-500">Apellido *</label><input name="lastName" defaultValue={editingStudent?.lastName || ''} required className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div><div><label className="text-xs font-bold text-gray-500">Nombre *</label><input name="firstName" defaultValue={editingStudent?.firstName || ''} required onChange={handleNameChange} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div></div><div className="grid grid-cols-3 gap-3"><div><label className="text-xs font-bold text-gray-500">DNI</label><input name="dni" type="number" defaultValue={editingStudent?.dni || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div><div><label className="text-xs font-bold text-gray-500">Nacimiento</label><input name="birthDate" type="date" defaultValue={editingStudent?.birthDate || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div><div><label className="text-xs font-bold text-gray-500">Género</label><select id="genderSelect" name="gender" defaultValue={editingStudent?.gender || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"><option value="">Seleccionar</option><option value="M">Varón</option><option value="F">Mujer</option></select></div></div></div></div><div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 space-y-3"><p className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1"><Activity size={12}/> Datos Institucionales</p><div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-gray-500">Nivel</label><select name="level" defaultValue={editingStudent?.level || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"><option value="">Seleccionar</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option><option value="TALLER">Taller</option><option value="Pre-Taller">Pre-Taller</option><option value="FINES">Fines</option></select></div><div><label className="text-xs font-bold text-gray-500">Jornada</label><select name="journey" defaultValue={editingStudent?.journey || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"><option value="">Seleccionar</option><option value="Simple Mañana">Simple Mañana</option><option value="Simple Tarde">Simple Tarde</option><option value="Doble">Doble Jornada</option></select></div><div><label className="text-xs font-bold text-gray-500">Diagnóstico</label><select name="dx" defaultValue={editingStudent?.dx || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"><option value="">Ninguno</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select></div></div></div><div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 space-y-3"><p className="text-xs font-bold text-indigo-800 uppercase tracking-wider flex items-center gap-1"><GraduationCap size={12}/> Ubicación 2026</p><div className="bg-white/50 p-2 rounded-lg border border-indigo-100"><p className="text-[10px] font-bold text-indigo-400 mb-2">TURNO MAÑANA</p><div className="grid grid-cols-3 gap-2"><input name="groupMorning" defaultValue={editingStudent?.groupMorning || ''} placeholder="Grupo TM" className="p-2 bg-white rounded border text-xs outline-none" /><input name="teacherMorning" defaultValue={editingStudent?.teacherMorning || ''} placeholder="Docente TM" className="p-2 bg-white rounded border text-xs outline-none" /><input name="auxMorning" defaultValue={editingStudent?.auxMorning || ''} placeholder="Auxiliar TM" className="p-2 bg-white rounded border text-xs outline-none" /></div></div><div className="bg-white/50 p-2 rounded-lg border border-indigo-100"><p className="text-[10px] font-bold text-indigo-400 mb-2">TURNO TARDE</p><div className="grid grid-cols-3 gap-2"><input name="groupAfternoon" defaultValue={editingStudent?.groupAfternoon || ''} placeholder="Grupo TT" className="p-2 bg-white rounded border text-xs outline-none" /><input name="teacherAfternoon" defaultValue={editingStudent?.teacherAfternoon || ''} placeholder="Docente TT" className="p-2 bg-white rounded border text-xs outline-none" /><input name="auxAfternoon" defaultValue={editingStudent?.auxAfternoon || ''} placeholder="Auxiliar TT" className="p-2 bg-white rounded border text-xs outline-none" /></div></div></div><div className="space-y-3 pt-2 border-t border-gray-100"><p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Salud y Familia</p><div className="grid grid-cols-2 gap-3"><input name="healthInsurance" defaultValue={editingStudent?.healthInsurance || ''} placeholder="Obra Social" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /><input name="cudExpiration" type="date" defaultValue={editingStudent?.cudExpiration || ''} className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /></div><input name="address" defaultValue={editingStudent?.address || ''} className="w-full p-2 bg-gray-50 rounded-lg border outline-none" placeholder="Dirección" /><div className="grid grid-cols-2 gap-3"><input name="motherName" defaultValue={editingStudent?.motherName || ''} placeholder="Madre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /><input name="motherContact" defaultValue={editingStudent?.motherContact || ''} placeholder="Contacto Madre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /></div><div className="grid grid-cols-2 gap-3"><input name="fatherName" defaultValue={editingStudent?.fatherName || ''} placeholder="Padre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /><input name="fatherContact" defaultValue={editingStudent?.fatherContact || ''} placeholder="Contacto Padre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /></div></div><div className="flex gap-3 mt-6 pt-4 border-t border-gray-100"><button type="button" onClick={() => {setShowForm(false); setEditingStudent(null); setPhotoPreview(null);}} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg">Guardar</button>{editingStudent && <button type="button" onClick={() => handleDelete(editingStudent.id)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition"><Trash2 size={20}/></button>}</div></form></div></div>
+            <div className="flex gap-4 flex-col sm:flex-row"><div className="flex flex-col items-center gap-2"><div className="w-24 h-24 rounded-2xl bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden relative group cursor-pointer">{photoPreview ? <img src={photoPreview} className="w-full h-full object-cover" /> : <span className="text-xs text-gray-400 text-center px-2">Subir Foto</span>}<input type="file" accept="image/*" onChange={handlePhotoChange} className="absolute inset-0 opacity-0 cursor-pointer" />{uploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><RefreshCw className="text-white animate-spin" /></div>}</div></div><div className="flex-1 space-y-3"><div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-gray-500">Apellido *</label><input name="lastName" defaultValue={editingStudent?.lastName || ''} required className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div><div><label className="text-xs font-bold text-gray-500">Nombre *</label><input name="firstName" defaultValue={editingStudent?.firstName || ''} required onChange={handleNameChange} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div></div><div className="grid grid-cols-3 gap-3"><div><label className="text-xs font-bold text-gray-500">DNI</label><input name="dni" type="number" defaultValue={editingStudent?.dni || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div><div><label className="text-xs font-bold text-gray-500">Nacimiento</label><input name="birthDate" type="date" defaultValue={editingStudent?.birthDate || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div><div><label className="text-xs font-bold text-gray-500">Género</label><select id="genderSelect" name="gender" defaultValue={editingStudent?.gender || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"><option value="">Seleccionar</option><option value="M">Varón</option><option value="F">Mujer</option></select></div></div></div></div>
+            
+            <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 space-y-3"><p className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1"><Activity size={12}/> Datos Institucionales</p><div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-gray-500">Nivel</label><select name="level" defaultValue={editingStudent?.level || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"><option value="">Seleccionar</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option><option value="TALLER">Taller</option><option value="Pre-Taller">Pre-Taller</option><option value="FINES">Fines</option></select></div><div><label className="text-xs font-bold text-gray-500">Jornada</label><select name="journey" defaultValue={editingStudent?.journey || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"><option value="">Seleccionar</option><option value="Simple Mañana">Simple Mañana</option><option value="Simple Tarde">Simple Tarde</option><option value="Doble">Doble Jornada</option></select></div><div><label className="text-xs font-bold text-gray-500">Diagnóstico</label><select name="dx" defaultValue={editingStudent?.dx || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"><option value="">Ninguno</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select></div></div></div>
+            
+            <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 space-y-3">
+                <div className="flex justify-between items-center">
+                    <p className="text-xs font-bold text-indigo-800 uppercase tracking-wider flex items-center gap-1"><GraduationCap size={12}/> Ubicación 2026</p>
+                    {/* INPUT AULA */}
+                    <input name="classroom" defaultValue={editingStudent?.classroom || ''} placeholder="Nº Aula" className="w-20 p-1 bg-white text-center rounded border text-xs outline-none" />
+                </div>
+                
+                {/* SELECTORES INTELIGENTES MAÑANA */}
+                <div className="bg-white/50 p-2 rounded-lg border border-indigo-100">
+                    <p className="text-[10px] font-bold text-indigo-400 mb-2">TURNO MAÑANA</p>
+                    <div className="grid grid-cols-3 gap-2">
+                        <input name="groupMorning" defaultValue={editingStudent?.groupMorning || ''} placeholder="Grupo TM" className="p-2 bg-white rounded border text-xs outline-none" />
+                        <select name="teacherMorning" defaultValue={editingStudent?.teacherMorning || ''} className="p-2 bg-white rounded border text-xs outline-none">
+                            <option value="">Docente TM...</option>
+                            {staffOptions.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
+                        </select>
+                        <select name="auxMorning" defaultValue={editingStudent?.auxMorning || ''} className="p-2 bg-white rounded border text-xs outline-none">
+                            <option value="">Auxiliar TM...</option>
+                            {staffOptions.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
+                        </select>
+                    </div>
+                </div>
+
+                {/* SELECTORES INTELIGENTES TARDE */}
+                <div className="bg-white/50 p-2 rounded-lg border border-indigo-100">
+                    <p className="text-[10px] font-bold text-indigo-400 mb-2">TURNO TARDE</p>
+                    <div className="grid grid-cols-3 gap-2">
+                        <input name="groupAfternoon" defaultValue={editingStudent?.groupAfternoon || ''} placeholder="Grupo TT" className="p-2 bg-white rounded border text-xs outline-none" />
+                        <select name="teacherAfternoon" defaultValue={editingStudent?.teacherAfternoon || ''} className="p-2 bg-white rounded border text-xs outline-none">
+                            <option value="">Docente TT...</option>
+                            {staffOptions.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
+                        </select>
+                        <select name="auxAfternoon" defaultValue={editingStudent?.auxAfternoon || ''} className="p-2 bg-white rounded border text-xs outline-none">
+                            <option value="">Auxiliar TT...</option>
+                            {staffOptions.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div className="space-y-3 pt-2 border-t border-gray-100"><p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Salud y Familia</p><div className="grid grid-cols-2 gap-3"><input name="healthInsurance" defaultValue={editingStudent?.healthInsurance || ''} placeholder="Obra Social" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /><input name="cudExpiration" type="date" defaultValue={editingStudent?.cudExpiration || ''} className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /></div><input name="address" defaultValue={editingStudent?.address || ''} className="w-full p-2 bg-gray-50 rounded-lg border outline-none" placeholder="Dirección" /><div className="grid grid-cols-2 gap-3"><input name="motherName" defaultValue={editingStudent?.motherName || ''} placeholder="Madre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /><input name="motherContact" defaultValue={editingStudent?.motherContact || ''} placeholder="Contacto Madre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /></div><div className="grid grid-cols-2 gap-3"><input name="fatherName" defaultValue={editingStudent?.fatherName || ''} placeholder="Padre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /><input name="fatherContact" defaultValue={editingStudent?.fatherContact || ''} placeholder="Contacto Padre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /></div></div><div className="flex gap-3 mt-6 pt-4 border-t border-gray-100"><button type="button" onClick={() => {setShowForm(false); setEditingStudent(null); setPhotoPreview(null);}} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg">Guardar</button>{editingStudent && <button type="button" onClick={() => handleDelete(editingStudent.id)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition"><Trash2 size={20}/></button>}</div></form></div></div>
       )}
     </div>
   );
 }
+// --- VISTA TABLERO DE GRUPOS (EL MAPA DE AULA) ---
+function GroupsView({ user }) {
+  const [students, setStudents] = useState([]);
+  const [turn, setTurn] = useState('morning'); // 'morning' | 'afternoon'
+  const [selectedStudent, setSelectedStudent] = useState(null);
+
+  // Permisos: ¿Es equipo de conducción?
+  const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración'].includes(user.role) || user.rol === 'admin';
+
+  useEffect(() => {
+    // Solo traemos estudiantes ACTIVOS
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
+    const unsub = onSnapshot(q, (snap) => {
+        setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, []);
+
+  // 1. Agrupar estudiantes según el turno seleccionado
+  const groupedData = students.reduce((acc, s) => {
+      const groupName = turn === 'morning' ? s.groupMorning : s.groupAfternoon;
+      
+      // Si no tiene grupo asignado en este turno, lo ignoramos (o lo mandamos a "Sin Asignar")
+      if (!groupName) return acc;
+
+      if (!acc[groupName]) {
+          acc[groupName] = {
+              name: groupName,
+              students: [],
+              // Capturamos datos del grupo del primer estudiante que encontremos
+              teacher: turn === 'morning' ? s.teacherMorning : s.teacherAfternoon,
+              aux: turn === 'morning' ? s.auxMorning : s.auxAfternoon,
+              classroom: s.classroom
+          };
+      }
+      acc[groupName].students.push(s);
+      return acc;
+  }, {});
+
+  // 2. Convertir a array y ordenar alfabéticamente por nombre de grupo
+  let groups = Object.values(groupedData).sort((a, b) => a.name.localeCompare(b.name));
+
+  // 3. FILTRO AUTOMÁTICO PARA DOCENTES
+  // Si NO es directivo, filtramos solo los grupos donde él/ella es el docente o auxiliar
+  if (!isManagement) {
+      groups = groups.filter(g => 
+          g.teacher === user.fullName || g.aux === user.fullName
+      );
+  }
+
+  const calculateAge = (dateString) => {
+    if (!dateString) return '-';
+    const today = new Date();
+    const birthDate = new Date(dateString);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+    return age;
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-slate-100 animate-in fade-in duration-500">
+      
+      {/* HEADER DEL TABLERO */}
+      <div className="bg-white p-4 shadow-sm z-10 flex justify-between items-center sticky top-0">
+          <div>
+            <h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter flex items-center gap-2">
+                <Grid size={24} className="text-orange-500"/> Mis Grupos
+            </h2>
+            <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">
+                {isManagement ? "Vista Global Institucional" : `Espacio de ${user.firstName}`}
+            </p>
+          </div>
+          
+          {/* SELECTOR DE TURNO */}
+          <div className="flex bg-gray-100 p-1 rounded-xl">
+              <button 
+                onClick={() => setTurn('morning')}
+                className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-md transform scale-105' : 'text-gray-400'}`}
+              >
+                ☀️ Mañana
+              </button>
+              <button 
+                onClick={() => setTurn('afternoon')}
+                className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-md transform scale-105' : 'text-gray-400'}`}
+              >
+                🌙 Tarde
+              </button>
+          </div>
+      </div>
+
+      {/* LIENZO DE COLUMNAS (SCROLL HORIZONTAL) */}
+      <div className="flex-1 overflow-x-auto overflow-y-hidden p-6">
+          <div className="flex gap-6 h-full">
+              
+              {groups.length === 0 && (
+                  <div className="m-auto text-center opacity-50">
+                      <LayoutDashboard size={48} className="mx-auto mb-2 text-gray-300"/>
+                      <p className="font-bold text-gray-400">No hay grupos asignados en este turno.</p>
+                  </div>
+              )}
+
+              {groups.map((group) => (
+                  <div key={group.name} className="min-w-[280px] w-[300px] flex flex-col h-full bg-white rounded-[30px] border border-gray-200 shadow-sm relative overflow-hidden group-hover:shadow-md transition">
+                      {/* CABEZAL DE GRUPO */}
+                      <div className={`p-4 border-b-4 ${turn === 'morning' ? 'border-orange-400 bg-orange-50' : 'border-indigo-400 bg-indigo-50'}`}>
+                          <div className="flex justify-between items-start mb-1">
+                              <h3 className="font-black text-gray-800 text-lg leading-none uppercase italic">{group.name}</h3>
+                              <span className="bg-white/50 px-2 py-1 rounded text-[10px] font-bold text-gray-500">{group.students.length} alum.</span>
+                          </div>
+                          <div className="flex flex-col gap-1 mt-2">
+                              {group.classroom && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-gray-600 bg-white px-2 py-1 rounded w-fit shadow-sm">
+                                      <StartIcon size={10}/> Aula {group.classroom}
+                                  </span>
+                              )}
+                              <p className="text-[10px] text-gray-500 font-medium truncate">PROFE: <span className="font-bold uppercase">{group.teacher || 'Sin asignar'}</span></p>
+                              {group.aux && <p className="text-[10px] text-gray-500 font-medium truncate">AUX: <span className="font-bold uppercase">{group.aux}</span></p>}
+                          </div>
+                      </div>
+
+                      {/* LISTA DE ESTUDIANTES */}
+                      <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50/50">
+                          {group.students.map(student => (
+                              <div key={student.id} className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 relative hover:scale-[1.02] transition-transform duration-200">
+                                  {/* FOTO */}
+                                  <div onClick={() => setSelectedStudent(student)} className="w-12 h-12 rounded-full bg-gray-200 border-2 border-white shadow-sm flex-shrink-0 overflow-hidden cursor-pointer">
+                                      {student.photoUrl ? <img src={student.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold">{student.firstName[0]}</div>}
+                                  </div>
+                                  
+                                  {/* DATOS */}
+                                  <div className="flex-1 min-w-0" onClick={() => setSelectedStudent(student)}>
+                                      <h4 className="font-bold text-gray-700 text-sm truncate cursor-pointer">{student.firstName} {student.lastName}</h4>
+                                      <p className="text-[10px] text-gray-400">{student.dx || 'Sin DX'}</p>
+                                  </div>
+
+                                  {/* BOTÓN RAYO (BITÁCORA) - Placeholder visual */}
+                                  <button className="w-8 h-8 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center shadow-sm hover:bg-violet-600 hover:text-white transition-colors">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                                  </button>
+                              </div>
+                          ))}
+                      </div>
+                  </div>
+              ))}
+          </div>
+      </div>
+
+      {/* MODAL DETALLE RÁPIDO (Reutilizamos la vista, se puede mejorar luego) */}
+      {selectedStudent && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95">
+                <div className="bg-violet-600 p-4 text-white flex justify-between items-center">
+                    <h3 className="font-bold text-lg">{selectedStudent.lastName}, {selectedStudent.firstName}</h3>
+                    <button onClick={() => setSelectedStudent(null)}><X/></button>
+                </div>
+                <div className="p-6">
+                    <div className="flex gap-4 items-center mb-4">
+                        <div className="w-20 h-20 bg-gray-200 rounded-2xl overflow-hidden">
+                            {selectedStudent.photoUrl && <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/>}
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold text-gray-600">Edad: {calculateAge(selectedStudent.birthDate)} años</p>
+                            <p className="text-sm font-bold text-gray-600">DNI: {selectedStudent.dni}</p>
+                            <p className="text-xs text-orange-500 font-bold mt-1 uppercase">{selectedStudent.dx}</p>
+                        </div>
+                    </div>
+                    {/* Aquí irá la bitácora en el futuro */}
+                    <div className="bg-gray-50 p-4 rounded-xl text-center border border-dashed border-gray-300">
+                        <p className="text-xs text-gray-400 italic">Próximamente: Historial de Seguimiento</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Icono auxiliar
+const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
 // --- NUEVA VISTA: AUDITORÍA DE TAREAS (GRAN HERMANO) ---
 function ActivityLogView() {
   const [allTasks, setAllTasks] = useState([]);
@@ -1978,6 +2255,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
