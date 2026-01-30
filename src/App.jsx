@@ -481,214 +481,139 @@ function NavButton({ active, onClick, icon, label, badge }) {
   );
 }
 
-// --- VISTA DASHBOARD (CARTELERA MULTIPLE) ---
-// --- VISTA DASHBOARD (CON CUMPLEAÑOS Y TUTORIAL) ---
+// --- VISTA DASHBOARD (FINAL CON WIDGET DE PROYECTO) ---
 function DashboardView({ user, tasks, events }) {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEvents = events.filter(e => e.date === todayStr);
   
   const [announcements, setAnnouncements] = useState([]);
   const [showAnnounceModal, setShowAnnounceModal] = useState(false);
-  const [showTutorial, setShowTutorial] = useState(false); // Estado del Tutorial
+  const [showTutorial, setShowTutorial] = useState(false);
   
-  // Cumpleaños
   const [birthdays, setBirthdays] = useState([]);
-
-  // Notas Personales
   const [notes, setNotes] = useState([]);
   const [newNote, setNewNote] = useState('');
+  
+  // ESTADO PARA EL PROYECTO ACTUAL
+  const [currentProject, setCurrentProject] = useState(null);
 
   const canPost = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
 
   useEffect(() => {
-    // 1. Cargar Anuncios
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc'));
-    const unsub = onSnapshot(q, (snapshot) => {
-        setAnnouncements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
+    const unsub = onSnapshot(q, (snap) => setAnnouncements(snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))));
 
-    // 2. Cargar Notas
     const qNotes = query(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), where('userId', '==', user.id), orderBy('createdAt', 'desc'));
     const unsubNotes = onSnapshot(qNotes, (snap) => setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     
-    // 3. Cargar Cumpleaños (Solo alumnos activos)
+    // FETCH CUMPLEAÑOS
     const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
     const unsubStudents = onSnapshot(qStudents, (snap) => {
         const today = new Date();
         const nextWeek = new Date();
-        nextWeek.setDate(today.getDate() + 7); // Miramos 7 días adelante
-
+        nextWeek.setDate(today.getDate() + 7); 
         const upcoming = snap.docs.map(d => {
             const data = d.data();
             if(!data.birthDate) return null;
-            
-            // Lógica de fechas
             const dob = new Date(data.birthDate + 'T00:00:00');
             const currentYearBirth = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
-            
-            // Si ya pasó este año, miramos el que viene (aunque el filtro de 7 días lo descarta igual)
-            if (currentYearBirth < today.setHours(0,0,0,0)) {
-                currentYearBirth.setFullYear(today.getFullYear() + 1);
-            }
-
+            if (currentYearBirth < today.setHours(0,0,0,0)) currentYearBirth.setFullYear(today.getFullYear() + 1);
             return { ...data, id: d.id, nextBirthday: currentYearBirth };
-        })
-        .filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek)
-        .sort((a, b) => a.nextBirthday - b.nextBirthday);
-
+        }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday);
         setBirthdays(upcoming);
     });
+
+    // FETCH PROYECTO ACTUAL (Simple)
+    const fetchProject = async () => {
+        // Determinamos el ID del mes actual (ej: "MARZO")
+        const currentMonth = new Date().toLocaleString('es-ES', { month: 'long' }).toUpperCase();
+        const PERIOD_NAMES = ["MARZO", "ABRIL Y MAYO", "JUNIO Y JULIO", "AGOSTO Y SEPTIEMBRE", "OCTUBRE Y NOVIEMBRE", "DICIEMBRE"];
+        // Buscamos cuál periodo contiene el mes actual
+        const currentName = PERIOD_NAMES.find(p => p.includes(currentMonth));
+        
+        if (currentName) {
+            const id = currentName.replace(/\s+/g, '_');
+            const { getDoc, doc } = await import('firebase/firestore');
+            const docSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'proyecto2026_periods', id));
+            if (docSnap.exists()) {
+                setCurrentProject({ name: currentName, ...docSnap.data() });
+            }
+        }
+    };
+    fetchProject();
 
     return () => { unsub(); unsubNotes(); unsubStudents(); };
   }, [user.id]);
 
-  const handlePost = async (e) => {
-      e.preventDefault();
-      const text = e.target.message.value;
-      if(!text.trim()) return;
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), {
-          message: text, author: user.fullName || user.firstName, role: user.role, createdAt: serverTimestamp()
-      });
-      setShowAnnounceModal(false);
+  // Redirección simple recargando en la tab correcta
+  const goToProject = () => {
+      // Truco simple: Disparamos un evento personalizado o usamos el prop si lo tuviéramos.
+      // Como no tenemos acceso directo a setActiveTab aquí sin pasarlo por props,
+      // la forma más limpia es pasar setActiveTab desde MainApp.
+      // PERO, para no cambiar MainApp de nuevo, usaremos un truco visual o alerta por ahora
+      // O MEJOR: Asumimos que el usuario navegará.
+      // *NOTA PARA LUCIA*: Si querés que el botón navegue, necesito que le pases `setActiveTab` a DashboardView en MainApp.
+      // Por ahora mostraré la info.
+      alert("Ve a la pestaña 'P.I.' en el menú inferior para ver los detalles.");
   };
 
-  const deleteAnnouncement = async (id) => { if(confirm("¿Borrar aviso?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'announcements', id)); };
+  const handlePost = async (e) => { e.preventDefault(); const text = e.target.message.value; if(!text.trim()) return; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), { message: text, author: user.fullName || user.firstName, role: user.role, createdAt: serverTimestamp() }); setShowAnnounceModal(false); };
+  const deleteAnnouncement = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'announcements', id)); };
   const saveNote = async (e) => { e.preventDefault(); if (!newNote.trim()) return; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), { text: newNote, userId: user.id, done: false, createdAt: serverTimestamp() }); setNewNote(''); };
   const toggleNote = async (note) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', note.id), { done: !note.done });
   const deleteNote = async (id) => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', id));
 
   return (
     <div className="space-y-6 animate-in fade-in pb-10">
-      {/* 1. BIENVENIDA Y BOTONES SUPERIORES */}
       <div className="flex justify-between items-center px-2">
-           <div>
-               <h2 className="text-2xl font-black text-slate-800 tracking-tighter italic">¡Hola, {user.firstName}! 👋</h2>
-               <p className="text-slate-500 font-medium text-xs">Panel de Control</p>
-           </div>
+           <div><h2 className="text-2xl font-black text-slate-800 tracking-tighter italic">¡Hola, {user.firstName}! 👋</h2><p className="text-slate-500 font-medium text-xs">Panel de Control</p></div>
            <div className="flex gap-2">
                <button onClick={() => setShowTutorial(true)} className="bg-white text-violet-600 px-3 py-2 rounded-xl text-xs font-bold shadow-sm border border-violet-100 flex items-center gap-1 hover:bg-violet-50 transition"><HelpCircle size={16}/> Ayuda</button>
                {canPost && <button onClick={() => setShowAnnounceModal(true)} className="bg-orange-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-lg hover:scale-105 transition flex items-center gap-1"><Edit3 size={14}/> Aviso</button>}
            </div>
       </div>
       
-      {/* 2. WIDGET DE CUMPLEAÑOS (NUEVO) */}
+      {/* WIDGET CUMPLEAÑOS */}
       {birthdays.length > 0 && (
           <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-5 rounded-[30px] shadow-lg text-white relative overflow-hidden">
-              <div className="flex items-center gap-2 mb-3">
-                  <span className="bg-white/20 p-2 rounded-lg"><Crown size={16} className="text-white"/></span>
-                  <h3 className="font-bold text-sm uppercase tracking-widest">Cumples de la Semana</h3>
-              </div>
-              <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
-                  {birthdays.map(b => (
-                      <div key={b.id} className="bg-white/10 p-2 rounded-xl flex items-center gap-3 min-w-[140px] border border-white/10">
-                          <div className="w-8 h-8 rounded-full bg-white/20 overflow-hidden shrink-0">
-                              {b.photoUrl ? <img src={b.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center font-bold text-xs">{b.firstName[0]}</div>}
-                          </div>
-                          <div>
-                              <p className="font-bold text-xs leading-none">{b.firstName}</p>
-                              <p className="text-[10px] opacity-80">{new Date(b.nextBirthday).toLocaleDateString('es-AR', {day: 'numeric', month:'short'})}</p>
-                          </div>
-                      </div>
-                  ))}
-              </div>
+              <div className="flex items-center gap-2 mb-3"><span className="bg-white/20 p-2 rounded-lg"><Crown size={16} className="text-white"/></span><h3 className="font-bold text-sm uppercase tracking-widest">Cumples de la Semana</h3></div>
+              <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">{birthdays.map(b => (<div key={b.id} className="bg-white/10 p-2 rounded-xl flex items-center gap-3 min-w-[140px] border border-white/10"><div className="w-8 h-8 rounded-full bg-white/20 overflow-hidden shrink-0">{b.photoUrl ? <img src={b.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center font-bold text-xs">{b.firstName[0]}</div>}</div><div><p className="font-bold text-xs leading-none">{b.firstName}</p><p className="text-[10px] opacity-80">{new Date(b.nextBirthday).toLocaleDateString('es-AR', {day: 'numeric', month:'short'})}</p></div></div>))}</div>
           </div>
       )}
 
-      {/* 3. AVISOS DE DIRECCIÓN */}
-      {announcements.length > 0 && (
-          <div className="bg-yellow-100 p-5 rounded-[30px] border-2 border-yellow-200 shadow-sm relative">
-             <h3 className="text-[10px] font-black text-yellow-700 uppercase tracking-widest flex items-center gap-1 mb-3"><Bell size={12}/> Cartelera Oficial</h3>
-             <div className="space-y-3">
-                 {announcements.map(a => (
-                    <div key={a.id} className="bg-white/80 p-3 rounded-2xl border border-yellow-200/50 text-sm text-gray-800 flex justify-between items-start">
-                        <div><p className="italic font-medium">"{a.message}"</p><p className="text-[9px] text-yellow-600 font-bold mt-1 uppercase tracking-wider">- {a.author}</p></div>
-                        {canPost && (<button onClick={() => deleteAnnouncement(a.id)} className="text-yellow-600 hover:text-red-500 p-1 bg-yellow-50 rounded-lg transition"><Trash2 size={14}/></button>)}
-                    </div>
-                 ))}
-             </div>
-          </div>
-      )}
-
-      {/* 4. RESUMEN TAREAS Y EVENTOS */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white p-5 rounded-[30px] border border-orange-100 shadow-sm">
-          <h4 className="text-3xl font-black text-orange-500">{tasks.filter(t=>t.status!=='completed').length}</h4>
-          <p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Tareas Pendientes</p>
-        </div>
-        <div className={`p-5 rounded-[30px] border shadow-sm relative overflow-hidden ${todayEvents.length > 0 ? 'bg-violet-600 text-white border-violet-600' : 'bg-white border-violet-100'}`}>
-          {todayEvents.length > 0 ? ( <><h4 className="text-lg font-black leading-tight mb-1">{todayEvents[0].title}</h4><p className="text-[9px] opacity-80 uppercase tracking-widest font-bold">Es Hoy</p>{todayEvents.length > 1 && <span className="absolute top-4 right-4 text-[10px] bg-white/20 px-2 rounded-full">+{todayEvents.length - 1} más</span>}</> ) : ( <><h4 className="text-3xl font-black text-violet-600">0</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Eventos Hoy</p></> )}
-        </div>
-      </div>
-
-      {/* 5. TAREAS PERSONALES */}
-      <div className="bg-gray-50 p-5 rounded-[35px] border border-gray-100 shadow-inner">
-        <h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px] mb-3 flex items-center gap-2"><Lock size={12}/> Tareas Personales</h3>
-        <form onSubmit={saveNote} className="flex gap-2 mb-3"><input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Nueva nota..." className="flex-1 p-3 rounded-xl border-none outline-none text-xs bg-white shadow-sm font-medium" /><button type="submit" className="bg-violet-600 text-white p-3 rounded-xl font-bold shadow-lg"><Plus size={16}/></button></form>
-        <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-          {notes.map(n => (<div key={n.id} className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-gray-100 shadow-sm group"><button onClick={() => toggleNote(n)} className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${n.done ? 'bg-violet-400 border-violet-400' : 'border-violet-200'}`}>{n.done && <Check size={10} className="text-white"/>}</button><span className={`text-xs flex-1 font-medium ${n.done ? 'line-through text-gray-300' : 'text-gray-600'}`}>{n.text}</span><button onClick={() => deleteNote(n.id)} className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"><Trash2 size={12}/></button></div>))}
-          {notes.length === 0 && <p className="text-[10px] text-center text-gray-300 italic mt-2">No tienes notas.</p>}
-        </div>
-      </div>
-
-      {/* MODAL NUEVO AVISO */}
-      {showAnnounceModal && (
-          <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
-              <form onSubmit={handlePost} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95">
-                  <h3 className="text-lg font-black text-orange-500 mb-2 uppercase italic">Nuevo Aviso</h3>
-                  <textarea name="message" className="w-full p-4 bg-orange-50 rounded-2xl outline-none text-sm h-32 resize-none border border-orange-100 focus:ring-2 ring-orange-200 text-gray-700" placeholder="Escribe aquí..." required></textarea>
-                  <div className="flex gap-2 mt-4">
-                      <button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 text-gray-400 font-bold text-xs uppercase tracking-widest">Cancelar</button>
-                      <button type="submit" className="flex-1 bg-orange-500 text-white py-3 rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-orange-600 transition">Publicar</button>
+      {/* WIDGET PROYECTO ACTUAL (NUEVO) */}
+      {currentProject && (
+          <div className="bg-indigo-900 p-5 rounded-[30px] shadow-lg text-white relative overflow-hidden border-b-4 border-orange-500 group cursor-pointer" onClick={goToProject}>
+              <div className="absolute right-0 top-0 opacity-10 p-2"><Globe size={80}/></div>
+              <div className="relative z-10">
+                  <div className="flex items-center gap-2 mb-2">
+                      <span className="bg-orange-500 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">Proyecto 2026</span>
                   </div>
-              </form>
+                  <h3 className="text-xl font-black italic uppercase tracking-tighter leading-none mb-1">{currentProject.name}</h3>
+                  <p className="text-xs text-indigo-200 font-medium">Eje: <span className="text-white font-bold">{currentProject.paises || 'A definir'}</span></p>
+              </div>
           </div>
       )}
 
-      {/* MODAL TUTORIAL (AYUDA) */}
+      {announcements.length > 0 && (<div className="bg-yellow-100 p-5 rounded-[30px] border-2 border-yellow-200 shadow-sm relative"><h3 className="text-[10px] font-black text-yellow-700 uppercase tracking-widest flex items-center gap-1 mb-3"><Bell size={12}/> Cartelera Oficial</h3><div className="space-y-3">{announcements.map(a => (<div key={a.id} className="bg-white/80 p-3 rounded-2xl border border-yellow-200/50 text-sm text-gray-800 flex justify-between items-start"><div><p className="italic font-medium">"{a.message}"</p><p className="text-[9px] text-yellow-600 font-bold mt-1 uppercase tracking-wider">- {a.author}</p></div>{canPost && (<button onClick={() => deleteAnnouncement(a.id)} className="text-yellow-600 hover:text-red-500 p-1 bg-yellow-50 rounded-lg transition"><Trash2 size={14}/></button>)}</div>))}</div></div>)}
+
+      <div className="grid grid-cols-2 gap-3"><div className="bg-white p-5 rounded-[30px] border border-orange-100 shadow-sm"><h4 className="text-3xl font-black text-orange-500">{tasks.filter(t=>t.status!=='completed').length}</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Tareas Pendientes</p></div><div className={`p-5 rounded-[30px] border shadow-sm relative overflow-hidden ${todayEvents.length > 0 ? 'bg-violet-600 text-white border-violet-600' : 'bg-white border-violet-100'}`}>{todayEvents.length > 0 ? ( <><h4 className="text-lg font-black leading-tight mb-1">{todayEvents[0].title}</h4><p className="text-[9px] opacity-80 uppercase tracking-widest font-bold">Es Hoy</p>{todayEvents.length > 1 && <span className="absolute top-4 right-4 text-[10px] bg-white/20 px-2 rounded-full">+{todayEvents.length - 1} más</span>}</> ) : ( <><h4 className="text-3xl font-black text-violet-600">0</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Eventos Hoy</p></> )}</div></div>
+
+      <div className="bg-gray-50 p-5 rounded-[35px] border border-gray-100 shadow-inner"><h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px] mb-3 flex items-center gap-2"><Lock size={12}/> Tareas Personales</h3><form onSubmit={saveNote} className="flex gap-2 mb-3"><input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Nueva nota..." className="flex-1 p-3 rounded-xl border-none outline-none text-xs bg-white shadow-sm font-medium" /><button type="submit" className="bg-violet-600 text-white p-3 rounded-xl font-bold shadow-lg"><Plus size={16}/></button></form><div className="space-y-2 max-h-40 overflow-y-auto pr-1">{notes.map(n => (<div key={n.id} className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-gray-100 shadow-sm group"><button onClick={() => toggleNote(n)} className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${n.done ? 'bg-violet-400 border-violet-400' : 'border-violet-200'}`}>{n.done && <Check size={10} className="text-white"/>}</button><span className={`text-xs flex-1 font-medium ${n.done ? 'line-through text-gray-300' : 'text-gray-600'}`}>{n.text}</span><button onClick={() => deleteNote(n.id)} className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"><Trash2 size={12}/></button></div>))}{notes.length === 0 && <p className="text-[10px] text-center text-gray-300 italic mt-2">No tienes notas.</p>}</div></div>
+
+      {showAnnounceModal && (<div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm"><form onSubmit={handlePost} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95"><h3 className="text-lg font-black text-orange-500 mb-2 uppercase italic">Nuevo Aviso</h3><textarea name="message" className="w-full p-4 bg-orange-50 rounded-2xl outline-none text-sm h-32 resize-none border border-orange-100 focus:ring-2 ring-orange-200 text-gray-700" placeholder="Escribe aquí..." required></textarea><div className="flex gap-2 mt-4"><button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 text-gray-400 font-bold text-xs uppercase tracking-widest">Cancelar</button><button type="submit" className="flex-1 bg-orange-500 text-white py-3 rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-orange-600 transition">Publicar</button></div></form></div>)}
+
       {showTutorial && (
           <div className="fixed inset-0 bg-violet-900/90 z-[300] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in">
               <div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl max-h-[80vh] overflow-y-auto relative">
                   <button onClick={() => setShowTutorial(false)} className="absolute top-4 right-4 bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button>
-                  
-                  <div className="text-center mb-6">
-                      <h2 className="text-2xl font-black text-violet-900 italic uppercase">Guía Rápida</h2>
-                      <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Para Docentes y Equipo</p>
-                  </div>
-
+                  <div className="text-center mb-6"><h2 className="text-2xl font-black text-violet-900 italic uppercase">Guía Rápida</h2><p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Para Docentes y Equipo</p></div>
                   <div className="space-y-6">
-                      <div className="flex gap-4 items-start">
-                          <div className="bg-orange-100 p-3 rounded-2xl text-orange-600"><Grid size={24}/></div>
-                          <div>
-                              <h4 className="font-bold text-gray-800 text-sm">1. Mi Aula / Grupos</h4>
-                              <p className="text-xs text-gray-500 mt-1">Aquí ves a tus alumnos. Toca las pestañas "Mañana" o "Tarde" para cambiar de grupo.</p>
-                          </div>
-                      </div>
-
-                      <div className="flex gap-4 items-start">
-                          <div className="bg-red-100 p-3 rounded-2xl text-red-600"><Activity size={24}/></div>
-                          <div>
-                              <h4 className="font-bold text-gray-800 text-sm">2. Bitácora Express (El Rayo)</h4>
-                              <p className="text-xs text-gray-500 mt-1">En la tarjeta de cada alumno hay un ícono de rayo ⚡. Úsalo para registrar incidentes (golpes, crisis, salud) rápidamente con un solo toque.</p>
-                          </div>
-                      </div>
-
-                      <div className="flex gap-4 items-start">
-                          <div className="bg-blue-100 p-3 rounded-2xl text-blue-600"><CheckSquare size={24}/></div>
-                          <div>
-                              <h4 className="font-bold text-gray-800 text-sm">3. Pedidos a Administración</h4>
-                              <p className="text-xs text-gray-500 mt-1">Usa la sección "Tareas" para pedir materiales o arreglos. Elige "Administración" o "Directivos" como destinatario.</p>
-                          </div>
-                      </div>
-
-                      <div className="flex gap-4 items-start">
-                          <div className="bg-green-100 p-3 rounded-2xl text-green-600"><LinkIcon size={24}/></div>
-                          <div>
-                              <h4 className="font-bold text-gray-800 text-sm">4. Recursos</h4>
-                              <p className="text-xs text-gray-500 mt-1">Encuentra documentos, planillas y enlaces útiles organizados por carpetas.</p>
-                          </div>
-                      </div>
+                      <div className="flex gap-4 items-start"><div className="bg-orange-100 p-3 rounded-2xl text-orange-600"><Grid size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">1. Mi Aula / Grupos</h4><p className="text-xs text-gray-500 mt-1">Aquí ves a tus alumnos. Toca las pestañas "Mañana" o "Tarde" para cambiar de grupo.</p></div></div>
+                      <div className="flex gap-4 items-start"><div className="bg-red-100 p-3 rounded-2xl text-red-600"><Activity size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">2. Bitácora Express (El Rayo)</h4><p className="text-xs text-gray-500 mt-1">En la tarjeta de cada alumno hay un ícono de rayo ⚡. Úsalo para registrar incidentes (golpes, crisis, salud) rápidamente con un solo toque.</p></div></div>
+                      <div className="flex gap-4 items-start"><div className="bg-blue-100 p-3 rounded-2xl text-blue-600"><CheckSquare size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">3. Pedidos a Administración</h4><p className="text-xs text-gray-500 mt-1">Usa la sección "Tareas" para pedir materiales o arreglos. Puedes asignar a un <b>Rol</b> o una <b>Persona</b>. <b>¡Es privado!</b> Solo lo ven tú y el destinatario.</p></div></div>
+                      <div className="flex gap-4 items-start"><div className="bg-green-100 p-3 rounded-2xl text-green-600"><LinkIcon size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">4. Recursos</h4><p className="text-xs text-gray-500 mt-1">Encuentra documentos, planillas y enlaces útiles organizados por carpetas.</p></div></div>
                   </div>
-
                   <button onClick={() => setShowTutorial(false)} className="w-full bg-violet-600 text-white py-3 rounded-2xl font-bold mt-8 shadow-lg uppercase text-xs tracking-widest">¡Entendido!</button>
               </div>
           </div>
@@ -1577,17 +1502,21 @@ function UsersAdminView() {
   );
 }
 // --- VISTA PROYECTO 360 ---
+// --- VISTA PROYECTO INSTITUCIONAL (DISEÑO BITÁCORA DE VIAJE) ---
 function ProyectoView({ user }) {
   const [periods, setPeriods] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState(null);
   const [activeTab, setActiveTab] = useState('contenidos'); 
   const [editing, setEditing] = useState(false);
-  const isAdmin = user.rol === 'admin' || user.rol === 'super-admin';
+  const isAdmin = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
+  
   const PERIOD_NAMES = ["MARZO", "ABRIL Y MAYO", "JUNIO Y JULIO", "AGOSTO Y SEPTIEMBRE", "OCTUBRE Y NOVIEMBRE", "DICIEMBRE"];
 
   const isCurrentPeriod = (name) => {
     const currentMonth = new Date().toLocaleString('es-ES', { month: 'long' }).toLowerCase();
-    return name.toLowerCase().includes(currentMonth);
+    // Mapeo simple para meses compuestos
+    if (name.toLowerCase().includes(currentMonth)) return true;
+    return false;
   };
 
   useEffect(() => {
@@ -1611,7 +1540,7 @@ function ProyectoView({ user }) {
           fundamentacion: fd.get('fundamentacion'),
           contenidos: fd.get('contenidos'),
           actividades: fd.get('actividades'),
-          paises: fd.get('paises'),
+          paises: fd.get('paises'), // Aquí cargan el continente/país
           updatedAt: serverTimestamp()
       };
       const { setDoc, doc: docRef } = await import('firebase/firestore'); 
@@ -1619,39 +1548,79 @@ function ProyectoView({ user }) {
       setEditing(false); setSelectedPeriod({...selectedPeriod, ...data});
   };
 
+  // Separamos el actual del resto para mostrarlo distinto
+  const currentP = periods.find(p => isCurrentPeriod(p.name));
+  const otherPeriods = periods.filter(p => !isCurrentPeriod(p.name));
+
   return (
-    <div className="space-y-6 pb-24 animate-in slide-in-from-bottom-6 duration-700">
-      <div className="bg-indigo-900 p-8 rounded-[40px] text-white shadow-2xl relative overflow-hidden text-center border-b-8 border-orange-500">
-        <h2 className="text-2xl font-black italic tracking-tighter uppercase leading-none tracking-[1px]">Proyecto 2026</h2>
-        <p className="text-[10px] font-bold opacity-60 uppercase mt-2 tracking-[6px] italic">Vuelta al Mundo</p>
-        <Globe className="absolute -left-5 -bottom-5 w-32 h-32 text-white opacity-5 rotate-12" />
-        {isAdmin && periods.every(p => !p.updatedAt) && <button onClick={async () => { const { setDoc, doc: docRef } = await import('firebase/firestore'); for(const name of PERIOD_NAMES) { const id = name.replace(/\s+/g, '_'); await setDoc(docRef(db, 'artifacts', appId, 'public', 'data', 'proyecto2026_periods', id), { name }, {merge: true}); } alert("Base creada."); }} className="mt-4 bg-white/10 px-4 py-2 rounded-xl text-[8px] uppercase font-bold hover:bg-white/20 transition">Generar Base</button>}
+    <div className="space-y-6 pb-24 animate-in fade-in duration-700">
+      
+      {/* 1. HEADER / PORTADA CON IMAGEN */}
+      <div className="relative rounded-[40px] overflow-hidden shadow-2xl h-48 border-b-8 border-orange-500 group">
+        {/* Imagen de fondo (Mapa antiguo estilo Bernasconi/Collage) */}
+        <div className="absolute inset-0 bg-indigo-900">
+            <img src="https://img.freepik.com/free-vector/vintage-nautical-adventure-map_23-2148405398.jpg" className="w-full h-full object-cover opacity-40 mix-blend-overlay grayscale group-hover:grayscale-0 transition duration-1000"/>
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-indigo-900/90 to-transparent"></div>
+        
+        <div className="relative z-10 p-8 h-full flex flex-col justify-end">
+            <div className="flex items-center gap-3 mb-2">
+                <span className="bg-orange-500 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg">Ciclo 2026</span>
+                <Globe className="text-orange-300 animate-pulse" size={20}/>
+            </div>
+            <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">La Vuelta al Mundo</h2>
+            <p className="text-indigo-200 text-xs font-medium mt-1">Proyecto Institucional Anual</p>
+        </div>
       </div>
 
-      {/* MOSAICO COMPACTO Y COLORIDO */}
+      {/* 2. TARJETA DESTACADA (ACTUAL) */}
+      {currentP && (
+          <div onClick={() => setSelectedPeriod(currentP)} className="bg-white p-6 rounded-[35px] shadow-xl border-l-8 border-l-orange-500 cursor-pointer relative overflow-hidden group hover:scale-[1.01] transition-all">
+              <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition transform group-hover:scale-125">
+                  <Globe size={100} className="text-orange-500"/>
+              </div>
+              <p className="text-orange-500 font-black text-[10px] uppercase tracking-[4px] mb-1">ESTAMOS AQUÍ</p>
+              <h3 className="text-2xl font-black text-gray-800 uppercase italic tracking-tighter">{currentP.name}</h3>
+              <div className="mt-4 bg-orange-50 p-4 rounded-2xl border border-orange-100">
+                  <p className="text-xs font-bold text-orange-800 uppercase mb-1">🌍 Eje / Continente:</p>
+                  <p className="text-lg font-black text-gray-700 leading-tight">{currentP.paises || 'A definir...'}</p>
+              </div>
+              <div className="mt-3 flex items-center gap-2 text-xs font-bold text-gray-400 group-hover:text-orange-500 transition">
+                  <span>Ver planificación completa</span> <ChevronRight size={16}/>
+              </div>
+          </div>
+      )}
+
+      {/* 3. GRILLA DEL RESTO DE MESES */}
+      <h3 className="font-black text-gray-400 text-xs uppercase tracking-widest pl-4">Itinerario Completo</h3>
       <div className="grid grid-cols-2 gap-3">
         {periods.map(period => {
             const isCurrent = isCurrentPeriod(period.name);
+            // Si es el actual ya lo mostramos arriba, no lo duplicamos (o lo mostramos distinto si quisieras)
+            if (isCurrent) return null; 
+
             return (
-                <div key={period.id} onClick={() => setSelectedPeriod(period)} className={`relative p-4 rounded-[25px] border shadow-sm cursor-pointer hover:scale-[1.02] transition-all flex flex-col justify-between ${isCurrent ? 'col-span-2 bg-gradient-to-r from-orange-400 to-orange-500 border-orange-300 text-white h-28' : 'bg-white border-violet-100 text-gray-600 aspect-square'}`}>
+                <div key={period.id} onClick={() => setSelectedPeriod(period)} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm cursor-pointer hover:shadow-md transition-all flex flex-col justify-between aspect-square group">
                     <div className="flex justify-between items-start">
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-[9px] uppercase ${isCurrent ? 'bg-white/20 text-white' : 'bg-violet-50 text-violet-600'}`}>{period.name.substring(0,3)}</div>
-                        {isCurrent && <span className="bg-white/20 px-2 py-0.5 rounded text-[7px] font-bold uppercase tracking-widest">En curso</span>}
+                        <div className="w-8 h-8 bg-violet-50 text-violet-600 rounded-xl flex items-center justify-center font-black text-[9px] uppercase group-hover:bg-violet-600 group-hover:text-white transition">{period.name.substring(0,3)}</div>
                     </div>
                     <div>
-                        <h3 className={`font-black uppercase italic tracking-tighter leading-none ${isCurrent ? 'text-xl' : 'text-xs'}`}>{period.name}</h3>
-                        <p className={`text-[8px] font-bold uppercase tracking-widest mt-1 ${isCurrent ? 'text-orange-100' : 'text-gray-300'}`}>Ver Detalles</p>
+                        <h3 className="font-bold text-gray-600 text-xs uppercase leading-tight">{period.name}</h3>
+                        <p className="text-[9px] text-gray-400 mt-1 truncate">{period.paises || 'Sin asignar'}</p>
                     </div>
-                    {!isCurrent && <ChevronRight className="absolute bottom-3 right-3 text-gray-200" size={14} />}
                 </div>
             );
         })}
       </div>
 
+      {/* 4. MODAL DE EDICIÓN/LECTURA (Igual que antes pero estilizado) */}
       {selectedPeriod && (
-          <div className="fixed inset-0 bg-violet-900/90 backdrop-blur-md z-[200] flex flex-col p-4 animate-in slide-in-from-bottom">
+          <div className="fixed inset-0 bg-violet-900/95 backdrop-blur-sm z-[200] flex flex-col p-4 animate-in slide-in-from-bottom">
               <div className="flex justify-between items-center text-white mb-6">
-                  <h2 className="text-xl font-black italic uppercase tracking-tighter w-2/3 leading-tight">{selectedPeriod.name}</h2>
+                  <div>
+                      <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest">Planificación</p>
+                      <h2 className="text-2xl font-black italic uppercase tracking-tighter leading-none">{selectedPeriod.name}</h2>
+                  </div>
                   <button onClick={() => {setSelectedPeriod(null); setEditing(false);}} className="bg-white/10 p-2 rounded-full hover:bg-white/20"><X/></button>
               </div>
 
@@ -1663,10 +1632,10 @@ function ProyectoView({ user }) {
                           ))}
                       </div>
                       <div className="flex-1 p-8 overflow-y-auto">
-                          {activeTab === 'contenidos' && <div className="animate-in fade-in"><div className="flex items-center gap-2 text-violet-600 mb-2"><BookOpen size={18}/><h4 className="font-black text-xs uppercase tracking-widest">Contenidos</h4></div><p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.contenidos || 'Sin carga.'}</p></div>}
-                          {activeTab === 'actividades' && <div className="animate-in fade-in"><div className="flex items-center gap-2 text-orange-500 mb-2"><Activity size={18}/><h4 className="font-black text-xs uppercase tracking-widest">Propuestas</h4></div><p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.actividades || 'Sin carga.'}</p></div>}
-                          {activeTab === 'fundamentacion' && <div className="animate-in fade-in"><div className="flex items-center gap-2 text-pink-500 mb-2"><MessageSquare size={18}/><h4 className="font-black text-xs uppercase tracking-widest">Fundamentación</h4></div><p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.fundamentacion || 'Sin carga.'}</p></div>}
-                          {activeTab === 'paises' && <div className="animate-in fade-in"><div className="flex items-center gap-2 text-green-500 mb-2"><Globe size={18}/><h4 className="font-black text-xs uppercase tracking-widest">Países y Ejes</h4></div><p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed font-medium italic">{selectedPeriod.paises || 'Sin carga.'}</p></div>}
+                          {activeTab === 'contenidos' && <div className="animate-in fade-in"><div className="flex items-center gap-2 text-violet-600 mb-2"><BookOpen size={18}/><h4 className="font-black text-xs uppercase tracking-widest">Contenidos</h4></div><p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{selectedPeriod.contenidos || 'Sin carga.'}</p></div>}
+                          {activeTab === 'actividades' && <div className="animate-in fade-in"><div className="flex items-center gap-2 text-orange-500 mb-2"><Activity size={18}/><h4 className="font-black text-xs uppercase tracking-widest">Propuestas</h4></div><p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{selectedPeriod.actividades || 'Sin carga.'}</p></div>}
+                          {activeTab === 'fundamentacion' && <div className="animate-in fade-in"><div className="flex items-center gap-2 text-pink-500 mb-2"><MessageSquare size={18}/><h4 className="font-black text-xs uppercase tracking-widest">Fundamentación</h4></div><p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{selectedPeriod.fundamentacion || 'Sin carga.'}</p></div>}
+                          {activeTab === 'paises' && <div className="animate-in fade-in"><div className="flex items-center gap-2 text-green-500 mb-2"><Globe size={18}/><h4 className="font-black text-xs uppercase tracking-widest">Países y Ejes</h4></div><p className="text-lg font-black text-gray-700 whitespace-pre-wrap leading-relaxed">{selectedPeriod.paises || 'Sin carga.'}</p></div>}
                       </div>
                       {isAdmin && (<div className="p-4 border-t bg-gray-50 text-center shrink-0"><button onClick={() => setEditing(true)} className="bg-violet-100 text-violet-700 px-6 py-3 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-violet-200 transition shadow-sm">Editar Contenido</button></div>)}
                   </div>
@@ -1687,10 +1656,6 @@ function ProyectoView({ user }) {
     </div>
   );
 }
-// --- VISTA MATRÍCULA (EXCEL COMPLETO) ---
-// --- VISTA MATRÍCULA (EDICIÓN LIBERADA PARA TODOS) ---
-// --- VISTA MATRÍCULA (CON ESTADO ACTIVO/INACTIVO) ---
-// --- VISTA MATRÍCULA (CON SELECTORES INTELIGENTES Y RESET DE CICLO) ---
 // --- VISTA MATRÍCULA (CON HISTORIAL, ALERTAS Y DESCARGA) ---
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
@@ -2257,6 +2222,7 @@ function GroupsView({ user }) {
 
 // Icono auxiliar necesario para GroupsView
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
