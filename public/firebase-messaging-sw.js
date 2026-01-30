@@ -3,7 +3,7 @@ importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js');
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAsa-o1ykRaY4sy4AhSSrCFApWh-XBhb8M", // (Por seguridad no lo pongo aquí, COPIA EL DE TU FOTO)
+  apiKey: "AIzaSyAsa-o1ykRaY4sy4AhSSrCFApWh-XBhb8M",
   authDomain: "juntos-a-la-par-d3534.firebaseapp.com",
   projectId: "juntos-a-la-par-d3534",
   storageBucket: "juntos-a-la-par-d3534.appspot.com",
