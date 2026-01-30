@@ -790,14 +790,15 @@ function ResourcesView({ resources, canEdit }) {
 
 
 // --- VISTA TAREAS (CORREGIDA: PRIVACIDAD ESTRICTA) ---
+// --- VISTA TAREAS (COMPLETA: PRIVACIDAD, ROLES Y NOTIFICACIONES) ---
 function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
   
   // Estados del formulario
-  const [assignType, setAssignType] = useState('user'); 
+  const [assignType, setAssignType] = useState('user'); // 'user' o 'roles'
   const [selectedRoles, setSelectedRoles] = useState([]);
-  const [targetUserId, setTargetUserId] = useState(''); // Controlamos el input manualmente para evitar errores
+  const [targetUserId, setTargetUserId] = useState(''); 
   
   const [openCommentsId, setOpenCommentsId] = useState(null); 
   const [newComment, setNewComment] = useState("");
@@ -805,38 +806,24 @@ function TasksView({ tasks, user, canEdit }) {
 
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor'];
   
-  // Permisos de GESTIÓN (Ver todo / Editar todo)
+  // Permisos: Directivos y Admins ven TODO. El resto solo lo suyo.
   const canManage = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
 
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc')), (snap) => {
         const users = snap.docs.map(d => ({id: d.id, ...d.data()}));
         setUsersList(users);
-        // Si no hay usuario seleccionado y hay usuarios, seleccionar el primero por defecto
         if (users.length > 0) setTargetUserId(users[0].id);
     });
     return () => unsub();
   }, []);
 
-  // --- LÓGICA DE PRIVACIDAD (EL CORAZÓN DEL PROBLEMA) ---
+  // --- FILTRO DE PRIVACIDAD ---
   const filteredTasks = tasks.filter(t => {
-      // 1. Los Directivos/Admins ven TODO para controlar
-      if (canManage) return true;
-      
-      // 2. Si yo creé la tarea, la tengo que ver (para ver si la cumplieron)
-      if (t.createdById === user.id) return true;
-
-      // 3. Si es para UNA PERSONA, solo esa persona la ve
-      if (t.targetType === 'user') {
-          return t.targetUserId === user.id;
-      }
-
-      // 4. Si es para UN ROL, solo los que tienen ese rol la ven
-      if (t.targetType === 'roles') {
-          return t.targetRoles && t.targetRoles.includes(user.role);
-      }
-
-      // Si no cumple nada, se oculta
+      if (canManage) return true; // Directivos ven todo
+      if (t.createdById === user.id) return true; // Si yo la creé, la veo
+      if (t.targetType === 'user') return t.targetUserId === user.id; // Si es para mí (persona)
+      if (t.targetType === 'roles') return t.targetRoles && t.targetRoles.includes(user.role); // Si es para mi rol
       return false;
   });
 
@@ -854,12 +841,9 @@ function TasksView({ tasks, user, canEdit }) {
     let finalAssignedName = "Todos";
     let finalRoles = [];
 
-    // Validación y Asignación
     if (assignType === 'user') {
-        // Usamos el estado targetUserId para estar seguros de qué se eligió
         const selectedUser = usersList.find(u => u.id === targetUserId);
         if (!selectedUser) return alert("Error: Debes seleccionar un usuario.");
-        
         finalTargetId = selectedUser.id;
         finalAssignedName = selectedUser.fullName;
     } else {
@@ -890,9 +874,10 @@ function TasksView({ tasks, user, canEdit }) {
                  createdAt: serverTimestamp(), 
                  comments: [] 
              };
+             
              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), newTask);
              
-             // Notificaciones
+             // NOTIFICACIONES
              if (assignType === 'user' && finalTargetId !== user.id) {
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { 
                     toUserId: finalTargetId, 
@@ -912,20 +897,16 @@ function TasksView({ tasks, user, canEdit }) {
              }
         }
         setShowModal(false);
-    } catch (err) {
-        console.error(err);
-        alert("Error al guardar tarea.");
-    }
+    } catch (err) { console.error(err); alert("Error al guardar tarea."); }
   };
 
   const addComment = async (task) => {
       if (!newComment.trim()) return;
       const commentData = { text: newComment, author: user.firstName, date: new Date().toISOString() };
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion(commentData) });
+      
       if (task.createdById && task.createdById !== user.id) {
-          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { 
-              toUserId: task.createdById, title: "Nuevo Comentario", message: `${user.firstName} comentó en "${task.title}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks' 
-          });
+          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { toUserId: task.createdById, title: "Nuevo Comentario", message: `${user.firstName} comentó en "${task.title}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks' });
       }
       setNewComment("");
   };
@@ -933,26 +914,15 @@ function TasksView({ tasks, user, canEdit }) {
   const handleDelete = async (id) => { if(confirm("¿Seguro que deseas eliminar esta tarea?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
   const changeStatus = async (task, newStatus) => { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
   
-  // FUNCIONES PARA ABRIR MODAL (RESET LIMPIO)
-  const openNew = () => { 
-      setEditingTask(null); 
-      setAssignType('user'); // Reset a Persona
-      setSelectedRoles([]); 
-      if(usersList.length > 0) setTargetUserId(usersList[0].id); // Reset al primer usuario
-      setShowModal(true); 
-  };
-  
-  const openEdit = (t) => { 
-      setEditingTask(t); 
-      setAssignType(t.targetType || 'user'); 
-      setTargetUserId(t.targetUserId || (usersList[0]?.id));
-      setSelectedRoles(t.targetRoles || []); 
-      setShowModal(true); 
-  };
+  const openNew = () => { setEditingTask(null); setAssignType('user'); setSelectedRoles([]); if(usersList.length > 0) setTargetUserId(usersList[0].id); setShowModal(true); };
+  const openEdit = (t) => { setEditingTask(t); setAssignType(t.targetType || 'user'); setTargetUserId(t.targetUserId || (usersList[0]?.id)); setSelectedRoles(t.targetRoles || []); setShowModal(true); };
 
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10">
-      <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2><button onClick={openNew} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:scale-110 transition-all"><Plus/></button></div>
+      <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2>
+          <button onClick={openNew} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:scale-110 transition-all"><Plus/></button>
+      </div>
       
       {filteredTasks.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 bg-white rounded-[40px] border-2 border-dashed border-gray-100 opacity-80">
@@ -965,31 +935,56 @@ function TasksView({ tasks, user, canEdit }) {
             {filteredTasks.map(t => (
             <div key={t.id} className={`p-5 rounded-[30px] border-l-8 shadow-sm flex flex-col gap-3 bg-white ${getPriorityStyle(t.priority)} transition-all relative`}>
                 <div className="flex justify-between items-start">
-                <div className="flex-1 pr-6">
-                    <p className="text-[9px] font-black text-violet-600 uppercase tracking-widest italic mb-1">Para: {t.assignedToName}</p>
-                    <h3 className="font-bold text-gray-800 text-sm uppercase italic tracking-tighter leading-none">{t.title}</h3>
-                    <p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName}</p>
+                    <div className="flex-1 pr-6">
+                        <p className="text-[9px] font-black text-violet-600 uppercase tracking-widest italic mb-1">Para: {t.assignedToName}</p>
+                        <h3 className="font-bold text-gray-800 text-sm uppercase italic tracking-tighter leading-none">{t.title}</h3>
+                        <p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                        <div className="text-[9px] font-black bg-white px-2 py-1 rounded-full text-gray-400 border uppercase tracking-tighter italic shadow-inner">{t.dueDate}</div>
+                        {canManage && (
+                            <div className="flex gap-1">
+                                <button onClick={() => openEdit(t)} className="text-blue-300 hover:text-blue-600 p-1 bg-white rounded-full shadow-sm"><Edit3 size={14}/></button>
+                                <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm"><Trash2 size={14}/></button>
+                            </div>
+                        )}
+                    </div>
                 </div>
-                <div className="flex flex-col items-end gap-2">
-                    <div className="text-[9px] font-black bg-white px-2 py-1 rounded-full text-gray-400 border uppercase tracking-tighter italic shadow-inner">{t.dueDate}</div>
-                    {canManage && (<div className="flex gap-1"><button onClick={() => openEdit(t)} className="text-blue-300 hover:text-blue-600 p-1 bg-white rounded-full shadow-sm"><Edit3 size={14}/></button><button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm"><Trash2 size={14}/></button></div>)}
-                </div>
-                </div>
+                
+                {/* SECCIÓN DE COMENTARIOS */}
                 {openCommentsId === t.id && (
                     <div className="bg-white/50 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in">
-                        <div className="max-h-32 overflow-y-auto space-y-2 mb-2">{(t.comments || []).map((c, idx) => (<p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p>))}{(!t.comments || t.comments.length === 0) && <p className="text-[10px] text-gray-400 italic">Sin comentarios.</p>}</div>
-                        <div className="flex gap-2"><input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribir..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" /><button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button></div>
+                        <div className="max-h-32 overflow-y-auto space-y-2 mb-2">
+                            {(t.comments || []).map((c, idx) => (
+                                <p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1">
+                                    <span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}
+                                </p>
+                            ))}
+                            {(!t.comments || t.comments.length === 0) && <p className="text-[10px] text-gray-400 italic">Sin comentarios.</p>}
+                        </div>
+                        <div className="flex gap-2">
+                            <input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribir..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" />
+                            <button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button>
+                        </div>
                     </div>
                 )}
+
                 <div className="pt-2 border-t border-black/5 flex justify-between items-center">
-                <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-violet-600 bg-gray-50 px-2 py-1 rounded-lg"><MessageSquare size={14}/> {t.comments?.length || 0}</button>
-                <select value={t.status || 'pending'} onChange={(e) => changeStatus(t, e.target.value)} className="text-xs bg-white/50 border rounded-lg p-1 font-bold text-gray-600 outline-none cursor-pointer"><option value="pending">Pendiente</option><option value="in_process">En Proceso</option><option value="completed">Finalizado</option></select>
+                    <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-violet-600 bg-gray-50 px-2 py-1 rounded-lg">
+                        <MessageSquare size={14}/> {t.comments?.length || 0}
+                    </button>
+                    <select value={t.status || 'pending'} onChange={(e) => changeStatus(t, e.target.value)} className="text-xs bg-white/50 border rounded-lg p-1 font-bold text-gray-600 outline-none cursor-pointer">
+                        <option value="pending">Pendiente</option>
+                        <option value="in_process">En Proceso</option>
+                        <option value="completed">Finalizado</option>
+                    </select>
                 </div>
             </div>
             ))}
         </div>
       )}
 
+      {/* MODAL DE CREACIÓN / EDICIÓN */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
           <form onSubmit={handleSaveTask} className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
@@ -1003,11 +998,7 @@ function TasksView({ tasks, user, canEdit }) {
             </div>
             
             {assignType === 'user' ? (
-                <select 
-                    value={targetUserId} 
-                    onChange={(e) => setTargetUserId(e.target.value)} 
-                    className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs uppercase tracking-widest border border-gray-100"
-                >
+                <select value={targetUserId} onChange={(e) => setTargetUserId(e.target.value)} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs uppercase tracking-widest border border-gray-100">
                     {usersList.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
                 </select>
             ) : (
@@ -1023,7 +1014,9 @@ function TasksView({ tasks, user, canEdit }) {
             <div className="grid grid-cols-2 gap-4">
                 <input name="dueDate" type="date" defaultValue={editingTask?.dueDate} required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs text-gray-400" />
                 <select name="priority" defaultValue={editingTask?.priority} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs uppercase text-orange-600 italic">
-                    <option value="baja">Baja</option><option value="media">Media</option><option value="alta">Alta</option>
+                    <option value="baja">Baja</option>
+                    <option value="media">Media</option>
+                    <option value="alta">Alta</option>
                 </select>
             </div>
             
@@ -1037,7 +1030,7 @@ function TasksView({ tasks, user, canEdit }) {
     </div>
   );
 }
-// --- VISTA NOTIFICACIONES ---
+
 // --- VISTA NOTIFICACIONES (PANTALLA COMPLETA CON REDIRECCIÓN) ---
 function NotificationsView({ notifications, canEdit, user }) {
   const sortedNotifs = [...notifications].sort((a, b) => {
@@ -2282,6 +2275,7 @@ function GroupsView({ user }) {
 
 // Icono auxiliar
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
