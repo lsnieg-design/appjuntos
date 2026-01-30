@@ -326,24 +326,28 @@ function LoginScreen({ onLogin }) {
 }
 
 
-// --- APP PRINCIPAL (CORREGIDA) ---
-function MainApp({ user, onLogout }) {
+// --- APP PRINCIPAL (CON BUSCADOR GLOBAL POP-UP) ---
+function MainApp({ user, onLogout, onProfileUpdate }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [tasks, setTasks] = useState([]);
   const [events, setEvents] = useState([]);
   const [resources, setResources] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
+  
+  // ESTADOS DEL BUSCADOR GLOBAL
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [globalViewingStudent, setGlobalViewingStudent] = useState(null); // Para ver el alumno desde el buscador
 
   const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin'; 
   const canManageContent = user.rol === 'admin' || isSuperAdmin || user.role === 'Equipo Directivo';
 
   useEffect(() => {
-    // Tareas
     const qTasks = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('dueDate', 'asc'));
     const unsubTasks = onSnapshot(qTasks, (snapshot) => { setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))); });
 
-    // Notificaciones
     const qNotifs = query(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), where('toUserId', '==', user.id));
     const unsubNotifs = onSnapshot(qNotifs, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -355,16 +359,31 @@ function MainApp({ user, onLogout }) {
       setNotifications(data.filter(n => !n.read));
     });
 
-    // Eventos
     const qEvents = query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc'));
     const unsubEvents = onSnapshot(qEvents, (snap) => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
 
-    // Recursos
     const qResources = query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc'));
     const unsubResources = onSnapshot(qResources, (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
 
     return () => { unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); };
   }, [user.id]);
+
+  // Lógica del Buscador Global
+  const handleGlobalSearch = async (text) => {
+      setSearchQuery(text);
+      if (text.length < 2) { setSearchResults([]); return; }
+      
+      const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), orderBy('lastName'));
+      const snapshot = await getDocs(q); // Traemos todo y filtramos en cliente (optimización simple)
+      const results = snapshot.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(s => 
+              s.isActive !== false && // Solo activos
+              (s.firstName.toLowerCase().includes(text.toLowerCase()) || 
+               s.lastName.toLowerCase().includes(text.toLowerCase()))
+          );
+      setSearchResults(results.slice(0, 5)); // Limitamos a 5 resultados
+  };
 
   const handleNotificationClick = async (notif) => {
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', notif.id), { read: true });
@@ -393,6 +412,9 @@ function MainApp({ user, onLogout }) {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* BOTÓN BUSCADOR GLOBAL */}
+          <button onClick={() => setShowSearch(true)} className="p-2 rounded-full bg-violet-900/50 hover:bg-orange-500 transition"><Search size={20} /></button>
+
           <div className="relative">
             <button onClick={() => setShowNotifPanel(!showNotifPanel)} className={`p-2 rounded-full transition ${showNotifPanel ? 'bg-orange-500' : 'bg-violet-900/50'}`}>
               <Bell size={20} />
@@ -440,25 +462,17 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'dashboard' && <DashboardView user={user} tasks={tasks} events={events} />}
         {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
         {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} canEdit={canManageContent} />}
-        
-        {/* AQUÍ ESTABA EL ERROR, AHORA ESTÁ CORREGIDO: */}
         {activeTab === 'matricula' && <MatriculaView user={user} />}
-        
         {activeTab === 'resources' && <ResourcesView resources={resources} canEdit={canManageContent} />}
-        {activeTab === 'profile' && <ProfileView user={user} onLogout={onLogout} isSuperAdmin={isSuperAdmin} />}
+        {activeTab === 'profile' && <ProfileView user={user} onLogout={onLogout} isSuperAdmin={isSuperAdmin} onProfileUpdate={onProfileUpdate} />}
         {activeTab === 'proyecto' && <ProyectoView user={user} />}
         {activeTab === 'groups' && <GroupsView user={user} />}
         {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={canManageContent} user={user} />}
       </main>
-<footer className="text-center pb-24 pt-6 opacity-50">
-          <a href="https://www.somosnomade.com.ar" target="_blank" rel="noopener noreferrer" className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-violet-600 transition">
-              Creado por NOMADE
-          </a>
-      </footer>
+
       <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-20 z-30 shadow-lg pb-safe">
         <div className="flex justify-around items-center h-full max-w-4xl mx-auto px-2">
           <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={24} />} label="Inicio" />
-          {/* Botón Mi Aula */}
           <NavButton active={activeTab === 'groups'} onClick={() => setActiveTab('groups')} icon={<Grid size={24} />} label="Mi Aula" />
           <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={24} />} label="Agenda" />
           <NavButton active={activeTab === 'matricula'} onClick={() => setActiveTab('matricula')} icon={<GraduationCap size={24} />} label="Legajos" />
@@ -466,6 +480,81 @@ function MainApp({ user, onLogout }) {
           <NavButton active={activeTab === 'proyecto'} onClick={() => setActiveTab('proyecto')} icon={<PieChart size={24} />} label="P.I." />
         </div>
       </nav>
+      
+      <footer className="text-center pb-24 pt-6 opacity-50">
+          <a href="https://www.somosnomade.com.ar" target="_blank" rel="noopener noreferrer" className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-violet-600 transition">
+              Creado por NOMADE
+          </a>
+      </footer>
+
+      {/* MODAL DEL BUSCADOR GLOBAL */}
+      {showSearch && (
+          <div className="fixed inset-0 bg-violet-900/90 z-[300] flex flex-col p-4 backdrop-blur-md animate-in fade-in">
+              <div className="flex justify-between items-center text-white mb-4">
+                  <h3 className="font-black italic uppercase">Buscador Rápido</h3>
+                  <button onClick={() => {setShowSearch(false); setSearchQuery(''); setSearchResults([]);}} className="p-2 bg-white/20 rounded-full"><X/></button>
+              </div>
+              <input 
+                  autoFocus 
+                  value={searchQuery}
+                  onChange={(e) => handleGlobalSearch(e.target.value)}
+                  placeholder="Escribí un nombre o apellido..." 
+                  className="w-full p-4 rounded-2xl bg-white text-lg font-bold text-gray-800 outline-none shadow-xl mb-4"
+              />
+              <div className="flex-1 overflow-y-auto space-y-2">
+                  {searchResults.map(s => (
+                      <div key={s.id} onClick={() => setGlobalViewingStudent(s)} className="bg-white p-3 rounded-xl flex items-center gap-3 active:scale-95 transition cursor-pointer">
+                          <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">
+                              {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center font-bold text-gray-400">{s.firstName[0]}</div>}
+                          </div>
+                          <div>
+                              <p className="font-bold text-gray-800 text-sm">{s.lastName}, {s.firstName}</p>
+                              <p className="text-[10px] text-gray-500">{s.level} • {s.groupMorning || s.groupAfternoon || 'Sin Grupo'}</p>
+                          </div>
+                      </div>
+                  ))}
+                  {searchQuery.length > 2 && searchResults.length === 0 && <p className="text-white/50 text-center mt-4">No se encontraron resultados.</p>}
+              </div>
+          </div>
+      )}
+
+      {/* REUTILIZAMOS EL MODAL DE DETALLE DE GRUPOS PARA EL RESULTADO DEL BUSCADOR */}
+      {globalViewingStudent && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[350] flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95">
+                <div className="bg-violet-600 p-4 text-white flex justify-between items-center">
+                    <h3 className="font-bold text-lg">{globalViewingStudent.lastName}, {globalViewingStudent.firstName}</h3>
+                    <button onClick={() => setGlobalViewingStudent(null)}><X/></button>
+                </div>
+                <div className="p-6">
+                    <div className="flex gap-4 items-center mb-4">
+                        <div className="w-20 h-20 bg-gray-200 rounded-2xl overflow-hidden">
+                            {globalViewingStudent.photoUrl && <img src={globalViewingStudent.photoUrl} className="w-full h-full object-cover"/>}
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold text-gray-600">DNI: {globalViewingStudent.dni}</p>
+                            <p className="text-xs text-orange-500 font-bold mt-1 uppercase">{globalViewingStudent.dx}</p>
+                            <p className="text-xs text-gray-400 mt-1">{globalViewingStudent.groupMorning || globalViewingStudent.groupAfternoon || 'Sin asignar'}</p>
+                        </div>
+                    </div>
+                    {/* ACCESO A FICHA COMPLETA */}
+                    <button 
+                        onClick={() => {
+                            setActiveTab('matricula'); // Navegar a matricula
+                            setShowSearch(false); // Cerrar buscador
+                            setGlobalViewingStudent(null); // Cerrar este modal
+                            // Nota: No podemos abrir el modal de MatriculaView desde aquí fácilmente sin contextos complejos,
+                            // así que llevamos al usuario a la sección donde puede buscarlo completo.
+                            alert("Te llevamos a la sección Legajos. Buscalo ahí para editar.");
+                        }} 
+                        className="w-full bg-violet-100 text-violet-700 py-3 rounded-xl font-bold text-xs uppercase hover:bg-violet-200 transition"
+                    >
+                        Ver Legajo Completo
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -481,7 +570,7 @@ function NavButton({ active, onClick, icon, label, badge }) {
   );
 }
 
-// --- VISTA DASHBOARD (FINAL CON WIDGET DE PROYECTO) ---
+// --- VISTA DASHBOARD (FINAL: CUMPLES + TUTORIAL + ALERTA SIN GRUPO + PROYECTO) ---
 function DashboardView({ user, tasks, events }) {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEvents = events.filter(e => e.date === todayStr);
@@ -494,10 +583,13 @@ function DashboardView({ user, tasks, events }) {
   const [notes, setNotes] = useState([]);
   const [newNote, setNewNote] = useState('');
   
-  // ESTADO PARA EL PROYECTO ACTUAL
   const [currentProject, setCurrentProject] = useState(null);
+  
+  // NUEVO: ESTADO PARA ALERTA DE SIN GRUPO
+  const [ungroupedCount, setUngroupedCount] = useState(0);
 
   const canPost = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
+  const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración'].includes(user.rol) || user.role === 'Equipo Directivo';
 
   useEffect(() => {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc'));
@@ -506,38 +598,43 @@ function DashboardView({ user, tasks, events }) {
     const qNotes = query(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), where('userId', '==', user.id), orderBy('createdAt', 'desc'));
     const unsubNotes = onSnapshot(qNotes, (snap) => setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     
-    // FETCH CUMPLEAÑOS
+    // FETCH ALUMNOS (Cumples + Alerta Sin Grupo)
     const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
     const unsubStudents = onSnapshot(qStudents, (snap) => {
         const today = new Date();
         const nextWeek = new Date();
         nextWeek.setDate(today.getDate() + 7); 
+        
+        let noGroupCounter = 0; // Contador local
+
         const upcoming = snap.docs.map(d => {
             const data = d.data();
+            
+            // Lógica de Alerta Sin Grupo
+            if (!data.groupMorning && !data.groupAfternoon) {
+                noGroupCounter++;
+            }
+
             if(!data.birthDate) return null;
             const dob = new Date(data.birthDate + 'T00:00:00');
             const currentYearBirth = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
             if (currentYearBirth < today.setHours(0,0,0,0)) currentYearBirth.setFullYear(today.getFullYear() + 1);
             return { ...data, id: d.id, nextBirthday: currentYearBirth };
         }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday);
+        
         setBirthdays(upcoming);
+        setUngroupedCount(noGroupCounter); // Guardamos el número de huérfanos
     });
 
-    // FETCH PROYECTO ACTUAL (Simple)
     const fetchProject = async () => {
-        // Determinamos el ID del mes actual (ej: "MARZO")
         const currentMonth = new Date().toLocaleString('es-ES', { month: 'long' }).toUpperCase();
         const PERIOD_NAMES = ["MARZO", "ABRIL Y MAYO", "JUNIO Y JULIO", "AGOSTO Y SEPTIEMBRE", "OCTUBRE Y NOVIEMBRE", "DICIEMBRE"];
-        // Buscamos cuál periodo contiene el mes actual
         const currentName = PERIOD_NAMES.find(p => p.includes(currentMonth));
-        
         if (currentName) {
             const id = currentName.replace(/\s+/g, '_');
             const { getDoc, doc } = await import('firebase/firestore');
             const docSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'proyecto2026_periods', id));
-            if (docSnap.exists()) {
-                setCurrentProject({ name: currentName, ...docSnap.data() });
-            }
+            if (docSnap.exists()) setCurrentProject({ name: currentName, ...docSnap.data() });
         }
     };
     fetchProject();
@@ -545,18 +642,7 @@ function DashboardView({ user, tasks, events }) {
     return () => { unsub(); unsubNotes(); unsubStudents(); };
   }, [user.id]);
 
-  // Redirección simple recargando en la tab correcta
-  const goToProject = () => {
-      // Truco simple: Disparamos un evento personalizado o usamos el prop si lo tuviéramos.
-      // Como no tenemos acceso directo a setActiveTab aquí sin pasarlo por props,
-      // la forma más limpia es pasar setActiveTab desde MainApp.
-      // PERO, para no cambiar MainApp de nuevo, usaremos un truco visual o alerta por ahora
-      // O MEJOR: Asumimos que el usuario navegará.
-      // *NOTA PARA LUCIA*: Si querés que el botón navegue, necesito que le pases `setActiveTab` a DashboardView en MainApp.
-      // Por ahora mostraré la info.
-      alert("Ve a la pestaña 'P.I.' en el menú inferior para ver los detalles.");
-  };
-
+  const goToProject = () => { alert("Ve a la pestaña 'P.I.' en el menú inferior para ver los detalles."); };
   const handlePost = async (e) => { e.preventDefault(); const text = e.target.message.value; if(!text.trim()) return; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), { message: text, author: user.fullName || user.firstName, role: user.role, createdAt: serverTimestamp() }); setShowAnnounceModal(false); };
   const deleteAnnouncement = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'announcements', id)); };
   const saveNote = async (e) => { e.preventDefault(); if (!newNote.trim()) return; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), { text: newNote, userId: user.id, done: false, createdAt: serverTimestamp() }); setNewNote(''); };
@@ -573,6 +659,19 @@ function DashboardView({ user, tasks, events }) {
            </div>
       </div>
       
+      {/* ALERTA DE ALUMNOS SIN GRUPO (SOLO PARA DIRECTIVOS) */}
+      {isManagement && ungroupedCount > 0 && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl flex items-center justify-between shadow-sm animate-pulse">
+              <div className="flex items-center gap-3">
+                  <AlertTriangle className="text-red-500" size={24} />
+                  <div>
+                      <h4 className="font-black text-red-700 text-xs uppercase tracking-widest">Atención Administrativa</h4>
+                      <p className="text-xs text-red-600 font-bold">Hay {ungroupedCount} estudiantes activos sin grupo asignado.</p>
+                  </div>
+              </div>
+          </div>
+      )}
+
       {/* WIDGET CUMPLEAÑOS */}
       {birthdays.length > 0 && (
           <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-5 rounded-[30px] shadow-lg text-white relative overflow-hidden">
@@ -581,17 +680,11 @@ function DashboardView({ user, tasks, events }) {
           </div>
       )}
 
-      {/* WIDGET PROYECTO ACTUAL (NUEVO) */}
+      {/* WIDGET PROYECTO */}
       {currentProject && (
           <div className="bg-indigo-900 p-5 rounded-[30px] shadow-lg text-white relative overflow-hidden border-b-4 border-orange-500 group cursor-pointer" onClick={goToProject}>
               <div className="absolute right-0 top-0 opacity-10 p-2"><Globe size={80}/></div>
-              <div className="relative z-10">
-                  <div className="flex items-center gap-2 mb-2">
-                      <span className="bg-orange-500 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">Proyecto 2026</span>
-                  </div>
-                  <h3 className="text-xl font-black italic uppercase tracking-tighter leading-none mb-1">{currentProject.name}</h3>
-                  <p className="text-xs text-indigo-200 font-medium">Eje: <span className="text-white font-bold">{currentProject.paises || 'A definir'}</span></p>
-              </div>
+              <div className="relative z-10"><div className="flex items-center gap-2 mb-2"><span className="bg-orange-500 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest">Proyecto 2026</span></div><h3 className="text-xl font-black italic uppercase tracking-tighter leading-none mb-1">{currentProject.name}</h3><p className="text-xs text-indigo-200 font-medium">Eje: <span className="text-white font-bold">{currentProject.paises || 'A definir'}</span></p></div>
           </div>
       )}
 
@@ -1983,30 +2076,28 @@ function MatriculaView({ user }) {
     </div>
   );
 }
-// --- VISTA TABLERO DE GRUPOS (CON BITÁCORA EXPRESS FUNCIONAL) ---
+// --- VISTA TABLERO DE GRUPOS (FINAL: CON BITÁCORA E IMPRESIÓN) ---
 function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
   const [turn, setTurn] = useState('morning'); 
   const [selectedStudent, setSelectedStudent] = useState(null);
   
-  // ESTADOS PARA LA BITÁCORA (NUEVO)
+  // ESTADOS PARA BITÁCORA
   const [showBitacoraModal, setShowBitacoraModal] = useState(null); 
   const [savingIncident, setSavingIncident] = useState(false);
 
   const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración'].includes(user.role) || user.rol === 'admin';
 
-  // Configuración del Semáforo de Incidentes
+  // Configuración Semáforo
   const INCIDENT_TYPES = [
       { label: "Agresión / Violencia", emoji: "👊", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
       { label: "Brote / Gritos", emoji: "🤬", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
       { label: "Fuga / Intento", emoji: "🏃", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
       { label: "Convulsión / Salud", emoji: "🚑", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
-      
       { label: "Crisis Llanto", emoji: "😭", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" },
       { label: "Higiene / Esfínter", emoji: "💩", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" },
       { label: "Vómito", emoji: "🤮", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" },
       { label: "Golpe / Caída", emoji: "🤕", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" },
-
       { label: "No comió", emoji: "🍽️", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
       { label: "Durmió en clase", emoji: "💤", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
       { label: "Sin Medicación", emoji: "💊", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
@@ -2047,29 +2138,12 @@ function GroupsView({ user }) {
       if (!showBitacoraModal) return;
       setSavingIncident(true);
       try {
-          const incidentData = {
-              type,
-              severity, 
-              date: new Date().toISOString(),
-              author: user.fullName || user.firstName,
-              authorId: user.id
-          };
+          const incidentData = { type, severity, date: new Date().toISOString(), author: user.fullName || user.firstName, authorId: user.id };
           const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id);
-          
-          await updateDoc(studentRef, {
-              incidents: arrayUnion(incidentData),
-              lastIncident: incidentData.date,
-              lastIncidentType: type
-          });
-
+          await updateDoc(studentRef, { incidents: arrayUnion(incidentData), lastIncident: incidentData.date, lastIncidentType: type });
           alert("✅ Registro guardado");
           setShowBitacoraModal(null);
-      } catch (e) {
-          console.error(e);
-          alert("Error: " + e.message);
-      } finally {
-          setSavingIncident(false);
-      }
+      } catch (e) { console.error(e); alert("Error: " + e.message); } finally { setSavingIncident(false); }
   };
 
   const calculateAge = (dateString) => {
@@ -2080,6 +2154,29 @@ function GroupsView({ user }) {
     const m = today.getMonth() - birthDate.getMonth();
     if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
     return age;
+  };
+
+  // --- FUNCIÓN DE IMPRESIÓN (NUEVA) ---
+  const handlePrint = () => {
+    const printWindow = window.open('', '', 'height=600,width=800');
+    printWindow.document.write('<html><head><title>Listado de Grupos</title>');
+    printWindow.document.write('<style>body{font-family:sans-serif; padding: 20px;} table{width:100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px;} th, td{border: 1px solid #ddd; padding: 8px; text-align: left;} th{background-color: #f2f2f2;} h1{color: #000; text-transform: uppercase; font-size: 16px; border-bottom: 2px solid #000; padding-bottom: 10px;} .group-container{margin-bottom: 30px; page-break-inside: avoid;} .group-header{background: #eee; padding: 5px; font-weight: bold; border: 1px solid #000; font-size: 14px;}</style>');
+    printWindow.document.write('</head><body>');
+    printWindow.document.write(`<h1>Listado de Grupos - Turno ${turn === 'morning' ? 'MAÑANA' : 'TARDE'} - ${new Date().toLocaleDateString()}</h1>`);
+    
+    groups.forEach(g => {
+        printWindow.document.write(`<div class="group-container">`);
+        printWindow.document.write(`<div class="group-header">GRUPO: ${g.name} | Aula: ${g.classroom || '-'} | Docente: ${g.teacher || '-'} | Aux: ${g.aux || '-'}</div>`);
+        printWindow.document.write('<table><thead><tr><th>Apellido y Nombre</th><th>DNI</th><th>DX</th><th>Observaciones / Asistencia</th></tr></thead><tbody>');
+        g.students.sort((a,b) => a.lastName.localeCompare(b.lastName)).forEach(s => {
+            printWindow.document.write(`<tr><td>${s.lastName}, ${s.firstName}</td><td>${s.dni}</td><td>${s.dx || '-'}</td><td></td></tr>`);
+        });
+        printWindow.document.write('</tbody></table></div>');
+    });
+    
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    printWindow.print();
   };
 
   return (
@@ -2093,51 +2190,39 @@ function GroupsView({ user }) {
                 {isManagement ? "Vista Global Institucional" : `Espacio de ${user.firstName}`}
             </p>
           </div>
-          <div className="flex bg-gray-100 p-1 rounded-xl">
-              <button onClick={() => setTurn('morning')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-md transform scale-105' : 'text-gray-400'}`}>☀️ Mañana</button>
-              <button onClick={() => setTurn('afternoon')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-md transform scale-105' : 'text-gray-400'}`}>🌙 Tarde</button>
+          <div className="flex gap-2">
+              {/* BOTÓN IMPRIMIR */}
+              <button onClick={handlePrint} className="bg-white border border-gray-200 text-gray-600 p-2 rounded-xl shadow-sm hover:bg-gray-50 transition" title="Imprimir Listas"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg></button>
+              
+              <div className="flex bg-gray-100 p-1 rounded-xl">
+                  <button onClick={() => setTurn('morning')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-md transform scale-105' : 'text-gray-400'}`}>☀️ Mañana</button>
+                  <button onClick={() => setTurn('afternoon')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-md transform scale-105' : 'text-gray-400'}`}>🌙 Tarde</button>
+              </div>
           </div>
       </div>
 
       <div className="flex-1 overflow-x-auto overflow-y-hidden p-6">
           <div className="flex gap-6 h-full">
-              {groups.length === 0 && (
-                  <div className="m-auto text-center opacity-50"><LayoutDashboard size={48} className="mx-auto mb-2 text-gray-300"/><p className="font-bold text-gray-400">No hay grupos asignados.</p></div>
-              )}
+              {groups.length === 0 && (<div className="m-auto text-center opacity-50"><LayoutDashboard size={48} className="mx-auto mb-2 text-gray-300"/><p className="font-bold text-gray-400">No hay grupos asignados.</p></div>)}
               {groups.map((group) => (
                   <div key={group.name} className="min-w-[280px] w-[300px] flex flex-col h-full bg-white rounded-[30px] border border-gray-200 shadow-sm relative overflow-hidden group-hover:shadow-md transition">
                       <div className={`p-4 border-b-4 ${turn === 'morning' ? 'border-orange-400 bg-orange-50' : 'border-indigo-400 bg-indigo-50'}`}>
-                          <div className="flex justify-between items-start mb-1">
-                              <h3 className="font-black text-gray-800 text-lg leading-none uppercase italic">{group.name}</h3>
-                              <span className="bg-white/50 px-2 py-1 rounded text-[10px] font-bold text-gray-500">{group.students.length} alum.</span>
-                          </div>
+                          <div className="flex justify-between items-start mb-1"><h3 className="font-black text-gray-800 text-lg leading-none uppercase italic">{group.name}</h3><span className="bg-white/50 px-2 py-1 rounded text-[10px] font-bold text-gray-500">{group.students.length} alum.</span></div>
                           <div className="flex flex-col gap-1 mt-2">
                               {group.classroom && (<span className="inline-flex items-center gap-1 text-[10px] font-bold text-gray-600 bg-white px-2 py-1 rounded w-fit shadow-sm"><StartIcon size={10}/> Aula {group.classroom}</span>)}
                               <p className="text-[10px] text-gray-500 font-medium truncate">PROFE: <span className="font-bold uppercase">{group.teacher || 'Sin asignar'}</span></p>
                               {group.aux && <p className="text-[10px] text-gray-500 font-medium truncate">AUX: <span className="font-bold uppercase">{group.aux}</span></p>}
                           </div>
                       </div>
-
                       <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50/50">
                           {group.students.map(student => (
                               <div key={student.id} className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 relative hover:scale-[1.02] transition-transform duration-200">
                                   <div onClick={() => setSelectedStudent(student)} className="w-12 h-12 rounded-full bg-gray-200 border-2 border-white shadow-sm flex-shrink-0 overflow-hidden cursor-pointer relative">
                                       {student.photoUrl ? <img src={student.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold">{student.firstName[0]}</div>}
-                                      {/* Punto rojo si tuvo incidente hoy */}
-                                      {student.lastIncident && new Date(student.lastIncident).toDateString() === new Date().toDateString() && (
-                                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-white animate-pulse"></div>
-                                      )}
+                                      {student.lastIncident && new Date(student.lastIncident).toDateString() === new Date().toDateString() && (<div className="absolute bottom-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-white animate-pulse"></div>)}
                                   </div>
-                                  
-                                  <div className="flex-1 min-w-0" onClick={() => setSelectedStudent(student)}>
-                                      <h4 className="font-bold text-gray-700 text-sm truncate cursor-pointer">{student.firstName} {student.lastName}</h4>
-                                      <p className="text-[10px] text-gray-400">{student.dx || 'Sin DX'}</p>
-                                  </div>
-
-                                  {/* BOTÓN RAYO (AHORA ACTIVO) */}
-                                  <button onClick={() => setShowBitacoraModal(student)} className="w-8 h-8 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center shadow-sm hover:bg-violet-600 hover:text-white transition-colors">
-                                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-                                  </button>
+                                  <div className="flex-1 min-w-0" onClick={() => setSelectedStudent(student)}><h4 className="font-bold text-gray-700 text-sm truncate cursor-pointer">{student.firstName} {student.lastName}</h4><p className="text-[10px] text-gray-400">{student.dx || 'Sin DX'}</p></div>
+                                  <button onClick={() => setShowBitacoraModal(student)} className="w-8 h-8 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center shadow-sm hover:bg-violet-600 hover:text-white transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></button>
                               </div>
                           ))}
                       </div>
@@ -2146,71 +2231,27 @@ function GroupsView({ user }) {
           </div>
       </div>
 
-      {/* MODAL BITÁCORA EXPRESS (SEMÁFORO) */}
       {showBitacoraModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
               <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600">
-                  <div className="flex justify-between items-center mb-4">
-                      <div>
-                          <h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3>
-                          <p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p>
-                      </div>
-                      <button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto p-1">
-                      {INCIDENT_TYPES.map((type) => (
-                          <button 
-                              key={type.label}
-                              onClick={() => handleSaveIncident(type.label, type.severity)}
-                              disabled={savingIncident}
-                              className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? 'opacity-50' : 'hover:brightness-95'}`}
-                          >
-                              <span className="text-2xl">{type.emoji}</span>
-                              <span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span>
-                          </button>
-                      ))}
-                  </div>
+                  <div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3><p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p></div><button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button></div>
+                  <div className="grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto p-1">{INCIDENT_TYPES.map((type) => (<button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? 'opacity-50' : 'hover:brightness-95'}`}><span className="text-2xl">{type.emoji}</span><span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span></button>))}</div>
                   <p className="text-[9px] text-center text-gray-400 mt-4 italic">Al tocar se guarda fecha y hora automáticamente.</p>
               </div>
           </div>
       )}
 
-      {/* MODAL DETALLE RÁPIDO CON MINI-HISTORIAL */}
       {selectedStudent && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95">
-                <div className="bg-violet-600 p-4 text-white flex justify-between items-center">
-                    <h3 className="font-bold text-lg">{selectedStudent.lastName}, {selectedStudent.firstName}</h3>
-                    <button onClick={() => setSelectedStudent(null)}><X/></button>
-                </div>
+                <div className="bg-violet-600 p-4 text-white flex justify-between items-center"><h3 className="font-bold text-lg">{selectedStudent.lastName}, {selectedStudent.firstName}</h3><button onClick={() => setSelectedStudent(null)}><X/></button></div>
                 <div className="p-6">
-                    <div className="flex gap-4 items-center mb-4">
-                        <div className="w-20 h-20 bg-gray-200 rounded-2xl overflow-hidden">
-                            {selectedStudent.photoUrl && <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/>}
-                        </div>
-                        <div>
-                            <p className="text-sm font-bold text-gray-600">Edad: {calculateAge(selectedStudent.birthDate)} años</p>
-                            <p className="text-sm font-bold text-gray-600">DNI: {selectedStudent.dni}</p>
-                            <p className="text-xs text-orange-500 font-bold mt-1 uppercase">{selectedStudent.dx}</p>
-                        </div>
-                    </div>
-                    {/* VISUALIZACIÓN DE BITÁCORA */}
+                    <div className="flex gap-4 items-center mb-4"><div className="w-20 h-20 bg-gray-200 rounded-2xl overflow-hidden">{selectedStudent.photoUrl && <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/>}</div><div><p className="text-sm font-bold text-gray-600">Edad: {calculateAge(selectedStudent.birthDate)} años</p><p className="text-sm font-bold text-gray-600">DNI: {selectedStudent.dni}</p><p className="text-xs text-orange-500 font-bold mt-1 uppercase">{selectedStudent.dx}</p></div></div>
                     <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 h-40 overflow-y-auto">
                         <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Últimos Eventos</h4>
                         {selectedStudent.incidents && selectedStudent.incidents.length > 0 ? (
-                            <div className="space-y-2">
-                                {[...selectedStudent.incidents].reverse().slice(0, 5).map((inc, i) => (
-                                    <div key={i} className="flex gap-2 text-xs border-b border-gray-100 pb-1">
-                                        <span className="font-bold text-gray-500">{new Date(inc.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
-                                        <span className="font-bold text-gray-800">{inc.type}</span>
-                                        {inc.severity === 'high' && <span className="w-2 h-2 rounded-full bg-red-500 mt-1"></span>}
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-xs text-gray-400 italic text-center mt-4">Sin registros recientes.</p>
-                        )}
+                            <div className="space-y-2">{[...selectedStudent.incidents].reverse().slice(0, 5).map((inc, i) => (<div key={i} className="flex gap-2 text-xs border-b border-gray-100 pb-1"><span className="font-bold text-gray-500">{new Date(inc.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span><span className="font-bold text-gray-800">{inc.type}</span>{inc.severity === 'high' && <span className="w-2 h-2 rounded-full bg-red-500 mt-1"></span>}</div>))}</div>
+                        ) : (<p className="text-xs text-gray-400 italic text-center mt-4">Sin registros recientes.</p>)}
                     </div>
                 </div>
             </div>
@@ -2222,6 +2263,7 @@ function GroupsView({ user }) {
 
 // Icono auxiliar necesario para GroupsView
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
