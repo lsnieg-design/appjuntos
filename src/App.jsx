@@ -326,9 +326,8 @@ function LoginScreen({ onLogin }) {
 }
 
 
-// --- APP PRINCIPAL (CON TODAS LAS MEJORAS INTEGRADAS) ---
-// --- APP PRINCIPAL (CON NAVEGACIÓN DESDE NOTIFICACIONES) ---
-function MainApp({MatriculaView user={user}) {
+// --- APP PRINCIPAL (CORREGIDA) ---
+function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [tasks, setTasks] = useState([]);
   const [events, setEvents] = useState([]);
@@ -340,19 +339,27 @@ function MainApp({MatriculaView user={user}) {
   const canManageContent = user.rol === 'admin' || isSuperAdmin || user.role === 'Equipo Directivo';
 
   useEffect(() => {
+    // Tareas
     const qTasks = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('dueDate', 'asc'));
     const unsubTasks = onSnapshot(qTasks, (snapshot) => { setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))); });
 
+    // Notificaciones
     const qNotifs = query(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), where('toUserId', '==', user.id));
     const unsubNotifs = onSnapshot(qNotifs, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      data.sort((a, b) => { const dateA = a.createdAt ? a.createdAt.seconds : 0; const dateB = b.createdAt ? b.createdAt.seconds : 0; return dateB - dateA; });
+      data.sort((a, b) => {
+          const dateA = a.createdAt ? a.createdAt.seconds : 0;
+          const dateB = b.createdAt ? b.createdAt.seconds : 0;
+          return dateB - dateA;
+      });
       setNotifications(data.filter(n => !n.read));
     });
 
+    // Eventos
     const qEvents = query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc'));
     const unsubEvents = onSnapshot(qEvents, (snap) => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
 
+    // Recursos
     const qResources = query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc'));
     const unsubResources = onSnapshot(qResources, (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
 
@@ -361,7 +368,15 @@ function MainApp({MatriculaView user={user}) {
 
   const handleNotificationClick = async (notif) => {
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', notif.id), { read: true });
-      if (notif.targetTab) { setActiveTab(notif.targetTab); } else { const t = notif.title.toLowerCase(); if (t.includes('tarea') || t.includes('comentario')) setActiveTab('tasks'); else if (t.includes('evento') || t.includes('agenda')) setActiveTab('calendar'); else if (t.includes('recurso')) setActiveTab('resources'); else if (t.includes('legajo') || t.includes('alumno')) setActiveTab('matricula'); } setShowNotifPanel(false);
+      if (notif.targetTab) { setActiveTab(notif.targetTab); } 
+      else {
+          const t = notif.title.toLowerCase();
+          if (t.includes('tarea') || t.includes('comentario')) setActiveTab('tasks');
+          else if (t.includes('evento') || t.includes('agenda')) setActiveTab('calendar');
+          else if (t.includes('recurso')) setActiveTab('resources');
+          else if (t.includes('legajo') || t.includes('alumno')) setActiveTab('matricula');
+      }
+      setShowNotifPanel(false);
   };
 
   const dismissNotification = async (e, id) => {
@@ -391,12 +406,9 @@ function MainApp({MatriculaView user={user}) {
                   <button onClick={() => setShowNotifPanel(false)}><X size={16} className="text-gray-400"/></button>
                 </div>
                 <div className="max-h-80 overflow-y-auto">
-                  {/* --- AQUÍ ESTABA EL CAMBIO --- */}
                   {notifications.length === 0 ? (
                     <div className="p-10 text-center flex flex-col items-center">
-                        <div className="bg-gray-50 p-3 rounded-full mb-3">
-                            <Bell size={24} className="text-gray-300" />
-                        </div>
+                        <div className="bg-gray-50 p-3 rounded-full mb-3"><Bell size={24} className="text-gray-300" /></div>
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Sin novedades</p>
                     </div>
                   ) : (
@@ -428,7 +440,10 @@ function MainApp({MatriculaView user={user}) {
         {activeTab === 'dashboard' && <DashboardView user={user} tasks={tasks} events={events} />}
         {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
         {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} canEdit={canManageContent} />}
-        {activeTab === 'matricula' && < user={user} />}
+        
+        {/* AQUÍ ESTABA EL ERROR, AHORA ESTÁ CORREGIDO: */}
+        {activeTab === 'matricula' && <MatriculaView user={user} />}
+        
         {activeTab === 'resources' && <ResourcesView resources={resources} canEdit={canManageContent} />}
         {activeTab === 'profile' && <ProfileView user={user} onLogout={onLogout} isSuperAdmin={isSuperAdmin} />}
         {activeTab === 'proyecto' && <ProyectoView user={user} />}
@@ -439,11 +454,11 @@ function MainApp({MatriculaView user={user}) {
       <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-20 z-30 shadow-lg pb-safe">
         <div className="flex justify-around items-center h-full max-w-4xl mx-auto px-2">
           <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={24} />} label="Inicio" />
-          <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={24} />} label="Tareas" />
+          {/* Botón Mi Aula */}
+          <NavButton active={activeTab === 'groups'} onClick={() => setActiveTab('groups')} icon={<Grid size={24} />} label="Mi Aula" />
           <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={24} />} label="Agenda" />
           <NavButton active={activeTab === 'matricula'} onClick={() => setActiveTab('matricula')} icon={<GraduationCap size={24} />} label="Legajos" />
           <NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<LinkIcon size={24} />} label="Recursos" />
-          <NavButton active={activeTab === 'groups'} onClick={() => setActiveTab('groups')} icon={<Grid size={24} />} label="Mi Aula" />
           <NavButton active={activeTab === 'proyecto'} onClick={() => setActiveTab('proyecto')} icon={<PieChart size={24} />} label="P.I." />
         </div>
       </nav>
@@ -2009,16 +2024,37 @@ function MatriculaView({ user }) {
   );
 }
 // --- VISTA TABLERO DE GRUPOS (EL MAPA DE AULA) ---
+// --- VISTA TABLERO DE GRUPOS (CON BITÁCORA EXPRESS FUNCIONAL) ---
 function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
-  const [turn, setTurn] = useState('morning'); // 'morning' | 'afternoon'
+  const [turn, setTurn] = useState('morning'); 
   const [selectedStudent, setSelectedStudent] = useState(null);
+  
+  // ESTADOS PARA LA BITÁCORA (NUEVO)
+  const [showBitacoraModal, setShowBitacoraModal] = useState(null); 
+  const [savingIncident, setSavingIncident] = useState(false);
 
-  // Permisos: ¿Es equipo de conducción?
   const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración'].includes(user.role) || user.rol === 'admin';
 
+  // Configuración del Semáforo de Incidentes
+  const INCIDENT_TYPES = [
+      { label: "Agresión / Violencia", emoji: "👊", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
+      { label: "Brote / Gritos", emoji: "🤬", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
+      { label: "Fuga / Intento", emoji: "🏃", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
+      { label: "Convulsión / Salud", emoji: "🚑", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
+      
+      { label: "Crisis Llanto", emoji: "😭", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" },
+      { label: "Higiene / Esfínter", emoji: "💩", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" },
+      { label: "Vómito", emoji: "🤮", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" },
+      { label: "Golpe / Caída", emoji: "🤕", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" },
+
+      { label: "No comió", emoji: "🍽️", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
+      { label: "Durmió en clase", emoji: "💤", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
+      { label: "Sin Medicación", emoji: "💊", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
+      { label: "Llegada Tarde", emoji: "🕑", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
+  ];
+
   useEffect(() => {
-    // Solo traemos estudiantes ACTIVOS
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
     const unsub = onSnapshot(q, (snap) => {
         setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -2026,18 +2062,13 @@ function GroupsView({ user }) {
     return () => unsub();
   }, []);
 
-  // 1. Agrupar estudiantes según el turno seleccionado
   const groupedData = students.reduce((acc, s) => {
       const groupName = turn === 'morning' ? s.groupMorning : s.groupAfternoon;
-      
-      // Si no tiene grupo asignado en este turno, lo ignoramos (o lo mandamos a "Sin Asignar")
       if (!groupName) return acc;
-
       if (!acc[groupName]) {
           acc[groupName] = {
               name: groupName,
               students: [],
-              // Capturamos datos del grupo del primer estudiante que encontremos
               teacher: turn === 'morning' ? s.teacherMorning : s.teacherAfternoon,
               aux: turn === 'morning' ? s.auxMorning : s.auxAfternoon,
               classroom: s.classroom
@@ -2047,16 +2078,40 @@ function GroupsView({ user }) {
       return acc;
   }, {});
 
-  // 2. Convertir a array y ordenar alfabéticamente por nombre de grupo
   let groups = Object.values(groupedData).sort((a, b) => a.name.localeCompare(b.name));
 
-  // 3. FILTRO AUTOMÁTICO PARA DOCENTES
-  // Si NO es directivo, filtramos solo los grupos donde él/ella es el docente o auxiliar
   if (!isManagement) {
-      groups = groups.filter(g => 
-          g.teacher === user.fullName || g.aux === user.fullName
-      );
+      groups = groups.filter(g => g.teacher === user.fullName || g.aux === user.fullName);
   }
+
+  const handleSaveIncident = async (type, severity) => {
+      if (!showBitacoraModal) return;
+      setSavingIncident(true);
+      try {
+          const incidentData = {
+              type,
+              severity, 
+              date: new Date().toISOString(),
+              author: user.fullName || user.firstName,
+              authorId: user.id
+          };
+          const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id);
+          
+          await updateDoc(studentRef, {
+              incidents: arrayUnion(incidentData),
+              lastIncident: incidentData.date,
+              lastIncidentType: type
+          });
+
+          alert("✅ Registro guardado");
+          setShowBitacoraModal(null);
+      } catch (e) {
+          console.error(e);
+          alert("Error: " + e.message);
+      } finally {
+          setSavingIncident(false);
+      }
+  };
 
   const calculateAge = (dateString) => {
     if (!dateString) return '-';
@@ -2070,8 +2125,6 @@ function GroupsView({ user }) {
 
   return (
     <div className="flex flex-col h-full bg-slate-100 animate-in fade-in duration-500">
-      
-      {/* HEADER DEL TABLERO */}
       <div className="bg-white p-4 shadow-sm z-10 flex justify-between items-center sticky top-0">
           <div>
             <h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter flex items-center gap-2">
@@ -2081,71 +2134,49 @@ function GroupsView({ user }) {
                 {isManagement ? "Vista Global Institucional" : `Espacio de ${user.firstName}`}
             </p>
           </div>
-          
-          {/* SELECTOR DE TURNO */}
           <div className="flex bg-gray-100 p-1 rounded-xl">
-              <button 
-                onClick={() => setTurn('morning')}
-                className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-md transform scale-105' : 'text-gray-400'}`}
-              >
-                ☀️ Mañana
-              </button>
-              <button 
-                onClick={() => setTurn('afternoon')}
-                className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-md transform scale-105' : 'text-gray-400'}`}
-              >
-                🌙 Tarde
-              </button>
+              <button onClick={() => setTurn('morning')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-md transform scale-105' : 'text-gray-400'}`}>☀️ Mañana</button>
+              <button onClick={() => setTurn('afternoon')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-md transform scale-105' : 'text-gray-400'}`}>🌙 Tarde</button>
           </div>
       </div>
 
-      {/* LIENZO DE COLUMNAS (SCROLL HORIZONTAL) */}
       <div className="flex-1 overflow-x-auto overflow-y-hidden p-6">
           <div className="flex gap-6 h-full">
-              
               {groups.length === 0 && (
-                  <div className="m-auto text-center opacity-50">
-                      <LayoutDashboard size={48} className="mx-auto mb-2 text-gray-300"/>
-                      <p className="font-bold text-gray-400">No hay grupos asignados en este turno.</p>
-                  </div>
+                  <div className="m-auto text-center opacity-50"><LayoutDashboard size={48} className="mx-auto mb-2 text-gray-300"/><p className="font-bold text-gray-400">No hay grupos asignados.</p></div>
               )}
-
               {groups.map((group) => (
                   <div key={group.name} className="min-w-[280px] w-[300px] flex flex-col h-full bg-white rounded-[30px] border border-gray-200 shadow-sm relative overflow-hidden group-hover:shadow-md transition">
-                      {/* CABEZAL DE GRUPO */}
                       <div className={`p-4 border-b-4 ${turn === 'morning' ? 'border-orange-400 bg-orange-50' : 'border-indigo-400 bg-indigo-50'}`}>
                           <div className="flex justify-between items-start mb-1">
                               <h3 className="font-black text-gray-800 text-lg leading-none uppercase italic">{group.name}</h3>
                               <span className="bg-white/50 px-2 py-1 rounded text-[10px] font-bold text-gray-500">{group.students.length} alum.</span>
                           </div>
                           <div className="flex flex-col gap-1 mt-2">
-                              {group.classroom && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-gray-600 bg-white px-2 py-1 rounded w-fit shadow-sm">
-                                      <StartIcon size={10}/> Aula {group.classroom}
-                                  </span>
-                              )}
+                              {group.classroom && (<span className="inline-flex items-center gap-1 text-[10px] font-bold text-gray-600 bg-white px-2 py-1 rounded w-fit shadow-sm"><StartIcon size={10}/> Aula {group.classroom}</span>)}
                               <p className="text-[10px] text-gray-500 font-medium truncate">PROFE: <span className="font-bold uppercase">{group.teacher || 'Sin asignar'}</span></p>
                               {group.aux && <p className="text-[10px] text-gray-500 font-medium truncate">AUX: <span className="font-bold uppercase">{group.aux}</span></p>}
                           </div>
                       </div>
 
-                      {/* LISTA DE ESTUDIANTES */}
                       <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50/50">
                           {group.students.map(student => (
                               <div key={student.id} className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 relative hover:scale-[1.02] transition-transform duration-200">
-                                  {/* FOTO */}
-                                  <div onClick={() => setSelectedStudent(student)} className="w-12 h-12 rounded-full bg-gray-200 border-2 border-white shadow-sm flex-shrink-0 overflow-hidden cursor-pointer">
+                                  <div onClick={() => setSelectedStudent(student)} className="w-12 h-12 rounded-full bg-gray-200 border-2 border-white shadow-sm flex-shrink-0 overflow-hidden cursor-pointer relative">
                                       {student.photoUrl ? <img src={student.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold">{student.firstName[0]}</div>}
+                                      {/* Punto rojo si tuvo incidente hoy */}
+                                      {student.lastIncident && new Date(student.lastIncident).toDateString() === new Date().toDateString() && (
+                                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-white animate-pulse"></div>
+                                      )}
                                   </div>
                                   
-                                  {/* DATOS */}
                                   <div className="flex-1 min-w-0" onClick={() => setSelectedStudent(student)}>
                                       <h4 className="font-bold text-gray-700 text-sm truncate cursor-pointer">{student.firstName} {student.lastName}</h4>
                                       <p className="text-[10px] text-gray-400">{student.dx || 'Sin DX'}</p>
                                   </div>
 
-                                  {/* BOTÓN RAYO (BITÁCORA) - Placeholder visual */}
-                                  <button className="w-8 h-8 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center shadow-sm hover:bg-violet-600 hover:text-white transition-colors">
+                                  {/* BOTÓN RAYO (AHORA ACTIVO) */}
+                                  <button onClick={() => setShowBitacoraModal(student)} className="w-8 h-8 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center shadow-sm hover:bg-violet-600 hover:text-white transition-colors">
                                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
                                   </button>
                               </div>
@@ -2156,7 +2187,37 @@ function GroupsView({ user }) {
           </div>
       </div>
 
-      {/* MODAL DETALLE RÁPIDO (Reutilizamos la vista, se puede mejorar luego) */}
+      {/* MODAL BITÁCORA EXPRESS (SEMÁFORO) */}
+      {showBitacoraModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+              <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600">
+                  <div className="flex justify-between items-center mb-4">
+                      <div>
+                          <h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3>
+                          <p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p>
+                      </div>
+                      <button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto p-1">
+                      {INCIDENT_TYPES.map((type) => (
+                          <button 
+                              key={type.label}
+                              onClick={() => handleSaveIncident(type.label, type.severity)}
+                              disabled={savingIncident}
+                              className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? 'opacity-50' : 'hover:brightness-95'}`}
+                          >
+                              <span className="text-2xl">{type.emoji}</span>
+                              <span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span>
+                          </button>
+                      ))}
+                  </div>
+                  <p className="text-[9px] text-center text-gray-400 mt-4 italic">Al tocar se guarda fecha y hora automáticamente.</p>
+              </div>
+          </div>
+      )}
+
+      {/* MODAL DETALLE RÁPIDO CON MINI-HISTORIAL */}
       {selectedStudent && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95">
@@ -2175,9 +2236,22 @@ function GroupsView({ user }) {
                             <p className="text-xs text-orange-500 font-bold mt-1 uppercase">{selectedStudent.dx}</p>
                         </div>
                     </div>
-                    {/* Aquí irá la bitácora en el futuro */}
-                    <div className="bg-gray-50 p-4 rounded-xl text-center border border-dashed border-gray-300">
-                        <p className="text-xs text-gray-400 italic">Próximamente: Historial de Seguimiento</p>
+                    {/* VISUALIZACIÓN DE BITÁCORA */}
+                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 h-40 overflow-y-auto">
+                        <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Últimos Eventos</h4>
+                        {selectedStudent.incidents && selectedStudent.incidents.length > 0 ? (
+                            <div className="space-y-2">
+                                {[...selectedStudent.incidents].reverse().slice(0, 5).map((inc, i) => (
+                                    <div key={i} className="flex gap-2 text-xs border-b border-gray-100 pb-1">
+                                        <span className="font-bold text-gray-500">{new Date(inc.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                                        <span className="font-bold text-gray-800">{inc.type}</span>
+                                        {inc.severity === 'high' && <span className="w-2 h-2 rounded-full bg-red-500 mt-1"></span>}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-xs text-gray-400 italic text-center mt-4">Sin registros recientes.</p>
+                        )}
                     </div>
                 </div>
             </div>
@@ -2187,75 +2261,8 @@ function GroupsView({ user }) {
   );
 }
 
-// Icono auxiliar
+// Icono auxiliar necesario para GroupsView
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
-// --- NUEVA VISTA: AUDITORÍA DE TAREAS (GRAN HERMANO) ---
-function ActivityLogView() {
-  const [allTasks, setAllTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Escucha TODAS las tareas, ordenadas por la más reciente
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('createdAt', 'desc'));
-    const unsub = onSnapshot(q, (snapshot) => {
-      setAllTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      setLoading(false);
-    });
-    return () => unsub();
-  }, []);
-
-  const formatDate = (timestamp) => {
-    if (!timestamp) return '-';
-    // Formato: DD/MM HH:mm hs
-    return new Date(timestamp.seconds * 1000).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + 'hs';
-  };
-
-  return (
-    <div className="flex-1 flex flex-col min-h-0 bg-gray-50 rounded-3xl p-4 mt-4 h-[70vh]">
-      <div className="mb-4 border-b border-gray-200 pb-2">
-        <h3 className="text-violet-900 font-black text-lg uppercase tracking-widest flex items-center gap-2">
-          <Activity className="text-orange-500"/> Auditoría de Gestión
-        </h3>
-        <p className="text-xs text-gray-500">Historial completo de pedidos y tareas ({allTasks.length})</p>
-      </div>
-
-      <div className="flex-1 overflow-y-auto pr-1">
-        {loading ? (
-          <div className="text-center p-10"><RefreshCw className="animate-spin mx-auto text-violet-400"/></div>
-        ) : (
-          <div className="space-y-3">
-            {allTasks.map(t => (
-              <div key={t.id} className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm text-xs relative group hover:border-violet-300 transition">
-                <div className="flex justify-between items-start mb-1">
-                   <span className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-bold text-[10px]">{formatDate(t.createdAt)}</span>
-                   <span className={`px-2 py-0.5 rounded font-bold text-white uppercase text-[9px] ${t.status === 'completed' ? 'bg-green-500' : t.status === 'in_process' ? 'bg-blue-500' : 'bg-orange-400'}`}>
-                     {t.status === 'completed' ? 'Finalizado' : t.status === 'in_process' ? 'En Proceso' : 'Pendiente'}
-                   </span>
-                </div>
-
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className="font-bold text-violet-700 uppercase bg-violet-50 px-1 rounded">{t.createdByName}</span>
-                    <span className="text-gray-300 text-[10px]">▶ le pidió a ▶</span>
-                    <span className="font-bold text-orange-600 uppercase bg-orange-50 px-1 rounded">{t.assignedToName}</span>
-                </div>
-
-                <p className="font-medium text-gray-800 text-sm mb-2 border-l-2 border-violet-200 pl-2">"{t.title}"</p>
-
-                {/* Detalles extra */}
-                <div className="flex gap-4 text-gray-400 text-[10px] mt-2 border-t pt-1">
-                    <span className="flex items-center gap-1"><MessageSquare size={10}/> {t.comments ? t.comments.length : 0} msj</span>
-                    <span className="flex items-center gap-1"><CalendarIcon size={10}/> Vence: {t.dueDate}</span>
-                    {t.priority === 'alta' && <span className="text-red-500 font-bold flex items-center gap-1"><AlertTriangle size={10}/> Alta Prioridad</span>}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 
 
 
