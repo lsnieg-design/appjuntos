@@ -328,7 +328,7 @@ function LoginScreen({ onLogin }) {
 
 // --- APP PRINCIPAL (CON TODAS LAS MEJORAS INTEGRADAS) ---
 // --- APP PRINCIPAL (CON NAVEGACIÓN DESDE NOTIFICACIONES) ---
-function MainApp({ user, onLogout }) {
+function MainApp({MatriculaView user={user}) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [tasks, setTasks] = useState([]);
   const [events, setEvents] = useState([]);
@@ -2255,6 +2255,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
