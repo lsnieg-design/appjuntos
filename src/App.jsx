@@ -1289,34 +1289,43 @@ function CalendarView({ events, canEdit, user }) {
   );
 }
 
-// --- VISTA PERFIL (MODIFICADA SOLO PARA AGREGAR AUDITORÍA) ---
+// --- VISTA PERFIL (CON LLAVE DE NOTIFICACIONES CORREGIDA) ---
 function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
   const [formData, setFormData] = useState({ firstName: user.firstName || '', lastName: user.lastName || '', photoUrl: user.photoUrl || '' });
   const [uploading, setUploading] = useState(false);
   const [showAdminUsers, setShowAdminUsers] = useState(false);
-  
-  // NUEVO ESTADO PARA EL VISOR
   const [showAudit, setShowAudit] = useState(false);
 
-  // 1. Activar Notificaciones (Lógica Real)
+  // 1. Activar Notificaciones (CON TU CLAVE YA PEGADA)
   const activarNotificaciones = async () => {
     try {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
         const messaging = getMessaging(app);
-        const currentToken = await getToken(messaging, { vapidKey: 'BAEl7uzkT1NyeMtxaYgiCDlYNeyZ8WLqpB1Gc4UPx8B5EN1YVbcXPfDVsMixqIqpVGFxQGbBVogZHXZAScmCpMY' });
+        
+        // ACÁ ESTÁ LA SOLUCIÓN DEL ERROR:
+        const currentToken = await getToken(messaging, { 
+            vapidKey: 'BAEl7uzkT1NyeMtxaYgiCDlYNeyZ8WLqpB1Gc4UPx8B5EN1YVbcXPfDVsMixqIqpVGFxQGbBVogZHXZAScmCpMY' 
+        });
         
         if (currentToken) {
            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
            await updateDoc(userRef, { fcmTokens: arrayUnion(currentToken), lastTokenUpdate: serverTimestamp() });
-           alert("✅ Notificaciones activadas.");
+           alert("✅ ¡Listo! Notificaciones activadas en este celular.");
            triggerMobileNotification("Dispositivo Conectado", "Ahora recibirás los comunicados aquí.");
+        } else {
+           alert("No se pudo obtener el identificador del dispositivo.");
         }
-      } else { alert("Necesitamos tu permiso para enviarte avisos."); }
-    } catch (e) { console.error(e); alert("Error al activar: " + e.message); }
+      } else { 
+          alert("Necesitamos tu permiso para enviarte avisos. Revisa la configuración del navegador."); 
+      }
+    } catch (e) { 
+        console.error(e); 
+        alert("Error al activar: " + e.message); 
+    }
   };
 
-  // 2. Subir Foto (Con resize)
+  // 2. Subir Foto
   const resizeImage = (file) => {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -1395,7 +1404,6 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
                     <div className="text-left"><h4 className="font-bold">Gestionar Personal</h4><p className="text-xs opacity-80">Administración de usuarios</p></div>
                 </button>
 
-                {/* BOTÓN NUEVO: AUDITORÍA */}
                 <button onClick={() => setShowAudit(true)} className="bg-indigo-900 p-4 rounded-2xl shadow-xl flex items-center gap-4 hover:scale-[1.02] transition text-white border border-indigo-700">
                     <div className="bg-white/20 p-3 rounded-xl"><Activity size={24} /></div>
                     <div className="text-left"><h4 className="font-bold">Auditoría Global</h4><p className="text-xs opacity-80">Ver registro de todas las tareas</p></div>
@@ -1426,7 +1434,6 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
         </div>
        )}
 
-       {/* MODAL NUEVO: AUDITORÍA */}
        {showAudit && (
         <div className="fixed inset-0 bg-gray-900/95 z-[200] flex flex-col p-6 animate-in slide-in-from-bottom duration-500 overflow-y-auto">
           <div className="flex justify-between items-center text-white mb-8">
@@ -1439,6 +1446,7 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
     </div>
   );
 }
+
 // --- VISTA ADMINISTRACIÓN DE USUARIOS (FALTANTE) ---
 function UsersAdminView() {
   const [users, setUsers] = useState([]);
@@ -2276,6 +2284,7 @@ function GroupsView({ user }) {
 
 // Icono auxiliar
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
