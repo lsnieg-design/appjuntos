@@ -658,14 +658,20 @@ function ResourcesView({ resources, canEdit }) {
 
 // --- VISTA TAREAS (CORREGIDA: PRIVACIDAD ESTRICTA) ---
 // --- VISTA TAREAS (COMPLETA: PRIVACIDAD, ROLES Y NOTIFICACIONES) ---
+// --- VISTA TAREAS (CORREGIDA: CHECKLIST, BUSCADOR Y PERMISOS) ---
 function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
   
   // Estados del formulario
-  const [assignType, setAssignType] = useState('user'); // 'user' o 'roles'
+  const [assignType, setAssignType] = useState('user'); 
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [targetUserId, setTargetUserId] = useState(''); 
+  
+  // --- NUEVO: ESTADOS PARA CHECKLIST Y BUSCADOR ---
+  const [checklist, setChecklist] = useState([]); 
+  const [newItem, setNewItem] = useState(""); 
+  const [userSearch, setUserSearch] = useState(""); // Buscador de personas
   
   const [openCommentsId, setOpenCommentsId] = useState(null); 
   const [newComment, setNewComment] = useState("");
@@ -673,7 +679,6 @@ function TasksView({ tasks, user, canEdit }) {
 
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor'];
   
-  // Permisos: Directivos y Admins ven TODO. El resto solo lo suyo.
   const canManage = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
 
   useEffect(() => {
@@ -685,12 +690,12 @@ function TasksView({ tasks, user, canEdit }) {
     return () => unsub();
   }, []);
 
-  // --- FILTRO DE PRIVACIDAD ---
+  // Filtro de privacidad visual
   const filteredTasks = tasks.filter(t => {
-      if (canManage) return true; // Directivos ven todo
-      if (t.createdById === user.id) return true; // Si yo la creé, la veo
-      if (t.targetType === 'user') return t.targetUserId === user.id; // Si es para mí (persona)
-      if (t.targetType === 'roles') return t.targetRoles && t.targetRoles.includes(user.role); // Si es para mi rol
+      if (canManage) return true; 
+      if (t.createdById === user.id) return true; 
+      if (t.targetType === 'user') return t.targetUserId === user.id; 
+      if (t.targetType === 'roles') return t.targetRoles && t.targetRoles.includes(user.role); 
       return false;
   });
 
@@ -698,6 +703,27 @@ function TasksView({ tasks, user, canEdit }) {
     if (p === 'alta') return 'border-l-red-500 bg-red-50';
     if (p === 'media') return 'border-l-orange-500 bg-orange-50';
     return 'border-l-green-500 bg-green-50';
+  };
+
+  // --- NUEVO: FUNCIONES PARA CHECKLIST ---
+  const addChecklistItem = () => {
+    if (newItem.trim()) {
+      setChecklist([...checklist, { text: newItem, done: false }]);
+      setNewItem("");
+    }
+  };
+
+  const removeChecklistItem = (index) => {
+    const newList = [...checklist];
+    newList.splice(index, 1);
+    setChecklist(newList);
+  };
+
+  const toggleTaskCheck = async (task, itemIndex) => {
+     // Actualiza el check en la base de datos sin abrir el modal
+     const newChecklist = [...(task.checklist || [])];
+     newChecklist[itemIndex].done = !newChecklist[itemIndex].done;
+     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { checklist: newChecklist });
   };
 
   const handleSaveTask = async (e) => {
@@ -709,6 +735,7 @@ function TasksView({ tasks, user, canEdit }) {
     let finalRoles = [];
 
     if (assignType === 'user') {
+        // Usamos el targetUserId que viene del estado (que puede estar filtrado)
         const selectedUser = usersList.find(u => u.id === targetUserId);
         if (!selectedUser) return alert("Error: Debes seleccionar un usuario.");
         finalTargetId = selectedUser.id;
@@ -726,7 +753,8 @@ function TasksView({ tasks, user, canEdit }) {
         targetType: assignType, 
         targetUserId: finalTargetId, 
         targetRoles: finalRoles, 
-        assignedToName: finalAssignedName 
+        assignedToName: finalAssignedName,
+        checklist: checklist // <--- AQUÍ SE GUARDA LA LISTA
     };
 
     try {
@@ -753,15 +781,6 @@ function TasksView({ tasks, user, canEdit }) {
                     read: false, createdAt: serverTimestamp(), targetTab: 'tasks' 
                 });
              }
-             if (assignType === 'roles') {
-                 const recipients = usersList.filter(u => finalRoles.includes(u.role) && u.id !== user.id);
-                 const notifPromises = recipients.map(recipient => {
-                     return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), {
-                         toUserId: recipient.id, title: "Nueva Tarea de Área", message: `${user.firstName} asignó a ${finalRoles.join(', ')}: "${fd.get('title')}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks'
-                     });
-                 });
-                 await Promise.all(notifPromises);
-             }
         }
         setShowModal(false);
     } catch (err) { console.error(err); alert("Error al guardar tarea."); }
@@ -771,18 +790,36 @@ function TasksView({ tasks, user, canEdit }) {
       if (!newComment.trim()) return;
       const commentData = { text: newComment, author: user.firstName, date: new Date().toISOString() };
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion(commentData) });
-      
-      if (task.createdById && task.createdById !== user.id) {
-          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { toUserId: task.createdById, title: "Nuevo Comentario", message: `${user.firstName} comentó en "${task.title}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks' });
-      }
       setNewComment("");
   };
 
   const handleDelete = async (id) => { if(confirm("¿Seguro que deseas eliminar esta tarea?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
   const changeStatus = async (task, newStatus) => { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
   
-  const openNew = () => { setEditingTask(null); setAssignType('user'); setSelectedRoles([]); if(usersList.length > 0) setTargetUserId(usersList[0].id); setShowModal(true); };
-  const openEdit = (t) => { setEditingTask(t); setAssignType(t.targetType || 'user'); setTargetUserId(t.targetUserId || (usersList[0]?.id)); setSelectedRoles(t.targetRoles || []); setShowModal(true); };
+  const openNew = () => { 
+      setEditingTask(null); 
+      setAssignType('user'); 
+      setSelectedRoles([]); 
+      setChecklist([]); // Limpiar checklist
+      setNewItem("");
+      setUserSearch(""); // Limpiar buscador
+      if(usersList.length > 0) setTargetUserId(usersList[0].id); 
+      setShowModal(true); 
+  };
+
+  const openEdit = (t) => { 
+      setEditingTask(t); 
+      setAssignType(t.targetType || 'user'); 
+      setTargetUserId(t.targetUserId || (usersList[0]?.id)); 
+      setSelectedRoles(t.targetRoles || []); 
+      setChecklist(t.checklist || []); // Cargar checklist existente
+      setShowModal(true); 
+  };
+
+  // Filtrar usuarios para el select
+  const filteredUsers = usersList.filter(u => 
+    u.fullName.toLowerCase().includes(userSearch.toLowerCase())
+  );
 
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10">
@@ -799,7 +836,12 @@ function TasksView({ tasks, user, canEdit }) {
         </div>
       ) : (
         <div className="grid gap-3 pb-10">
-            {filteredTasks.map(t => (
+            {filteredTasks.map(t => {
+            // --- NUEVO: Lógica de permiso de borrado ---
+            // Puede borrar si: Es Admin/Directivo, O es el Creador, O es el Asignado.
+            const canDelete = canManage || t.createdById === user.id || t.targetUserId === user.id;
+
+            return (
             <div key={t.id} className={`p-5 rounded-[30px] border-l-8 shadow-sm flex flex-col gap-3 bg-white ${getPriorityStyle(t.priority)} transition-all relative`}>
                 <div className="flex justify-between items-start">
                     <div className="flex-1 pr-6">
@@ -809,15 +851,34 @@ function TasksView({ tasks, user, canEdit }) {
                     </div>
                     <div className="flex flex-col items-end gap-2">
                         <div className="text-[9px] font-black bg-white px-2 py-1 rounded-full text-gray-400 border uppercase tracking-tighter italic shadow-inner">{t.dueDate}</div>
-                        {canManage && (
-                            <div className="flex gap-1">
-                                <button onClick={() => openEdit(t)} className="text-blue-300 hover:text-blue-600 p-1 bg-white rounded-full shadow-sm"><Edit3 size={14}/></button>
-                                <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm"><Trash2 size={14}/></button>
-                            </div>
-                        )}
+                        <div className="flex gap-1">
+                                {canManage && <button onClick={() => openEdit(t)} className="text-blue-300 hover:text-blue-600 p-1 bg-white rounded-full shadow-sm"><Edit3 size={14}/></button>}
+                                {/* Botón de Borrar visible según permisos */}
+                                {canDelete && <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm"><Trash2 size={14}/></button>}
+                        </div>
                     </div>
                 </div>
                 
+                {/* --- SECCIÓN CHECKLIST VISUAL --- */}
+                {t.checklist && t.checklist.length > 0 && (
+                  <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                    <p className="text-[9px] font-bold text-gray-400 uppercase mb-2">Lista de control</p>
+                    <div className="space-y-2">
+                      {t.checklist.map((item, idx) => (
+                        <div key={idx} className="flex items-start gap-2 text-xs">
+                          <input 
+                            type="checkbox" 
+                            checked={item.done} 
+                            onChange={() => toggleTaskCheck(t, idx)}
+                            className="mt-0.5 accent-violet-600 cursor-pointer"
+                          />
+                          <span className={`${item.done ? 'line-through text-gray-400' : 'text-gray-700 font-medium'}`}>{item.text}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* SECCIÓN DE COMENTARIOS */}
                 {openCommentsId === t.id && (
                     <div className="bg-white/50 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in">
@@ -827,7 +888,6 @@ function TasksView({ tasks, user, canEdit }) {
                                     <span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}
                                 </p>
                             ))}
-                            {(!t.comments || t.comments.length === 0) && <p className="text-[10px] text-gray-400 italic">Sin comentarios.</p>}
                         </div>
                         <div className="flex gap-2">
                             <input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribir..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" />
@@ -847,7 +907,8 @@ function TasksView({ tasks, user, canEdit }) {
                     </select>
                 </div>
             </div>
-            ))}
+            );
+            })}
         </div>
       )}
 
@@ -857,17 +918,53 @@ function TasksView({ tasks, user, canEdit }) {
           <form onSubmit={handleSaveTask} className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-black text-violet-900 uppercase italic">{editingTask ? 'Editar Tarea' : 'Nueva Tarea'}</h3>
             
-            <input name="title" defaultValue={editingTask?.title} placeholder="¿Qué tarea asignar?" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm shadow-inner" />
+            <input name="title" defaultValue={editingTask?.title} placeholder="Título de la tarea" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm shadow-inner" />
             
+            {/* --- SECCIÓN CHECKLIST EN EL MODAL --- */}
+            <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100">
+               <label className="text-xs font-black text-orange-600 uppercase mb-2 block">Checklist (Opcional)</label>
+               <div className="flex gap-2 mb-3">
+                 <input 
+                    value={newItem} 
+                    onChange={(e) => setNewItem(e.target.value)} 
+                    placeholder="Nuevo item..." 
+                    className="flex-1 p-2 rounded-lg border-none text-xs bg-white"
+                    onKeyDown={(e) => { if(e.key === 'Enter'){ e.preventDefault(); addChecklistItem(); } }}
+                 />
+                 <button type="button" onClick={addChecklistItem} className="bg-orange-500 text-white p-2 rounded-lg font-bold"><Plus size={16}/></button>
+               </div>
+               <div className="space-y-2 max-h-32 overflow-y-auto">
+                 {checklist.map((item, idx) => (
+                   <div key={idx} className="flex justify-between items-center bg-white p-2 rounded-lg text-xs shadow-sm">
+                      <span className="truncate">{item.text}</span>
+                      <button type="button" onClick={() => removeChecklistItem(idx)} className="text-red-400 hover:text-red-600"><Trash2 size={12}/></button>
+                   </div>
+                 ))}
+               </div>
+            </div>
+
             <div className="flex gap-2 bg-gray-100 p-1 rounded-xl">
                 <button type="button" onClick={() => setAssignType('user')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'user' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Persona</button>
                 <button type="button" onClick={() => setAssignType('roles')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'roles' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Roles</button>
             </div>
             
             {assignType === 'user' ? (
-                <select value={targetUserId} onChange={(e) => setTargetUserId(e.target.value)} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs uppercase tracking-widest border border-gray-100">
-                    {usersList.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
-                </select>
+                <div>
+                   {/* --- BUSCADOR DE USUARIOS --- */}
+                   <input 
+                      placeholder="🔍 Buscar nombre..." 
+                      value={userSearch}
+                      onChange={(e) => setUserSearch(e.target.value)}
+                      className="w-full mb-2 p-2 bg-white border-b border-gray-200 text-xs outline-none"
+                   />
+                   <select value={targetUserId} onChange={(e) => setTargetUserId(e.target.value)} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs uppercase tracking-widest border border-gray-100">
+                      {filteredUsers.length > 0 ? (
+                        filteredUsers.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)
+                      ) : (
+                        <option>No hay coincidencias</option>
+                      )}
+                   </select>
+                </div>
             ) : (
                 <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 max-h-32 overflow-y-auto">
                     {ROLES_OPTIONS.map(role => (
@@ -1952,6 +2049,7 @@ function GroupsView({ user }) {
 
 // Icono auxiliar
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
