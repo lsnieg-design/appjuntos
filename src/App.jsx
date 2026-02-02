@@ -1538,7 +1538,7 @@ function ProyectoView({ user }) {
     </div>
   );
 }
-// --- VISTA MATRÍCULA (CON FUSIONADOR DE DUPLICADOS) ---
+// --- VISTA MATRÍCULA (CON RADAR DE SIN ASIGNAR) ---
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
@@ -1552,9 +1552,11 @@ function MatriculaView({ user }) {
   const [editingStudent, setEditingStudent] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
 
-  // --- NUEVO: ESTADOS PARA DUPLICADOS ---
+  // --- NUEVOS ESTADOS ---
   const [showDupes, setShowDupes] = useState(false);
   const [potentialDupes, setPotentialDupes] = useState([]);
+  const [showUnassigned, setShowUnassigned] = useState(false);
+  const [unassignedList, setUnassignedList] = useState([]);
 
   const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin';
   const [statFilters, setStatFilters] = useState({ level: 'all', dx: 'all', gender: 'all', journey: 'all', turn: 'all' });
@@ -1592,114 +1594,64 @@ function MatriculaView({ user }) {
   const handleResetCycle = async () => { if(!confirm("⚠️ ¿REINICIAR CICLO?")) return; setProcessing(true); try { const snapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'students')); const updates = snapshot.docs.map(docSnap => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', docSnap.id), { groupMorning: '', teacherMorning: '', auxMorning: '', sup1Morning: '', sup2Morning: '', groupAfternoon: '', teacherAfternoon: '', auxAfternoon: '', sup1Afternoon: '', sup2Afternoon: '', classroom: '' })); await Promise.all(updates); alert("✅ Ciclo reiniciado."); } catch (e) { alert("Error: " + e.message); } finally { setProcessing(false); } };
   const handleDeleteAll = async () => { if(!confirm("⚠️ PELIGRO: ¿BORRAR TODOS?")) return; setProcessing(true); try { const snapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'students')); const deletePromises = snapshot.docs.map(docSnap => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', docSnap.id))); await Promise.all(deletePromises); alert("✅ Base vaciada."); } catch (e) { alert("Error: " + e.message); } finally { setProcessing(false); } };
   
-  // --- IMPORTADOR V8 ---
-  const handleBulkImport = async () => { try { if(!importJson.trim()) return alert("Pegá el JSON primero."); setProcessing(true); const firstBracket = importJson.indexOf('['); const lastBracket = importJson.lastIndexOf(']'); if (firstBracket === -1 || lastBracket === -1) throw new Error("Faltan los corchetes [ ]"); const cleanJson = importJson.substring(firstBracket, lastBracket + 1); const data = JSON.parse(cleanJson); let updated = 0; let created = 0; const getFirstWord = (txt) => { if (!txt) return ""; return txt.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().split(' ')[0].replace(/[^a-z0-9]/g, ''); }; const snap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'students')); const dbStudents = snap.docs.map(d => ({ id: d.id, ...d.data(), _keyFirst: getFirstWord(d.data().firstName), _keyLast: getFirstWord(d.data().lastName) })); for (const s of data) { const inputFirst = getFirstWord(s.firstName); const inputLast = getFirstWord(s.lastName); const match = dbStudents.find(dbS => dbS._keyFirst === inputFirst && dbS._keyLast === inputLast); if (match) { let finalJourney = s.journey; const hadMorning = match.groupMorning || (match.journey && match.journey.includes("Mañana")); const hadAfternoon = match.groupAfternoon || (match.journey && match.journey.includes("Tarde")); const isBringingMorning = s.journey && s.journey.includes("Mañana"); const isBringingAfternoon = s.journey && s.journey.includes("Tarde"); if ((hadMorning && isBringingAfternoon) || (hadAfternoon && isBringingMorning)) { finalJourney = "Doble"; } const updateData = { ...s, journey: finalJourney, updatedAt: serverTimestamp() }; if (!s.groupMorning && match.groupMorning) { updateData.groupMorning = match.groupMorning || ""; updateData.teacherMorning = match.teacherMorning || ""; updateData.auxMorning = match.auxMorning || ""; updateData.sup1Morning = match.sup1Morning || ""; updateData.sup2Morning = match.sup2Morning || ""; } if (!s.groupAfternoon && match.groupAfternoon) { updateData.groupAfternoon = match.groupAfternoon || ""; updateData.teacherAfternoon = match.teacherAfternoon || ""; updateData.auxAfternoon = match.auxAfternoon || ""; updateData.sup1Afternoon = match.sup1Afternoon || ""; updateData.sup2Afternoon = match.sup2Afternoon || ""; } await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', match.id), updateData); updated++; } else { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...s, isActive: true, createdAt: serverTimestamp(), incidents: [] }); created++; } } alert(`🏁 LISTO:\n\n✨ Nuevos: ${created}\n🔄 Fusionados: ${updated}`); setShowDataManagement(false); setImportJson(''); } catch (e) { console.error(e); alert("Error: " + e.message); } finally { setProcessing(false); } };
+  // --- IMPORTADOR INTELIGENTE V9 ---
+  const handleBulkImport = async () => { try { if(!importJson.trim()) return alert("Pegá el JSON primero."); setProcessing(true); let cleanText = importJson.trim(); const firstBracket = cleanText.indexOf('['); const lastBracket = cleanText.lastIndexOf(']'); if (firstBracket === -1 || lastBracket === -1) throw new Error("Faltan los corchetes [ ]"); cleanText = cleanText.substring(firstBracket, lastBracket + 1); const data = JSON.parse(cleanText); let updated = 0; let created = 0; const getFirstWord = (txt) => { if (!txt) return ""; return txt.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().split(' ')[0].replace(/[^a-z0-9]/g, ''); }; const snap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'students')); const dbStudents = snap.docs.map(d => ({ id: d.id, ...d.data(), _keyFirst: getFirstWord(d.data().firstName), _keyLast: getFirstWord(d.data().lastName) })); for (const s of data) { const inputFirst = getFirstWord(s.firstName); const inputLast = getFirstWord(s.lastName); const match = dbStudents.find(dbS => dbS._keyFirst === inputFirst && dbS._keyLast === inputLast); if (match) { let finalJourney = s.journey; const hadMorning = match.groupMorning || (match.journey && match.journey.includes("Mañana")); const hadAfternoon = match.groupAfternoon || (match.journey && match.journey.includes("Tarde")); const isBringingMorning = s.journey && s.journey.includes("Mañana"); const isBringingAfternoon = s.journey && s.journey.includes("Tarde"); if ((hadMorning && isBringingAfternoon) || (hadAfternoon && isBringingMorning)) { finalJourney = "Doble"; } const updateData = { ...s, journey: finalJourney, updatedAt: serverTimestamp() }; if (!s.groupMorning && match.groupMorning) { updateData.groupMorning = match.groupMorning || ""; updateData.teacherMorning = match.teacherMorning || ""; updateData.auxMorning = match.auxMorning || ""; updateData.sup1Morning = match.sup1Morning || ""; updateData.sup2Morning = match.sup2Morning || ""; } if (!s.groupAfternoon && match.groupAfternoon) { updateData.groupAfternoon = match.groupAfternoon || ""; updateData.teacherAfternoon = match.teacherAfternoon || ""; updateData.auxAfternoon = match.auxAfternoon || ""; updateData.sup1Afternoon = match.sup1Afternoon || ""; updateData.sup2Afternoon = match.sup2Afternoon || ""; } await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', match.id), updateData); updated++; } else { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...s, isActive: true, createdAt: serverTimestamp(), incidents: [] }); created++; } } alert(`🏁 LISTO:\n\n✨ Nuevos: ${created}\n🔄 Fusionados: ${updated}`); setShowDataManagement(false); setImportJson(''); } catch (e) { console.error(e); alert("Error: " + e.message); } finally { setProcessing(false); } };
   
   const handleAutoAssignGenders = async () => { if(!confirm("¿Auto-completar?")) return; setProcessing(true); let count = 0; const updates = []; for (const s of students) { if (!s.gender) { const prediction = predictGender(s.firstName); if (prediction) { updates.push(updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { gender: prediction })); count++; } } } await Promise.all(updates); alert(`Listo: ${count}`); setProcessing(false); };
   const handleDelete = async (id) => { if(confirm("¿Borrar?")) { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id)); setViewingStudent(null); setEditingStudent(null); setShowForm(false); } };
   const exportFiltered = () => { if (filteredStudents.length === 0) return alert("Sin datos"); const headers = ["Apellido", "Nombre", "DNI", "Nivel"]; const csv = [headers.join(';'), ...filteredStudents.map(s => [`"${s.lastName}"`, `"${s.firstName}"`, `"${s.dni}"`, `"${s.level}"`].join(';'))].join('\n'); const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = "Matricula.csv"; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
 
-  // --- LÓGICA DE DETECCIÓN DE DUPLICADOS (FUZZY MATCH) ---
+  // --- LÓGICA DE DUPLICADOS ---
   const findDuplicates = () => {
       setProcessing(true);
-      const threshold = 2; // Cantidad de diferencias permitidas (letras)
-      
-      // Función Levenshtein simple
-      const levenshtein = (a, b) => {
-          const matrix = [];
-          for(let i=0; i<=b.length; i++) matrix[i] = [i];
-          for(let j=0; j<=a.length; j++) matrix[0][j] = j;
-          for(let i=1; i<=b.length; i++){
-              for(let j=1; j<=a.length; j++){
-                  if(b.charAt(i-1) == a.charAt(j-1)){
-                      matrix[i][j] = matrix[i-1][j-1];
-                  } else {
-                      matrix[i][j] = Math.min(matrix[i-1][j-1] + 1, Math.min(matrix[i][j-1] + 1, matrix[i-1][j] + 1));
-                  }
-              }
-          }
-          return matrix[b.length][a.length];
-      };
-
+      const threshold = 2; 
+      const levenshtein = (a, b) => { const matrix = []; for(let i=0; i<=b.length; i++) matrix[i] = [i]; for(let j=0; j<=a.length; j++) matrix[0][j] = j; for(let i=1; i<=b.length; i++){ for(let j=1; j<=a.length; j++){ if(b.charAt(i-1) == a.charAt(j-1)){ matrix[i][j] = matrix[i-1][j-1]; } else { matrix[i][j] = Math.min(matrix[i-1][j-1] + 1, Math.min(matrix[i][j-1] + 1, matrix[i-1][j] + 1)); } } } return matrix[b.length][a.length]; };
       const found = [];
       const checkedIds = new Set();
-
-      // Comparamos cada alumno con el resto
       for (let i = 0; i < students.length; i++) {
           for (let j = i + 1; j < students.length; j++) {
-              const s1 = students[i];
-              const s2 = students[j];
-              
+              const s1 = students[i]; const s2 = students[j];
               if(checkedIds.has(s1.id) || checkedIds.has(s2.id)) continue;
-
-              // Comparar normalizado
               const name1 = (s1.firstName + s1.lastName).toLowerCase().replace(/\s/g, '');
               const name2 = (s2.firstName + s2.lastName).toLowerCase().replace(/\s/g, '');
-              
-              // Si la distancia es pequeña (ej: Thiago vs Tiago es distancia 1)
               const dist = levenshtein(name1, name2);
-              
-              // Condición extra: que NO sean el mismo turno (buscamos fusionar turnos)
-              // OJO: Tambien puede ser que se duplicó en el mismo turno por error.
-              // Mostramos todo lo que se parezca mucho.
-              if (dist <= threshold && dist > 0) { // dist > 0 para no comparar el mismo exacto si hubiera
-                  found.push({ original: s1, duplicate: s2, distance: dist });
-              }
+              if (dist <= threshold && dist > 0) found.push({ original: s1, duplicate: s2, distance: dist });
           }
       }
-      setPotentialDupes(found);
-      setProcessing(false);
-      setShowDataManagement(false); // Cierra el menu anterior
-      setShowDupes(true); // Abre el menu de duplicados
+      setPotentialDupes(found); setProcessing(false); setShowDataManagement(false); setShowDupes(true);
   };
 
   const mergeStudents = async (keep, drop) => {
-      if(!confirm(`¿Fusionar a ${drop.firstName} dentro de ${keep.firstName}?\n\nSe conservarán los datos de AMBOS turnos y se borrará el duplicado.`)) return;
-      
+      if(!confirm(`¿Fusionar?`)) return;
       try {
-          // Fusionamos datos: Si 'keep' tiene el dato vacío, usamos el de 'drop'
-          const mergedData = {
-              ...keep, // Base
-              journey: "Doble", // Asumimos que si fusionamos es porque va a ambos (o corregimos el error)
-              updatedAt: serverTimestamp()
-          };
-
-          // Completar campos faltantes en el que queda (Mañana)
-          if(!mergedData.groupMorning && drop.groupMorning) {
-              mergedData.groupMorning = drop.groupMorning;
-              mergedData.teacherMorning = drop.teacherMorning;
-              mergedData.auxMorning = drop.auxMorning;
-              mergedData.sup1Morning = drop.sup1Morning;
-              mergedData.sup2Morning = drop.sup2Morning;
-          }
-          // Completar campos faltantes en el que queda (Tarde)
-          if(!mergedData.groupAfternoon && drop.groupAfternoon) {
-              mergedData.groupAfternoon = drop.groupAfternoon;
-              mergedData.teacherAfternoon = drop.teacherAfternoon;
-              mergedData.auxAfternoon = drop.auxAfternoon;
-              mergedData.sup1Afternoon = drop.sup1Afternoon;
-              mergedData.sup2Afternoon = drop.sup2Afternoon;
-          }
-          
-          // Otros datos personales (DNI, Fecha Nac)
+          const mergedData = { ...keep, journey: "Doble", updatedAt: serverTimestamp() };
+          if(!mergedData.groupMorning && drop.groupMorning) { mergedData.groupMorning = drop.groupMorning; mergedData.teacherMorning = drop.teacherMorning; mergedData.auxMorning = drop.auxMorning; mergedData.sup1Morning = drop.sup1Morning; mergedData.sup2Morning = drop.sup2Morning; }
+          if(!mergedData.groupAfternoon && drop.groupAfternoon) { mergedData.groupAfternoon = drop.groupAfternoon; mergedData.teacherAfternoon = drop.teacherAfternoon; mergedData.auxAfternoon = drop.auxAfternoon; mergedData.sup1Afternoon = drop.sup1Afternoon; mergedData.sup2Afternoon = drop.sup2Afternoon; }
           if(!mergedData.dni && drop.dni) mergedData.dni = drop.dni;
           if(!mergedData.birthDate && drop.birthDate) mergedData.birthDate = drop.birthDate;
           if(!mergedData.dx && drop.dx) mergedData.dx = drop.dx;
-
-          // 1. Actualizamos el que queda
           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', keep.id), mergedData);
-          
-          // 2. Borramos el duplicado
           await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', drop.id));
-
-          // 3. Sacamos de la lista visual
           setPotentialDupes(prev => prev.filter(p => p.original.id !== keep.id && p.duplicate.id !== drop.id));
-          alert("✅ ¡Fusionado con éxito!");
+          alert("✅ Fusionado.");
+      } catch (e) { alert("Error al fusionar."); }
+  };
 
-      } catch (e) {
-          console.error(e);
-          alert("Error al fusionar.");
-      }
+  // --- NUEVA LÓGICA: DETECTAR SIN ASIGNAR ---
+  const checkUnassigned = () => {
+      // Alumnos ACTIVOS que NO tienen grupo ni a la mañana ni a la tarde
+      const found = students.filter(s => (s.isActive === undefined || s.isActive === true) && !s.groupMorning && !s.groupAfternoon);
+      setUnassignedList(found);
+      setShowDataManagement(false);
+      setShowUnassigned(true);
+  };
+
+  const markAsInactive = async (student) => {
+      if(!confirm(`¿Dar de baja a ${student.firstName} ${student.lastName}?`)) return;
+      try {
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', student.id), { isActive: false });
+          setUnassignedList(prev => prev.filter(s => s.id !== student.id));
+      } catch(e) { alert("Error."); }
   };
 
   return (
@@ -1726,7 +1678,6 @@ function MatriculaView({ user }) {
         )}
       </div>
 
-      {/* --- LISTA DE ALUMNOS (Igual que antes) --- */}
       <div className="space-y-3">
         {filteredStudents.length === 0 ? <div className="text-center py-10 text-gray-400 bg-white rounded-3xl border border-dashed border-gray-200"><Filter size={40} className="mx-auto mb-2 text-gray-200"/><p>No hay coincidencias.</p></div> : filteredStudents.map(s => {
             const age = calculateAge(s.birthDate);
@@ -1760,51 +1711,46 @@ function MatriculaView({ user }) {
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
               <div className="bg-white rounded-[40px] w-full max-w-4xl p-8 shadow-2xl animate-in zoom-in-95 h-[80vh] flex flex-col">
                   <div className="flex justify-between items-center mb-6">
-                      <div>
-                          <h3 className="text-2xl font-black text-violet-900 uppercase italic">Posibles Duplicados</h3>
-                          <p className="text-sm text-gray-500">Se encontraron {potentialDupes.length} parejas con nombre similar.</p>
-                      </div>
+                      <div><h3 className="text-2xl font-black text-violet-900 uppercase italic">Posibles Duplicados</h3><p className="text-sm text-gray-500">Se encontraron {potentialDupes.length} parejas con nombre similar.</p></div>
                       <button onClick={() => setShowDupes(false)}><X size={32}/></button>
                   </div>
                   <div className="flex-1 overflow-y-auto space-y-4">
-                      {potentialDupes.length === 0 ? (
-                          <div className="text-center py-20 text-gray-400">
-                              <CheckCircle size={48} className="mx-auto mb-2 text-green-200"/>
-                              <p>¡Todo limpio! No se detectaron nombres parecidos.</p>
-                          </div>
-                      ) : (
-                          potentialDupes.map((dupe, idx) => (
+                      {potentialDupes.length === 0 ? (<div className="text-center py-20 text-gray-400"><CheckCircle size={48} className="mx-auto mb-2 text-green-200"/><p>¡Todo limpio! No se detectaron nombres parecidos.</p></div>) : (potentialDupes.map((dupe, idx) => (
                               <div key={idx} className="bg-gray-50 p-4 rounded-3xl border border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4">
-                                  {/* Original */}
-                                  <div className="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-l-4 border-l-blue-500 w-full">
-                                      <h4 className="font-black text-gray-800">{dupe.original.lastName}, {dupe.original.firstName}</h4>
-                                      <p className="text-xs text-gray-500 mt-1">
-                                          {dupe.original.groupMorning ? `☀️ ${dupe.original.groupMorning}` : ''} 
-                                          {dupe.original.groupAfternoon ? ` 🌙 ${dupe.original.groupAfternoon}` : ''}
-                                      </p>
-                                      <button onClick={() => mergeStudents(dupe.original, dupe.duplicate)} className="mt-3 w-full bg-blue-100 text-blue-700 py-2 rounded-lg text-xs font-bold hover:bg-blue-200 transition">Conservar ESTE y fusionar</button>
-                                  </div>
-
+                                  <div className="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-l-4 border-l-blue-500 w-full"><h4 className="font-black text-gray-800">{dupe.original.lastName}, {dupe.original.firstName}</h4><p className="text-xs text-gray-500 mt-1">{dupe.original.groupMorning ? `☀️ ${dupe.original.groupMorning}` : ''} {dupe.original.groupAfternoon ? ` 🌙 ${dupe.original.groupAfternoon}` : ''}</p><button onClick={() => mergeStudents(dupe.original, dupe.duplicate)} className="mt-3 w-full bg-blue-100 text-blue-700 py-2 rounded-lg text-xs font-bold hover:bg-blue-200 transition">Conservar ESTE y fusionar</button></div>
                                   <div className="text-gray-300 font-bold"><RefreshCw /></div>
-
-                                  {/* Duplicado */}
-                                  <div className="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-l-4 border-l-orange-500 w-full">
-                                      <h4 className="font-black text-gray-800">{dupe.duplicate.lastName}, {dupe.duplicate.firstName}</h4>
-                                      <p className="text-xs text-gray-500 mt-1">
-                                          {dupe.duplicate.groupMorning ? `☀️ ${dupe.duplicate.groupMorning}` : ''} 
-                                          {dupe.duplicate.groupAfternoon ? ` 🌙 ${dupe.duplicate.groupAfternoon}` : ''}
-                                      </p>
-                                      <button onClick={() => mergeStudents(dupe.duplicate, dupe.original)} className="mt-3 w-full bg-orange-100 text-orange-700 py-2 rounded-lg text-xs font-bold hover:bg-orange-200 transition">Conservar ESTE y fusionar</button>
-                                  </div>
+                                  <div className="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-l-4 border-l-orange-500 w-full"><h4 className="font-black text-gray-800">{dupe.duplicate.lastName}, {dupe.duplicate.firstName}</h4><p className="text-xs text-gray-500 mt-1">{dupe.duplicate.groupMorning ? `☀️ ${dupe.duplicate.groupMorning}` : ''} {dupe.duplicate.groupAfternoon ? ` 🌙 ${dupe.duplicate.groupAfternoon}` : ''}</p><button onClick={() => mergeStudents(dupe.duplicate, dupe.original)} className="mt-3 w-full bg-orange-100 text-orange-700 py-2 rounded-lg text-xs font-bold hover:bg-orange-200 transition">Conservar ESTE y fusionar</button></div>
                               </div>
-                          ))
-                      )}
+                          )))}
                   </div>
               </div>
           </div>
       )}
 
-      {/* --- EL RESTO DE MODALES (Ver Detalle, Editar, Gestión) --- */}
+      {/* --- NUEVO MODAL: SIN ASIGNAR --- */}
+      {showUnassigned && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+              <div className="bg-white rounded-[40px] w-full max-w-2xl p-8 shadow-2xl animate-in zoom-in-95 h-[80vh] flex flex-col">
+                  <div className="flex justify-between items-center mb-6">
+                      <div><h3 className="text-2xl font-black text-red-600 uppercase italic">Alumnos Sin Grupo</h3><p className="text-sm text-gray-500">Detectados {unassignedList.length} activos sin asignación.</p></div>
+                      <button onClick={() => setShowUnassigned(false)}><X size={32}/></button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto space-y-3">
+                      {unassignedList.length === 0 ? (<div className="text-center py-20 text-gray-400"><CheckCircle size={48} className="mx-auto mb-2 text-green-200"/><p>¡Excelente! Todos los alumnos tienen grupo.</p></div>) : (unassignedList.map((s) => (
+                              <div key={s.id} className="bg-red-50 p-4 rounded-2xl border border-red-100 flex items-center justify-between">
+                                  <div><h4 className="font-bold text-gray-800">{s.lastName}, {s.firstName}</h4><p className="text-xs text-red-400">Sin turno asignado</p></div>
+                                  <div className="flex gap-2">
+                                      <button onClick={() => { setShowUnassigned(false); openEdit(s); }} className="bg-white text-gray-600 px-3 py-2 rounded-lg text-xs font-bold shadow-sm">Editar</button>
+                                      <button onClick={() => markAsInactive(s)} className="bg-red-600 text-white px-3 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-red-700">Dar de Baja</button>
+                                  </div>
+                              </div>
+                          )))}
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* --- MODAL DETALLE --- */}
       {viewingStudent && !showForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]">
@@ -1816,36 +1762,8 @@ function MatriculaView({ user }) {
                 <div className="p-6 overflow-y-auto space-y-6">
                     {activeModalTab === 'info' ? (
                         <>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-                                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase">Nivel</p><p className="font-bold text-gray-800">{viewingStudent.level || '-'}</p></div>
-                                <div className="bg-purple-50 p-3 rounded-xl border border-purple-100"><p className="text-xs text-purple-400 font-bold uppercase">DX</p><p className="font-bold text-purple-800">{viewingStudent.dx || '-'}</p></div>
-                                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase">Género</p><p className="font-bold text-gray-800">{viewingStudent.gender || '-'}</p></div>
-                                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase">Jornada</p><p className="font-bold text-gray-800">{viewingStudent.journey || '-'}</p></div>
-                            </div>
-                            <div className="space-y-3">
-                                <h3 className="font-bold text-gray-900 flex items-center gap-2"><Briefcase size={18} className="text-blue-500"/> Escolaridad 2026</h3>
-                                {viewingStudent.classroom && <div className="bg-orange-50 p-3 rounded-xl border border-orange-100 text-center font-bold text-orange-700">AULA / SALÓN: {viewingStudent.classroom}</div>}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100 relative overflow-hidden">
-                                        <div className="absolute top-0 right-0 bg-yellow-200 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">MAÑANA</div>
-                                        <div className="space-y-2 text-sm">
-                                            <p><span className="text-gray-500 font-bold">Grupo:</span> {viewingStudent.groupMorning || '-'}</p>
-                                            <p><span className="text-gray-500 font-bold">Docente:</span> {viewingStudent.teacherMorning || '-'}</p>
-                                            <p><span className="text-gray-500 font-bold">Auxiliar:</span> {viewingStudent.auxMorning || '-'}</p>
-                                            {(viewingStudent.sup1Morning || viewingStudent.sup2Morning) && <p className="text-xs text-violet-600 font-bold mt-2 pt-2 border-t border-yellow-200">Sup: {viewingStudent.sup1Morning} {viewingStudent.sup2Morning ? `& ${viewingStudent.sup2Morning}` : ''}</p>}
-                                        </div>
-                                    </div>
-                                    <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 relative overflow-hidden">
-                                        <div className="absolute top-0 right-0 bg-indigo-200 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">TARDE</div>
-                                        <div className="space-y-2 text-sm">
-                                            <p><span className="text-gray-500 font-bold">Grupo:</span> {viewingStudent.groupAfternoon || '-'}</p>
-                                            <p><span className="text-gray-500 font-bold">Docente:</span> {viewingStudent.teacherAfternoon || '-'}</p>
-                                            <p><span className="text-gray-500 font-bold">Auxiliar:</span> {viewingStudent.auxAfternoon || '-'}</p>
-                                            {(viewingStudent.sup1Afternoon || viewingStudent.sup2Afternoon) && <p className="text-xs text-violet-600 font-bold mt-2 pt-2 border-t border-indigo-200">Sup: {viewingStudent.sup1Afternoon} {viewingStudent.sup2Afternoon ? `& ${viewingStudent.sup2Afternoon}` : ''}</p>}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center"><div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase">Nivel</p><p className="font-bold text-gray-800">{viewingStudent.level || '-'}</p></div><div className="bg-purple-50 p-3 rounded-xl border border-purple-100"><p className="text-xs text-purple-400 font-bold uppercase">DX</p><p className="font-bold text-purple-800">{viewingStudent.dx || '-'}</p></div><div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase">Género</p><p className="font-bold text-gray-800">{viewingStudent.gender || '-'}</p></div><div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-xs text-gray-400 font-bold uppercase">Jornada</p><p className="font-bold text-gray-800">{viewingStudent.journey || '-'}</p></div></div>
+                            <div className="space-y-3"><h3 className="font-bold text-gray-900 flex items-center gap-2"><Briefcase size={18} className="text-blue-500"/> Escolaridad 2026</h3>{viewingStudent.classroom && <div className="bg-orange-50 p-3 rounded-xl border border-orange-100 text-center font-bold text-orange-700">AULA / SALÓN: {viewingStudent.classroom}</div>}<div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100 relative overflow-hidden"><div className="absolute top-0 right-0 bg-yellow-200 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">MAÑANA</div><div className="space-y-2 text-sm"><p><span className="text-gray-500 font-bold">Grupo:</span> {viewingStudent.groupMorning || '-'}</p><p><span className="text-gray-500 font-bold">Docente:</span> {viewingStudent.teacherMorning || '-'}</p><p><span className="text-gray-500 font-bold">Auxiliar:</span> {viewingStudent.auxMorning || '-'}</p>{(viewingStudent.sup1Morning || viewingStudent.sup2Morning) && <p className="text-xs text-violet-600 font-bold mt-2 pt-2 border-t border-yellow-200">Sup: {viewingStudent.sup1Morning} {viewingStudent.sup2Morning ? `& ${viewingStudent.sup2Morning}` : ''}</p>}</div></div><div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 relative overflow-hidden"><div className="absolute top-0 right-0 bg-indigo-200 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">TARDE</div><div className="space-y-2 text-sm"><p><span className="text-gray-500 font-bold">Grupo:</span> {viewingStudent.groupAfternoon || '-'}</p><p><span className="text-gray-500 font-bold">Docente:</span> {viewingStudent.teacherAfternoon || '-'}</p><p><span className="text-gray-500 font-bold">Auxiliar:</span> {viewingStudent.auxAfternoon || '-'}</p>{(viewingStudent.sup1Afternoon || viewingStudent.sup2Afternoon) && <p className="text-xs text-violet-600 font-bold mt-2 pt-2 border-t border-indigo-200">Sup: {viewingStudent.sup1Afternoon} {viewingStudent.sup2Afternoon ? `& ${viewingStudent.sup2Afternoon}` : ''}</p>}</div></div></div></div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6"><div className="space-y-3"><h3 className="font-bold text-gray-900 flex items-center gap-2"><Activity size={18} className="text-green-500"/> Salud</h3><div className="bg-white p-4 rounded-xl border border-gray-100 text-sm space-y-2 shadow-sm"><p><span className="text-gray-500 font-bold block text-xs uppercase">Obra Social</span> {viewingStudent.healthInsurance || 'No declara'}</p><p><span className="text-gray-500 font-bold block text-xs uppercase">Vencimiento CUD</span> {viewingStudent.cudExpiration ? formatDate(viewingStudent.cudExpiration) : '-'}</p></div></div><div className="space-y-3"><h3 className="font-bold text-gray-900 flex items-center gap-2"><User size={18} className="text-orange-500"/> Familia</h3><div className="bg-white p-4 rounded-xl border border-gray-100 text-sm space-y-2 shadow-sm"><p><span className="text-gray-500 font-bold block text-xs uppercase">Madre</span> {viewingStudent.motherName} <span className="text-gray-400">({viewingStudent.motherContact})</span></p><p><span className="text-gray-500 font-bold block text-xs uppercase">Padre</span> {viewingStudent.fatherName} <span className="text-gray-400">({viewingStudent.fatherContact})</span></p><p><span className="text-gray-500 font-bold block text-xs uppercase">Dirección</span> {viewingStudent.address}</p></div></div></div>
                         </>
                     ) : (
@@ -1878,7 +1796,7 @@ function MatriculaView({ user }) {
       )}
       {showForm && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl p-6 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto"><h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2">{editingStudent ? 'Editar Ficha' : 'Nueva Ficha'}</h3><form onSubmit={handleSave} className="space-y-6"><div className={`p-4 rounded-xl border flex items-center justify-between ${editingStudent?.isActive === false ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}><div><label className="text-sm font-bold text-gray-700 block">Estado del Alumno</label><p className="text-[10px] text-gray-500">Los inactivos no suman en la matrícula.</p></div><select name="isActive" defaultValue={editingStudent?.isActive === false ? 'false' : 'true'} className="p-2 rounded-lg border font-bold text-xs outline-none bg-white"><option value="true">✅ ACTIVO (Cursando)</option><option value="false">❌ INACTIVO (Baja/Egreso)</option></select></div><div className="flex gap-4 flex-col sm:flex-row"><div className="flex flex-col items-center gap-2"><div className="w-24 h-24 rounded-2xl bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden relative group cursor-pointer">{photoPreview ? <img src={photoPreview} className="w-full h-full object-cover" /> : <span className="text-xs text-gray-400 text-center px-2">Subir Foto</span>}<input type="file" accept="image/*" onChange={handlePhotoChange} className="absolute inset-0 opacity-0 cursor-pointer" />{uploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><RefreshCw className="text-white animate-spin" /></div>}</div></div><div className="flex-1 space-y-3"><div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-gray-500">Apellido *</label><input name="lastName" defaultValue={editingStudent?.lastName || ''} required className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div><div><label className="text-xs font-bold text-gray-500">Nombre *</label><input name="firstName" defaultValue={editingStudent?.firstName || ''} required onChange={handleNameChange} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div></div><div className="grid grid-cols-3 gap-3"><div><label className="text-xs font-bold text-gray-500">DNI</label><input name="dni" type="number" defaultValue={editingStudent?.dni || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div><div><label className="text-xs font-bold text-gray-500">Nacimiento</label><input name="birthDate" type="date" defaultValue={editingStudent?.birthDate || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none" /></div><div><label className="text-xs font-bold text-gray-500">Género</label><select id="genderSelect" name="gender" defaultValue={editingStudent?.gender || ''} className="w-full p-2 bg-gray-50 rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"><option value="">Seleccionar</option><option value="M">Varón</option><option value="F">Mujer</option></select></div></div></div></div><div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 space-y-3"><p className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1"><Activity size={12}/> Datos Institucionales</p><div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-gray-500">Nivel</label><select name="level" defaultValue={editingStudent?.level || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"><option value="">Seleccionar</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option><option value="TALLER">Taller</option><option value="Pre-Taller">Pre-Taller</option><option value="FINES">Fines</option></select></div><div><label className="text-xs font-bold text-gray-500">Jornada</label><select name="journey" defaultValue={editingStudent?.journey || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"><option value="">Seleccionar</option><option value="Simple Mañana">Simple Mañana</option><option value="Simple Tarde">Simple Tarde</option><option value="Doble">Doble Jornada</option></select></div><div><label className="text-xs font-bold text-gray-500">Diagnóstico</label><select name="dx" defaultValue={editingStudent?.dx || ''} className="w-full p-2 bg-white rounded-lg border focus:ring-2 focus:ring-blue-400 outline-none"><option value="">Ninguno</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select></div></div></div><div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 space-y-3"><div className="flex justify-between items-center"><p className="text-xs font-bold text-indigo-800 uppercase tracking-wider flex items-center gap-1"><GraduationCap size={12}/> Ubicación 2026</p><input name="classroom" defaultValue={editingStudent?.classroom || ''} placeholder="Nº Aula" className="w-20 p-1 bg-white text-center rounded border text-xs outline-none" /></div><div className="bg-white/50 p-2 rounded-lg border border-indigo-100"><p className="text-[10px] font-bold text-indigo-400 mb-2">TURNO MAÑANA</p><div className="grid grid-cols-2 gap-2 mb-2"><input name="groupMorning" defaultValue={editingStudent?.groupMorning || ''} placeholder="Grupo TM" className="p-2 bg-white rounded border text-xs outline-none" /><select name="teacherMorning" defaultValue={editingStudent?.teacherMorning || ''} className="p-2 bg-white rounded border text-xs outline-none"><option value="">Docente TM...</option>{staffOptions.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="auxMorning" defaultValue={editingStudent?.auxMorning || ''} className="p-2 bg-white rounded border text-xs outline-none"><option value="">Auxiliar TM...</option>{staffOptions.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div className="grid grid-cols-2 gap-2"><select name="sup1Morning" defaultValue={editingStudent?.sup1Morning || ''} className="p-2 bg-white rounded border text-xs outline-none text-violet-700 font-bold"><option value="">Supervisora 1...</option>{techOptions.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="sup2Morning" defaultValue={editingStudent?.sup2Morning || ''} className="p-2 bg-white rounded border text-xs outline-none text-violet-700 font-bold"><option value="">Supervisora 2...</option>{techOptions.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div></div><div className="bg-white/50 p-2 rounded-lg border border-indigo-100"><p className="text-[10px] font-bold text-indigo-400 mb-2">TURNO TARDE</p><div className="grid grid-cols-2 gap-2 mb-2"><input name="groupAfternoon" defaultValue={editingStudent?.groupAfternoon || ''} placeholder="Grupo TT" className="p-2 bg-white rounded border text-xs outline-none" /><select name="teacherAfternoon" defaultValue={editingStudent?.teacherAfternoon || ''} className="p-2 bg-white rounded border text-xs outline-none"><option value="">Docente TT...</option>{staffOptions.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="auxAfternoon" defaultValue={editingStudent?.auxAfternoon || ''} className="p-2 bg-white rounded border text-xs outline-none"><option value="">Auxiliar TT...</option>{staffOptions.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div className="grid grid-cols-2 gap-2"><select name="sup1Afternoon" defaultValue={editingStudent?.sup1Afternoon || ''} className="p-2 bg-white rounded border text-xs outline-none text-violet-700 font-bold"><option value="">Supervisora 1...</option>{techOptions.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="sup2Afternoon" defaultValue={editingStudent?.sup2Afternoon || ''} className="p-2 bg-white rounded border text-xs outline-none text-violet-700 font-bold"><option value="">Supervisora 2...</option>{techOptions.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div></div></div><div className="space-y-3 pt-2 border-t border-gray-100"><p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Salud y Familia</p><div className="grid grid-cols-2 gap-3"><input name="healthInsurance" defaultValue={editingStudent?.healthInsurance || ''} placeholder="Obra Social" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /><input name="cudExpiration" type="date" defaultValue={editingStudent?.cudExpiration || ''} className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /></div><input name="address" defaultValue={editingStudent?.address || ''} className="w-full p-2 bg-gray-50 rounded-lg border outline-none" placeholder="Dirección" /><div className="grid grid-cols-2 gap-3"><input name="motherName" defaultValue={editingStudent?.motherName || ''} placeholder="Madre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /><input name="motherContact" defaultValue={editingStudent?.motherContact || ''} placeholder="Contacto Madre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /></div><div className="grid grid-cols-2 gap-3"><input name="fatherName" defaultValue={editingStudent?.fatherName || ''} placeholder="Padre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /><input name="fatherContact" defaultValue={editingStudent?.fatherContact || ''} placeholder="Contacto Padre" className="w-full p-2 bg-gray-50 rounded-lg border outline-none" /></div></div><div className="flex gap-3 mt-6 pt-4 border-t border-gray-100"><button type="button" onClick={() => {setShowForm(false); setEditingStudent(null); setPhotoPreview(null);}} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg">Guardar</button>{editingStudent && <button type="button" onClick={() => handleDelete(editingStudent.id)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition"><Trash2 size={20}/></button>}</div></form></div></div>)}
       {showStats && (<div className="fixed inset-0 bg-violet-900/80 backdrop-blur-md z-[60] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl animate-in zoom-in-95 overflow-hidden"><div className="p-6 border-b bg-gray-50 flex justify-between items-center"><div><h2 className="text-2xl font-bold text-violet-900 flex items-center gap-2"><PieChart/> Calculadora de Matrícula</h2><p className="text-gray-500 text-xs">Cruza datos de alumnos activos</p></div><button onClick={() => setShowStats(false)} className="bg-white p-2 rounded-full hover:bg-gray-100 shadow-sm"><X size={24}/></button></div><div className="p-6 bg-white border-b border-gray-100"><div className="grid grid-cols-2 md:grid-cols-5 gap-3"><div><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Nivel</label><select value={statFilters.level} onChange={e => setStatFilters({...statFilters, level: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none border focus:border-violet-500"><option value="all">Todos</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option></select></div><div><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Diagnóstico</label><select value={statFilters.dx} onChange={e => setStatFilters({...statFilters, dx: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none border focus:border-violet-500"><option value="all">Todos</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select></div><div><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Género</label><select value={statFilters.gender} onChange={e => setStatFilters({...statFilters, gender: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none border focus:border-violet-500"><option value="all">Todos</option><option value="M">Varones</option><option value="F">Mujeres</option></select></div><div><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Jornada</label><select value={statFilters.journey} onChange={e => setStatFilters({...statFilters, journey: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none border focus:border-violet-500"><option value="all">Todas</option><option value="Simple Mañana">Simple Mañana</option><option value="Simple Tarde">Simple Tarde</option><option value="Doble">Doble</option></select></div><div><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">Turno Asist.</label><select value={statFilters.turn} onChange={e => setStatFilters({...statFilters, turn: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none border focus:border-violet-500"><option value="all">Indistinto</option><option value="Mañana">Va a la Mañana</option><option value="Tarde">Va a la Tarde</option></select></div></div></div><div className="flex-1 overflow-y-auto bg-gray-50 p-6"><div className="bg-gradient-to-br from-violet-600 to-indigo-600 rounded-3xl p-8 text-white shadow-lg flex items-center justify-between mb-8"><div><p className="text-violet-200 font-medium text-lg mb-1">Coincidencias encontradas</p><h3 className="text-6xl font-extrabold tracking-tight">{statsResults.length}</h3><p className="text-sm opacity-60 mt-2">Estudiantes que cumplen con <b>todos</b> los criterios.</p></div><div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm"><PieChart size={64} className="text-white opacity-80" /></div></div><h3 className="font-bold text-gray-800 mb-4 ml-1 flex items-center gap-2"><List size={18}/> Detalle del Grupo Seleccionado</h3>{statsResults.length === 0 ? (<div className="text-center py-12 text-gray-400 bg-white rounded-2xl border border-dashed"><p>No hay alumnos con esa combinación exacta.</p></div>) : (<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">{statsResults.map(s => (<div key={s.id} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3"><div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500 text-xs overflow-hidden">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName[0]}</div><div className="min-w-0"><p className="font-bold text-gray-800 text-sm truncate">{s.lastName}, {s.firstName}</p><p className="text-xs text-gray-500 flex gap-1"><span>{s.level}</span> • <span className="font-bold text-violet-600">{s.dx}</span></p></div></div>))}</div>)}</div></div></div>)}
-      {showDataManagement && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl p-6 shadow-2xl animate-in zoom-in-95 overflow-y-auto max-h-[90vh]"><div className="flex justify-between items-center mb-4"><h3 className="text-xl font-bold text-gray-800">Gestión de Base de Datos</h3><button onClick={() => setShowDataManagement(false)} className="text-gray-400 hover:text-gray-600"><X size={24}/></button></div><div className="bg-violet-50 p-4 rounded-xl border border-violet-200 mb-6"><h4 className="font-bold text-violet-900 text-sm mb-2 flex items-center gap-2"><RefreshCw size={16}/> Inicio de Ciclo</h4><p className="text-xs text-violet-700 mb-3">Borra grupos, aulas y docentes asignados para empezar un nuevo año. Mantiene datos personales.</p><button onClick={handleResetCycle} disabled={processing} className="w-full bg-violet-600 text-white font-bold py-2 rounded-lg text-sm hover:bg-violet-700 transition shadow-lg">REINICIAR CICLO 2026</button></div><div className="bg-orange-50 p-4 rounded-xl border border-orange-100 mb-6"><h4 className="font-bold text-orange-800 text-sm mb-2 flex items-center gap-2"><AlertTriangle size={16}/> Zona de Riesgo</h4><button onClick={handleDeleteAll} disabled={processing} className="w-full bg-white border border-red-200 text-red-600 font-bold py-2 rounded-lg text-sm hover:bg-red-50 transition flex items-center justify-center gap-2">{processing ? <RefreshCw className="animate-spin" size={16}/> : <Trash2 size={16}/>} ELIMINAR TODOS LOS ALUMNOS</button></div><h4 className="font-bold text-gray-800 text-sm mb-2">Herramientas</h4><div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-6"><div className="flex gap-2"><button onClick={handleAutoAssignGenders} disabled={processing} className="flex-1 bg-white border border-blue-200 text-blue-700 font-bold py-2 rounded-lg text-sm hover:bg-blue-100 transition flex items-center justify-center gap-2">{processing ? <RefreshCw className="animate-spin" size={16}/> : <><Users size={16}/> Auto-Género</>}</button><button onClick={findDuplicates} disabled={processing} className="flex-1 bg-white border border-blue-200 text-blue-700 font-bold py-2 rounded-lg text-sm hover:bg-blue-100 transition flex items-center justify-center gap-2">{processing ? <RefreshCw className="animate-spin" size={16}/> : <><RefreshCw size={16}/> Buscar Duplicados</>}</button></div></div><h4 className="font-bold text-gray-800 text-sm mb-2">Importar Nuevos Datos (JSON)</h4><textarea value={importJson} onChange={e => setImportJson(e.target.value)} placeholder='[ { "firstName": "Juan"... } ]' className="w-full h-40 p-3 bg-gray-50 rounded-xl border border-gray-200 font-mono text-xs outline-none focus:ring-2 focus:ring-blue-400"></textarea><div className="flex gap-3 mt-4"><button onClick={() => setShowDataManagement(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button><button onClick={handleBulkImport} disabled={processing || !importJson} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex justify-center items-center gap-2">{processing ? <RefreshCw className="animate-spin" /> : <><UploadCloud size={20} /> Procesar Datos</>}</button></div></div></div>)}
+      {showDataManagement && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl p-6 shadow-2xl animate-in zoom-in-95 overflow-y-auto max-h-[90vh]"><div className="flex justify-between items-center mb-4"><h3 className="text-xl font-bold text-gray-800">Gestión de Base de Datos</h3><button onClick={() => setShowDataManagement(false)} className="text-gray-400 hover:text-gray-600"><X size={24}/></button></div><div className="bg-violet-50 p-4 rounded-xl border border-violet-200 mb-6"><h4 className="font-bold text-violet-900 text-sm mb-2 flex items-center gap-2"><RefreshCw size={16}/> Inicio de Ciclo</h4><p className="text-xs text-violet-700 mb-3">Borra grupos, aulas y docentes asignados para empezar un nuevo año. Mantiene datos personales.</p><button onClick={handleResetCycle} disabled={processing} className="w-full bg-violet-600 text-white font-bold py-2 rounded-lg text-sm hover:bg-violet-700 transition shadow-lg">REINICIAR CICLO 2026</button></div><div className="bg-orange-50 p-4 rounded-xl border border-orange-100 mb-6"><h4 className="font-bold text-orange-800 text-sm mb-2 flex items-center gap-2"><AlertTriangle size={16}/> Zona de Riesgo</h4><button onClick={handleDeleteAll} disabled={processing} className="w-full bg-white border border-red-200 text-red-600 font-bold py-2 rounded-lg text-sm hover:bg-red-50 transition flex items-center justify-center gap-2">{processing ? <RefreshCw className="animate-spin" size={16}/> : <Trash2 size={16}/>} ELIMINAR TODOS LOS ALUMNOS</button></div><h4 className="font-bold text-gray-800 text-sm mb-2">Herramientas</h4><div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-6"><div className="flex gap-2 mb-2"><button onClick={handleAutoAssignGenders} disabled={processing} className="flex-1 bg-white border border-blue-200 text-blue-700 font-bold py-2 rounded-lg text-sm hover:bg-blue-100 transition flex items-center justify-center gap-2">{processing ? <RefreshCw className="animate-spin" size={16}/> : <><Users size={16}/> Auto-Género</>}</button><button onClick={findDuplicates} disabled={processing} className="flex-1 bg-white border border-blue-200 text-blue-700 font-bold py-2 rounded-lg text-sm hover:bg-blue-100 transition flex items-center justify-center gap-2">{processing ? <RefreshCw className="animate-spin" size={16}/> : <><RefreshCw size={16}/> Buscar Duplicados</>}</button></div><button onClick={checkUnassigned} className="w-full bg-red-100 text-red-600 font-bold py-2 rounded-lg text-sm hover:bg-red-200 transition border border-red-200 flex items-center justify-center gap-2"><AlertTriangle size={16}/> 🕵️‍♀️ Buscar Alumnos Sin Grupo</button></div><h4 className="font-bold text-gray-800 text-sm mb-2">Importar Nuevos Datos (JSON)</h4><textarea value={importJson} onChange={e => setImportJson(e.target.value)} placeholder='[ { "firstName": "Juan"... } ]' className="w-full h-40 p-3 bg-gray-50 rounded-xl border border-gray-200 font-mono text-xs outline-none focus:ring-2 focus:ring-blue-400"></textarea><div className="flex gap-3 mt-4"><button onClick={() => setShowDataManagement(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button><button onClick={handleBulkImport} disabled={processing || !importJson} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex justify-center items-center gap-2">{processing ? <RefreshCw className="animate-spin" /> : <><UploadCloud size={20} /> Procesar Datos</>}</button></div></div></div>)}
     </div>
   );
 }
@@ -2172,6 +2090,7 @@ function GroupsView({ user }) {
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
 // Icono auxiliar
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
