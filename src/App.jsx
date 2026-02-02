@@ -1533,7 +1533,81 @@ function MatriculaView({ user }) {
 
   const handleResetCycle = async () => { if(!confirm("⚠️ ¿REINICIAR CICLO?")) return; setProcessing(true); try { const snapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'students')); const updates = snapshot.docs.map(docSnap => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', docSnap.id), { groupMorning: '', teacherMorning: '', auxMorning: '', sup1Morning: '', sup2Morning: '', groupAfternoon: '', teacherAfternoon: '', auxAfternoon: '', sup1Afternoon: '', sup2Afternoon: '', classroom: '' })); await Promise.all(updates); alert("✅ Ciclo reiniciado."); } catch (e) { alert("Error: " + e.message); } finally { setProcessing(false); } };
   const handleDeleteAll = async () => { if(!confirm("⚠️ PELIGRO: ¿BORRAR TODOS?")) return; setProcessing(true); try { const snapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'students')); const deletePromises = snapshot.docs.map(docSnap => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', docSnap.id))); await Promise.all(deletePromises); alert("✅ Base vaciada."); } catch (e) { alert("Error: " + e.message); } finally { setProcessing(false); } };
-  const handleBulkImport = async () => { try { setProcessing(true); const data = JSON.parse(importJson); const promises = data.map(s => { if (s.lastName) return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...s, isActive: true, createdAt: serverTimestamp() }); }); await Promise.all(promises); alert(`¡Éxito!`); setShowDataManagement(false); } catch (e) { alert("Error JSON"); } finally { setProcessing(false); } };
+ // --- IMPORTADOR INTELIGENTE (ACTUALIZA O CREA) ---
+// --- IMPORTADOR INTELIGENTE (TOLERA ACENTOS Y MAYÚSCULAS) ---
+  const handleBulkImport = async () => {
+    try {
+      setProcessing(true);
+      const data = JSON.parse(importJson);
+      let updated = 0;
+      let created = 0;
+
+      // 1. Función para "limpiar" nombres (quita acentos y pasa a minúscula)
+      // Ejemplo: "Pérez" -> "perez", "Adúriz" -> "aduriz"
+      const cleanText = (text) => {
+          if (!text) return "";
+          return text
+            .toLowerCase()
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Quita acentos
+            .trim();
+      };
+
+      // 2. Traemos TODOS los alumnos de la base para comparar "en memoria" (es más rápido y flexible)
+      const studentsSnap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'students'));
+      const dbStudents = studentsSnap.docs.map(doc => ({ 
+          id: doc.id, 
+          cleanName: cleanText(doc.data().firstName), 
+          cleanLast: cleanText(doc.data().lastName) 
+      }));
+
+      for (const s of data) {
+          // Limpiamos el nombre que viene del Excel/JSON
+          const inputFirst = cleanText(s.firstName);
+          const inputLast = cleanText(s.lastName);
+
+          // 3. Buscamos coincidencia flexible
+          const foundStudent = dbStudents.find(dbS => dbS.cleanName === inputFirst && dbS.cleanLast === inputLast);
+
+          if (foundStudent) {
+              // --- SI EXISTE (Incluso si escribiste "Gomez" y era "Gómez"): ACTUALIZAMOS ---
+              // Solo sobrescribimos los datos nuevos (Grupo, Profe, Sup), no tocamos el nombre original
+              await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', foundStudent.id), {
+                  groupMorning: s.groupMorning || '',
+                  teacherMorning: s.teacherMorning || '',
+                  auxMorning: s.auxMorning || '',
+                  sup1Morning: s.sup1Morning || '',
+                  sup2Morning: s.sup2Morning || '',
+                  
+                  groupAfternoon: s.groupAfternoon || '',
+                  teacherAfternoon: s.teacherAfternoon || '',
+                  auxAfternoon: s.auxAfternoon || '',
+                  sup1Afternoon: s.sup1Afternoon || '',
+                  sup2Afternoon: s.sup2Afternoon || '',
+                  
+                  updatedAt: serverTimestamp()
+              });
+              updated++;
+          } else {
+              // --- NO EXISTE: LO CREAMOS ---
+              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), {
+                  ...s,
+                  isActive: true,
+                  createdAt: serverTimestamp(),
+                  incidents: []
+              });
+              created++;
+          }
+      }
+      alert(`✅ Proceso Finalizado:\n\n🔄 Alumnos Actualizados (Coincidencias): ${updated}\n✨ Alumnos Nuevos Creados: ${created}`);
+      setShowDataManagement(false);
+      setImportJson('');
+    } catch (e) {
+      console.error(e);
+      alert("Error: Revisá que el JSON esté bien copiado.");
+    } finally {
+      setProcessing(false);
+    }
+  };
   const handleAutoAssignGenders = async () => { if(!confirm("¿Auto-completar?")) return; setProcessing(true); let count = 0; const updates = []; for (const s of students) { if (!s.gender) { const prediction = predictGender(s.firstName); if (prediction) { updates.push(updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { gender: prediction })); count++; } } } await Promise.all(updates); alert(`Listo: ${count}`); setProcessing(false); };
   const handleDelete = async (id) => { if(confirm("¿Borrar?")) { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id)); setViewingStudent(null); setEditingStudent(null); setShowForm(false); } };
   const exportFiltered = () => { if (filteredStudents.length === 0) return alert("Sin datos"); const headers = ["Apellido", "Nombre", "DNI", "Nivel"]; const csv = [headers.join(';'), ...filteredStudents.map(s => [`"${s.lastName}"`, `"${s.firstName}"`, `"${s.dni}"`, `"${s.level}"`].join(';'))].join('\n'); const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = "Matricula.csv"; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
@@ -1888,5 +1962,6 @@ function GroupsView({ user }) {
 
 // Icono auxiliar
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
