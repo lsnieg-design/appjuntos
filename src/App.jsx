@@ -1285,7 +1285,7 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
     </div>
   );
 }
-// --- VISTA ADMINISTRACIÓN DE USUARIOS (FALTANTE) ---
+// --- VISTA ADMINISTRACIÓN DE USUARIOS (CON BUSCADOR) ---
 function UsersAdminView() {
   const [users, setUsers] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -1293,6 +1293,9 @@ function UsersAdminView() {
   const [csvContent, setCsvContent] = useState('');
   const [importing, setImporting] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  
+  // NUEVO: Estado para el buscador
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
@@ -1310,7 +1313,6 @@ function UsersAdminView() {
         const cols = row.split(',').map(c => c.trim());
         if (cols.length >= 5) {
           const [nombre, apellido, usuario, dni, rolInput] = cols;
-          // Guardamos usuario en MINÚSCULAS
           const usuarioLower = usuario.toLowerCase();
           const exists = users.some(u => u.username === usuarioLower);
           if (!exists) {
@@ -1332,7 +1334,6 @@ function UsersAdminView() {
   const handleSaveUser = async (e) => {
     e.preventDefault(); 
     const fd = new FormData(e.target);
-    // Guardamos usuario en MINÚSCULAS
     const userLower = fd.get('username').toLowerCase();
     
     const userData = {
@@ -1363,24 +1364,45 @@ function UsersAdminView() {
       return new Date(timestamp.seconds * 1000).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   };
 
+  // NUEVO: Lógica de filtrado
+  const filteredUsers = users.filter(u => 
+    u.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    u.role.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
    <div className="flex-1 flex flex-col min-h-0 bg-white/5 rounded-3xl p-4 mt-4">
-    <div className="flex justify-between items-center mb-6">
-        <div><h3 className="text-white font-bold text-sm uppercase tracking-widest">{users.length} Usuarios</h3></div>
-        <div className="flex gap-2">
-          <button onClick={() => setShowImport(true)} className="bg-emerald-500 text-white px-3 py-2 rounded-xl font-black text-xs uppercase shadow-lg flex items-center gap-1"><UploadCloud size={16}/> Importar</button>
-          <button onClick={openNew} className="bg-orange-500 text-white px-3 py-2 rounded-xl font-black text-xs uppercase shadow-lg flex items-center gap-1"><Plus size={16}/> Manual</button>
+    <div className="flex flex-col gap-4 mb-6">
+        <div className="flex justify-between items-center">
+            <div><h3 className="text-white font-bold text-sm uppercase tracking-widest">{users.length} Usuarios</h3></div>
+            <div className="flex gap-2">
+              <button onClick={() => setShowImport(true)} className="bg-emerald-500 text-white px-3 py-2 rounded-xl font-black text-xs uppercase shadow-lg flex items-center gap-1 hover:bg-emerald-600 transition"><UploadCloud size={16}/> Importar</button>
+              <button onClick={openNew} className="bg-orange-500 text-white px-3 py-2 rounded-xl font-black text-xs uppercase shadow-lg flex items-center gap-1 hover:bg-orange-600 transition"><Plus size={16}/> Manual</button>
+            </div>
+        </div>
+        
+        {/* --- NUEVO: INPUT BUSCADOR --- */}
+        <div className="bg-black/20 p-2 rounded-xl flex items-center gap-2 border border-white/10">
+            <Search className="text-white/50 ml-2" size={18} />
+            <input 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar por nombre, usuario o rol..."
+                className="bg-transparent border-none outline-none text-white text-sm w-full placeholder-white/30"
+            />
+            {searchTerm && <button onClick={() => setSearchTerm('')}><X size={16} className="text-white/50 hover:text-white mr-2" /></button>}
         </div>
     </div>
+
     <div className="grid gap-3 pb-20 overflow-y-auto max-h-[60vh]">
-     {users.map(u => (
+     {filteredUsers.length > 0 ? filteredUsers.map(u => (
       <div key={u.id} className="bg-white p-4 rounded-2xl border border-white/50 shadow-sm flex items-center justify-between group">
        <div className="flex items-center gap-4">
         <div className="w-10 h-10 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center font-black text-xs uppercase border border-violet-200">{u.firstName?.[0]}{u.lastName?.[0]}</div>
         <div>
             <p className="font-bold text-sm text-gray-800 uppercase italic tracking-tighter">{u.fullName}</p>
             <p className="text-[10px] text-gray-400 mt-0.5">{u.role} | {u.username}</p>
-            {/* AQUÍ ESTÁ LA ÚLTIMA CONEXIÓN */}
             <p className="text-[9px] text-green-600 font-bold mt-1 flex items-center gap-1"><Activity size={8}/> Activo: {formatLastLogin(u.lastLogin)}</p>
         </div>
        </div>
@@ -1389,7 +1411,9 @@ function UsersAdminView() {
            {u.username !== 'admin' && <button onClick={() => deleteUser(u.id)} className="p-2 bg-red-50 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition"><Trash2 size={16}/></button>}
        </div>
       </div>
-     ))}
+     )) : (
+        <p className="text-center text-white/50 italic text-sm py-4">No se encontraron usuarios.</p>
+     )}
     </div>
 
     {showImport && (
@@ -1413,8 +1437,8 @@ function UsersAdminView() {
        </div>
        <input name="username" defaultValue={editingUser?.username} placeholder="Usuario" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
        <input name="password" defaultValue={editingUser?.password} placeholder="Contraseña" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
-       <select name="role" defaultValue={editingUser?.role || ROLES[0]} className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs font-black uppercase border border-gray-100">
-          {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+       <select name="role" defaultValue={editingUser?.role || 'Docente'} className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs font-black uppercase border border-gray-100">
+          {['Docente', 'Equipo Directivo', 'Equipo Técnico', 'Auxiliar/Preceptor', 'Inclusión', 'Profes Especiales', 'Administración'].map(r => <option key={r} value={r}>{r}</option>)}
        </select>
        <div className="flex items-center gap-2 p-2 bg-violet-50 rounded-xl"><input type="checkbox" name="isAdmin" defaultChecked={editingUser?.rol === 'admin'} className="w-4 h-4 accent-violet-600" /><label className="text-xs font-bold text-violet-900">¿Es Administrador?</label></div>
        <div className="flex gap-2 pt-2"><button type="button" onClick={() => setShowModal(false)} className="flex-1 text-gray-400 font-bold uppercase text-[10px]">Volver</button><button type="submit" className="flex-1 py-3 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">Guardar</button></div>
@@ -2024,6 +2048,7 @@ function GroupsView({ user }) {
 
 // Icono auxiliar
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
