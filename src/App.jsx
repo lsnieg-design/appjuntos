@@ -1633,7 +1633,7 @@ function ProyectoView({ user }) {
     </div>
   );
 }
-// --- VISTA MATRÍCULA (CON IMPRESIÓN DE FICHAS COMPLETAS) ---
+// --- VISTA MATRÍCULA (FINAL: LOGO EN IMPRESIÓN + FILTROS SÓLIDOS + ESTADÍSTICAS) ---
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
@@ -1641,26 +1641,36 @@ function MatriculaView({ user }) {
   const [viewingStudent, setViewingStudent] = useState(null);
   const [activeModalTab, setActiveModalTab] = useState('info');
   
+  // Modales
   const [showStats, setShowStats] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showDataManagement, setShowDataManagement] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
 
-  // Estados de herramientas
+  // Herramientas de Datos
   const [showDupes, setShowDupes] = useState(false);
   const [potentialDupes, setPotentialDupes] = useState([]);
   const [showUnassigned, setShowUnassigned] = useState(false);
   const [unassignedList, setUnassignedList] = useState([]);
 
+  // Permisos
   const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin' || user.role === 'Equipo Directivo';
   
-  const [statFilters, setStatFilters] = useState({ level: 'all', dx: 'all', gender: 'all', journey: 'all', turn: 'all' });
+  // Estado para importación y carga
   const [importJson, setImportJson] = useState('');
   const [processing, setProcessing] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [filters, setFilters] = useState({ level: 'all', dx: 'all', gender: 'all', journey: 'all', group: 'all', teacher: 'all' });
+  
+  // FILTROS PRINCIPALES (BARRA DE BÚSQUEDA - PARA TODOS)
+  const [filters, setFilters] = useState({ level: 'all', group: 'all', turn: 'all', teacher: 'all', dx: 'all', gender: 'all', journey: 'all' });
+
+  // FILTROS DE ESTADÍSTICAS (ADENTRO DEL BOTÓN - SOLO ADMIN)
+  const [statFilters, setStatFilters] = useState({ level: 'all', dx: 'all', gender: 'all', journey: 'all', turn: 'all' });
+
+  // URL del logo para la impresión
+  const LOGO_URL = "https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png";
 
   useEffect(() => {
     const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), orderBy('lastName', 'asc'));
@@ -1672,6 +1682,46 @@ function MatriculaView({ user }) {
 
   const staffOptions = usersList.filter(u => ['Docente', 'Auxiliar/Preceptor', 'Equipo Técnico', 'Profes Especiales'].includes(u.role));
   const techOptions = usersList.filter(u => u.role === 'Equipo Técnico'); 
+  const uniqueGroups = [...new Set([...students.map(s => s.groupMorning), ...students.map(s => s.groupAfternoon)].filter(Boolean))].sort();
+
+  // --- LÓGICA DE FILTRADO PRINCIPAL (VISUAL) ---
+  const filteredStudents = students.filter(s => {
+    const isStudentActive = s.isActive === undefined || s.isActive === true;
+    if (showArchived && isStudentActive) return false;
+    if (!showArchived && !isStudentActive) return false;
+
+    const textMatch = s.firstName?.toLowerCase().includes(filterText.toLowerCase()) || s.lastName?.toLowerCase().includes(filterText.toLowerCase()) || s.dni?.toString().includes(filterText);
+    const levelMatch = filters.level === 'all' || s.level === filters.level;
+    const groupMatch = filters.group === 'all' || (s.groupMorning === filters.group) || (s.groupAfternoon === filters.group);
+    const teacherMatch = filters.teacher === 'all' || s.teacherMorning === filters.teacher || s.teacherAfternoon === filters.teacher;
+    const dxMatch = filters.dx === 'all' || s.dx === filters.dx;
+    const genderMatch = filters.gender === 'all' || s.gender === filters.gender;
+    const journeyMatch = filters.journey === 'all' || s.journey === filters.journey;
+
+    // Lógica de Turno
+    let turnMatch = true;
+    if (filters.turn === 'Mañana') turnMatch = !!s.groupMorning; // Tiene grupo a la mañana
+    if (filters.turn === 'Tarde') turnMatch = !!s.groupAfternoon; // Tiene grupo a la tarde
+
+    return textMatch && levelMatch && groupMatch && teacherMatch && turnMatch && dxMatch && genderMatch && journeyMatch;
+  });
+
+  // --- LÓGICA DE ESTADÍSTICAS (SUPER FILTRO OCULTO) ---
+  const statsResults = students.filter(s => {
+      const isStudentActive = s.isActive === undefined || s.isActive === true;
+      if (!isStudentActive) return false;
+
+      const levelMatch = statFilters.level === 'all' || s.level === statFilters.level;
+      const dxMatch = statFilters.dx === 'all' || s.dx === statFilters.dx;
+      const genderMatch = statFilters.gender === 'all' || s.gender === statFilters.gender;
+      const journeyMatch = statFilters.journey === 'all' || s.journey === statFilters.journey;
+      
+      let turnMatch = true;
+      if (statFilters.turn === 'Mañana') turnMatch = !!s.groupMorning;
+      if (statFilters.turn === 'Tarde') turnMatch = !!s.groupAfternoon;
+
+      return levelMatch && dxMatch && genderMatch && journeyMatch && turnMatch;
+  });
 
   // Utils
   const calculateAge = (dateString) => { if (!dateString) return '-'; const today = new Date(); const birthDate = new Date(dateString); let age = today.getFullYear() - birthDate.getFullYear(); const m = today.getMonth() - birthDate.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--; return age; };
@@ -1682,10 +1732,6 @@ function MatriculaView({ user }) {
   const handlePhotoChange = async (e) => { const file = e.target.files[0]; if (!file) return; setUploading(true); try { const resized = await resizeImage(file); setPhotoPreview(resized); } catch (error) { alert("Error imagen"); } finally { setUploading(false); } };
   const predictGender = (fullName) => { if (!fullName) return ''; const name = fullName.trim().split(' ')[0].toUpperCase(); if (['LUCA', 'LUKA', 'NICOLA'].includes(name)) return 'M'; if (name.endsWith('A')) return 'F'; return 'M'; };
   const handleNameChange = (e) => { const name = e.target.value; const guess = predictGender(name); const genderSelect = document.getElementById('genderSelect'); if (genderSelect && guess) { genderSelect.value = guess; } };
-  
-  // Filtros
-  const filteredStudents = students.filter(s => { const isStudentActive = s.isActive === undefined || s.isActive === true; if (showArchived && isStudentActive) return false; if (!showArchived && !isStudentActive) return false; const textMatch = s.firstName?.toLowerCase().includes(filterText.toLowerCase()) || s.lastName?.toLowerCase().includes(filterText.toLowerCase()) || s.dni?.toString().includes(filterText); const levelMatch = filters.level === 'all' || s.level === filters.level; const dxMatch = filters.dx === 'all' || s.dx === filters.dx; const genderMatch = filters.gender === 'all' || s.gender === filters.gender; const journeyMatch = filters.journey === 'all' || s.journey === filters.journey; const groupMatch = filters.group === 'all' || (s.groupMorning === filters.group) || (s.groupAfternoon === filters.group); const teacherMatch = filters.teacher === 'all' || s.teacherMorning === filters.teacher || s.teacherAfternoon === filters.teacher; return textMatch && levelMatch && dxMatch && genderMatch && journeyMatch && groupMatch && teacherMatch; });
-  const uniqueGroups = [...new Set([...students.map(s => s.groupMorning), ...students.map(s => s.groupAfternoon)].filter(Boolean))].sort();
   
   // Handlers CRUD
   const openNew = () => { setEditingStudent(null); setPhotoPreview(null); setShowForm(true); };
@@ -1698,149 +1744,29 @@ function MatriculaView({ user }) {
   
   const exportFiltered = () => { if (filteredStudents.length === 0) return alert("Sin datos"); const headers = ["Apellido", "Nombre", "DNI", "Nivel"]; const csv = [headers.join(';'), ...filteredStudents.map(s => [`"${s.lastName}"`, `"${s.firstName}"`, `"${s.dni}"`, `"${s.level}"`].join(';'))].join('\n'); const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = "Matricula.csv"; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
 
-  // --- NUEVA FUNCIÓN: IMPRIMIR FICHAS COMPLETAS ---
+  // --- IMPRESIÓN MEJORADA (LOGO + ACCESO TOTAL) ---
   const imprimirFichasCompletas = () => {
-    if (filteredStudents.length === 0) return alert("No hay estudiantes para imprimir.");
-    if (filteredStudents.length > 50 && !confirm(`Vas a generar ${filteredStudents.length} fichas. Esto puede tardar unos segundos. ¿Continuar?`)) return;
+    if (filteredStudents.length === 0) return alert("No hay estudiantes visibles para imprimir.");
+    if (filteredStudents.length > 20) { if (!confirm(`⚠️ Vas a generar ${filteredStudents.length} fichas. ¿Seguro?\n\nRecuerda usar los filtros antes de imprimir si no quieres imprimir toda la escuela.`)) return; }
 
     const win = window.open('', '_blank');
     if (!win) return alert("Habilita las ventanas emergentes.");
 
-    let html = `
-      <html>
-        <head>
-          <title>Fichas de Matrícula - Juntos a la Par</title>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
-            body { font-family: 'Roboto', sans-serif; background: #eee; padding: 20px; }
-            .page-break { page-break-after: always; }
-            .ficha-container {
-                background: white; width: 210mm; min-height: 297mm; margin: 0 auto 20px auto;
-                padding: 40px; box-sizing: border-box; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-                position: relative; border-top: 10px solid #7c3aed; /* Violeta */
-            }
-            @media print {
-                body { background: white; padding: 0; }
-                .ficha-container { margin: 0; box-shadow: none; width: 100%; min-height: 100vh; border-top: 10px solid #7c3aed; }
-            }
-            .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; pb-4; margin-bottom: 20px; }
-            .logo-area h1 { margin: 0; color: #4c1d95; font-size: 24px; text-transform: uppercase; font-weight: 900; }
-            .logo-area p { margin: 0; color: #f97316; font-size: 12px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
-            .profile-header { display: flex; gap: 20px; margin-bottom: 30px; align-items: flex-start; }
-            .photo-box { width: 120px; height: 120px; background: #f3f4f6; border: 2px solid #e5e7eb; border-radius: 10px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-            .photo-box img { width: 100%; height: 100%; object-fit: cover; }
-            .main-info h2 { font-size: 32px; margin: 0 0 5px 0; color: #1f2937; text-transform: uppercase; }
-            .main-info .dni-tag { background: #4c1d95; color: white; padding: 5px 10px; border-radius: 5px; font-weight: bold; font-size: 14px; display: inline-block; }
-            
-            .section-title { background: #f9fafb; border-left: 5px solid #f97316; padding: 10px; font-weight: 900; color: #374151; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; font-size: 14px; }
-            
-            .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
-            .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px; }
-            
-            .field-box { border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; }
-            .label { font-size: 10px; color: #9ca3af; font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 2px; }
-            .value { font-size: 14px; color: #111827; font-weight: bold; display: block; }
-            .value.empty { color: #d1d5db; font-style: italic; font-weight: normal; }
-
-            .footer { position: absolute; bottom: 30px; left: 40px; right: 40px; text-align: center; border-top: 1px solid #eee; padding-top: 10px; font-size: 10px; color: #9ca3af; }
-          </style>
-        </head>
-        <body>
-    `;
+    let html = `<html><head><title>Fichas Institucionales</title><style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');body{font-family:'Roboto',sans-serif;background:#eee;padding:20px}.page-break{page-break-after:always}.ficha-container{background:white;width:210mm;min-height:297mm;margin:0 auto 20px auto;padding:40px;box-sizing:border-box;position:relative;border-top:10px solid #7c3aed}@media print{body{background:white;padding:0}.ficha-container{margin:0;width:100%;min-height:100vh;border-top:10px solid #7c3aed}}.header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #eee;pb-4;margin-bottom:20px}.logo-area h1{margin:0;color:#4c1d95;font-size:24px;text-transform:uppercase;font-weight:900}.logo-area p{margin:0;color:#f97316;font-size:12px;font-weight:bold;letter-spacing:2px;text-transform:uppercase}.header img{height:60px;width:auto;object-fit:contain}.profile-header{display:flex;gap:20px;margin-bottom:30px;align-items:flex-start}.photo-box{width:120px;height:120px;background:#f3f4f6;border:2px solid #e5e7eb;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center}.photo-box img{width:100%;height:100%;object-fit:cover}.main-info h2{font-size:32px;margin:0 0 5px 0;color:#1f2937;text-transform:uppercase}.main-info .dni-tag{background:#4c1d95;color:white;padding:5px 10px;border-radius:5px;font-weight:bold;font-size:14px;display:inline-block}.section-title{background:#f9fafb;border-left:5px solid #f97316;padding:10px;font-weight:900;color:#374151;text-transform:uppercase;letter-spacing:1px;margin-bottom:15px;font-size:14px}.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:20px}.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px;margin-bottom:20px}.field-box{border-bottom:1px solid #e5e7eb;padding-bottom:5px}.label{font-size:10px;color:#9ca3af;font-weight:bold;text-transform:uppercase;display:block;margin-bottom:2px}.value{font-size:14px;color:#111827;font-weight:bold;display:block}.value.empty{color:#d1d5db;font-style:italic;font-weight:normal}.footer{position:absolute;bottom:30px;left:40px;right:40px;text-align:center;border-top:1px solid #eee;padding-top:10px;font-size:10px;color:#9ca3af}</style></head><body>`;
 
     filteredStudents.forEach((s) => {
         const edad = calculateAge(s.birthDate);
         const fechaNac = s.birthDate ? new Date(s.birthDate + 'T00:00:00').toLocaleDateString('es-AR') : '-';
-        
-        html += `
-          <div class="ficha-container page-break">
-            <div class="header">
-                <div class="logo-area">
-                    <h1>Juntos a la Par</h1>
-                    <p>Ficha Institucional 2026</p>
-                </div>
-                <div style="text-align: right;">
-                    <span style="font-size: 10px; color: #999;">Legajo Digital</span><br>
-                    <strong>#${s.dni}</strong>
-                </div>
-            </div>
-
-            <div class="profile-header">
-                <div class="photo-box">
-                    ${s.photoUrl ? `<img src="${s.photoUrl}"/>` : '<span style="color:#ccc; font-size: 40px;">👤</span>'}
-                </div>
-                <div class="main-info">
-                    <h2>${s.lastName}, <span style="font-weight: 400;">${s.firstName}</span></h2>
-                    <span class="dni-tag">DNI: ${s.dni || '---'}</span>
-                    <span style="margin-left: 10px; font-weight: bold; color: #6b7280;">${edad} AÑOS</span>
-                </div>
-            </div>
-
-            <div class="section-title">Datos Personales</div>
-            <div class="grid-3">
-                <div class="field-box"><span class="label">Fecha Nacimiento</span><span class="value">${fechaNac}</span></div>
-                <div class="field-box"><span class="label">Género</span><span class="value">${s.gender || '-'}</span></div>
-                <div class="field-box"><span class="label">Domicilio</span><span class="value">${s.address || '<span class="empty">No especificado</span>'}</span></div>
-            </div>
-
-            <div class="section-title">Salud y Cobertura</div>
-            <div class="grid-3">
-                <div class="field-box"><span class="label">Obra Social</span><span class="value">${s.healthInsurance || '<span class="empty">No declara</span>'}</span></div>
-                <div class="field-box"><span class="label">Diagnóstico (DX)</span><span class="value">${s.dx || '-'}</span></div>
-                <div class="field-box"><span class="label">Vencimiento CUD</span><span class="value">${s.cudExpiration ? new Date(s.cudExpiration + 'T00:00:00').toLocaleDateString('es-AR') : '-'}</span></div>
-            </div>
-
-            <div class="section-title">Grupo Familiar</div>
-            <div class="grid-2">
-                <div class="field-box">
-                    <span class="label">Madre / Tutor 1</span>
-                    <span class="value">${s.motherName || '<span class="empty">---</span>'}</span>
-                    <span class="label" style="margin-top:2px;">Contacto: ${s.motherContact || '-'}</span>
-                </div>
-                <div class="field-box">
-                    <span class="label">Padre / Tutor 2</span>
-                    <span class="value">${s.fatherName || '<span class="empty">---</span>'}</span>
-                    <span class="label" style="margin-top:2px;">Contacto: ${s.fatherContact || '-'}</span>
-                </div>
-            </div>
-
-            <div class="section-title">Trayectoria Escolar 2026</div>
-            <div class="grid-3">
-                <div class="field-box"><span class="label">Nivel</span><span class="value">${s.level || '-'}</span></div>
-                <div class="field-box"><span class="label">Jornada</span><span class="value">${s.journey || '-'}</span></div>
-                <div class="field-box"><span class="label">Aula / Salón</span><span class="value">${s.classroom || '-'}</span></div>
-            </div>
-
-            <div class="grid-2" style="background: #f9fafb; padding: 15px; border-radius: 10px;">
-                <div>
-                    <h4 style="margin:0 0 10px 0; color: #f97316; font-size: 12px; text-transform: uppercase;">Turno Mañana</h4>
-                    <div class="field-box" style="border:none;"><span class="label">Grupo</span><span class="value">${s.groupMorning || '-'}</span></div>
-                    <div class="field-box" style="border:none;"><span class="label">Docente</span><span class="value">${s.teacherMorning || '-'}</span></div>
-                    <div class="field-box" style="border:none;"><span class="label">Auxiliar</span><span class="value">${s.auxMorning || '-'}</span></div>
-                </div>
-                <div style="border-left: 1px solid #e5e7eb; padding-left: 15px;">
-                    <h4 style="margin:0 0 10px 0; color: #4c1d95; font-size: 12px; text-transform: uppercase;">Turno Tarde</h4>
-                    <div class="field-box" style="border:none;"><span class="label">Grupo</span><span class="value">${s.groupAfternoon || '-'}</span></div>
-                    <div class="field-box" style="border:none;"><span class="label">Docente</span><span class="value">${s.teacherAfternoon || '-'}</span></div>
-                    <div class="field-box" style="border:none;"><span class="label">Auxiliar</span><span class="value">${s.auxAfternoon || '-'}</span></div>
-                </div>
-            </div>
-
-            <div class="footer">
-                Documento generado el ${new Date().toLocaleDateString('es-AR')} - Sistema de Gestión "Juntos a la Par"
-            </div>
-          </div>
-        `;
+        html += `<div class="ficha-container page-break"><div class="header"><div class="logo-area"><h1>Juntos a la Par</h1><p>Ficha Institucional 2026</p></div><img src="${LOGO_URL}" alt="Logo"/></div><div class="profile-header"><div class="photo-box">${s.photoUrl ? `<img src="${s.photoUrl}"/>` : '<span style="color:#ccc;font-size:40px;">👤</span>'}</div><div class="main-info"><h2>${s.lastName}, <span style="font-weight:400;">${s.firstName}</span></h2><span class="dni-tag">DNI: ${s.dni || '---'}</span><span style="margin-left:10px;font-weight:bold;color:#6b7280;">${edad} AÑOS</span></div></div><div class="section-title">Datos Personales</div><div class="grid-3"><div class="field-box"><span class="label">Fecha Nacimiento</span><span class="value">${fechaNac}</span></div><div class="field-box"><span class="label">Género</span><span class="value">${s.gender || '-'}</span></div><div class="field-box"><span class="label">Domicilio</span><span class="value">${s.address || '<span class="empty">No especificado</span>'}</span></div></div><div class="section-title">Salud y Cobertura</div><div class="grid-3"><div class="field-box"><span class="label">Obra Social</span><span class="value">${s.healthInsurance || '<span class="empty">No declara</span>'}</span></div><div class="field-box"><span class="label">Diagnóstico (DX)</span><span class="value">${s.dx || '-'}</span></div><div class="field-box"><span class="label">Vencimiento CUD</span><span class="value">${s.cudExpiration ? new Date(s.cudExpiration + 'T00:00:00').toLocaleDateString('es-AR') : '-'}</span></div></div><div class="section-title">Grupo Familiar</div><div class="grid-2"><div class="field-box"><span class="label">Madre / Tutor 1</span><span class="value">${s.motherName || '<span class="empty">---</span>'}</span><span class="label" style="margin-top:2px;">Contacto: ${s.motherContact || '-'}</span></div><div class="field-box"><span class="label">Padre / Tutor 2</span><span class="value">${s.fatherName || '<span class="empty">---</span>'}</span><span class="label" style="margin-top:2px;">Contacto: ${s.fatherContact || '-'}</span></div></div><div class="section-title">Trayectoria Escolar 2026</div><div class="grid-3"><div class="field-box"><span class="label">Nivel</span><span class="value">${s.level || '-'}</span></div><div class="field-box"><span class="label">Jornada</span><span class="value">${s.journey || '-'}</span></div><div class="field-box"><span class="label">Aula / Salón</span><span class="value">${s.classroom || '-'}</span></div></div><div class="grid-2" style="background:#f9fafb;padding:15px;border-radius:10px;"><div><h4 style="margin:0 0 10px 0;color:#f97316;font-size:12px;text-transform:uppercase;">Turno Mañana</h4><div class="field-box" style="border:none;"><span class="label">Grupo</span><span class="value">${s.groupMorning || '-'}</span></div><div class="field-box" style="border:none;"><span class="label">Docente</span><span class="value">${s.teacherMorning || '-'}</span></div><div class="field-box" style="border:none;"><span class="label">Auxiliar</span><span class="value">${s.auxMorning || '-'}</span></div></div><div style="border-left:1px solid #e5e7eb;padding-left:15px;"> <h4 style="margin:0 0 10px 0;color:#4c1d95;font-size:12px;text-transform:uppercase;">Turno Tarde</h4><div class="field-box" style="border:none;"><span class="label">Grupo</span><span class="value">${s.groupAfternoon || '-'}</span></div><div class="field-box" style="border:none;"><span class="label">Docente</span><span class="value">${s.teacherAfternoon || '-'}</span></div><div class="field-box" style="border:none;"><span class="label">Auxiliar</span><span class="value">${s.auxAfternoon || '-'}</span></div></div></div><div class="footer">Documento generado el ${new Date().toLocaleDateString('es-AR')} - Sistema de Gestión "Juntos a la Par"</div></div>`;
     });
 
     html += `</body></html>`;
     win.document.write(html);
     win.document.close();
-    setTimeout(() => { win.print(); }, 1000); // Esperar a que carguen las fotos
+    setTimeout(() => { win.print(); }, 1000);
   };
-  // -----------------------------------------------------
 
-  // Función de limpieza de espacios (la que ya tenías)
+  // Otras funciones de gestión
   const limpiarEspaciosMasivo = async () => {
     if (!confirm("⚠️ ¿Eliminar espacios en blanco sobrantes de TODOS los alumnos?")) return;
     setProcessing(true);
@@ -1862,7 +1788,6 @@ function MatriculaView({ user }) {
     } catch (e) { alert("Error: " + e.message); } finally { setProcessing(false); }
   };
 
-  // Función de Backup JSON (la que ya tenías)
   const descargarBackup = () => {
       if(!confirm("¿Descargar copia de seguridad completa (JSON)?")) return;
       const dataStr = JSON.stringify(students, null, 2);
@@ -1876,10 +1801,8 @@ function MatriculaView({ user }) {
       document.body.removeChild(link);
   };
 
-  // Importador (Anti-Error)
   const handleBulkImport = async () => { try { if(!importJson.trim()) return alert("Pegá el JSON primero."); setProcessing(true); const firstBracket = importJson.indexOf('['); const lastBracket = importJson.lastIndexOf(']'); if (firstBracket === -1 || lastBracket === -1) throw new Error("Faltan los corchetes [ ]"); const cleanJson = importJson.substring(firstBracket, lastBracket + 1); const data = JSON.parse(cleanJson); let updated = 0; let created = 0; const getFirstWord = (txt) => { if (!txt) return ""; return txt.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().split(' ')[0].replace(/[^a-z0-9]/g, ''); }; const snap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'students')); const dbStudents = snap.docs.map(d => ({ id: d.id, ...d.data(), _keyFirst: getFirstWord(d.data().firstName), _keyLast: getFirstWord(d.data().lastName) })); for (const s of data) { const inputFirst = getFirstWord(s.firstName); const inputLast = getFirstWord(s.lastName); const match = dbStudents.find(dbS => dbS._keyFirst === inputFirst && dbS._keyLast === inputLast); if (match) { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', match.id), { ...s, updatedAt: serverTimestamp() }); updated++; } else { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...s, isActive: true, createdAt: serverTimestamp(), incidents: [] }); created++; } } alert(`🏁 LISTO:\n\n✨ Nuevos: ${created}\n🔄 Actualizados: ${updated}`); setShowDataManagement(false); setImportJson(''); } catch (e) { console.error(e); alert("Error: " + e.message); } finally { setProcessing(false); } };
   
-  // Duplicados
   const findDuplicates = () => { setProcessing(true); const threshold = 2; const levenshtein = (a, b) => { const matrix = []; for(let i=0; i<=b.length; i++) matrix[i] = [i]; for(let j=0; j<=a.length; j++) matrix[0][j] = j; for(let i=1; i<=b.length; i++){ for(let j=1; j<=a.length; j++){ if(b.charAt(i-1) == a.charAt(j-1)){ matrix[i][j] = matrix[i-1][j-1]; } else { matrix[i][j] = Math.min(matrix[i-1][j-1] + 1, Math.min(matrix[i][j-1] + 1, matrix[i-1][j] + 1)); } } } return matrix[b.length][a.length]; }; const found = []; const checkedIds = new Set(); for (let i = 0; i < students.length; i++) { for (let j = i + 1; j < students.length; j++) { const s1 = students[i]; const s2 = students[j]; if(checkedIds.has(s1.id) || checkedIds.has(s2.id)) continue; const name1 = (s1.firstName + s1.lastName).toLowerCase().replace(/\s/g, ''); const name2 = (s2.firstName + s2.lastName).toLowerCase().replace(/\s/g, ''); const dist = levenshtein(name1, name2); if (dist <= threshold && dist > 0) found.push({ original: s1, duplicate: s2, distance: dist }); } } setPotentialDupes(found); setProcessing(false); setShowDataManagement(false); setShowDupes(true); };
   const mergeStudents = async (keep, drop) => { if(!confirm(`¿Fusionar?`)) return; try { const mergedData = { ...keep, journey: "Doble", updatedAt: serverTimestamp() }; if(!mergedData.groupMorning && drop.groupMorning) { mergedData.groupMorning = drop.groupMorning; mergedData.teacherMorning = drop.teacherMorning; mergedData.auxMorning = drop.auxMorning; mergedData.sup1Morning = drop.sup1Morning; mergedData.sup2Morning = drop.sup2Morning; } if(!mergedData.groupAfternoon && drop.groupAfternoon) { mergedData.groupAfternoon = drop.groupAfternoon; mergedData.teacherAfternoon = drop.teacherAfternoon; mergedData.auxAfternoon = drop.auxAfternoon; mergedData.sup1Afternoon = drop.sup1Afternoon; mergedData.sup2Afternoon = drop.sup2Afternoon; } if(!mergedData.dni && drop.dni) mergedData.dni = drop.dni; if(!mergedData.birthDate && drop.birthDate) mergedData.birthDate = drop.birthDate; if(!mergedData.dx && drop.dx) mergedData.dx = drop.dx; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', keep.id), mergedData); await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', drop.id)); setPotentialDupes(prev => prev.filter(p => p.original.id !== keep.id && p.duplicate.id !== drop.id)); alert("✅ Fusionado."); } catch (e) { alert("Error al fusionar."); } };
   const checkUnassigned = () => { const found = students.filter(s => (s.isActive === undefined || s.isActive === true) && !s.groupMorning && !s.groupAfternoon); setUnassignedList(found); setShowDataManagement(false); setShowUnassigned(true); };
@@ -1893,21 +1816,23 @@ function MatriculaView({ user }) {
           <div className="flex gap-2">
              <button onClick={() => setShowArchived(!showArchived)} className={`px-4 py-2 rounded-xl text-xs font-black uppercase shadow-lg transition flex items-center gap-2 border ${showArchived ? 'bg-blue-500 border-blue-400 text-white' : 'bg-gray-800/40 border-white/20 hover:bg-gray-800/60'}`}>{showArchived ? <><CheckCircle size={16}/> Ver Activos</> : <><LogOut size={16}/> Ver Bajas</>}</button>
              {isSuperAdmin && (<><button onClick={() => setShowDataManagement(true)} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold border border-white/20"><UploadCloud size={20}/></button><button onClick={() => setShowStats(true)} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold border border-white/20"><PieChart size={20}/></button></>)}
-             
-             {/* BOTÓN IMPRIMIR FICHAS */}
-             <button onClick={imprimirFichasCompletas} className="bg-white text-blue-600 p-2 px-3 rounded-xl transition flex items-center gap-2 text-xs font-black uppercase shadow-md hover:bg-blue-50 border border-white/20"><FileText size={18}/> Imprimir Fichas</button>
-             
+             <button onClick={imprimirFichasCompletas} title="Filtra la lista antes de imprimir." className="bg-white text-blue-600 p-2 px-3 rounded-xl transition flex items-center gap-2 text-xs font-black uppercase shadow-md hover:bg-blue-50 border border-white/20"><FileText size={18}/> Imprimir Fichas</button>
              <button onClick={exportFiltered} className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition flex items-center gap-2 text-sm font-bold"><Download size={20}/></button>
              {!showArchived && <button onClick={openNew} className="bg-white text-blue-600 p-3 rounded-xl shadow-lg hover:bg-blue-50 transition font-bold"><Plus size={24} /></button>}
           </div>
         </div>
         {!showArchived && (
             <div className="mt-6 space-y-3">
-            <div className="bg-white/10 backdrop-blur-md p-2 rounded-xl flex items-center gap-2 border border-white/20"><Search className="text-white ml-2 opacity-70" size={20} /><input value={filterText} onChange={(e) => setFilterText(e.target.value)} placeholder="Buscar alumno activo..." className="bg-transparent border-none outline-none text-white placeholder-blue-200 w-full" />{filterText && <button onClick={() => setFilterText('')}><X className="text-white opacity-70" size={16}/></button>}</div>
+            <div className="bg-white/20 backdrop-blur-md p-2 rounded-xl flex items-center gap-2 border border-white/20"><Search className="text-white ml-2 opacity-90" size={20} /><input value={filterText} onChange={(e) => setFilterText(e.target.value)} placeholder="Buscar alumno activo..." className="bg-transparent border-none outline-none text-white placeholder-white/70 font-bold w-full" />{filterText && <button onClick={() => setFilterText('')}><X className="text-white opacity-90" size={16}/></button>}</div>
+            
+            {/* FILTROS PRINCIPALES CON FONDO SÓLIDO (BLANCO) */}
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                <select value={filters.level} onChange={e => setFilters({...filters, level: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">Nivel: Todos</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option></select>
-                <select value={filters.dx} onChange={e => setFilters({...filters, dx: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">DX: Todos</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select>
-                <select value={filters.group} onChange={e => setFilters({...filters, group: e.target.value})} className="bg-white/20 text-white border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-white/30"><option value="all" className="text-gray-800">Grupo: Todos</option>{uniqueGroups.map(g => <option key={g} value={g} className="text-gray-800">{g}</option>)}</select>
+                <select value={filters.turn} onChange={e => setFilters({...filters, turn: e.target.value})} className="bg-white text-gray-700 border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-gray-50 shadow-sm"><option value="all">Turno: Todos</option><option value="Mañana">Mañana</option><option value="Tarde">Tarde</option></select>
+                <select value={filters.level} onChange={e => setFilters({...filters, level: e.target.value})} className="bg-white text-gray-700 border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-gray-50 shadow-sm"><option value="all">Nivel: Todos</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option></select>
+                <select value={filters.group} onChange={e => setFilters({...filters, group: e.target.value})} className="bg-white text-gray-700 border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-gray-50 shadow-sm"><option value="all">Grupo: Todos</option>{uniqueGroups.map(g => <option key={g} value={g}>{g}</option>)}</select>
+                <select value={filters.dx} onChange={e => setFilters({...filters, dx: e.target.value})} className="bg-white text-gray-700 border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-gray-50 shadow-sm"><option value="all">DX: Todos</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select>
+                <select value={filters.teacher} onChange={e => setFilters({...filters, teacher: e.target.value})} className="bg-white text-gray-700 border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-gray-50 shadow-sm"><option value="all">Docente: Todos</option>{staffOptions.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select>
+                <select value={filters.gender} onChange={e => setFilters({...filters, gender: e.target.value})} className="bg-white text-gray-700 border-none rounded-lg text-xs px-2 py-2 outline-none font-bold cursor-pointer hover:bg-gray-50 shadow-sm"><option value="all">Género: Todos</option><option value="M">Varón</option><option value="F">Mujer</option></select>
             </div>
             </div>
         )}
@@ -1929,6 +1854,38 @@ function MatriculaView({ user }) {
            </div>
          )})}
       </div>
+
+      {/* --- MODAL ESTADÍSTICAS AVANZADAS (RECUPERADO) --- */}
+      {showStats && (
+        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
+            <div className="bg-white rounded-[40px] w-full max-w-lg p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600">
+                <div className="flex justify-between items-center mb-6">
+                    <div>
+                        <h3 className="text-2xl font-black text-violet-900 uppercase italic">Estadísticas</h3>
+                        <p className="text-xs text-gray-500">Filtrado en tiempo real</p>
+                    </div>
+                    <button onClick={() => setShowStats(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button>
+                </div>
+
+                <div className="bg-violet-50 p-6 rounded-3xl text-center mb-6 border border-violet-100 shadow-inner">
+                    <span className="text-5xl font-black text-violet-600 block mb-2">{statsResults.length}</span>
+                    <span className="text-xs font-bold text-violet-400 uppercase tracking-[4px]">Estudiantes Encontrados</span>
+                </div>
+
+                <div className="space-y-3">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Filtros de Conteo</p>
+                    <div className="grid grid-cols-2 gap-2">
+                        <select value={statFilters.turn} onChange={e => setStatFilters({...statFilters, turn: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Turno: Todos</option><option value="Mañana">Mañana</option><option value="Tarde">Tarde</option></select>
+                        <select value={statFilters.level} onChange={e => setStatFilters({...statFilters, level: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Nivel: Todos</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option></select>
+                        <select value={statFilters.dx} onChange={e => setStatFilters({...statFilters, dx: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">DX: Todos</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select>
+                        <select value={statFilters.gender} onChange={e => setStatFilters({...statFilters, gender: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Género: Todos</option><option value="M">Varón</option><option value="F">Mujer</option></select>
+                        <select value={statFilters.journey} onChange={e => setStatFilters({...statFilters, journey: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Jornada: Todas</option><option value="Simple Mañana">Simple Mañana</option><option value="Simple Tarde">Simple Tarde</option><option value="Doble">Doble</option></select>
+                    </div>
+                    <button onClick={() => setStatFilters({ level: 'all', dx: 'all', gender: 'all', journey: 'all', turn: 'all' })} className="w-full py-3 text-red-400 font-bold text-xs hover:bg-red-50 rounded-xl transition mt-2">Limpiar Filtros</button>
+                </div>
+            </div>
+        </div>
+      )}
 
       {showDataManagement && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
@@ -2239,6 +2196,7 @@ function GroupsView({ user }) {
 
 // Icono auxiliar (necesario para el código)
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
