@@ -1629,27 +1629,29 @@ function MatriculaView({ user }) {
 
   const handleResetCycle = async () => { if(!confirm("⚠️ ¿REINICIAR CICLO?")) return; setProcessing(true); try { const snapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'students')); const updates = snapshot.docs.map(docSnap => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', docSnap.id), { groupMorning: '', teacherMorning: '', auxMorning: '', sup1Morning: '', sup2Morning: '', groupAfternoon: '', teacherAfternoon: '', auxAfternoon: '', sup1Afternoon: '', sup2Afternoon: '', classroom: '' })); await Promise.all(updates); alert("✅ Ciclo reiniciado."); } catch (e) { alert("Error: " + e.message); } finally { setProcessing(false); } };
   const handleDeleteAll = async () => { if(!confirm("⚠️ PELIGRO: ¿BORRAR TODOS?")) return; setProcessing(true); try { const snapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'students')); const deletePromises = snapshot.docs.map(docSnap => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', docSnap.id))); await Promise.all(deletePromises); alert("✅ Base vaciada."); } catch (e) { alert("Error: " + e.message); } finally { setProcessing(false); } };
- // --- IMPORTADOR INTELIGENTE (ACTUALIZA O CREA) ---
-// --- IMPORTADOR INTELIGENTE V7 (BLINDADO CONTRA ERRORES DE COPIADO) ---
+// --- IMPORTADOR INTELIGENTE V8 (EXTRACTOR QUIRÚRGICO) ---
   const handleBulkImport = async () => {
     try {
       if(!importJson.trim()) return alert("Pegá el JSON primero.");
-      
       setProcessing(true);
 
-      // --- PASO 1: LIMPIEZA AUTOMÁTICA DEL TEXTO ---
-      // Esto saca las comillas del chat (```json) y espacios raros si se copiaron mal
-      let cleanText = importJson.trim();
-      cleanText = cleanText.replace(/```json/g, ""); // Saca etiqueta json
-      cleanText = cleanText.replace(/```/g, "");     // Saca comillas de código
-      cleanText = cleanText.trim();                  // Saca espacios al inicio/final
+      // --- PASO 1: EXTRACCIÓN INTELIGENTE ---
+      // Buscamos dónde empieza '[' y dónde termina ']'
+      // Ignoramos saludos, explicaciones o comillas extra.
+      const firstBracket = importJson.indexOf('[');
+      const lastBracket = importJson.lastIndexOf(']');
 
-      const data = JSON.parse(cleanText); // Ahora sí probamos leerlo
+      if (firstBracket === -1 || lastBracket === -1) {
+          throw new Error("No encontré la lista de datos (faltan los corchetes [ ]).");
+      }
+
+      // Recortamos SOLO lo que sirve
+      const cleanJson = importJson.substring(firstBracket, lastBracket + 1);
+      const data = JSON.parse(cleanJson);
       
       let updated = 0;
       let created = 0;
 
-      // Limpiador de nombres para buscar coincidencias
       const getFirstWord = (txt) => {
           if (!txt) return "";
           return txt.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().split(' ')[0].replace(/[^a-z0-9]/g, ''); 
@@ -1668,15 +1670,14 @@ function MatriculaView({ user }) {
           const match = dbStudents.find(dbS => dbS._keyFirst === inputFirst && dbS._keyLast === inputLast);
 
           if (match) {
-              // --- ALUMNO EXISTENTE: FUSIONAMOS ---
+              // --- FUSIÓN ---
               let finalJourney = s.journey; 
-              
               const hadMorning = match.groupMorning || match.journey === "Simple Mañana";
               const hadAfternoon = match.groupAfternoon || match.journey === "Simple Tarde";
               const isBringingMorning = s.journey === "Simple Mañana";
               const isBringingAfternoon = s.journey === "Simple Tarde";
 
-              // Si sumamos turnos opuestos -> Es Doble
+              // Si se cruzan los turnos => Doble
               if ((hadMorning && isBringingAfternoon) || (hadAfternoon && isBringingMorning)) {
                   finalJourney = "Doble";
               }
@@ -1687,7 +1688,7 @@ function MatriculaView({ user }) {
                   updatedAt: serverTimestamp()
               };
 
-              // Respetamos datos viejos si el archivo nuevo no los trae
+              // Mantenemos datos viejos si el nuevo viene vacío
               if (!s.groupMorning && match.groupMorning) {
                   updateData.groupMorning = match.groupMorning;
                   updateData.teacherMorning = match.teacherMorning;
@@ -1707,7 +1708,7 @@ function MatriculaView({ user }) {
               updated++;
 
           } else {
-              // --- ALUMNO NUEVO ---
+              // --- NUEVO ---
               await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), {
                   ...s,
                   isActive: true,
@@ -1717,13 +1718,12 @@ function MatriculaView({ user }) {
               created++;
           }
       }
-      alert(`🏁 ÉXITO:\n\n✨ Nuevos: ${created}\n🔄 Actualizados: ${updated}`);
+      alert(`🏁 PROCESO EXITOSO:\n\n✨ Nuevos: ${created}\n🔄 Actualizados: ${updated}`);
       setShowDataManagement(false);
       setImportJson('');
     } catch (e) {
       console.error(e);
-      // Mensaje de error más detallado
-      alert("Error: El texto no es válido. Asegurate de copiar SOLAMENTE desde el corchete '[' hasta el corchete ']'.");
+      alert("Error: " + e.message);
     } finally {
       setProcessing(false);
     }
@@ -2082,6 +2082,7 @@ function GroupsView({ user }) {
 
 // Icono auxiliar
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
