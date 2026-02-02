@@ -1632,6 +1632,7 @@ function MatriculaView({ user }) {
  // --- IMPORTADOR INTELIGENTE (ACTUALIZA O CREA) ---
 // --- IMPORTADOR INTELIGENTE (TOLERA ACENTOS Y MAYÚSCULAS) ---
   // --- IMPORTADOR INTELIGENTE V3 (COINCIDENCIA POR PRIMER NOMBRE/APELLIDO) ---
+  // --- IMPORTADOR INTELIGENTE V6 (FUSIÓN AUTOMÁTICA DE JORNADA) ---
   const handleBulkImport = async () => {
     try {
       if(!importJson.trim()) return alert("Pegá el JSON primero.");
@@ -1640,41 +1641,67 @@ function MatriculaView({ user }) {
       let updated = 0;
       let created = 0;
 
-      // Función para obtener SOLO la primera palabra limpia (sin acentos, minúscula)
+      // Limpiador de nombres para buscar coincidencias
       const getFirstWord = (txt) => {
           if (!txt) return "";
-          // Normaliza, saca acentos, pasa a minuscula, y agarra lo que está antes del primer espacio
           return txt.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().split(' ')[0].replace(/[^a-z0-9]/g, ''); 
       };
 
-      // Traemos la base de datos
       const snap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'students'));
       const dbStudents = snap.docs.map(d => ({ 
-          id: d.id, 
-          ...d.data(), 
-          // Guardamos la "clave" de búsqueda de cada uno (ej: "juan" y "perez")
+          id: d.id, ...d.data(), 
           _keyFirst: getFirstWord(d.data().firstName),
           _keyLast: getFirstWord(d.data().lastName)
       }));
 
       for (const s of data) {
-          // Claves del alumno que viene del Excel
           const inputFirst = getFirstWord(s.firstName);
           const inputLast = getFirstWord(s.lastName);
-
-          // BUSCAMOS: ¿Hay alguien que tenga el mismo primer nombre y primer apellido?
-          // Esto une "Juan Manuel Perez" con "Juan Perez"
           const match = dbStudents.find(dbS => dbS._keyFirst === inputFirst && dbS._keyLast === inputLast);
 
           if (match) {
-              // --- ¡ENCONTRADO! ACTUALIZAMOS ---
-              await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', match.id), {
-                  ...s, // Actualizamos Grupo, Profe, etc.
+              // --- ALUMNO EXISTENTE: FUSIONAMOS ---
+              let finalJourney = s.journey; // Empezamos con la jornada que trae el archivo nuevo
+              
+              // Si ya tenía el turno opuesto cargado, ahora es DOBLE
+              const hadMorning = match.groupMorning || match.journey === "Simple Mañana";
+              const hadAfternoon = match.groupAfternoon || match.journey === "Simple Tarde";
+              const isBringingMorning = s.journey === "Simple Mañana";
+              const isBringingAfternoon = s.journey === "Simple Tarde";
+
+              if ((hadMorning && isBringingAfternoon) || (hadAfternoon && isBringingMorning)) {
+                  finalJourney = "Doble";
+              }
+
+              // Preparamos los datos a actualizar (pisamos con lo nuevo, mantenemos lo viejo que no venga)
+              const updateData = {
+                  ...s,         // Trae los datos nuevos (ej: Grupo Tarde, Profe Tarde)
+                  journey: finalJourney,
                   updatedAt: serverTimestamp()
-              });
+              };
+
+              // Si el archivo nuevo NO trae datos de mañana, pero el alumno YA tenía, se los respetamos
+              if (!s.groupMorning && match.groupMorning) {
+                  updateData.groupMorning = match.groupMorning;
+                  updateData.teacherMorning = match.teacherMorning;
+                  updateData.auxMorning = match.auxMorning;
+                  updateData.sup1Morning = match.sup1Morning;
+                  updateData.sup2Morning = match.sup2Morning;
+              }
+              // Lo mismo para la tarde
+              if (!s.groupAfternoon && match.groupAfternoon) {
+                  updateData.groupAfternoon = match.groupAfternoon;
+                  updateData.teacherAfternoon = match.teacherAfternoon;
+                  updateData.auxAfternoon = match.auxAfternoon;
+                  updateData.sup1Afternoon = match.sup1Afternoon;
+                  updateData.sup2Afternoon = match.sup2Afternoon;
+              }
+
+              await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', match.id), updateData);
               updated++;
+
           } else {
-              // --- NO EXISTE: CREAMOS UNO NUEVO ---
+              // --- ALUMNO NUEVO: CREAMOS ---
               await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), {
                   ...s,
                   isActive: true,
@@ -1684,12 +1711,12 @@ function MatriculaView({ user }) {
               created++;
           }
       }
-      alert(`🏁 PROCESO TERMINADO:\n\n✅ Alumnos Vinculados (Actualizados): ${updated}\n✨ Alumnos Nuevos: ${created}`);
+      alert(`🏁 PROCESO TERMINADO:\n\n✨ Nuevos Alumnos: ${created}\n🔄 Alumnos Actualizados (Fusión): ${updated}`);
       setShowDataManagement(false);
       setImportJson('');
     } catch (e) {
       console.error(e);
-      alert("Error: Revisá el JSON.");
+      alert("Error en el JSON. Verificá el formato.");
     } finally {
       setProcessing(false);
     }
@@ -2048,6 +2075,7 @@ function GroupsView({ user }) {
 
 // Icono auxiliar
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
