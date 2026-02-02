@@ -1285,24 +1285,23 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
     </div>
   );
 }
-// --- VISTA ADMINISTRACIÓN DE USUARIOS (CORREGIDA: BUSCADOR BLINDADO) ---
+// --- VISTA ADMINISTRACIÓN DE USUARIOS (CON CORRECTOR MASIVO) ---
 function UsersAdminView() {
   const [users, setUsers] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showRenamer, setShowRenamer] = useState(false); // NUEVO
   const [csvContent, setCsvContent] = useState('');
   const [importing, setImporting] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // --- HERRAMIENTA DETECTIVE DE NOMBRES ---
+  // --- HERRAMIENTA 1: DETECTIVE (Ya la conoces) ---
   const analizarConflictos = async () => {
-    if (!confirm("🕵️ ¿Iniciar el Detective?\n\nEsto buscará si hay alumnos asignados a un Docente que está mal escrito en el sistema.")) return;
-    
+    if (!confirm("🕵️ ¿Iniciar el Detective?")) return;
     try {
       const snapUsers = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
       const usuariosReales = snapUsers.docs.map(d => d.data().fullName);
-      
       const snapStudents = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'students'));
       const docentesEnAlumnos = new Set();
       
@@ -1313,25 +1312,68 @@ function UsersAdminView() {
             if (s.teacherAfternoon) docentesEnAlumnos.add(s.teacherAfternoon);
         }
       });
-
       let conflictos = [];
-
       docentesEnAlumnos.forEach(docente => {
-        if (!usuariosReales.includes(docente)) {
-            conflictos.push(docente);
-        }
+        if (!usuariosReales.includes(docente)) conflictos.push(docente);
+      });
+      if (conflictos.length > 0) {
+        alert(`🚨 NOMBRES QUE NO COINCIDEN:\n\n"${conflictos.join('", "')}"\n\nUsa el botón REEMPLAZAR para corregirlos.`);
+      } else {
+        alert("✅ Todos los nombres coinciden.");
+      }
+    } catch (e) { alert("Error: " + e.message); }
+  };
+
+  // --- HERRAMIENTA 2: REEMPLAZO MASIVO (NUEVA) ---
+  const renombrarDocente = async (e) => {
+    e.preventDefault();
+    const oldName = e.target.oldName.value.trim();
+    const newName = e.target.newName.value.trim();
+    
+    if(!oldName || !newName) return;
+    if(!confirm(`⚠️ ¿Seguro que quieres cambiar "${oldName}" por "${newName}" en TODOS los alumnos?\n\nEsta acción no se puede deshacer.`)) return;
+
+    setImporting(true);
+    try {
+      const snap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'students'));
+      let count = 0;
+      const updates = [];
+      const batchSize = 400; // Firebase limit
+      let currentBatch = [];
+
+      snap.docs.forEach(docSnap => {
+         const s = docSnap.data();
+         let changed = false;
+         let changes = {};
+
+         // Revisamos todos los campos posibles donde aparece un nombre
+         if (s.teacherMorning === oldName) { changes.teacherMorning = newName; changed = true; }
+         if (s.auxMorning === oldName) { changes.auxMorning = newName; changed = true; }
+         if (s.sup1Morning === oldName) { changes.sup1Morning = newName; changed = true; }
+         if (s.sup2Morning === oldName) { changes.sup2Morning = newName; changed = true; }
+         
+         if (s.teacherAfternoon === oldName) { changes.teacherAfternoon = newName; changed = true; }
+         if (s.auxAfternoon === oldName) { changes.auxAfternoon = newName; changed = true; }
+         if (s.sup1Afternoon === oldName) { changes.sup1Afternoon = newName; changed = true; }
+         if (s.sup2Afternoon === oldName) { changes.sup2Afternoon = newName; changed = true; }
+
+         if (changed) {
+            updates.push(updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', docSnap.id), changes));
+            count++;
+         }
       });
 
-      if (conflictos.length > 0) {
-        alert(`🚨 ¡ENCONTRÉ EL PROBLEMA!\n\nHay ${conflictos.length} nombres que no coinciden:\n\n👉 "${conflictos.join('", "')}"\n\nSOLUCIÓN: Busca a estos usuarios en la lista de abajo y EDÍTALOS para que el nombre quede IDÉNTICO (cuidado con espacios al final).`);
-      } else {
-        alert("✅ El Detective no encontró errores de nombres. Todos coinciden.");
-      }
-    } catch (e) {
-      alert("Error al ejecutar el detective: " + e.message);
+      await Promise.all(updates);
+      alert(`✅ ¡ÉXITO!\n\nSe actualizaron ${count} legajos.\nAhora los alumnos de "${oldName}" pertenecen a "${newName}".`);
+      setShowRenamer(false);
+    } catch (err) {
+      alert("Error al renombrar: " + err.message);
+    } finally {
+      setImporting(false);
     }
   };
 
+  // --- GESTIÓN DE USUARIOS (CRUD) ---
   useEffect(() => {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
     const unsub = onSnapshot(q, snap => setUsers(snap.docs.map(d => ({id: d.id, ...d.data()}))));
@@ -1370,13 +1412,11 @@ function UsersAdminView() {
     e.preventDefault(); 
     const fd = new FormData(e.target);
     const userLower = fd.get('username').toLowerCase();
-    
     const userData = {
         firstName: fd.get('firstName'), lastName: fd.get('lastName'), fullName: `${fd.get('firstName')} ${fd.get('lastName')}`,
         username: userLower, password: fd.get('password'), role: fd.get('role'),
         rol: fd.get('isAdmin') === 'on' ? 'admin' : 'user'
     };
-    
     if (editingUser) {
         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', editingUser.id), userData);
         setEditingUser(null);
@@ -1390,24 +1430,14 @@ function UsersAdminView() {
   };
 
   const deleteUser = async (id) => { if(confirm("¿Eliminar usuario?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id)); };
-  
   const openEdit = (u) => { setEditingUser(u); setShowModal(true); };
   const openNew = () => { setEditingUser(null); setShowModal(true); };
+  const formatLastLogin = (timestamp) => timestamp ? new Date(timestamp.seconds * 1000).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'Nunca';
 
-  const formatLastLogin = (timestamp) => {
-      if (!timestamp) return 'Nunca';
-      return new Date(timestamp.seconds * 1000).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-  };
-
-  // --- AQUÍ ESTABA EL ERROR: AHORA ESTÁ BLINDADO ---
+  // Filtro blindado
   const filteredUsers = users.filter(u => {
     const search = searchTerm.toLowerCase();
-    // Usamos (u.campo || '') para que si el campo no existe, use un texto vacío y no explote
-    return (
-        (u.fullName || '').toLowerCase().includes(search) ||
-        (u.username || '').toLowerCase().includes(search) ||
-        (u.role || '').toLowerCase().includes(search)
-    );
+    return (u.fullName || '').toLowerCase().includes(search) || (u.username || '').toLowerCase().includes(search) || (u.role || '').toLowerCase().includes(search);
   });
 
   return (
@@ -1416,9 +1446,8 @@ function UsersAdminView() {
         <div className="flex justify-between items-center">
             <div><h3 className="text-white font-bold text-sm uppercase tracking-widest">{users.length} Usuarios</h3></div>
             <div className="flex gap-2">
-              <button onClick={analizarConflictos} className="bg-violet-600 text-white px-3 py-2 rounded-xl font-black text-xs uppercase shadow-lg flex items-center gap-1 hover:bg-violet-500 transition border border-violet-400">
-                🕵️ Detective
-              </button>
+              <button onClick={analizarConflictos} className="bg-violet-600 text-white px-3 py-2 rounded-xl font-black text-xs uppercase shadow-lg flex items-center gap-1 hover:bg-violet-500 transition border border-violet-400">🕵️ Detective</button>
+              <button onClick={() => setShowRenamer(true)} className="bg-blue-600 text-white px-3 py-2 rounded-xl font-black text-xs uppercase shadow-lg flex items-center gap-1 hover:bg-blue-500 transition border border-blue-400">🔄 Reemplazar</button>
               <button onClick={() => setShowImport(true)} className="bg-emerald-500 text-white px-3 py-2 rounded-xl font-black text-xs uppercase shadow-lg flex items-center gap-1 hover:bg-emerald-600 transition"><UploadCloud size={16}/> Importar</button>
               <button onClick={openNew} className="bg-orange-500 text-white px-3 py-2 rounded-xl font-black text-xs uppercase shadow-lg flex items-center gap-1 hover:bg-orange-600 transition"><Plus size={16}/> Manual</button>
             </div>
@@ -1426,12 +1455,7 @@ function UsersAdminView() {
         
         <div className="bg-black/20 p-2 rounded-xl flex items-center gap-2 border border-white/10">
             <Search className="text-white/50 ml-2" size={18} />
-            <input 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por nombre, usuario o rol..."
-                className="bg-transparent border-none outline-none text-white text-sm w-full placeholder-white/30"
-            />
+            <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar..." className="bg-transparent border-none outline-none text-white text-sm w-full placeholder-white/30" />
             {searchTerm && <button onClick={() => setSearchTerm('')}><X size={16} className="text-white/50 hover:text-white mr-2" /></button>}
         </div>
     </div>
@@ -1441,22 +1465,32 @@ function UsersAdminView() {
       <div key={u.id} className="bg-white p-4 rounded-2xl border border-white/50 shadow-sm flex items-center justify-between group">
        <div className="flex items-center gap-4">
         <div className="w-10 h-10 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center font-black text-xs uppercase border border-violet-200">{u.firstName?.[0]}{u.lastName?.[0]}</div>
-        <div>
-            <p className="font-bold text-sm text-gray-800 uppercase italic tracking-tighter">{u.fullName || 'Sin Nombre'}</p>
-            <p className="text-[10px] text-gray-400 mt-0.5">{u.role || 'Sin Rol'} | {u.username || 'Sin Usuario'}</p>
-            <p className="text-[9px] text-green-600 font-bold mt-1 flex items-center gap-1"><Activity size={8}/> Activo: {formatLastLogin(u.lastLogin)}</p>
-        </div>
+        <div><p className="font-bold text-sm text-gray-800 uppercase italic tracking-tighter">{u.fullName || 'Sin Nombre'}</p><p className="text-[10px] text-gray-400 mt-0.5">{u.role} | {u.username}</p><p className="text-[9px] text-green-600 font-bold mt-1 flex items-center gap-1"><Activity size={8}/> {formatLastLogin(u.lastLogin)}</p></div>
        </div>
-       <div className="flex gap-2">
-           <button onClick={() => openEdit(u)} className="p-2 bg-blue-50 text-blue-500 rounded-full hover:bg-blue-500 hover:text-white transition"><Edit3 size={16}/></button>
-           {u.username !== 'admin' && <button onClick={() => deleteUser(u.id)} className="p-2 bg-red-50 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition"><Trash2 size={16}/></button>}
-       </div>
+       <div className="flex gap-2"><button onClick={() => openEdit(u)} className="p-2 bg-blue-50 text-blue-500 rounded-full hover:bg-blue-500 hover:text-white transition"><Edit3 size={16}/></button>{u.username !== 'admin' && <button onClick={() => deleteUser(u.id)} className="p-2 bg-red-50 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition"><Trash2 size={16}/></button>}</div>
       </div>
-     )) : (
-        <p className="text-center text-white/50 italic text-sm py-4">No se encontraron usuarios.</p>
-     )}
+     )) : (<p className="text-center text-white/50 italic text-sm py-4">No se encontraron usuarios.</p>)}
     </div>
 
+    {/* MODAL REEMPLAZAR NOMBRES */}
+    {showRenamer && (
+      <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4">
+         <form onSubmit={renombrarDocente} className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl border-t-8 border-blue-500 animate-in zoom-in-95">
+            <h3 className="text-xl font-black italic uppercase text-blue-800 mb-2">Corrector de Nombres</h3>
+            <p className="text-xs text-gray-500 mb-4">Corrige los legajos que tienen el nombre viejo.</p>
+            
+            <label className="text-xs font-bold text-red-500 uppercase">Nombre INCORRECTO (Viejo)</label>
+            <input name="oldName" placeholder="Ej: Walter" className="w-full p-3 bg-red-50 rounded-xl border border-red-100 mb-4 outline-none font-bold text-sm" required />
+            
+            <label className="text-xs font-bold text-green-600 uppercase">Nombre CORRECTO (Nuevo)</label>
+            <input name="newName" placeholder="Ej: Walter Agüero" className="w-full p-3 bg-green-50 rounded-xl border border-green-100 mb-6 outline-none font-bold text-sm" required />
+            
+            <div className="flex gap-2"><button type="button" onClick={() => setShowRenamer(false)} className="flex-1 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button><button type="submit" disabled={importing} className="flex-1 py-3 bg-blue-600 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">{importing ? <RefreshCw className="animate-spin"/> : 'Corregir Todo'}</button></div>
+         </form>
+      </div>
+    )}
+
+    {/* MODALES ANTERIORES (IMPORTAR Y EDITAR) */}
     {showImport && (
       <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4">
          <div className="bg-white rounded-[40px] w-full max-w-lg p-8 shadow-2xl border-t-8 border-emerald-500 animate-in zoom-in-95">
@@ -1472,15 +1506,10 @@ function UsersAdminView() {
      <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4">
       <form onSubmit={handleSaveUser} className="bg-white rounded-[40px] w-full max-w-sm p-8 space-y-4 shadow-2xl border-t-8 border-orange-500 animate-in zoom-in-95">
        <h3 className="text-xl font-black italic uppercase text-violet-900">{editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}</h3>
-       <div className="grid grid-cols-2 gap-3">
-           <input name="firstName" defaultValue={editingUser?.firstName} placeholder="Nombre" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
-           <input name="lastName" defaultValue={editingUser?.lastName} placeholder="Apellido" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
-       </div>
+       <div className="grid grid-cols-2 gap-3"><input name="firstName" defaultValue={editingUser?.firstName} placeholder="Nombre" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" /><input name="lastName" defaultValue={editingUser?.lastName} placeholder="Apellido" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" /></div>
        <input name="username" defaultValue={editingUser?.username} placeholder="Usuario" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
        <input name="password" defaultValue={editingUser?.password} placeholder="Contraseña" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" />
-       <select name="role" defaultValue={editingUser?.role || 'Docente'} className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs font-black uppercase border border-gray-100">
-          {['Docente', 'Equipo Directivo', 'Equipo Técnico', 'Auxiliar/Preceptor', 'Inclusión', 'Profes Especiales', 'Administración'].map(r => <option key={r} value={r}>{r}</option>)}
-       </select>
+       <select name="role" defaultValue={editingUser?.role || 'Docente'} className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs font-black uppercase border border-gray-100">{['Docente', 'Equipo Directivo', 'Equipo Técnico', 'Auxiliar/Preceptor', 'Inclusión', 'Profes Especiales', 'Administración'].map(r => <option key={r} value={r}>{r}</option>)}</select>
        <div className="flex items-center gap-2 p-2 bg-violet-50 rounded-xl"><input type="checkbox" name="isAdmin" defaultChecked={editingUser?.rol === 'admin'} className="w-4 h-4 accent-violet-600" /><label className="text-xs font-bold text-violet-900">¿Es Administrador?</label></div>
        <div className="flex gap-2 pt-2"><button type="button" onClick={() => setShowModal(false)} className="flex-1 text-gray-400 font-bold uppercase text-[10px]">Volver</button><button type="submit" className="flex-1 py-3 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">Guardar</button></div>
       </form>
@@ -1489,7 +1518,7 @@ function UsersAdminView() {
    </div>
   );
 }
-// --- VISTA PROYECTO INSTITUCIONAL (LISTA COMPACTA) ---
+// --- VISTA PROYECTO INSTITUCIONAL (CON PORTADA PPI.png) ---
 function ProyectoView({ user }) {
   const [periods, setPeriods] = useState([]);
   const [expandedPeriod, setExpandedPeriod] = useState(null);
@@ -1529,10 +1558,35 @@ function ProyectoView({ user }) {
 
   return (
     <div className="space-y-6 pb-24 animate-in fade-in duration-700">
-      <div className="bg-white p-6 rounded-[30px] border-l-8 border-violet-600 shadow-lg">
-          <h2 className="text-2xl font-black text-gray-800 uppercase italic tracking-tighter">Proyecto 2026</h2>
-          <p className="text-violet-500 font-bold text-xs uppercase tracking-[3px] mt-1">La Vuelta al Mundo</p>
+      
+      {/* --- AQUÍ ESTÁ LA NUEVA PORTADA --- */}
+      <div className="relative w-full h-56 rounded-[35px] overflow-hidden shadow-2xl group border border-violet-100">
+          {/* La Imagen de Fondo */}
+          <img 
+            src="/PPI.png" 
+            alt="Portada Proyecto" 
+            className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+            onError={(e) => {
+                e.target.style.display = 'none'; // Si falla la imagen, se oculta y queda el color de fondo
+            }}
+          />
+          
+          {/* El Degradado (para que se lea el texto) */}
+          <div className="absolute inset-0 bg-gradient-to-t from-violet-900 via-violet-900/40 to-transparent flex flex-col justify-end p-8">
+              <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter drop-shadow-md mb-1">
+                  Proyecto 2026
+              </h2>
+              <div className="flex items-center gap-2">
+                  <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-widest shadow-sm">
+                      Institucional
+                  </span>
+                  <p className="text-orange-200 font-bold text-xs uppercase tracking-[3px] drop-shadow-sm">
+                      La Vuelta al Mundo
+                  </p>
+              </div>
+          </div>
       </div>
+      {/* ---------------------------------- */}
 
       <div className="space-y-3">
           {periods.map(period => (
@@ -1670,7 +1724,26 @@ function MatriculaView({ user }) {
 
  // --- PEGAR ESTO DENTRO DE MatriculaView, JUNTO A LAS OTRAS FUNCIONES ---
 
-const limpiarEspaciosMasivo = async () => {
+// --- FUNCIÓN DE BACKUP TOTAL ---
+  const descargarBackup = () => {
+      if(!confirm("¿Descargar copia de seguridad completa de todos los estudiantes?")) return;
+      
+      // Convertimos TODA la lista de estudiantes a texto
+      const dataStr = JSON.stringify(students, null, 2);
+      
+      // Creamos el archivo para descargar
+      const blob = new Blob([dataStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      
+      // Forzamos la descarga
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `RESPALDO_MATRICULA_${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+  };
+  const limpiarEspaciosMasivo = async () => {
     if (!confirm("⚠️ ¿ESTÁS SEGURO?\n\nEsto revisará a TODOS los alumnos y eliminará los espacios en blanco sobrantes en nombres, grupos y docentes.\n\nEjemplo: 'Belu Blanco ' pasará a 'Belu Blanco'.")) return;
     
     setProcessing(true);
@@ -1818,7 +1891,16 @@ const limpiarEspaciosMasivo = async () => {
                       <h3 className="text-xl font-bold text-gray-800">Gestión de Base de Datos</h3>
                       <button onClick={() => setShowDataManagement(false)} className="text-gray-400 hover:text-gray-600"><X size={24}/></button>
                   </div>
-
+<div className="bg-violet-100 p-4 rounded-xl border border-violet-200 mb-6 flex items-center justify-between">
+              <div>
+                  <h4 className="font-bold text-violet-900 text-sm">Copia de Seguridad</h4>
+                  <p className="text-xs text-violet-600">Descarga un archivo con TODOS los datos (incluida la bitácora).</p>
+              </div>
+              <button onClick={descargarBackup} className="bg-violet-600 text-white px-4 py-2 rounded-xl font-black text-xs uppercase shadow-lg hover:bg-violet-700 transition flex items-center gap-2">
+                  <Download size={18}/> Descargar Backup
+              </button>
+          </div>
+          {/* --------------------------------------- */}
                 {/* 1. MANTENIMIENTO Y LIMPIEZA */}
 <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200 mb-6">
     <h4 className="font-bold text-yellow-800 text-sm mb-3 flex items-center gap-2">
@@ -2218,6 +2300,7 @@ function GroupsView({ user }) {
 
 // Icono auxiliar (necesario para el código)
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
