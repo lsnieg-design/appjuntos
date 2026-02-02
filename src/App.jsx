@@ -326,7 +326,7 @@ function LoginScreen({ onLogin }) {
 }
 
 
-// --- APP PRINCIPAL (CON BUSCADOR GLOBAL Y MENÚ COMPLETO) ---
+// --- APP PRINCIPAL (CORREGIDA: MENÚ DESTACADO, LIMPIEZA Y NOTIFICACIONES) ---
 function MainApp({ user, onLogout, onProfileUpdate }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [tasks, setTasks] = useState([]);
@@ -351,12 +351,13 @@ function MainApp({ user, onLogout, onProfileUpdate }) {
     const qNotifs = query(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), where('toUserId', '==', user.id));
     const unsubNotifs = onSnapshot(qNotifs, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Ordenar por fecha
       data.sort((a, b) => {
           const dateA = a.createdAt ? a.createdAt.seconds : 0;
           const dateB = b.createdAt ? b.createdAt.seconds : 0;
           return dateB - dateA;
       });
-      setNotifications(data.filter(n => !n.read));
+      setNotifications(data.filter(n => !n.read)); // Solo las no leídas
     });
 
     const qEvents = query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc'));
@@ -368,41 +369,24 @@ function MainApp({ user, onLogout, onProfileUpdate }) {
     return () => { unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); };
   }, [user.id]);
 
-  // LÓGICA BUSCADOR
   const handleGlobalSearch = async (text) => {
       setSearchQuery(text);
       if (text.length < 2) { setSearchResults([]); return; }
-      // Buscamos en memoria local (más rápido y barato)
-      // Nota: Para una base de datos gigante, esto se haría con una query de Firestore, 
-      // pero para < 500 alumnos esto es instantáneo.
       const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'));
       const snapshot = await getDocs(q); 
-      const results = snapshot.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .filter(s => 
-              (s.isActive === undefined || s.isActive === true) && 
-              (s.firstName.toLowerCase().includes(text.toLowerCase()) || 
-               s.lastName.toLowerCase().includes(text.toLowerCase()))
-          );
+      const results = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).filter(s => (s.isActive === undefined || s.isActive === true) && (s.firstName.toLowerCase().includes(text.toLowerCase()) || s.lastName.toLowerCase().includes(text.toLowerCase())));
       setSearchResults(results.slice(0, 5));
   };
 
   const handleNotificationClick = async (notif) => {
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', notif.id), { read: true });
+      await deleteNotification(notif.id); // La borramos al tocarla
       if (notif.targetTab) { setActiveTab(notif.targetTab); } 
-      else {
-          const t = notif.title.toLowerCase();
-          if (t.includes('tarea') || t.includes('comentario')) setActiveTab('tasks');
-          else if (t.includes('evento') || t.includes('agenda')) setActiveTab('calendar');
-          else if (t.includes('recurso')) setActiveTab('resources');
-          else if (t.includes('legajo') || t.includes('alumno')) setActiveTab('matricula');
-      }
       setShowNotifPanel(false);
   };
 
-  const dismissNotification = async (e, id) => {
-      e.stopPropagation(); 
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', id), { read: true });
+  // CAMBIO: Función para BORRAR notificación (Tacho)
+  const deleteNotification = async (id) => {
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', id));
   };
 
   const calculateAge = (dateString) => {
@@ -424,7 +408,6 @@ function MainApp({ user, onLogout, onProfileUpdate }) {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* LUPA BUSCADOR */}
           <button onClick={() => setShowSearch(true)} className="p-2 rounded-full bg-violet-900/50 hover:bg-orange-500 transition"><Search size={20} /></button>
 
           <div className="relative">
@@ -441,26 +424,23 @@ function MainApp({ user, onLogout, onProfileUpdate }) {
                 </div>
                 <div className="max-h-80 overflow-y-auto">
                   {notifications.length === 0 ? (
-                    <div className="p-10 text-center flex flex-col items-center">
-                        <div className="bg-gray-50 p-3 rounded-full mb-3"><Bell size={24} className="text-gray-300" /></div>
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Sin novedades</p>
-                    </div>
+                    <div className="p-10 text-center flex flex-col items-center"><div className="bg-gray-50 p-3 rounded-full mb-3"><Bell size={24} className="text-gray-300" /></div><p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Sin novedades</p></div>
                   ) : (
                     notifications.map(n => (
                       <div key={n.id} onClick={() => handleNotificationClick(n)} className="p-4 border-b last:border-none hover:bg-gray-50 transition relative group cursor-pointer">
                         <div className="flex justify-between items-start">
-                            <div>
+                            <div className="pr-6">
                                 <p className="text-[10px] font-bold text-orange-600 mb-1 uppercase tracking-tighter">{n.title}</p>
-                                <p className="text-xs text-gray-700 leading-tight pr-6">{n.message}</p>
+                                <p className="text-xs text-gray-700 leading-tight">{n.message}</p>
                                 <p className="text-[9px] text-gray-400 mt-2">{n.createdAt ? new Date(n.createdAt.seconds * 1000).toLocaleString() : '-'}</p>
                             </div>
-                            <button onClick={(e) => dismissNotification(e, n.id)} className="text-gray-300 hover:text-red-500 transition p-1"><X size={16} /></button>
+                            {/* BOTÓN TACHO PARA BORRAR */}
+                            <button onClick={(e) => { e.stopPropagation(); deleteNotification(n.id); }} className="text-gray-300 hover:text-red-500 transition p-2 bg-gray-50 rounded-full absolute right-2 top-2"><Trash2 size={14} /></button>
                         </div>
                       </div>
                     ))
                   )}
                 </div>
-                <button onClick={() => { setActiveTab('notifications'); setShowNotifPanel(false); }} className="w-full p-3 text-center text-xs font-bold text-violet-600 bg-violet-50 hover:bg-violet-100 border-t">VER TODOS</button>
               </div>
             )}
           </div>
@@ -482,90 +462,50 @@ function MainApp({ user, onLogout, onProfileUpdate }) {
         {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={canManageContent} user={user} />}
       </main>
 
-      <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-20 z-30 shadow-lg pb-safe">
-        <div className="flex justify-around items-center h-full max-w-4xl mx-auto px-2">
-          <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={24} />} label="Inicio" />
-          <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={24} />} label="Tareas" />
-          <NavButton active={activeTab === 'groups'} onClick={() => setActiveTab('groups')} icon={<Grid size={24} />} label="Mi Aula" />
-          <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={24} />} label="Agenda" />
-          <NavButton active={activeTab === 'matricula'} onClick={() => setActiveTab('matricula')} icon={<GraduationCap size={24} />} label="Legajos" />
-          <NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<LinkIcon size={24} />} label="Recursos" />
-          <NavButton active={activeTab === 'proyecto'} onClick={() => setActiveTab('proyecto')} icon={<PieChart size={24} />} label="P.I." />
+      {/* --- NUEVA BARRA DE NAVEGACIÓN (CON MI AULA DESTACADA) --- */}
+      <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-16 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] pb-safe">
+        <div className="flex justify-between items-center h-full max-w-4xl mx-auto px-4 relative">
+          
+          <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Inicio" />
+          <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={20} />} label="Tareas" />
+          <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={20} />} label="Agenda" />
+          
+          {/* BOTÓN CENTRAL FLOTANTE (MI AULA) */}
+          <div className="relative -top-5">
+              <button 
+                onClick={() => setActiveTab('groups')}
+                className={`w-14 h-14 rounded-full flex flex-col items-center justify-center shadow-xl border-4 border-gray-50 transition-all transform active:scale-95 ${activeTab === 'groups' ? 'bg-orange-500 text-white scale-110' : 'bg-violet-600 text-white'}`}
+              >
+                  <Grid size={24} />
+              </button>
+              <span className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 text-[9px] font-black text-violet-900 uppercase tracking-wide whitespace-nowrap">Mi Aula</span>
+          </div>
+
+          <NavButton active={activeTab === 'matricula'} onClick={() => setActiveTab('matricula')} icon={<GraduationCap size={20} />} label="Legajos" />
+          <NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<LinkIcon size={20} />} label="Recursos" />
+          <NavButton active={activeTab === 'proyecto'} onClick={() => setActiveTab('proyecto')} icon={<PieChart size={20} />} label="P.I." />
         </div>
       </nav>
 
-      <footer className="text-center pb-24 pt-6 opacity-50">
-          <a href="https://www.somosnomade.com.ar" target="_blank" rel="noopener noreferrer" className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-violet-600 transition">
-              Creado por NOMADE
-          </a>
-      </footer>
-
-      {/* MODAL BUSCADOR GLOBAL */}
+      {/* MODALES DE BUSCADOR Y DETALLE (IGUAL QUE ANTES) */}
       {showSearch && (
           <div className="fixed inset-0 bg-violet-900/90 z-[300] flex flex-col p-4 backdrop-blur-md animate-in fade-in">
-              <div className="flex justify-between items-center text-white mb-4">
-                  <h3 className="font-black italic uppercase">Buscador Rápido</h3>
-                  <button onClick={() => {setShowSearch(false); setSearchQuery(''); setSearchResults([]);}} className="p-2 bg-white/20 rounded-full"><X/></button>
-              </div>
-              <input 
-                  autoFocus 
-                  value={searchQuery}
-                  onChange={(e) => handleGlobalSearch(e.target.value)}
-                  placeholder="Escribí un nombre o apellido..." 
-                  className="w-full p-4 rounded-2xl bg-white text-lg font-bold text-gray-800 outline-none shadow-xl mb-4"
-              />
-              <div className="flex-1 overflow-y-auto space-y-2">
-                  {searchResults.map(s => (
-                      <div key={s.id} onClick={() => setGlobalViewingStudent(s)} className="bg-white p-3 rounded-xl flex items-center gap-3 active:scale-95 transition cursor-pointer">
-                          <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">
-                              {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center font-bold text-gray-400">{s.firstName[0]}</div>}
-                          </div>
-                          <div>
-                              <p className="font-bold text-gray-800 text-sm">{s.lastName}, {s.firstName}</p>
-                              <p className="text-[10px] text-gray-500">{s.level} • {s.groupMorning || s.groupAfternoon || 'Sin Grupo'}</p>
-                          </div>
-                      </div>
-                  ))}
-                  {searchQuery.length > 2 && searchResults.length === 0 && <p className="text-white/50 text-center mt-4">No se encontraron resultados.</p>}
-              </div>
+              <div className="flex justify-between items-center text-white mb-4"><h3 className="font-black italic uppercase">Buscador Rápido</h3><button onClick={() => {setShowSearch(false); setSearchQuery(''); setSearchResults([]);}} className="p-2 bg-white/20 rounded-full"><X/></button></div>
+              <input autoFocus value={searchQuery} onChange={(e) => handleGlobalSearch(e.target.value)} placeholder="Escribí un nombre o apellido..." className="w-full p-4 rounded-2xl bg-white text-lg font-bold text-gray-800 outline-none shadow-xl mb-4"/>
+              <div className="flex-1 overflow-y-auto space-y-2">{searchResults.map(s => (<div key={s.id} onClick={() => setGlobalViewingStudent(s)} className="bg-white p-3 rounded-xl flex items-center gap-3 active:scale-95 transition cursor-pointer"><div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center font-bold text-gray-400">{s.firstName[0]}</div>}</div><div><p className="font-bold text-gray-800 text-sm">{s.lastName}, {s.firstName}</p><p className="text-[10px] text-gray-500">{s.level} • {s.groupMorning || s.groupAfternoon || 'Sin Grupo'}</p></div></div>))}{searchQuery.length > 2 && searchResults.length === 0 && <p className="text-white/50 text-center mt-4">No se encontraron resultados.</p>}</div>
           </div>
       )}
-
-      {/* DETALLE ALUMNO DESDE BUSCADOR */}
-      {globalViewingStudent && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[350] flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95">
-                <div className="bg-violet-600 p-4 text-white flex justify-between items-center">
-                    <h3 className="font-bold text-lg">{globalViewingStudent.lastName}, {globalViewingStudent.firstName}</h3>
-                    <button onClick={() => setGlobalViewingStudent(null)}><X/></button>
-                </div>
-                <div className="p-6">
-                    <div className="flex gap-4 items-center mb-4">
-                        <div className="w-20 h-20 bg-gray-200 rounded-2xl overflow-hidden">
-                            {globalViewingStudent.photoUrl && <img src={globalViewingStudent.photoUrl} className="w-full h-full object-cover"/>}
-                        </div>
-                        <div>
-                            <p className="text-sm font-bold text-gray-600">Edad: {calculateAge(globalViewingStudent.birthDate)} años</p>
-                            <p className="text-sm font-bold text-gray-600">DNI: {globalViewingStudent.dni}</p>
-                            <p className="text-xs text-orange-500 font-bold mt-1 uppercase">{globalViewingStudent.dx}</p>
-                        </div>
-                    </div>
-                    {/* ACCESO A FICHA COMPLETA */}
-                    <button 
-                        onClick={() => {
-                            setActiveTab('matricula'); 
-                            setShowSearch(false);
-                            setGlobalViewingStudent(null);
-                        }} 
-                        className="w-full bg-violet-100 text-violet-700 py-3 rounded-xl font-bold text-xs uppercase hover:bg-violet-200 transition"
-                    >
-                        Ir a Legajo Completo
-                    </button>
-                </div>
-            </div>
-        </div>
-      )}
+      {globalViewingStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[350] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95"><div className="bg-violet-600 p-4 text-white flex justify-between items-center"><h3 className="font-bold text-lg">{globalViewingStudent.lastName}, {globalViewingStudent.firstName}</h3><button onClick={() => setGlobalViewingStudent(null)}><X/></button></div><div className="p-6"><div className="flex gap-4 items-center mb-4"><div className="w-20 h-20 bg-gray-200 rounded-2xl overflow-hidden">{globalViewingStudent.photoUrl && <img src={globalViewingStudent.photoUrl} className="w-full h-full object-cover"/>}</div><div><p className="text-sm font-bold text-gray-600">Edad: {calculateAge(globalViewingStudent.birthDate)} años</p><p className="text-sm font-bold text-gray-600">DNI: {globalViewingStudent.dni}</p><p className="text-xs text-orange-500 font-bold mt-1 uppercase">{globalViewingStudent.dx}</p></div></div><button onClick={() => { setActiveTab('matricula'); setShowSearch(false); setGlobalViewingStudent(null); alert("Te llevamos a la sección Legajos. Buscalo ahí para editar."); }} className="w-full bg-violet-100 text-violet-700 py-3 rounded-xl font-bold text-xs uppercase hover:bg-violet-200 transition">Ir a Legajo Completo</button></div></div></div>)}
     </div>
+  );
+}
+// Componente auxiliar pequeño para los botones normales
+function NavButton({ active, onClick, icon, label }) {
+  return (
+    <button onClick={onClick} className={`flex flex-col items-center justify-center w-12 h-full space-y-1 transition-all duration-300 ${active ? 'text-orange-500' : 'text-gray-400 hover:text-violet-600'}`}>
+      <div className="relative">{icon}</div>
+      <span className="text-[9px] font-bold">{label}</span>
+    </button>
   );
 }
 function NavButton({ active, onClick, icon, label, badge }) {
@@ -1290,163 +1230,64 @@ function CalendarView({ events, canEdit, user }) {
 }
 
 // --- VISTA PERFIL (CON LLAVE DE NOTIFICACIONES CORREGIDA) ---
+// --- VISTA PERFIL (CON FOOTER) ---
 function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
   const [formData, setFormData] = useState({ firstName: user.firstName || '', lastName: user.lastName || '', photoUrl: user.photoUrl || '' });
   const [uploading, setUploading] = useState(false);
   const [showAdminUsers, setShowAdminUsers] = useState(false);
   const [showAudit, setShowAudit] = useState(false);
 
-  // 1. Activar Notificaciones (CON TU CLAVE YA PEGADA)
   const activarNotificaciones = async () => {
     try {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
         const messaging = getMessaging(app);
-        
-        // ACÁ ESTÁ LA SOLUCIÓN DEL ERROR:
-        const currentToken = await getToken(messaging, { 
-            vapidKey: 'BAEl7uzkT1NyeMtxaYgiCDlYNeyZ8WLqpB1Gc4UPx8B5EN1YVbcXPfDVsMixqIqpVGFxQGbBVogZHXZAScmCpMY' 
-        });
-        
+        const currentToken = await getToken(messaging, { vapidKey: 'BAEl7uzkT1NyeMtxaYgiCDlYNeyZ8WLqpB1Gc4UPx8B5EN1YVbcXPfDVsMixqIqpVGFxQGbBVogZHXZAScmCpMY' });
         if (currentToken) {
            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
            await updateDoc(userRef, { fcmTokens: arrayUnion(currentToken), lastTokenUpdate: serverTimestamp() });
-           alert("✅ ¡Listo! Notificaciones activadas en este celular.");
+           alert("✅ ¡Listo! Notificaciones activadas.");
            triggerMobileNotification("Dispositivo Conectado", "Ahora recibirás los comunicados aquí.");
-        } else {
-           alert("No se pudo obtener el identificador del dispositivo.");
-        }
-      } else { 
-          alert("Necesitamos tu permiso para enviarte avisos. Revisa la configuración del navegador."); 
-      }
-    } catch (e) { 
-        console.error(e); 
-        alert("Error al activar: " + e.message); 
-    }
-  };
-
-  // 2. Subir Foto
-  const resizeImage = (file) => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 300; 
-          const scaleSize = MAX_WIDTH / img.width;
-          canvas.width = MAX_WIDTH;
-          canvas.height = img.height * scaleSize;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL('image/jpeg', 0.7));
-        };
-        img.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    });
+        } else { alert("Error de ID."); }
+      } else { alert("Permiso denegado."); }
+    } catch (e) { console.error(e); alert("Error al activar: " + e.message); }
   };
 
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setUploading(true);
-      try {
-        const resized = await resizeImage(file);
-        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-        await updateDoc(userRef, { photoUrl: resized });
-        setFormData({ ...formData, photoUrl: resized });
-        alert("Foto actualizada.");
-      } catch (error) { alert("Error al subir."); } finally { setUploading(false); }
-    }
+    if (file) { setUploading(true); try { const resized = await resizeImage(file); const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id); await updateDoc(userRef, { photoUrl: resized }); setFormData({ ...formData, photoUrl: resized }); alert("Foto actualizada."); } catch (error) { alert("Error al subir."); } finally { setUploading(false); } }
   };
-
-  // 3. Exportar Tareas
-  const exportData = () => {
-      if(!tasks || tasks.length === 0) return alert("No hay tareas para exportar.");
-      const csvContent = "Titulo,Fecha Limite,Estado\n" + tasks.map(t => `${t.title},${t.dueDate},${t.status}`).join("\n");
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a'); link.href = url; link.download = "Mis_Tareas.csv"; link.click();
-  };
+  const resizeImage = (file) => { return new Promise((resolve) => { const reader = new FileReader(); reader.onload = (e) => { const img = new Image(); img.onload = () => { const canvas = document.createElement('canvas'); const MAX_WIDTH = 300; const scaleSize = MAX_WIDTH / img.width; canvas.width = MAX_WIDTH; canvas.height = img.height * scaleSize; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, canvas.width, canvas.height); resolve(canvas.toDataURL('image/jpeg', 0.7)); }; img.src = e.target.result; }; reader.readAsDataURL(file); }); };
+  const exportData = () => { if(!tasks || tasks.length === 0) return alert("No hay datos."); const csvContent = "Titulo,Fecha Limite,Estado\n" + tasks.map(t => `${t.title},${t.dueDate},${t.status}`).join("\n"); const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = "Mis_Tareas.csv"; link.click(); };
 
   return (
     <div className="space-y-6 text-center animate-in fade-in duration-700 pb-20">
-      
-      {/* TARJETA DE PERFIL */}
       <div className="bg-white rounded-3xl shadow-sm border border-violet-50 overflow-hidden mb-6 relative">
           <div className="bg-gradient-to-r from-violet-600 to-orange-500 h-28 relative"></div>
           <div className="px-6 pb-6 pt-12 relative">
              <div className="absolute -top-10 left-6 w-24 h-24 bg-white p-1 rounded-2xl shadow-lg group">
-                <div className="w-full h-full rounded-xl overflow-hidden relative border border-violet-100 bg-violet-50 flex items-center justify-center cursor-pointer hover:opacity-80 transition">
-                   {formData.photoUrl ? <img src={formData.photoUrl} className="w-full h-full object-cover" alt="Perfil" /> : <div className="text-violet-600 font-bold text-3xl">{user.firstName?.[0]}{user.lastName?.[0]}</div>}
-                   <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileChange} accept="image/*" />
-                   {uploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><RefreshCw className="text-white animate-spin" /></div>}
-                </div>
+                <div className="w-full h-full rounded-xl overflow-hidden relative border border-violet-100 bg-violet-50 flex items-center justify-center cursor-pointer hover:opacity-80 transition">{formData.photoUrl ? <img src={formData.photoUrl} className="w-full h-full object-cover" alt="Perfil" /> : <div className="text-violet-600 font-bold text-3xl">{user.firstName?.[0]}{user.lastName?.[0]}</div>}<input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileChange} accept="image/*" />{uploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><RefreshCw className="text-white animate-spin" /></div>}</div>
              </div>
-             <div className="flex justify-between items-start">
-                 <div className="pl-2 text-left pt-2">
-                     <h2 className="text-2xl font-bold text-gray-800 leading-tight">{user.fullName}</h2>
-                     <p className="text-orange-600 font-bold text-xs uppercase tracking-wider">{user.role}</p>
-                 </div>
-             </div>
+             <div className="flex justify-between items-start"><div className="pl-2 text-left pt-2"><h2 className="text-2xl font-bold text-gray-800 leading-tight">{user.fullName}</h2><p className="text-orange-600 font-bold text-xs uppercase tracking-wider">{user.role}</p></div></div>
           </div>
       </div>
-
       <h3 className="text-lg font-bold text-violet-900 mb-4 px-2 text-left">Acciones</h3>
-      
-      {/* BOTONES DE ACCIÓN */}
       <div className="grid gap-3">
-        {isSuperAdmin && (
-            <>
-                <button onClick={() => setShowAdminUsers(true)} className="bg-orange-600 p-4 rounded-2xl shadow-xl flex items-center gap-4 hover:scale-[1.02] transition text-white">
-                    <div className="bg-white/20 p-3 rounded-xl"><Users size={24} /></div>
-                    <div className="text-left"><h4 className="font-bold">Gestionar Personal</h4><p className="text-xs opacity-80">Administración de usuarios</p></div>
-                </button>
-
-                <button onClick={() => setShowAudit(true)} className="bg-indigo-900 p-4 rounded-2xl shadow-xl flex items-center gap-4 hover:scale-[1.02] transition text-white border border-indigo-700">
-                    <div className="bg-white/20 p-3 rounded-xl"><Activity size={24} /></div>
-                    <div className="text-left"><h4 className="font-bold">Auditoría Global</h4><p className="text-xs opacity-80">Ver registro de todas las tareas</p></div>
-                </button>
-            </>
-        )}
-
-        <button onClick={exportData} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]">
-            <div className="bg-green-100 text-green-700 p-3 rounded-xl"><Download size={24} /></div>
-            <div className="text-left"><h4 className="font-bold text-gray-800">Exportar Reporte</h4><p className="text-xs text-gray-500">Descargar mis tareas en Excel</p></div>
-        </button>
-
-        <button onClick={activarNotificaciones} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]">
-            <div className="bg-yellow-100 text-yellow-700 p-3 rounded-xl"><Bell size={24} /></div>
-            <div className="text-left"><h4 className="font-bold text-gray-800">Activar Notificaciones</h4><p className="text-xs text-gray-500">Habilitar avisos en este dispositivo</p></div>
-        </button>
-
-        <button onClick={() => { if(confirm("¿Cerrar sesión?")) onLogout(); }} className="bg-red-50 p-4 rounded-2xl border border-red-100 shadow-sm flex items-center gap-4 hover:bg-red-100 transition active:scale-[0.98]">
-            <div className="bg-white text-red-500 p-3 rounded-xl"><LogOut size={24} /></div>
-            <div className="text-left"><h4 className="font-bold text-red-600">Cerrar Sesión</h4><p className="text-xs text-red-400">Salir de la cuenta segura</p></div>
-        </button>
+        {isSuperAdmin && (<><button onClick={() => setShowAdminUsers(true)} className="bg-orange-600 p-4 rounded-2xl shadow-xl flex items-center gap-4 hover:scale-[1.02] transition text-white"><div className="bg-white/20 p-3 rounded-xl"><Users size={24} /></div><div className="text-left"><h4 className="font-bold">Gestionar Personal</h4><p className="text-xs opacity-80">Administración de usuarios</p></div></button><button onClick={() => setShowAudit(true)} className="bg-indigo-900 p-4 rounded-2xl shadow-xl flex items-center gap-4 hover:scale-[1.02] transition text-white border border-indigo-700"><div className="bg-white/20 p-3 rounded-xl"><Activity size={24} /></div><div className="text-left"><h4 className="font-bold">Auditoría Global</h4><p className="text-xs opacity-80">Ver registro de todas las tareas</p></div></button></>)}
+        <button onClick={exportData} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]"><div className="bg-green-100 text-green-700 p-3 rounded-xl"><Download size={24} /></div><div className="text-left"><h4 className="font-bold text-gray-800">Exportar Reporte</h4><p className="text-xs text-gray-500">Descargar mis tareas en Excel</p></div></button>
+        <button onClick={activarNotificaciones} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]"><div className="bg-yellow-100 text-yellow-700 p-3 rounded-xl"><Bell size={24} /></div><div className="text-left"><h4 className="font-bold text-gray-800">Activar Notificaciones</h4><p className="text-xs text-gray-500">Habilitar avisos en este dispositivo</p></div></button>
+        <button onClick={() => { if(confirm("¿Cerrar sesión?")) onLogout(); }} className="bg-red-50 p-4 rounded-2xl border border-red-100 shadow-sm flex items-center gap-4 hover:bg-red-100 transition active:scale-[0.98]"><div className="bg-white text-red-500 p-3 rounded-xl"><LogOut size={24} /></div><div className="text-left"><h4 className="font-bold text-red-600">Cerrar Sesión</h4><p className="text-xs text-red-400">Salir de la cuenta segura</p></div></button>
+      </div>
+      
+      <div className="mt-10 pt-6 border-t border-gray-100 opacity-50 pb-10">
+          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[4px]">Creado por <a href="https://www.somosnomade.com.ar" target="_blank" className="hover:text-violet-600 transition">NOMADE</a></p>
       </div>
 
-      {showAdminUsers && (
-        <div className="fixed inset-0 bg-violet-900/95 z-[200] flex flex-col p-6 animate-in slide-in-from-bottom duration-500 overflow-y-auto">
-          <div className="flex justify-between items-center text-white mb-8"><h2 className="text-2xl font-black uppercase italic tracking-tighter">Administración Personal</h2><button onClick={() => setShowAdminUsers(false)}><X size={32} /></button></div>
-          <UsersAdminView />
-        </div>
-       )}
-
-       {showAudit && (
-        <div className="fixed inset-0 bg-gray-900/95 z-[200] flex flex-col p-6 animate-in slide-in-from-bottom duration-500 overflow-y-auto">
-          <div className="flex justify-between items-center text-white mb-8">
-              <h2 className="text-2xl font-black uppercase italic tracking-tighter">Auditoría Institucional</h2>
-              <button onClick={() => setShowAudit(false)}><X size={32} /></button>
-          </div>
-          <ActivityLogView />
-        </div>
-       )}
+      {showAdminUsers && (<div className="fixed inset-0 bg-violet-900/95 z-[200] flex flex-col p-6 animate-in slide-in-from-bottom duration-500 overflow-y-auto"><div className="flex justify-between items-center text-white mb-8"><h2 className="text-2xl font-black uppercase italic tracking-tighter">Administración Personal</h2><button onClick={() => setShowAdminUsers(false)}><X size={32} /></button></div><UsersAdminView /></div>)}
+      {showAudit && (<div className="fixed inset-0 bg-gray-900/95 z-[200] flex flex-col p-6 animate-in slide-in-from-bottom duration-500 overflow-y-auto"><div className="flex justify-between items-center text-white mb-8"><h2 className="text-2xl font-black uppercase italic tracking-tighter">Auditoría Institucional</h2><button onClick={() => setShowAudit(false)}><X size={32} /></button></div><ActivityLogView /></div>)}
     </div>
   );
 }
-
 // --- VISTA ADMINISTRACIÓN DE USUARIOS (FALTANTE) ---
 function UsersAdminView() {
   const [users, setUsers] = useState([]);
@@ -1803,6 +1644,23 @@ function MatriculaView({ user }) {
       };
   };
 
+  // --- PEGAR ESTO JUNTO A LAS OTRAS FUNCIONES DENTRO DE MatriculaView ---
+  const deleteIncident = async (studentId, incident) => {
+      if(!confirm("¿Seguro querés borrar esta entrada de la bitácora?")) return;
+      try {
+          // Importamos dinámicamente para asegurar que funcione
+          const { updateDoc, doc, arrayRemove } = await import('firebase/firestore');
+          const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', studentId);
+          
+          // Esta instrucción busca el objeto exacto y lo saca de la lista
+          await updateDoc(studentRef, {
+              incidents: arrayRemove(incident)
+          });
+          alert("🗑️ Entrada eliminada.");
+      } catch (e) {
+          alert("Error al borrar: " + e.message);
+      }
+  };
   const downloadHistory = (student) => {
       if (!student.incidents || student.incidents.length === 0) return alert("No hay historial para descargar.");
       
@@ -2022,33 +1880,36 @@ function MatriculaView({ user }) {
                             </div>
                             
                             <div className="space-y-4 relative before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200">
-                                {viewingStudent.incidents && viewingStudent.incidents.length > 0 ? (
-                                    [...viewingStudent.incidents].reverse().map((inc, i) => (
-                                        <div key={i} className="pl-8 relative">
-                                            <div className={`absolute left-0 top-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${inc.severity === 'high' ? 'bg-red-500' : inc.severity === 'medium' ? 'bg-orange-400' : 'bg-yellow-400'}`}></div>
-                                            <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
-                                                <div className="flex justify-between items-start">
-                                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{new Date(inc.date).toLocaleDateString()} • {new Date(inc.date).toLocaleTimeString()}</span>
-                                                    <span className="text-[9px] bg-gray-100 px-2 py-0.5 rounded text-gray-500 font-bold uppercase">{inc.author}</span>
-                                                </div>
-                                                <p className="font-bold text-gray-800 text-sm mt-1">{inc.type}</p>
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <p className="pl-8 text-xs text-gray-400 italic">No hay registros aún.</p>
-                                )}
-                            </div>
-                        </div>
-                    )}
+                                {[...viewingStudent.incidents].reverse().map((inc, i) => (
+    <div key={i} className="pl-8 relative group"> 
+        {/* El puntito de color */}
+        <div className={`absolute left-0 top-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${inc.severity === 'high' ? 'bg-red-500' : inc.severity === 'medium' ? 'bg-orange-400' : 'bg-yellow-400'}`}></div>
+        
+        {/* La tarjeta blanca */}
+        <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex justify-between items-start hover:shadow-md transition">
+            <div>
+                <div className="flex justify-between items-start">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                        {new Date(inc.date).toLocaleDateString()} • {new Date(inc.date).toLocaleTimeString()}
+                    </span>
                 </div>
-
-                <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3 shrink-0">
-                    <button onClick={() => openEdit(viewingStudent)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-lg"><Edit3 size={18}/> Editar Ficha</button>
-                </div>
+                <p className="font-bold text-gray-800 text-sm mt-1">{inc.type}</p>
+                <span className="text-[9px] bg-gray-50 px-2 py-0.5 rounded text-gray-400 font-bold uppercase mt-1 inline-block">
+                    {inc.author}
+                </span>
             </div>
+
+            {/* BOTÓN TACHO (NUEVO) */}
+            <button 
+                onClick={() => deleteIncident(viewingStudent.id, inc)} 
+                className="text-gray-300 hover:text-red-500 p-2 hover:bg-red-50 rounded-full transition"
+                title="Borrar entrada"
+            >
+                <Trash2 size={14}/>
+            </button>
         </div>
-      )}
+    </div>
+))}
 
       {/* FORMULARIO Y GESTIÓN MANTENIDOS IGUAL QUE ANTES... (Ya incluidos en este bloque) */}
       {showForm && (
@@ -2068,13 +1929,12 @@ function MatriculaView({ user }) {
     </div>
   );
 }
-// --- VISTA TABLERO DE GRUPOS (FINAL: CON IMPRESIÓN DETALLADA) ---
+// --- VISTA TABLERO DE GRUPOS (IMPRESIÓN ARREGLADA + BORRAR INCIDENTES) ---
 function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
   const [turn, setTurn] = useState('morning'); 
   const [selectedStudent, setSelectedStudent] = useState(null);
   
-  // ESTADOS PARA BITÁCORA
   const [showBitacoraModal, setShowBitacoraModal] = useState(null); 
   const [savingIncident, setSavingIncident] = useState(false);
 
@@ -2113,7 +1973,7 @@ function GroupsView({ user }) {
               teacher: turn === 'morning' ? s.teacherMorning : s.teacherAfternoon,
               aux: turn === 'morning' ? s.auxMorning : s.auxAfternoon,
               classroom: s.classroom,
-              level: s.level // Capturamos el nivel del primer estudiante
+              level: s.level
           };
       }
       acc[groupName].students.push(s);
@@ -2138,6 +1998,21 @@ function GroupsView({ user }) {
       } catch (e) { console.error(e); alert("Error: " + e.message); } finally { setSavingIncident(false); }
   };
 
+  // --- NUEVA FUNCIÓN PARA BORRAR INCIDENTES ---
+  const deleteIncident = async (studentId, incident) => {
+      if(!confirm("¿Borrar esta entrada de la bitácora?")) return;
+      try {
+          const { updateDoc, doc, arrayRemove } = await import('firebase/firestore');
+          const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', studentId);
+          // Firestore necesita el objeto EXACTO para borrarlo del array
+          await updateDoc(studentRef, {
+              incidents: arrayRemove(incident)
+          });
+      } catch (e) {
+          alert("Error al borrar: " + e.message);
+      }
+  };
+
   const calculateAge = (dateString) => {
     if (!dateString) return '-';
     const today = new Date();
@@ -2148,77 +2023,57 @@ function GroupsView({ user }) {
     return age;
   };
 
-  // --- FUNCIÓN DE IMPRESIÓN (ACTUALIZADA) ---
+  // --- FUNCIÓN IMPRESIÓN ROBUSTA (NO BLOQUEA LA APP) ---
   const handlePrint = () => {
-    const printWindow = window.open('', '', 'height=600,width=800');
+    // Abrimos ventana antes para evitar bloqueo de popup
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return alert("Por favor, permití las ventanas emergentes para imprimir.");
+
     const fechaImpresion = new Date().toLocaleDateString('es-AR');
-    
-    printWindow.document.write('<html><head><title>Listado de Grupos</title>');
-    printWindow.document.write('<style>body{font-family: sans-serif; padding: 20px;} table{width:100%; border-collapse: collapse; margin-bottom: 30px; font-size: 12px;} th, td{border: 1px solid #000; padding: 8px; text-align: left;} th{background-color: #f0f0f0; text-transform: uppercase;} h1{text-align: center; font-size: 18px; margin-bottom: 20px; text-decoration: underline;} .group-container{margin-bottom: 40px; page-break-inside: avoid;} .group-header { border: 1px solid #000; background: #eee; padding: 10px; margin-bottom: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 13px; } .header-item { margin-bottom: 2px; } </style>');
-    printWindow.document.write('</head><body>');
-    printWindow.document.write(`<h1>LISTADO DE GRUPOS - CICLO LECTIVO 2026</h1>`);
+    const turnoTexto = turn === 'morning' ? 'MAÑANA' : 'TARDE';
+
+    let content = `<html><head><title>Listado de Grupos</title>`;
+    content += `<style>body{font-family: sans-serif; padding: 20px;} table{width:100%; border-collapse: collapse; margin-bottom: 30px; font-size: 12px;} th, td{border: 1px solid #000; padding: 8px; text-align: left;} th{background-color: #f0f0f0; text-transform: uppercase;} h1{text-align: center; font-size: 18px; margin-bottom: 20px; text-decoration: underline;} .group-container{margin-bottom: 40px; page-break-inside: avoid;} .group-header { border: 1px solid #000; background: #eee; padding: 10px; margin-bottom: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 13px; } .header-item { margin-bottom: 2px; } </style>`;
+    content += `</head><body>`;
+    content += `<h1>LISTADO DE GRUPOS - TURNO ${turnoTexto}</h1>`;
     
     groups.forEach(g => {
-        const turnoTexto = turn === 'morning' ? 'MAÑANA' : 'TARDE';
-        
-        printWindow.document.write(`<div class="group-container">`);
-        
-        // Encabezado del Grupo
-        printWindow.document.write(`
+        content += `<div class="group-container">`;
+        content += `
             <div class="group-header">
-                <div class="header-item"><strong>TURNO:</strong> ${turnoTexto}</div>
                 <div class="header-item"><strong>GRUPO:</strong> ${g.name}</div>
                 <div class="header-item"><strong>NIVEL:</strong> ${g.level || '-'}</div>
                 <div class="header-item"><strong>AULA:</strong> ${g.classroom || '-'}</div>
                 <div class="header-item"><strong>DOCENTE:</strong> ${g.teacher || '-'}</div>
                 <div class="header-item"><strong>AUXILIAR:</strong> ${g.aux || '-'}</div>
             </div>
-        `);
-
-        // Tabla de Alumnos
-        printWindow.document.write('<table><thead><tr><th>Nombre</th><th>Apellido</th><th>DNI</th><th>Edad</th><th>Fecha Nac.</th></tr></thead><tbody>');
-        
+        `;
+        content += '<table><thead><tr><th>Apellido y Nombre</th><th>DNI</th><th>Edad</th><th>Fecha Nac.</th><th>DX</th></tr></thead><tbody>';
         g.students.sort((a,b) => a.lastName.localeCompare(b.lastName)).forEach(s => {
             const edad = calculateAge(s.birthDate);
             const fechaNac = s.birthDate ? new Date(s.birthDate + 'T00:00:00').toLocaleDateString('es-AR') : '-';
-            
-            printWindow.document.write(`
-                <tr>
-                    <td>${s.firstName}</td>
-                    <td>${s.lastName}</td>
-                    <td>${s.dni}</td>
-                    <td>${edad}</td>
-                    <td>${fechaNac}</td>
-                </tr>
-            `);
+            content += `<tr><td>${s.lastName}, ${s.firstName}</td><td>${s.dni}</td><td>${edad}</td><td>${fechaNac}</td><td>${s.dx || '-'}</td></tr>`;
         });
-        printWindow.document.write('</tbody></table></div>');
+        content += '</tbody></table></div>';
     });
-    
-    printWindow.document.write('</body></html>');
+    content += `</body></html>`;
+
+    printWindow.document.write(content);
     printWindow.document.close();
-    printWindow.print();
+    // Esperamos un poquito para que carguen estilos
+    setTimeout(() => {
+        printWindow.print();
+        // NO cerramos la ventana automáticamente para que el usuario pueda volver atrás si quiere
+    }, 500);
   };
 
   return (
     <div className="flex flex-col h-full bg-slate-100 animate-in fade-in duration-500">
       <div className="bg-white p-4 shadow-sm z-10 flex justify-between items-center sticky top-0">
-          <div>
-            <h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter flex items-center gap-2">
-                <Grid size={24} className="text-orange-500"/> Mis Grupos
-            </h2>
-            <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">
-                {isManagement ? "Vista Global Institucional" : `Espacio de ${user.firstName}`}
-            </p>
-          </div>
+          <div><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter flex items-center gap-2"><Grid size={24} className="text-orange-500"/> Mis Grupos</h2><p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{isManagement ? "Vista Global Institucional" : `Espacio de ${user.firstName}`}</p></div>
           <div className="flex gap-2">
-              {/* BOTÓN IMPRIMIR */}
               <button onClick={handlePrint} className="bg-white border border-gray-200 text-gray-600 p-2 rounded-xl shadow-sm hover:bg-gray-50 transition" title="Imprimir Listas"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg></button>
-              
-              <div className="flex bg-gray-100 p-1 rounded-xl">
-                  <button onClick={() => setTurn('morning')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-md transform scale-105' : 'text-gray-400'}`}>☀️ Mañana</button>
-                  <button onClick={() => setTurn('afternoon')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-md transform scale-105' : 'text-gray-400'}`}>🌙 Tarde</button>
-              </div>
+              <div className="flex bg-gray-100 p-1 rounded-xl"><button onClick={() => setTurn('morning')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-md transform scale-105' : 'text-gray-400'}`}>☀️ Mañana</button><button onClick={() => setTurn('afternoon')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-md transform scale-105' : 'text-gray-400'}`}>🌙 Tarde</button></div>
           </div>
       </div>
 
@@ -2238,10 +2093,7 @@ function GroupsView({ user }) {
                       <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50/50">
                           {group.students.map(student => (
                               <div key={student.id} className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 relative hover:scale-[1.02] transition-transform duration-200">
-                                  <div onClick={() => setSelectedStudent(student)} className="w-12 h-12 rounded-full bg-gray-200 border-2 border-white shadow-sm flex-shrink-0 overflow-hidden cursor-pointer relative">
-                                      {student.photoUrl ? <img src={student.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold">{student.firstName[0]}</div>}
-                                      {student.lastIncident && new Date(student.lastIncident).toDateString() === new Date().toDateString() && (<div className="absolute bottom-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-white animate-pulse"></div>)}
-                                  </div>
+                                  <div onClick={() => setSelectedStudent(student)} className="w-12 h-12 rounded-full bg-gray-200 border-2 border-white shadow-sm flex-shrink-0 overflow-hidden cursor-pointer relative">{student.photoUrl ? <img src={student.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold">{student.firstName[0]}</div>}{student.lastIncident && new Date(student.lastIncident).toDateString() === new Date().toDateString() && (<div className="absolute bottom-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-white animate-pulse"></div>)}</div>
                                   <div className="flex-1 min-w-0" onClick={() => setSelectedStudent(student)}><h4 className="font-bold text-gray-700 text-sm truncate cursor-pointer">{student.firstName} {student.lastName}</h4><p className="text-[10px] text-gray-400">{student.dx || 'Sin DX'}</p></div>
                                   <button onClick={() => setShowBitacoraModal(student)} className="w-8 h-8 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center shadow-sm hover:bg-violet-600 hover:text-white transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></button>
                               </div>
@@ -2271,7 +2123,12 @@ function GroupsView({ user }) {
                     <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 h-40 overflow-y-auto">
                         <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Últimos Eventos</h4>
                         {selectedStudent.incidents && selectedStudent.incidents.length > 0 ? (
-                            <div className="space-y-2">{[...selectedStudent.incidents].reverse().slice(0, 5).map((inc, i) => (<div key={i} className="flex gap-2 text-xs border-b border-gray-100 pb-1"><span className="font-bold text-gray-500">{new Date(inc.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span><span className="font-bold text-gray-800">{inc.type}</span>{inc.severity === 'high' && <span className="w-2 h-2 rounded-full bg-red-500 mt-1"></span>}</div>))}</div>
+                            <div className="space-y-2">{[...selectedStudent.incidents].reverse().slice(0, 5).map((inc, i) => (
+                                <div key={i} className="flex gap-2 text-xs border-b border-gray-100 pb-1 justify-between">
+                                    <div className="flex gap-2"><span className="font-bold text-gray-500">{new Date(inc.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span><span className="font-bold text-gray-800">{inc.type}</span></div>
+                                    <button onClick={() => deleteIncident(selectedStudent.id, inc)} className="text-gray-300 hover:text-red-500"><Trash2 size={12}/></button>
+                                </div>
+                            ))}</div>
                         ) : (<p className="text-xs text-gray-400 italic text-center mt-4">Sin registros recientes.</p>)}
                     </div>
                 </div>
@@ -2284,6 +2141,7 @@ function GroupsView({ user }) {
 
 // Icono auxiliar
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
