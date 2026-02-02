@@ -1627,6 +1627,63 @@ function MatriculaView({ user }) {
       setPotentialDupes(found); setProcessing(false); setShowDataManagement(false); setShowDupes(true);
   };
 
+ // --- PEGAR ESTO DENTRO DE MatriculaView, JUNTO A LAS OTRAS FUNCIONES ---
+
+const limpiarEspaciosMasivo = async () => {
+    if (!confirm("⚠️ ¿ESTÁS SEGURO?\n\nEsto revisará a TODOS los alumnos y eliminará los espacios en blanco sobrantes en nombres, grupos y docentes.\n\nEjemplo: 'Belu Blanco ' pasará a 'Belu Blanco'.")) return;
+    
+    setProcessing(true);
+    try {
+        // 1. Traemos a todos los alumnos
+        const snapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'students'));
+        let corregidos = 0;
+        const updates = [];
+
+        // 2. Campos que vamos a limpiar
+        const camposA_Revisar = [
+            'firstName', 'lastName', 
+            'groupMorning', 'teacherMorning', 'auxMorning', 
+            'groupAfternoon', 'teacherAfternoon', 'auxAfternoon'
+        ];
+
+        snapshot.docs.forEach(docSnap => {
+            const data = docSnap.data();
+            const cambios = {};
+            let necesitaCambio = false;
+
+            camposA_Revisar.forEach(campo => {
+                // Si el campo existe y es texto
+                if (data[campo] && typeof data[campo] === 'string') {
+                    const original = data[campo];
+                    const limpio = original.trim(); // AQUÍ OCURRE LA MAGIA
+                    
+                    if (original !== limpio) {
+                        cambios[campo] = limpio;
+                        necesitaCambio = true;
+                    }
+                }
+            });
+
+            // Si encontramos basura, preparamos la actualización
+            if (necesitaCambio) {
+                updates.push(updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', docSnap.id), cambios));
+                corregidos++;
+            }
+        });
+
+        // 3. Ejecutamos todos los cambios
+        await Promise.all(updates);
+        
+        alert(`✅ ¡LIMPIEZA EXITOSA!\n\nSe corrigieron los datos de ${corregidos} estudiantes.\n\nAhora los grupos deberían aparecer bien.`);
+        setShowDataManagement(false);
+
+    } catch (e) {
+        console.error(e);
+        alert("Hubo un error: " + e.message);
+    } finally {
+        setProcessing(false);
+    }
+};
   const mergeStudents = async (keep, drop) => {
       if(!confirm(`¿Fusionar?`)) return;
       try {
@@ -1721,21 +1778,27 @@ function MatriculaView({ user }) {
                       <button onClick={() => setShowDataManagement(false)} className="text-gray-400 hover:text-gray-600"><X size={24}/></button>
                   </div>
 
-                  {/* 1. MANTENIMIENTO Y LIMPIEZA (AQUÍ ESTÁ EL RADAR) */}
-                  <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200 mb-6">
-                      <h4 className="font-bold text-yellow-800 text-sm mb-3 flex items-center gap-2">
-                          <RefreshCw size={16}/> Mantenimiento y Limpieza
-                      </h4>
-                      <div className="grid grid-cols-2 gap-2">
-                          <button onClick={findDuplicates} disabled={processing} className="bg-white border border-yellow-200 text-yellow-700 font-bold py-2 rounded-lg text-xs hover:bg-yellow-100 transition shadow-sm">
-                              Buscar Duplicados
-                          </button>
-                          <button onClick={checkUnassigned} className="bg-red-500 text-white font-bold py-2 rounded-lg text-xs hover:bg-red-600 transition shadow-sm flex items-center justify-center gap-1">
-                              <AlertTriangle size={12}/> Buscar Sin Asignar
-                          </button>
-                      </div>
-                  </div>
+                {/* 1. MANTENIMIENTO Y LIMPIEZA */}
+<div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200 mb-6">
+    <h4 className="font-bold text-yellow-800 text-sm mb-3 flex items-center gap-2">
+        <RefreshCw size={16}/> Mantenimiento y Limpieza
+    </h4>
+    <div className="grid grid-cols-2 gap-2">
+        <button onClick={findDuplicates} disabled={processing} className="bg-white border border-yellow-200 text-yellow-700 font-bold py-2 rounded-lg text-xs hover:bg-yellow-100 transition shadow-sm">
+            Buscar Duplicados
+        </button>
+        <button onClick={checkUnassigned} className="bg-red-500 text-white font-bold py-2 rounded-lg text-xs hover:bg-red-600 transition shadow-sm flex items-center justify-center gap-1">
+            <AlertTriangle size={12}/> Buscar Sin Asignar
+        </button>
+        
+        {/* --- AGREGA ESTE BOTÓN NUEVO AQUÍ ABAJO --- */}
+        <button onClick={limpiarEspaciosMasivo} disabled={processing} className="col-span-2 bg-violet-600 text-white font-bold py-3 rounded-lg text-xs hover:bg-violet-700 transition shadow-md flex items-center justify-center gap-2">
+            <RefreshCw size={14} className={processing ? "animate-spin" : ""}/> ✨ LIMPIAR ESPACIOS EN GRUPOS Y DOCENTES ✨
+        </button>
+        {/* ------------------------------------------ */}
 
+    </div>
+</div>
                   {/* 2. ZONA DE RIESGO */}
                   <div className="bg-gray-100 p-4 rounded-xl border border-gray-200 mb-6 opacity-70 hover:opacity-100 transition">
                       <h4 className="font-bold text-gray-600 text-sm mb-2">Zona Peligrosa</h4>
@@ -2114,6 +2177,7 @@ function GroupsView({ user }) {
 
 // Icono auxiliar (necesario para el código)
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
