@@ -1285,7 +1285,7 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
     </div>
   );
 }
-// --- VISTA ADMINISTRACIÓN DE USUARIOS (CON BUSCADOR) ---
+// --- VISTA ADMINISTRACIÓN DE USUARIOS (CON DETECTIVE) ---
 function UsersAdminView() {
   const [users, setUsers] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -1293,9 +1293,50 @@ function UsersAdminView() {
   const [csvContent, setCsvContent] = useState('');
   const [importing, setImporting] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-  
-  // NUEVO: Estado para el buscador
   const [searchTerm, setSearchTerm] = useState('');
+
+  // --- HERRAMIENTA DETECTIVE DE NOMBRES ---
+  const analizarConflictos = async () => {
+    if (!confirm("🕵️ ¿Iniciar el Detective?\n\nEsto buscará si hay alumnos asignados a un Docente que está mal escrito en el sistema.")) return;
+    
+    try {
+      // 1. Traemos la lista real de usuarios
+      const snapUsers = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
+      const usuariosReales = snapUsers.docs.map(d => d.data().fullName);
+      
+      // 2. Traemos a los alumnos activos
+      const snapStudents = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'students'));
+      const docentesEnAlumnos = new Set();
+      
+      snapStudents.docs.forEach(d => {
+        const s = d.data();
+        if (s.isActive) {
+            // Guardamos quién figura como docente en los alumnos
+            if (s.teacherMorning) docentesEnAlumnos.add(s.teacherMorning);
+            if (s.teacherAfternoon) docentesEnAlumnos.add(s.teacherAfternoon);
+        }
+      });
+
+      let conflictos = [];
+
+      // 3. Comparamos letra por letra
+      docentesEnAlumnos.forEach(docente => {
+        // Si el docente asignado NO está en la lista de usuarios exactos...
+        if (!usuariosReales.includes(docente)) {
+            conflictos.push(docente);
+        }
+      });
+
+      if (conflictos.length > 0) {
+        alert(`🚨 ¡ENCONTRÉ EL PROBLEMA!\n\nHay ${conflictos.length} nombres que no coinciden:\n\n👉 "${conflictos.join('", "')}"\n\nSOLUCIÓN: Busca a estos usuarios en la lista de abajo y EDÍTALOS para que el nombre quede IDÉNTICO (cuidado con espacios al final).`);
+      } else {
+        alert("✅ El Detective no encontró errores de nombres. Todos coinciden.");
+      }
+    } catch (e) {
+      alert("Error al ejecutar el detective: " + e.message);
+    }
+  };
+  // -----------------------------------------
 
   useEffect(() => {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
@@ -1364,7 +1405,6 @@ function UsersAdminView() {
       return new Date(timestamp.seconds * 1000).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   };
 
-  // NUEVO: Lógica de filtrado
   const filteredUsers = users.filter(u => 
     u.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -1377,12 +1417,16 @@ function UsersAdminView() {
         <div className="flex justify-between items-center">
             <div><h3 className="text-white font-bold text-sm uppercase tracking-widest">{users.length} Usuarios</h3></div>
             <div className="flex gap-2">
+              {/* BOTÓN DETECTIVE INTEGRADO */}
+              <button onClick={analizarConflictos} className="bg-violet-600 text-white px-3 py-2 rounded-xl font-black text-xs uppercase shadow-lg flex items-center gap-1 hover:bg-violet-500 transition border border-violet-400">
+                🕵️ Detective
+              </button>
+              
               <button onClick={() => setShowImport(true)} className="bg-emerald-500 text-white px-3 py-2 rounded-xl font-black text-xs uppercase shadow-lg flex items-center gap-1 hover:bg-emerald-600 transition"><UploadCloud size={16}/> Importar</button>
               <button onClick={openNew} className="bg-orange-500 text-white px-3 py-2 rounded-xl font-black text-xs uppercase shadow-lg flex items-center gap-1 hover:bg-orange-600 transition"><Plus size={16}/> Manual</button>
             </div>
         </div>
         
-        {/* --- NUEVO: INPUT BUSCADOR --- */}
         <div className="bg-black/20 p-2 rounded-xl flex items-center gap-2 border border-white/10">
             <Search className="text-white/50 ml-2" size={18} />
             <input 
@@ -2177,6 +2221,7 @@ function GroupsView({ user }) {
 
 // Icono auxiliar (necesario para el código)
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
