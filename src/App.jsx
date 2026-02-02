@@ -513,8 +513,7 @@ function NavButton({ active, onClick, icon, label, badge }) {
   );
 }
 
-// --- VISTA DASHBOARD (FINAL V2: PROYECTO VISIBLE SIEMPRE) ---
-// --- VISTA DASHBOARD (LIMPIA Y OPTIMIZADA) ---
+// --- VISTA DASHBOARD (ARREGLADA: NOTAS PERSONALES VISIBLES) ---
 function DashboardView({ user, tasks, events, setActiveTab }) {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEvents = events.filter(e => e.date === todayStr);
@@ -530,10 +529,24 @@ function DashboardView({ user, tasks, events, setActiveTab }) {
   const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración'].includes(user.role) || user.rol === 'admin';
 
   useEffect(() => {
+    // 1. Avisos
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(q, (snap) => setAnnouncements(snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))));
-    const qNotes = query(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), where('userId', '==', user.id), orderBy('createdAt', 'desc'));
-    const unsubNotes = onSnapshot(qNotes, (snap) => setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    
+    // 2. Notas Personales (ARREGLADO: Quitamos el orderBy de la query para evitar error de índice)
+    const qNotes = query(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), where('userId', '==', user.id));
+    const unsubNotes = onSnapshot(qNotes, (snap) => {
+        const rawNotes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        // Las ordenamos acá manualmente (Javascript) en vez de la base de datos
+        rawNotes.sort((a, b) => {
+            const dateA = a.createdAt?.seconds || 0;
+            const dateB = b.createdAt?.seconds || 0;
+            return dateB - dateA; // Más nuevas primero
+        });
+        setNotes(rawNotes);
+    });
+
+    // 3. Cumpleaños y Alumnos sin grupo
     const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
     const unsubStudents = onSnapshot(qStudents, (snap) => {
         const today = new Date(); const nextWeek = new Date(); nextWeek.setDate(today.getDate() + 7); 
@@ -549,23 +562,75 @@ function DashboardView({ user, tasks, events, setActiveTab }) {
         }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday);
         setBirthdays(upcoming); setUngroupedCount(noGroupCounter);
     });
+    
     return () => { unsub(); unsubNotes(); unsubStudents(); };
   }, [user.id]);
 
   const handlePost = async (e) => { e.preventDefault(); const text = e.target.message.value; if(!text.trim()) return; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), { message: text, author: user.fullName || user.firstName, role: user.role, createdAt: serverTimestamp() }); setShowAnnounceModal(false); };
   const deleteAnnouncement = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'announcements', id)); };
-  const saveNote = async (e) => { e.preventDefault(); if (!newNote.trim()) return; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), { text: newNote, userId: user.id, done: false, createdAt: serverTimestamp() }); setNewNote(''); };
+  
+  // Funciones de Notas
+  const saveNote = async (e) => { 
+      e.preventDefault(); 
+      if (!newNote.trim()) return; 
+      try {
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), { 
+            text: newNote, 
+            userId: user.id, 
+            done: false, 
+            createdAt: serverTimestamp() 
+        }); 
+        setNewNote(''); // Limpiar input
+      } catch (err) {
+          console.error("Error al guardar nota:", err);
+          alert("No se pudo guardar la nota.");
+      }
+  };
+  
   const toggleNote = async (note) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', note.id), { done: !note.done });
   const deleteNote = async (id) => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', id));
 
   return (
     <div className="space-y-6 animate-in fade-in pb-10">
+      {/* Encabezado */}
       <div className="flex justify-between items-center px-2"><div><h2 className="text-2xl font-black text-slate-800 tracking-tighter italic">¡Hola, {user.firstName}! 👋</h2><p className="text-slate-500 font-medium text-xs">Panel de Control</p></div><div className="flex gap-2"><button onClick={() => setShowTutorial(true)} className="bg-white text-violet-600 px-3 py-2 rounded-xl text-xs font-bold shadow-sm border border-violet-100 flex items-center gap-1 hover:bg-violet-50 transition"><HelpCircle size={16}/> Ayuda</button>{canPost && <button onClick={() => setShowAnnounceModal(true)} className="bg-orange-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-lg hover:scale-105 transition flex items-center gap-1"><Edit3 size={14}/> Aviso</button>}</div></div>
+      
+      {/* Alerta Administrativa */}
       {isManagement && ungroupedCount > 0 && (<div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl flex items-center justify-between shadow-sm animate-pulse"><div className="flex items-center gap-3"><AlertTriangle className="text-red-500" size={24} /><div><h4 className="font-black text-red-700 text-xs uppercase tracking-widest">Atención Administrativa</h4><p className="text-xs text-red-600 font-bold">Hay {ungroupedCount} estudiantes activos sin grupo asignado.</p></div></div></div>)}
+      
+      {/* Cumpleaños */}
       {birthdays.length > 0 && (<div className="bg-gradient-to-r from-pink-500 to-rose-500 p-5 rounded-[30px] shadow-lg text-white relative overflow-hidden"><div className="flex items-center gap-2 mb-3"><span className="bg-white/20 p-2 rounded-lg"><Crown size={16} className="text-white"/></span><h3 className="font-bold text-sm uppercase tracking-widest">Cumples de la Semana</h3></div><div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">{birthdays.map(b => (<div key={b.id} className="bg-white/10 p-2 rounded-xl flex items-center gap-3 min-w-[140px] border border-white/10"><div className="w-8 h-8 rounded-full bg-white/20 overflow-hidden shrink-0">{b.photoUrl ? <img src={b.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center font-bold text-xs">{b.firstName[0]}</div>}</div><div><p className="font-bold text-xs leading-none">{b.firstName}</p><p className="text-[10px] opacity-80">{new Date(b.nextBirthday).toLocaleDateString('es-AR', {day: 'numeric', month:'short'})}</p></div></div>))}</div></div>)}
+      
+      {/* Cartelera */}
       {announcements.length > 0 && (<div className="bg-yellow-100 p-5 rounded-[30px] border-2 border-yellow-200 shadow-sm relative"><h3 className="text-[10px] font-black text-yellow-700 uppercase tracking-widest flex items-center gap-1 mb-3"><Bell size={12}/> Cartelera Oficial</h3><div className="space-y-3">{announcements.map(a => (<div key={a.id} className="bg-white/80 p-3 rounded-2xl border border-yellow-200/50 text-sm text-gray-800 flex justify-between items-start"><div><p className="italic font-medium">"{a.message}"</p><p className="text-[9px] text-yellow-600 font-bold mt-1 uppercase tracking-wider">- {a.author}</p></div>{canPost && (<button onClick={() => deleteAnnouncement(a.id)} className="text-yellow-600 hover:text-red-500 p-1 bg-yellow-50 rounded-lg transition"><Trash2 size={14}/></button>)}</div>))}</div></div>)}
-      <div className="grid grid-cols-2 gap-3"><div className="bg-white p-5 rounded-[30px] border border-orange-100 shadow-sm"><h4 className="text-3xl font-black text-orange-500">{tasks.filter(t=>t.status!=='completed').length}</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Tareas Pendientes</p></div><div className={`p-5 rounded-[30px] border shadow-sm relative overflow-hidden ${todayEvents.length > 0 ? 'bg-violet-600 text-white border-violet-600' : 'bg-white border-violet-100'}`}>{todayEvents.length > 0 ? ( <><h4 className="text-lg font-black leading-tight mb-1">{todayEvents[0].title}</h4><p className="text-[9px] opacity-80 uppercase tracking-widest font-bold">Es Hoy</p>{todayEvents.length > 1 && <span className="absolute top-4 right-4 text-[10px] bg-white/20 px-2 rounded-full">+{todayEvents.length - 1} más</span>}</> ) : ( <><h4 className="text-3xl font-black text-violet-600">0</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Eventos Hoy</p></> )}</div></div>
-      <div className="bg-gray-50 p-5 rounded-[35px] border border-gray-100 shadow-inner"><h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px] mb-3 flex items-center gap-2"><Lock size={12}/> Tareas Personales</h3><form onSubmit={saveNote} className="flex gap-2 mb-3"><input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Nueva nota..." className="flex-1 p-3 rounded-xl border-none outline-none text-xs bg-white shadow-sm font-medium" /><button type="submit" className="bg-violet-600 text-white p-3 rounded-xl font-bold shadow-lg"><Plus size={16}/></button></form><div className="space-y-2 max-h-40 overflow-y-auto pr-1">{notes.map(n => (<div key={n.id} className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-gray-100 shadow-sm group"><button onClick={() => toggleNote(n)} className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${n.done ? 'bg-violet-400 border-violet-400' : 'border-violet-200'}`}>{n.done && <Check size={10} className="text-white"/>}</button><span className={`text-xs flex-1 font-medium ${n.done ? 'line-through text-gray-300' : 'text-gray-600'}`}>{n.text}</span><button onClick={() => deleteNote(n.id)} className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"><Trash2 size={12}/></button></div>))}{notes.length === 0 && <p className="text-[10px] text-center text-gray-300 italic mt-2">No tienes notas.</p>}</div></div>
+      
+      {/* Resumen Tareas y Eventos */}
+      <div className="grid grid-cols-2 gap-3"><div onClick={() => setActiveTab('tasks')} className="bg-white p-5 rounded-[30px] border border-orange-100 shadow-sm cursor-pointer hover:shadow-md transition"><h4 className="text-3xl font-black text-orange-500">{tasks.filter(t=>t.status!=='completed').length}</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Tareas Pendientes</p></div><div onClick={() => setActiveTab('calendar')} className={`p-5 rounded-[30px] border shadow-sm relative overflow-hidden cursor-pointer hover:shadow-md transition ${todayEvents.length > 0 ? 'bg-violet-600 text-white border-violet-600' : 'bg-white border-violet-100'}`}>{todayEvents.length > 0 ? ( <><h4 className="text-lg font-black leading-tight mb-1">{todayEvents[0].title}</h4><p className="text-[9px] opacity-80 uppercase tracking-widest font-bold">Es Hoy</p>{todayEvents.length > 1 && <span className="absolute top-4 right-4 text-[10px] bg-white/20 px-2 rounded-full">+{todayEvents.length - 1} más</span>}</> ) : ( <><h4 className="text-3xl font-black text-violet-600">0</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Eventos Hoy</p></> )}</div></div>
+      
+      {/* --- SECCIÓN NOTAS PERSONALES (CORREGIDA) --- */}
+      <div className="bg-gray-50 p-5 rounded-[35px] border border-gray-100 shadow-inner">
+        <h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px] mb-3 flex items-center gap-2"><Lock size={12}/> Tareas Personales</h3>
+        
+        <form onSubmit={saveNote} className="flex gap-2 mb-3">
+            <input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Nueva nota..." className="flex-1 p-3 rounded-xl border-none outline-none text-xs bg-white shadow-sm font-medium" />
+            <button type="submit" className="bg-violet-600 text-white p-3 rounded-xl font-bold shadow-lg hover:bg-violet-700 transition"><Plus size={16}/></button>
+        </form>
+        
+        <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+            {notes.map(n => (
+                <div key={n.id} className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-gray-100 shadow-sm group">
+                    <button onClick={() => toggleNote(n)} className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${n.done ? 'bg-violet-400 border-violet-400' : 'border-violet-200'}`}>
+                        {n.done && <Check size={10} className="text-white"/>}
+                    </button>
+                    <span className={`text-xs flex-1 font-medium ${n.done ? 'line-through text-gray-300' : 'text-gray-600'}`}>{n.text}</span>
+                    <button onClick={() => deleteNote(n.id)} className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"><Trash2 size={12}/></button>
+                </div>
+            ))}
+            {notes.length === 0 && <p className="text-[10px] text-center text-gray-300 italic mt-2">No tenés notas personales.</p>}
+        </div>
+      </div>
+
+      {/* Modales (Avisos y Tutorial) */}
       {showAnnounceModal && (<div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm"><form onSubmit={handlePost} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95"><h3 className="text-lg font-black text-orange-500 mb-2 uppercase italic">Nuevo Aviso</h3><textarea name="message" className="w-full p-4 bg-orange-50 rounded-2xl outline-none text-sm h-32 resize-none border border-orange-100 focus:ring-2 ring-orange-200 text-gray-700" placeholder="Escribe aquí..." required></textarea><div className="flex gap-2 mt-4"><button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 text-gray-400 font-bold text-xs uppercase tracking-widest">Cancelar</button><button type="submit" className="flex-1 bg-orange-500 text-white py-3 rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-orange-600 transition">Publicar</button></div></form></div>)}
       {showTutorial && (<div className="fixed inset-0 bg-violet-900/90 z-[300] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in"><div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl max-h-[80vh] overflow-y-auto relative"><button onClick={() => setShowTutorial(false)} className="absolute top-4 right-4 bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button><div className="text-center mb-6"><h2 className="text-2xl font-black text-violet-900 italic uppercase">Guía Rápida</h2><p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Para Docentes y Equipo</p></div><div className="space-y-6"><div className="flex gap-4 items-start"><div className="bg-orange-100 p-3 rounded-2xl text-orange-600"><Grid size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">1. Mi Aula / Grupos</h4><p className="text-xs text-gray-500 mt-1">Aquí ves a tus alumnos. Toca las pestañas "Mañana" o "Tarde" para cambiar de grupo.</p></div></div><div className="flex gap-4 items-start"><div className="bg-red-100 p-3 rounded-2xl text-red-600"><Activity size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">2. Bitácora Express (El Rayo)</h4><p className="text-xs text-gray-500 mt-1">En la tarjeta de cada alumno hay un ícono de rayo ⚡. Úsalo para registrar incidentes (golpes, crisis, salud) rápidamente con un solo toque.</p></div></div><div className="flex gap-4 items-start"><div className="bg-blue-100 p-3 rounded-2xl text-blue-600"><CheckSquare size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">3. Pedidos a Administración</h4><p className="text-xs text-gray-500 mt-1">Usa la sección "Tareas" para pedir materiales o arreglos. Puedes asignar a un <b>Rol</b> o una <b>Persona</b>. <b>¡Es privado!</b> Solo lo ven tú y el destinatario.</p></div></div><div className="flex gap-4 items-start"><div className="bg-green-100 p-3 rounded-2xl text-green-600"><LinkIcon size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">4. Recursos</h4><p className="text-xs text-gray-500 mt-1">Encuentra documentos, planillas y enlaces útiles organizados por carpetas.</p></div></div></div><button onClick={() => setShowTutorial(false)} className="w-full bg-violet-600 text-white py-3 rounded-2xl font-bold mt-8 shadow-lg uppercase text-xs tracking-widest">¡Entendido!</button></div></div>)}
     </div>
@@ -2049,6 +2114,7 @@ function GroupsView({ user }) {
 
 // Icono auxiliar
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
