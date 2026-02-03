@@ -1908,16 +1908,19 @@ function MatriculaView({ user }) {
     </div>
   );
 }
-// --- VISTA TABLERO DE GRUPOS (FICHA COMPLETA SOLO LECTURA) ---
+// --- VISTA TABLERO DE GRUPOS (CON IMPRESIÓN MEJORADA) ---
 function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
   const [turn, setTurn] = useState('morning'); 
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [showBitacoraModal, setShowBitacoraModal] = useState(null); 
   const [savingIncident, setSavingIncident] = useState(false);
-  const [activeTab, setActiveTab] = useState('info'); // Estado para solapas de la ficha
+  const [activeTab, setActiveTab] = useState('info');
 
   const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración'].includes(user.role) || user.rol === 'admin';
+
+  // URL del logo para impresión
+  const LOGO_URL = "https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png";
 
   const INCIDENT_TYPES = [
       { label: "Agresión / Violencia", emoji: "👊", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
@@ -2005,38 +2008,129 @@ function GroupsView({ user }) {
     return age;
   };
 
+  // --- FUNCIÓN DE IMPRESIÓN MEJORADA (LISTAS DE CLASE) ---
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return alert("Por favor, permití las ventanas emergentes para imprimir.");
+    
     const turnoTexto = turn === 'morning' ? 'MAÑANA' : 'TARDE';
-    let content = `<html><head><title>Listado de Grupos</title>`;
-    content += `<style>body{font-family: sans-serif; padding: 20px;} table{width:100%; border-collapse: collapse; margin-bottom: 30px; font-size: 12px;} th, td{border: 1px solid #000; padding: 8px; text-align: left;} th{background-color: #f0f0f0; text-transform: uppercase;} h1{text-align: center; font-size: 18px; margin-bottom: 20px; text-decoration: underline;} .group-container{margin-bottom: 40px; page-break-inside: avoid;} .group-header { border: 1px solid #000; background: #eee; padding: 10px; margin-bottom: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 13px; } .header-item { margin-bottom: 2px; } </style>`;
-    content += `</head><body>`;
-    content += `<h1>LISTADO DE GRUPOS - TURNO ${turnoTexto}</h1>`;
+    const fechaImpresion = new Date().toLocaleDateString('es-AR');
+
+    let content = `
+      <html>
+        <head>
+          <title>Listas de Grupos - ${turnoTexto}</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
+            body { font-family: 'Roboto', sans-serif; padding: 20px; background: white; }
+            
+            .header-page { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #7c3aed; padding-bottom: 15px; margin-bottom: 20px; }
+            .logo-img { height: 60px; object-fit: contain; }
+            .main-title { color: #4c1d95; font-size: 24px; font-weight: 900; text-transform: uppercase; margin: 0; }
+            .sub-title { color: #f97316; font-size: 14px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; margin: 0; }
+            
+            .group-container { margin-bottom: 40px; page-break-inside: avoid; border: 1px solid #ddd; border-radius: 10px; overflow: hidden; }
+            
+            .group-header { 
+                background: #f3f4f6; 
+                padding: 15px; 
+                border-bottom: 2px solid #e5e7eb;
+                display: grid; 
+                grid-template-columns: 2fr 1fr; 
+                gap: 10px; 
+            }
+            .group-title { font-size: 18px; font-weight: 900; color: #1f2937; text-transform: uppercase; }
+            .info-row { font-size: 12px; color: #4b5563; margin-bottom: 2px; }
+            .info-label { font-weight: bold; color: #7c3aed; text-transform: uppercase; margin-right: 5px; }
+            
+            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            th { background-color: #7c3aed; color: white; padding: 8px; text-align: left; text-transform: uppercase; font-size: 10px; letter-spacing: 1px; }
+            td { border-bottom: 1px solid #eee; padding: 8px; color: #374151; }
+            tr:nth-child(even) { background-color: #fafafa; }
+            
+            .footer { text-align: center; font-size: 10px; color: #9ca3af; margin-top: 30px; border-top: 1px solid #eee; padding-top: 10px; }
+          </style>
+        </head>
+        <body>
+          <div class="header-page">
+             <div>
+                <h1 class="main-title">Listados de Clase</h1>
+                <p class="sub-title">Turno ${turnoTexto} • Ciclo 2026</p>
+             </div>
+             <img src="${LOGO_URL}" class="logo-img" alt="Logo"/>
+          </div>
+    `;
+
     groups.forEach(g => {
-        content += `<div class="group-container">`;
+        // Lógica para separar Docente y Auxiliar
+        // El formato suele ser "NombreDocente - NombreAuxiliar" o "NombreDocente y NombreAuxiliar"
+        let docente = g.teacher || '-';
+        let auxiliar = g.aux || '-';
+
+        // Si el campo docente tiene un guion o " y ", intentamos separarlo visualmente mejor
+        // Pero como pediste: "el primero va como docente y el segundo como auxiliar"
+        // Asumimos que si g.teacher trae dos nombres, los separamos.
+        // Si g.teacher ya viene limpio desde la base de datos (porque los importamos separados), usamos g.teacher y g.aux.
+        
         content += `
+          <div class="group-container">
             <div class="group-header">
-                <div class="header-item"><strong>GRUPO:</strong> ${g.name}</div>
-                <div class="header-item"><strong>NIVEL:</strong> ${g.level || '-'}</div>
-                <div class="header-item"><strong>AULA:</strong> ${g.classroom || '-'}</div>
-                <div class="header-item"><strong>DOCENTE:</strong> ${g.teacher || '-'}</div>
-                <div class="header-item"><strong>AUXILIAR:</strong> ${g.aux || '-'}</div>
-                <div class="header-item" style="grid-column: span 2; border-top: 1px solid #ccc; padding-top:5px; margin-top:5px;"><strong>SUPERVISIÓN TÉCNICA:</strong> ${g.sup1 || '-'} / ${g.sup2 || '-'}</div>
+                <div>
+                    <div class="group-title">${g.name}</div>
+                    <div class="info-row"><span class="info-label">Nivel:</span> ${g.level || '-'}</div>
+                    <div class="info-row"><span class="info-label">Aula:</span> ${g.classroom || 'Sin asignar'}</div>
+                </div>
+                <div style="border-left: 2px solid #ddd; padding-left: 15px;">
+                    <div class="info-row"><span class="info-label">Docente:</span> ${docente}</div>
+                    <div class="info-row"><span class="info-label">Aux/Precep:</span> ${auxiliar}</div>
+                    ${(g.sup1 || g.sup2) ? `<div class="info-row" style="margin-top:5px; padding-top:5px; border-top:1px dashed #ccc;"><span class="info-label">Supervisión:</span> ${g.sup1 || ''} ${g.sup2 ? '/ ' + g.sup2 : ''}</div>` : ''}
+                </div>
             </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 5%;">#</th>
+                        <th style="width: 40%;">Apellido y Nombre</th>
+                        <th style="width: 20%;">DNI</th>
+                        <th style="width: 15%;">Edad</th>
+                        <th style="width: 20%;">Fecha Nac.</th>
+                    </tr>
+                </thead>
+                <tbody>
         `;
-        content += '<table><thead><tr><th>Apellido y Nombre</th><th>DNI</th><th>Edad</th><th>Fecha Nac.</th><th>DX</th></tr></thead><tbody>';
-        g.students.sort((a,b) => a.lastName.localeCompare(b.lastName)).forEach(s => {
+        
+        g.students.sort((a,b) => a.lastName.localeCompare(b.lastName)).forEach((s, index) => {
             const edad = calculateAge(s.birthDate);
             const fechaNac = s.birthDate ? new Date(s.birthDate + 'T00:00:00').toLocaleDateString('es-AR') : '-';
-            content += `<tr><td>${s.lastName}, ${s.firstName}</td><td>${s.dni}</td><td>${edad}</td><td>${fechaNac}</td><td>${s.dx || '-'}</td></tr>`;
+            content += `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td><strong>${s.lastName}</strong>, ${s.firstName}</td>
+                    <td>${s.dni}</td>
+                    <td>${edad}</td>
+                    <td>${fechaNac}</td>
+                </tr>
+            `;
         });
-        content += '</tbody></table></div>';
+        
+        content += `
+                </tbody>
+            </table>
+          </div>
+        `;
     });
-    content += `</body></html>`;
+
+    content += `
+          <div class="footer">
+            Generado el ${fechaImpresion} - Sistema de Gestión "Juntos a la Par"
+          </div>
+        </body>
+      </html>
+    `;
+    
     printWindow.document.write(content);
     printWindow.document.close();
-    setTimeout(() => { printWindow.print(); }, 500);
+    setTimeout(() => { printWindow.print(); }, 1000); // Esperar carga de logo
   };
 
   return (
@@ -2044,7 +2138,7 @@ function GroupsView({ user }) {
       <div className="bg-white p-4 shadow-sm z-10 flex justify-between items-center sticky top-0">
           <div><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter flex items-center gap-2"><Grid size={24} className="text-orange-500"/> Mis Grupos</h2><p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{isManagement ? "Vista Global Institucional" : `Espacio de ${user.firstName}`}</p></div>
           <div className="flex gap-2">
-              <button onClick={handlePrint} className="bg-white border border-gray-200 text-gray-600 p-2 rounded-xl shadow-sm hover:bg-gray-50 transition" title="Imprimir Listas"><Download size={20}/></button>
+              <button onClick={handlePrint} className="bg-white border border-gray-200 text-violet-600 p-2 px-4 rounded-xl shadow-sm hover:bg-violet-50 transition flex items-center gap-2 font-bold text-xs uppercase" title="Imprimir Listas de Clase"><FileText size={18}/> Imprimir Listas</button>
               <div className="flex bg-gray-100 p-1 rounded-xl"><button onClick={() => setTurn('morning')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-md transform scale-105' : 'text-gray-400'}`}>☀️ Mañana</button><button onClick={() => setTurn('afternoon')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-md transform scale-105' : 'text-gray-400'}`}>🌙 Tarde</button></div>
           </div>
       </div>
@@ -2058,7 +2152,7 @@ function GroupsView({ user }) {
                           <div className="flex justify-between items-start mb-1"><h3 className="font-black text-gray-800 text-lg leading-none uppercase italic">{group.name}</h3><span className="bg-white/50 px-2 py-1 rounded text-[10px] font-bold text-gray-500">{group.students.length} alum.</span></div>
                           <div className="flex flex-col gap-1 mt-2">
                               {group.classroom && (<span className="inline-flex items-center gap-1 text-[10px] font-bold text-gray-600 bg-white px-2 py-1 rounded w-fit shadow-sm"><StartIcon size={10}/> Aula {group.classroom}</span>)}
-                              <p className="text-[10px] text-gray-500 font-medium truncate">PROFE: <span className="font-bold uppercase">{group.teacher || 'Sin asignar'}</span></p>
+                              <p className="text-[10px] text-gray-500 font-medium truncate">DOCENTE: <span className="font-bold uppercase text-violet-700">{group.teacher || 'Sin asignar'}</span></p>
                               {group.aux && <p className="text-[10px] text-gray-500 font-medium truncate">AUX: <span className="font-bold uppercase">{group.aux}</span></p>}
                               {(group.sup1 || group.sup2) && (<div className="mt-1 pt-1 border-t border-gray-200/50"><p className="text-[9px] text-violet-600 font-bold truncate">SUP: {group.sup1 || ''} {group.sup2 ? `& ${group.sup2}` : ''}</p></div>)}
                           </div>
@@ -2067,7 +2161,7 @@ function GroupsView({ user }) {
                           {group.students.map(student => (
                               <div key={student.id} className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 relative hover:scale-[1.02] transition-transform duration-200">
                                   <div onClick={() => { setSelectedStudent(student); setActiveTab('info'); }} className="w-12 h-12 rounded-full bg-gray-200 border-2 border-white shadow-sm flex-shrink-0 overflow-hidden cursor-pointer relative">{student.photoUrl ? <img src={student.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold">{student.firstName[0]}</div>}{student.lastIncident && new Date(student.lastIncident).toDateString() === new Date().toDateString() && (<div className="absolute bottom-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-white animate-pulse"></div>)}</div>
-                                  <div className="flex-1 min-w-0" onClick={() => { setSelectedStudent(student); setActiveTab('info'); }}><h4 className="font-bold text-gray-700 text-sm truncate cursor-pointer">{student.firstName} {student.lastName}</h4><p className="text-[10px] text-gray-400">{student.dx || 'Sin DX'}</p></div>
+                                  <div className="flex-1 min-w-0" onClick={() => { setSelectedStudent(student); setActiveTab('info'); }}><h4 className="font-bold text-gray-700 text-sm truncate cursor-pointer">{student.firstName} {student.lastName}</h4><p className="text-[10px] text-gray-400">Ver Ficha</p></div>
                                   <button onClick={() => setShowBitacoraModal(student)} className="w-8 h-8 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center shadow-sm hover:bg-violet-600 hover:text-white transition-colors">⚡</button>
                               </div>
                           ))}
@@ -2077,7 +2171,6 @@ function GroupsView({ user }) {
           </div>
       </div>
 
-      {/* --- MODAL BITÁCORA EXPRESS --- */}
       {showBitacoraModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
               <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600">
@@ -2088,7 +2181,6 @@ function GroupsView({ user }) {
           </div>
       )}
 
-      {/* --- MODAL FICHA DE ESTUDIANTE (TIPO LEGAJO) --- */}
       {selectedStudent && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]">
@@ -2106,17 +2198,15 @@ function GroupsView({ user }) {
                             </p>
                         </div>
                     </div>
-                    {/* SOLAPAS */}
                     <div className="flex gap-2 mt-6">
                         <button onClick={() => setActiveTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeTab === 'info' ? 'bg-white text-blue-600 shadow-md' : 'bg-black/20 text-white/70 hover:bg-black/30'}`}>Datos Personales</button>
-                        <button onClick={() => setActiveTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeTab === 'history' ? 'bg-white text-blue-600 shadow-md' : 'bg-black/20 text-white/70 hover:bg-black/30'}`}>Historial</button>
+                        <button onClick={() => setActiveTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeTab === 'history' ? 'bg-white text-blue-600 shadow-md' : 'bg-black/20 text-white/70 hover:bg-black/30'}`}>Bitácora</button>
                     </div>
                 </div>
 
                 <div className="p-6 overflow-y-auto space-y-6">
                     {activeTab === 'info' ? (
                         <>
-                            {/* FAMILIA Y CONTACTO (PRIORITARIO) */}
                             <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
                                 <h3 className="font-black text-orange-800 uppercase text-xs flex items-center gap-2 mb-3"><User size={14}/> Familia & Contacto</h3>
                                 <div className="space-y-2 text-sm">
@@ -2135,7 +2225,6 @@ function GroupsView({ user }) {
                                 </div>
                             </div>
 
-                            {/* SALUD Y DX */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="bg-purple-50 p-3 rounded-xl border border-purple-100">
                                     <p className="text-[10px] text-purple-400 font-black uppercase">Diagnóstico</p>
@@ -2147,7 +2236,6 @@ function GroupsView({ user }) {
                                 </div>
                             </div>
 
-                            {/* DATOS ESCOLARES (RESUMEN) */}
                             <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                                 <h3 className="font-black text-gray-400 uppercase text-xs mb-3">Ubicación Escolar</h3>
                                 <div className="grid grid-cols-2 gap-4 text-xs">
@@ -2194,8 +2282,12 @@ function GroupsView({ user }) {
   );
 }
 
+// Icono auxiliar
+const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 // Icono auxiliar (necesario para el código)
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
