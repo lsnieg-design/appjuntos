@@ -452,7 +452,7 @@ function MainApp({ user, onLogout, onProfileUpdate }) {
 
       <main className="flex-1 overflow-y-auto pb-24 px-4 pt-6 max-w-4xl mx-auto w-full">
         {activeTab === 'dashboard' && <DashboardView user={user} tasks={tasks} events={events} setActiveTab={setActiveTab} />}
-        {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
+        {activeTab === 'calendar' && < events={events} canEdit={canManageContent} user={user} />}
         {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} canEdit={canManageContent} />}
         {activeTab === 'matricula' && <MatriculaView user={user} />}
         {activeTab === 'resources' && <ResourcesView resources={resources} canEdit={canManageContent} />}
@@ -1125,12 +1125,41 @@ function UsersView({ user }) {
   );
 }
 
-// --- VISTA CALENDARIO (SIN CAMBIOS) ---
+// --- VISTA CALENDARIO (CON SWIPE TÁCTIL) ---
 function CalendarView({ events, canEdit, user }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDayEvents, setSelectedDayEvents] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [editingEvent, setEditingEvent] = useState(null); // Nuevo estado
+  const [editingEvent, setEditingEvent] = useState(null);
+  
+  // --- LÓGICA DE SWIPE (TÁCTIL) ---
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+  const minSwipeDistance = 50; // Mínima distancia para considerar un swipe
+
+  const onTouchStart = (e) => {
+      setTouchEnd(null); // Reseteamos al tocar
+      setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => {
+      setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+      if (!touchStart || !touchEnd) return;
+      const distance = touchStart - touchEnd;
+      const isLeftSwipe = distance > minSwipeDistance;
+      const isRightSwipe = distance < -minSwipeDistance;
+
+      if (isLeftSwipe) {
+          changeMonth(1); // Deslizar izq -> Mes Siguiente
+      }
+      if (isRightSwipe) {
+          changeMonth(-1); // Deslizar der -> Mes Anterior
+      }
+  };
+  // ---------------------------------
   
   const changeMonth = (offset) => { const d = new Date(currentDate); d.setMonth(d.getMonth() + offset); setCurrentDate(new Date(d)); };
   
@@ -1182,7 +1211,7 @@ function CalendarView({ events, canEdit, user }) {
   };
 
   return (
-    <div className="space-y-4 pb-10 animate-in fade-in">
+    <div className="space-y-4 pb-10 animate-in fade-in select-none"> {/* select-none evita que se seleccione texto al deslizar */}
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-black text-violet-900 italic uppercase">Agenda</h2>
         <div className="flex gap-2 items-center bg-white p-1 rounded-xl shadow-sm border border-gray-100">
@@ -1192,10 +1221,21 @@ function CalendarView({ events, canEdit, user }) {
         </div>
         {canEdit && <button onClick={openNew} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg hover:scale-110 transition-all"><Plus size={20}/></button>}
       </div>
-      <div className="bg-white rounded-[40px] shadow-xl border border-gray-100 overflow-hidden grid grid-cols-7 border-t-8 border-violet-600">
+      
+      {/* CONTENEDOR CON EVENTOS TÁCTILES */}
+      <div 
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        className="bg-white rounded-[40px] shadow-xl border border-gray-100 overflow-hidden grid grid-cols-7 border-t-8 border-violet-600 relative"
+      >
         {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d => <div key={d} className="text-[9px] font-black text-violet-400 uppercase p-3 border-b text-center bg-violet-50/50 italic tracking-[2px]">{d}</div>)}
         {renderGrid()}
       </div>
+      
+      <p className="text-center text-[9px] text-gray-400 uppercase tracking-widest mt-2 animate-pulse">
+         ↔ Desliza para cambiar de mes
+      </p>
 
       {showModal && (
         <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
@@ -1925,7 +1965,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
-// --- VISTA TABLERO DE GRUPOS (CON IMPRESIÓN MEJORADA) ---
+// --- VISTA TABLERO DE GRUPOS (CORREGIDO: SEPARACIÓN DOCENTE/AUXILIAR + SIN ICONO DUPLICADO) ---
 function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
   const [turn, setTurn] = useState('morning'); 
@@ -2025,7 +2065,7 @@ function GroupsView({ user }) {
     return age;
   };
 
-  // --- FUNCIÓN DE IMPRESIÓN MEJORADA (LISTAS DE CLASE) ---
+  // --- FUNCIÓN DE IMPRESIÓN (LÓGICA MEJORADA) ---
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return alert("Por favor, permití las ventanas emergentes para imprimir.");
@@ -2040,55 +2080,48 @@ function GroupsView({ user }) {
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
             body { font-family: 'Roboto', sans-serif; padding: 20px; background: white; }
-            
             .header-page { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #7c3aed; padding-bottom: 15px; margin-bottom: 20px; }
             .logo-img { height: 60px; object-fit: contain; }
             .main-title { color: #4c1d95; font-size: 24px; font-weight: 900; text-transform: uppercase; margin: 0; }
             .sub-title { color: #f97316; font-size: 14px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; margin: 0; }
-            
             .group-container { margin-bottom: 40px; page-break-inside: avoid; border: 1px solid #ddd; border-radius: 10px; overflow: hidden; }
-            
-            .group-header { 
-                background: #f3f4f6; 
-                padding: 15px; 
-                border-bottom: 2px solid #e5e7eb;
-                display: grid; 
-                grid-template-columns: 2fr 1fr; 
-                gap: 10px; 
-            }
+            .group-header { background: #f3f4f6; padding: 15px; border-bottom: 2px solid #e5e7eb; display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
             .group-title { font-size: 18px; font-weight: 900; color: #1f2937; text-transform: uppercase; }
             .info-row { font-size: 12px; color: #4b5563; margin-bottom: 2px; }
             .info-label { font-weight: bold; color: #7c3aed; text-transform: uppercase; margin-right: 5px; }
-            
             table { width: 100%; border-collapse: collapse; font-size: 12px; }
             th { background-color: #7c3aed; color: white; padding: 8px; text-align: left; text-transform: uppercase; font-size: 10px; letter-spacing: 1px; }
             td { border-bottom: 1px solid #eee; padding: 8px; color: #374151; }
             tr:nth-child(even) { background-color: #fafafa; }
-            
             .footer { text-align: center; font-size: 10px; color: #9ca3af; margin-top: 30px; border-top: 1px solid #eee; padding-top: 10px; }
           </style>
         </head>
         <body>
           <div class="header-page">
-             <div>
-                <h1 class="main-title">Listados de Clase</h1>
-                <p class="sub-title">Turno ${turnoTexto} • Ciclo 2026</p>
-             </div>
+             <div><h1 class="main-title">Listados de Clase</h1><p class="sub-title">Turno ${turnoTexto} • Ciclo 2026</p></div>
              <img src="${LOGO_URL}" class="logo-img" alt="Logo"/>
           </div>
     `;
 
     groups.forEach(g => {
-        // Lógica para separar Docente y Auxiliar
-        // El formato suele ser "NombreDocente - NombreAuxiliar" o "NombreDocente y NombreAuxiliar"
-        let docente = g.teacher || '-';
-        let auxiliar = g.aux || '-';
+        // --- LÓGICA DE SEPARACIÓN DOCENTE / AUXILIAR ---
+        let rawTeacher = g.teacher || '';
+        let docente = rawTeacher;
+        let auxiliar = g.aux || 'Sin asignar';
 
-        // Si el campo docente tiene un guion o " y ", intentamos separarlo visualmente mejor
-        // Pero como pediste: "el primero va como docente y el segundo como auxiliar"
-        // Asumimos que si g.teacher trae dos nombres, los separamos.
-        // Si g.teacher ya viene limpio desde la base de datos (porque los importamos separados), usamos g.teacher y g.aux.
-        
+        // Si el campo "docente" tiene " y " o " - ", asumimos que hay dos personas
+        // La primera es Docente, la segunda es Auxiliar (si auxiliar estaba vacío)
+        if (rawTeacher.includes(" y ")) {
+            const parts = rawTeacher.split(" y ");
+            docente = parts[0].trim();
+            if(auxiliar === 'Sin asignar' || !auxiliar) auxiliar = parts[1].trim();
+        } else if (rawTeacher.includes(" - ")) {
+            const parts = rawTeacher.split(" - ");
+            docente = parts[0].trim();
+            if(auxiliar === 'Sin asignar' || !auxiliar) auxiliar = parts[1].trim();
+        }
+        // -----------------------------------------------
+
         content += `
           <div class="group-container">
             <div class="group-header">
@@ -2107,9 +2140,8 @@ function GroupsView({ user }) {
                 <thead>
                     <tr>
                         <th style="width: 5%;">#</th>
-                        <th style="width: 40%;">Apellido y Nombre</th>
-                        <th style="width: 20%;">DNI</th>
-                        <th style="width: 15%;">Edad</th>
+                        <th style="width: 50%;">Apellido y Nombre</th>
+                        <th style="width: 25%;">DNI</th>
                         <th style="width: 20%;">Fecha Nac.</th>
                     </tr>
                 </thead>
@@ -2117,37 +2149,18 @@ function GroupsView({ user }) {
         `;
         
         g.students.sort((a,b) => a.lastName.localeCompare(b.lastName)).forEach((s, index) => {
-            const edad = calculateAge(s.birthDate);
             const fechaNac = s.birthDate ? new Date(s.birthDate + 'T00:00:00').toLocaleDateString('es-AR') : '-';
-            content += `
-                <tr>
-                    <td>${index + 1}</td>
-                    <td><strong>${s.lastName}</strong>, ${s.firstName}</td>
-                    <td>${s.dni}</td>
-                    <td>${edad}</td>
-                    <td>${fechaNac}</td>
-                </tr>
-            `;
+            content += `<tr><td>${index + 1}</td><td><strong>${s.lastName}</strong>, ${s.firstName}</td><td>${s.dni}</td><td>${fechaNac}</td></tr>`;
         });
         
-        content += `
-                </tbody>
-            </table>
-          </div>
-        `;
+        content += `</tbody></table></div>`;
     });
 
-    content += `
-          <div class="footer">
-            Generado el ${fechaImpresion} - Sistema de Gestión "Juntos a la Par"
-          </div>
-        </body>
-      </html>
-    `;
+    content += `<div class="footer">Generado el ${fechaImpresion} - Sistema de Gestión "Juntos a la Par"</div></body></html>`;
     
     printWindow.document.write(content);
     printWindow.document.close();
-    setTimeout(() => { printWindow.print(); }, 1000); // Esperar carga de logo
+    setTimeout(() => { printWindow.print(); }, 1000);
   };
 
   return (
@@ -2298,17 +2311,8 @@ function GroupsView({ user }) {
     </div>
   );
 }
-
 // Icono auxiliar
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
-
-// Icono auxiliar (necesario para el código)
-const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
-
-
-
-
-
 
 
 
