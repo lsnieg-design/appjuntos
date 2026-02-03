@@ -513,7 +513,7 @@ function NavButton({ active, onClick, icon, label, badge }) {
   );
 }
 
-// --- VISTA DASHBOARD (ARREGLADA: NOTAS PERSONALES VISIBLES) ---
+// --- VISTA DASHBOARD (CUMPLEAÑOS COMPACTO + NOMBRE Y GRUPO) ---
 function DashboardView({ user, tasks, events, setActiveTab }) {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEvents = events.filter(e => e.date === todayStr);
@@ -533,15 +533,14 @@ function DashboardView({ user, tasks, events, setActiveTab }) {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(q, (snap) => setAnnouncements(snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))));
     
-    // 2. Notas Personales (ARREGLADO: Quitamos el orderBy de la query para evitar error de índice)
+    // 2. Notas Personales
     const qNotes = query(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), where('userId', '==', user.id));
     const unsubNotes = onSnapshot(qNotes, (snap) => {
         const rawNotes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        // Las ordenamos acá manualmente (Javascript) en vez de la base de datos
         rawNotes.sort((a, b) => {
             const dateA = a.createdAt?.seconds || 0;
             const dateB = b.createdAt?.seconds || 0;
-            return dateB - dateA; // Más nuevas primero
+            return dateB - dateA;
         });
         setNotes(rawNotes);
     });
@@ -575,31 +574,51 @@ function DashboardView({ user, tasks, events, setActiveTab }) {
       if (!newNote.trim()) return; 
       try {
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), { 
-            text: newNote, 
-            userId: user.id, 
-            done: false, 
-            createdAt: serverTimestamp() 
+            text: newNote, userId: user.id, done: false, createdAt: serverTimestamp() 
         }); 
-        setNewNote(''); // Limpiar input
-      } catch (err) {
-          console.error("Error al guardar nota:", err);
-          alert("No se pudo guardar la nota.");
-      }
+        setNewNote(''); 
+      } catch (err) { console.error("Error al guardar nota:", err); alert("No se pudo guardar la nota."); }
   };
   
   const toggleNote = async (note) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', note.id), { done: !note.done });
   const deleteNote = async (id) => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', id));
 
   return (
-    <div className="space-y-6 animate-in fade-in pb-10">
+    <div className="space-y-4 animate-in fade-in pb-10">
       {/* Encabezado */}
       <div className="flex justify-between items-center px-2"><div><h2 className="text-2xl font-black text-slate-800 tracking-tighter italic">¡Hola, {user.firstName}! 👋</h2><p className="text-slate-500 font-medium text-xs">Panel de Control</p></div><div className="flex gap-2"><button onClick={() => setShowTutorial(true)} className="bg-white text-violet-600 px-3 py-2 rounded-xl text-xs font-bold shadow-sm border border-violet-100 flex items-center gap-1 hover:bg-violet-50 transition"><HelpCircle size={16}/> Ayuda</button>{canPost && <button onClick={() => setShowAnnounceModal(true)} className="bg-orange-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-lg hover:scale-105 transition flex items-center gap-1"><Edit3 size={14}/> Aviso</button>}</div></div>
       
       {/* Alerta Administrativa */}
       {isManagement && ungroupedCount > 0 && (<div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl flex items-center justify-between shadow-sm animate-pulse"><div className="flex items-center gap-3"><AlertTriangle className="text-red-500" size={24} /><div><h4 className="font-black text-red-700 text-xs uppercase tracking-widest">Atención Administrativa</h4><p className="text-xs text-red-600 font-bold">Hay {ungroupedCount} estudiantes activos sin grupo asignado.</p></div></div></div>)}
       
-      {/* Cumpleaños */}
-      {birthdays.length > 0 && (<div className="bg-gradient-to-r from-pink-500 to-rose-500 p-5 rounded-[30px] shadow-lg text-white relative overflow-hidden"><div className="flex items-center gap-2 mb-3"><span className="bg-white/20 p-2 rounded-lg"><Crown size={16} className="text-white"/></span><h3 className="font-bold text-sm uppercase tracking-widest">Cumples de la Semana</h3></div><div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">{birthdays.map(b => (<div key={b.id} className="bg-white/10 p-2 rounded-xl flex items-center gap-3 min-w-[140px] border border-white/10"><div className="w-8 h-8 rounded-full bg-white/20 overflow-hidden shrink-0">{b.photoUrl ? <img src={b.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center font-bold text-xs">{b.firstName[0]}</div>}</div><div><p className="font-bold text-xs leading-none">{b.firstName}</p><p className="text-[10px] opacity-80">{new Date(b.nextBirthday).toLocaleDateString('es-AR', {day: 'numeric', month:'short'})}</p></div></div>))}</div></div>)}
+      {/* --- CUMPLEAÑOS COMPACTO (NUEVO DISEÑO) --- */}
+      {birthdays.length > 0 && (
+        <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-3 rounded-2xl shadow-md text-white overflow-hidden">
+            <div className="flex items-center gap-2 mb-2 px-1">
+                <Crown size={14} className="text-white/90"/>
+                <h3 className="font-bold text-xs uppercase tracking-widest text-white/90">Cumples Semana</h3>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                {birthdays.map(b => {
+                    // Lógica para mostrar grupos
+                    const groups = [b.groupMorning, b.groupAfternoon].filter(Boolean).join(' / ');
+                    return (
+                        <div key={b.id} className="bg-white/10 p-2 rounded-xl flex items-center gap-2 min-w-[130px] border border-white/10 backdrop-blur-sm">
+                            <div className="w-8 h-8 rounded-full bg-white/20 overflow-hidden shrink-0 border border-white/30 flex items-center justify-center font-bold text-xs">
+                                {b.photoUrl ? <img src={b.photoUrl} className="w-full h-full object-cover"/> : b.firstName[0]}
+                            </div>
+                            <div className="min-w-0">
+                                <p className="font-bold text-[10px] leading-tight truncate">{b.firstName} {b.lastName.charAt(0)}.</p>
+                                <p className="text-[8px] font-medium text-pink-100 truncate max-w-[80px]" title={groups}>{groups || 'Sin grupo'}</p>
+                                <p className="text-[8px] font-black text-white/60 mt-0.5">{new Date(b.nextBirthday).toLocaleDateString('es-AR', {day: 'numeric', month:'short'})}</p>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+      )}
+      {/* ------------------------------------------ */}
       
       {/* Cartelera */}
       {announcements.length > 0 && (<div className="bg-yellow-100 p-5 rounded-[30px] border-2 border-yellow-200 shadow-sm relative"><h3 className="text-[10px] font-black text-yellow-700 uppercase tracking-widest flex items-center gap-1 mb-3"><Bell size={12}/> Cartelera Oficial</h3><div className="space-y-3">{announcements.map(a => (<div key={a.id} className="bg-white/80 p-3 rounded-2xl border border-yellow-200/50 text-sm text-gray-800 flex justify-between items-start"><div><p className="italic font-medium">"{a.message}"</p><p className="text-[9px] text-yellow-600 font-bold mt-1 uppercase tracking-wider">- {a.author}</p></div>{canPost && (<button onClick={() => deleteAnnouncement(a.id)} className="text-yellow-600 hover:text-red-500 p-1 bg-yellow-50 rounded-lg transition"><Trash2 size={14}/></button>)}</div>))}</div></div>)}
@@ -607,15 +626,13 @@ function DashboardView({ user, tasks, events, setActiveTab }) {
       {/* Resumen Tareas y Eventos */}
       <div className="grid grid-cols-2 gap-3"><div onClick={() => setActiveTab('tasks')} className="bg-white p-5 rounded-[30px] border border-orange-100 shadow-sm cursor-pointer hover:shadow-md transition"><h4 className="text-3xl font-black text-orange-500">{tasks.filter(t=>t.status!=='completed').length}</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Tareas Pendientes</p></div><div onClick={() => setActiveTab('calendar')} className={`p-5 rounded-[30px] border shadow-sm relative overflow-hidden cursor-pointer hover:shadow-md transition ${todayEvents.length > 0 ? 'bg-violet-600 text-white border-violet-600' : 'bg-white border-violet-100'}`}>{todayEvents.length > 0 ? ( <><h4 className="text-lg font-black leading-tight mb-1">{todayEvents[0].title}</h4><p className="text-[9px] opacity-80 uppercase tracking-widest font-bold">Es Hoy</p>{todayEvents.length > 1 && <span className="absolute top-4 right-4 text-[10px] bg-white/20 px-2 rounded-full">+{todayEvents.length - 1} más</span>}</> ) : ( <><h4 className="text-3xl font-black text-violet-600">0</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Eventos Hoy</p></> )}</div></div>
       
-      {/* --- SECCIÓN NOTAS PERSONALES (CORREGIDA) --- */}
+      {/* Sección Notas Personales */}
       <div className="bg-gray-50 p-5 rounded-[35px] border border-gray-100 shadow-inner">
         <h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px] mb-3 flex items-center gap-2"><Lock size={12}/> Tareas Personales</h3>
-        
         <form onSubmit={saveNote} className="flex gap-2 mb-3">
             <input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Nueva nota..." className="flex-1 p-3 rounded-xl border-none outline-none text-xs bg-white shadow-sm font-medium" />
             <button type="submit" className="bg-violet-600 text-white p-3 rounded-xl font-bold shadow-lg hover:bg-violet-700 transition"><Plus size={16}/></button>
         </form>
-        
         <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
             {notes.map(n => (
                 <div key={n.id} className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-gray-100 shadow-sm group">
@@ -2287,6 +2304,7 @@ const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24
 
 // Icono auxiliar (necesario para el código)
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
