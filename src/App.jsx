@@ -326,7 +326,7 @@ function LoginScreen({ onLogin }) {
 }
 
 
-// --- APP PRINCIPAL (CORREGIDA: MENÚ DESTACADO, LIMPIEZA Y NOTIFICACIONES) ---
+// --- APP PRINCIPAL (CORREGIDA: ERROR DE SINTAXIS EN CALENDARIO SOLUCIONADO) ---
 function MainApp({ user, onLogout, onProfileUpdate }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [tasks, setTasks] = useState([]);
@@ -452,7 +452,7 @@ function MainApp({ user, onLogout, onProfileUpdate }) {
 
       <main className="flex-1 overflow-y-auto pb-24 px-4 pt-6 max-w-4xl mx-auto w-full">
         {activeTab === 'dashboard' && <DashboardView user={user} tasks={tasks} events={events} setActiveTab={setActiveTab} />}
-        {activeTab === 'calendar' && < events={events} canEdit={canManageContent} user={user} />}
+        {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
         {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} canEdit={canManageContent} />}
         {activeTab === 'matricula' && <MatriculaView user={user} />}
         {activeTab === 'resources' && <ResourcesView resources={resources} canEdit={canManageContent} />}
@@ -2311,6 +2311,7 @@ function GroupsView({ user }) {
 }
 // Icono auxiliar
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
