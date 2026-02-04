@@ -1553,7 +1553,6 @@ function MainApp({ user, onLogout, onProfileUpdate }) {
   );
 }
 
-function NavButton({ active, onClick, icon, label }) { return (<button onClick={onClick} className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all ${active ? 'text-orange-500 transform -translate-y-1' : 'text-gray-400'}`}><div className={`relative p-1 rounded-xl ${active ? 'bg-orange-50' : ''}`}>{icon}</div><span className={`text-[10px] font-bold`}>{label}</span></button>); }
 // --- VISTA MATRÍCULA (FILTRO O.S. + IMPRESIÓN INDIVIDUAL) ---
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
@@ -1867,6 +1866,7 @@ const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24
 function ActivityLogView() {
   return <div className="text-white p-6 text-center">Registro de Actividad (Próximamente)</div>;
 }
+
 
 
 
