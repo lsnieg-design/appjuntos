@@ -1797,7 +1797,7 @@ function MainApp({ user, onLogout }) {
     </div>
   );
 }
-// --- VISTA TABLERO DE GRUPOS (IMPRESIÓN SEGURA + FILTRO DOCENTE) ---
+// --- VISTA AULA (LÓGICA ESTRICTA POR TURNO + VISIBILIDAD GARANTIZADA) ---
 function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
   const [turn, setTurn] = useState('morning'); 
@@ -1805,7 +1805,9 @@ function GroupsView({ user }) {
   const [showBitacoraModal, setShowBitacoraModal] = useState(null); 
   const [savingIncident, setSavingIncident] = useState(false);
   const [activeTab, setActiveTab] = useState('info');
+
   const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración'].includes(user.role) || user.rol === 'admin';
+  const LOGO_URL = "/icon-192.png";
   const INCIDENT_TYPES = [ { label: "Agresión / Violencia", emoji: "👊", severity: "high", color: "bg-red-100 border-red-300 text-red-800" }, { label: "Brote / Gritos", emoji: "🤬", severity: "high", color: "bg-red-100 border-red-300 text-red-800" }, { label: "Fuga / Intento", emoji: "🏃", severity: "high", color: "bg-red-100 border-red-300 text-red-800" }, { label: "Convulsión / Salud", emoji: "🚑", severity: "high", color: "bg-red-100 border-red-300 text-red-800" }, { label: "Crisis Llanto", emoji: "😭", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" }, { label: "Higiene / Esfínter", emoji: "💩", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" }, { label: "Vómito", emoji: "🤮", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" }, { label: "Golpe / Caída", emoji: "🤕", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" }, { label: "No comió", emoji: "🍽️", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" }, { label: "Durmió en clase", emoji: "💤", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" }, { label: "Sin Medicación", emoji: "💊", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" }, { label: "Llegada Tarde", emoji: "🕑", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" }, ];
 
   useEffect(() => {
@@ -1814,22 +1816,66 @@ function GroupsView({ user }) {
     return () => unsub();
   }, []);
 
+  // --- AGRUPACIÓN ---
   const groupedData = students.reduce((acc, s) => {
+      // 1. Detectamos el grupo según el turno activo
       const groupName = turn === 'morning' ? s.groupMorning : s.groupAfternoon;
+      
+      // Si no tiene grupo asignado en este turno, lo saltamos (no aparece en "Aulas", solo en "Legajos")
       if (!groupName) return acc;
-      if (!acc[groupName]) { acc[groupName] = { name: groupName, students: [], teacher: turn === 'morning' ? s.teacherMorning : s.teacherAfternoon, aux: turn === 'morning' ? s.auxMorning : s.auxAfternoon, sup1: turn === 'morning' ? s.sup1Morning : s.sup1Afternoon, sup2: turn === 'morning' ? s.sup2Morning : s.sup2Afternoon, classroom: s.classroom, level: s.level }; }
-      acc[groupName].students.push(s);
+      
+      // 2. Usamos el nombre EXACTO que escribiste (respetando mayúsculas/minúsculas para no mezclar)
+      // Si escribiste "1A" y "1 A", serán dos grupos distintos.
+      const key = groupName.trim(); 
+
+      // Datos del docente para este alumno en este turno
+      const myTeacher = turn === 'morning' ? s.teacherMorning : s.teacherAfternoon;
+      const myAux = turn === 'morning' ? s.auxMorning : s.auxAfternoon;
+      const mySup1 = turn === 'morning' ? s.sup1Morning : s.sup1Afternoon;
+      const mySup2 = turn === 'morning' ? s.sup2Morning : s.sup2Afternoon;
+
+      if (!acc[key]) { 
+          acc[key] = { 
+              name: key, 
+              students: [], 
+              teacher: myTeacher, // El primer docente que encuentra define el título
+              aux: myAux, 
+              sup1: mySup1, 
+              sup2: mySup2,
+              classroom: s.classroom, 
+              level: s.level 
+          }; 
+      }
+      
+      // Si el grupo ya existía pero no tenía docente (porque el primer alumno no tenía),
+      // y este alumno SI tiene, actualizamos la etiqueta del grupo.
+      if (!acc[key].teacher && myTeacher) acc[key].teacher = myTeacher;
+      if (!acc[key].aux && myAux) acc[key].aux = myAux;
+
+      acc[key].students.push(s);
       return acc;
   }, {});
 
   let groups = Object.values(groupedData).sort((a, b) => a.name.localeCompare(b.name));
 
+  // --- FILTRO DE VISIBILIDAD ---
   if (!isManagement) {
+      const myName = (user.fullName || "").toLowerCase();
+      
       groups = groups.filter(g => {
-          const t = (g.teacher || "").toLowerCase();
-          const a = (g.aux || "").toLowerCase();
-          const u = (user.fullName || "").toLowerCase();
-          return t.includes(u) || a.includes(u);
+          // 1. ¿Soy el docente titular de la tarjeta del grupo?
+          if ((g.teacher || "").toLowerCase().includes(myName)) return true;
+          if ((g.aux || "").toLowerCase().includes(myName)) return true;
+
+          // 2. ¿Soy el docente de AL MENOS UN alumno ahí adentro?
+          // (Esto recupera el caso donde agregaste un alumno a un grupo que no era tuyo originalmente)
+          const teachSomeone = g.students.some(s => {
+             const t = turn === 'morning' ? s.teacherMorning : s.teacherAfternoon;
+             const a = turn === 'morning' ? s.auxMorning : s.auxAfternoon;
+             return (t || "").toLowerCase().includes(myName) || (a || "").toLowerCase().includes(myName);
+          });
+          
+          return teachSomeone;
       });
   }
 
@@ -1843,10 +1889,8 @@ function GroupsView({ user }) {
     const turnoTexto = turn === 'morning' ? 'MAÑANA' : 'TARDE';
     let content = `<html><head><title>Listas ${turnoTexto}</title><style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');body{font-family:'Roboto',sans-serif;padding:20px}.header{display:flex;justify-content:space-between;border-bottom:3px solid #7c3aed;padding-bottom:10px;margin-bottom:20px}img{height:60px}.group{margin-bottom:30px;border:1px solid #ccc;border-radius:10px;overflow:hidden}.g-head{background:#f3f4f6;padding:10px;display:grid;grid-template-columns:2fr 1fr;gap:10px}table{width:100%;border-collapse:collapse;font-size:12px}th{background:#7c3aed;color:white;padding:5px;text-align:left}td{border-bottom:1px solid #eee;padding:5px}</style></head><body><div class="header"><div><h1>Listas de Clase</h1><p>Turno ${turnoTexto} • Ciclo 2026</p></div><img src="${LOGO_URL}"/></div>`;
     groups.forEach(g => {
-        let doc = g.teacher || ''; let aux = g.aux || '';
-        if(doc.includes(" y ")) { let p = doc.split(" y "); doc = p[0]; if(!aux || aux==='Sin asignar') aux = p[1]; }
-        else if(doc.includes(" - ")) { let p = doc.split(" - "); doc = p[0]; if(!aux || aux==='Sin asignar') aux = p[1]; }
-        content += `<div class="group"><div class="g-head"><div><h3>${g.name}</h3>Nivel: ${g.level} - Aula: ${g.classroom}</div><div><strong>Doc:</strong> ${doc}<br><strong>Aux:</strong> ${aux}</div></div><table><thead><tr><th>#</th><th>Apellido y Nombre</th><th>DNI</th><th>Nacimiento</th></tr></thead><tbody>`;
+        let doc = g.teacher || 'Sin asignar'; let aux = g.aux || '';
+        content += `<div class="group"><div class="g-head"><div><h3>${g.name}</h3>Nivel: ${g.level||'-'} - Aula: ${g.classroom||'-'}</div><div><strong>Doc:</strong> ${doc}<br><strong>Aux:</strong> ${aux}</div></div><table><thead><tr><th>#</th><th>Apellido y Nombre</th><th>DNI</th><th>Nacimiento</th></tr></thead><tbody>`;
         g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).forEach((s,i) => { const f = s.birthDate ? new Date(s.birthDate+'T00:00').toLocaleDateString() : '-'; content += `<tr><td>${i+1}</td><td><strong>${s.lastName}</strong>, ${s.firstName}</td><td>${s.dni}</td><td>${f}</td></tr>`; });
         content += `</tbody></table></div>`;
     });
@@ -1859,19 +1903,20 @@ function GroupsView({ user }) {
       <div className="bg-white p-4 shadow-sm z-10 sticky top-0 flex flex-col gap-3">
           <div className="flex justify-between items-center">
               <div><h2 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2"><Grid size={24} className="text-orange-500"/> Mis Grupos</h2><p className="text-xs text-gray-400 font-bold uppercase">{isManagement ? "Vista Institucional" : `Espacio Docente`}</p></div>
-              <button onClick={handlePrint} className="bg-violet-100 text-violet-700 p-2 rounded-xl shadow-sm hover:bg-violet-200"><FileText size={24}/></button>
+              <button onClick={handlePrint} className="bg-violet-100 text-violet-700 p-2 rounded-xl shadow-sm hover:bg-violet-200 transition"><FileText size={24}/></button>
           </div>
           <div className="flex bg-gray-100 p-1 rounded-xl">
-              <button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'morning' ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-400'}`}>☀️ Mañana</button>
+              <button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-400'}`}>☀️ Mañana</button>
               <button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 Tarde</button>
           </div>
       </div>
-      <div className="flex-1 overflow-x-auto p-6"><div className="flex gap-6 h-full">{groups.map((g) => (<div key={g.name} className="min-w-[280px] w-[300px] flex flex-col h-full bg-white rounded-[30px] border border-gray-200 shadow-sm relative overflow-hidden"><div className={`p-4 border-b-4 ${turn==='morning'?'border-orange-400 bg-orange-50':'border-indigo-400 bg-indigo-50'}`}><h3 className="font-black text-gray-800 text-lg">{g.name}</h3><div className="mt-2 text-xs text-gray-500 font-medium"><p>DOCENTE: <span className="font-bold text-violet-700">{g.teacher}</span></p>{g.aux && <p>AUX: {g.aux}</p>}</div></div><div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50">{g.students.map(s => (<div key={s.id} onClick={() => {setSelectedStudent(s); setActiveTab('info');}} className="bg-white p-3 rounded-2xl shadow-sm flex items-center gap-3 cursor-pointer"><div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden shrink-0">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="flex items-center justify-center w-full h-full font-bold text-gray-400">{s.firstName[0]}</div>}</div><div><h4 className="font-bold text-gray-700 text-sm">{s.firstName} {s.lastName}</h4></div><button onClick={(e) => {e.stopPropagation(); setShowBitacoraModal(s);}} className="ml-auto w-8 h-8 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center">⚡</button></div>))}</div></div>))}</div></div>
-      {showBitacoraModal && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600"><div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3><p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p></div><button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button></div><div className="grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto p-1">{INCIDENT_TYPES.map((type) => (<button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 active:scale-95 ${type.color} ${savingIncident ? 'opacity-50' : 'hover:brightness-95'}`}><span className="text-2xl">{type.emoji}</span><span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span></button>))}</div></div></div>)}
+      <div className="flex-1 overflow-x-auto p-6"><div className="flex gap-6 h-full">{groups.length === 0 && (<div className="m-auto text-center opacity-50"><LayoutDashboard size={48} className="mx-auto mb-2 text-gray-300"/><p className="font-bold text-gray-400">No tienes grupos en este turno.</p></div>)} {groups.map((g) => (<div key={g.name} className="min-w-[280px] w-[300px] flex flex-col h-full bg-white rounded-[30px] border border-gray-200 shadow-sm relative overflow-hidden group-hover:shadow-md transition"><div className={`p-4 border-b-4 ${turn==='morning'?'border-orange-400 bg-orange-50':'border-indigo-400 bg-indigo-50'}`}><h3 className="font-black text-gray-800 text-lg">{g.name}</h3><div className="mt-2 text-xs text-gray-500 font-medium"><p>DOCENTE: <span className="font-bold text-violet-700 uppercase">{g.teacher || 'Sin asignar'}</span></p>{g.aux && <p>AUX: <span className="font-bold uppercase">{g.aux}</span></p>}</div></div><div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50">{g.students.map(s => (<div key={s.id} onClick={() => {setSelectedStudent(s); setActiveTab('info');}} className="bg-white p-3 rounded-2xl shadow-sm flex items-center gap-3 cursor-pointer hover:scale-[1.02] transition"><div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden shrink-0 border border-gray-100">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="flex items-center justify-center w-full h-full font-bold text-gray-400">{s.firstName[0]}</div>}</div><div><h4 className="font-bold text-gray-700 text-sm">{s.firstName} {s.lastName}</h4></div><button onClick={(e) => {e.stopPropagation(); setShowBitacoraModal(s);}} className="ml-auto w-8 h-8 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center hover:bg-violet-600 hover:text-white transition">⚡</button></div>))}</div></div>))}</div></div>
+      {showBitacoraModal && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600"><div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3><p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p></div><button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button></div><div className="grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto p-1">{INCIDENT_TYPES.map((type) => (<button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? 'opacity-50' : 'hover:brightness-95'}`}><span className="text-2xl">{type.emoji}</span><span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span></button>))}</div></div></div>)}
       {selectedStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"><div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0"><button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition"><X size={20}/></button><div className="flex items-center gap-4"><div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">{selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}</div><div><h2 className="text-2xl font-bold">{selectedStudent.lastName}, {selectedStudent.firstName}</h2><p className="opacity-90 flex gap-2 text-sm mt-1"><span className="bg-white/20 px-2 py-0.5 rounded">{calculateAge(selectedStudent.birthDate)} años</span></p></div></div><div className="flex gap-2 mt-6"><button onClick={() => setActiveTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'info' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Datos</button><button onClick={() => setActiveTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'history' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto space-y-6">{activeTab === 'info' ? (<div className="space-y-4"><div className="bg-orange-50 p-4 rounded-xl border border-orange-100"><h3 className="font-bold text-orange-800 text-xs uppercase mb-2">Contacto</h3><p className="text-sm">Madre: <b>{selectedStudent.motherName}</b> ({selectedStudent.motherContact})</p><p className="text-sm">Padre: <b>{selectedStudent.fatherName}</b> ({selectedStudent.fatherContact})</p></div><div className="bg-gray-50 p-4 rounded-xl border border-gray-100"><h3 className="font-bold text-gray-500 text-xs uppercase mb-2">Ubicación</h3><p className="text-sm">TM: <b>{selectedStudent.groupMorning}</b></p><p className="text-sm">TT: <b>{selectedStudent.groupAfternoon}</b></p></div></div>) : (<div className="space-y-2">{selectedStudent.incidents?.map((inc, i) => (<div key={i} className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="font-bold text-sm">{inc.type}</p><p className="text-xs text-gray-500">{new Date(inc.date).toLocaleDateString()} - {inc.author}</p></div>))}</div>)}</div></div></div>)}
     </div>
   );
 }
+
 // ===============================================================
 // PEGAR ESTO AL FINAL DEL ARCHIVO (FUERA DE CUALQUIER OTRA FUNCIÓN)
 // ===============================================================
@@ -1895,6 +1940,7 @@ const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24
 function ActivityLogView() {
   return <div className="text-white p-6 text-center">Registro de Actividad (Próximamente)</div>;
 }
+
 
 
 
