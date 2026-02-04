@@ -424,17 +424,7 @@ function NavButton({ active, onClick, icon, label, badge }) {
   );
 }
 
-function NavButton({ active, onClick, icon, label, badge }) {
-  return (
-    <button onClick={onClick} className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-300 ${active ? 'text-orange-500 transform -translate-y-1' : 'text-gray-400 hover:text-violet-600'}`}>
-      <div className={`relative p-2 rounded-2xl ${active ? 'bg-orange-50' : 'bg-transparent'}`}>
-        {icon}
-        {badge > 0 && <span className="absolute -top-1 -right-1 bg-violet-600 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full border-2 border-white shadow-sm px-1">{badge > 9 ? '+9' : badge}</span>}
-      </div>
-      <span className={`text-[10px] font-bold ${active ? 'text-violet-900' : 'text-gray-400'}`}>{label}</span>
-    </button>
-  );
-}
+
 
 // --- VISTA DASHBOARD (CUMPLEAÑOS COMPACTO + NOMBRE Y GRUPO) ---
 function DashboardView({ user, tasks, events, setActiveTab }) {
@@ -1972,6 +1962,30 @@ function GroupsView({ user }) {
 // Icono auxiliar
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
 
+// ==========================================
+// UTILIDADES Y COMPONENTES AUXILIARES (PEGAR AL FINAL)
+// ==========================================
+
+// 1. Botón del Menú Inferior
+function NavButton({ active, onClick, icon, label, badge }) {
+  return (
+    <button onClick={onClick} className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-300 ${active ? 'text-orange-500 transform -translate-y-1' : 'text-gray-400 hover:text-violet-600'}`}>
+      <div className={`relative p-2 rounded-2xl ${active ? 'bg-orange-50' : 'bg-transparent'}`}>
+        {icon}
+        {badge > 0 && <span className="absolute -top-1 -right-1 bg-violet-600 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full border-2 border-white shadow-sm px-1">{badge > 9 ? '+9' : badge}</span>}
+      </div>
+      <span className={`text-[10px] font-bold ${active ? 'text-violet-900' : 'text-gray-400'}`}>{label}</span>
+    </button>
+  );
+}
+
+// 2. Icono auxiliar para "Mi Aula"
+const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
+// 3. Vista de Auditoría (Para que no quede pantalla blanca si tocas el botón)
+function ActivityLogView() {
+  return <div className="text-white p-6 text-center">Registro de Actividad (Próximamente)</div>;
+}
 
 
 
