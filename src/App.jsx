@@ -452,7 +452,6 @@ function MainApp({ user, onLogout, onProfileUpdate }) {
     </div>
   );
 }
-// --- VISTA DASHBOARD (LIMPIA + BOTÓN CUMPLEAÑOS FLOTANTE) ---
 function DashboardView({ user, tasks, events, setActiveTab }) {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEvents = events.filter(e => e.date === todayStr);
@@ -460,7 +459,7 @@ function DashboardView({ user, tasks, events, setActiveTab }) {
   const [showAnnounceModal, setShowAnnounceModal] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [birthdays, setBirthdays] = useState([]);
-  const [showBirthdayModal, setShowBirthdayModal] = useState(false); // Nuevo estado
+  const [showBirthdayModal, setShowBirthdayModal] = useState(false); // NUEVO
   const [notes, setNotes] = useState([]);
   const [newNote, setNewNote] = useState('');
   const [ungroupedCount, setUngroupedCount] = useState(0);
@@ -469,11 +468,9 @@ function DashboardView({ user, tasks, events, setActiveTab }) {
   const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración'].includes(user.role) || user.rol === 'admin';
 
   useEffect(() => {
-    // 1. Avisos
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(q, (snap) => setAnnouncements(snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))));
     
-    // 2. Notas
     const qNotes = query(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), where('userId', '==', user.id));
     const unsubNotes = onSnapshot(qNotes, (snap) => {
         const rawNotes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -481,7 +478,6 @@ function DashboardView({ user, tasks, events, setActiveTab }) {
         setNotes(rawNotes);
     });
 
-    // 3. Cumpleaños
     const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
     const unsubStudents = onSnapshot(qStudents, (snap) => {
         const today = new Date(); const nextWeek = new Date(); nextWeek.setDate(today.getDate() + 7); 
@@ -497,13 +493,11 @@ function DashboardView({ user, tasks, events, setActiveTab }) {
         }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday);
         setBirthdays(upcoming); setUngroupedCount(noGroupCounter);
     });
-    
     return () => { unsub(); unsubNotes(); unsubStudents(); };
   }, [user.id]);
 
   const handlePost = async (e) => { e.preventDefault(); const text = e.target.message.value; if(!text.trim()) return; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), { message: text, author: user.fullName || user.firstName, role: user.role, createdAt: serverTimestamp() }); setShowAnnounceModal(false); };
   const deleteAnnouncement = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'announcements', id)); };
-  
   const saveNote = async (e) => { e.preventDefault(); if (!newNote.trim()) return; try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), { text: newNote, userId: user.id, done: false, createdAt: serverTimestamp() }); setNewNote(''); } catch (err) { alert("Error al guardar nota."); } };
   const toggleNote = async (note) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', note.id), { done: !note.done });
   const deleteNote = async (id) => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', id));
@@ -514,7 +508,7 @@ function DashboardView({ user, tasks, events, setActiveTab }) {
       
       {isManagement && ungroupedCount > 0 && (<div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl flex items-center justify-between shadow-sm animate-pulse"><div className="flex items-center gap-3"><AlertTriangle className="text-red-500" size={24} /><div><h4 className="font-black text-red-700 text-xs uppercase tracking-widest">Atención Administrativa</h4><p className="text-xs text-red-600 font-bold">Hay {ungroupedCount} estudiantes activos sin grupo asignado.</p></div></div></div>)}
       
-      {/* BOTÓN CUMPLEAÑOS (SOLO SI HAY) */}
+      {/* BOTÓN CUMPLEAÑOS FLOTANTE */}
       {birthdays.length > 0 && (
         <button onClick={() => setShowBirthdayModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-rose-500 p-3 rounded-2xl shadow-md text-white flex items-center justify-between active:scale-95 transition">
             <div className="flex items-center gap-3">
@@ -539,32 +533,21 @@ function DashboardView({ user, tasks, events, setActiveTab }) {
         <div className="space-y-2 max-h-40 overflow-y-auto pr-1">{notes.map(n => (<div key={n.id} className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-gray-100 shadow-sm group"><button onClick={() => toggleNote(n)} className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${n.done ? 'bg-violet-400 border-violet-400' : 'border-violet-200'}`}>{n.done && <Check size={10} className="text-white"/>}</button><span className={`text-xs flex-1 font-medium ${n.done ? 'line-through text-gray-300' : 'text-gray-600'}`}>{n.text}</span><button onClick={() => deleteNote(n.id)} className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"><Trash2 size={12}/></button></div>))}</div>
       </div>
 
-      {/* MODAL DE CUMPLEAÑOS */}
       {showBirthdayModal && (
           <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowBirthdayModal(false)}>
               <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-pink-500" onClick={e => e.stopPropagation()}>
-                  <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-xl font-black text-pink-500 uppercase italic">Cumpleaños</h3>
-                      <button onClick={() => setShowBirthdayModal(false)}><X size={24}/></button>
-                  </div>
+                  <div className="flex justify-between items-center mb-4"><h3 className="text-xl font-black text-pink-500 uppercase italic">Cumpleaños</h3><button onClick={() => setShowBirthdayModal(false)}><X size={24}/></button></div>
                   <div className="space-y-3 max-h-[60vh] overflow-y-auto">
                       {birthdays.map(b => (
                           <div key={b.id} className="flex items-center gap-4 bg-pink-50 p-3 rounded-2xl border border-pink-100">
-                              <div className="w-12 h-12 rounded-full bg-white border-2 border-pink-200 overflow-hidden shrink-0 flex items-center justify-center font-bold text-pink-400">
-                                  {b.photoUrl ? <img src={b.photoUrl} className="w-full h-full object-cover"/> : b.firstName[0]}
-                              </div>
-                              <div>
-                                  <h4 className="font-bold text-gray-800">{b.firstName} {b.lastName}</h4>
-                                  <p className="text-xs text-pink-600 font-bold">{[b.groupMorning, b.groupAfternoon].filter(Boolean).join(' / ') || 'Sin Grupo'}</p>
-                                  <p className="text-[10px] text-gray-400 uppercase tracking-widest">{new Date(b.nextBirthday).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-                              </div>
+                              <div className="w-12 h-12 rounded-full bg-white border-2 border-pink-200 overflow-hidden shrink-0 flex items-center justify-center font-bold text-pink-400">{b.photoUrl ? <img src={b.photoUrl} className="w-full h-full object-cover"/> : b.firstName[0]}</div>
+                              <div><h4 className="font-bold text-gray-800">{b.firstName} {b.lastName}</h4><p className="text-xs text-pink-600 font-bold">{[b.groupMorning, b.groupAfternoon].filter(Boolean).join(' / ') || 'Sin Grupo'}</p><p className="text-[10px] text-gray-400 uppercase tracking-widest">{new Date(b.nextBirthday).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}</p></div>
                           </div>
                       ))}
                   </div>
               </div>
           </div>
       )}
-
       {showAnnounceModal && (<div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm"><form onSubmit={handlePost} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95"><h3 className="text-lg font-black text-orange-500 mb-2 uppercase italic">Nuevo Aviso</h3><textarea name="message" className="w-full p-4 bg-orange-50 rounded-2xl outline-none text-sm h-32 resize-none border border-orange-100 focus:ring-2 ring-orange-200 text-gray-700" placeholder="Escribe aquí..." required></textarea><div className="flex gap-2 mt-4"><button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 text-gray-400 font-bold text-xs uppercase tracking-widest">Cancelar</button><button type="submit" className="flex-1 bg-orange-500 text-white py-3 rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-orange-600 transition">Publicar</button></div></form></div>)}
       {showTutorial && (<div className="fixed inset-0 bg-violet-900/90 z-[300] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in"><div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl max-h-[80vh] overflow-y-auto relative"><button onClick={() => setShowTutorial(false)} className="absolute top-4 right-4 bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button><div className="text-center mb-6"><h2 className="text-2xl font-black text-violet-900 italic uppercase">Guía Rápida</h2><p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Para Docentes y Equipo</p></div><div className="space-y-6"><div className="flex gap-4 items-start"><div className="bg-orange-100 p-3 rounded-2xl text-orange-600"><Grid size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">1. Mi Aula / Grupos</h4><p className="text-xs text-gray-500 mt-1">Aquí ves a tus alumnos. Toca las pestañas "Mañana" o "Tarde" para cambiar de grupo.</p></div></div><div className="flex gap-4 items-start"><div className="bg-red-100 p-3 rounded-2xl text-red-600"><Activity size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">2. Bitácora Express (El Rayo)</h4><p className="text-xs text-gray-500 mt-1">En la tarjeta de cada alumno hay un ícono de rayo ⚡. Úsalo para registrar incidentes (golpes, crisis, salud) rápidamente con un solo toque.</p></div></div><div className="flex gap-4 items-start"><div className="bg-blue-100 p-3 rounded-2xl text-blue-600"><CheckSquare size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">3. Pedidos a Administración</h4><p className="text-xs text-gray-500 mt-1">Usa la sección "Tareas" para pedir materiales o arreglos. Puedes asignar a un <b>Rol</b> o una <b>Persona</b>. <b>¡Es privado!</b> Solo lo ven tú y el destinatario.</p></div></div><div className="flex gap-4 items-start"><div className="bg-green-100 p-3 rounded-2xl text-green-600"><LinkIcon size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">4. Recursos</h4><p className="text-xs text-gray-500 mt-1">Encuentra documentos, planillas y enlaces útiles organizados por carpetas.</p></div></div></div><button onClick={() => setShowTutorial(false)} className="w-full bg-violet-600 text-white py-3 rounded-2xl font-bold mt-8 shadow-lg uppercase text-xs tracking-widest">¡Entendido!</button></div></div>)}
     </div>
@@ -1259,6 +1242,9 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
     </div>
   );
 }
+function ActivityLogView() {
+  return <div className="text-white p-6 text-center">Funcionalidad en desarrollo.</div>;
+}
 // --- VISTA ADMINISTRACIÓN DE USUARIOS (CON CORRECTOR MASIVO) ---
 function UsersAdminView() {
   const [users, setUsers] = useState([]);
@@ -1882,7 +1868,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
-// --- VISTA TABLERO DE GRUPOS (CORREGIDA: MENÚ CABECERA AJUSTADO) ---
+// --- VISTA TABLERO DE GRUPOS (CORREGIDA: CABECERA QUE NO DESBORDA) ---
 function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
   const [turn, setTurn] = useState('morning'); 
@@ -1893,7 +1879,6 @@ function GroupsView({ user }) {
 
   const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración'].includes(user.role) || user.rol === 'admin';
   const LOGO_URL = "https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png";
-
   const INCIDENT_TYPES = [ { label: "Agresión / Violencia", emoji: "👊", severity: "high", color: "bg-red-100 border-red-300 text-red-800" }, { label: "Brote / Gritos", emoji: "🤬", severity: "high", color: "bg-red-100 border-red-300 text-red-800" }, { label: "Fuga / Intento", emoji: "🏃", severity: "high", color: "bg-red-100 border-red-300 text-red-800" }, { label: "Convulsión / Salud", emoji: "🚑", severity: "high", color: "bg-red-100 border-red-300 text-red-800" }, { label: "Crisis Llanto", emoji: "😭", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" }, { label: "Higiene / Esfínter", emoji: "💩", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" }, { label: "Vómito", emoji: "🤮", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" }, { label: "Golpe / Caída", emoji: "🤕", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" }, { label: "No comió", emoji: "🍽️", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" }, { label: "Durmió en clase", emoji: "💤", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" }, { label: "Sin Medicación", emoji: "💊", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" }, { label: "Llegada Tarde", emoji: "🕑", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" }, ];
 
   useEffect(() => {
@@ -1941,15 +1926,19 @@ function GroupsView({ user }) {
 
   return (
     <div className="flex flex-col h-full bg-slate-100 animate-in fade-in duration-500">
-      <div className="bg-white p-4 shadow-sm z-10 sticky top-0 flex flex-col gap-4">
+      {/* HEADER DE GRUPOS AJUSTADO PARA NO DESBORDAR */}
+      <div className="bg-white p-4 shadow-sm z-10 sticky top-0 flex flex-col gap-3">
           <div className="flex justify-between items-center">
-              <div><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter flex items-center gap-2"><Grid size={24} className="text-orange-500"/> Mis Grupos</h2><p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{isManagement ? "Vista Institucional" : `Espacio Docente`}</p></div>
-              <button onClick={handlePrint} className="bg-violet-100 text-violet-700 p-2 rounded-xl shadow-sm hover:bg-violet-200 transition"><FileText size={24}/></button>
+              <div className="flex items-center gap-2">
+                  <Grid size={24} className="text-orange-500"/>
+                  <div><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter leading-none">Mi Aula</h2><p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{isManagement ? "Vista Institucional" : `Espacio Docente`}</p></div>
+              </div>
+              <button onClick={handlePrint} className="bg-violet-100 text-violet-700 p-2 rounded-xl shadow-sm hover:bg-violet-200 transition" title="Imprimir Listas"><FileText size={24}/></button>
           </div>
-          {/* BOTONES DE TURNO MAS GRANDES Y CENTRADOS */}
-          <div className="grid grid-cols-2 gap-2 bg-gray-100 p-1 rounded-xl">
-              <button onClick={() => setTurn('morning')} className={`py-2 rounded-lg text-xs font-black uppercase transition-all flex items-center justify-center gap-2 ${turn === 'morning' ? 'bg-white text-orange-500 shadow-md' : 'text-gray-400'}`}>☀️ Mañana</button>
-              <button onClick={() => setTurn('afternoon')} className={`py-2 rounded-lg text-xs font-black uppercase transition-all flex items-center justify-center gap-2 ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-400'}`}>🌙 Tarde</button>
+          {/* BOTONES DE TURNO (MAÑANA/TARDE) EN FILA COMPLETA */}
+          <div className="flex bg-gray-100 p-1 rounded-xl">
+              <button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-400'}`}>☀️ Mañana</button>
+              <button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 Tarde</button>
           </div>
       </div>
 
@@ -1980,8 +1969,6 @@ function GroupsView({ user }) {
               ))}
           </div>
       </div>
-
-      {/* MODALES AQUI (Bitácora y Ficha Estudiante) - Se mantienen igual que antes */}
       {showBitacoraModal && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600"><div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3><p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p></div><button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button></div><div className="grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto p-1">{INCIDENT_TYPES.map((type) => (<button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? 'opacity-50' : 'hover:brightness-95'}`}><span className="text-2xl">{type.emoji}</span><span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span></button>))}</div><p className="text-[9px] text-center text-gray-400 mt-4 italic">Al tocar se guarda fecha y hora automáticamente.</p></div></div>)}
       {selectedStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]"><div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0"><button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition"><X size={20}/></button><div className="flex items-center gap-4"><div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">{selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}</div><div><h2 className="text-2xl font-bold">{selectedStudent.lastName}, {selectedStudent.firstName}</h2><p className="opacity-90 flex gap-2 text-sm mt-1"><span className="bg-white/20 px-2 py-0.5 rounded">{calculateAge(selectedStudent.birthDate)} años</span><span className="bg-white/20 px-2 py-0.5 rounded">{selectedStudent.dni}</span></p></div></div><div className="flex gap-2 mt-6"><button onClick={() => setActiveTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeTab === 'info' ? 'bg-white text-blue-600 shadow-md' : 'bg-black/20 text-white/70 hover:bg-black/30'}`}>Datos Personales</button><button onClick={() => setActiveTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeTab === 'history' ? 'bg-white text-blue-600 shadow-md' : 'bg-black/20 text-white/70 hover:bg-black/30'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto space-y-6">{activeTab === 'info' ? (<><div className="bg-orange-50 p-4 rounded-xl border border-orange-100"><h3 className="font-black text-orange-800 uppercase text-xs flex items-center gap-2 mb-3"><User size={14}/> Familia & Contacto</h3><div className="space-y-2 text-sm"><div className="flex justify-between border-b border-orange-200 pb-2"><span className="text-orange-400 font-bold text-xs uppercase">Madre</span><span className="font-bold text-gray-800">{selectedStudent.motherName || '-'} <span className="text-gray-500 font-normal">({selectedStudent.motherContact || '-'})</span></span></div><div className="flex justify-between border-b border-orange-200 pb-2"><span className="text-orange-400 font-bold text-xs uppercase">Padre</span><span className="font-bold text-gray-800">{selectedStudent.fatherName || '-'} <span className="text-gray-500 font-normal">({selectedStudent.fatherContact || '-'})</span></span></div><div className="flex justify-between"><span className="text-orange-400 font-bold text-xs uppercase">Domicilio</span><span className="font-bold text-gray-800 text-right">{selectedStudent.address || '-'}</span></div></div></div><div className="grid grid-cols-2 gap-4"><div className="bg-purple-50 p-3 rounded-xl border border-purple-100"><p className="text-[10px] text-purple-400 font-black uppercase">Diagnóstico</p><p className="font-bold text-purple-800 text-sm">{selectedStudent.dx || '-'}</p></div><div className="bg-green-50 p-3 rounded-xl border border-green-100"><p className="text-[10px] text-green-500 font-black uppercase">Obra Social</p><p className="font-bold text-green-800 text-sm truncate">{selectedStudent.healthInsurance || 'No declara'}</p></div></div><div className="bg-gray-50 p-4 rounded-xl border border-gray-100"><h3 className="font-black text-gray-400 uppercase text-xs mb-3">Ubicación Escolar</h3><div className="grid grid-cols-2 gap-4 text-xs"><div><p className="text-gray-400 font-bold">Turno Mañana</p><p className="font-bold text-gray-800">{selectedStudent.groupMorning || '-'}</p></div><div><p className="text-gray-400 font-bold">Turno Tarde</p><p className="font-bold text-gray-800">{selectedStudent.groupAfternoon || '-'}</p></div></div></div></>) : (<div className="animate-in fade-in"><div className="flex justify-between items-center mb-4"><h3 className="font-bold text-gray-800">Bitácora de Incidentes</h3></div><div className="space-y-4 relative before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200">{selectedStudent.incidents && selectedStudent.incidents.length > 0 ? ([...selectedStudent.incidents].reverse().map((inc, i) => (<div key={i} className="pl-8 relative group"><div className={`absolute left-0 top-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${inc.severity === 'high' ? 'bg-red-500' : inc.severity === 'medium' ? 'bg-orange-400' : 'bg-yellow-400'}`}></div><div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex justify-between items-start"><div><div className="flex justify-between items-start gap-2"><span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{new Date(inc.date).toLocaleDateString()} • {new Date(inc.date).toLocaleTimeString()}</span></div><p className="font-bold text-gray-800 text-sm mt-1">{inc.type}</p><span className="text-[9px] bg-gray-50 px-2 py-0.5 rounded text-gray-400 font-bold uppercase mt-1 inline-block">Por: {inc.author}</span></div><button onClick={() => deleteIncident(selectedStudent.id, inc)} className="text-gray-300 hover:text-red-500 p-2"><Trash2 size={12}/></button></div></div>))) : (<div className="pl-8 text-xs text-gray-400 italic">No hay eventos registrados.</div>)}</div></div>)}</div></div></div>)}
     </div>
@@ -1989,6 +1976,7 @@ function GroupsView({ user }) {
 }
 // Icono auxiliar
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
