@@ -1966,24 +1966,14 @@ const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24
 // UTILIDADES Y COMPONENTES AUXILIARES (PEGAR AL FINAL)
 // ==========================================
 
-// 1. Botón del Menú Inferior
-function NavButton({ active, onClick, icon, label, badge }) {
-  return (
-    <button onClick={onClick} className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-300 ${active ? 'text-orange-500 transform -translate-y-1' : 'text-gray-400 hover:text-violet-600'}`}>
-      <div className={`relative p-2 rounded-2xl ${active ? 'bg-orange-50' : 'bg-transparent'}`}>
-        {icon}
-        {badge > 0 && <span className="absolute -top-1 -right-1 bg-violet-600 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full border-2 border-white shadow-sm px-1">{badge > 9 ? '+9' : badge}</span>}
-      </div>
-      <span className={`text-[10px] font-bold ${active ? 'text-violet-900' : 'text-gray-400'}`}>{label}</span>
-    </button>
-  );
-}
+
 
 
 // 3. Vista de Auditoría (Para que no quede pantalla blanca si tocas el botón)
 function ActivityLogView() {
   return <div className="text-white p-6 text-center">Registro de Actividad (Próximamente)</div>;
 }
+
 
 
 
