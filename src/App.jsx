@@ -104,19 +104,16 @@ function SplashScreen() {
     </div>
   );
 }
-// --- Componente Principal Wrapper ---
+// --- Componente Principal Wrapper (CORREGIDO) ---
 export default function App() {
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [configError, setConfigError] = useState(false);
-  // Estado para controlar el tiempo mínimo de la intro (2 segundos)
   const [minTimePassed, setMinTimePassed] = useState(false);
 
   useEffect(() => {
-    // Timer visual: fuerza que la intro se vea al menos 2.5 segundos
     setTimeout(() => setMinTimePassed(true), 2500);
-
     if (!auth) { setConfigError(true); setLoading(false); return; }
 
     const initAuth = async () => {
@@ -126,37 +123,27 @@ export default function App() {
         } else {
           await signInAnonymously(auth);
         }
-      } catch (error) {
-        console.error("Auth error:", error);
-      }
+      } catch (error) { console.error("Auth error:", error); }
     };
     initAuth();
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setFirebaseUser(user);
       const savedProfile = localStorage.getItem('schoolApp_profile');
-      if (savedProfile) {
-        setCurrentUserProfile(JSON.parse(savedProfile));
-      }
+      if (savedProfile) setCurrentUserProfile(JSON.parse(savedProfile));
       setLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
-  const handleLogin = (profileData) => {
-    setCurrentUserProfile(profileData);
-    localStorage.setItem('schoolApp_profile', JSON.stringify(profileData));
-  };
-
-  const handleLogout = () => {
-    setCurrentUserProfile(null);
-    localStorage.removeItem('schoolApp_profile');
-  };
+  const handleLogin = (profileData) => { setCurrentUserProfile(profileData); localStorage.setItem('schoolApp_profile', JSON.stringify(profileData)); };
+  const handleLogout = () => { setCurrentUserProfile(null); localStorage.removeItem('schoolApp_profile'); };
 
   if (loading) return <div className="flex items-center justify-center h-screen bg-violet-50"><div className="animate-spin rounded-full h-12 w-12 border-b-4 border-violet-600"></div></div>;
   if (configError) return <div className="flex flex-col items-center justify-center h-screen bg-red-50 p-6 text-center"><AlertCircle className="text-red-500 w-16 h-16 mb-4" /><h1 className="text-xl font-bold text-red-700">Error de Configuración</h1></div>;
   if (!currentUserProfile) return <LoginScreen onLogin={handleLogin} />;
 
+  // CORRECCIÓN: Agregado "MainApp"
   return <MainApp user={currentUserProfile} onLogout={handleLogout} />;
 }
 
@@ -325,6 +312,7 @@ function LoginScreen({ onLogin }) {
   );
 }
 
+// --- VISTA DASHBOARD (BOTÓN CUMPLEAÑOS FLOTANTE) ---
 function DashboardView({ user, tasks, events, setActiveTab }) {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEvents = events.filter(e => e.date === todayStr);
@@ -1654,6 +1642,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
+// --- APP PRINCIPAL (CORREGIDA: SIN BARRA GRIS + MENÚ RESPONSIVE) ---
 function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -1662,6 +1651,7 @@ function MainApp({ user, onLogout }) {
   const [resources, setResources] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
+  
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -1673,12 +1663,20 @@ function MainApp({ user, onLogout }) {
   useEffect(() => {
     const qTasks = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('dueDate', 'asc'));
     const unsubTasks = onSnapshot(qTasks, (snapshot) => { setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))); });
+
     const qNotifs = query(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), where('toUserId', '==', user.id));
-    const unsubNotifs = onSnapshot(qNotifs, (snapshot) => { const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); setNotifications(data.filter(n => !n.read)); });
+    const unsubNotifs = onSnapshot(qNotifs, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setNotifications(data.filter(n => !n.read)); 
+    });
+
     const qEvents = query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc'));
     const unsubEvents = onSnapshot(qEvents, (snap) => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+
     const qResources = query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc'));
     const unsubResources = onSnapshot(qResources, (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+
     return () => { unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); };
   }, [user.id]);
 
@@ -1689,8 +1687,14 @@ function MainApp({ user, onLogout }) {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 font-sans text-slate-800">
+      {/* ESTILO PARA OCULTAR LA BARRA GRIS */}
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
+
       <header className="bg-violet-800 text-white shadow-lg px-4 py-3 flex justify-between items-center z-50 sticky top-0">
-        <div className="flex items-center space-x-3"><img src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" alt="Logo" className="w-10 h-8 object-contain" /><div><h1 className="font-bold text-sm leading-tight">Juntos a la Par</h1><p className="text-[10px] text-orange-200 uppercase font-bold">{user.firstName}</p></div></div>
+        <div className="flex items-center space-x-3"><img src={LOGO_URL} alt="Logo" className="w-10 h-8 object-contain" /><div><h1 className="font-bold text-sm leading-tight">Juntos a la Par</h1><p className="text-[10px] text-orange-200 uppercase font-bold">{user.firstName}</p></div></div>
         <div className="flex items-center gap-3">
           <button onClick={() => setShowSearch(true)} className="p-2 rounded-full bg-violet-900/50 hover:bg-orange-500 transition"><Search size={20} /></button>
           <div className="relative"><button onClick={() => setShowNotifPanel(!showNotifPanel)} className={`p-2 rounded-full transition ${showNotifPanel ? 'bg-orange-500' : 'bg-violet-900/50'}`}><Bell size={20} />{notifications.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-pulse border border-white">{notifications.length}</span>}</button>{showNotifPanel && (<div className="absolute right-0 mt-3 w-72 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[100]"><div className="p-4 bg-violet-50 border-b flex justify-between items-center"><h3 className="font-bold text-violet-900 text-sm">Avisos Recientes</h3><button onClick={() => setShowNotifPanel(false)}><X size={16} className="text-gray-400"/></button></div><div className="max-h-80 overflow-y-auto">{notifications.length === 0 ? (<div className="p-10 text-center text-gray-400"><p className="text-xs font-bold uppercase">Sin novedades</p></div>) : (notifications.map(n => (<div key={n.id} onClick={() => handleNotificationClick(n)} className="p-4 border-b hover:bg-gray-50 cursor-pointer"><p className="text-[10px] font-bold text-orange-600 mb-1 uppercase">{n.title}</p><p className="text-xs text-gray-700">{n.message}</p></div>)))}</div></div>)}</div>
@@ -1698,46 +1702,54 @@ function MainApp({ user, onLogout }) {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto pb-24 px-4 pt-6 max-w-4xl mx-auto w-full">
+      {/* AQUÍ SE APLICA LA CLASE no-scrollbar */}
+      <main className="flex-1 overflow-y-auto no-scrollbar pb-24 px-4 pt-6 max-w-4xl mx-auto w-full">
         {activeTab === 'dashboard' && <DashboardView user={user} tasks={tasks} events={events} setActiveTab={setActiveTab} />}
         {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
         {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} canEdit={canManageContent} />}
         {activeTab === 'matricula' && <MatriculaView user={user} />}
         {activeTab === 'resources' && <ResourcesView resources={resources} canEdit={canManageContent} />}
-        {activeTab === 'profile' && <ProfileView user={user} onLogout={onLogout} isSuperAdmin={isSuperAdmin} />}
+        {activeTab === 'profile' && <ProfileView user={user} onLogout={onLogout} isSuperAdmin={isSuperAdmin} onProfileUpdate={onProfileUpdate} />}
         {activeTab === 'proyecto' && <ProyectoView user={user} />}
         {activeTab === 'groups' && <GroupsView user={user} />}
         {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={canManageContent} user={user} />}
       </main>
 
       <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-16 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] pb-safe">
-        <div className="flex justify-between items-center h-full max-w-4xl mx-auto px-6 relative">
+        {/* GRILLA INTELIGENTE: 5 columnas en Móvil, 7 en PC. */}
+        <div className="grid grid-cols-5 md:grid-cols-7 h-full max-w-5xl mx-auto px-2 relative">
           
-          <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={24} />} label="Inicio" />
-          <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={24} />} label="Tareas" />
+          <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Inicio" />
+          <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={20} />} label="Tareas" />
+
+          {/* Agenda (SOLO PC) */}
+          <div className="hidden md:block">
+             <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={20} />} label="Agenda" />
+          </div>
           
-          {/* BOTÓN CENTRAL: MI AULA */}
-          <div className="relative -top-5">
-              <button onClick={() => setActiveTab('groups')} className={`w-16 h-16 rounded-full flex flex-col items-center justify-center shadow-xl border-4 border-gray-50 transition-all transform active:scale-95 ${activeTab === 'groups' ? 'bg-orange-500 text-white scale-110' : 'bg-violet-600 text-white'}`}>
-                  <Grid size={28} />
+          {/* MI AULA (SIEMPRE CENTRO) */}
+          <div className="relative -top-5 flex justify-center">
+              <button onClick={() => setActiveTab('groups')} className={`w-14 h-14 rounded-full flex flex-col items-center justify-center shadow-xl border-4 border-gray-50 transition-all transform active:scale-95 ${activeTab === 'groups' ? 'bg-orange-500 text-white scale-110' : 'bg-violet-600 text-white'}`}>
+                  <Grid size={24} />
               </button>
-              <span className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 text-[10px] font-black text-violet-900 uppercase tracking-wide whitespace-nowrap">Mi Aula</span>
+              <span className="absolute -bottom-4 text-[9px] font-black text-violet-900 uppercase tracking-wide whitespace-nowrap">Mi Aula</span>
           </div>
 
-          <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={24} />} label="Agenda" />
-          
-          {/* MENU HÍBRIDO (Hamburguesa en Móvil, Completo en PC) */}
-          <div className="relative md:hidden">
-            <NavButton active={['matricula', 'resources', 'proyecto'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={24} />} label="Más..." />
+          {/* Agenda (SOLO MÓVIL) */}
+          <div className="block md:hidden">
+             <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={20} />} label="Agenda" />
+          </div>
+
+          {/* Botones Extra (SOLO PC - Desplegados) */}
+          <div className="hidden md:block"><NavButton active={activeTab === 'matricula'} onClick={() => setActiveTab('matricula')} icon={<GraduationCap size={20} />} label="Legajos" /></div>
+          <div className="hidden md:block"><NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<LinkIcon size={20} />} label="Recursos" /></div>
+          <div className="hidden md:block"><NavButton active={activeTab === 'proyecto'} onClick={() => setActiveTab('proyecto')} icon={<PieChart size={20} />} label="P.I." /></div>
+
+          {/* Menú Hamburguesa (SOLO MÓVIL - Comprimido) */}
+          <div className="relative block md:hidden">
+            <NavButton active={['matricula', 'resources', 'proyecto'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={20} />} label="Más" />
             {showMoreMenu && (<div className="absolute bottom-16 right-0 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 w-48 animate-in slide-in-from-bottom-5 zoom-in-95 origin-bottom-right z-50"><button onClick={() => { setActiveTab('matricula'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><GraduationCap size={18} className="text-violet-500"/> Legajos</button><button onClick={() => { setActiveTab('resources'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><LinkIcon size={18} className="text-green-500"/> Recursos</button><button onClick={() => { setActiveTab('proyecto'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><PieChart size={18} className="text-orange-500"/> Proyecto Inst.</button></div>)}
           </div>
-          
-          <div className="hidden md:flex gap-4">
-             <NavButton active={activeTab === 'matricula'} onClick={() => setActiveTab('matricula')} icon={<GraduationCap size={20} />} label="Legajos" />
-             <NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<LinkIcon size={20} />} label="Recursos" />
-             <NavButton active={activeTab === 'proyecto'} onClick={() => setActiveTab('proyecto')} icon={<PieChart size={20} />} label="P.I." />
-          </div>
-
         </div>
       </nav>
 
@@ -1747,7 +1759,6 @@ function MainApp({ user, onLogout }) {
   );
 }
 
-function NavButton({ active, onClick, icon, label }) { return (<button onClick={onClick} className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all ${active ? 'text-orange-500 transform -translate-y-1' : 'text-gray-400'}`}><div className={`relative p-1 rounded-xl ${active ? 'bg-orange-50' : ''}`}>{icon}</div><span className={`text-[10px] font-bold`}>{label}</span></button>); }
 // --- VISTA TABLERO DE GRUPOS (CORREGIDA: FILTRO DOCENTE INTELIGENTE + CABECERA) ---
 function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
@@ -1777,6 +1788,7 @@ function GroupsView({ user }) {
 
   let groups = Object.values(groupedData).sort((a, b) => a.name.localeCompare(b.name));
 
+  // --- FILTRO INTELIGENTE DE DOCENTE ---
   if (!isManagement) {
       groups = groups.filter(g => {
           const t = (g.teacher || "").toLowerCase();
@@ -1786,42 +1798,42 @@ function GroupsView({ user }) {
       });
   }
 
-  const handleSaveIncident = async (type, severity) => { if (!showBitacoraModal) return; setSavingIncident(true); try { const incidentData = { type, severity, date: new Date().toISOString(), author: user.fullName || user.firstName, authorId: user.id }; const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id); await updateDoc(studentRef, { incidents: arrayUnion(incidentData), lastIncident: incidentData.date, lastIncidentType: type }); alert("✅ Registro guardado"); setShowBitacoraModal(null); } catch (e) { console.error(e); } finally { setSavingIncident(false); } };
-  const deleteIncident = async (studentId, incident) => { if(!confirm("¿Borrar?")) return; try { const { updateDoc, doc, arrayRemove } = await import('firebase/firestore'); await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', studentId), { incidents: arrayRemove(incident) }); } catch (e) {} };
+  const handleSaveIncident = async (type, severity) => { if (!showBitacoraModal) return; setSavingIncident(true); try { const incidentData = { type, severity, date: new Date().toISOString(), author: user.fullName || user.firstName, authorId: user.id }; const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id); await updateDoc(studentRef, { incidents: arrayUnion(incidentData), lastIncident: incidentData.date, lastIncidentType: type }); alert("✅ Registro guardado"); setShowBitacoraModal(null); } catch (e) { console.error(e); alert("Error: " + e.message); } finally { setSavingIncident(false); } };
+  const deleteIncident = async (studentId, incident) => { if(!confirm("¿Borrar esta entrada de la bitácora?")) return; try { const { updateDoc, doc, arrayRemove } = await import('firebase/firestore'); await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', studentId), { incidents: arrayRemove(incident) }); } catch (e) { alert("Error al borrar: " + e.message); } };
   const calculateAge = (dateString) => { if (!dateString) return '-'; const today = new Date(); const birthDate = new Date(dateString); let age = today.getFullYear() - birthDate.getFullYear(); const m = today.getMonth() - birthDate.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--; return age; };
 
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
-    if (!printWindow) return alert("Permitir ventanas emergentes");
+    if (!printWindow) return alert("Por favor, permití las ventanas emergentes para imprimir.");
     const turnoTexto = turn === 'morning' ? 'MAÑANA' : 'TARDE';
-    let content = `<html><head><title>Listas ${turnoTexto}</title><style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');body{font-family:'Roboto',sans-serif;padding:20px}.header{display:flex;justify-content:space-between;border-bottom:3px solid #7c3aed;padding-bottom:10px;margin-bottom:20px}img{height:60px}.group{margin-bottom:30px;border:1px solid #ccc;border-radius:10px;overflow:hidden}.g-head{background:#f3f4f6;padding:10px;display:grid;grid-template-columns:2fr 1fr;gap:10px}table{width:100%;border-collapse:collapse;font-size:12px}th{background:#7c3aed;color:white;padding:5px;text-align:left}td{border-bottom:1px solid #eee;padding:5px}</style></head><body><div class="header"><div><h1>Listas de Clase</h1><p>Turno ${turnoTexto} • Ciclo 2026</p></div><img src="${LOGO_URL}"/></div>`;
+    const fechaImpresion = new Date().toLocaleDateString('es-AR');
+    let content = `<html><head><title>Listas de Grupos - ${turnoTexto}</title><style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');body{font-family:'Roboto',sans-serif;padding:20px;background:white}.header-page{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #7c3aed;padding-bottom:15px;margin-bottom:20px}.logo-img{height:60px;object-fit:contain}.main-title{color:#4c1d95;font-size:24px;font-weight:900;text-transform:uppercase;margin:0}.sub-title{color:#f97316;font-size:14px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;margin:0}.group-container{margin-bottom:40px;page-break-inside:avoid;border:1px solid #ddd;border-radius:10px;overflow:hidden}.group-header{background:#f3f4f6;padding:15px;border-bottom:2px solid #e5e7eb;display:grid;grid-template-columns:2fr 1fr;gap:10px}.group-title{font-size:18px;font-weight:900;color:#1f2937;text-transform:uppercase}.info-row{font-size:12px;color:#4b5563;margin-bottom:2px}.info-label{font-weight:bold;color:#7c3aed;text-transform:uppercase;margin-right:5px}table{width:100%;border-collapse:collapse;font-size:12px}th{background-color:#7c3aed;color:white;padding:8px;text-align:left;text-transform:uppercase;font-size:10px;letter-spacing:1px}td{border-bottom:1px solid #eee;padding:8px;color:#374151}tr:nth-child(even){background-color:#fafafa}.footer{text-align:center;font-size:10px;color:#9ca3af;margin-top:30px;border-top:1px solid #eee;padding-top:10px}</style></head><body><div class="header-page"><div><h1 class="main-title">Listados de Clase</h1><p class="sub-title">Turno ${turnoTexto} • Ciclo 2026</p></div><img src="${LOGO_URL}" class="logo-img" alt="Logo"/></div>`;
     groups.forEach(g => {
-        let doc = g.teacher || ''; let aux = g.aux || '';
-        if(doc.includes(" y ")) { let p = doc.split(" y "); doc = p[0]; if(!aux || aux==='Sin asignar') aux = p[1]; }
-        else if(doc.includes(" - ")) { let p = doc.split(" - "); doc = p[0]; if(!aux || aux==='Sin asignar') aux = p[1]; }
-        content += `<div class="group"><div class="g-head"><div><h3>${g.name}</h3>Nivel: ${g.level} - Aula: ${g.classroom}</div><div><strong>Doc:</strong> ${doc}<br><strong>Aux:</strong> ${aux}</div></div><table><thead><tr><th>#</th><th>Apellido y Nombre</th><th>DNI</th><th>Nacimiento</th></tr></thead><tbody>`;
-        g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).forEach((s,i) => { const f = s.birthDate ? new Date(s.birthDate+'T00:00').toLocaleDateString() : '-'; content += `<tr><td>${i+1}</td><td><strong>${s.lastName}</strong>, ${s.firstName}</td><td>${s.dni}</td><td>${f}</td></tr>`; });
-        content += `</tbody></table></div>`;
+        let rawTeacher = g.teacher || ''; let docente = rawTeacher; let auxiliar = g.aux || 'Sin asignar';
+        if (rawTeacher.includes(" y ")) { const parts = rawTeacher.split(" y "); docente = parts[0].trim(); if(auxiliar === 'Sin asignar' || !auxiliar) auxiliar = parts[1].trim(); } 
+        else if (rawTeacher.includes(" - ")) { const parts = rawTeacher.split(" - "); docente = parts[0].trim(); if(auxiliar === 'Sin asignar' || !auxiliar) auxiliar = parts[1].trim(); }
+        content += `<div class="group-container"><div class="group-header"><div><div class="group-title">${g.name}</div><div class="info-row"><span class="info-label">Nivel:</span> ${g.level || '-'}</div><div class="info-row"><span class="info-label">Aula:</span> ${g.classroom || 'Sin asignar'}</div></div><div style="border-left:2px solid #ddd;padding-left:15px;"><div class="info-row"><span class="info-label">Docente:</span> ${docente}</div><div class="info-row"><span class="info-label">Aux/Precep:</span> ${auxiliar}</div>${(g.sup1 || g.sup2) ? `<div class="info-row" style="margin-top:5px;padding-top:5px;border-top:1px dashed #ccc;"><span class="info-label">Supervisión:</span> ${g.sup1 || ''} ${g.sup2 ? '/ ' + g.sup2 : ''}</div>` : ''}</div></div><table><thead><tr><th style="width:5%;">#</th><th style="width:50%;">Apellido y Nombre</th><th style="width:25%;">DNI</th><th style="width:20%;">Fecha Nac.</th></tr></thead><tbody>`;
+        g.students.sort((a,b) => a.lastName.localeCompare(b.lastName)).forEach((s, index) => { const fechaNac = s.birthDate ? new Date(s.birthDate + 'T00:00:00').toLocaleDateString('es-AR') : '-'; content += `<tr><td>${index + 1}</td><td><strong>${s.lastName}</strong>, ${s.firstName}</td><td>${s.dni}</td><td>${fechaNac}</td></tr>`; }); content += `</tbody></table></div>`;
     });
-    content += `</body></html>`;
-    printWindow.document.write(content); printWindow.document.close(); setTimeout(() => printWindow.print(), 1000);
+    content += `<div class="footer">Generado el ${fechaImpresion} - Sistema de Gestión "Juntos a la Par"</div></body></html>`;
+    printWindow.document.write(content); printWindow.document.close(); setTimeout(() => { printWindow.print(); }, 1000);
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-100 animate-in fade-in">
+    <div className="flex flex-col h-full bg-slate-100 animate-in fade-in duration-500">
       <div className="bg-white p-4 shadow-sm z-10 sticky top-0 flex flex-col gap-3">
           <div className="flex justify-between items-center">
               <div><h2 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2"><Grid size={24} className="text-orange-500"/> Mis Grupos</h2><p className="text-xs text-gray-400 font-bold uppercase">{isManagement ? "Vista Institucional" : `Espacio Docente`}</p></div>
-              <button onClick={handlePrint} className="bg-violet-100 text-violet-700 p-2 rounded-xl shadow-sm hover:bg-violet-200"><FileText size={24}/></button>
+              <button onClick={handlePrint} className="bg-violet-100 text-violet-700 p-2 rounded-xl shadow-sm hover:bg-violet-200 transition" title="Imprimir Listas"><FileText size={24}/></button>
           </div>
           <div className="flex bg-gray-100 p-1 rounded-xl">
-              <button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'morning' ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-400'}`}>☀️ Mañana</button>
-              <button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 Tarde</button>
+              <button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-400'}`}>☀️ Mañana</button>
+              <button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 Tarde</button>
           </div>
       </div>
-      <div className="flex-1 overflow-x-auto p-6"><div className="flex gap-6 h-full">{groups.map((g) => (<div key={g.name} className="min-w-[280px] w-[300px] flex flex-col h-full bg-white rounded-[30px] border border-gray-200 shadow-sm relative overflow-hidden"><div className={`p-4 border-b-4 ${turn==='morning'?'border-orange-400 bg-orange-50':'border-indigo-400 bg-indigo-50'}`}><h3 className="font-black text-gray-800 text-lg">{g.name}</h3><div className="mt-2 text-xs text-gray-500 font-medium"><p>DOCENTE: <span className="font-bold text-violet-700">{g.teacher}</span></p>{g.aux && <p>AUX: {g.aux}</p>}</div></div><div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50">{g.students.map(s => (<div key={s.id} onClick={() => {setSelectedStudent(s); setActiveTab('info');}} className="bg-white p-3 rounded-2xl shadow-sm flex items-center gap-3 cursor-pointer"><div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden shrink-0">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="flex items-center justify-center w-full h-full font-bold text-gray-400">{s.firstName[0]}</div>}</div><div><h4 className="font-bold text-gray-700 text-sm">{s.firstName} {s.lastName}</h4></div><button onClick={(e) => {e.stopPropagation(); setShowBitacoraModal(s);}} className="ml-auto w-8 h-8 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center">⚡</button></div>))}</div></div>))}</div></div>
-      {showBitacoraModal && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600"><div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3><p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p></div><button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button></div><div className="grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto p-1">{INCIDENT_TYPES.map((type) => (<button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 active:scale-95 ${type.color} ${savingIncident ? 'opacity-50' : 'hover:brightness-95'}`}><span className="text-2xl">{type.emoji}</span><span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span></button>))}</div></div></div>)}
-      {selectedStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"><div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0"><button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition"><X size={20}/></button><div className="flex items-center gap-4"><div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">{selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}</div><div><h2 className="text-2xl font-bold">{selectedStudent.lastName}, {selectedStudent.firstName}</h2><p className="opacity-90 flex gap-2 text-sm mt-1"><span className="bg-white/20 px-2 py-0.5 rounded">{calculateAge(selectedStudent.birthDate)} años</span></p></div></div><div className="flex gap-2 mt-6"><button onClick={() => setActiveTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'info' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Datos</button><button onClick={() => setActiveTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'history' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto space-y-6">{activeTab === 'info' ? (<div className="space-y-4"><div className="bg-orange-50 p-4 rounded-xl border border-orange-100"><h3 className="font-bold text-orange-800 text-xs uppercase mb-2">Contacto</h3><p className="text-sm">Madre: <b>{selectedStudent.motherName}</b> ({selectedStudent.motherContact})</p><p className="text-sm">Padre: <b>{selectedStudent.fatherName}</b> ({selectedStudent.fatherContact})</p></div><div className="bg-gray-50 p-4 rounded-xl border border-gray-100"><h3 className="font-bold text-gray-500 text-xs uppercase mb-2">Ubicación</h3><p className="text-sm">TM: <b>{selectedStudent.groupMorning}</b></p><p className="text-sm">TT: <b>{selectedStudent.groupAfternoon}</b></p></div></div>) : (<div className="space-y-2">{selectedStudent.incidents?.map((inc, i) => (<div key={i} className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="font-bold text-sm">{inc.type}</p><p className="text-xs text-gray-500">{new Date(inc.date).toLocaleDateString()} - {inc.author}</p></div>))}</div>)}</div></div></div>)}
+      <div className="flex-1 overflow-x-auto p-6"><div className="flex gap-6 h-full">{groups.length === 0 && (<div className="m-auto text-center opacity-50"><LayoutDashboard size={48} className="mx-auto mb-2 text-gray-300"/><p className="font-bold text-gray-400">No hay grupos asignados.</p></div>)} {groups.map((g) => (<div key={g.name} className="min-w-[280px] w-[300px] flex flex-col h-full bg-white rounded-[30px] border border-gray-200 shadow-sm relative overflow-hidden"><div className={`p-4 border-b-4 ${turn==='morning'?'border-orange-400 bg-orange-50':'border-indigo-400 bg-indigo-50'}`}><h3 className="font-black text-gray-800 text-lg">{g.name}</h3><div className="mt-2 text-xs text-gray-500 font-medium"><p>DOCENTE: <span className="font-bold text-violet-700">{g.teacher}</span></p>{g.aux && <p>AUX: {g.aux}</p>}</div></div><div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50">{g.students.map(s => (<div key={s.id} onClick={() => {setSelectedStudent(s); setActiveTab('info');}} className="bg-white p-3 rounded-2xl shadow-sm flex items-center gap-3 cursor-pointer"><div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden shrink-0">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="flex items-center justify-center w-full h-full font-bold text-gray-400">{s.firstName[0]}</div>}</div><div><h4 className="font-bold text-gray-700 text-sm">{s.firstName} {s.lastName}</h4></div><button onClick={(e) => {e.stopPropagation(); setShowBitacoraModal(s);}} className="ml-auto w-8 h-8 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center">⚡</button></div>))}</div></div>))}</div></div>
+      {showBitacoraModal && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600"><div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3><p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p></div><button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button></div><div className="grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto p-1">{INCIDENT_TYPES.map((type) => (<button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? 'opacity-50' : 'hover:brightness-95'}`}><span className="text-2xl">{type.emoji}</span><span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span></button>))}</div></div></div>)}
+      {selectedStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]"><div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0"><button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition"><X size={20}/></button><div className="flex items-center gap-4"><div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">{selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}</div><div><h2 className="text-2xl font-bold">{selectedStudent.lastName}, {selectedStudent.firstName}</h2><p className="opacity-90 flex gap-2 text-sm mt-1"><span className="bg-white/20 px-2 py-0.5 rounded">{calculateAge(selectedStudent.birthDate)} años</span><span className="bg-white/20 px-2 py-0.5 rounded">{selectedStudent.dni}</span></p></div></div><div className="flex gap-2 mt-6"><button onClick={() => setActiveTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeTab === 'info' ? 'bg-white text-blue-600 shadow-md' : 'bg-black/20 text-white/70 hover:bg-black/30'}`}>Datos Personales</button><button onClick={() => setActiveTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeTab === 'history' ? 'bg-white text-blue-600 shadow-md' : 'bg-black/20 text-white/70 hover:bg-black/30'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto space-y-6">{activeTab === 'info' ? (<div className="space-y-4"><div className="bg-orange-50 p-4 rounded-xl border border-orange-100"><h3 className="font-bold text-orange-800 text-xs uppercase mb-2">Contacto</h3><p className="text-sm">Madre: <b>{selectedStudent.motherName}</b> ({selectedStudent.motherContact})</p><p className="text-sm">Padre: <b>{selectedStudent.fatherName}</b> ({selectedStudent.fatherContact})</p></div><div className="bg-gray-50 p-4 rounded-xl border border-gray-100"><h3 className="font-bold text-gray-500 text-xs uppercase mb-2">Escolaridad</h3><p className="text-sm">Mañana: <b>{selectedStudent.groupMorning}</b></p><p className="text-sm">Tarde: <b>{selectedStudent.groupAfternoon}</b></p></div></div>) : (<div className="space-y-2">{selectedStudent.incidents && selectedStudent.incidents.map((inc, i) => (<div key={i} className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="font-bold text-sm">{inc.type}</p><p className="text-xs text-gray-500">{new Date(inc.date).toLocaleDateString()} - {inc.author}</p></div>))}</div>)}</div></div></div>)}
     </div>
   );
 }
@@ -1839,6 +1851,7 @@ const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24
 function ActivityLogView() {
   return <div className="text-white p-6 text-center">Registro de Actividad (Próximamente)</div>;
 }
+
 
 
 
