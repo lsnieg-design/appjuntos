@@ -1797,10 +1797,10 @@ function MainApp({ user, onLogout }) {
     </div>
   );
 }
-// --- VISTA AULA (CON EDICIÓN MASIVA DE DOCENTES/GRUPO) ---
+// --- VISTA AULA (CON EDICIÓN DE 2 SUPERVISORES + IMPRESIÓN + VISIBILIDAD) ---
 function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
-  const [usersList, setUsersList] = useState([]); // Necesitamos la lista de profes para el select
+  const [usersList, setUsersList] = useState([]); // Lista de usuarios para los selectores
   const [turn, setTurn] = useState('morning'); 
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [showBitacoraModal, setShowBitacoraModal] = useState(null); 
@@ -1816,27 +1816,27 @@ function GroupsView({ user }) {
   const INCIDENT_TYPES = [ { label: "Agresión / Violencia", emoji: "👊", severity: "high", color: "bg-red-100 border-red-300 text-red-800" }, { label: "Brote / Gritos", emoji: "🤬", severity: "high", color: "bg-red-100 border-red-300 text-red-800" }, { label: "Fuga / Intento", emoji: "🏃", severity: "high", color: "bg-red-100 border-red-300 text-red-800" }, { label: "Convulsión / Salud", emoji: "🚑", severity: "high", color: "bg-red-100 border-red-300 text-red-800" }, { label: "Crisis Llanto", emoji: "😭", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" }, { label: "Higiene / Esfínter", emoji: "💩", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" }, { label: "Vómito", emoji: "🤮", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" }, { label: "Golpe / Caída", emoji: "🤕", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" }, { label: "No comió", emoji: "🍽️", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" }, { label: "Durmió en clase", emoji: "💤", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" }, { label: "Sin Medicación", emoji: "💊", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" }, { label: "Llegada Tarde", emoji: "🕑", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" }, ];
 
   useEffect(() => {
-    // Traemos estudiantes
+    // 1. Traemos estudiantes activos
     const qS = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
     const unsubS = onSnapshot(qS, (snap) => { setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
     
-    // Traemos docentes para el desplegable de edición
+    // 2. Traemos usuarios para los desplegables de edición
     const qU = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('lastName', 'asc'));
     const unsubU = onSnapshot(qU, (snap) => { setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
 
     return () => { unsubS(); unsubU(); };
   }, []);
 
-  // Listas para los selects del modal
+  // Filtramos las listas para los selectores
   const staffOptions = usersList.filter(u => ['Docente', 'Auxiliar/Preceptor', 'Equipo Técnico', 'Profes Especiales'].includes(u.role));
   const techOptions = usersList.filter(u => u.role === 'Equipo Técnico');
 
-  // --- AGRUPACIÓN ---
+  // --- AGRUPACIÓN LÓGICA ---
   const groupedData = students.reduce((acc, s) => {
       const groupName = turn === 'morning' ? s.groupMorning : s.groupAfternoon;
       if (!groupName) return acc;
       
-      const key = groupName.trim(); 
+      const key = groupName.trim(); // Agrupamos por nombre exacto
       const myTeacher = turn === 'morning' ? s.teacherMorning : s.teacherAfternoon;
       const myAux = turn === 'morning' ? s.auxMorning : s.auxAfternoon;
       const mySup1 = turn === 'morning' ? s.sup1Morning : s.sup1Afternoon;
@@ -1855,10 +1855,11 @@ function GroupsView({ user }) {
           }; 
       }
       
-      // Inteligencia: Si el grupo no tiene docente asignado pero este alumno sí, lo tomamos
+      // Actualizamos datos del grupo si encontramos información más completa en este alumno
       if (!acc[key].teacher && myTeacher) acc[key].teacher = myTeacher;
       if (!acc[key].aux && myAux) acc[key].aux = myAux;
       if (!acc[key].sup1 && mySup1) acc[key].sup1 = mySup1;
+      if (!acc[key].sup2 && mySup2) acc[key].sup2 = mySup2;
 
       acc[key].students.push(s);
       return acc;
@@ -1866,12 +1867,15 @@ function GroupsView({ user }) {
 
   let groups = Object.values(groupedData).sort((a, b) => a.name.localeCompare(b.name));
 
-  // --- FILTRO DE VISIBILIDAD ---
+  // --- FILTRO DE VISIBILIDAD PARA DOCENTES ---
   if (!isManagement) {
       const myName = (user.fullName || "").toLowerCase();
       groups = groups.filter(g => {
+          // Si soy titular de la tarjeta
           if ((g.teacher || "").toLowerCase().includes(myName)) return true;
           if ((g.aux || "").toLowerCase().includes(myName)) return true;
+          
+          // O si soy docente de al menos un alumno dentro
           return g.students.some(s => {
              const t = turn === 'morning' ? s.teacherMorning : s.teacherAfternoon;
              const a = turn === 'morning' ? s.auxMorning : s.auxAfternoon;
@@ -1884,36 +1888,35 @@ function GroupsView({ user }) {
   const handleUpdateGroup = async (e) => {
       e.preventDefault();
       if (!editingGroup) return;
-      if (!confirm(`⚠️ ¿Estás seguro?\n\nEsto cambiará el Docente, Auxiliar y Aula de los ${editingGroup.students.length} estudiantes del grupo "${editingGroup.name}".`)) return;
+      if (!confirm(`⚠️ ¿Estás seguro?\n\nEsto actualizará Docente, Auxiliar, Supervisores y Aula para los ${editingGroup.students.length} alumnos del grupo "${editingGroup.name}".`)) return;
 
       setUpdatingGroup(true);
       const fd = new FormData(e.target);
       
-      // Campos dinámicos según el turno
       const updates = {};
+      // Actualizamos los campos correspondientes al turno activo
       if (turn === 'morning') {
           updates.teacherMorning = fd.get('teacher');
           updates.auxMorning = fd.get('aux');
           updates.sup1Morning = fd.get('sup1');
-          updates.sup2Morning = fd.get('sup2');
-          updates.groupMorning = fd.get('groupName'); // Permitimos corregir el nombre del grupo
+          updates.sup2Morning = fd.get('sup2'); // Guardamos Sup 2
+          updates.groupMorning = fd.get('groupName'); 
       } else {
           updates.teacherAfternoon = fd.get('teacher');
           updates.auxAfternoon = fd.get('aux');
           updates.sup1Afternoon = fd.get('sup1');
-          updates.sup2Afternoon = fd.get('sup2');
+          updates.sup2Afternoon = fd.get('sup2'); // Guardamos Sup 2
           updates.groupAfternoon = fd.get('groupName');
       }
       updates.classroom = fd.get('classroom');
       updates.updatedAt = serverTimestamp();
 
       try {
-          // Actualización Masiva
           const promises = editingGroup.students.map(s => 
               updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)
           );
           await Promise.all(promises);
-          alert("✅ Grupo actualizado correctamente en todas las fichas.");
+          alert("✅ Grupo actualizado correctamente.");
           setEditingGroup(null);
       } catch (err) {
           alert("Error al actualizar: " + err.message);
@@ -1922,7 +1925,7 @@ function GroupsView({ user }) {
       }
   };
 
-  const handleSaveIncident = async (type, severity) => { if (!showBitacoraModal) return; setSavingIncident(true); try { const incidentData = { type, severity, date: new Date().toISOString(), author: user.fullName || user.firstName, authorId: user.id }; const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id); await updateDoc(studentRef, { incidents: arrayUnion(incidentData), lastIncident: incidentData.date, lastIncidentType: type }); alert("✅ Registro guardado"); setShowBitacoraModal(null); } catch (e) { console.error(e); } finally { setSavingIncident(false); } };
+  const handleSaveIncident = async (type, severity) => { if (!showBitacoraModal) return; setSavingIncident(true); try { const incidentData = { type, severity, date: new Date().toISOString(), author: user.fullName || user.firstName, authorId: user.id }; const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id); await updateDoc(studentRef, { incidents: arrayUnion(incidentData), lastIncident: incidentData.date, lastIncidentType: type }); alert("✅ Registro guardado"); setShowBitacoraModal(null); } catch (e) { console.error(e); alert("Error: " + e.message); } finally { setSavingIncident(false); } };
   const deleteIncident = async (studentId, incident) => { if(!confirm("¿Borrar?")) return; try { const { updateDoc, doc, arrayRemove } = await import('firebase/firestore'); await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', studentId), { incidents: arrayRemove(incident) }); } catch (e) {} };
   const calculateAge = (dateString) => { if (!dateString) return '-'; const today = new Date(); const birthDate = new Date(dateString); let age = today.getFullYear() - birthDate.getFullYear(); const m = today.getMonth() - birthDate.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--; return age; };
 
@@ -1933,7 +1936,7 @@ function GroupsView({ user }) {
     let content = `<html><head><title>Listas ${turnoTexto}</title><style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');body{font-family:'Roboto',sans-serif;padding:20px;background:white}.header{display:flex;justify-content:space-between;border-bottom:3px solid #7c3aed;padding-bottom:10px;margin-bottom:20px}img{height:60px}.group{margin-bottom:30px;border:1px solid #ccc;border-radius:10px;overflow:hidden}.g-head{background:#f0f0f0;padding:10px;display:grid;grid-template-columns:2fr 1fr;gap:10px}table{width:100%;border-collapse:collapse;font-size:12px}th{background:#7c3aed;color:white;padding:5px;text-align:left}td{border-bottom:1px solid #eee;padding:5px}</style></head><body><div class="header"><div><h1>Listas de Clase</h1><p>Turno ${turnoTexto} • Ciclo 2026</p></div><img src="${LOGO_URL}"/></div>`;
     groups.forEach(g => {
         let doc = g.teacher || 'Sin asignar'; let aux = g.aux || '';
-        content += `<div class="group"><div class="g-head"><div><h3>${g.name}</h3>Nivel: ${g.level||'-'} - Aula: ${g.classroom||'-'}</div><div><strong>Docente:</strong> ${doc}<br><strong>Aux:</strong> ${aux}</div></div><table><thead><tr><th>#</th><th>Apellido y Nombre</th><th>DNI</th><th>Nacimiento</th></tr></thead><tbody>`;
+        content += `<div class="group"><div class="g-head"><div><h3>${g.name}</h3>Nivel: ${g.level||'-'} - Aula: ${g.classroom||'-'}</div><div><strong>Doc:</strong> ${doc}<br><strong>Aux:</strong> ${aux}</div></div><table><thead><tr><th>#</th><th>Apellido y Nombre</th><th>DNI</th><th>Nacimiento</th></tr></thead><tbody>`;
         g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).forEach((s,i) => { const f = s.birthDate ? new Date(s.birthDate+'T00:00').toLocaleDateString() : '-'; content += `<tr><td>${i+1}</td><td><strong>${s.lastName}</strong>, ${s.firstName}</td><td>${s.dni}</td><td>${f}</td></tr>`; });
         content += `</tbody></table></div>`;
     });
@@ -1956,13 +1959,14 @@ function GroupsView({ user }) {
       
       <div className="flex-1 overflow-x-auto p-6"><div className="flex gap-6 h-full">{groups.length === 0 && (<div className="m-auto text-center opacity-50"><LayoutDashboard size={48} className="mx-auto mb-2 text-gray-300"/><p className="font-bold text-gray-400">No tienes grupos en este turno.</p></div>)} {groups.map((g) => (
           <div key={g.name} className="min-w-[280px] w-[300px] flex flex-col h-full bg-white rounded-[30px] border border-gray-200 shadow-sm relative overflow-hidden group-hover:shadow-md transition">
-              {/* CABECERA DE GRUPO CON BOTÓN DE EDICIÓN PARA ADMINS */}
+              {/* CABECERA DE GRUPO */}
               <div className={`p-4 border-b-4 ${turn==='morning'?'border-orange-400 bg-orange-50':'border-indigo-400 bg-indigo-50'} relative`}>
                   {isManagement && <button onClick={()=>setEditingGroup(g)} className="absolute top-2 right-2 p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"><Edit3 size={14}/></button>}
                   <h3 className="font-black text-gray-800 text-lg">{g.name}</h3>
                   <div className="mt-2 text-xs text-gray-500 font-medium space-y-1">
-                      <p>DOCENTE: <span className="font-bold text-violet-700 uppercase">{g.teacher || 'Sin asignar'}</span></p>
+                      <p>DOC: <span className="font-bold text-violet-700 uppercase">{g.teacher || 'Sin asignar'}</span></p>
                       {g.aux && <p>AUX: <span className="font-bold uppercase">{g.aux}</span></p>}
+                      {(g.sup1 || g.sup2) && <p className="text-violet-600 font-bold truncate">SUP: {g.sup1 || ''} {g.sup2 ? `& ${g.sup2}` : ''}</p>}
                       {g.classroom && <p className="inline-flex items-center gap-1 bg-white/50 px-2 rounded-md"><StartIcon size={10}/> Aula {g.classroom}</p>}
                   </div>
               </div>
@@ -1970,7 +1974,7 @@ function GroupsView({ user }) {
           </div>
       ))}</div></div>
 
-      {/* MODAL EDICIÓN DE GRUPO (NUEVO) */}
+      {/* MODAL EDICIÓN DE GRUPO (AHORA CON 2 SUPERVISORES) */}
       {editingGroup && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
             <form onSubmit={handleUpdateGroup} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
@@ -1988,9 +1992,12 @@ function GroupsView({ user }) {
                     <div><label className="text-xs font-bold text-gray-500 ml-1">Docente a Cargo</label><select name="teacher" defaultValue={editingGroup.teacher} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Sin asignar</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
                     <div><label className="text-xs font-bold text-gray-500 ml-1">Auxiliar / Preceptor</label><select name="aux" defaultValue={editingGroup.aux} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Sin asignar</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
                     
+                    {/* AULA Y SUPERVISORES */}
+                    <div><label className="text-xs font-bold text-gray-500 ml-1">Aula Física</label><input name="classroom" defaultValue={editingGroup.classroom} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" placeholder="Ej: 5"/></div>
+                    
                     <div className="grid grid-cols-2 gap-3">
-                         <div><label className="text-xs font-bold text-gray-500 ml-1">Aula Física</label><input name="classroom" defaultValue={editingGroup.classroom} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" placeholder="Ej: 5"/></div>
                          <div><label className="text-xs font-bold text-gray-500 ml-1">Supervisor 1</label><select name="sup1" defaultValue={editingGroup.sup1} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
+                         <div><label className="text-xs font-bold text-gray-500 ml-1">Supervisor 2</label><select name="sup2" defaultValue={editingGroup.sup2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
                     </div>
                     
                     <button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition flex justify-center items-center gap-2">
@@ -2002,10 +2009,11 @@ function GroupsView({ user }) {
       )}
 
       {showBitacoraModal && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600"><div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3><p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p></div><button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button></div><div className="grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto p-1">{INCIDENT_TYPES.map((type) => (<button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? 'opacity-50' : 'hover:brightness-95'}`}><span className="text-2xl">{type.emoji}</span><span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span></button>))}</div></div></div>)}
-      {selectedStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"><div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0"><button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition"><X size={20}/></button><div className="flex items-center gap-4"><div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">{selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}</div><div><h2 className="text-2xl font-bold">{selectedStudent.lastName}, {selectedStudent.firstName}</h2><p className="opacity-90 flex gap-2 text-sm mt-1"><span className="bg-white/20 px-2 py-0.5 rounded">{calculateAge(selectedStudent.birthDate)} años</span></p></div></div><div className="flex gap-2 mt-6"><button onClick={() => setActiveTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'info' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Datos</button><button onClick={() => setActiveTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'history' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto space-y-6">{activeTab === 'info' ? (<div className="space-y-4"><div className="bg-orange-50 p-4 rounded-xl border border-orange-100"><h3 className="font-bold text-orange-800 text-xs uppercase mb-2">Contacto</h3><p className="text-sm">Madre: <b>{selectedStudent.motherName}</b> ({selectedStudent.motherContact})</p><p className="text-sm">Padre: <b>{selectedStudent.fatherName}</b> ({selectedStudent.fatherContact})</p></div><div className="bg-gray-50 p-4 rounded-xl border border-gray-100"><h3 className="font-bold text-gray-500 text-xs uppercase mb-2">Ubicación</h3><p className="text-sm">TM: <b>{selectedStudent.groupMorning}</b></p><p className="text-sm">TT: <b>{selectedStudent.groupAfternoon}</b></p></div></div>) : (<div className="space-y-2">{selectedStudent.incidents?.map((inc, i) => (<div key={i} className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="font-bold text-sm">{inc.type}</p><p className="text-xs text-gray-500">{new Date(inc.date).toLocaleDateString()} - {inc.author}</p></div>))}</div>)}</div></div></div>)}
+      {selectedStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"><div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0"><button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition"><X size={20}/></button><div className="flex items-center gap-4"><div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">{selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}</div><div><h2 className="text-2xl font-bold">{selectedStudent.lastName}, {selectedStudent.firstName}</h2><p className="opacity-90 flex gap-2 text-sm mt-1"><span className="bg-white/20 px-2 py-0.5 rounded">{calculateAge(selectedStudent.birthDate)} años</span><span className="bg-white/20 px-2 py-0.5 rounded">{selectedStudent.dni}</span></p></div></div><div className="flex gap-2 mt-6"><button onClick={() => setActiveTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'info' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Datos</button><button onClick={() => setActiveTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'history' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto space-y-6">{activeTab === 'info' ? (<div className="space-y-4"><div className="bg-orange-50 p-4 rounded-xl border border-orange-100"><h3 className="font-bold text-orange-800 text-xs uppercase mb-2">Contacto</h3><p className="text-sm">Madre: <b>{selectedStudent.motherName}</b> ({selectedStudent.motherContact})</p><p className="text-sm">Padre: <b>{selectedStudent.fatherName}</b> ({selectedStudent.fatherContact})</p></div><div className="bg-gray-50 p-4 rounded-xl border border-gray-100"><h3 className="font-bold text-gray-500 text-xs uppercase mb-2">Ubicación</h3><p className="text-sm">TM: <b>{selectedStudent.groupMorning}</b></p><p className="text-sm">TT: <b>{selectedStudent.groupAfternoon}</b></p></div></div>) : (<div className="space-y-2">{selectedStudent.incidents?.map((inc, i) => (<div key={i} className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="font-bold text-sm">{inc.type}</p><p className="text-xs text-gray-500">{new Date(inc.date).toLocaleDateString()} - {inc.author}</p></div>))}</div>)}</div></div></div>)}
     </div>
   );
 }
+
 
 // ===============================================================
 // PEGAR ESTO AL FINAL DEL ARCHIVO (FUERA DE CUALQUIER OTRA FUNCIÓN)
@@ -2030,6 +2038,7 @@ const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24
 function ActivityLogView() {
   return <div className="text-white p-6 text-center">Registro de Actividad (Próximamente)</div>;
 }
+
 
 
 
