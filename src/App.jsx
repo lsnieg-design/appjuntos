@@ -7,7 +7,8 @@ import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken }
 import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, where, getDocs, serverTimestamp, arrayUnion } from 'firebase/firestore';
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 // --- CONSTANTES GLOBALES (PEGAR DEBAJO DE LOS IMPORTS) ---
-const LOGO_URL = "https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png";
+// --- CONSTANTES GLOBALES ---
+const LOGO_URL = "/icon-192.png";
 // --- FUNCIÓN SEGURA PARA NOTIFICACIONES (SOLUCIONA EL ERROR DE TABLET) ---
 const triggerMobileNotification = (title, body) => {
   if (!("Notification" in window)) return;
@@ -1687,6 +1688,29 @@ function GroupsView({ user }) {
     </div>
   );
 }
+// ===============================================================
+// PEGAR ESTO AL FINAL DEL ARCHIVO (FUERA DE CUALQUIER OTRA FUNCIÓN)
+// ===============================================================
+
+// 1. Botón del Menú Inferior (Indispensable para que se vea el menú)
+function NavButton({ active, onClick, icon, label }) {
+  return (
+    <button onClick={onClick} className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-300 ${active ? 'text-orange-500 transform -translate-y-1' : 'text-gray-400 hover:text-violet-600'}`}>
+      <div className={`relative p-2 rounded-2xl ${active ? 'bg-orange-50' : 'bg-transparent'}`}>
+        {icon}
+      </div>
+      <span className={`text-[10px] font-bold ${active ? 'text-violet-900' : 'text-gray-400'}`}>{label}</span>
+    </button>
+  );
+}
+
+// 2. Icono auxiliar para "Mi Aula"
+const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
+// 3. Vista de Auditoría (Para evitar error si clickeas el botón de admin)
+function ActivityLogView() {
+  return <div className="text-white p-6 text-center">Registro de Actividad (Próximamente)</div>;
+}
 // Icono auxiliar
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
 
@@ -1701,6 +1725,7 @@ const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24
 function ActivityLogView() {
   return <div className="text-white p-6 text-center">Registro de Actividad (Próximamente)</div>;
 }
+
 
 
 
