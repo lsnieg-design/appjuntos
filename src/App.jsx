@@ -326,16 +326,16 @@ function LoginScreen({ onLogin }) {
 }
 
 
-// --- APP PRINCIPAL (CORREGIDA: ERROR DE SINTAXIS EN CALENDARIO SOLUCIONADO) ---
+// --- APP PRINCIPAL (CORREGIDA: MENÚ HÍBRIDO + ESTADOS) ---
 function MainApp({ user, onLogout, onProfileUpdate }) {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [showMoreMenu, setShowMoreMenu] = useState(false); // Estado para menú "Más"
   const [tasks, setTasks] = useState([]);
   const [events, setEvents] = useState([]);
   const [resources, setResources] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   
-  // ESTADOS DEL BUSCADOR GLOBAL
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -347,25 +347,16 @@ function MainApp({ user, onLogout, onProfileUpdate }) {
   useEffect(() => {
     const qTasks = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('dueDate', 'asc'));
     const unsubTasks = onSnapshot(qTasks, (snapshot) => { setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))); });
-
     const qNotifs = query(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), where('toUserId', '==', user.id));
     const unsubNotifs = onSnapshot(qNotifs, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      // Ordenar por fecha
-      data.sort((a, b) => {
-          const dateA = a.createdAt ? a.createdAt.seconds : 0;
-          const dateB = b.createdAt ? b.createdAt.seconds : 0;
-          return dateB - dateA;
-      });
-      setNotifications(data.filter(n => !n.read)); // Solo las no leídas
+      data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setNotifications(data.filter(n => !n.read)); 
     });
-
     const qEvents = query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc'));
     const unsubEvents = onSnapshot(qEvents, (snap) => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-
     const qResources = query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc'));
     const unsubResources = onSnapshot(qResources, (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-
     return () => { unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); };
   }, [user.id]);
 
@@ -377,79 +368,20 @@ function MainApp({ user, onLogout, onProfileUpdate }) {
       const results = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).filter(s => (s.isActive === undefined || s.isActive === true) && (s.firstName.toLowerCase().includes(text.toLowerCase()) || s.lastName.toLowerCase().includes(text.toLowerCase())));
       setSearchResults(results.slice(0, 5));
   };
-
-  const handleNotificationClick = async (notif) => {
-      await deleteNotification(notif.id); // La borramos al tocarla
-      if (notif.targetTab) { setActiveTab(notif.targetTab); } 
-      setShowNotifPanel(false);
-  };
-
-  // CAMBIO: Función para BORRAR notificación (Tacho)
-  const deleteNotification = async (id) => {
-      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', id));
-  };
-
-  const calculateAge = (dateString) => {
-    if (!dateString) return '-';
-    const today = new Date();
-    const birthDate = new Date(dateString);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-    return age;
-  };
+  const handleNotificationClick = async (notif) => { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', notif.id)); if (notif.targetTab) { setActiveTab(notif.targetTab); } setShowNotifPanel(false); };
+  const deleteNotification = async (id) => { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', id)); };
+  const calculateAge = (dateString) => { if (!dateString) return '-'; const today = new Date(); const birthDate = new Date(dateString); let age = today.getFullYear() - birthDate.getFullYear(); const m = today.getMonth() - birthDate.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--; return age; };
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 font-sans text-slate-800">
       <header className="bg-violet-800 text-white shadow-lg px-4 py-3 flex justify-between items-center z-50 sticky top-0">
-        <div className="flex items-center space-x-3">
-          <img src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" alt="Logo" className="w-10 h-8 object-contain" />
-          <div><h1 className="font-bold text-sm leading-tight">Juntos a la Par</h1><p className="text-[10px] text-orange-200 uppercase font-bold">{user.firstName}</p></div>
-        </div>
-
+        <div className="flex items-center space-x-3"><img src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" alt="Logo" className="w-10 h-8 object-contain" /><div><h1 className="font-bold text-sm leading-tight">Juntos a la Par</h1><p className="text-[10px] text-orange-200 uppercase font-bold">{user.firstName}</p></div></div>
         <div className="flex items-center gap-3">
           <button onClick={() => setShowSearch(true)} className="p-2 rounded-full bg-violet-900/50 hover:bg-orange-500 transition"><Search size={20} /></button>
-
-          <div className="relative">
-            <button onClick={() => setShowNotifPanel(!showNotifPanel)} className={`p-2 rounded-full transition ${showNotifPanel ? 'bg-orange-500' : 'bg-violet-900/50'}`}>
-              <Bell size={20} />
-              {notifications.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-pulse border border-white">{notifications.length}</span>}
-            </button>
-
-            {showNotifPanel && (
-              <div className="absolute right-0 mt-3 w-72 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[100]">
-                <div className="p-4 bg-violet-50 border-b flex justify-between items-center">
-                  <h3 className="font-bold text-violet-900 text-sm">Avisos Recientes</h3>
-                  <button onClick={() => setShowNotifPanel(false)}><X size={16} className="text-gray-400"/></button>
-                </div>
-                <div className="max-h-80 overflow-y-auto">
-                  {notifications.length === 0 ? (
-                    <div className="p-10 text-center flex flex-col items-center"><div className="bg-gray-50 p-3 rounded-full mb-3"><Bell size={24} className="text-gray-300" /></div><p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Sin novedades</p></div>
-                  ) : (
-                    notifications.map(n => (
-                      <div key={n.id} onClick={() => handleNotificationClick(n)} className="p-4 border-b last:border-none hover:bg-gray-50 transition relative group cursor-pointer">
-                        <div className="flex justify-between items-start">
-                            <div className="pr-6">
-                                <p className="text-[10px] font-bold text-orange-600 mb-1 uppercase tracking-tighter">{n.title}</p>
-                                <p className="text-xs text-gray-700 leading-tight">{n.message}</p>
-                                <p className="text-[9px] text-gray-400 mt-2">{n.createdAt ? new Date(n.createdAt.seconds * 1000).toLocaleString() : '-'}</p>
-                            </div>
-                            {/* BOTÓN TACHO PARA BORRAR */}
-                            <button onClick={(e) => { e.stopPropagation(); deleteNotification(n.id); }} className="text-gray-300 hover:text-red-500 transition p-2 bg-gray-50 rounded-full absolute right-2 top-2"><Trash2 size={14} /></button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-          <div onClick={() => {setActiveTab('profile'); setShowNotifPanel(false);}} className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold border-2 border-orange-400 overflow-hidden cursor-pointer active:scale-95 transition">
-            {user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover" /> : user.firstName?.[0]}
-          </div>
+          <div className="relative"><button onClick={() => setShowNotifPanel(!showNotifPanel)} className={`p-2 rounded-full transition ${showNotifPanel ? 'bg-orange-500' : 'bg-violet-900/50'}`}><Bell size={20} />{notifications.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-pulse border border-white">{notifications.length}</span>}</button>{showNotifPanel && (<div className="absolute right-0 mt-3 w-72 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[100]"><div className="p-4 bg-violet-50 border-b flex justify-between items-center"><h3 className="font-bold text-violet-900 text-sm">Avisos Recientes</h3><button onClick={() => setShowNotifPanel(false)}><X size={16} className="text-gray-400"/></button></div><div className="max-h-80 overflow-y-auto">{notifications.length === 0 ? (<div className="p-10 text-center text-gray-400"><p className="text-xs font-bold uppercase">Sin novedades</p></div>) : (notifications.map(n => (<div key={n.id} onClick={() => handleNotificationClick(n)} className="p-4 border-b hover:bg-gray-50 cursor-pointer"><p className="text-[10px] font-bold text-orange-600 mb-1 uppercase">{n.title}</p><p className="text-xs text-gray-700">{n.message}</p></div>)))}</div></div>)}</div>
+          <div onClick={() => {setActiveTab('profile'); setShowNotifPanel(false);}} className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold border-2 border-orange-400 overflow-hidden cursor-pointer active:scale-95 transition">{user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover" /> : user.firstName?.[0]}</div>
         </div>
       </header>
-
       <main className="flex-1 overflow-y-auto pb-24 px-4 pt-6 max-w-4xl mx-auto w-full">
         {activeTab === 'dashboard' && <DashboardView user={user} tasks={tasks} events={events} setActiveTab={setActiveTab} />}
         {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
@@ -461,45 +393,36 @@ function MainApp({ user, onLogout, onProfileUpdate }) {
         {activeTab === 'groups' && <GroupsView user={user} />}
         {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={canManageContent} user={user} />}
       </main>
-
-      {/* --- NUEVA BARRA DE NAVEGACIÓN (CON MI AULA DESTACADA) --- */}
       <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-16 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] pb-safe">
-        <div className="flex justify-between items-center h-full max-w-4xl mx-auto px-4 relative">
-          
-          <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Inicio" />
-          <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={20} />} label="Tareas" />
-          <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={20} />} label="Agenda" />
-          
-          {/* BOTÓN CENTRAL FLOTANTE (MI AULA) */}
-          <div className="relative -top-5">
-              <button 
-                onClick={() => setActiveTab('groups')}
-                className={`w-14 h-14 rounded-full flex flex-col items-center justify-center shadow-xl border-4 border-gray-50 transition-all transform active:scale-95 ${activeTab === 'groups' ? 'bg-orange-500 text-white scale-110' : 'bg-violet-600 text-white'}`}
-              >
-                  <Grid size={24} />
-              </button>
-              <span className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 text-[9px] font-black text-violet-900 uppercase tracking-wide whitespace-nowrap">Mi Aula</span>
+        <div className="flex justify-between items-center h-full max-w-4xl mx-auto px-6 relative">
+          <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={24} />} label="Inicio" />
+          <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={24} />} label="Tareas" />
+          <div className="relative -top-5"><button onClick={() => setActiveTab('groups')} className={`w-16 h-16 rounded-full flex flex-col items-center justify-center shadow-xl border-4 border-gray-50 transition-all transform active:scale-95 ${activeTab === 'groups' ? 'bg-orange-500 text-white scale-110' : 'bg-violet-600 text-white'}`}><Grid size={28} /></button><span className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 text-[10px] font-black text-violet-900 uppercase tracking-wide whitespace-nowrap">Mi Aula</span></div>
+          <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={24} />} label="Agenda" />
+          <div className="relative">
+            <NavButton active={['matricula', 'resources', 'proyecto'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={24} />} label="Más..." />
+            {showMoreMenu && (<div className="absolute bottom-16 right-0 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 w-48 animate-in slide-in-from-bottom-5 zoom-in-95 origin-bottom-right z-50"><button onClick={() => { setActiveTab('matricula'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><GraduationCap size={18} className="text-violet-500"/> Legajos</button><button onClick={() => { setActiveTab('resources'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><LinkIcon size={18} className="text-green-500"/> Recursos</button><button onClick={() => { setActiveTab('proyecto'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><PieChart size={18} className="text-orange-500"/> Proyecto Inst.</button></div>)}
           </div>
-
-          <NavButton active={activeTab === 'matricula'} onClick={() => setActiveTab('matricula')} icon={<GraduationCap size={20} />} label="Legajos" />
-          <NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<LinkIcon size={20} />} label="Recursos" />
-          <NavButton active={activeTab === 'proyecto'} onClick={() => setActiveTab('proyecto')} icon={<PieChart size={20} />} label="P.I." />
         </div>
       </nav>
-
-      {/* MODALES DE BUSCADOR Y DETALLE (IGUAL QUE ANTES) */}
-      {showSearch && (
-          <div className="fixed inset-0 bg-violet-900/90 z-[300] flex flex-col p-4 backdrop-blur-md animate-in fade-in">
-              <div className="flex justify-between items-center text-white mb-4"><h3 className="font-black italic uppercase">Buscador Rápido</h3><button onClick={() => {setShowSearch(false); setSearchQuery(''); setSearchResults([]);}} className="p-2 bg-white/20 rounded-full"><X/></button></div>
-              <input autoFocus value={searchQuery} onChange={(e) => handleGlobalSearch(e.target.value)} placeholder="Escribí un nombre o apellido..." className="w-full p-4 rounded-2xl bg-white text-lg font-bold text-gray-800 outline-none shadow-xl mb-4"/>
-              <div className="flex-1 overflow-y-auto space-y-2">{searchResults.map(s => (<div key={s.id} onClick={() => setGlobalViewingStudent(s)} className="bg-white p-3 rounded-xl flex items-center gap-3 active:scale-95 transition cursor-pointer"><div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center font-bold text-gray-400">{s.firstName[0]}</div>}</div><div><p className="font-bold text-gray-800 text-sm">{s.lastName}, {s.firstName}</p><p className="text-[10px] text-gray-500">{s.level} • {s.groupMorning || s.groupAfternoon || 'Sin Grupo'}</p></div></div>))}{searchQuery.length > 2 && searchResults.length === 0 && <p className="text-white/50 text-center mt-4">No se encontraron resultados.</p>}</div>
-          </div>
-      )}
+      {showSearch && ( <div className="fixed inset-0 bg-violet-900/90 z-[300] flex flex-col p-4 backdrop-blur-md animate-in fade-in"><div className="flex justify-between items-center text-white mb-4"><h3 className="font-black italic uppercase">Buscador Rápido</h3><button onClick={() => {setShowSearch(false); setSearchQuery(''); setSearchResults([]);}} className="p-2 bg-white/20 rounded-full"><X/></button></div><input autoFocus value={searchQuery} onChange={(e) => handleGlobalSearch(e.target.value)} placeholder="Escribí un nombre o apellido..." className="w-full p-4 rounded-2xl bg-white text-lg font-bold text-gray-800 outline-none shadow-xl mb-4"/><div className="flex-1 overflow-y-auto space-y-2">{searchResults.map(s => (<div key={s.id} onClick={() => setGlobalViewingStudent(s)} className="bg-white p-3 rounded-xl flex items-center gap-3 active:scale-95 transition cursor-pointer"><div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center font-bold text-gray-400">{s.firstName[0]}</div>}</div><div><p className="font-bold text-gray-800 text-sm">{s.lastName}, {s.firstName}</p><p className="text-[10px] text-gray-500">{s.level} • {s.groupMorning || s.groupAfternoon || 'Sin Grupo'}</p></div></div>))}{searchQuery.length > 2 && searchResults.length === 0 && <p className="text-white/50 text-center mt-4">No se encontraron resultados.</p>}</div></div> )}
       {globalViewingStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[350] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95"><div className="bg-violet-600 p-4 text-white flex justify-between items-center"><h3 className="font-bold text-lg">{globalViewingStudent.lastName}, {globalViewingStudent.firstName}</h3><button onClick={() => setGlobalViewingStudent(null)}><X/></button></div><div className="p-6"><div className="flex gap-4 items-center mb-4"><div className="w-20 h-20 bg-gray-200 rounded-2xl overflow-hidden">{globalViewingStudent.photoUrl && <img src={globalViewingStudent.photoUrl} className="w-full h-full object-cover"/>}</div><div><p className="text-sm font-bold text-gray-600">Edad: {calculateAge(globalViewingStudent.birthDate)} años</p><p className="text-sm font-bold text-gray-600">DNI: {globalViewingStudent.dni}</p><p className="text-xs text-orange-500 font-bold mt-1 uppercase">{globalViewingStudent.dx}</p></div></div><button onClick={() => { setActiveTab('matricula'); setShowSearch(false); setGlobalViewingStudent(null); alert("Te llevamos a la sección Legajos. Buscalo ahí para editar."); }} className="w-full bg-violet-100 text-violet-700 py-3 rounded-xl font-bold text-xs uppercase hover:bg-violet-200 transition">Ir a Legajo Completo</button></div></div></div>)}
     </div>
   );
 }
-// Componente auxiliar pequeño para los botones normales
+
+// --- IMPORTANTE: COMPONENTE AUXILIAR DEL MENÚ ---
+function NavButton({ active, onClick, icon, label, badge }) {
+  return (
+    <button onClick={onClick} className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-300 ${active ? 'text-orange-500 transform -translate-y-1' : 'text-gray-400 hover:text-violet-600'}`}>
+      <div className={`relative p-2 rounded-2xl ${active ? 'bg-orange-50' : 'bg-transparent'}`}>
+        {icon}
+        {badge > 0 && <span className="absolute -top-1 -right-1 bg-violet-600 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full border-2 border-white shadow-sm px-1">{badge > 9 ? '+9' : badge}</span>}
+      </div>
+      <span className={`text-[10px] font-bold ${active ? 'text-violet-900' : 'text-gray-400'}`}>{label}</span>
+    </button>
+  );
+}
 
 function NavButton({ active, onClick, icon, label, badge }) {
   return (
@@ -1965,7 +1888,6 @@ function MatriculaView({ user }) {
     </div>
   );
 }
-// --- VISTA TABLERO DE GRUPOS (CORREGIDA: SIN DUPLICADO DE ICONO) ---
 function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
   const [turn, setTurn] = useState('morning'); 
@@ -1975,342 +1897,81 @@ function GroupsView({ user }) {
   const [activeTab, setActiveTab] = useState('info');
 
   const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración'].includes(user.role) || user.rol === 'admin';
-
-  // URL del logo para impresión
   const LOGO_URL = "https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png";
-
-  const INCIDENT_TYPES = [
-      { label: "Agresión / Violencia", emoji: "👊", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
-      { label: "Brote / Gritos", emoji: "🤬", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
-      { label: "Fuga / Intento", emoji: "🏃", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
-      { label: "Convulsión / Salud", emoji: "🚑", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
-      { label: "Crisis Llanto", emoji: "😭", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" },
-      { label: "Higiene / Esfínter", emoji: "💩", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" },
-      { label: "Vómito", emoji: "🤮", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" },
-      { label: "Golpe / Caída", emoji: "🤕", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" },
-      { label: "No comió", emoji: "🍽️", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
-      { label: "Durmió en clase", emoji: "💤", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
-      { label: "Sin Medicación", emoji: "💊", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
-      { label: "Llegada Tarde", emoji: "🕑", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
-  ];
+  const INCIDENT_TYPES = [ { label: "Agresión / Violencia", emoji: "👊", severity: "high", color: "bg-red-100 border-red-300 text-red-800" }, { label: "Brote / Gritos", emoji: "🤬", severity: "high", color: "bg-red-100 border-red-300 text-red-800" }, { label: "Fuga / Intento", emoji: "🏃", severity: "high", color: "bg-red-100 border-red-300 text-red-800" }, { label: "Convulsión / Salud", emoji: "🚑", severity: "high", color: "bg-red-100 border-red-300 text-red-800" }, { label: "Crisis Llanto", emoji: "😭", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" }, { label: "Higiene / Esfínter", emoji: "💩", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" }, { label: "Vómito", emoji: "🤮", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" }, { label: "Golpe / Caída", emoji: "🤕", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" }, { label: "No comió", emoji: "🍽️", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" }, { label: "Durmió en clase", emoji: "💤", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" }, { label: "Sin Medicación", emoji: "💊", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" }, { label: "Llegada Tarde", emoji: "🕑", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" }, ];
 
   useEffect(() => {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
-    const unsub = onSnapshot(q, (snap) => {
-        setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
+    const unsub = onSnapshot(q, (snap) => { setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
     return () => unsub();
   }, []);
 
   const groupedData = students.reduce((acc, s) => {
       const groupName = turn === 'morning' ? s.groupMorning : s.groupAfternoon;
       if (!groupName) return acc;
-      if (!acc[groupName]) {
-          acc[groupName] = {
-              name: groupName,
-              students: [],
-              teacher: turn === 'morning' ? s.teacherMorning : s.teacherAfternoon,
-              aux: turn === 'morning' ? s.auxMorning : s.auxAfternoon,
-              sup1: turn === 'morning' ? s.sup1Morning : s.sup1Afternoon,
-              sup2: turn === 'morning' ? s.sup2Morning : s.sup2Afternoon,
-              classroom: s.classroom,
-              level: s.level
-          };
-      }
+      if (!acc[groupName]) { acc[groupName] = { name: groupName, students: [], teacher: turn === 'morning' ? s.teacherMorning : s.teacherAfternoon, aux: turn === 'morning' ? s.auxMorning : s.auxAfternoon, sup1: turn === 'morning' ? s.sup1Morning : s.sup1Afternoon, sup2: turn === 'morning' ? s.sup2Morning : s.sup2Afternoon, classroom: s.classroom, level: s.level }; }
       acc[groupName].students.push(s);
       return acc;
   }, {});
 
   let groups = Object.values(groupedData).sort((a, b) => a.name.localeCompare(b.name));
 
+  // --- FILTRO INTELIGENTE DE DOCENTE ---
   if (!isManagement) {
-      groups = groups.filter(g => 
-          g.teacher === user.fullName || 
-          g.aux === user.fullName ||
-          g.sup1 === user.fullName ||
-          g.sup2 === user.fullName
-      );
+      groups = groups.filter(g => {
+          const t = (g.teacher || "").toLowerCase();
+          const a = (g.aux || "").toLowerCase();
+          const s1 = (g.sup1 || "").toLowerCase();
+          const s2 = (g.sup2 || "").toLowerCase();
+          const u = (user.fullName || "").toLowerCase();
+          return t.includes(u) || a.includes(u) || s1.includes(u) || s2.includes(u);
+      });
   }
 
-  const handleSaveIncident = async (type, severity) => {
-      if (!showBitacoraModal) return;
-      setSavingIncident(true);
-      try {
-          const incidentData = { type, severity, date: new Date().toISOString(), author: user.fullName || user.firstName, authorId: user.id };
-          const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id);
-          await updateDoc(studentRef, { incidents: arrayUnion(incidentData), lastIncident: incidentData.date, lastIncidentType: type });
-          alert("✅ Registro guardado");
-          setShowBitacoraModal(null);
-      } catch (e) { console.error(e); alert("Error: " + e.message); } finally { setSavingIncident(false); }
-  };
+  const handleSaveIncident = async (type, severity) => { if (!showBitacoraModal) return; setSavingIncident(true); try { const incidentData = { type, severity, date: new Date().toISOString(), author: user.fullName || user.firstName, authorId: user.id }; const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id); await updateDoc(studentRef, { incidents: arrayUnion(incidentData), lastIncident: incidentData.date, lastIncidentType: type }); alert("✅ Registro guardado"); setShowBitacoraModal(null); } catch (e) { console.error(e); } finally { setSavingIncident(false); } };
+  const deleteIncident = async (studentId, incident) => { if(!confirm("¿Borrar?")) return; try { const { updateDoc, doc, arrayRemove } = await import('firebase/firestore'); await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', studentId), { incidents: arrayRemove(incident) }); } catch (e) {} };
+  const calculateAge = (dateString) => { if (!dateString) return '-'; const today = new Date(); const birthDate = new Date(dateString); let age = today.getFullYear() - birthDate.getFullYear(); const m = today.getMonth() - birthDate.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--; return age; };
 
-  const deleteIncident = async (studentId, incident) => {
-      if(!confirm("¿Borrar esta entrada de la bitácora?")) return;
-      try {
-          const { updateDoc, doc, arrayRemove } = await import('firebase/firestore');
-          const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', studentId);
-          await updateDoc(studentRef, { incidents: arrayRemove(incident) });
-      } catch (e) {
-          alert("Error al borrar: " + e.message);
-      }
-  };
-
-  const calculateAge = (dateString) => {
-    if (!dateString) return '-';
-    const today = new Date();
-    const birthDate = new Date(dateString);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-    return age;
-  };
-
-  // --- FUNCIÓN DE IMPRESIÓN (LÓGICA MEJORADA) ---
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
-    if (!printWindow) return alert("Por favor, permití las ventanas emergentes para imprimir.");
-    
+    if (!printWindow) return alert("Permitir ventanas emergentes");
     const turnoTexto = turn === 'morning' ? 'MAÑANA' : 'TARDE';
-    const fechaImpresion = new Date().toLocaleDateString('es-AR');
-
-    let content = `
-      <html>
-        <head>
-          <title>Listas de Grupos - ${turnoTexto}</title>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
-            body { font-family: 'Roboto', sans-serif; padding: 20px; background: white; }
-            .header-page { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #7c3aed; padding-bottom: 15px; margin-bottom: 20px; }
-            .logo-img { height: 60px; object-fit: contain; }
-            .main-title { color: #4c1d95; font-size: 24px; font-weight: 900; text-transform: uppercase; margin: 0; }
-            .sub-title { color: #f97316; font-size: 14px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; margin: 0; }
-            .group-container { margin-bottom: 40px; page-break-inside: avoid; border: 1px solid #ddd; border-radius: 10px; overflow: hidden; }
-            .group-header { background: #f3f4f6; padding: 15px; border-bottom: 2px solid #e5e7eb; display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
-            .group-title { font-size: 18px; font-weight: 900; color: #1f2937; text-transform: uppercase; }
-            .info-row { font-size: 12px; color: #4b5563; margin-bottom: 2px; }
-            .info-label { font-weight: bold; color: #7c3aed; text-transform: uppercase; margin-right: 5px; }
-            table { width: 100%; border-collapse: collapse; font-size: 12px; }
-            th { background-color: #7c3aed; color: white; padding: 8px; text-align: left; text-transform: uppercase; font-size: 10px; letter-spacing: 1px; }
-            td { border-bottom: 1px solid #eee; padding: 8px; color: #374151; }
-            tr:nth-child(even) { background-color: #fafafa; }
-            .footer { text-align: center; font-size: 10px; color: #9ca3af; margin-top: 30px; border-top: 1px solid #eee; padding-top: 10px; }
-          </style>
-        </head>
-        <body>
-          <div class="header-page">
-             <div><h1 class="main-title">Listados de Clase</h1><p class="sub-title">Turno ${turnoTexto} • Ciclo 2026</p></div>
-             <img src="${LOGO_URL}" class="logo-img" alt="Logo"/>
-          </div>
-    `;
-
+    let content = `<html><head><title>Listas ${turnoTexto}</title><style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');body{font-family:'Roboto',sans-serif;padding:20px}.header{display:flex;justify-content:space-between;border-bottom:3px solid #7c3aed;padding-bottom:10px;margin-bottom:20px}img{height:60px}.group{margin-bottom:30px;border:1px solid #ccc;border-radius:10px;overflow:hidden}.g-head{background:#f3f4f6;padding:10px;display:grid;grid-template-columns:2fr 1fr;gap:10px}table{width:100%;border-collapse:collapse;font-size:12px}th{background:#7c3aed;color:white;padding:5px;text-align:left}td{border-bottom:1px solid #eee;padding:5px}</style></head><body><div class="header"><div><h1>Listas de Clase</h1><p>Turno ${turnoTexto} • Ciclo 2026</p></div><img src="${LOGO_URL}"/></div>`;
     groups.forEach(g => {
-        // --- LÓGICA DE SEPARACIÓN DOCENTE / AUXILIAR ---
-        let rawTeacher = g.teacher || '';
-        let docente = rawTeacher;
-        let auxiliar = g.aux || 'Sin asignar';
-
-        if (rawTeacher.includes(" y ")) {
-            const parts = rawTeacher.split(" y ");
-            docente = parts[0].trim();
-            if(auxiliar === 'Sin asignar' || !auxiliar) auxiliar = parts[1].trim();
-        } else if (rawTeacher.includes(" - ")) {
-            const parts = rawTeacher.split(" - ");
-            docente = parts[0].trim();
-            if(auxiliar === 'Sin asignar' || !auxiliar) auxiliar = parts[1].trim();
-        }
-        // -----------------------------------------------
-
-        content += `
-          <div class="group-container">
-            <div class="group-header">
-                <div>
-                    <div class="group-title">${g.name}</div>
-                    <div class="info-row"><span class="info-label">Nivel:</span> ${g.level || '-'}</div>
-                    <div class="info-row"><span class="info-label">Aula:</span> ${g.classroom || 'Sin asignar'}</div>
-                </div>
-                <div style="border-left: 2px solid #ddd; padding-left: 15px;">
-                    <div class="info-row"><span class="info-label">Docente:</span> ${docente}</div>
-                    <div class="info-row"><span class="info-label">Aux/Precep:</span> ${auxiliar}</div>
-                    ${(g.sup1 || g.sup2) ? `<div class="info-row" style="margin-top:5px; padding-top:5px; border-top:1px dashed #ccc;"><span class="info-label">Supervisión:</span> ${g.sup1 || ''} ${g.sup2 ? '/ ' + g.sup2 : ''}</div>` : ''}
-                </div>
-            </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 5%;">#</th>
-                        <th style="width: 50%;">Apellido y Nombre</th>
-                        <th style="width: 25%;">DNI</th>
-                        <th style="width: 20%;">Fecha Nac.</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
-        
-        g.students.sort((a,b) => a.lastName.localeCompare(b.lastName)).forEach((s, index) => {
-            const fechaNac = s.birthDate ? new Date(s.birthDate + 'T00:00:00').toLocaleDateString('es-AR') : '-';
-            content += `<tr><td>${index + 1}</td><td><strong>${s.lastName}</strong>, ${s.firstName}</td><td>${s.dni}</td><td>${fechaNac}</td></tr>`;
-        });
-        
+        let doc = g.teacher || '-'; let aux = g.aux || '-';
+        // Separación si vienen juntos
+        if(doc.includes(" y ")) { const p = doc.split(" y "); doc = p[0]; if(aux==='-') aux = p[1]; }
+        else if(doc.includes(" - ")) { const p = doc.split(" - "); doc = p[0]; if(aux==='-') aux = p[1]; }
+        content += `<div class="group"><div class="g-head"><div><h3>${g.name}</h3>Nivel: ${g.level} - Aula: ${g.classroom}</div><div><strong>Doc:</strong> ${doc}<br><strong>Aux:</strong> ${aux}</div></div><table><thead><tr><th>#</th><th>Apellido y Nombre</th><th>DNI</th><th>Nacimiento</th></tr></thead><tbody>`;
+        g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).forEach((s,i) => { const f = s.birthDate ? new Date(s.birthDate+'T00:00').toLocaleDateString() : '-'; content += `<tr><td>${i+1}</td><td><strong>${s.lastName}</strong>, ${s.firstName}</td><td>${s.dni}</td><td>${f}</td></tr>`; });
         content += `</tbody></table></div>`;
     });
-
-    content += `<div class="footer">Generado el ${fechaImpresion} - Sistema de Gestión "Juntos a la Par"</div></body></html>`;
-    
-    printWindow.document.write(content);
-    printWindow.document.close();
-    setTimeout(() => { printWindow.print(); }, 1000);
+    content += `</body></html>`;
+    printWindow.document.write(content); printWindow.document.close(); setTimeout(() => printWindow.print(), 1000);
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-100 animate-in fade-in duration-500">
-      <div className="bg-white p-4 shadow-sm z-10 flex justify-between items-center sticky top-0">
-          <div><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter flex items-center gap-2"><Grid size={24} className="text-orange-500"/> Mis Grupos</h2><p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{isManagement ? "Vista Global Institucional" : `Espacio de ${user.firstName}`}</p></div>
-          <div className="flex gap-2">
-              <button onClick={handlePrint} className="bg-white border border-gray-200 text-violet-600 p-2 px-4 rounded-xl shadow-sm hover:bg-violet-50 transition flex items-center gap-2 font-bold text-xs uppercase" title="Imprimir Listas de Clase"><FileText size={18}/> Imprimir Listas</button>
-              <div className="flex bg-gray-100 p-1 rounded-xl"><button onClick={() => setTurn('morning')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-md transform scale-105' : 'text-gray-400'}`}>☀️ Mañana</button><button onClick={() => setTurn('afternoon')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-md transform scale-105' : 'text-gray-400'}`}>🌙 Tarde</button></div>
+    <div className="flex flex-col h-full bg-slate-100 animate-in fade-in">
+      {/* HEADER ARREGLADO (No desborda) */}
+      <div className="bg-white p-4 shadow-sm z-10 sticky top-0 flex flex-col gap-3">
+          <div className="flex justify-between items-center">
+              <div><h2 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2"><Grid size={24} className="text-orange-500"/> Mis Grupos</h2><p className="text-xs text-gray-400 font-bold uppercase">{isManagement ? "Vista Institucional" : `Espacio Docente`}</p></div>
+              <button onClick={handlePrint} className="bg-violet-100 text-violet-700 p-2 rounded-xl shadow-sm hover:bg-violet-200"><FileText size={24}/></button>
+          </div>
+          <div className="flex bg-gray-100 p-1 rounded-xl">
+              <button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'morning' ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-400'}`}>☀️ Mañana</button>
+              <button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 Tarde</button>
           </div>
       </div>
-
-      <div className="flex-1 overflow-x-auto overflow-y-hidden p-6">
-          <div className="flex gap-6 h-full">
-              {groups.length === 0 && (<div className="m-auto text-center opacity-50"><LayoutDashboard size={48} className="mx-auto mb-2 text-gray-300"/><p className="font-bold text-gray-400">No hay grupos asignados.</p></div>)}
-              {groups.map((group) => (
-                  <div key={group.name} className="min-w-[280px] w-[300px] flex flex-col h-full bg-white rounded-[30px] border border-gray-200 shadow-sm relative overflow-hidden group-hover:shadow-md transition">
-                      <div className={`p-4 border-b-4 ${turn === 'morning' ? 'border-orange-400 bg-orange-50' : 'border-indigo-400 bg-indigo-50'}`}>
-                          <div className="flex justify-between items-start mb-1"><h3 className="font-black text-gray-800 text-lg leading-none uppercase italic">{group.name}</h3><span className="bg-white/50 px-2 py-1 rounded text-[10px] font-bold text-gray-500">{group.students.length} alum.</span></div>
-                          <div className="flex flex-col gap-1 mt-2">
-                              {group.classroom && (<span className="inline-flex items-center gap-1 text-[10px] font-bold text-gray-600 bg-white px-2 py-1 rounded w-fit shadow-sm"><StartIcon size={10}/> Aula {group.classroom}</span>)}
-                              <p className="text-[10px] text-gray-500 font-medium truncate">DOCENTE: <span className="font-bold uppercase text-violet-700">{group.teacher || 'Sin asignar'}</span></p>
-                              {group.aux && <p className="text-[10px] text-gray-500 font-medium truncate">AUX: <span className="font-bold uppercase">{group.aux}</span></p>}
-                              {(group.sup1 || group.sup2) && (<div className="mt-1 pt-1 border-t border-gray-200/50"><p className="text-[9px] text-violet-600 font-bold truncate">SUP: {group.sup1 || ''} {group.sup2 ? `& ${group.sup2}` : ''}</p></div>)}
-                          </div>
-                      </div>
-                      <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50/50">
-                          {group.students.map(student => (
-                              <div key={student.id} className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 relative hover:scale-[1.02] transition-transform duration-200">
-                                  <div onClick={() => { setSelectedStudent(student); setActiveTab('info'); }} className="w-12 h-12 rounded-full bg-gray-200 border-2 border-white shadow-sm flex-shrink-0 overflow-hidden cursor-pointer relative">{student.photoUrl ? <img src={student.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold">{student.firstName[0]}</div>}{student.lastIncident && new Date(student.lastIncident).toDateString() === new Date().toDateString() && (<div className="absolute bottom-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-white animate-pulse"></div>)}</div>
-                                  <div className="flex-1 min-w-0" onClick={() => { setSelectedStudent(student); setActiveTab('info'); }}><h4 className="font-bold text-gray-700 text-sm truncate cursor-pointer">{student.firstName} {student.lastName}</h4><p className="text-[10px] text-gray-400">Ver Ficha</p></div>
-                                  <button onClick={() => setShowBitacoraModal(student)} className="w-8 h-8 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center shadow-sm hover:bg-violet-600 hover:text-white transition-colors">⚡</button>
-                              </div>
-                          ))}
-                      </div>
-                  </div>
-              ))}
-          </div>
-      </div>
-
-      {showBitacoraModal && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-              <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600">
-                  <div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3><p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p></div><button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button></div>
-                  <div className="grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto p-1">{INCIDENT_TYPES.map((type) => (<button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? 'opacity-50' : 'hover:brightness-95'}`}><span className="text-2xl">{type.emoji}</span><span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span></button>))}</div>
-                  <p className="text-[9px] text-center text-gray-400 mt-4 italic">Al tocar se guarda fecha y hora automáticamente.</p>
-              </div>
-          </div>
-      )}
-
-      {selectedStudent && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]">
-                <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0">
-                    <button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition"><X size={20}/></button>
-                    <div className="flex items-center gap-4">
-                        <div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">
-                            {selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}
-                        </div>
-                        <div>
-                            <h2 className="text-2xl font-bold">{selectedStudent.lastName}, {selectedStudent.firstName}</h2>
-                            <p className="opacity-90 flex gap-2 text-sm mt-1">
-                                <span className="bg-white/20 px-2 py-0.5 rounded">{calculateAge(selectedStudent.birthDate)} años</span>
-                                <span className="bg-white/20 px-2 py-0.5 rounded">{selectedStudent.dni}</span>
-                            </p>
-                        </div>
-                    </div>
-                    <div className="flex gap-2 mt-6">
-                        <button onClick={() => setActiveTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeTab === 'info' ? 'bg-white text-blue-600 shadow-md' : 'bg-black/20 text-white/70 hover:bg-black/30'}`}>Datos Personales</button>
-                        <button onClick={() => setActiveTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeTab === 'history' ? 'bg-white text-blue-600 shadow-md' : 'bg-black/20 text-white/70 hover:bg-black/30'}`}>Bitácora</button>
-                    </div>
-                </div>
-
-                <div className="p-6 overflow-y-auto space-y-6">
-                    {activeTab === 'info' ? (
-                        <>
-                            <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
-                                <h3 className="font-black text-orange-800 uppercase text-xs flex items-center gap-2 mb-3"><User size={14}/> Familia & Contacto</h3>
-                                <div className="space-y-2 text-sm">
-                                    <div className="flex justify-between border-b border-orange-200 pb-2">
-                                        <span className="text-orange-400 font-bold text-xs uppercase">Madre</span>
-                                        <span className="font-bold text-gray-800">{selectedStudent.motherName || '-'} <span className="text-gray-500 font-normal">({selectedStudent.motherContact || '-'})</span></span>
-                                    </div>
-                                    <div className="flex justify-between border-b border-orange-200 pb-2">
-                                        <span className="text-orange-400 font-bold text-xs uppercase">Padre</span>
-                                        <span className="font-bold text-gray-800">{selectedStudent.fatherName || '-'} <span className="text-gray-500 font-normal">({selectedStudent.fatherContact || '-'})</span></span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-orange-400 font-bold text-xs uppercase">Domicilio</span>
-                                        <span className="font-bold text-gray-800 text-right">{selectedStudent.address || '-'}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-purple-50 p-3 rounded-xl border border-purple-100">
-                                    <p className="text-[10px] text-purple-400 font-black uppercase">Diagnóstico</p>
-                                    <p className="font-bold text-purple-800 text-sm">{selectedStudent.dx || '-'}</p>
-                                </div>
-                                <div className="bg-green-50 p-3 rounded-xl border border-green-100">
-                                    <p className="text-[10px] text-green-500 font-black uppercase">Obra Social</p>
-                                    <p className="font-bold text-green-800 text-sm truncate">{selectedStudent.healthInsurance || 'No declara'}</p>
-                                </div>
-                            </div>
-
-                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                                <h3 className="font-black text-gray-400 uppercase text-xs mb-3">Ubicación Escolar</h3>
-                                <div className="grid grid-cols-2 gap-4 text-xs">
-                                    <div>
-                                        <p className="text-gray-400 font-bold">Turno Mañana</p>
-                                        <p className="font-bold text-gray-800">{selectedStudent.groupMorning || '-'}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-gray-400 font-bold">Turno Tarde</p>
-                                        <p className="font-bold text-gray-800">{selectedStudent.groupAfternoon || '-'}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </>
-                    ) : (
-                        <div className="animate-in fade-in">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="font-bold text-gray-800">Bitácora de Incidentes</h3>
-                            </div>
-                            <div className="space-y-4 relative before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200">
-                                {selectedStudent.incidents && selectedStudent.incidents.length > 0 ? (
-                                    [...selectedStudent.incidents].reverse().map((inc, i) => (
-                                        <div key={i} className="pl-8 relative group">
-                                            <div className={`absolute left-0 top-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${inc.severity === 'high' ? 'bg-red-500' : inc.severity === 'medium' ? 'bg-orange-400' : 'bg-yellow-400'}`}></div>
-                                            <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex justify-between items-start">
-                                                <div>
-                                                    <div className="flex justify-between items-start gap-2"><span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{new Date(inc.date).toLocaleDateString()} • {new Date(inc.date).toLocaleTimeString()}</span></div>
-                                                    <p className="font-bold text-gray-800 text-sm mt-1">{inc.type}</p>
-                                                    <span className="text-[9px] bg-gray-50 px-2 py-0.5 rounded text-gray-400 font-bold uppercase mt-1 inline-block">Por: {inc.author}</span>
-                                                </div>
-                                                <button onClick={() => deleteIncident(selectedStudent.id, inc)} className="text-gray-300 hover:text-red-500 p-2"><Trash2 size={12}/></button>
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (<div className="pl-8 text-xs text-gray-400 italic">No hay eventos registrados.</div>)}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-      )}
+      <div className="flex-1 overflow-x-auto p-6"><div className="flex gap-6 h-full">{groups.map((g) => (<div key={g.name} className="min-w-[280px] w-[300px] flex flex-col h-full bg-white rounded-[30px] border border-gray-200 shadow-sm relative overflow-hidden"><div className={`p-4 border-b-4 ${turn==='morning'?'border-orange-400 bg-orange-50':'border-indigo-400 bg-indigo-50'}`}><h3 className="font-black text-gray-800 text-lg">{g.name}</h3><div className="mt-2 text-xs text-gray-500 font-medium"><p>DOCENTE: <span className="font-bold text-violet-700">{g.teacher}</span></p>{g.aux && <p>AUX: {g.aux}</p>}</div></div><div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50">{g.students.map(s => (<div key={s.id} onClick={() => {setSelectedStudent(s); setActiveTab('info');}} className="bg-white p-3 rounded-2xl shadow-sm flex items-center gap-3 cursor-pointer"><div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden shrink-0">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="flex items-center justify-center w-full h-full font-bold text-gray-400">{s.firstName[0]}</div>}</div><div><h4 className="font-bold text-gray-700 text-sm">{s.firstName} {s.lastName}</h4></div><button onClick={(e) => {e.stopPropagation(); setShowBitacoraModal(s);}} className="ml-auto w-8 h-8 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center">⚡</button></div>))}</div></div>))}</div></div>
+      {showBitacoraModal && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl border-t-8 border-violet-600"><div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora</h3><p className="text-xs text-gray-500 font-bold">{showBitacoraModal.firstName}</p></div><button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button></div><div className="grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto p-1">{INCIDENT_TYPES.map((type) => (<button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 active:scale-95 ${type.color} ${savingIncident ? 'opacity-50' : ''}`}><span className="text-2xl">{type.emoji}</span><span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span></button>))}</div></div></div>)}
+      {selectedStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"><div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0"><button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full"><X size={20}/></button><div className="flex items-center gap-4"><div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">{selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}</div><div><h2 className="text-2xl font-bold">{selectedStudent.lastName}, {selectedStudent.firstName}</h2><p className="opacity-90 flex gap-2 text-sm mt-1"><span className="bg-white/20 px-2 py-0.5 rounded">{calculateAge(selectedStudent.birthDate)} años</span></p></div></div><div className="flex gap-2 mt-6"><button onClick={() => setActiveTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'info' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Datos</button><button onClick={() => setActiveTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'history' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto space-y-6">{activeTab === 'info' ? (<div className="space-y-4"><div className="bg-orange-50 p-4 rounded-xl border border-orange-100"><h3 className="font-bold text-orange-800 text-xs uppercase mb-2">Contacto</h3><p className="text-sm">Madre: <b>{selectedStudent.motherName}</b> ({selectedStudent.motherContact})</p><p className="text-sm">Padre: <b>{selectedStudent.fatherName}</b> ({selectedStudent.fatherContact})</p></div><div className="bg-gray-50 p-4 rounded-xl border border-gray-100"><h3 className="font-bold text-gray-500 text-xs uppercase mb-2">Ubicación</h3><p className="text-sm">TM: <b>{selectedStudent.groupMorning}</b></p><p className="text-sm">TT: <b>{selectedStudent.groupAfternoon}</b></p></div></div>) : (<div className="space-y-2">{selectedStudent.incidents?.map((inc, i) => (<div key={i} className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="font-bold text-sm">{inc.type}</p><p className="text-xs text-gray-500">{new Date(inc.date).toLocaleDateString()} - {inc.author}</p></div>))}</div>)}</div></div></div>)}
     </div>
   );
 }
 // Icono auxiliar
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
