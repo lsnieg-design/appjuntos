@@ -474,15 +474,17 @@ function ResourcesView({ resources, canEdit }) {
 }
 
 
-// --- VISTA TAREAS (CON FIX DE NOTIFICACIONES POR ROL) ---
+// --- VISTA TAREAS (FIX: NOTIFICACIONES FORZADAS PARA PRUEBAS) ---
 function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
   
+  // Estados del formulario
   const [assignType, setAssignType] = useState('user'); 
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [targetUserId, setTargetUserId] = useState(''); 
   
+  // Checklist y comentarios
   const [checklist, setChecklist] = useState([]); 
   const [newItem, setNewItem] = useState(""); 
   const [userSearch, setUserSearch] = useState("");
@@ -490,15 +492,14 @@ function TasksView({ tasks, user, canEdit }) {
   const [openCommentsId, setOpenCommentsId] = useState(null); 
   const [newComment, setNewComment] = useState("");
   const [editingTask, setEditingTask] = useState(null); 
-  
-  // Agregué este filtro de estado para que coincida con tu diseño
   const [filter, setFilter] = useState('pending');
 
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor'];
   const canManage = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
 
   useEffect(() => {
-    const unsub = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc')), (snap) => {
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
+    const unsub = onSnapshot(q, (snap) => {
         const users = snap.docs.map(d => ({id: d.id, ...d.data()}));
         setUsersList(users);
         if (users.length > 0) setTargetUserId(users[0].id);
@@ -540,7 +541,7 @@ function TasksView({ tasks, user, canEdit }) {
         if (editingTask) {
              await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData);
         } else {
-             // 1. CREAR LA TAREA
+             // 1. Crear Tarea
              const newTaskRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
                  ...taskData, 
                  createdByName: user.fullName || user.firstName, 
@@ -550,9 +551,9 @@ function TasksView({ tasks, user, canEdit }) {
                  comments: [] 
              });
              
-             // 2. ENVIAR NOTIFICACIONES (FIX APLICADO AQUÍ) 🔔
-             const notifBase = {
-                 title: "Nueva Tarea Asignada",
+             // 2. ENVIAR NOTIFICACIONES (SIN BLOQUEO DE AUTOR) 🔔
+             const notifData = {
+                 title: "Nueva Tarea",
                  message: `${user.firstName} asignó: "${fd.get('title')}"`,
                  read: false,
                  createdAt: serverTimestamp(),
@@ -560,47 +561,74 @@ function TasksView({ tasks, user, canEdit }) {
                  relatedId: newTaskRef.id
              };
 
-             if (assignType === 'user' && finalTargetId !== user.id) {
-                // Caso A: Notificación individual
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifBase, toUserId: finalTargetId });
+             if (assignType === 'user' && finalTargetId) {
+                // Notificar a la persona (incluso si soy yo mismo)
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { 
+                    ...notifData, 
+                    toUserId: finalTargetId 
+                });
              } else if (assignType === 'roles') {
-                // Caso B: Notificación masiva por roles (Esto faltaba)
-                const targets = usersList.filter(u => finalRoles.includes(u.role) && u.id !== user.id);
-                // Usamos un Promise.all para enviar todas juntas rápido
-                await Promise.all(targets.map(t => 
-                    addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifBase, toUserId: t.id })
-                ));
+                // Notificar a todos los del rol
+                const targets = usersList.filter(u => finalRoles.includes(u.role));
+                
+                // Usamos map para crear una promesa por cada notificación
+                const promises = targets.map(t => 
+                    addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { 
+                        ...notifData, 
+                        toUserId: t.id 
+                    })
+                );
+                await Promise.all(promises);
              }
         }
         setShowModal(false);
-    } catch (err) { console.error(err); alert("Error al guardar tarea."); }
+        // Alerta visual temporal para confirmar que el código corrió
+        // alert("✅ Tarea creada y notificaciones enviadas."); 
+    } catch (err) { console.error(err); alert("Error: " + err.message); }
   };
 
-  // ... (El resto de funciones auxiliares se mantienen igual: addComment, delete, etc.)
-  const addComment = async (task) => { if (!newComment.trim()) return; const commentData = { text: newComment, author: user.firstName, date: new Date().toISOString() }; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion(commentData) }); setNewComment(""); };
+  const addComment = async (task) => {
+      if (!newComment.trim()) return;
+      const commentData = { text: newComment, author: user.firstName, date: new Date().toISOString() };
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion(commentData) });
+      setNewComment("");
+  };
+
   const handleDelete = async (id) => { if(confirm("¿Seguro que deseas eliminar esta tarea?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
   const changeStatus = async (task, newStatus) => { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
-  const openNew = () => { setEditingTask(null); setAssignType('user'); setSelectedRoles([]); setChecklist([]); setNewItem(""); setUserSearch(""); if(usersList.length > 0) setTargetUserId(usersList[0].id); setShowModal(true); };
-  const openEdit = (t) => { setEditingTask(t); setAssignType(t.targetType || 'user'); setTargetUserId(t.targetUserId || (usersList[0]?.id)); setSelectedRoles(t.targetRoles || []); setChecklist(t.checklist || []); setShowModal(true); };
-  const getPriorityStyle = (p) => { if (p === 'alta') return 'border-l-red-500 bg-red-50'; if (p === 'media') return 'border-l-orange-500 bg-orange-50'; return 'border-l-green-500 bg-green-50'; };
+  
+  const openNew = () => { 
+      setEditingTask(null); setAssignType('user'); setSelectedRoles([]); setChecklist([]); setNewItem(""); setUserSearch(""); 
+      if(usersList.length > 0) setTargetUserId(usersList[0].id); 
+      setShowModal(true); 
+  };
+
+  const openEdit = (t) => { 
+      setEditingTask(t); setAssignType(t.targetType || 'user'); setTargetUserId(t.targetUserId || (usersList[0]?.id)); 
+      setSelectedRoles(t.targetRoles || []); setChecklist(t.checklist || []); 
+      setShowModal(true); 
+  };
 
   const filteredTasks = tasks.filter(t => {
-      // Filtros
       if (filter === 'pending' && t.status === 'completed') return false;
       if (filter === 'completed' && t.status !== 'completed') return false;
-      
       if (canManage) return true; 
       if (t.createdById === user.id) return true; 
       if (t.targetType === 'user') return t.targetUserId === user.id; 
       if (t.targetType === 'roles') return t.targetRoles && t.targetRoles.includes(user.role); 
       return false;
   });
-  const filteredUsers = usersList.filter(u => u.fullName.toLowerCase().includes(userSearch.toLowerCase()));
+
+  const filteredUsers = usersList.filter(u => (u.fullName || '').toLowerCase().includes(userSearch.toLowerCase()));
+  const getPriorityStyle = (p) => { if (p === 'alta') return 'border-l-red-500 bg-red-50'; if (p === 'media') return 'border-l-orange-500 bg-orange-50'; return 'border-l-green-500 bg-green-50'; };
 
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-20">
       <div className="flex justify-between items-center mb-6 bg-white p-4 sticky top-0 z-10 shadow-sm rounded-b-3xl">
-          <div><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2><p className="text-xs text-gray-400 font-bold">{filteredTasks.length} visibles</p></div>
+          <div>
+            <h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2>
+            <p className="text-xs text-gray-400 font-bold">{filteredTasks.length} visibles</p>
+          </div>
           <div className="flex gap-2">
              <div className="flex bg-gray-100 rounded-xl p-1">
                 <button onClick={()=>setFilter('pending')} className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='pending'?'bg-white shadow text-slate-800':'text-gray-400'}`}>Pendientes</button>
@@ -611,7 +639,9 @@ function TasksView({ tasks, user, canEdit }) {
       </div>
       
       <div className="grid gap-3 px-2">
-          {filteredTasks.length === 0 ? ( <div className="text-center py-10 opacity-40"><CheckCircle size={40} className="mx-auto mb-2 text-gray-400"/><p className="font-bold text-gray-500">Sin tareas en esta vista.</p></div> ) : filteredTasks.map(t => (
+          {filteredTasks.length === 0 ? (
+            <div className="text-center py-10 opacity-40"><CheckCircle size={40} className="mx-auto mb-2 text-gray-400"/><p className="font-bold text-gray-500">Sin tareas en esta vista.</p></div>
+          ) : filteredTasks.map(t => (
             <div key={t.id} className={`p-5 rounded-[30px] border-l-8 shadow-sm flex flex-col gap-3 bg-white ${getPriorityStyle(t.priority)} transition-all relative`}>
                 <div className="flex justify-between items-start">
                     <div className="flex-1 pr-6">
@@ -621,13 +651,27 @@ function TasksView({ tasks, user, canEdit }) {
                     </div>
                     <div className="flex flex-col items-end gap-2">
                         <div className="text-[9px] font-black bg-white px-2 py-1 rounded-full text-gray-400 border uppercase tracking-tighter italic shadow-inner">{t.dueDate}</div>
-                        <div className="flex gap-1">{canManage && <button onClick={() => openEdit(t)} className="text-blue-300 hover:text-blue-600 p-1 bg-white rounded-full shadow-sm"><Edit3 size={14}/></button>}{canManage && <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm"><Trash2 size={14}/></button>}</div>
+                        <div className="flex gap-1">
+                                {canManage && <button onClick={() => openEdit(t)} className="text-blue-300 hover:text-blue-600 p-1 bg-white rounded-full shadow-sm"><Edit3 size={14}/></button>}
+                                {canManage && <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm"><Trash2 size={14}/></button>}
+                        </div>
                     </div>
                 </div>
-                {openCommentsId === t.id && ( <div className="bg-white/50 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in"><div className="max-h-32 overflow-y-auto space-y-2 mb-2">{(t.comments || []).map((c, idx) => ( <p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p> ))}</div><div className="flex gap-2"><input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Comentar..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" /><button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button></div></div> )}
+                
+                {openCommentsId === t.id && (
+                    <div className="bg-white/50 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in">
+                        <div className="max-h-32 overflow-y-auto space-y-2 mb-2">
+                            {(t.comments || []).map((c, idx) => ( <p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p> ))}
+                        </div>
+                        <div className="flex gap-2"><input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Comentar..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" /><button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button></div>
+                    </div>
+                )}
+
                 <div className="pt-2 border-t border-black/5 flex justify-between items-center">
                     <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-violet-600 bg-gray-50 px-2 py-1 rounded-lg"><MessageSquare size={14}/> {t.comments?.length || 0}</button>
-                    <button onClick={() => changeStatus(t, t.status === 'completed' ? 'pending' : 'completed')} className={`flex items-center gap-2 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition ${t.status==='completed' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{t.status==='completed' ? <><Check size={12}/> Listo</> : 'Pendiente'}</button>
+                    <button onClick={() => changeStatus(t, t.status === 'completed' ? 'pending' : 'completed')} className={`flex items-center gap-2 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition ${t.status==='completed' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                        {t.status==='completed' ? <><Check size={12}/> Listo</> : 'Pendiente'}
+                    </button>
                 </div>
             </div>
           ))}
@@ -1982,6 +2026,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
