@@ -1317,7 +1317,7 @@ function ProyectoView({ user }) {
     </div>
   );
 }
-// --- VISTA MATRÍCULA (FIX: FUSIÓN DE DUPLICADOS + DETECTIVE MEJORADO) ---
+// --- VISTA MATRÍCULA (FINAL: GESTIÓN DE DUPLICADOS MEJORADA + DESCARTAR) ---
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
@@ -1395,6 +1395,20 @@ function MatriculaView({ user }) {
     return true;
   });
 
+  // --- LÓGICA DE ESTADÍSTICAS ---
+  const statsResults = students.filter(s => {
+     if (s.isActive === false) return false;
+     if (statFilters.turn !== 'all') {
+         if (statFilters.turn === 'Mañana' && !s.groupMorning) return false;
+         if (statFilters.turn === 'Tarde' && !s.groupAfternoon) return false;
+     }
+     if (statFilters.level !== 'all' && s.level !== statFilters.level) return false;
+     if (statFilters.dx !== 'all' && s.dx !== statFilters.dx) return false;
+     if (statFilters.gender !== 'all' && s.gender !== statFilters.gender) return false;
+     if (statFilters.journey !== 'all' && s.journey !== statFilters.journey) return false;
+     return true;
+  });
+
   // --- UTILS ---
   const getSafeDate = (d) => { if(!d) return ''; try { return d.includes('T') ? d.split('T')[0] : d; } catch(e) { return ''; } };
   const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
@@ -1411,7 +1425,6 @@ function MatriculaView({ user }) {
       const d = Object.fromEntries(fd.entries()); 
       d.isActive = d.isActive === 'true'; 
       d.photoUrl = photoPreview || editingStudent?.photoUrl || ''; 
-      
       try { 
           if (editingStudent) { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', editingStudent.id), d); } 
           else { const newStatus = d.isActive !== undefined ? d.isActive : true; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...d, isActive: newStatus, createdAt: serverTimestamp(), incidents: [] }); } 
@@ -1423,43 +1436,26 @@ function MatriculaView({ user }) {
   const deleteIncident = async (sid, inc) => { if(confirm("¿Borrar evento?")) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', sid), { incidents: arrayRemove(inc) }); };
   const markAsInactive = async (s) => { if(!confirm(`¿Dar de baja a ${s.firstName}?`)) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { isActive: false }); setUnassignedList(p=>p.filter(x=>x.id!==s.id)); };
   
-  // --- HERRAMIENTA CLAVE: BUSCAR DUPLICADOS ---
+  // --- HERRAMIENTAS DE GESTIÓN ---
   const findDuplicates = () => { 
       setProcessing(true); 
       const found = []; 
       const checkedIds = new Set();
-      
-      // Normalizador de texto (quita acentos, espacios y pasa a minusculas)
       const normalize = (str) => (str || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
-
-      // Levenshtein para typos
       const levenshtein = (a, b) => { const matrix = []; for(let i=0; i<=b.length; i++) matrix[i] = [i]; for(let j=0; j<=a.length; j++) matrix[0][j] = j; for(let i=1; i<=b.length; i++){ for(let j=1; j<=a.length; j++){ if(b.charAt(i-1) == a.charAt(j-1)){ matrix[i][j] = matrix[i-1][j-1]; } else { matrix[i][j] = Math.min(matrix[i-1][j-1] + 1, Math.min(matrix[i][j-1] + 1, matrix[i-1][j] + 1)); } } } return matrix[b.length][a.length]; }; 
 
       for (let i = 0; i < students.length; i++) { 
           for (let j = i + 1; j < students.length; j++) { 
               const s1 = students[i]; 
               const s2 = students[j]; 
-              
+              if(checkedIds.has(s1.id) || checkedIds.has(s2.id)) continue;
+
               const name1 = normalize(s1.lastName + s1.firstName);
               const name2 = normalize(s2.lastName + s2.firstName);
               
-              // 1. Coincidencia exacta de nombre normalizado (ej: "PEREZ JUAN" vs "Perez Juan")
-              if (name1 === name2) {
-                  found.push({ original: s1, duplicate: s2, type: 'exacto' });
-                  continue;
-              }
-
-              // 2. Coincidencia por DNI (si ambos tienen)
-              if (s1.dni && s2.dni && s1.dni === s2.dni) {
-                  found.push({ original: s1, duplicate: s2, type: 'dni' });
-                  continue;
-              }
-
-              // 3. Coincidencia aproximada (Typos)
-              const dist = levenshtein(name1, name2); 
-              if (dist <= 3) { // Umbral de tolerancia
-                  found.push({ original: s1, duplicate: s2, type: 'similar' }); 
-              }
+              if (name1 === name2) { found.push({ original: s1, duplicate: s2, type: 'exacto' }); checkedIds.add(s2.id); continue; }
+              if (s1.dni && s2.dni && s1.dni === s2.dni) { found.push({ original: s1, duplicate: s2, type: 'dni' }); checkedIds.add(s2.id); continue; }
+              if (levenshtein(name1, name2) <= 3) { found.push({ original: s1, duplicate: s2, type: 'similar' }); checkedIds.add(s2.id); }
           } 
       } 
       setPotentialDupes(found); 
@@ -1468,38 +1464,28 @@ function MatriculaView({ user }) {
       setShowDupes(true); 
   };
 
-  // --- HERRAMIENTA CLAVE: FUSIÓN INTELIGENTE ---
   const mergeStudents = async (keep, drop) => { 
       if(!confirm(`⚠️ ¿FUSIONAR?\n\nSe pasará toda la info faltante de "${drop.firstName}" a "${keep.firstName}" y se borrará el duplicado.`)) return; 
-      
       try { 
-          // Creamos un objeto mezclado base con los datos del que se queda (KEEP)
           const mergedData = { ...keep, updatedAt: serverTimestamp() }; 
-          
-          // Recorremos las claves del que se borra (DROP)
-          // Si KEEP tiene un campo vacío y DROP lo tiene lleno, lo copiamos.
           Object.keys(drop).forEach(key => {
               const valKeep = mergedData[key];
               const valDrop = drop[key];
-              
-              // Si el dato de KEEP es null, undefined o string vacía, y DROP tiene valor...
-              if ((valKeep === null || valKeep === undefined || valKeep === "") && (valDrop)) {
-                  mergedData[key] = valDrop;
-              }
+              if ((valKeep === null || valKeep === undefined || valKeep === "") && (valDrop)) { mergedData[key] = valDrop; }
           });
-
-          // Caso especial: Si uno es activo y el otro no, priorizamos ACTIVO
           if (keep.isActive === false && drop.isActive === true) mergedData.isActive = true;
-
-          // Guardamos en el original y borramos el duplicado
           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', keep.id), mergedData); 
           await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', drop.id)); 
-          
           setPotentialDupes(prev => prev.filter(p => p.original.id !== keep.id && p.duplicate.id !== drop.id)); 
-          alert("✅ Fusión completada con éxito."); 
-      } catch (e) { 
-          alert("Error al fusionar: " + e.message); 
-      } 
+          alert("✅ Fusión completada."); 
+      } catch (e) { alert("Error al fusionar: " + e.message); } 
+  };
+
+  // NUEVA FUNCIÓN: DESCARTAR DUPLICADO (SOLO VISUAL)
+  const dismissMatch = (index) => {
+      const newList = [...potentialDupes];
+      newList.splice(index, 1);
+      setPotentialDupes(newList);
   };
 
   const checkUnassigned = () => { const found = students.filter(s => (s.isActive === undefined || s.isActive === true) && !s.groupMorning && !s.groupAfternoon); setUnassignedList(found); setShowDataManagement(false); setShowUnassigned(true); };
@@ -1515,13 +1501,13 @@ function MatriculaView({ user }) {
   const imprimirFichasMasivas = () => { if (filteredStudents.length > 20 && !confirm(`¿Imprimir ${filteredStudents.length} fichas?`)) return; imprimirListado(filteredStudents); };
   const exportFiltered = () => { if (filteredStudents.length === 0) return alert("Sin datos"); const headers = ["Apellido", "Nombre", "DNI", "Nivel", "Obra Social"]; const csv = [headers.join(';'), ...filteredStudents.map(s => [`"${s.lastName}"`, `"${s.firstName}"`, `"${s.dni}"`, `"${s.level}"`, `"${s.healthInsurance}"`].join(';'))].join('\n'); const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = "Matricula.csv"; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
 
+  // --- RENDER ---
   return (
     <div className="animate-in fade-in pb-20">
       <div className={`p-6 rounded-3xl shadow-lg text-white mb-6 transition-colors ${showArchived?'bg-gray-600':'bg-gradient-to-r from-blue-600 to-cyan-500'}`}>
-         {/* CABECERA */}
          <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
-             <div><h2 className="text-3xl font-bold flex gap-2 items-center"><GraduationCap/> {showArchived?'Archivo':'Legajos 2026'}</h2><p className="opacity-80 text-sm mt-1">{filteredStudents.length} alumnos</p></div>
-             <div className="flex gap-2 flex-wrap justify-center">
+             <div><h2 className="text-3xl font-bold flex gap-2 items-center"><GraduationCap/> {showArchived?'Archivo':'Legajos 2026'}</h2><p className="opacity-80 text-sm mt-1">{filteredStudents.length} alumnos encontrados</p></div>
+             <div className="flex gap-2 flex-wrap justify-center md:justify-end">
                  <button onClick={()=>setShowArchived(!showArchived)} className="px-3 py-2 border border-white/30 rounded-xl text-xs font-bold uppercase hover:bg-white/10 flex items-center gap-1">{showArchived? <><CheckCircle size={14}/> Activos</> : <><LogOut size={14}/> Bajas</>}</button>
                  {isSuperAdmin && <button onClick={()=>setShowDataManagement(true)} className="p-2 border border-white/30 rounded-xl hover:bg-white/10" title="Gestión"><UploadCloud size={18}/></button>}
                  {isSuperAdmin && <button onClick={()=>setShowStats(true)} className="p-2 border border-white/30 rounded-xl hover:bg-white/10" title="Estadísticas"><PieChart size={18}/></button>}
@@ -1530,8 +1516,20 @@ function MatriculaView({ user }) {
                  {!showArchived && <button onClick={openNew} className="px-4 py-2 bg-white text-blue-600 rounded-xl shadow hover:bg-blue-50 font-bold"><Plus size={20}/></button>}
              </div>
          </div>
-         {/* FILTROS */}
-         {!showArchived && (<div className="mt-4 space-y-2"><div className="bg-white/20 p-2 rounded-xl flex items-center"><Search className="ml-2 opacity-70"/><input value={filterText} onChange={e=>setFilterText(e.target.value)} placeholder="Buscar alumno..." className="bg-transparent border-none outline-none text-white w-full font-bold placeholder-white/60 ml-2"/>{filterText && <button onClick={()=>setFilterText('')}><X/></button>}</div><div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide"><select value={filters.os} onChange={e=>setFilters({...filters, os:e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[100px]"><option value="all">Obra Social: Todas</option>{uniqueOS.map(o=><option key={o} value={o}>{o}</option>)}</select><select value={filters.group} onChange={e=>setFilters({...filters, group:e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[100px]"><option value="all">Grupo: Todos</option>{uniqueGroups.map(g=><option key={g} value={g}>{g}</option>)}</select><select value={filters.turn} onChange={e=>setFilters({...filters, turn:e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[100px]"><option value="all">Turno: Todos</option><option value="Mañana">Mañana</option><option value="Tarde">Tarde</option></select><select value={filters.level} onChange={e => setFilters({...filters, level: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[100px]"><option value="all">Nivel: Todos</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option></select><select value={filters.teacher} onChange={e => setFilters({...filters, teacher: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[100px]"><option value="all">Docente: Todos</option>{staffOptions.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select value={filters.dx} onChange={e => setFilters({...filters, dx: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[100px]"><option value="all">DX: Todos</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select></div></div>)}
+
+         {!showArchived && (
+            <div className="mt-4 space-y-2">
+                <div className="bg-white/20 p-2 rounded-xl flex items-center"><Search className="ml-2 opacity-70"/><input value={filterText} onChange={e=>setFilterText(e.target.value)} placeholder="Buscar alumno..." className="bg-transparent border-none outline-none text-white w-full font-bold placeholder-white/60 ml-2"/>{filterText && <button onClick={()=>setFilterText('')}><X/></button>}</div>
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                    <select value={filters.os} onChange={e=>setFilters({...filters, os:e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[100px]"><option value="all">Obra Social: Todas</option>{uniqueOS.map(o=><option key={o} value={o}>{o}</option>)}</select>
+                    <select value={filters.group} onChange={e=>setFilters({...filters, group:e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[100px]"><option value="all">Grupo: Todos</option>{uniqueGroups.map(g=><option key={g} value={g}>{g}</option>)}</select>
+                    <select value={filters.turn} onChange={e=>setFilters({...filters, turn:e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[100px]"><option value="all">Turno: Todos</option><option value="Mañana">Mañana</option><option value="Tarde">Tarde</option></select>
+                    <select value={filters.level} onChange={e => setFilters({...filters, level: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[100px]"><option value="all">Nivel: Todos</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option></select>
+                    <select value={filters.teacher} onChange={e => setFilters({...filters, teacher: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[100px]"><option value="all">Docente: Todos</option>{staffOptions.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select>
+                    <select value={filters.dx} onChange={e => setFilters({...filters, dx: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[100px]"><option value="all">DX: Todos</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select>
+                </div>
+            </div>
+         )}
       </div>
       
       {/* LISTA DE ALUMNOS */}
@@ -1545,13 +1543,19 @@ function MatriculaView({ user }) {
         <div className="grid grid-cols-1 gap-3"><div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center"><div><h4 className="font-bold text-green-600 mb-1 text-xs uppercase flex items-center gap-1"><Activity size={12}/> Salud</h4><p className="text-xs text-gray-500 font-bold">OBRA SOCIAL</p><p className="font-bold text-slate-800">{viewingStudent.healthInsurance || 'NO DECLARA'}</p></div><div className="text-right"><p className="text-xs text-gray-500 font-bold">VENCIMIENTO CUD</p><p className="font-bold text-slate-800">{getSafeDate(viewingStudent.cudExpiration) || '-'}</p></div></div><div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm"><h4 className="font-bold text-orange-600 mb-2 text-xs uppercase flex items-center gap-1"><User size={12}/> Familia</h4><div className="grid grid-cols-2 gap-4"><div><span className="text-[9px] text-gray-400 font-bold block uppercase">Madre</span><p className="font-bold text-xs">{viewingStudent.motherName}</p><p className="text-xs text-gray-500">{viewingStudent.motherContact}</p></div><div><span className="text-[9px] text-gray-400 font-bold block uppercase">Padre</span><p className="font-bold text-xs">{viewingStudent.fatherName}</p><p className="text-xs text-gray-500">{viewingStudent.fatherContact}</p></div></div><div className="mt-2 pt-2 border-t border-gray-50"><span className="text-[9px] text-gray-400 font-bold block uppercase">Dirección</span><p className="font-bold text-xs">{viewingStudent.address}</p></div></div></div>
       </div>) : (<div className="space-y-3">{viewingStudent.incidents?.map((inc,i)=>(<div key={i} className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm"><div className="flex justify-between border-b border-gray-50 pb-1 mb-1"><span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{new Date(inc.date).toLocaleDateString()}</span><button onClick={()=>deleteIncident(viewingStudent.id, inc)}><Trash2 size={12} className="text-red-300 hover:text-red-500"/></button></div><p className="font-bold text-sm text-slate-700">{inc.type}</p><p className="text-xs text-gray-400 mt-1 uppercase font-bold">{inc.author}</p></div>))}</div>)}</div><div className="p-4 border-t border-gray-100 bg-white flex justify-end gap-2"><button onClick={()=>imprimirListado([viewingStudent])} className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-slate-600 font-bold text-xs uppercase hover:bg-gray-50 flex gap-2 items-center shadow-sm"><FileText size={16}/> Imprimir Ficha</button><button onClick={()=>openEdit(viewingStudent)} className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-xs uppercase hover:bg-blue-700 flex gap-2 items-center shadow-lg"><Edit3 size={16}/> Editar Ficha</button></div></div></div>)}
 
-      {/* MODAL GESTIÓN DE DATOS (NUBE + FUSIÓN) */}
+      {/* MODAL GESTIÓN DE DATOS (NUBE) */}
       {showDataManagement && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[80]"><div className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl"><div className="flex justify-between mb-4"><h3 className="font-bold text-xl text-gray-800">Gestión de Datos</h3><button onClick={()=>setShowDataManagement(false)}><X/></button></div><div className="grid grid-cols-2 gap-3 mb-6"><button onClick={findDuplicates} className="p-3 bg-yellow-50 text-yellow-700 rounded-xl font-bold text-xs hover:bg-yellow-100 border border-yellow-200">🔍 Buscar Duplicados</button><button onClick={checkUnassigned} className="p-3 bg-red-50 text-red-700 rounded-xl font-bold text-xs hover:bg-red-100 border border-red-200">⚠️ Ver Sin Grupo</button><button onClick={limpiarEspaciosMasivo} className="p-3 bg-indigo-50 text-indigo-700 rounded-xl font-bold text-xs hover:bg-indigo-100 border border-indigo-200 col-span-2">✨ Limpiar Espacios en Nombres</button></div><div className="bg-gray-100 p-4 rounded-xl border border-gray-200 mb-6 opacity-70 hover:opacity-100 transition"><h4 className="font-bold text-gray-600 text-sm mb-2">Zona Peligrosa</h4><div className="flex gap-2"><button onClick={handleResetCycle} disabled={processing} className="flex-1 bg-white border border-gray-300 text-gray-500 font-bold py-2 rounded-lg text-xs hover:bg-gray-200">Reiniciar Ciclo</button><button onClick={handleDeleteAll} disabled={processing} className="flex-1 bg-white border border-gray-300 text-red-500 font-bold py-2 rounded-lg text-xs hover:bg-red-50">Borrar TODO</button></div></div><h4 className="font-bold text-gray-800 text-sm mb-2">Importar / Exportar</h4><div className="flex gap-2 mb-2"><button onClick={descargarBackup} className="flex-1 py-2 bg-white border rounded-lg text-xs font-bold">Descargar JSON</button><button onClick={handleBulkImport} className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold">Importar JSON</button></div><textarea value={importJson} onChange={e=>setImportJson(e.target.value)} placeholder="Pegar JSON aquí..." className="w-full p-2 text-xs border rounded-lg h-20"/><div className="flex gap-3 mt-4"><button onClick={handleAutoAssignGenders} disabled={processing} className="flex-1 py-3 text-blue-600 font-bold bg-blue-50 hover:bg-blue-100 rounded-xl text-xs">Auto-Género</button></div></div></div>)}
 
-      {/* MODAL DUPLICADOS (RESULTADOS) */}
-      {showDupes && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[90]"><div className="bg-white rounded-3xl p-6 w-full max-w-2xl h-[80vh] flex flex-col"><div className="flex justify-between mb-4"><h3 className="font-bold">Posibles Duplicados ({potentialDupes.length})</h3><button onClick={()=>setShowDupes(false)}><X/></button></div><div className="flex-1 overflow-y-auto space-y-2">{potentialDupes.length === 0 ? <p className="text-gray-400 text-center mt-10">No se encontraron duplicados.</p> : potentialDupes.map((d,i)=>(<div key={i} className="flex gap-2 items-center bg-gray-50 p-3 rounded-xl border border-gray-200"><div className="flex-1"><p className="font-bold text-sm text-blue-700 uppercase">{d.original.lastName}, {d.original.firstName}</p><p className="text-xs text-gray-500">Origen: {d.original.groupMorning || 'Sin grupo'} (Edad: {calculateAge(d.original.birthDate)})</p></div><div className="flex-1"><p className="font-bold text-sm text-red-700 uppercase">{d.duplicate.lastName}, {d.duplicate.firstName}</p><p className="text-xs text-gray-500">Duplicado: {d.duplicate.groupMorning || 'Sin grupo'} (Edad: {calculateAge(d.duplicate.birthDate)})</p></div><button onClick={()=>mergeStudents(d.original, d.duplicate)} className="px-4 py-2 bg-green-500 text-white rounded-xl font-bold text-xs shadow-lg hover:bg-green-600 transition">FUSIONAR</button></div>))}</div></div></div>)}
+      {/* MODAL DUPLICADOS (CON BOTÓN "X") */}
+      {showDupes && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[90]"><div className="bg-white rounded-3xl p-6 w-full max-w-2xl h-[80vh] flex flex-col"><div className="flex justify-between mb-4"><h3 className="font-bold">Posibles Duplicados ({potentialDupes.length})</h3><button onClick={()=>setShowDupes(false)}><X/></button></div><div className="flex-1 overflow-y-auto space-y-2">{potentialDupes.length === 0 ? <p className="text-gray-400 text-center mt-10">No se encontraron duplicados.</p> : potentialDupes.map((d,i)=>(<div key={i} className="flex gap-2 items-center bg-gray-50 p-3 rounded-xl border border-gray-200"><div className="flex-1"><p className="font-bold text-sm text-blue-700 uppercase">{d.original.lastName}, {d.original.firstName}</p><p className="text-xs text-gray-500">Origen: {d.original.groupMorning || 'Sin grupo'} (Edad: {calculateAge(d.original.birthDate)})</p></div><div className="flex-1"><p className="font-bold text-sm text-red-700 uppercase">{d.duplicate.lastName}, {d.duplicate.firstName}</p><p className="text-xs text-gray-500">Duplicado: {d.duplicate.groupMorning || 'Sin grupo'} (Edad: {calculateAge(d.duplicate.birthDate)})</p></div>
+      {/* BOTONERA FUSIÓN */}
+      <div className="flex gap-2 shrink-0">
+          <button onClick={()=>mergeStudents(d.original, d.duplicate)} className="px-4 py-2 bg-green-500 text-white rounded-xl font-bold text-xs shadow-lg hover:bg-green-600 transition">FUSIONAR</button>
+          <button onClick={()=>dismissMatch(i)} className="p-2 bg-gray-200 text-gray-500 rounded-xl hover:bg-red-100 hover:text-red-500 transition"><X size={16}/></button>
+      </div>
+      </div>))}</div></div></div>)}
 
-      {/* FORMULARIO EDITAR + ESTADÍSTICAS + OTROS MODALES (SE MANTIENEN IGUAL) */}
+      {/* ... OTROS MODALES (MANTENIDOS) ... */}
       {showStats && (<div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4"><div className="bg-white rounded-[40px] w-full max-w-lg p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600"><div className="flex justify-between items-center mb-6"><div><h3 className="text-2xl font-black text-violet-900 uppercase italic">Estadísticas</h3><p className="text-xs text-gray-500">Filtrado en tiempo real</p></div><button onClick={() => setShowStats(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button></div><div className="bg-violet-50 p-6 rounded-3xl text-center mb-6 border border-violet-100 shadow-inner"><span className="text-5xl font-black text-violet-600 block mb-2">{statsResults.length}</span><span className="text-xs font-bold text-violet-400 uppercase tracking-[4px]">Estudiantes Encontrados</span></div><div className="space-y-3"><div className="grid grid-cols-2 gap-2"><select value={statFilters.turn} onChange={e => setStatFilters({...statFilters, turn: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Turno: Todos</option><option value="Mañana">Mañana</option><option value="Tarde">Tarde</option></select><select value={statFilters.level} onChange={e => setStatFilters({...statFilters, level: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Nivel: Todos</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option></select><select value={statFilters.dx} onChange={e => setStatFilters({...statFilters, dx: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">DX: Todos</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select><select value={statFilters.gender} onChange={e => setStatFilters({...statFilters, gender: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Género: Todos</option><option value="M">Varón</option><option value="F">Mujer</option></select><select value={statFilters.journey} onChange={e => setStatFilters({...statFilters, journey: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Jornada: Todas</option><option value="Simple Mañana">Simple Mañana</option><option value="Simple Tarde">Simple Tarde</option><option value="Doble">Doble</option></select></div><button onClick={() => setStatFilters({ level: 'all', dx: 'all', gender: 'all', journey: 'all', turn: 'all' })} className="w-full py-3 text-red-400 font-bold text-xs hover:bg-red-50 rounded-xl transition mt-2">Limpiar Filtros</button></div></div></div>)}
       {showUnassigned && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[90]"><div className="bg-white rounded-3xl p-6 w-full max-w-2xl h-[80vh] flex flex-col"><div className="flex justify-between mb-4"><h3 className="font-bold text-red-600">Alumnos Sin Grupo ({unassignedList.length})</h3><button onClick={()=>setShowUnassigned(false)}><X/></button></div><div className="flex-1 overflow-y-auto space-y-2">{unassignedList.map(s=>(<div key={s.id} className="flex justify-between items-center bg-red-50 p-3 rounded-xl"><span className="font-bold">{s.lastName}, {s.firstName}</span><div className="flex gap-2"><button onClick={()=>{openEdit(s); setShowUnassigned(false)}} className="text-xs bg-white px-2 py-1 rounded border">Editar</button><button onClick={()=>markAsInactive(s)} className="text-xs bg-red-600 text-white px-2 py-1 rounded">Baja</button></div></div>))}</div></div></div>)}
       {showForm && (<div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"><div className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto"><h3 className="text-xl font-bold mb-4">{editingStudent?'Editar':'Nuevo'} Legajo</h3><form onSubmit={handleSave} className="space-y-4"><div className={`p-3 rounded-xl border mb-4 flex justify-between items-center ${editingStudent?.isActive === false ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}><div><label className="text-xs font-bold text-gray-700 uppercase">Estado Actual</label><p className="text-[10px] text-gray-500 font-bold">{editingStudent?.isActive === false ? '🛑 BAJA / INACTIVO' : '✅ ACTIVO (CURSANDO)'}</p></div><select name="isActive" defaultValue={editingStudent?.isActive === false ? 'false' : 'true'} className="p-2 rounded-lg border text-xs font-bold bg-white outline-none"><option value="true">Activo</option><option value="false">Inactivo (Baja)</option></select></div><div className="grid grid-cols-2 gap-3"><input name="firstName" defaultValue={editingStudent?.firstName} placeholder="Nombre" required className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/><input name="lastName" defaultValue={editingStudent?.lastName} placeholder="Apellido" required className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/></div><div className="grid grid-cols-2 gap-3"><input name="dni" type="number" defaultValue={editingStudent?.dni} placeholder="DNI" className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/><input name="birthDate" type="date" defaultValue={getSafeDate(editingStudent?.birthDate)} className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm text-gray-500"/></div><div className="p-3 bg-blue-50 rounded-xl border border-blue-100 space-y-2"><p className="text-xs font-bold text-blue-800 uppercase">Institucional</p><div className="grid grid-cols-2 gap-2"><select name="level" defaultValue={editingStudent?.level} className="p-2 rounded-lg border text-xs font-bold"><option value="">Nivel...</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option></select><select name="dx" defaultValue={editingStudent?.dx} className="p-2 rounded-lg border text-xs font-bold"><option value="">DX...</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select></div><div className="grid grid-cols-2 gap-2"><input name="groupMorning" defaultValue={editingStudent?.groupMorning} placeholder="Grupo TM" className="p-2 rounded-lg border text-xs"/><input name="groupAfternoon" defaultValue={editingStudent?.groupAfternoon} placeholder="Grupo TT" className="p-2 rounded-lg border text-xs"/></div><div className="grid grid-cols-2 gap-2"><select name="teacherMorning" defaultValue={editingStudent?.teacherMorning} className="p-2 rounded-lg border text-xs"><option value="">Docente TM...</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="teacherAfternoon" defaultValue={editingStudent?.teacherAfternoon} className="p-2 rounded-lg border text-xs"><option value="">Docente TT...</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div className="grid grid-cols-2 gap-2"><select name="auxMorning" defaultValue={editingStudent?.auxMorning} className="p-2 rounded-lg border text-xs"><option value="">Auxiliar TM...</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="auxAfternoon" defaultValue={editingStudent?.auxAfternoon} className="p-2 rounded-lg border text-xs"><option value="">Auxiliar TT...</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div className="grid grid-cols-2 gap-2"><select name="sup1Morning" defaultValue={editingStudent?.sup1Morning} className="p-2 rounded-lg border text-xs text-violet-700 font-bold"><option value="">Sup. 1 TM...</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="sup2Morning" defaultValue={editingStudent?.sup2Morning} className="p-2 rounded-lg border text-xs text-violet-700 font-bold"><option value="">Sup. 2 TM...</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div className="grid grid-cols-2 gap-2"><select name="sup1Afternoon" defaultValue={editingStudent?.sup1Afternoon} className="p-2 rounded-lg border text-xs text-violet-700 font-bold"><option value="">Sup. 1 TT...</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="sup2Afternoon" defaultValue={editingStudent?.sup2Afternoon} className="p-2 rounded-lg border text-xs text-violet-700 font-bold"><option value="">Sup. 2 TT...</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div></div><div className="p-3 bg-green-50 rounded-xl border border-green-100 space-y-2"><p className="text-xs font-bold text-green-800 uppercase">Salud y Familia</p><div className="grid grid-cols-2 gap-2"><input name="healthInsurance" defaultValue={editingStudent?.healthInsurance} placeholder="Obra Social" className="w-full p-2 rounded-lg border text-xs"/><input name="cudExpiration" type="date" defaultValue={getSafeDate(editingStudent?.cudExpiration)} className="w-full p-2 rounded-lg border text-xs text-gray-500"/></div><input name="address" defaultValue={editingStudent?.address} className="w-full p-2 rounded-lg border text-xs" placeholder="Dirección"/><div className="grid grid-cols-2 gap-2"><input name="motherName" defaultValue={editingStudent?.motherName} placeholder="Madre" className="w-full p-2 rounded-lg border text-xs"/><input name="motherContact" defaultValue={editingStudent?.motherContact} placeholder="Contacto Madre" className="w-full p-2 rounded-lg border text-xs"/></div><div className="grid grid-cols-2 gap-2"><input name="fatherName" defaultValue={editingStudent?.fatherName} placeholder="Padre" className="w-full p-2 rounded-lg border text-xs"/><input name="fatherContact" defaultValue={editingStudent?.fatherContact} placeholder="Contacto Padre" className="w-full p-2 rounded-lg border text-xs"/></div></div><div className="flex gap-2 pt-4 border-t"><button type="button" onClick={()=>setShowForm(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs">Cancelar</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg">Guardar</button>{editingStudent && <button type="button" onClick={() => handleDelete(editingStudent.id)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition border border-red-100"><Trash2 size={20}/></button>}</div></form></div></div>)}
@@ -1943,6 +1947,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
