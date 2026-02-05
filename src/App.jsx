@@ -1,35 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Calendar as CalendarIcon, CheckSquare, User, FileText, CheckCircle, Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, Lock, List, Grid, ChevronLeft, ChevronRight, Bell, Check, HelpCircle, Mail, Send, Key, Filter, LayoutDashboard, Link as LinkIcon, ExternalLink, AlertTriangle, Clock, Shield, Crown, Activity, Share, PlusSquare, Smartphone, GraduationCap, Search, X, UploadCloud, PieChart, Eye, Edit3, Folder, MessageSquare, Globe, BookOpen, Lightbulb 
+  Calendar as CalendarIcon, CheckSquare, User, FileText, CheckCircle, Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, Lock, List, Grid, ChevronLeft, ChevronRight, Bell, Check, HelpCircle, Mail, Send, Key, Filter, LayoutDashboard, Link as LinkIcon, ExternalLink, AlertTriangle, Clock, Shield, Crown, Activity, Share, PlusSquare, Smartphone, GraduationCap, Search, X, UploadCloud, PieChart, Eye, Edit3, Folder, MessageSquare, Globe, BookOpen, Lightbulb, Printer 
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, where, getDocs, serverTimestamp, arrayUnion } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, where, getDocs, serverTimestamp, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
-// --- CONSTANTES GLOBALES (PEGAR DEBAJO DE LOS IMPORTS) ---
+
 // --- CONSTANTES GLOBALES ---
 const LOGO_URL = "/icon-192.png";
-// --- FUNCIÓN SEGURA PARA NOTIFICACIONES (SOLUCIONA EL ERROR DE TABLET) ---
+
+// --- FUNCIÓN SEGURA PARA NOTIFICACIONES ---
 const triggerMobileNotification = (title, body) => {
   if (!("Notification" in window)) return;
-
   if (Notification.permission === "granted") {
-    // Si estamos en celular (Service Worker activo)
     if (navigator.serviceWorker && navigator.serviceWorker.ready) {
       navigator.serviceWorker.ready.then((registration) => {
-        registration.showNotification(title, {
-          body: body,
-          icon: '/icon-192.png',
-          vibrate: [200, 100, 200]
-        });
+        registration.showNotification(title, { body: body, icon: LOGO_URL, vibrate: [200, 100, 200] });
       });
     } else {
-      // Si estamos en PC
-      try {
-        new Notification(title, { body, icon: '/icon-192.png' });
-      } catch (e) {
-        console.log("Notificación bloqueada o no soportada en este modo.");
-      }
+      try { new Notification(title, { body, icon: LOGO_URL }); } catch (e) { console.log("Notif error"); }
     }
   }
 };
@@ -2096,6 +2086,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
