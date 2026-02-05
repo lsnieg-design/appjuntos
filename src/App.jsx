@@ -1053,7 +1053,7 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
         // Paso 2: Intentamos conectar con Firebase (si falla, no mostramos error feo)
         try {
             const messaging = getMessaging(app);
-            const token = await getToken(messaging, { vapidKey: 'TU_VAPID_KEY_AQUI_SI_LA_TIENES' });
+            const token = await getToken(messaging, { vapidKey: 'BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw' });
             if (token) {
                  const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
                  await updateDoc(userRef, { fcmTokens: arrayUnion(token) });
@@ -2086,6 +2086,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
