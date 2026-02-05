@@ -1115,16 +1115,19 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
     </div>
   );
 }
-// --- VISTA ADMINISTRACIÓN DE USUARIOS (RESPONSIVE + CORRECTOR) ---
+// --- VISTA ADMINISTRACIÓN DE USUARIOS (FIX ERROR + RESPONSIVE + LAST LOGIN) ---
 function UsersAdminView() {
   const [users, setUsers] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showRenamer, setShowRenamer] = useState(false);
+  // IMPORTANTE: Aquí definimos la variable correcta 'editingUser'
+  const [editingUser, setEditingUser] = useState(null); 
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Estados dummy para funciones no implementadas (para que no rompa)
   const [csvContent, setCsvContent] = useState('');
   const [importing, setImporting] = useState(false);
-  const [editingUser, setEditingUser] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
@@ -1141,12 +1144,13 @@ function UsersAdminView() {
         rol: fd.get('isAdmin') === 'on' ? 'admin' : 'user'
     };
     try {
-        if (editUser) {
-            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', editUser.id), data);
+        // CORRECCIÓN CRÍTICA: Aquí usamos 'editingUser' (no editUser)
+        if (editingUser) {
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', editingUser.id), data);
         } else {
             const qCheck = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), where('username', '==', data.username));
             const check = await getDocs(qCheck);
-            if (!check.empty) return alert("Usuario ya existe.");
+            if (!check.empty) return alert("El usuario ya existe.");
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), { ...data, createdAt: serverTimestamp() });
         }
         setShowModal(false); setEditingUser(null);
@@ -1156,12 +1160,18 @@ function UsersAdminView() {
   const deleteUser = async (id) => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id)); };
   const openEdit = (u) => { setEditingUser(u); setShowModal(true); };
   
-  // Lógicas de herramientas (se mantienen igual pero compactas)
-  const analizarConflictos = async () => { if(!confirm("¿Iniciar?")) return; /* Lógica detective... */ alert("Detective finalizado (ver consola si hay errores)."); };
-  const renombrarDocente = async (e) => { e.preventDefault(); /* Lógica renombrar... */ alert("Función en mantenimiento temporal para esta vista."); };
-  const handleBulkImport = async () => { /* Lógica import... */ alert("Función en mantenimiento."); };
+  // Funciones placeholder para evitar errores si faltan las reales
+  const analizarConflictos = () => alert("Función Detective en mantenimiento.");
+  const handleBulkImport = () => alert("Importación masiva en mantenimiento.");
 
   const filteredUsers = users.filter(u => (u.fullName||'').toLowerCase().includes(searchTerm.toLowerCase()));
+
+  // Formatear fecha de último ingreso
+  const formatLastLogin = (timestamp) => {
+      if (!timestamp) return 'Nunca';
+      const date = new Date(timestamp.seconds * 1000);
+      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+  };
 
   return (
    <div className="flex flex-col h-full bg-slate-900/50 p-4 rounded-3xl overflow-hidden">
@@ -1177,10 +1187,11 @@ function UsersAdminView() {
             <Search className="text-white/50 ml-2" size={16} />
             <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar..." className="bg-transparent border-none outline-none text-white text-xs w-full placeholder-white/30" />
         </div>
-        {/* Botonera de herramientas scrolleable horizontalmente */}
+        
+        {/* CORRECCIÓN MÓVIL: Scroll horizontal para que los botones no se salgan */}
         <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-             <button onClick={analizarConflictos} className="whitespace-nowrap px-3 py-1.5 bg-violet-600/50 border border-violet-400 text-white rounded-lg text-[10px] font-bold uppercase">🕵️ Detective</button>
-             <button onClick={()=>setShowRenamer(true)} className="whitespace-nowrap px-3 py-1.5 bg-blue-600/50 border border-blue-400 text-white rounded-lg text-[10px] font-bold uppercase">🔄 Reemplazar</button>
+             <button onClick={analizarConflictos} className="whitespace-nowrap px-3 py-1.5 bg-violet-600/50 border border-violet-400 text-white rounded-lg text-[10px] font-bold uppercase flex-shrink-0">🕵️ Detective</button>
+             <button onClick={()=>setShowRenamer(true)} className="whitespace-nowrap px-3 py-1.5 bg-blue-600/50 border border-blue-400 text-white rounded-lg text-[10px] font-bold uppercase flex-shrink-0">🔄 Reemplazar</button>
         </div>
     </div>
 
@@ -1188,15 +1199,23 @@ function UsersAdminView() {
       {filteredUsers.map(u => (
       <div key={u.id} className="bg-white p-3 rounded-xl flex items-center justify-between group">
        <div className="flex items-center gap-3 overflow-hidden">
-        <div className="w-8 h-8 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center font-black text-xs shrink-0">{u.firstName?.[0]}</div>
+        <div className="w-8 h-8 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center font-black text-xs shrink-0 relative">
+            {u.firstName?.[0]}
+            {/* Punto verde si se conectó hoy */}
+            {u.lastLogin && new Date(u.lastLogin.seconds * 1000).toDateString() === new Date().toDateString() && <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border border-white"></div>}
+        </div>
         <div className="min-w-0">
             <p className="font-bold text-xs text-gray-800 truncate">{u.fullName}</p>
-            <p className="text-[10px] text-gray-400 truncate">{u.role}</p>
+            <div className="flex flex-wrap gap-2 items-center">
+                <p className="text-[9px] text-gray-400 truncate bg-gray-100 px-1 rounded">{u.role}</p>
+                {/* DATO NUEVO: Último ingreso */}
+                <p className="text-[8px] text-gray-400 flex items-center gap-1"><Clock size={8}/> {formatLastLogin(u.lastLogin)}</p>
+            </div>
         </div>
        </div>
        <div className="flex gap-2 shrink-0">
-           <button onClick={() => openEdit(u)} className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Edit3 size={14}/></button>
-           {u.username !== 'admin' && <button onClick={() => deleteUser(u.id)} className="p-2 bg-red-50 text-red-600 rounded-lg"><Trash2 size={14}/></button>}
+           <button onClick={() => openEdit(u)} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"><Edit3 size={14}/></button>
+           {u.username !== 'admin' && <button onClick={() => deleteUser(u.id)} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Trash2 size={14}/></button>}
        </div>
       </div>
       ))}
@@ -1988,6 +2007,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
