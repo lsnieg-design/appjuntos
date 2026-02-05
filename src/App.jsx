@@ -861,7 +861,7 @@ function UsersView({ user }) {
   );
 }
 
-// --- VISTA CALENDARIO (CON SWIPE TÁCTIL) ---
+// --- VISTA CALENDARIO (FULL SCREEN + SWIPE + RESPONSIVE) ---
 function CalendarView({ events, canEdit, user }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDayEvents, setSelectedDayEvents] = useState(null);
@@ -871,29 +871,15 @@ function CalendarView({ events, canEdit, user }) {
   // --- LÓGICA DE SWIPE (TÁCTIL) ---
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
-  const minSwipeDistance = 50; // Mínima distancia para considerar un swipe
+  const minSwipeDistance = 50; 
 
-  const onTouchStart = (e) => {
-      setTouchEnd(null); // Reseteamos al tocar
-      setTouchStart(e.targetTouches[0].clientX);
-  };
-
-  const onTouchMove = (e) => {
-      setTouchEnd(e.targetTouches[0].clientX);
-  };
-
+  const onTouchStart = (e) => { setTouchEnd(null); setTouchStart(e.targetTouches[0].clientX); };
+  const onTouchMove = (e) => { setTouchEnd(e.targetTouches[0].clientX); };
   const onTouchEnd = () => {
       if (!touchStart || !touchEnd) return;
       const distance = touchStart - touchEnd;
-      const isLeftSwipe = distance > minSwipeDistance;
-      const isRightSwipe = distance < -minSwipeDistance;
-
-      if (isLeftSwipe) {
-          changeMonth(1); // Deslizar izq -> Mes Siguiente
-      }
-      if (isRightSwipe) {
-          changeMonth(-1); // Deslizar der -> Mes Anterior
-      }
+      if (distance > minSwipeDistance) changeMonth(1);
+      if (distance < -minSwipeDistance) changeMonth(-1);
   };
   // ---------------------------------
   
@@ -901,20 +887,25 @@ function CalendarView({ events, canEdit, user }) {
   
   const handleDayClick = (dateStr) => {
       const eventsOnDay = events.filter(e => e.date === dateStr);
-      if (eventsOnDay.length > 0) setSelectedDayEvents({ date: dateStr, events: eventsOnDay });
+      // Permitimos abrir el día aunque no tenga eventos si se quiere agregar uno (opcional)
+      // Si prefieres solo ver eventos existentes, mantén el if(length > 0)
+      if (eventsOnDay.length > 0 || canEdit) setSelectedDayEvents({ date: dateStr, events: eventsOnDay });
   };
 
   const deleteEvent = async (id) => {
       if(confirm("¿Eliminar este evento?")) {
           await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', id));
-          setSelectedDayEvents(prev => ({ ...prev, events: prev.events.filter(e => e.id !== id) }));
-          if (selectedDayEvents.events.length <= 1) setSelectedDayEvents(null);
+          if(selectedDayEvents) {
+             const updated = selectedDayEvents.events.filter(e => e.id !== id);
+             if (updated.length === 0 && !canEdit) setSelectedDayEvents(null);
+             else setSelectedDayEvents({ ...selectedDayEvents, events: updated });
+          }
       }
   };
 
   const handleSaveEvent = async (e) => {
       e.preventDefault(); const fd = new FormData(e.target);
-      const data = { title: fd.get('title'), date: fd.get('date'), type: fd.get('type'), description: fd.get('description') };
+      const data = { title: fd.get('title'), date: fd.get('date'), type: fd.get('type'), description: fd.get('description'), author: user.firstName };
       
       if (editingEvent) {
           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', editingEvent.id), data);
@@ -930,15 +921,27 @@ function CalendarView({ events, canEdit, user }) {
   const renderGrid = () => {
     const year = currentDate.getFullYear(); const month = currentDate.getMonth();
     const days = []; const firstDay = new Date(year, month, 1).getDay();
-    for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} className="min-h-[80px] bg-gray-50/20 border-b border-r border-gray-100"></div>);
+    
+    // Celdas vacías del mes anterior
+    for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} className="bg-gray-50/30 border-b border-r border-gray-100"></div>);
+    
+    // Días del mes
     for (let d = 1; d <= new Date(year, month + 1, 0).getDate(); d++) {
       const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const dayEvents = events.filter(e => e.date === dateStr);
+      const isToday = new Date().toDateString() === new Date(year, month, d).toDateString();
+      
       days.push(
-        <div key={d} onClick={() => handleDayClick(dateStr)} className="min-h-[80px] border-b border-r border-gray-100 p-1 bg-white hover:bg-violet-50 transition text-center overflow-hidden cursor-pointer group">
-          <span className={`text-[10px] font-black ${dayEvents.length > 0 ? 'text-violet-700 underline' : 'text-gray-400'}`}>{d}</span>
-          <div className="flex flex-col gap-1 mt-1">
-            {dayEvents.map((ev, idx) => (<div key={idx} className="text-[6px] bg-violet-100 text-violet-700 rounded-sm p-1 truncate font-black uppercase shadow-sm border border-violet-200">{ev.title}</div>))}
+        <div key={d} onClick={() => handleDayClick(dateStr)} className={`relative border-b border-r border-gray-100 p-1 transition flex flex-col group cursor-pointer ${isToday ? 'bg-violet-50' : 'bg-white hover:bg-gray-50'}`}>
+          <div className="flex justify-center">
+             <span className={`text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold ${isToday ? 'bg-violet-600 text-white shadow-md' : 'text-gray-500'}`}>{d}</span>
+          </div>
+          <div className="flex flex-col gap-1 mt-1 overflow-y-auto no-scrollbar flex-1">
+            {dayEvents.map((ev, idx) => (
+                <div key={idx} className={`text-[7px] rounded-[3px] px-1 py-0.5 truncate font-bold uppercase border-l-2 ${ev.type === 'FERIADO' ? 'bg-red-50 text-red-600 border-red-400' : 'bg-violet-100 text-violet-700 border-violet-400'}`}>
+                    {ev.title}
+                </div>
+            ))}
           </div>
         </div>
       );
@@ -947,67 +950,81 @@ function CalendarView({ events, canEdit, user }) {
   };
 
   return (
-    <div className="space-y-4 pb-10 animate-in fade-in select-none"> {/* select-none evita que se seleccione texto al deslizar */}
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-black text-violet-900 italic uppercase">Agenda</h2>
-        <div className="flex gap-2 items-center bg-white p-1 rounded-xl shadow-sm border border-gray-100">
-          <button onClick={() => changeMonth(-1)} className="p-2 text-violet-700 hover:bg-violet-50 rounded-lg transition-all"><ChevronLeft size={18}/></button>
-          <span className="font-black text-violet-900 capitalize text-[10px] min-w-[120px] text-center italic tracking-widest">{currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}</span>
-          <button onClick={() => changeMonth(1)} className="p-2 text-violet-700 hover:bg-violet-50 rounded-lg transition-all"><ChevronRight size={18}/></button>
+    <div className="flex flex-col h-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden animate-in fade-in select-none">
+      {/* HEADER */}
+      <div className="flex justify-between items-center p-3 bg-white border-b border-gray-100 shrink-0">
+        <div className="flex gap-2 items-center">
+             <h2 className="text-xl font-black text-violet-900 uppercase italic tracking-tighter">{currentDate.toLocaleDateString('es-ES', { month: 'long' })} <span className="text-gray-400 text-sm not-italic font-medium">{currentDate.getFullYear()}</span></h2>
         </div>
-        {canEdit && <button onClick={openNew} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg hover:scale-110 transition-all"><Plus size={20}/></button>}
+        <div className="flex gap-2">
+             <div className="flex bg-gray-100 rounded-lg p-0.5">
+                <button onClick={() => changeMonth(-1)} className="p-2 text-gray-600 hover:bg-white hover:shadow-sm rounded-md transition"><ChevronLeft size={16}/></button>
+                <button onClick={() => setCurrentDate(new Date())} className="px-3 text-xs font-bold text-gray-600 hover:bg-white hover:shadow-sm rounded-md transition">HOY</button>
+                <button onClick={() => changeMonth(1)} className="p-2 text-gray-600 hover:bg-white hover:shadow-sm rounded-md transition"><ChevronRight size={16}/></button>
+             </div>
+             {canEdit && <button onClick={openNew} className="bg-orange-500 text-white p-2 rounded-lg shadow hover:bg-orange-600 transition"><Plus size={20}/></button>}
+        </div>
       </div>
       
-      {/* CONTENEDOR CON EVENTOS TÁCTILES */}
+      {/* DÍAS SEMANA (HEADER FIJO) */}
+      <div className="grid grid-cols-7 bg-gray-50 border-b border-gray-200 shrink-0">
+         {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d => <div key={d} className="py-2 text-center text-[9px] font-black text-violet-400 uppercase tracking-widest">{d}</div>)}
+      </div>
+
+      {/* GRILLA CALENDARIO (EXPANDIBLE) */}
       <div 
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        className="bg-white rounded-[40px] shadow-xl border border-gray-100 overflow-hidden grid grid-cols-7 border-t-8 border-violet-600 relative"
+        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+        className="flex-1 grid grid-cols-7 auto-rows-fr overflow-y-auto" // auto-rows-fr hace que las celdas se estiren
       >
-        {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d => <div key={d} className="text-[9px] font-black text-violet-400 uppercase p-3 border-b text-center bg-violet-50/50 italic tracking-[2px]">{d}</div>)}
         {renderGrid()}
       </div>
       
-      <p className="text-center text-[9px] text-gray-400 uppercase tracking-widest mt-2 animate-pulse">
-         ↔ Desliza para cambiar de mes
-      </p>
-
+      {/* MODAL NUEVO/EDITAR */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
-          <form onSubmit={handleSaveEvent} className="bg-white rounded-[50px] w-full max-w-sm p-10 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-orange-500">
-            <h3 className="text-xl font-black italic uppercase text-violet-900 tracking-tighter">{editingEvent ? 'Editar Evento' : 'Publicar Evento'}</h3>
-            <input name="title" defaultValue={editingEvent?.title} placeholder="Título" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm italic shadow-inner" />
-            <input name="date" type="date" defaultValue={editingEvent?.date} required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs" />
-            <select name="type" defaultValue={editingEvent?.type} className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-[10px] font-black uppercase tracking-[3px] border border-gray-100">
-              {['GENERAL', 'SALIDA EDUCATIVA', 'EFEMÉRIDES', 'ACTO', 'REUNIÓN'].map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <textarea name="description" defaultValue={editingEvent?.description} placeholder="Observaciones..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none italic text-xs font-medium border border-gray-100 shadow-inner h-24 resize-none" />
-            <div className="flex gap-2">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-4 text-gray-400 font-bold text-xs uppercase">Cancelar</button>
-                <button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-[10px] italic">Guardar</button>
+        <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
+          <form onSubmit={handleSaveEvent} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-orange-500">
+            <h3 className="text-lg font-black text-violet-900 uppercase italic">{editingEvent ? 'Editar Evento' : 'Nuevo Evento'}</h3>
+            <input name="title" defaultValue={editingEvent?.title} placeholder="Título" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-sm border focus:border-violet-300" />
+            <div className="grid grid-cols-2 gap-3">
+                <input name="date" type="date" defaultValue={editingEvent?.date || selectedDayEvents?.date} required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs border" />
+                <select name="type" defaultValue={editingEvent?.type || 'GENERAL'} className="w-full p-3 bg-gray-50 rounded-xl outline-none text-[10px] font-bold border">
+                    {['GENERAL', 'SALIDA EDUCATIVA', 'EFEMÉRIDES', 'ACTO', 'REUNIÓN', 'FERIADO'].map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+            </div>
+            <textarea name="description" defaultValue={editingEvent?.description} placeholder="Detalles..." className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs border h-20 resize-none" />
+            <div className="flex gap-2 pt-2">
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-gray-400 font-bold text-xs uppercase hover:bg-gray-50 rounded-xl">Cancelar</button>
+                <button type="submit" className="flex-1 py-3 bg-violet-600 text-white rounded-xl font-bold shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700">Guardar</button>
             </div>
           </form>
         </div>
       )}
 
+      {/* MODAL DETALLE DEL DÍA */}
       {selectedDayEvents && (
-        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4" onClick={() => setSelectedDayEvents(null)}>
-          <div className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-6 border-b pb-4">
-                <h2 className="text-xl font-black text-violet-900 uppercase italic tracking-tighter">Eventos del {formatDate(selectedDayEvents.date)}</h2>
-                <button onClick={() => setSelectedDayEvents(null)}><X size={24} className="text-gray-400"/></button>
+        <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setSelectedDayEvents(null)}>
+          <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 className="text-lg font-black text-violet-900 uppercase italic">
+                    {new Date(selectedDayEvents.date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </h2>
+                <button onClick={() => setSelectedDayEvents(null)} className="p-1 bg-gray-100 rounded-full"><X size={18} className="text-gray-500"/></button>
             </div>
-            <div className="space-y-4">
-                {selectedDayEvents.events.map(ev => (
-                    <div key={ev.id} className="bg-gray-50 p-4 rounded-3xl border border-gray-100 relative group">
-                        <span className="text-[9px] font-black text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full uppercase tracking-widest border border-orange-200">{ev.type}</span>
-                        <h3 className="font-bold text-gray-800 mt-2 text-sm uppercase italic">{ev.title}</h3>
-                        <p className="text-xs text-gray-500 mt-1 italic">{ev.description || 'Sin descripción.'}</p>
+            
+            {canEdit && <button onClick={()=>{ setEditingEvent({ date: selectedDayEvents.date }); setShowModal(true); }} className="w-full py-3 mb-4 border-2 border-dashed border-gray-200 text-gray-400 rounded-2xl font-bold text-xs hover:border-violet-400 hover:text-violet-600 transition flex items-center justify-center gap-2"><Plus size={14}/> Agregar Evento Aquí</button>}
+
+            <div className="space-y-3">
+                {selectedDayEvents.events.length === 0 ? <p className="text-center text-gray-400 text-xs py-4">No hay eventos para este día.</p> : 
+                selectedDayEvents.events.map(ev => (
+                    <div key={ev.id} className="bg-gray-50 p-4 rounded-2xl border border-gray-100 relative group">
+                        <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border ${ev.type === 'FERIADO' ? 'bg-red-100 text-red-600 border-red-200' : 'bg-blue-100 text-blue-600 border-blue-200'}`}>{ev.type}</span>
+                        <h3 className="font-bold text-gray-800 mt-2 text-sm">{ev.title}</h3>
+                        <p className="text-xs text-gray-500 mt-1 italic">{ev.description}</p>
+                        <p className="text-[9px] text-gray-300 mt-2 text-right uppercase font-bold">Por: {ev.author || 'Sistema'}</p>
                         {canEdit && (
-                            <div className="absolute top-4 right-4 flex gap-2">
-                                <button onClick={() => openEdit(ev)} className="text-blue-300 hover:text-blue-500 p-1 rounded-full hover:bg-blue-50"><Edit3 size={16}/></button>
-                                <button onClick={() => deleteEvent(ev.id)} className="text-red-300 hover:text-red-500 p-1 rounded-full hover:bg-red-50"><Trash2 size={16}/></button>
+                            <div className="absolute top-3 right-3 flex gap-1">
+                                <button onClick={() => openEdit(ev)} className="p-1.5 bg-white text-blue-400 rounded-lg shadow-sm border border-gray-100"><Edit3 size={12}/></button>
+                                <button onClick={() => deleteEvent(ev.id)} className="p-1.5 bg-white text-red-400 rounded-lg shadow-sm border border-gray-100"><Trash2 size={12}/></button>
                             </div>
                         )}
                     </div>
@@ -1576,7 +1593,7 @@ function MatriculaView({ user }) {
   );
 }
 
-// --- APP PRINCIPAL (MEJORADA: SIN BARRA GRIS + MENÚ HÍBRIDO) ---
+// --- APP PRINCIPAL (ANCHO INTELIGENTE + MENÚ HÍBRIDO) ---
 function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -1592,6 +1609,9 @@ function MainApp({ user, onLogout }) {
 
   const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin'; 
   const canManageContent = user.rol === 'admin' || isSuperAdmin || user.role === 'Equipo Directivo';
+
+  // DETECTOR DE PESTAÑA ANCHA (Aquí está la magia para que no se vea chiquito)
+  const isWideTab = ['groups', 'calendar', 'matricula', 'resources', 'users'].includes(activeTab);
 
   useEffect(() => {
     const qTasks = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('dueDate', 'asc'));
@@ -1613,7 +1633,7 @@ function MainApp({ user, onLogout }) {
     <div className="flex flex-col h-screen bg-gray-50 font-sans text-slate-800">
       <style>{`.no-scrollbar::-webkit-scrollbar { display: none; } .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }`}</style>
       <header className="bg-violet-800 text-white shadow-lg px-4 py-3 flex justify-between items-center z-50 sticky top-0">
-        <div className="flex items-center space-x-3"><img src={LOGO_URL} className="w-10 h-8 object-contain" alt="logo"/><div><h1 className="font-bold text-sm leading-tight">Juntos a la Par</h1><p className="text-[10px] text-orange-200 uppercase font-bold">{user.firstName}</p></div></div>
+        <div className="flex items-center space-x-3"><img src={LOGO_URL} alt="Logo" className="w-10 h-8 object-contain" /><div><h1 className="font-bold text-sm leading-tight">Juntos a la Par</h1><p className="text-[10px] text-orange-200 uppercase font-bold">{user.firstName}</p></div></div>
         <div className="flex items-center gap-3">
           <button onClick={() => setShowSearch(true)} className="p-2 rounded-full bg-violet-900/50 hover:bg-orange-500 transition"><Search size={20} /></button>
           <div className="relative"><button onClick={() => setShowNotifPanel(!showNotifPanel)} className={`p-2 rounded-full transition ${showNotifPanel ? 'bg-orange-500' : 'bg-violet-900/50'}`}><Bell size={20} />{notifications.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-pulse border border-white">{notifications.length}</span>}</button>{showNotifPanel && (<div className="absolute right-0 mt-3 w-72 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[100]"><div className="p-4 bg-violet-50 border-b flex justify-between items-center"><h3 className="font-bold text-violet-900 text-sm">Avisos</h3><button onClick={() => setShowNotifPanel(false)}><X size={16} className="text-gray-400"/></button></div><div className="max-h-80 overflow-y-auto">{notifications.length===0?<div className="p-10 text-center text-gray-400"><p className="text-xs font-bold uppercase">Sin novedades</p></div>:notifications.map(n=>(<div key={n.id} onClick={()=>handleNotificationClick(n)} className="p-4 border-b hover:bg-gray-50 cursor-pointer"><p className="text-[10px] font-bold text-orange-600 mb-1 uppercase">{n.title}</p><p className="text-xs text-gray-700">{n.message}</p></div>))}</div></div>)}</div>
@@ -1621,7 +1641,8 @@ function MainApp({ user, onLogout }) {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto no-scrollbar pb-24 px-4 pt-6 max-w-4xl mx-auto w-full">
+      {/* AQUÍ SE APLICA EL ANCHO DINÁMICO */}
+      <main className={`flex-1 overflow-y-auto no-scrollbar pb-24 pt-6 mx-auto w-full transition-all duration-300 ${isWideTab ? 'px-2 max-w-[98%]' : 'px-4 max-w-4xl'}`}>
         {activeTab === 'dashboard' && <DashboardView user={user} tasks={tasks} events={events} setActiveTab={setActiveTab} />}
         {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
         {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} canEdit={canManageContent} />}
@@ -1630,6 +1651,7 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'profile' && <ProfileView user={user} onLogout={onLogout} isSuperAdmin={isSuperAdmin} />}
         {activeTab === 'proyecto' && <ProyectoView user={user} />}
         {activeTab === 'groups' && <GroupsView user={user} />}
+        {activeTab === 'users' && isSuperAdmin && <UsersAdminView />}
         {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={isSuperAdmin} user={user} />}
       </main>
 
@@ -1960,6 +1982,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
