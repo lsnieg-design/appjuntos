@@ -1593,7 +1593,7 @@ function MatriculaView({ user }) {
   );
 }
 
-// --- APP PRINCIPAL (ANCHO INTELIGENTE + MENÚ HÍBRIDO) ---
+// --- APP PRINCIPAL (TRACKING DE INGRESO + ANCHO INTELIGENTE) ---
 function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -1609,11 +1609,17 @@ function MainApp({ user, onLogout }) {
 
   const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin'; 
   const canManageContent = user.rol === 'admin' || isSuperAdmin || user.role === 'Equipo Directivo';
-
-  // DETECTOR DE PESTAÑA ANCHA (Aquí está la magia para que no se vea chiquito)
   const isWideTab = ['groups', 'calendar', 'matricula', 'resources', 'users'].includes(activeTab);
 
   useEffect(() => {
+    // 1. REGISTRAR ÚLTIMO INGRESO (NUEVO)
+    if (user?.id) {
+        updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), {
+            lastLogin: serverTimestamp()
+        }).catch(err => console.log("Error tracking login (no crítico):", err));
+    }
+
+    // 2. Cargar datos
     const qTasks = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('dueDate', 'asc'));
     const unsubTasks = onSnapshot(qTasks, (snap) => setTasks(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const qNotifs = query(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), where('toUserId', '==', user.id));
@@ -1622,6 +1628,7 @@ function MainApp({ user, onLogout }) {
     const unsubEvents = onSnapshot(qEvents, (snap) => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const qResources = query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc'));
     const unsubResources = onSnapshot(qResources, (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    
     return () => { unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); };
   }, [user.id]);
 
@@ -1641,7 +1648,6 @@ function MainApp({ user, onLogout }) {
         </div>
       </header>
 
-      {/* AQUÍ SE APLICA EL ANCHO DINÁMICO */}
       <main className={`flex-1 overflow-y-auto no-scrollbar pb-24 pt-6 mx-auto w-full transition-all duration-300 ${isWideTab ? 'px-2 max-w-[98%]' : 'px-4 max-w-4xl'}`}>
         {activeTab === 'dashboard' && <DashboardView user={user} tasks={tasks} events={events} setActiveTab={setActiveTab} />}
         {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
@@ -1982,6 +1988,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
