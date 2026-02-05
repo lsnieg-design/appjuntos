@@ -474,255 +474,176 @@ function ResourcesView({ resources, canEdit }) {
 }
 
 
-// --- VISTA TAREAS (LIMPIA: SIN CHECKLIST VISUAL) ---
+// --- VISTA TAREAS (CON GENERADOR DE NOTIFICACIONES AUTOMÁTICAS) ---
 function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
+  const [filter, setFilter] = useState('pending'); // pending, completed, all
   const [usersList, setUsersList] = useState([]);
-  
-  const [assignType, setAssignType] = useState('user'); 
-  const [selectedRoles, setSelectedRoles] = useState([]);
-  const [targetUserId, setTargetUserId] = useState(''); 
-  
-  // Mantenemos la lógica interna por seguridad, pero no la mostramos
-  const [checklist, setChecklist] = useState([]); 
-  const [newItem, setNewItem] = useState(""); 
-  const [userSearch, setUserSearch] = useState("");
-  
-  const [openCommentsId, setOpenCommentsId] = useState(null); 
-  const [newComment, setNewComment] = useState("");
-  const [editingTask, setEditingTask] = useState(null); 
 
-  const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor'];
-  const canManage = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
-
+  // Cargar lista de usuarios para poder enviarles la notificación
   useEffect(() => {
-    const unsub = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc')), (snap) => {
-        const users = snap.docs.map(d => ({id: d.id, ...d.data()}));
-        setUsersList(users);
-        if (users.length > 0) setTargetUserId(users[0].id);
-    });
-    return () => unsub();
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
+    onSnapshot(q, (snap) => setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
   }, []);
 
-  const filteredTasks = tasks.filter(t => {
-      if (canManage) return true; 
-      if (t.createdById === user.id) return true; 
-      if (t.targetType === 'user') return t.targetUserId === user.id; 
-      if (t.targetType === 'roles') return t.targetRoles && t.targetRoles.includes(user.role); 
+  const handleSave = async (e) => {
+    e.preventDefault();
+    const title = e.target.title.value;
+    const assignedToId = e.target.assignedTo.value; // ID del usuario o ""
+    const assignedRole = e.target.assignedRole.value; // Rol o ""
+    const priority = e.target.priority.value;
+
+    if (!title) return;
+
+    // 1. Buscamos el nombre del responsable para mostrarlo lindo
+    let assigneeName = "General";
+    if (assignedToId) {
+        const u = usersList.find(u => u.id === assignedToId);
+        assigneeName = u ? u.fullName : "Desconocido";
+    } else if (assignedRole) {
+        assigneeName = `Rol: ${assignedRole}`;
+    }
+
+    try {
+        // 2. CREAR LA TAREA
+        const newTaskRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), {
+            title,
+            assignedTo: assignedToId,
+            assignedRole: assignedRole, // Guardamos también el rol
+            assigneeName,
+            priority,
+            status: 'pending',
+            createdBy: user.fullName || user.firstName,
+            createdAt: serverTimestamp(),
+            dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 1 semana default
+        });
+
+        // 3. ENVIAR NOTIFICACIONES (LA MAGIA) 🔔
+        const notifData = {
+            title: "Nueva Tarea Asignada",
+            message: `${user.firstName} te asignó: "${title}"`,
+            read: false,
+            createdAt: serverTimestamp(),
+            targetTab: 'tasks', // Para que al hacer clic te lleve a tareas
+            relatedId: newTaskRef.id
+        };
+
+        if (assignedToId) {
+            // A: Notificación directa a una persona
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), {
+                ...notifData,
+                toUserId: assignedToId
+            });
+        } else if (assignedRole) {
+            // B: Notificación masiva a todo un rol (Ej: A todas las Docentes)
+            const targets = usersList.filter(u => u.role === assignedRole);
+            const batchPromises = targets.map(t => 
+                addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), {
+                    ...notifData,
+                    toUserId: t.id
+                })
+            );
+            await Promise.all(batchPromises);
+        }
+
+        setShowModal(false);
+        // Opcional: Sonido de éxito
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+        audio.volume = 0.5;
+        audio.play().catch(e=>console.log(e));
+
+    } catch (error) {
+        alert("Error al crear tarea: " + error.message);
+    }
+  };
+
+  const toggleStatus = async (task) => {
+    const newStatus = task.status === 'completed' ? 'pending' : 'completed';
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus });
+  };
+
+  const deleteTask = async (id) => { if(confirm("¿Borrar tarea?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
+
+  const myTasks = tasks.filter(t => {
+      // Filtro de visualización: Veo lo mío, lo de mi rol, o todo si soy admin
+      if (canEdit) return true;
+      if (t.assignedTo === user.id) return true;
+      if (t.assignedRole && t.assignedRole === user.role) return true;
       return false;
   });
 
-  const getPriorityStyle = (p) => {
-    if (p === 'alta') return 'border-l-red-500 bg-red-50';
-    if (p === 'media') return 'border-l-orange-500 bg-orange-50';
-    return 'border-l-green-500 bg-green-50';
-  };
-
-  const addChecklistItem = () => {
-    if (newItem.trim()) { setChecklist([...checklist, { text: newItem, done: false }]); setNewItem(""); }
-  };
-  const removeChecklistItem = (index) => {
-    const newList = [...checklist]; newList.splice(index, 1); setChecklist(newList);
-  };
-
-  const handleSaveTask = async (e) => {
-    e.preventDefault(); 
-    const fd = new FormData(e.target);
-    
-    let finalTargetId = null;
-    let finalAssignedName = "Todos";
-    let finalRoles = [];
-
-    if (assignType === 'user') {
-        const selectedUser = usersList.find(u => u.id === targetUserId);
-        if (!selectedUser) return alert("Error: Debes seleccionar un usuario.");
-        finalTargetId = selectedUser.id;
-        finalAssignedName = selectedUser.fullName;
-    } else {
-        if (selectedRoles.length === 0) return alert("Error: Debes elegir al menos un rol.");
-        finalRoles = selectedRoles;
-        finalAssignedName = selectedRoles.join(", ");
-    }
-
-    const taskData = { 
-        title: fd.get('title'), 
-        dueDate: fd.get('dueDate'), 
-        priority: fd.get('priority'), 
-        targetType: assignType, 
-        targetUserId: finalTargetId, 
-        targetRoles: finalRoles, 
-        assignedToName: finalAssignedName,
-        checklist: checklist 
-    };
-
-    try {
-        if (editingTask) {
-             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData);
-        } else {
-             const newTask = { 
-                 ...taskData, 
-                 createdByName: user.fullName || user.firstName, 
-                 createdById: user.id, 
-                 status: 'pending', 
-                 createdAt: serverTimestamp(), 
-                 comments: [] 
-             };
-             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), newTask);
-             
-             if (assignType === 'user' && finalTargetId !== user.id) {
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { 
-                    toUserId: finalTargetId, 
-                    title: "Nueva Tarea", 
-                    message: `${user.firstName} te asignó: "${fd.get('title')}"`, 
-                    read: false, createdAt: serverTimestamp(), targetTab: 'tasks' 
-                });
-             }
-        }
-        setShowModal(false);
-    } catch (err) { console.error(err); alert("Error al guardar tarea."); }
-  };
-
-  const addComment = async (task) => {
-      if (!newComment.trim()) return;
-      const commentData = { text: newComment, author: user.firstName, date: new Date().toISOString() };
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion(commentData) });
-      setNewComment("");
-  };
-
-  const handleDelete = async (id) => { if(confirm("¿Seguro que deseas eliminar esta tarea?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
-  const changeStatus = async (task, newStatus) => { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
-  
-  const openNew = () => { 
-      setEditingTask(null); setAssignType('user'); setSelectedRoles([]); setChecklist([]); setNewItem(""); setUserSearch(""); 
-      if(usersList.length > 0) setTargetUserId(usersList[0].id); 
-      setShowModal(true); 
-  };
-
-  const openEdit = (t) => { 
-      setEditingTask(t); setAssignType(t.targetType || 'user'); setTargetUserId(t.targetUserId || (usersList[0]?.id)); 
-      setSelectedRoles(t.targetRoles || []); setChecklist(t.checklist || []); 
-      setShowModal(true); 
-  };
-
-  const filteredUsers = usersList.filter(u => u.fullName.toLowerCase().includes(userSearch.toLowerCase()));
+  const displayedTasks = myTasks.filter(t => filter === 'all' ? true : t.status === filter);
 
   return (
-    <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10">
-      <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2>
-          <button onClick={openNew} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:scale-110 transition-all"><Plus/></button>
-      </div>
-      
-      {filteredTasks.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 bg-white rounded-[40px] border-2 border-dashed border-gray-100 opacity-80">
-            <div className="bg-green-50 p-4 rounded-full mb-3"><CheckCircle size={40} className="text-green-400" /></div>
-            <h3 className="font-black text-gray-400 text-sm uppercase tracking-widest">¡Todo listo!</h3>
-            <p className="text-xs text-gray-300 font-medium">No tenés tareas pendientes</p>
+    <div className="flex flex-col h-full bg-slate-50 animate-in fade-in">
+        <div className="flex justify-between items-center p-4 bg-white shadow-sm sticky top-0 z-10">
+            <div><h2 className="text-2xl font-black text-slate-800 uppercase italic">Tareas</h2><p className="text-xs text-gray-400 font-bold">{displayedTasks.length} {filter === 'pending' ? 'pendientes' : 'totales'}</p></div>
+            <div className="flex gap-2">
+                <div className="flex bg-gray-100 rounded-xl p-1">
+                    <button onClick={()=>setFilter('pending')} className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='pending'?'bg-white shadow text-slate-800':'text-gray-400'}`}>Pendientes</button>
+                    <button onClick={()=>setFilter('completed')} className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='completed'?'bg-white shadow text-green-600':'text-gray-400'}`}>Listas</button>
+                </div>
+                {canEdit && <button onClick={()=>setShowModal(true)} className="bg-blue-600 text-white p-2 rounded-xl shadow-lg hover:scale-105 transition"><Plus size={20}/></button>}
+            </div>
         </div>
-      ) : (
-        <div className="grid gap-3 pb-10">
-            {filteredTasks.map(t => {
-            const canDelete = canManage || t.createdById === user.id || t.targetUserId === user.id;
 
-            return (
-            <div key={t.id} className={`p-5 rounded-[30px] border-l-8 shadow-sm flex flex-col gap-3 bg-white ${getPriorityStyle(t.priority)} transition-all relative`}>
-                <div className="flex justify-between items-start">
-                    <div className="flex-1 pr-6">
-                        <p className="text-[9px] font-black text-violet-600 uppercase tracking-widest italic mb-1">Para: {t.assignedToName}</p>
-                        <h3 className="font-bold text-gray-800 text-sm uppercase italic tracking-tighter leading-none">{t.title}</h3>
-                        <p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName}</p>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                        <div className="text-[9px] font-black bg-white px-2 py-1 rounded-full text-gray-400 border uppercase tracking-tighter italic shadow-inner">{t.dueDate}</div>
-                        <div className="flex gap-1">
-                                {canManage && <button onClick={() => openEdit(t)} className="text-blue-300 hover:text-blue-600 p-1 bg-white rounded-full shadow-sm"><Edit3 size={14}/></button>}
-                                {canDelete && <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm"><Trash2 size={14}/></button>}
+        <div className="p-4 space-y-3 overflow-y-auto pb-20">
+            {displayedTasks.map(t => (
+                <div key={t.id} className={`p-4 rounded-2xl border transition flex items-start gap-3 ${t.status==='completed'?'bg-gray-100 border-gray-200 opacity-60':'bg-white border-blue-100 shadow-sm'}`}>
+                    <button onClick={()=>toggleStatus(t)} className={`mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center transition ${t.status==='completed'?'bg-green-500 border-green-500':'border-gray-300 hover:border-blue-500'}`}>{t.status==='completed' && <Check size={12} className="text-white"/>}</button>
+                    <div className="flex-1">
+                        <h3 className={`font-bold text-sm ${t.status==='completed'?'text-gray-500 line-through':'text-slate-800'}`}>{t.title}</h3>
+                        <div className="flex justify-between items-center mt-2">
+                            <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded uppercase font-bold">{t.assigneeName}</span>
+                            <div className="flex items-center gap-2">
+                                <span className={`w-2 h-2 rounded-full ${t.priority==='high'?'bg-red-500':t.priority==='medium'?'bg-orange-400':'bg-green-400'}`}></span>
+                                {canEdit && <button onClick={()=>deleteTask(t.id)} className="text-gray-300 hover:text-red-500"><Trash2 size={14}/></button>}
+                            </div>
                         </div>
                     </div>
                 </div>
-                
-                {/* --- AQUÍ ESTABA EL CHECKLIST VISUAL, LO ELIMINÉ --- */}
+            ))}
+            {displayedTasks.length === 0 && <div className="text-center py-10 opacity-30"><CheckSquare size={48} className="mx-auto mb-2"/><p>Nada por aquí.</p></div>}
+        </div>
 
-                {openCommentsId === t.id && (
-                    <div className="bg-white/50 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in">
-                        <div className="max-h-32 overflow-y-auto space-y-2 mb-2">
-                            {(t.comments || []).map((c, idx) => (
-                                <p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1">
-                                    <span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}
-                                </p>
-                            ))}
-                        </div>
-                        <div className="flex gap-2">
-                            <input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribir..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" />
-                            <button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button>
-                        </div>
+        {showModal && (
+            <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
+                <form onSubmit={handleSave} className="bg-white rounded-[30px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95">
+                    <h3 className="text-lg font-black text-slate-800 mb-4 uppercase italic">Nueva Tarea</h3>
+                    <input name="title" placeholder="¿Qué hay que hacer?" className="w-full p-3 bg-gray-50 rounded-xl mb-3 outline-none font-bold text-sm border focus:border-blue-500" autoFocus required/>
+                    
+                    <div className="space-y-3 mb-4">
+                        <p className="text-xs font-bold text-gray-400 uppercase">Asignar a:</p>
+                        {/* Selector de Persona */}
+                        <select name="assignedTo" className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs font-bold border">
+                            <option value="">-- Persona Específica --</option>
+                            {usersList.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+                        </select>
+                        <p className="text-center text-[10px] text-gray-300 font-bold">- O -</p>
+                        {/* Selector de Rol */}
+                        <select name="assignedRole" className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs font-bold border">
+                            <option value="">-- Rol Completo --</option>
+                            {['Docente', 'Equipo Directivo', 'Equipo Técnico', 'Auxiliar', 'Administración'].map(r => <option key={r} value={r}>{r}</option>)}
+                        </select>
                     </div>
-                )}
 
-                <div className="pt-2 border-t border-black/5 flex justify-between items-center">
-                    <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-violet-600 bg-gray-50 px-2 py-1 rounded-lg">
-                        <MessageSquare size={14}/> {t.comments?.length || 0}
-                    </button>
-                    <select value={t.status || 'pending'} onChange={(e) => changeStatus(t, e.target.value)} className="text-xs bg-white/50 border rounded-lg p-1 font-bold text-gray-600 outline-none cursor-pointer">
-                        <option value="pending">Pendiente</option>
-                        <option value="in_process">En Proceso</option>
-                        <option value="completed">Finalizado</option>
-                    </select>
-                </div>
-            </div>
-            );
-            })}
-        </div>
-      )}
+                    <div className="flex gap-2 items-center mb-6">
+                        <span className="text-xs font-bold text-gray-400">Prioridad:</span>
+                        <label className="flex items-center gap-1"><input type="radio" name="priority" value="low" defaultChecked/> 🟢</label>
+                        <label className="flex items-center gap-1"><input type="radio" name="priority" value="medium"/> 🟠</label>
+                        <label className="flex items-center gap-1"><input type="radio" name="priority" value="high"/> 🔴</label>
+                    </div>
 
-      {showModal && (
-        <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
-          <form onSubmit={handleSaveTask} className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-black text-violet-900 uppercase italic">{editingTask ? 'Editar Tarea' : 'Nueva Tarea'}</h3>
-            <input name="title" defaultValue={editingTask?.title} placeholder="Título de la tarea" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm shadow-inner" />
-            
-            <div className="flex gap-2 bg-gray-100 p-1 rounded-xl">
-                <button type="button" onClick={() => setAssignType('user')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'user' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Persona</button>
-                <button type="button" onClick={() => setAssignType('roles')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'roles' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Roles</button>
+                    <div className="flex gap-2">
+                        <button type="button" onClick={()=>setShowModal(false)} className="flex-1 py-3 text-gray-400 font-bold text-xs uppercase">Cancelar</button>
+                        <button type="submit" className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg uppercase text-xs">Asignar</button>
+                    </div>
+                </form>
             </div>
-            
-            {assignType === 'user' ? (
-                <div>
-                   <input placeholder="🔍 Buscar nombre..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} className="w-full mb-2 p-2 bg-white border-b border-gray-200 text-xs outline-none" />
-                   <select value={targetUserId} onChange={(e) => setTargetUserId(e.target.value)} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs uppercase tracking-widest border border-gray-100">
-                      {filteredUsers.length > 0 ? ( filteredUsers.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>) ) : ( <option>No hay coincidencias</option> )}
-                   </select>
-                </div>
-            ) : (
-                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 max-h-32 overflow-y-auto">
-                    {ROLES_OPTIONS.map(role => (
-                        <label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600 cursor-pointer">
-                            <input type="checkbox" checked={selectedRoles.includes(role)} onChange={(e) => { if(e.target.checked) setSelectedRoles([...selectedRoles, role]); else setSelectedRoles(selectedRoles.filter(r => r !== role)); }} className="accent-violet-600"/> {role}
-                        </label>
-                    ))}
-                </div>
-            )}
-            
-            <div className="grid grid-cols-2 gap-4">
-                <input name="dueDate" type="date" defaultValue={editingTask?.dueDate} required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs text-gray-400" />
-                <select name="priority" defaultValue={editingTask?.priority} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs uppercase text-orange-600 italic">
-                    <option value="baja">Baja</option>
-                    <option value="media">Media</option>
-                    <option value="alta">Alta</option>
-                </select>
-            </div>
-            
-            <div className="flex gap-2 pt-4">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 font-bold text-gray-400 text-xs uppercase">Cancelar</button>
-                <button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">GUARDAR</button>
-            </div>
-          </form>
-        </div>
-      )}
+        )}
     </div>
   );
 }
-
 // --- VISTA NOTIFICACIONES (PANTALLA COMPLETA CON REDIRECCIÓN) ---
 function NotificationsView({ notifications, canEdit, user }) {
   const sortedNotifs = [...notifications].sort((a, b) => {
@@ -1612,43 +1533,93 @@ function MatriculaView({ user }) {
   );
 }
 
-// --- APP PRINCIPAL (TRACKING DE INGRESO + ANCHO INTELIGENTE) ---
+// --- APP PRINCIPAL (NOTIFICACIONES PUSH REALES + RESPONSIVE) ---
 function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  
+  // Datos
   const [tasks, setTasks] = useState([]);
   const [events, setEvents] = useState([]);
   const [resources, setResources] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [announcements, setAnnouncements] = useState([]); // Nueva suscripción a anuncios
+  
+  // UI States
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [globalViewingStudent, setGlobalViewingStudent] = useState(null);
 
+  // Refs para detectar cambios y notificar
+  const prevNotifCount = useRef(0);
+  const prevAnnounceCount = useRef(0);
+
   const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin'; 
   const canManageContent = user.rol === 'admin' || isSuperAdmin || user.role === 'Equipo Directivo';
   const isWideTab = ['groups', 'calendar', 'matricula', 'resources', 'users'].includes(activeTab);
 
+  // --- SOLICITAR PERMISO DE NOTIFICACIONES AL INICIAR ---
   useEffect(() => {
-    // 1. REGISTRAR ÚLTIMO INGRESO (NUEVO)
-    if (user?.id) {
-        updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), {
-            lastLogin: serverTimestamp()
-        }).catch(err => console.log("Error tracking login (no crítico):", err));
-    }
+      if ("Notification" in window && Notification.permission !== "granted") {
+          Notification.requestPermission();
+      }
+  }, []);
 
-    // 2. Cargar datos
+  // --- LÓGICA DE DATOS Y NOTIFICACIONES ---
+  useEffect(() => {
+    // 1. Registrar Ingreso
+    if (user?.id) updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { lastLogin: serverTimestamp() }).catch(()=>{});
+
+    // 2. Suscripciones
     const qTasks = query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('dueDate', 'asc'));
     const unsubTasks = onSnapshot(qTasks, (snap) => setTasks(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-    const qNotifs = query(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), where('toUserId', '==', user.id));
-    const unsubNotifs = onSnapshot(qNotifs, (snap) => { const d = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); d.sort((a,b)=> (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)); setNotifications(d.filter(n=>!n.read)); });
+    
     const qEvents = query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc'));
     const unsubEvents = onSnapshot(qEvents, (snap) => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    
     const qResources = query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc'));
     const unsubResources = onSnapshot(qResources, (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-    
-    return () => { unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); };
+
+    // 3. SUSCRIPCIÓN A AVISOS (Cartelera) - Con Push
+    const qAnnounce = query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc'));
+    const unsubAnnounce = onSnapshot(qAnnounce, (snap) => {
+        const data = snap.docs.map(d => ({id:d.id, ...d.data()}));
+        setAnnouncements(data);
+        
+        // Detectar si hay NUEVOS anuncios para notificar
+        if (data.length > prevAnnounceCount.current && prevAnnounceCount.current !== 0) {
+            const latest = data[0];
+            // Disparar Notificación Nativa
+            if ("Notification" in window && Notification.permission === "granted") {
+                new Notification(`📢 Nuevo Aviso de Dirección`, { body: latest.message, icon: LOGO_URL });
+            }
+        }
+        prevAnnounceCount.current = data.length;
+    });
+
+    // 4. SUSCRIPCIÓN A NOTIFICACIONES PERSONALES - Con Push
+    const qNotifs = query(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), where('toUserId', '==', user.id));
+    const unsubNotifs = onSnapshot(qNotifs, (snap) => { 
+        const d = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
+        d.sort((a,b)=> (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)); 
+        const unread = d.filter(n=>!n.read);
+        setNotifications(unread);
+
+        // Detectar nueva notificación personal
+        if (unread.length > prevNotifCount.current && prevNotifCount.current !== 0) {
+            const latest = unread[0];
+            if ("Notification" in window && Notification.permission === "granted") {
+                new Notification(`🔔 ${latest.title}`, { body: latest.message, icon: LOGO_URL });
+            }
+            // Sonido suave
+            try { new Audio('https://assets.mixkit.co/active_storage/sfx/2346/2346-preview.mp3').play(); } catch(e){}
+        }
+        prevNotifCount.current = unread.length;
+    });
+
+    return () => { unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); unsubAnnounce(); };
   }, [user.id]);
 
   const handleGlobalSearch = async (text) => { setSearchQuery(text); if (text.length < 2) { setSearchResults([]); return; } const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students')); const s = await getDocs(q); const r = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(s => (s.isActive===undefined || s.isActive) && (s.firstName.toLowerCase().includes(text.toLowerCase()) || s.lastName.toLowerCase().includes(text.toLowerCase()))); setSearchResults(r.slice(0, 5)); };
@@ -1668,7 +1639,7 @@ function MainApp({ user, onLogout }) {
       </header>
 
       <main className={`flex-1 overflow-y-auto no-scrollbar pb-24 pt-6 mx-auto w-full transition-all duration-300 ${isWideTab ? 'px-2 max-w-[98%]' : 'px-4 max-w-4xl'}`}>
-        {activeTab === 'dashboard' && <DashboardView user={user} tasks={tasks} events={events} setActiveTab={setActiveTab} />}
+        {activeTab === 'dashboard' && <DashboardView user={user} tasks={tasks} events={events} announcements={announcements} setActiveTab={setActiveTab} />}
         {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
         {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} canEdit={canManageContent} />}
         {activeTab === 'matricula' && <MatriculaView user={user} />}
@@ -2007,6 +1978,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
