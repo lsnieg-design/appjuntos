@@ -349,8 +349,23 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
     return () => { unsubNotes(); unsubStudents(); };
   }, [user.id]);
 
-  const handlePost = async (e) => { e.preventDefault(); const text = e.target.message.value; if(!text.trim()) return; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), { message: text, author: user.fullName || user.firstName, role: user.role, createdAt: serverTimestamp() }); setShowAnnounceModal(false); };
-  const deleteAnnouncement = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'announcements', id)); };
+ const handlePost = async (e) => { 
+      e.preventDefault(); 
+      const text = e.target.message.value; 
+      if(!text.trim()) return; 
+      
+      // Creamos el aviso en la base de datos
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), { 
+          message: text, 
+          author: user.fullName || user.firstName, 
+          role: user.role, 
+          title: "📢 AVISO GENERAL", // Agregamos título para que se vea bien en notificaciones
+          createdAt: serverTimestamp() 
+      }); 
+      
+      setShowAnnounceModal(false); 
+      alert("✅ Aviso publicado y notificaciones enviadas.");
+  };  const deleteAnnouncement = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'announcements', id)); };
   const saveNote = async (e) => { e.preventDefault(); if (!newNote.trim()) return; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), { text: newNote, userId: user.id, done: false, createdAt: serverTimestamp() }); setNewNote(''); };
   const toggleNote = async (note) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', note.id), { done: !note.done });
   const deleteNote = async (id) => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', id));
@@ -1599,7 +1614,7 @@ function MatriculaView({ user }) {
   );
 }
 
-// --- APP PRINCIPAL (FIX NOTIFICACIONES + SCROLL GLOBAL) ---
+// --- APP PRINCIPAL (NOTIFICACIONES UNIFICADAS: AVISOS + TAREAS) ---
 function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -1611,6 +1626,7 @@ function MainApp({ user, onLogout }) {
   const [notifications, setNotifications] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   
+  // UI States
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1618,11 +1634,22 @@ function MainApp({ user, onLogout }) {
   const [globalViewingStudent, setGlobalViewingStudent] = useState(null);
 
   const prevNotifCount = useRef(0);
+  const prevAnnounceCount = useRef(0);
+  const isFirstLoad = useRef(true); // Para evitar notificaciones al refrescar
+
   const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin'; 
   const canManageContent = user.rol === 'admin' || isSuperAdmin || user.role === 'Equipo Directivo';
-  // IMPORTANTE: Quitamos 'dashboard' de isWideTab para que no se ensanche de más, pero controlamos el scroll
   const isWideTab = ['groups', 'calendar', 'matricula', 'resources', 'users'].includes(activeTab);
 
+  // --- 1. SOLICITAR PERMISO AL INICIO ---
+  useEffect(() => {
+      if ("Notification" in window && Notification.permission !== "granted") {
+          Notification.requestPermission();
+      }
+      setTimeout(() => { isFirstLoad.current = false; }, 3000); // 3 seg de gracia
+  }, []);
+
+  // --- 2. SUSCRIPCIONES Y LÓGICA ---
   useEffect(() => {
     if (user?.id) updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { lastLogin: serverTimestamp() }).catch(()=>{});
 
@@ -1630,36 +1657,66 @@ function MainApp({ user, onLogout }) {
     const unsubEvents = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc')), (snap) => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const unsubResources = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc')), (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     
-    // SUSCRIPCIÓN A NOTIFICACIONES ROBUSTA
+    // A) ESCUCHAR AVISOS DE CARTELERA (Y lanzar Push)
+    const unsubAnnounce = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc'), limit(10)), (snap) => {
+        const data = snap.docs.map(d => ({id:d.id, ...d.data()}));
+        setAnnouncements(data);
+
+        // Si hay un aviso nuevo (y no es la carga inicial), disparar Push
+        if (!isFirstLoad.current && data.length > prevAnnounceCount.current) {
+            const latest = data[0];
+            triggerMobileNotification(`📢 ${latest.title || 'Aviso Institucional'}`, latest.message);
+        }
+        prevAnnounceCount.current = data.length;
+    });
+
+    // B) ESCUCHAR NOTIFICACIONES PERSONALES (Y lanzar Push)
     const qNotifs = query(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), where('toUserId', '==', user.id));
     const unsubNotifs = onSnapshot(qNotifs, (snap) => { 
         const d = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
+        // Ordenar por fecha descendente
         d.sort((a,b)=> (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)); 
         const unread = d.filter(n=>!n.read);
-        
         setNotifications(unread);
 
-        // Si hay más notificaciones que antes, disparar alerta
-        if (unread.length > prevNotifCount.current) {
+        // Si hay una notificación personal nueva
+        if (!isFirstLoad.current && unread.length > prevNotifCount.current) {
             const latest = unread[0];
-            if (latest) {
-                // Notificación Nativa
-                if ("Notification" in window && Notification.permission === "granted") {
-                    new Notification(`🔔 ${latest.title}`, { body: latest.message, icon: LOGO_URL });
-                }
-                // Sonido
-                try { new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play().catch(()=>{}); } catch(e){}
-            }
+            triggerMobileNotification(`🔔 ${latest.title}`, latest.message);
+            try { new Audio('https://assets.mixkit.co/active_storage/sfx/2346/2346-preview.mp3').play().catch(()=>{}); } catch(e){}
         }
         prevNotifCount.current = unread.length;
     });
 
-    return () => { unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); };
+    return () => { unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); unsubAnnounce(); };
   }, [user.id]);
 
   const handleGlobalSearch = async (text) => { setSearchQuery(text); if (text.length < 2) { setSearchResults([]); return; } const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students')); const s = await getDocs(q); const r = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(s => (s.isActive===undefined || s.isActive) && (s.firstName.toLowerCase().includes(text.toLowerCase()) || s.lastName.toLowerCase().includes(text.toLowerCase()))); setSearchResults(r.slice(0, 5)); };
-  const handleNotificationClick = async (n) => { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', n.id)); if (n.targetTab) setActiveTab(n.targetTab); setShowNotifPanel(false); };
+  const handleNotificationClick = async (n) => { 
+      if (n.type === 'announcement') {
+          // Si es un anuncio, solo cerramos el panel (no se borra)
+          setShowNotifPanel(false);
+          setActiveTab('dashboard'); // Llevar a cartelera
+      } else {
+          // Si es notificación personal, la borramos/marcamos
+          await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', n.id)); 
+          if (n.targetTab) setActiveTab(n.targetTab); 
+          setShowNotifPanel(false); 
+      }
+  };
   const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
+
+  // --- COMBINAR LISTAS PARA LA CAMPANA ---
+  // Tomamos las notificaciones personales y le sumamos los 3 últimos avisos de cartelera
+  const combinedNotifications = [
+      ...notifications,
+      ...announcements.slice(0, 3).map(a => ({
+          ...a,
+          type: 'announcement', // Marca especial para distinguirlos
+          read: false, // Siempre se ven como no leídos para llamar la atención
+          title: "📢 AVISO DE DIRECCIÓN"
+      }))
+  ].sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 font-sans text-slate-800">
@@ -1668,12 +1725,43 @@ function MainApp({ user, onLogout }) {
         <div className="flex items-center space-x-3"><img src={LOGO_URL} alt="Logo" className="w-10 h-8 object-contain" /><div><h1 className="font-bold text-sm leading-tight">Juntos a la Par</h1><p className="text-[10px] text-orange-200 uppercase font-bold">{user.firstName}</p></div></div>
         <div className="flex items-center gap-3">
           <button onClick={() => setShowSearch(true)} className="p-2 rounded-full bg-violet-900/50 hover:bg-orange-500 transition"><Search size={20} /></button>
-          <div className="relative"><button onClick={() => setShowNotifPanel(!showNotifPanel)} className={`p-2 rounded-full transition ${showNotifPanel ? 'bg-orange-500' : 'bg-violet-900/50'}`}><Bell size={20} />{notifications.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-pulse border border-white">{notifications.length}</span>}</button>{showNotifPanel && (<div className="absolute right-0 mt-3 w-72 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[100]"><div className="p-4 bg-violet-50 border-b flex justify-between items-center"><h3 className="font-bold text-violet-900 text-sm">Avisos</h3><button onClick={() => setShowNotifPanel(false)}><X size={16} className="text-gray-400"/></button></div><div className="max-h-80 overflow-y-auto">{notifications.length===0?<div className="p-10 text-center text-gray-400"><p className="text-xs font-bold uppercase">Sin novedades</p></div>:notifications.map(n=>(<div key={n.id} onClick={()=>handleNotificationClick(n)} className="p-4 border-b hover:bg-gray-50 cursor-pointer"><p className="text-[10px] font-bold text-orange-600 mb-1 uppercase">{n.title}</p><p className="text-xs text-gray-700">{n.message}</p></div>))}</div></div>)}</div>
+          
+          {/* CAMPANA DE NOTIFICACIONES */}
+          <div className="relative">
+              <button onClick={() => setShowNotifPanel(!showNotifPanel)} className={`p-2 rounded-full transition ${showNotifPanel ? 'bg-orange-500' : 'bg-violet-900/50'}`}>
+                  <Bell size={20} />
+                  {combinedNotifications.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-pulse border border-white">{combinedNotifications.length}</span>}
+              </button>
+              
+              {/* PANEL DESPLEGABLE */}
+              {showNotifPanel && (
+                  <div className="absolute right-0 mt-3 w-80 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[100]">
+                      <div className="p-4 bg-violet-50 border-b flex justify-between items-center">
+                          <h3 className="font-bold text-violet-900 text-sm">Centro de Novedades</h3>
+                          <button onClick={() => setShowNotifPanel(false)}><X size={16} className="text-gray-400"/></button>
+                      </div>
+                      <div className="max-h-96 overflow-y-auto">
+                          {combinedNotifications.length === 0 ? (
+                              <div className="p-10 text-center text-gray-400"><p className="text-xs font-bold uppercase">Estás al día 👍</p></div>
+                          ) : combinedNotifications.map((n, idx) => (
+                              <div key={n.id || idx} onClick={() => handleNotificationClick(n)} className={`p-4 border-b cursor-pointer hover:bg-gray-50 transition flex gap-3 ${n.type === 'announcement' ? 'bg-orange-50/50' : 'bg-white'}`}>
+                                  <div className={`mt-1 min-w-[8px] h-2 rounded-full ${n.type === 'announcement' ? 'bg-orange-500' : 'bg-violet-500'}`}></div>
+                                  <div>
+                                      <p className={`text-[10px] font-black mb-1 uppercase ${n.type === 'announcement' ? 'text-orange-600' : 'text-violet-600'}`}>{n.title}</p>
+                                      <p className="text-xs text-gray-700 leading-snug">{n.message}</p>
+                                      <p className="text-[9px] text-gray-400 mt-2 text-right">{n.createdAt ? new Date(n.createdAt.seconds * 1000).toLocaleDateString() : ''}</p>
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+                  </div>
+              )}
+          </div>
+
           <div onClick={() => {setActiveTab('profile'); setShowNotifPanel(false);}} className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold border-2 border-orange-400 overflow-hidden cursor-pointer active:scale-95 transition">{user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover" /> : user.firstName?.[0]}</div>
         </div>
       </header>
 
-      {/* SCROLL GLOBAL ARREGLADO */}
       <main className={`flex-1 overflow-y-auto no-scrollbar pb-24 pt-6 mx-auto w-full transition-all duration-300 ${isWideTab ? 'px-2 max-w-[98%]' : 'px-4 max-w-4xl'}`}>
         {activeTab === 'dashboard' && <DashboardView user={user} tasks={tasks} events={events} announcements={announcements} setActiveTab={setActiveTab} />}
         {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
@@ -2086,6 +2174,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
