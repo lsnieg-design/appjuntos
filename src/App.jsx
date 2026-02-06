@@ -1581,7 +1581,7 @@ function ProyectoView({ user }) {
     </div>
   );
 }
-// --- VISTA MATRÍCULA (ARREGLADA: PANTALLA BLANCA SOLUCIONADA + BOTONES DRIVE) ---
+// --- VISTA MATRÍCULA (CON BOTONES DRIVE INTELIGENTES Y FILTRADO) ---
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
@@ -1589,26 +1589,21 @@ function MatriculaView({ user }) {
   const [viewingStudent, setViewingStudent] = useState(null);
   const [activeModalTab, setActiveModalTab] = useState('info');
   
-  // Modales
+  // Modales y Estados
   const [showStats, setShowStats] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showDataManagement, setShowDataManagement] = useState(false);
   const [showDupes, setShowDupes] = useState(false);
   const [showUnassigned, setShowUnassigned] = useState(false);
-
-  // Estados de Datos
   const [editingStudent, setEditingStudent] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
   const [potentialDupes, setPotentialDupes] = useState([]);
   const [unassignedList, setUnassignedList] = useState([]);
-
-  // Estados de Proceso
   const [importJson, setImportJson] = useState('');
   const [processing, setProcessing] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   
-  // Filtros
   const [statFilters, setStatFilters] = useState({ level: 'all', dx: 'all', gender: 'all', journey: 'all', turn: 'all' });
   const [filters, setFilters] = useState({ level: 'all', group: 'all', turn: 'all', teacher: 'all', dx: 'all', gender: 'all', journey: 'all', os: 'all' });
 
@@ -1619,35 +1614,52 @@ function MatriculaView({ user }) {
     const qS = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), orderBy('lastName', 'asc'));
     const uS = onSnapshot(qS, (snap) => setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const qU = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('lastName', 'asc'));
-    const uU = onSnapshot(qU, (snap) => setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    const uU = onSnapshot(qU, (snap) => {
+        setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
     return () => { uS(); uU(); };
   }, []);
+
+  // --- FUNCIÓN MAGICA: ABRIR DRIVE FILTRADO ---
+  const abrirDriveAlumno = (url, student) => {
+      if (!url) return;
+      // 1. Intentamos extraer el ID de la carpeta del link largo de Google
+      // Los links suelen ser .../folders/1A2b3C... o ?id=1A2b3C...
+      const idMatch = url.match(/[-\w]{25,}/);
+      
+      if (idMatch) {
+          const folderId = idMatch[0];
+          const studentName = `${student.lastName} ${student.firstName}`; // Buscamos por "Apellido Nombre"
+          // 2. Construimos la búsqueda: 'ID' in parents AND fullText contains 'Nombre'
+          const query = `'${folderId}' in parents and fullText contains '${studentName}'`;
+          const searchUrl = `https://drive.google.com/drive/search?q=${encodeURIComponent(query)}`;
+          window.open(searchUrl, '_blank');
+      } else {
+          // 3. Si no reconocemos el ID, abrimos la carpeta normal
+          window.open(url, '_blank');
+      }
+  };
 
   const staffOptions = (usersList||[]).filter(u => ['Docente', 'Auxiliar/Preceptor', 'Equipo Técnico', 'Profes Especiales'].includes(u.role));
   const techOptions = (usersList||[]).filter(u => u.role === 'Equipo Técnico');
   const uniqueGroups = [...new Set([...students.map(s => s.groupMorning), ...students.map(s => s.groupAfternoon)].filter(Boolean))].sort();
   const uniqueOS = [...new Set(students.map(s => s.healthInsurance ? String(s.healthInsurance).toUpperCase().trim() : 'SIN COBERTURA'))].sort();
 
-  // --- FILTRADO ---
   const filteredStudents = students.filter(s => {
     const isStudentActive = s.isActive === undefined || s.isActive === true;
     if (showArchived && isStudentActive) return false; 
     if (!showArchived && !isStudentActive) return false;
-
     const txt = filterText.toLowerCase();
     const matchText = (s.firstName||'').toLowerCase().includes(txt) || (s.lastName||'').toLowerCase().includes(txt) || (s.dni||'').toString().includes(txt);
     if (!matchText) return false;
-
     if (filters.level !== 'all' && s.level !== filters.level) return false;
     if (filters.group !== 'all' && s.groupMorning !== filters.group && s.groupAfternoon !== filters.group) return false;
-    
     if (filters.teacher !== 'all') {
         const search = filters.teacher.toLowerCase();
         const tM = (s.teacherMorning || '').toLowerCase();
         const tT = (s.teacherAfternoon || '').toLowerCase();
         if (!tM.includes(search) && !tT.includes(search)) return false;
     }
-
     if (filters.dx !== 'all' && s.dx !== filters.dx) return false;
     if (filters.gender !== 'all' && s.gender !== filters.gender) return false;
     if (filters.journey !== 'all' && s.journey !== filters.journey) return false;
@@ -1655,7 +1667,6 @@ function MatriculaView({ user }) {
     if (filters.os !== 'all' && currentOS !== filters.os) return false;
     if (filters.turn === 'Mañana' && !s.groupMorning) return false;
     if (filters.turn === 'Tarde' && !s.groupAfternoon) return false;
-
     return true;
   });
 
@@ -1666,20 +1677,10 @@ function MatriculaView({ user }) {
   const handlePhotoChange = async (e) => { const f = e.target.files[0]; if(!f) return; setUploading(true); try { const reader = new FileReader(); reader.onload=(ev)=>{const img=new Image(); img.onload=()=>{const c=document.createElement('canvas'); const s=300/img.width; c.width=300; c.height=img.height*s; const ctx=c.getContext('2d'); ctx.drawImage(img,0,0,c.width,c.height); setPhotoPreview(c.toDataURL('image/jpeg',0.7)); setUploading(false);}; img.src=ev.target.result;}; reader.readAsDataURL(f); } catch(e){ setUploading(false); } };
   const openNew = () => { setEditingStudent(null); setPhotoPreview(null); setShowForm(true); };
   const openEdit = (s) => { setEditingStudent(s); setPhotoPreview(s.photoUrl); setViewingStudent(null); setShowForm(true); };
-  
   const handleSave = async (e) => { 
-      e.preventDefault(); 
-      const fd = new FormData(e.target); 
-      const d = Object.fromEntries(fd.entries()); 
-      d.isActive = d.isActive === 'true'; 
-      d.photoUrl = photoPreview || editingStudent?.photoUrl || ''; 
-      try { 
-          if (editingStudent) { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', editingStudent.id), d); } 
-          else { const newStatus = d.isActive !== undefined ? d.isActive : true; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...d, isActive: newStatus, createdAt: serverTimestamp(), incidents: [] }); } 
-          setShowForm(false); setEditingStudent(null); setPhotoPreview(null); 
-      } catch (err) { alert("Error: " + err.message); } 
+      e.preventDefault(); const fd = new FormData(e.target); const d = Object.fromEntries(fd.entries()); d.isActive = d.isActive === 'true'; d.photoUrl = photoPreview || editingStudent?.photoUrl || ''; 
+      try { if (editingStudent) { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', editingStudent.id), d); } else { const newStatus = d.isActive !== undefined ? d.isActive : true; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...d, isActive: newStatus, createdAt: serverTimestamp(), incidents: [] }); } setShowForm(false); setEditingStudent(null); setPhotoPreview(null); } catch (err) { alert("Error: " + err.message); } 
   };
-  
   const handleDelete = async (id) => { if(confirm("⚠️ ¿Eliminar definitivamente?")) { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id)); setShowForm(false); setEditingStudent(null); } };
   const deleteIncident = async (sid, inc) => { if(confirm("¿Borrar evento?")) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', sid), { incidents: arrayRemove(inc) }); };
   const markAsInactive = async (s) => { if(!confirm(`¿Dar de baja a ${s.firstName}?`)) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { isActive: false }); setUnassignedList(p=>p.filter(x=>x.id!==s.id)); };
@@ -1693,12 +1694,10 @@ function MatriculaView({ user }) {
   const handleResetCycle = async () => { alert("Función en mantenimiento."); };
   const handleDeleteAll = handleResetCycle; 
   const handleAutoAssignGenders = async () => { alert("Función en mantenimiento."); };
-
   const imprimirListado = (list) => { const w = window.open('', '_blank'); if(!w) return alert("Permitir Pop-ups"); let h = `<html><head><title>Fichas</title><style>body{font-family:sans-serif;padding:20px}.card{border:1px solid #ccc;padding:20px;margin-bottom:20px;page-break-after:always}.head{display:flex;justify-content:space-between;border-bottom:2px solid #6d28d9;padding-bottom:10px;margin-bottom:15px}h1{color:#4c1d95;margin:0}img{height:50px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.label{font-size:10px;color:#666;font-weight:bold;text-transform:uppercase}.val{font-weight:bold}</style></head><body>`; list.forEach(s => { h += `<div class="card"><div class="head"><div><h1>${s.lastName}, ${s.firstName}</h1><p>DNI: ${s.dni} - Edad: ${calculateAge(s.birthDate)}</p></div><img src="${LOGO_URL}"/></div><div class="grid"><div><span class="label">Nacimiento</span><div class="val">${getSafeDate(s.birthDate)}</div></div><div><span class="label">Diagnóstico</span><div class="val">${s.dx}</div></div><div><span class="label">Obra Social</span><div class="val">${s.healthInsurance||'-'}</div></div><div><span class="label">CUD Vto</span><div class="val">${getSafeDate(s.cudExpiration)}</div></div></div><br><h3>Escolaridad 2026</h3><div class="grid"><div><span class="label">Nivel</span><div class="val">${s.level||'-'}</div></div><div><span class="label">Jornada</span><div class="val">${s.journey||'-'}</div></div><div><span class="label">Aula</span><div class="val">${s.classroom||'-'}</div></div></div><br><div class="grid"><div><span class="label" style="background:#fef08a;padding:2px;">Turno Mañana</span><div class="val">${s.groupMorning||'-'} (Prof: ${s.teacherMorning||'-'})</div></div><div><span class="label" style="background:#c7d2fe;padding:2px;">Turno Tarde</span><div class="val">${s.groupAfternoon||'-'} (Prof: ${s.teacherAfternoon||'-'})</div></div></div><br><h3>Familia</h3><p><b>Madre:</b> ${s.motherName} (${s.motherContact})</p><p><b>Padre:</b> ${s.fatherName} (${s.fatherContact})</p><p><b>Dirección:</b> ${s.address}</p></div>`; }); h += '</body></html>'; w.document.write(h); w.document.close(); setTimeout(()=>w.print(), 500); };
   const imprimirFichasMasivas = () => { if (filteredStudents.length > 20 && !confirm(`¿Imprimir ${filteredStudents.length} fichas?`)) return; imprimirListado(filteredStudents); };
   const exportFiltered = () => { if (filteredStudents.length === 0) return alert("Sin datos"); const headers = ["Apellido", "Nombre", "DNI", "Nivel", "Obra Social"]; const csv = [headers.join(';'), ...filteredStudents.map(s => [`"${s.lastName}"`, `"${s.firstName}"`, `"${s.dni}"`, `"${s.level}"`, `"${s.healthInsurance}"`].join(';'))].join('\n'); const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = "Matricula.csv"; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
 
-  // --- RENDER ---
   return (
     <div className="animate-in fade-in pb-20">
       <div className={`p-6 rounded-3xl shadow-lg text-white mb-6 transition-colors ${showArchived?'bg-gray-600':'bg-gradient-to-r from-blue-600 to-cyan-500'}`}>
@@ -1729,7 +1728,7 @@ function MatriculaView({ user }) {
          )}
       </div>
       
-      {/* LISTA DE ALUMNOS (ARREGLADO: ETIQUETAS DENTRO DEL LOOP) */}
+      {/* LISTA DE ALUMNOS CON BOTONES DRIVE INTELIGENTES */}
       <div className="space-y-3">{filteredStudents.map(s => { 
           const alert = getAlertStatus(s.incidents); 
           const age = calculateAge(s.birthDate); 
@@ -1750,27 +1749,25 @@ function MatriculaView({ user }) {
                             ) : (
                                 <span className="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded border border-red-100 font-bold">Sin grupo</span>
                             )}
-                            
-                            {/* ETIQUETA AULA */}
                             {s.classroom && (
                                 <span className="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded border border-yellow-200 font-bold flex items-center gap-1 shadow-sm">
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
                                     Aula {s.classroom}
                                 </span>
                             )}
-
-                            {/* BOTONES DE DRIVE INTELIGENTES */}
+                            
+                            {/* BOTONES DE DRIVE (EN LA LISTA PRINCIPAL) */}
                             {s.driveLinkMorning && (
-                                <a href={s.driveLinkMorning} onClick={(e)=>e.stopPropagation()} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-200 font-bold flex items-center gap-1 hover:bg-green-100 transition">
+                                <button onClick={(e) => { e.stopPropagation(); abrirDriveAlumno(s.driveLinkMorning, s); }} className="text-[10px] bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-200 font-bold flex items-center gap-1 hover:bg-green-100 transition">
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
                                     Informes TM
-                                </a>
+                                </button>
                             )}
                             {s.driveLinkAfternoon && (
-                                <a href={s.driveLinkAfternoon} onClick={(e)=>e.stopPropagation()} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-200 font-bold flex items-center gap-1 hover:bg-green-100 transition">
+                                <button onClick={(e) => { e.stopPropagation(); abrirDriveAlumno(s.driveLinkAfternoon, s); }} className="text-[10px] bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-200 font-bold flex items-center gap-1 hover:bg-green-100 transition">
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
                                     Informes TT
-                                </a>
+                                </button>
                             )}
                         </div>
                     </div>
@@ -1780,9 +1777,28 @@ function MatriculaView({ user }) {
           ); 
       })}</div>
       
-      {/* MODALES VARIOS */}
+      {/* MODAL VER ALUMNO (AHORA CON BOTONES DE DRIVE ADENTRO TAMBIÉN) */}
       {viewingStudent && !showForm && (<div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm"><div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"><div className="bg-slate-700 p-6 text-white"><div className="flex justify-between items-start"><div className="flex gap-4"><div className="w-16 h-16 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden">{viewingStudent.photoUrl ? <img src={viewingStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={30} className="m-auto mt-4 text-white/50"/>}</div><div><h2 className="text-xl font-bold uppercase">{viewingStudent.lastName}, {viewingStudent.firstName}</h2><div className="flex gap-2 mt-1"><span className="bg-white/20 px-2 py-0.5 rounded text-xs">{calculateAge(viewingStudent.birthDate)} años</span><span className="bg-white/20 px-2 py-0.5 rounded text-xs">{viewingStudent.dni}</span></div></div></div><button onClick={()=>setViewingStudent(null)} className="bg-white/20 p-1 rounded-full hover:bg-white/40"><X/></button></div><div className="flex gap-2 mt-6 bg-slate-800/50 p-1 rounded-xl"><button onClick={()=>setActiveModalTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeModalTab==='info'?'bg-white text-slate-800 shadow-md':'text-white/50 hover:text-white'}`}>Datos Personales</button><button onClick={()=>setActiveModalTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeModalTab==='history'?'bg-white text-slate-800 shadow-md':'text-white/50 hover:text-white'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto bg-gray-50">{activeModalTab==='info' ? (
       <div className="space-y-4 text-sm">
+        
+        {/* BOTONES DE ACCESO RÁPIDO A INFORMES EN EL MODAL */}
+        {(viewingStudent.driveLinkMorning || viewingStudent.driveLinkAfternoon) && (
+            <div className="flex gap-2 mb-2">
+                {viewingStudent.driveLinkMorning && (
+                    <button onClick={() => abrirDriveAlumno(viewingStudent.driveLinkMorning, viewingStudent)} className="flex-1 bg-green-100 text-green-800 py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-green-200 transition border border-green-300">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                        INFORMES TM (Drive)
+                    </button>
+                )}
+                {viewingStudent.driveLinkAfternoon && (
+                    <button onClick={() => abrirDriveAlumno(viewingStudent.driveLinkAfternoon, viewingStudent)} className="flex-1 bg-blue-100 text-blue-800 py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-blue-200 transition border border-blue-300">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                        INFORMES TT (Drive)
+                    </button>
+                )}
+            </div>
+        )}
+
         <div className="grid grid-cols-4 gap-2"><div className="bg-white p-2 rounded-xl border border-gray-100 text-center shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase">Nivel</p><p className="font-bold text-slate-800">{viewingStudent.level || '-'}</p></div><div className="bg-purple-50 p-2 rounded-xl border border-purple-100 text-center shadow-sm"><p className="text-[9px] text-purple-400 font-bold uppercase">DX</p><p className="font-bold text-purple-800">{viewingStudent.dx || '-'}</p></div><div className="bg-white p-2 rounded-xl border border-gray-100 text-center shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase">Género</p><p className="font-bold text-slate-800">{viewingStudent.gender || '-'}</p></div><div className="bg-white p-2 rounded-xl border border-gray-100 text-center shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase">Jornada</p><p className="font-bold text-slate-800">{viewingStudent.journey || '-'}</p></div></div>
         <div><h4 className="font-bold text-slate-800 mb-2 flex items-center gap-2 text-xs uppercase"><Briefcase size={14} className="text-blue-500"/> Escolaridad 2026</h4><div className="grid grid-cols-2 gap-3"><div className="bg-yellow-50 p-3 rounded-xl border border-yellow-200 relative shadow-sm"><span className="absolute top-0 right-0 bg-yellow-300 text-yellow-900 text-[9px] px-2 py-0.5 rounded-bl-lg font-bold uppercase">Mañana</span><div className="space-y-2 mt-1"><div><span className="text-[9px] text-yellow-600 font-bold block uppercase">Grupo</span><p className="font-bold text-slate-800 text-xs">{viewingStudent.groupMorning || '-'}</p></div><div><span className="text-[9px] text-yellow-600 font-bold block uppercase">Docente</span><p className="font-bold text-slate-800 text-xs truncate">{viewingStudent.teacherMorning || '-'}</p></div></div></div><div className="bg-indigo-50 p-3 rounded-xl border border-indigo-200 relative shadow-sm"><span className="absolute top-0 right-0 bg-indigo-200 text-indigo-800 text-[9px] px-2 py-0.5 rounded-bl-lg font-bold uppercase">Tarde</span><div className="space-y-2 mt-1"><div><span className="text-[9px] text-indigo-500 font-bold block uppercase">Grupo</span><p className="font-bold text-slate-800 text-xs">{viewingStudent.groupAfternoon || '-'}</p></div><div><span className="text-[9px] text-indigo-500 font-bold block uppercase">Docente</span><p className="font-bold text-slate-800 text-xs truncate">{viewingStudent.teacherAfternoon || '-'}</p></div></div></div></div></div>
         <div className="grid grid-cols-1 gap-3"><div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center"><div><h4 className="font-bold text-green-600 mb-1 text-xs uppercase flex items-center gap-1"><Activity size={12}/> Salud</h4><p className="text-xs text-gray-500 font-bold">OBRA SOCIAL</p><p className="font-bold text-slate-800">{viewingStudent.healthInsurance || 'NO DECLARA'}</p></div><div className="text-right"><p className="text-xs text-gray-500 font-bold">VENCIMIENTO CUD</p><p className="font-bold text-slate-800">{getSafeDate(viewingStudent.cudExpiration) || '-'}</p></div></div><div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm"><h4 className="font-bold text-orange-600 mb-2 text-xs uppercase flex items-center gap-1"><User size={12}/> Familia</h4><div className="grid grid-cols-2 gap-4"><div><span className="text-[9px] text-gray-400 font-bold block uppercase">Madre</span><p className="font-bold text-xs">{viewingStudent.motherName}</p><p className="text-xs text-gray-500">{viewingStudent.motherContact}</p></div><div><span className="text-[9px] text-gray-400 font-bold block uppercase">Padre</span><p className="font-bold text-xs">{viewingStudent.fatherName}</p><p className="text-xs text-gray-500">{viewingStudent.fatherContact}</p></div></div><div className="mt-2 pt-2 border-t border-gray-50"><span className="text-[9px] text-gray-400 font-bold block uppercase">Dirección</span><p className="font-bold text-xs">{viewingStudent.address}</p></div></div></div>
@@ -2255,6 +2271,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
