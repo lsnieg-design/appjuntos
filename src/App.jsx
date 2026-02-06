@@ -1574,15 +1574,14 @@ function MatriculaView({ user }) {
          )}
       </div>
       
-      {/* LISTA DE ALUMNOS */}
-      {/* --- BLOQUE CORREGIDO PARA LA TARJETA DEL ALUMNO --- */}
+      {/* --- COPIA Y PEGA ESTO DENTRO DE LA TARJETA DEL ALUMNO (MatriculaView) --- */}
 <div className="flex flex-wrap gap-2 mt-1">
     {/* ETIQUETA EDAD */}
     <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200 font-bold">
         {age} años
     </span>
 
-    {/* ETIQUETA GRUPO */}
+    {/* ETIQUETA GRUPO (Doble turno o simple) */}
     {(s.groupMorning || s.groupAfternoon) ? (
         <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold">
              {[s.groupMorning, s.groupAfternoon].filter(Boolean).join(' / ')}
@@ -1593,10 +1592,10 @@ function MatriculaView({ user }) {
         </span>
     )}
 
-    {/* ETIQUETA AULA (CON ÍCONO SEGURO) */}
+    {/* ETIQUETA AULA (CON ARREGLO PARA QUE NO SE PONGA EN BLANCO) */}
     {s.classroom && (
         <span className="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded border border-yellow-200 font-bold flex items-center gap-1 shadow-sm">
-            {/* Ícono SVG directo para evitar errores */}
+            {/* Usamos el código SVG directo para evitar errores de referencia */}
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
             Aula {s.classroom}
         </span>
@@ -2174,6 +2173,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
