@@ -1225,14 +1225,58 @@ function UsersAdminView() {
    </div>
   );
 }
-// --- VISTA PROYECTO INSTITUCIONAL (CON PORTADA PPI.png) ---
+// --- VISTA PROYECTO INSTITUCIONAL (CON CARGA AUTOMÁTICA DESDE PDF) ---
 function ProyectoView({ user }) {
   const [periods, setPeriods] = useState([]);
   const [expandedPeriod, setExpandedPeriod] = useState(null);
   const [editing, setEditing] = useState(false);
+  const [showAdminMenu, setShowAdminMenu] = useState(false);
+  const [loadingAction, setLoadingAction] = useState(false);
+
   const isAdmin = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
   
+  // Nombres EXACTOS de las colecciones (Ids)
   const PERIOD_NAMES = ["MARZO", "ABRIL Y MAYO", "JUNIO Y JULIO", "AGOSTO Y SEPTIEMBRE", "OCTUBRE Y NOVIEMBRE", "DICIEMBRE"];
+
+  // --- DATOS DEL PROYECTO (EXTRAÍDOS DEL PDF) ---
+  const PROJECT_DATA_2026 = {
+      "MARZO": {
+          paises: "Estación 1: Los Preparativos",
+          fundamentacion: "Inicio del viaje. Identidad, valija y pasaporte.",
+          contenidos: "• Prácticas del Lenguaje: Nombre propio, listas.\n• Cs. Sociales: Identidad, DNI.\n• Matemática: Calendario, Medida (alturas).",
+          actividades: "1. Confección de Pasaporte y foto carnet.\n2. Armado de Valija Real (clasificación).\n3. Juego sensorial: 'Valija Ciega' (texturas).\n4. Huella de Identidad (dactilar).\n5. Circuito de Aeropuerto."
+      },
+      "ABRIL_Y_MAYO": {
+          paises: "Estación 2: América (Argentina, Brasil, México)",
+          fundamentacion: "Tierra, raíces, maíz y selva.",
+          contenidos: "• Leyendas y Pueblos Originarios.\n• Cs. Naturales: Animales (plumas/pelo), Semillas.\n• Cocina y mezclas.",
+          actividades: "1. Cocina: Chipá y Ensalada de Frutas.\n2. Bandera rompecabezas.\n3. Taller de Aromas (Yerba, Café, Cacao).\n4. Máscaras de Carnaval (Brasil).\n5. Papel Picado y Pirámides (México)."
+      },
+      "JUNIO_Y_JULIO": {
+          paises: "Estación 3: Europa & Mundial (Inglaterra, Italia, España)",
+          fundamentacion: "Historia (castillos) y presente (fútbol/Mundial).",
+          contenidos: "• Pasado/Presente (Castillos vs Estadios).\n• Normas y Reglas de juego.\n• Conteo y Espacio.",
+          actividades: "1. Mini Mundial (penales y conteo de goles).\n2. Taller de Masas (Ñoquis/Fideos).\n3. Construcción de Torres (Big Ben/Pisa).\n4. Experiencia Térmica: Hielo (Londres) vs Té tibio.\n5. Arte: Mosaico estilo Gaudí."
+      },
+      "AGOSTO_Y_SEPTIEMBRE": {
+          paises: "Estación 4: Asia (China, India, Japón)",
+          fundamentacion: "Paciencia, detalle, luz y sombra.",
+          contenidos: "• Literatura: Haikus.\n• Geometría: Tangram y Plegado.\n• Escritura: Trazos no convencionales.",
+          actividades: "1. Arroz Sensorial (búsqueda de objetos).\n2. Escritura Vertical con pincel y tinta.\n3. Sombras Chinas con linternas.\n4. Origami simple (animales).\n5. Ceremonia de Té y relajación."
+      },
+      "OCTUBRE_Y_NOVIEMBRE": {
+          paises: "Estación 5: África y Oceanía (Egipto, Sudáfrica, Australia)",
+          fundamentacion: "Fuerza de la naturaleza: desiertos, selvas y océanos.",
+          contenidos: "• Animales (desplazamiento).\n• Ambientes (Acuático/Aeroterrestre).\n• Cuerpos Geométricos (Pirámide/Esfera).",
+          actividades: "1. Arenero Egipcio (búsqueda de tesoros).\n2. Botellas del Océano (calma visual).\n3. Construcción de Pirámides con vasos.\n4. Juego de Momias (con papel higiénico).\n5. Arte: Puntillismo (Australia) y Máscaras Tribales."
+      },
+      "DICIEMBRE": {
+          paises: "Estación 6: El Regreso a Casa",
+          fundamentacion: "Cierre del ciclo y socialización de lo recorrido.",
+          contenidos: "• Evaluación y celebración.\n• Muestra a la comunidad.",
+          actividades: "1. Completado final del Pasaporte.\n2. 'Muestra del Viajero': El patio como mapa interactivo.\n3. Merienda compartida con familias (sabores del mundo).\n4. Exhibición de objetos creados."
+      }
+  };
 
   useEffect(() => {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'proyecto2026_periods'));
@@ -1263,50 +1307,95 @@ function ProyectoView({ user }) {
       setEditing(false); setExpandedPeriod({...expandedPeriod, ...data});
   };
 
-  return (
-    <div className="space-y-6 pb-24 animate-in fade-in duration-700">
+  // --- FUNCIÓN CARGA MASIVA ---
+  const handleLoadProjectData = async () => {
+      if(!confirm("⚠️ ¿Cargar la planificación completa de 'La Vuelta al Mundo'?\nEsto sobrescribirá los textos actuales.")) return;
+      setLoadingAction(true);
+      try {
+          const { setDoc, doc: docRef } = await import('firebase/firestore');
+          const promises = Object.keys(PROJECT_DATA_2026).map(key => {
+              return setDoc(docRef(db, 'artifacts', appId, 'public', 'data', 'proyecto2026_periods', key), PROJECT_DATA_2026[key], { merge: true });
+          });
+          await Promise.all(promises);
+          alert("✅ ¡Proyecto cargado con éxito!");
+          setShowAdminMenu(false);
+      } catch (e) {
+          alert("Error: " + e.message);
+      } finally {
+          setLoadingAction(false);
+      }
+  };
+
+  // --- FUNCIÓN REINICIAR (BORRAR TODO) ---
+  const handleResetProject = async () => {
+      if(!confirm("⛔ PELIGRO: ¿Estás segura de que quieres BORRAR todo el contenido del proyecto?\nSe blanquearán todas las tarjetas.")) return;
+      if(!confirm("Confirma nuevamente: Se borrará la info de contenidos y actividades.")) return;
       
-      {/* --- AQUÍ ESTÁ LA NUEVA PORTADA --- */}
+      setLoadingAction(true);
+      try {
+          const { deleteDoc, doc: docRef } = await import('firebase/firestore');
+          // En lugar de borrar la colección, reseteamos los campos a vacío para mantener la estructura visual
+          const { setDoc } = await import('firebase/firestore');
+          const promises = PERIOD_NAMES.map(name => {
+              const id = name.replace(/\s+/g, '_');
+              return setDoc(docRef(db, 'artifacts', appId, 'public', 'data', 'proyecto2026_periods', id), {
+                  paises: '', fundamentacion: '', contenidos: '', actividades: ''
+              });
+          });
+          await Promise.all(promises);
+          alert("🗑️ Proyecto reiniciado.");
+          setShowAdminMenu(false);
+      } catch (e) {
+          alert("Error: " + e.message);
+      } finally {
+          setLoadingAction(false);
+      }
+  };
+
+  return (
+    <div className="space-y-6 pb-24 animate-in fade-in duration-700 relative">
+      
+      {/* --- PORTADA --- */}
       <div className="relative w-full h-56 rounded-[35px] overflow-hidden shadow-2xl group border border-violet-100">
-          {/* La Imagen de Fondo */}
-          <img 
-            src="/PPI.png" 
-            alt="Portada Proyecto" 
-            className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
-            onError={(e) => {
-                e.target.style.display = 'none'; // Si falla la imagen, se oculta y queda el color de fondo
-            }}
-          />
-          
-          {/* El Degradado (para que se lea el texto) */}
+          <img src="/PPI.png" alt="Portada Proyecto" className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" onError={(e) => { e.target.style.display = 'none'; }} />
           <div className="absolute inset-0 bg-gradient-to-t from-violet-900 via-violet-900/40 to-transparent flex flex-col justify-end p-8">
-              <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter drop-shadow-md mb-1">
-                  Proyecto 2026
-              </h2>
+              <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter drop-shadow-md mb-1">Proyecto 2026</h2>
               <div className="flex items-center gap-2">
-                  <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-widest shadow-sm">
-                      Institucional
-                  </span>
-                  <p className="text-orange-200 font-bold text-xs uppercase tracking-[3px] drop-shadow-sm">
-                      La Vuelta al Mundo
-                  </p>
+                  <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-widest shadow-sm">Institucional</span>
+                  <p className="text-orange-200 font-bold text-xs uppercase tracking-[3px] drop-shadow-sm">La Vuelta al Mundo</p>
               </div>
           </div>
+          
+          {/* BOTÓN DE GESTIÓN (ADMIN) */}
+          {isAdmin && (
+              <div className="absolute top-4 right-4">
+                  <button onClick={() => setShowAdminMenu(!showAdminMenu)} className="bg-white/20 hover:bg-white/40 backdrop-blur-md p-2 rounded-full text-white shadow-lg transition">
+                      <Settings size={20}/>
+                  </button>
+                  {showAdminMenu && (
+                      <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden animate-in slide-in-from-top-5 z-50">
+                          <div className="p-3 border-b border-gray-100 bg-gray-50"><p className="text-xs font-black text-gray-400 uppercase tracking-widest">Gestión del Proyecto</p></div>
+                          <button onClick={handleLoadProjectData} disabled={loadingAction} className="w-full text-left px-4 py-3 text-xs font-bold text-violet-700 hover:bg-violet-50 flex items-center gap-2">
+                              {loadingAction ? <RefreshCw className="animate-spin" size={14}/> : <UploadCloud size={14}/>} Cargar Info 2026 (PDF)
+                          </button>
+                          <button onClick={handleResetProject} disabled={loadingAction} className="w-full text-left px-4 py-3 text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2">
+                              <Trash2 size={14}/> Reiniciar / Borrar Todo
+                          </button>
+                      </div>
+                  )}
+              </div>
+          )}
       </div>
-      {/* ---------------------------------- */}
 
       <div className="space-y-3">
           {periods.map(period => (
               <div key={period.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                  <div 
-                    onClick={() => setExpandedPeriod(expandedPeriod?.id === period.id ? null : period)}
-                    className={`p-4 flex justify-between items-center cursor-pointer transition-colors ${expandedPeriod?.id === period.id ? 'bg-violet-50' : 'hover:bg-gray-50'}`}
-                  >
+                  <div onClick={() => setExpandedPeriod(expandedPeriod?.id === period.id ? null : period)} className={`p-4 flex justify-between items-center cursor-pointer transition-colors ${expandedPeriod?.id === period.id ? 'bg-violet-50' : 'hover:bg-gray-50'}`}>
                       <div className="flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-[10px] ${expandedPeriod?.id === period.id ? 'bg-violet-600 text-white' : 'bg-gray-100 text-gray-500'}`}>{period.name.substring(0,3)}</div>
                           <div>
                               <h3 className="font-bold text-gray-800 text-xs uppercase">{period.name}</h3>
-                              <p className="text-[10px] text-gray-400">{period.paises || 'Sin asignar'}</p>
+                              <p className="text-[10px] text-gray-400 truncate max-w-[200px]">{period.paises || 'Sin contenido cargado'}</p>
                           </div>
                       </div>
                       <ChevronRight size={16} className={`text-gray-300 transition-transform ${expandedPeriod?.id === period.id ? 'rotate-90 text-violet-600' : ''}`} />
@@ -1316,19 +1405,31 @@ function ProyectoView({ user }) {
                       <div className="p-4 border-t border-gray-100 bg-gray-50/50 animate-in slide-in-from-top-2">
                           {!editing ? (
                               <div className="space-y-4">
-                                  <div><h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">País / Eje</h4><p className="text-sm font-bold text-violet-700">{period.paises || '-'}</p></div>
-                                  <div><h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Contenidos</h4><p className="text-xs text-gray-600 whitespace-pre-wrap">{period.contenidos || '-'}</p></div>
-                                  <div><h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Actividades</h4><p className="text-xs text-gray-600 whitespace-pre-wrap">{period.actividades || '-'}</p></div>
-                                  {isAdmin && <button onClick={() => setEditing(true)} className="w-full py-2 bg-white border border-violet-200 text-violet-600 font-bold text-xs rounded-xl mt-2 hover:bg-violet-50">Editar</button>}
+                                  <div><h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Eje Temático</h4><p className="text-sm font-bold text-violet-700">{period.paises || '-'}</p></div>
+                                  <div><h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Fundamentación</h4><p className="text-xs text-gray-600 italic">{period.fundamentacion || '-'}</p></div>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div className="bg-white p-3 rounded-xl border border-gray-200">
+                                          <h4 className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-2 flex items-center gap-1"><BookOpen size={10}/> Contenidos</h4>
+                                          <p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed">{period.contenidos || '-'}</p>
+                                      </div>
+                                      <div className="bg-white p-3 rounded-xl border border-gray-200">
+                                          <h4 className="text-[9px] font-black text-orange-500 uppercase tracking-widest mb-2 flex items-center gap-1"><Lightbulb size={10}/> Actividades</h4>
+                                          <p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed">{period.actividades || '-'}</p>
+                                      </div>
+                                  </div>
+                                  {isAdmin && <button onClick={() => setEditing(true)} className="w-full py-2 bg-white border border-violet-200 text-violet-600 font-bold text-xs rounded-xl mt-2 hover:bg-violet-50 transition">Editar Manualmente</button>}
                               </div>
                           ) : (
                               <form onSubmit={handleSave} className="space-y-3">
-                                  <input name="paises" defaultValue={period.paises} placeholder="País / Eje" className="w-full p-3 rounded-xl border border-gray-200 text-sm font-bold" />
-                                  <textarea name="contenidos" defaultValue={period.contenidos} placeholder="Contenidos..." className="w-full p-3 rounded-xl border border-gray-200 text-xs h-24" />
-                                  <textarea name="actividades" defaultValue={period.actividades} placeholder="Actividades..." className="w-full p-3 rounded-xl border border-gray-200 text-xs h-24" />
+                                  <input name="paises" defaultValue={period.paises} placeholder="Título / Eje" className="w-full p-3 rounded-xl border border-gray-200 text-sm font-bold" />
+                                  <textarea name="fundamentacion" defaultValue={period.fundamentacion} placeholder="Fundamentación breve..." className="w-full p-3 rounded-xl border border-gray-200 text-xs h-16" />
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                      <textarea name="contenidos" defaultValue={period.contenidos} placeholder="Contenidos..." className="w-full p-3 rounded-xl border border-gray-200 text-xs h-32" />
+                                      <textarea name="actividades" defaultValue={period.actividades} placeholder="Actividades..." className="w-full p-3 rounded-xl border border-gray-200 text-xs h-32" />
+                                  </div>
                                   <div className="flex gap-2">
-                                      <button type="button" onClick={() => setEditing(false)} className="flex-1 py-2 text-gray-400 font-bold text-xs">Cancelar</button>
-                                      <button type="submit" className="flex-1 py-2 bg-violet-600 text-white font-bold text-xs rounded-xl shadow-lg">Guardar</button>
+                                      <button type="button" onClick={() => setEditing(false)} className="flex-1 py-2 text-gray-400 font-bold text-xs hover:bg-gray-200 rounded-xl transition">Cancelar</button>
+                                      <button type="submit" className="flex-1 py-2 bg-violet-600 text-white font-bold text-xs rounded-xl shadow-lg hover:bg-violet-700 transition">Guardar Cambios</button>
                                   </div>
                               </form>
                           )}
@@ -1337,9 +1438,17 @@ function ProyectoView({ user }) {
               </div>
           ))}
       </div>
+      
+      {/* Icono Settings necesario para esta vista */}
+      <style>{`.hidden-icon { display: none; }`}</style>
+      <div className="hidden"><Settings size={0}/></div>
     </div>
   );
 }
+
+// --- AGREGAR ESTO AL INICIO DEL ARCHIVO CON LOS OTROS IMPORTS ---
+// Asegurate de importar 'Settings' desde 'lucide-react' arriba de todo:
+// import { ..., Settings, ... } from 'lucide-react';
 // --- VISTA MATRÍCULA (CORREGIDA: ETIQUETAS EN SU LUGAR CORRECTO) ---
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
@@ -2172,6 +2281,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
