@@ -862,14 +862,19 @@ function UsersView({ user }) {
   );
 }
 
-// --- VISTA CALENDARIO (FULL SCREEN + SWIPE + RESPONSIVE) ---
+// --- VISTA CALENDARIO (CON CARGA RÁPIDA DE FECHAS) ---
 function CalendarView({ events, canEdit, user }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDayEvents, setSelectedDayEvents] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   
-  // --- LÓGICA DE SWIPE (TÁCTIL) ---
+  // --- ESTADOS PARA CARGA RÁPIDA ---
+  const [showQuickLoad, setShowQuickLoad] = useState(false);
+  const [quickText, setQuickText] = useState("");
+  const [processing, setProcessing] = useState(false);
+  
+  // --- SWIPE ---
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
   const minSwipeDistance = 50; 
@@ -882,14 +887,11 @@ function CalendarView({ events, canEdit, user }) {
       if (distance > minSwipeDistance) changeMonth(1);
       if (distance < -minSwipeDistance) changeMonth(-1);
   };
-  // ---------------------------------
   
   const changeMonth = (offset) => { const d = new Date(currentDate); d.setMonth(d.getMonth() + offset); setCurrentDate(new Date(d)); };
   
   const handleDayClick = (dateStr) => {
       const eventsOnDay = events.filter(e => e.date === dateStr);
-      // Permitimos abrir el día aunque no tenga eventos si se quiere agregar uno (opcional)
-      // Si prefieres solo ver eventos existentes, mantén el if(length > 0)
       if (eventsOnDay.length > 0 || canEdit) setSelectedDayEvents({ date: dateStr, events: eventsOnDay });
   };
 
@@ -897,9 +899,9 @@ function CalendarView({ events, canEdit, user }) {
       if(confirm("¿Eliminar este evento?")) {
           await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', id));
           if(selectedDayEvents) {
-             const updated = selectedDayEvents.events.filter(e => e.id !== id);
-             if (updated.length === 0 && !canEdit) setSelectedDayEvents(null);
-             else setSelectedDayEvents({ ...selectedDayEvents, events: updated });
+              const updated = selectedDayEvents.events.filter(e => e.id !== id);
+              if (updated.length === 0 && !canEdit) setSelectedDayEvents(null);
+              else setSelectedDayEvents({ ...selectedDayEvents, events: updated });
           }
       }
   };
@@ -915,6 +917,48 @@ function CalendarView({ events, canEdit, user }) {
       }
       setShowModal(false); setEditingEvent(null);
   };
+
+  // --- LÓGICA DE CARGA RÁPIDA (MAGIC PARSER) ---
+  const handleQuickSave = async () => {
+      if (!quickText.trim()) return;
+      setProcessing(true);
+      try {
+          const lines = quickText.split('\n').filter(line => line.trim() !== '');
+          const promises = lines.map(line => {
+              // Intenta separar la fecha del texto. Ej: "10/02/2026 Reunión"
+              // Regex busca: (Dia)/(Mes)/(Año) (Resto del texto)
+              const match = line.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})\s+(.+)$/);
+              
+              if (match) {
+                  let [_, day, month, year, title] = match;
+                  // Normalizar año a 4 dígitos si pusieron 26
+                  if (year.length === 2) year = "20" + year;
+                  // Formato ISO YYYY-MM-DD para la base de datos
+                  const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                  
+                  return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), {
+                      title: title.trim(),
+                      date: isoDate,
+                      type: 'GENERAL', // Tipo por defecto
+                      description: 'Carga rápida',
+                      author: user.firstName,
+                      createdAt: serverTimestamp()
+                  });
+              }
+              return null; // Si la línea no tiene formato fecha, la ignora
+          });
+
+          const results = await Promise.all(promises);
+          const added = results.filter(r => r !== null).length;
+          alert(`✅ Se agregaron ${added} eventos al calendario.`);
+          setShowQuickLoad(false);
+          setQuickText("");
+      } catch (e) {
+          alert("Error al procesar: " + e.message);
+      } finally {
+          setProcessing(false);
+      }
+  };
   
   const openNew = () => { setEditingEvent(null); setShowModal(true); };
   const openEdit = (ev) => { setEditingEvent(ev); setShowModal(true); };
@@ -923,10 +967,8 @@ function CalendarView({ events, canEdit, user }) {
     const year = currentDate.getFullYear(); const month = currentDate.getMonth();
     const days = []; const firstDay = new Date(year, month, 1).getDay();
     
-    // Celdas vacías del mes anterior
     for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} className="bg-gray-50/30 border-b border-r border-gray-100"></div>);
     
-    // Días del mes
     for (let d = 1; d <= new Date(year, month + 1, 0).getDate(); d++) {
       const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const dayEvents = events.filter(e => e.date === dateStr);
@@ -951,7 +993,8 @@ function CalendarView({ events, canEdit, user }) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden animate-in fade-in select-none">
+    <div className="flex flex-col h-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden animate-in fade-in select-none relative">
+      
       {/* HEADER */}
       <div className="flex justify-between items-center p-3 bg-white border-b border-gray-100 shrink-0">
         <div className="flex gap-2 items-center">
@@ -963,24 +1006,59 @@ function CalendarView({ events, canEdit, user }) {
                 <button onClick={() => setCurrentDate(new Date())} className="px-3 text-xs font-bold text-gray-600 hover:bg-white hover:shadow-sm rounded-md transition">HOY</button>
                 <button onClick={() => changeMonth(1)} className="p-2 text-gray-600 hover:bg-white hover:shadow-sm rounded-md transition"><ChevronRight size={16}/></button>
              </div>
-             {canEdit && <button onClick={openNew} className="bg-orange-500 text-white p-2 rounded-lg shadow hover:bg-orange-600 transition"><Plus size={20}/></button>}
+             
+             {/* BOTONES DE EDICIÓN */}
+             {canEdit && (
+                 <div className="flex gap-1">
+                     {/* Botón Carga Rápida (Rayo) */}
+                     <button onClick={() => setShowQuickLoad(!showQuickLoad)} className={`p-2 rounded-lg shadow transition ${showQuickLoad ? 'bg-yellow-400 text-white' : 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200'}`} title="Carga Rápida de Fechas">
+                         <span className="font-bold text-lg leading-none">⚡</span>
+                     </button>
+                     {/* Botón Nuevo Evento (Manual) */}
+                     <button onClick={openNew} className="bg-orange-500 text-white p-2 rounded-lg shadow hover:bg-orange-600 transition"><Plus size={20}/></button>
+                 </div>
+             )}
         </div>
       </div>
+      
+      {/* PANEL DE CARGA RÁPIDA (Se despliega si showQuickLoad es true) */}
+      {showQuickLoad && (
+          <div className="bg-yellow-50 p-4 border-b border-yellow-200 animate-in slide-in-from-top-5">
+              <div className="flex justify-between items-center mb-2">
+                  <h3 className="font-bold text-yellow-800 text-xs uppercase flex items-center gap-2">⚡ Carga Masiva de Fechas</h3>
+                  <button onClick={() => setShowQuickLoad(false)}><X size={16} className="text-yellow-600"/></button>
+              </div>
+              <p className="text-[10px] text-yellow-700 mb-2">Pega tu lista así: <b>10/02/2026 Inicio de Clases</b> (una por renglón)</p>
+              <textarea 
+                  value={quickText} 
+                  onChange={(e) => setQuickText(e.target.value)} 
+                  className="w-full h-32 p-3 rounded-xl border border-yellow-300 text-xs font-medium focus:ring-2 focus:ring-yellow-400 outline-none bg-white"
+                  placeholder="10/02/2026 Reunión Docente&#10;15/02/2026 Entrega de Informes..."
+              />
+              <button 
+                  onClick={handleQuickSave} 
+                  disabled={processing}
+                  className="mt-2 w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 rounded-xl text-xs uppercase shadow transition flex justify-center gap-2"
+              >
+                  {processing ? <RefreshCw className="animate-spin" size={14}/> : 'Procesar y Guardar'}
+              </button>
+          </div>
+      )}
       
       {/* DÍAS SEMANA (HEADER FIJO) */}
       <div className="grid grid-cols-7 bg-gray-50 border-b border-gray-200 shrink-0">
          {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d => <div key={d} className="py-2 text-center text-[9px] font-black text-violet-400 uppercase tracking-widest">{d}</div>)}
       </div>
 
-      {/* GRILLA CALENDARIO (EXPANDIBLE) */}
+      {/* GRILLA CALENDARIO */}
       <div 
         onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
-        className="flex-1 grid grid-cols-7 auto-rows-fr overflow-y-auto" // auto-rows-fr hace que las celdas se estiren
+        className="flex-1 grid grid-cols-7 auto-rows-fr overflow-y-auto"
       >
         {renderGrid()}
       </div>
       
-      {/* MODAL NUEVO/EDITAR */}
+      {/* MODAL NUEVO/EDITAR (MANUAL) */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
           <form onSubmit={handleSaveEvent} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-orange-500">
@@ -2335,6 +2413,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
