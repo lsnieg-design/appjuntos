@@ -1340,7 +1340,7 @@ function ProyectoView({ user }) {
     </div>
   );
 }
-// --- VISTA MATRÍCULA (DETECTIVE 2.0: BUSCA POR PALABRAS CLAVE) ---
+// --- VISTA MATRÍCULA (CORREGIDA: ETIQUETAS EN SU LUGAR CORRECTO) ---
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
@@ -1466,7 +1466,6 @@ function MatriculaView({ user }) {
       const checkedIds = new Set();
       
       const normalize = (str) => (str || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
-      // Divide en palabras clave (ej: "Noha", "Valentin", "Miranda")
       const getKeywords = (s) => (s.firstName + " " + s.lastName).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/\s+/).filter(w => w.length > 2);
 
       const levenshtein = (a, b) => { const matrix = []; for(let i=0; i<=b.length; i++) matrix[i] = [i]; for(let j=0; j<=a.length; j++) matrix[0][j] = j; for(let i=1; i<=b.length; i++){ for(let j=1; j<=a.length; j++){ if(b.charAt(i-1) == a.charAt(j-1)){ matrix[i][j] = matrix[i-1][j-1]; } else { matrix[i][j] = Math.min(matrix[i-1][j-1] + 1, Math.min(matrix[i][j-1] + 1, matrix[i-1][j] + 1)); } } } return matrix[b.length][a.length]; }; 
@@ -1480,21 +1479,13 @@ function MatriculaView({ user }) {
               const name1 = normalize(s1.lastName + s1.firstName);
               const name2 = normalize(s2.lastName + s2.firstName);
               
-              // 1. Coincidencia exacta
               if (name1 === name2) { found.push({ original: s1, duplicate: s2, type: 'exacto' }); checkedIds.add(s2.id); continue; }
-              
-              // 2. Coincidencia DNI
               if (s1.dni && s2.dni && s1.dni === s2.dni) { found.push({ original: s1, duplicate: s2, type: 'dni' }); checkedIds.add(s2.id); continue; }
-              
-              // 3. Coincidencia Parcial (Levenshtein) - Typos simples
               if (levenshtein(name1, name2) <= 3) { found.push({ original: s1, duplicate: s2, type: 'similar' }); checkedIds.add(s2.id); continue; }
 
-              // 4. NUEVO: COINCIDENCIA POR PALABRAS (Detecta "Noha Valentin" vs "Valentin")
               const keys1 = getKeywords(s1);
               const keys2 = getKeywords(s2);
-              // Contamos cuantas palabras coinciden
               const matches = keys1.filter(k => keys2.includes(k));
-              // Si coinciden al menos 2 palabras (ej: Nombre + Apellido) y es la mayoría de las palabras de alguno de los dos
               if (matches.length >= 2 && (matches.length === keys1.length || matches.length === keys2.length)) {
                   found.push({ original: s1, duplicate: s2, type: 'palabras' });
                   checkedIds.add(s2.id);
@@ -1574,33 +1565,42 @@ function MatriculaView({ user }) {
          )}
       </div>
       
-      {/* --- COPIA Y PEGA ESTO DENTRO DE LA TARJETA DEL ALUMNO (MatriculaView) --- */}
-<div className="flex flex-wrap gap-2 mt-1">
-    {/* ETIQUETA EDAD */}
-    <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200 font-bold">
-        {age} años
-    </span>
-
-    {/* ETIQUETA GRUPO (Doble turno o simple) */}
-    {(s.groupMorning || s.groupAfternoon) ? (
-        <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold">
-             {[s.groupMorning, s.groupAfternoon].filter(Boolean).join(' / ')}
-        </span>
-    ) : (
-        <span className="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded border border-red-100 font-bold">
-            Sin grupo
-        </span>
-    )}
-
-   {/* 3. ETIQUETA AULA (CON ARREGLO ANTIBLOQUEO) */}
-    {s.classroom && (
-        <span className="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded border border-yellow-200 font-bold flex items-center gap-1 shadow-sm">
-            {/* Usamos el código directo del ícono para que no de error de referencia */}
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-            Aula {s.classroom}
-        </span>
-    )}
-</div>
+      {/* LISTA DE ALUMNOS (ARREGLADO: ETIQUETAS DENTRO DEL LOOP) */}
+      <div className="space-y-3">{filteredStudents.map(s => { 
+          const alert = getAlertStatus(s.incidents); 
+          const age = calculateAge(s.birthDate); 
+          return ( 
+            <div key={s.id} onClick={()=>{setViewingStudent(s); setActiveModalTab('info');}} className={`bg-white p-4 rounded-2xl shadow-sm border flex justify-between items-center cursor-pointer active:scale-[0.99] transition ${!s.isActive?'border-red-400 opacity-60':alert.status==='danger'?'border-red-500 border-l-4':'border-gray-100'}`}>
+                <div className="flex gap-4 items-center">
+                    <div className="w-12 h-12 bg-gray-200 rounded-xl overflow-hidden relative">
+                        {s.photoUrl?<img src={s.photoUrl} className="w-full h-full object-cover"/>:<div className="w-full h-full flex items-center justify-center font-bold text-gray-400">{s.firstName[0]}</div>}
+                        {alert.status!=='ok' && <div className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border border-white"></div>}
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-gray-800 flex items-center gap-2">{s.lastName}, {s.firstName} {s.dx && <span className="bg-purple-100 text-purple-700 text-[9px] px-1.5 py-0.5 rounded border border-purple-200">{s.dx}</span>}</h4>
+                        
+                        {/* --- AQUÍ ESTÁN LAS ETIQUETAS CORREGIDAS --- */}
+                        <div className="flex flex-wrap gap-2 mt-1">
+                            <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200 font-bold">{age} años</span>
+                            {(s.groupMorning || s.groupAfternoon) ? (
+                                <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold">{[s.groupMorning, s.groupAfternoon].filter(Boolean).join(' / ')}</span>
+                            ) : (
+                                <span className="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded border border-red-100 font-bold">Sin grupo</span>
+                            )}
+                            {s.classroom && (
+                                <span className="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded border border-yellow-200 font-bold flex items-center gap-1 shadow-sm">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                    Aula {s.classroom}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                <Eye className="text-gray-300"/>
+            </div> 
+          ); 
+      })}</div>
+      
       {/* MODAL VER ALUMNO */}
       {viewingStudent && !showForm && (<div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm"><div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"><div className="bg-slate-700 p-6 text-white"><div className="flex justify-between items-start"><div className="flex gap-4"><div className="w-16 h-16 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden">{viewingStudent.photoUrl ? <img src={viewingStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={30} className="m-auto mt-4 text-white/50"/>}</div><div><h2 className="text-xl font-bold uppercase">{viewingStudent.lastName}, {viewingStudent.firstName}</h2><div className="flex gap-2 mt-1"><span className="bg-white/20 px-2 py-0.5 rounded text-xs">{calculateAge(viewingStudent.birthDate)} años</span><span className="bg-white/20 px-2 py-0.5 rounded text-xs">{viewingStudent.dni}</span></div></div></div><button onClick={()=>setViewingStudent(null)} className="bg-white/20 p-1 rounded-full hover:bg-white/40"><X/></button></div><div className="flex gap-2 mt-6 bg-slate-800/50 p-1 rounded-xl"><button onClick={()=>setActiveModalTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeModalTab==='info'?'bg-white text-slate-800 shadow-md':'text-white/50 hover:text-white'}`}>Datos Personales</button><button onClick={()=>setActiveModalTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeModalTab==='history'?'bg-white text-slate-800 shadow-md':'text-white/50 hover:text-white'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto bg-gray-50">{activeModalTab==='info' ? (
       <div className="space-y-4 text-sm">
@@ -1622,7 +1622,6 @@ function MatriculaView({ user }) {
     </div>
   );
 }
-
 // --- APP PRINCIPAL (FIX NOTIFICACIONES + SCROLL GLOBAL) ---
 function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -2173,6 +2172,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
