@@ -1575,17 +1575,16 @@ function MatriculaView({ user }) {
       </div>
       
       {/* LISTA DE ALUMNOS */}
-      {/* --- BLOQUE DE ETIQUETAS EN LA TARJETA DEL ALUMNO --- */}
+      {/* --- BLOQUE CORREGIDO PARA LA TARJETA DEL ALUMNO --- */}
 <div className="flex flex-wrap gap-2 mt-1">
-    {/* 1. ETIQUETA EDAD */}
+    {/* ETIQUETA EDAD */}
     <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200 font-bold">
         {age} años
     </span>
 
-    {/* 2. ETIQUETA GRUPO (Muestra Mañana o Tarde según tenga) */}
+    {/* ETIQUETA GRUPO */}
     {(s.groupMorning || s.groupAfternoon) ? (
         <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold">
-             {/* Si tiene los dos, los muestra separados por barra, si no, muestra el que tenga */}
              {[s.groupMorning, s.groupAfternoon].filter(Boolean).join(' / ')}
         </span>
     ) : (
@@ -1594,11 +1593,12 @@ function MatriculaView({ user }) {
         </span>
     )}
 
-    {/* 3. NUEVA ETIQUETA: AULA FÍSICA */}
+    {/* ETIQUETA AULA (CON ÍCONO SEGURO) */}
     {s.classroom && (
         <span className="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded border border-yellow-200 font-bold flex items-center gap-1 shadow-sm">
-            {/* Usamos el iconito de casa/aula que ya tenés definido abajo de todo */}
-            <StartIcon size={10} /> Aula {s.classroom}
+            {/* Ícono SVG directo para evitar errores */}
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            Aula {s.classroom}
         </span>
     )}
 </div>
@@ -1825,11 +1825,28 @@ function GroupsView({ user }) {
     const sortedStudents = [...g.students].sort((a,b) => a.lastName.localeCompare(b.lastName));
 
     let content = `<!DOCTYPE html><html><head><title>Lista ${g.name}</title><style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');*{ -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }body{font-family:'Roboto',sans-serif;padding:40px;color:#333;}.header{border-bottom:4px solid #7c3aed;padding-bottom:20px;margin-bottom:30px;display:flex;justify-content:space-between;align-items:center;}.title{font-size:28px;font-weight:900;color:#4c1d95;text-transform:uppercase;margin:0;line-height:1;}.subtitle{font-size:14px;font-weight:bold;color:#666;margin-top:5px;text-transform:uppercase;letter-spacing:1px;}.info-card{background-color:#f3f4f6;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:25px;display:flex;justify-content:space-between;font-size:12px;}.info-col strong{color:#7c3aed;text-transform:uppercase;font-size:10px;display:block;margin-bottom:2px;}.info-col p{margin:0 0 10px 0;font-weight:bold;font-size:14px;}table{width:100%;border-collapse:collapse;font-size:12px;}thead tr{background-color:#7c3aed!important;color:white!important;}th{padding:12px 8px;text-align:left;text-transform:uppercase;font-size:10px;letter-spacing:0.5px;}td{border-bottom:1px solid #e5e7eb;padding:10px 8px;}tr:nth-child(even){background-color:#f9fafb!important;}.footer{margin-top:40px;text-align:right;font-size:10px;color:#9ca3af;border-top:1px dashed #e5e7eb;padding-top:10px;}.badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:bold;background:#eee;}</style></head><body><div class="header"><div><h1 class="title">Grupo: ${g.name}</h1><p class="subtitle">Turno ${turnoTexto} • Ciclo 2026</p></div><img src="${LOGO_URL}" style="height:50px;opacity:0.8;"/></div><div class="info-card"><div class="info-col"><strong>Docente a Cargo</strong><p>${g.teacher||'Sin asignar'}</p><strong>Auxiliar / Preceptor</strong><p>${g.aux||'Sin asignar'}</p></div><div class="info-col" style="text-align:right;"><strong>Aula Física</strong><p>${g.classroom||'-'}</p><strong>Nivel</strong><p>${g.level||'-'}</p></div></div><table><thead><tr><th style="width:40px;">#</th><th>Apellido y Nombre</th><th>DNI</th><th>Fecha Nac.</th><th>Edad</th></tr></thead><tbody>`;
-    sortedStudents.forEach((s, index) => {
+   sortedStudents.forEach((s, index) => {
         const birth = s.birthDate ? new Date(s.birthDate + 'T00:00').toLocaleDateString('es-AR') : '-';
-        const today = new Date(); const dob = new Date(s.birthDate + 'T00:00'); let age = '-';
-        if(s.birthDate) { age = today.getFullYear() - dob.getFullYear(); const m = today.getMonth() - dob.getMonth(); if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--; }
-        content += `<tr><td style="color:#7c3aed;font-weight:bold;">${index + 1}</td><td><span style="font-weight:900;text-transform:uppercase;">${s.lastName}</span>, ${s.firstName} ${s.dx ? `<span class="badge" style="margin-left:5px;">${s.dx}</span>` : ''}</td><td>${s.dni||'-'}</td><td>${birth}</td><td><strong>${age}</strong></td></tr>`;
+        const today = new Date();
+        const dob = new Date(s.birthDate + 'T00:00');
+        let age = '-';
+        if(s.birthDate) {
+            age = today.getFullYear() - dob.getFullYear();
+            const m = today.getMonth() - dob.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+        }
+
+        content += `
+              <tr>
+                <td style="color: #7c3aed; font-weight: bold;">${index + 1}</td>
+                <td>
+                    <span style="font-weight: 900; text-transform: uppercase;">${s.lastName}</span>, ${s.firstName}
+                </td>
+                <td>${s.dni || '-'}</td>
+                <td>${birth}</td>
+                <td><strong>${age}</strong></td>
+              </tr>
+        `;
     });
     content += `</tbody></table><div class="footer">Reporte generado automáticamente el ${fecha} • Juntos a la Par</div></body></html>`;
     printWindow.document.write(content); printWindow.document.close(); setTimeout(() => { printWindow.focus(); printWindow.print(); }, 500);
@@ -1859,12 +1876,120 @@ function GroupsView({ user }) {
   const handleSaveIncident = async (type, severity) => { if (!showBitacoraModal) return; setSavingIncident(true); try { const incidentData = { type, severity, date: new Date().toISOString(), author: user.fullName || user.firstName, authorId: user.id }; const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id); await updateDoc(studentRef, { incidents: arrayUnion(incidentData), lastIncident: incidentData.date, lastIncidentType: type }); alert("✅ Registro guardado"); setShowBitacoraModal(null); } catch (e) { console.error(e); } finally { setSavingIncident(false); } };
   const calculateAge = (dateString) => { if (!dateString) return '-'; const today = new Date(); const birthDate = new Date(dateString); let age = today.getFullYear() - birthDate.getFullYear(); const m = today.getMonth() - birthDate.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--; return age; };
 
+  // --- REEMPLAZAR FUNCIÓN handlePrintAll ---
   const handlePrintAll = () => {
-    const printWindow = window.open('', '_blank'); if (!printWindow) return alert("Permitir ventanas emergentes");
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return alert("Permitir ventanas emergentes");
+    
     const turnoTexto = turn === 'morning' ? 'MAÑANA' : 'TARDE';
-    let content = `<html><head><title>Listas Completas</title><style>body{font-family:sans-serif;padding:20px}.header{text-align:center;margin-bottom:20px}h1{margin:0}</style></head><body><div class="header"><h1>Listas Turno ${turnoTexto}</h1></div>`;
-    groups.forEach(g => { content += `<h3>${g.name}</h3><ul>${g.students.map(s=>`<li>${s.lastName}, ${s.firstName}</li>`).join('')}</ul><hr>`; });
-    content += `</body></html>`; printWindow.document.write(content); printWindow.document.close(); setTimeout(() => printWindow.print(), 1000);
+    const fecha = new Date().toLocaleDateString('es-AR');
+
+    let content = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Listado Completo - Turno ${turnoTexto}</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
+          body { font-family: 'Roboto', sans-serif; padding: 20px; color: #333; background: white; }
+          
+          /* ESTILOS DE LA TARJETA (Iguales a la individual) */
+          .page-container {
+             page-break-after: always; /* ESTO SEPARA CADA GRUPO EN UNA HOJA */
+             margin-bottom: 50px;
+             display: block;
+          }
+          .page-container:last-child { page-break-after: auto; }
+
+          .header { border-bottom: 4px solid #7c3aed; padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+          .title { font-size: 24px; font-weight: 900; color: #4c1d95; text-transform: uppercase; margin: 0; }
+          .subtitle { font-size: 12px; font-weight: bold; color: #666; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; }
+          
+          .info-card { background-color: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 12px; padding: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; font-size: 11px; }
+          .info-col strong { color: #7c3aed; text-transform: uppercase; font-size: 9px; display: block; margin-bottom: 2px; }
+          .info-col p { margin: 0 0 5px 0; font-weight: bold; font-size: 12px; }
+
+          table { width: 100%; border-collapse: collapse; font-size: 11px; }
+          thead tr { background-color: #7c3aed !important; color: white !important; }
+          th { padding: 8px; text-align: left; text-transform: uppercase; font-size: 9px; }
+          td { border-bottom: 1px solid #e5e7eb; padding: 8px; }
+          tr:nth-child(even) { background-color: #f9fafb !important; }
+          
+          .footer { text-align: right; font-size: 9px; color: #9ca3af; border-top: 1px dashed #e5e7eb; padding-top: 5px; margin-top: 20px; }
+        </style>
+      </head>
+      <body>
+    `;
+
+    // RECORREMOS CADA GRUPO
+    groups.forEach(g => {
+        // Ordenamos alumnos
+        const sortedStudents = [...g.students].sort((a,b) => a.lastName.localeCompare(b.lastName));
+
+        content += `
+        <div class="page-container">
+          <div class="header">
+            <div>
+              <h1 class="title">${g.name}</h1>
+              <p class="subtitle">Turno ${turnoTexto} • Ciclo 2026</p>
+            </div>
+            <img src="${LOGO_URL}" style="height: 40px; opacity: 0.8;" />
+          </div>
+
+          <div class="info-card">
+            <div class="info-col">
+              <strong>Docente</strong> <p>${g.teacher || 'Sin asignar'}</p>
+              <strong>Auxiliar</strong> <p>${g.aux || 'Sin asignar'}</p>
+            </div>
+            <div class="info-col" style="text-align: right;">
+              <strong>Aula</strong> <p>${g.classroom || '-'}</p>
+              <strong>Cant. Alumnos</strong> <p>${g.students.length}</p>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 30px;">#</th>
+                <th>Apellido y Nombre</th>
+                <th>DNI</th>
+                <th>Fecha Nac.</th>
+                <th>Edad</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+
+        sortedStudents.forEach((s, index) => {
+            const birth = s.birthDate ? new Date(s.birthDate + 'T00:00').toLocaleDateString('es-AR') : '-';
+            const today = new Date(); const dob = new Date(s.birthDate + 'T00:00'); let age = '-';
+            if(s.birthDate) { age = today.getFullYear() - dob.getFullYear(); const m = today.getMonth() - dob.getMonth(); if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--; }
+            
+            content += `
+              <tr>
+                <td style="color: #7c3aed; font-weight: bold;">${index + 1}</td>
+                <td><span style="font-weight: 900; text-transform: uppercase;">${s.lastName}</span>, ${s.firstName}</td>
+                <td>${s.dni || '-'}</td>
+                <td>${birth}</td>
+                <td><strong>${age}</strong></td>
+              </tr>
+            `;
+        });
+
+        content += `
+            </tbody>
+          </table>
+          <div class="footer">Juntos a la Par • Generado el ${fecha}</div>
+        </div> 
+        `; // Fin del page-container
+    });
+
+    content += `</body></html>`;
+    
+    printWindow.document.write(content); 
+    printWindow.document.close(); 
+    setTimeout(() => { printWindow.focus(); printWindow.print(); }, 1000);
   };
 
   return (
@@ -2049,6 +2174,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
