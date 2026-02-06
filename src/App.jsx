@@ -485,7 +485,7 @@ function ResourcesView({ resources, canEdit }) {
 }
 
 
-// --- VISTA TAREAS (SEMÁFORO DE PRIORIDADES + LEYENDA + BUSCADOR) ---
+// --- VISTA TAREAS (LIBERADA: TODOS PUEDEN AGREGAR) ---
 function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
@@ -505,6 +505,8 @@ function TasksView({ tasks, user, canEdit }) {
   const [filter, setFilter] = useState('pending');
 
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor'];
+  
+  // "canManage" sigue sirviendo para ver TODO, pero ya no restringe el crear
   const canManage = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
 
   useEffect(() => {
@@ -601,16 +603,24 @@ function TasksView({ tasks, user, canEdit }) {
   const filteredTasks = tasks.filter(t => {
       if (filter === 'pending' && t.status === 'completed') return false;
       if (filter === 'completed' && t.status !== 'completed') return false;
+      
+      // Si soy admin/directivo veo todo
       if (canManage) return true; 
+      
+      // Si yo la creé, la veo
       if (t.createdById === user.id) return true; 
+      
+      // Si es para mí (usuario específico), la veo
       if (t.targetType === 'user') return t.targetUserId === user.id; 
+      
+      // Si es para mi rol, la veo
       if (t.targetType === 'roles') return t.targetRoles && user.role && t.targetRoles.some(r => r.toLowerCase() === user.role.toLowerCase()); 
+      
       return false;
   });
 
   const searchResults = userSearch.length > 0 ? usersList.filter(u => u.fullName.toLowerCase().includes(userSearch.toLowerCase())) : [];
 
-  // --- FUNCIÓN DEL SEMÁFORO ---
   const getPriorityStyle = (p) => { 
       if (p === 'alta') return 'border-l-4 border-l-red-500 bg-red-50/50'; 
       if (p === 'media') return 'border-l-4 border-l-orange-400 bg-orange-50/50'; 
@@ -626,11 +636,11 @@ function TasksView({ tasks, user, canEdit }) {
                 <button onClick={()=>setFilter('pending')} className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='pending'?'bg-white shadow text-slate-800':'text-gray-400'}`}>Activas</button>
                 <button onClick={()=>setFilter('completed')} className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='completed'?'bg-white shadow text-green-600':'text-gray-400'}`}>Listas</button>
              </div>
-             {canManage && <button onClick={openNew} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg hover:scale-110 transition-all"><Plus size={20}/></button>}
+             {/* CAMBIO AQUÍ: Botón '+' disponible para TODOS */}
+             <button onClick={openNew} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg hover:scale-110 transition-all"><Plus size={20}/></button>
           </div>
       </div>
 
-      {/* --- LEYENDA DEL SEMÁFORO (Aquí está la explicación) --- */}
       {filter === 'pending' && (
           <div className="flex justify-center gap-4 py-2 opacity-80">
               <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-red-500 shadow-sm"></div><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Urgente</span></div>
@@ -650,7 +660,11 @@ function TasksView({ tasks, user, canEdit }) {
                     </div>
                     <div className="flex flex-col items-end gap-2">
                         <div className="text-[9px] font-black bg-white px-2 py-1 rounded-full text-gray-400 border uppercase tracking-tighter italic shadow-inner">{t.dueDate}</div>
-                        <div className="flex gap-1">{canManage && <button onClick={() => openEdit(t)} className="text-blue-300 hover:text-blue-600 p-1 bg-white rounded-full shadow-sm"><Edit3 size={14}/></button>}{canManage && <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm"><Trash2 size={14}/></button>}</div>
+                        {/* CAMBIO AQUÍ: Edición/Borrado si eres Admin O si tú creaste la tarea */}
+                        <div className="flex gap-1">
+                            {(canManage || t.createdById === user.id) && <button onClick={() => openEdit(t)} className="text-blue-300 hover:text-blue-600 p-1 bg-white rounded-full shadow-sm"><Edit3 size={14}/></button>}
+                            {(canManage || t.createdById === user.id) && <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm"><Trash2 size={14}/></button>}
+                        </div>
                     </div>
                 </div>
                 {openCommentsId === t.id && ( <div className="bg-white/60 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in"><div className="max-h-32 overflow-y-auto space-y-2 mb-2">{(t.comments || []).map((c, idx) => ( <p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p> ))}</div><div className="flex gap-2"><input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Comentar..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" /><button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button></div></div> )}
@@ -679,17 +693,17 @@ function TasksView({ tasks, user, canEdit }) {
             
             {assignType === 'user' ? (
                 <div className="space-y-2">
-                   {selectedUserObj ? (
-                       <div className="flex items-center justify-between p-3 bg-violet-50 border border-violet-200 rounded-xl">
-                           <div className="flex items-center gap-2"><div className="w-8 h-8 bg-violet-600 text-white rounded-full flex items-center justify-center font-bold text-xs">{selectedUserObj.firstName[0]}</div><span className="text-xs font-bold text-violet-900">{selectedUserObj.fullName}</span></div>
-                           <button type="button" onClick={() => setSelectedUserObj(null)} className="text-red-400 p-1"><X size={16}/></button>
-                       </div>
-                   ) : (
-                       <div className="relative">
-                           <input placeholder="🔍 Escribí para buscar..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none focus:border-violet-500 rounded-t-xl" />
-                           {userSearch.length > 0 && (<div className="max-h-40 overflow-y-auto border-x border-b border-gray-200 rounded-b-xl bg-white shadow-xl absolute w-full z-50">{searchResults.length > 0 ? searchResults.map(u => (<div key={u.id} onClick={() => { setSelectedUserObj(u); setUserSearch(""); }} className="p-3 hover:bg-violet-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0"><div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">{u.firstName[0]}</div><p className="text-xs font-bold text-gray-700">{u.fullName}</p></div>)) : <p className="p-3 text-xs text-gray-400 italic text-center">No encontrado</p>}</div>)}
-                       </div>
-                   )}
+                    {selectedUserObj ? (
+                        <div className="flex items-center justify-between p-3 bg-violet-50 border border-violet-200 rounded-xl">
+                            <div className="flex items-center gap-2"><div className="w-8 h-8 bg-violet-600 text-white rounded-full flex items-center justify-center font-bold text-xs">{selectedUserObj.firstName[0]}</div><span className="text-xs font-bold text-violet-900">{selectedUserObj.fullName}</span></div>
+                            <button type="button" onClick={() => setSelectedUserObj(null)} className="text-red-400 p-1"><X size={16}/></button>
+                        </div>
+                    ) : (
+                        <div className="relative">
+                            <input placeholder="🔍 Escribí para buscar..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none focus:border-violet-500 rounded-t-xl" />
+                            {userSearch.length > 0 && (<div className="max-h-40 overflow-y-auto border-x border-b border-gray-200 rounded-b-xl bg-white shadow-xl absolute w-full z-50">{searchResults.length > 0 ? searchResults.map(u => (<div key={u.id} onClick={() => { setSelectedUserObj(u); setUserSearch(""); }} className="p-3 hover:bg-violet-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0"><div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">{u.firstName[0]}</div><p className="text-xs font-bold text-gray-700">{u.fullName}</p></div>)) : <p className="p-3 text-xs text-gray-400 italic text-center">No encontrado</p>}</div>)}
+                        </div>
+                    )}
                 </div>
             ) : (
                 <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 max-h-32 overflow-y-auto">{ROLES_OPTIONS.map(role => ( <label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={selectedRoles.includes(role)} onChange={(e) => { if(e.target.checked) setSelectedRoles([...selectedRoles, role]); else setSelectedRoles(selectedRoles.filter(r => r !== role)); }} className="accent-violet-600"/> {role}</label> ))}</div>
@@ -2324,6 +2338,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
