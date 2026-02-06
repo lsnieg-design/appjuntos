@@ -1225,7 +1225,7 @@ function UsersAdminView() {
    </div>
   );
 }
-// --- VISTA PROYECTO INSTITUCIONAL (CON CARGA AUTOMÁTICA DESDE PDF) ---
+// --- VISTA PROYECTO INSTITUCIONAL (ACTUALIZADA: PDF, MES ACTUAL Y CONTENIDOS DETALLADOS) ---
 function ProyectoView({ user }) {
   const [periods, setPeriods] = useState([]);
   const [expandedPeriod, setExpandedPeriod] = useState(null);
@@ -1235,46 +1235,51 @@ function ProyectoView({ user }) {
 
   const isAdmin = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
   
-  // Nombres EXACTOS de las colecciones (Ids)
   const PERIOD_NAMES = ["MARZO", "ABRIL Y MAYO", "JUNIO Y JULIO", "AGOSTO Y SEPTIEMBRE", "OCTUBRE Y NOVIEMBRE", "DICIEMBRE"];
 
-  // --- DATOS DEL PROYECTO (EXTRAÍDOS DEL PDF) ---
+  // --- DATOS COMPLETOS EXTRAÍDOS DEL PDF ---
   const PROJECT_DATA_2026 = {
       "MARZO": {
           paises: "Estación 1: Los Preparativos",
           fundamentacion: "Inicio del viaje. Identidad, valija y pasaporte.",
-          contenidos: "• Prácticas del Lenguaje: Nombre propio, listas.\n• Cs. Sociales: Identidad, DNI.\n• Matemática: Calendario, Medida (alturas).",
-          actividades: "1. Confección de Pasaporte y foto carnet.\n2. Armado de Valija Real (clasificación).\n3. Juego sensorial: 'Valija Ciega' (texturas).\n4. Huella de Identidad (dactilar).\n5. Circuito de Aeropuerto."
+          contenidos: "📌 Prácticas del Lenguaje:\n- Escritura del nombre propio.\n- Lectura de listas (qué llevar).\n\n📌 Ciencias Sociales:\n- Identidad: DNI, historia personal.\n- Objetos personales y su función.\n\n📌 Matemática:\n- Calendario (uso social).\n- Medida (comparación de alturas).\n\n📌 ESI:\n- Cuidado del cuerpo e higiene.",
+          actividades: "1. Juego sensorial: 'Valija Ciega' (texturas).\n2. Huella de Identidad (dactilar).\n3. Circuito de Aeropuerto.\n4. Medición de alturas.\n5. Foto Carnet.",
+          herramientas: "🛠️ CAJA DE HERRAMIENTAS DOCENTE:\n- El Pasaporte: Confección del librillo.\n- Lista de Viaje: Escribir 5 cosas esenciales.\n- Calendario de Ruta: Marcar salida y llegada.\n- DNI Gigante: Analizar partes del documento."
       },
       "ABRIL_Y_MAYO": {
           paises: "Estación 2: América (Argentina, Brasil, México)",
           fundamentacion: "Tierra, raíces, maíz y selva.",
-          contenidos: "• Leyendas y Pueblos Originarios.\n• Cs. Naturales: Animales (plumas/pelo), Semillas.\n• Cocina y mezclas.",
-          actividades: "1. Cocina: Chipá y Ensalada de Frutas.\n2. Bandera rompecabezas.\n3. Taller de Aromas (Yerba, Café, Cacao).\n4. Máscaras de Carnaval (Brasil).\n5. Papel Picado y Pirámides (México)."
+          contenidos: "📌 Prácticas del Lenguaje:\n- Lectura de leyendas tradicionales.\n- Escritura de nombres de países.\n\n📌 Cs. Sociales:\n- Pueblos Originarios: Viviendas.\n- Paisajes naturales vs humanizados.\n\n📌 Cs. Naturales:\n- Animales: Coberturas (plumas, pelo).\n- Plantas: Semillas diversas.",
+          actividades: "1. Cocina: Chipá y Ensalada de Frutas.\n2. Taller de Aromas (Yerba, Café, Cacao).\n3. Máscaras de Carnaval (Brasil).\n4. Papel Picado y Pirámides (México).\n5. Construcción de nido de hornero.",
+          herramientas: "🛠️ CAJA DE HERRAMIENTAS DOCENTE:\n- Secuencia de Leyenda (Orden temporal).\n- Receta de Cocina (Lectura de pasos).\n- Clasificación: Plumas vs Pelo.\n- Bandera Rompecabezas (Argentina/Brasil)."
       },
       "JUNIO_Y_JULIO": {
           paises: "Estación 3: Europa & Mundial (Inglaterra, Italia, España)",
           fundamentacion: "Historia (castillos) y presente (fútbol/Mundial).",
-          contenidos: "• Pasado/Presente (Castillos vs Estadios).\n• Normas y Reglas de juego.\n• Conteo y Espacio.",
-          actividades: "1. Mini Mundial (penales y conteo de goles).\n2. Taller de Masas (Ñoquis/Fideos).\n3. Construcción de Torres (Big Ben/Pisa).\n4. Experiencia Térmica: Hielo (Londres) vs Té tibio.\n5. Arte: Mosaico estilo Gaudí."
+          contenidos: "📌 Cs. Sociales:\n- Pasado/Presente (Castillos vs Estadios).\n- Normas y Reglas de juego.\n\n📌 Matemática:\n- Conteo de colecciones (goles).\n- Espacio: Ubicación y trayectorias.",
+          actividades: "1. Mini Mundial (penales y conteo).\n2. Taller de Masas (Ñoquis/Fideos).\n3. Experiencia Térmica: Hielo vs Té.\n4. Arte: Mosaico estilo Gaudí.\n5. Diseño de camisetas.",
+          herramientas: "🛠️ CAJA DE HERRAMIENTAS DOCENTE:\n- Álbum de Figuritas (Correspondencia número).\n- Tabla de Goles (Registro de datos).\n- Lectura de Camisetas (Nombre y Número).\n- Reglamento del Aula (3 reglas de oro)."
       },
       "AGOSTO_Y_SEPTIEMBRE": {
           paises: "Estación 4: Asia (China, India, Japón)",
           fundamentacion: "Paciencia, detalle, luz y sombra.",
-          contenidos: "• Literatura: Haikus.\n• Geometría: Tangram y Plegado.\n• Escritura: Trazos no convencionales.",
-          actividades: "1. Arroz Sensorial (búsqueda de objetos).\n2. Escritura Vertical con pincel y tinta.\n3. Sombras Chinas con linternas.\n4. Origami simple (animales).\n5. Ceremonia de Té y relajación."
+          contenidos: "📌 Prácticas del Lenguaje:\n- Poesía: Haikus.\n- Escritura: Trazos no convencionales.\n\n📌 Matemática:\n- Geometría: Figuras geométricas.\n- Espacio: Plegado (Origami).",
+          actividades: "1. Arroz Sensorial (búsqueda).\n2. Sombras Chinas con linternas.\n3. Origami simple.\n4. Ceremonia de Té y relajación.\n5. Jardín Zen (arena).",
+          herramientas: "🛠️ CAJA DE HERRAMIENTAS DOCENTE:\n- Tangram: Armar figuras con formas.\n- Secuencia de Crecimiento (Semilla a Planta).\n- Escritura Vertical (Tiras de papel).\n- Haikus: Leer y dibujar."
       },
       "OCTUBRE_Y_NOVIEMBRE": {
           paises: "Estación 5: África y Oceanía (Egipto, Sudáfrica, Australia)",
           fundamentacion: "Fuerza de la naturaleza: desiertos, selvas y océanos.",
-          contenidos: "• Animales (desplazamiento).\n• Ambientes (Acuático/Aeroterrestre).\n• Cuerpos Geométricos (Pirámide/Esfera).",
-          actividades: "1. Arenero Egipcio (búsqueda de tesoros).\n2. Botellas del Océano (calma visual).\n3. Construcción de Pirámides con vasos.\n4. Juego de Momias (con papel higiénico).\n5. Arte: Puntillismo (Australia) y Máscaras Tribales."
+          contenidos: "📌 Cs. Naturales:\n- Animales: Desplazamiento.\n- Ambientes: Acuático / Aeroterrestre.\n\n📌 Matemática:\n- Cuerpos Geométricos: Pirámide, Esfera.",
+          actividades: "1. Arenero Egipcio (tesoros).\n2. Botellas del Océano (calma visual).\n3. Juego de Momias.\n4. Arte: Puntillismo (Australia).\n5. Máscaras Tribales.",
+          herramientas: "🛠️ CAJA DE HERRAMIENTAS DOCENTE:\n- Clasificación de Hábitat (Mural Tierra/Mar).\n- Adivinanzas de Animales.\n- Laberinto (Camino del canguro).\n- Conteo de Patas (Araña vs León)."
       },
       "DICIEMBRE": {
           paises: "Estación 6: El Regreso a Casa",
-          fundamentacion: "Cierre del ciclo y socialización de lo recorrido.",
-          contenidos: "• Evaluación y celebración.\n• Muestra a la comunidad.",
-          actividades: "1. Completado final del Pasaporte.\n2. 'Muestra del Viajero': El patio como mapa interactivo.\n3. Merienda compartida con familias (sabores del mundo).\n4. Exhibición de objetos creados."
+          fundamentacion: "Cierre del ciclo y socialización.",
+          contenidos: "📌 Evaluación y celebración.\n📌 Muestra a la comunidad.",
+          actividades: "1. Completado final del Pasaporte.\n2. 'Muestra del Viajero'.\n3. Merienda compartida con familias.\n4. Exhibición de objetos.",
+          herramientas: "🛠️ CAJA DE HERRAMIENTAS DOCENTE:\n- Finalización de registros.\n- Armado de muestra interactiva."
       }
   };
 
@@ -1292,6 +1297,19 @@ function ProyectoView({ user }) {
     return () => unsub();
   }, []);
 
+  // Lógica para detectar el mes actual y resaltar la tarjeta
+  const getCurrentPeriodId = () => {
+      const month = new Date().getMonth(); // 0 = Enero, 2 = Marzo
+      if (month === 2) return "MARZO";
+      if (month === 3 || month === 4) return "ABRIL_Y_MAYO";
+      if (month === 5 || month === 6) return "JUNIO_Y_JULIO";
+      if (month === 7 || month === 8) return "AGOSTO_Y_SEPTIEMBRE";
+      if (month === 9 || month === 10) return "OCTUBRE_Y_NOVIEMBRE";
+      if (month === 11) return "DICIEMBRE";
+      return null;
+  };
+  const currentId = getCurrentPeriodId();
+
   const handleSave = async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
@@ -1299,6 +1317,7 @@ function ProyectoView({ user }) {
           fundamentacion: fd.get('fundamentacion'),
           contenidos: fd.get('contenidos'),
           actividades: fd.get('actividades'),
+          herramientas: fd.get('herramientas'), // Nuevo campo
           paises: fd.get('paises'),
           updatedAt: serverTimestamp()
       };
@@ -1307,9 +1326,8 @@ function ProyectoView({ user }) {
       setEditing(false); setExpandedPeriod({...expandedPeriod, ...data});
   };
 
-  // --- FUNCIÓN CARGA MASIVA ---
   const handleLoadProjectData = async () => {
-      if(!confirm("⚠️ ¿Cargar la planificación completa de 'La Vuelta al Mundo'?\nEsto sobrescribirá los textos actuales.")) return;
+      if(!confirm("⚠️ ¿Cargar planificación completa desde PDF?")) return;
       setLoadingAction(true);
       try {
           const { setDoc, doc: docRef } = await import('firebase/firestore');
@@ -1319,68 +1337,52 @@ function ProyectoView({ user }) {
           await Promise.all(promises);
           alert("✅ ¡Proyecto cargado con éxito!");
           setShowAdminMenu(false);
-      } catch (e) {
-          alert("Error: " + e.message);
-      } finally {
-          setLoadingAction(false);
-      }
+      } catch (e) { alert("Error: " + e.message); } finally { setLoadingAction(false); }
   };
 
-  // --- FUNCIÓN REINICIAR (BORRAR TODO) ---
   const handleResetProject = async () => {
-      if(!confirm("⛔ PELIGRO: ¿Estás segura de que quieres BORRAR todo el contenido del proyecto?\nSe blanquearán todas las tarjetas.")) return;
-      if(!confirm("Confirma nuevamente: Se borrará la info de contenidos y actividades.")) return;
-      
+      if(!confirm("⛔ PELIGRO: ¿Borrar todo el contenido?")) return;
       setLoadingAction(true);
       try {
-          const { deleteDoc, doc: docRef } = await import('firebase/firestore');
-          // En lugar de borrar la colección, reseteamos los campos a vacío para mantener la estructura visual
-          const { setDoc } = await import('firebase/firestore');
+          const { setDoc, doc: docRef } = await import('firebase/firestore');
           const promises = PERIOD_NAMES.map(name => {
               const id = name.replace(/\s+/g, '_');
-              return setDoc(docRef(db, 'artifacts', appId, 'public', 'data', 'proyecto2026_periods', id), {
-                  paises: '', fundamentacion: '', contenidos: '', actividades: ''
-              });
+              return setDoc(docRef(db, 'artifacts', appId, 'public', 'data', 'proyecto2026_periods', id), { paises: '', fundamentacion: '', contenidos: '', actividades: '', herramientas: '' });
           });
           await Promise.all(promises);
           alert("🗑️ Proyecto reiniciado.");
           setShowAdminMenu(false);
-      } catch (e) {
-          alert("Error: " + e.message);
-      } finally {
-          setLoadingAction(false);
-      }
+      } catch (e) { alert("Error: " + e.message); } finally { setLoadingAction(false); }
   };
 
   return (
     <div className="space-y-6 pb-24 animate-in fade-in duration-700 relative">
       
-      {/* --- PORTADA --- */}
+      {/* --- PORTADA CON BOTÓN AL ARCHIVO --- */}
       <div className="relative w-full h-56 rounded-[35px] overflow-hidden shadow-2xl group border border-violet-100">
-          <img src="/PPI.png" alt="Portada Proyecto" className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" onError={(e) => { e.target.style.display = 'none'; }} />
+          <img src="/PPI.png" alt="Portada" className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" onError={(e) => { e.target.style.display = 'none'; }} />
           <div className="absolute inset-0 bg-gradient-to-t from-violet-900 via-violet-900/40 to-transparent flex flex-col justify-end p-8">
               <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter drop-shadow-md mb-1">Proyecto 2026</h2>
+              
+              {/* LINK AL ARCHIVO DRIVE */}
+              <a href="https://drive.google.com/file/d/1Cgb9QQ5XNy_RvmdIShPc2cZX317tcmga/view?usp=sharing" target="_blank" rel="noopener noreferrer" className="absolute top-4 left-4 bg-white/20 hover:bg-white/40 backdrop-blur-md px-3 py-2 rounded-xl text-white text-xs font-bold flex items-center gap-2 transition shadow-lg border border-white/30">
+                  <FileText size={16}/> Ver PDF Completo
+              </a>
+
               <div className="flex items-center gap-2">
                   <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-widest shadow-sm">Institucional</span>
                   <p className="text-orange-200 font-bold text-xs uppercase tracking-[3px] drop-shadow-sm">La Vuelta al Mundo</p>
               </div>
           </div>
           
-          {/* BOTÓN DE GESTIÓN (ADMIN) */}
+          {/* BOTÓN ADMIN */}
           {isAdmin && (
               <div className="absolute top-4 right-4">
-                  <button onClick={() => setShowAdminMenu(!showAdminMenu)} className="bg-white/20 hover:bg-white/40 backdrop-blur-md p-2 rounded-full text-white shadow-lg transition">
-                      <Settings size={20}/>
-                  </button>
+                  <button onClick={() => setShowAdminMenu(!showAdminMenu)} className="bg-white/20 hover:bg-white/40 backdrop-blur-md p-2 rounded-full text-white shadow-lg transition"><Settings size={20}/></button>
                   {showAdminMenu && (
                       <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden animate-in slide-in-from-top-5 z-50">
-                          <div className="p-3 border-b border-gray-100 bg-gray-50"><p className="text-xs font-black text-gray-400 uppercase tracking-widest">Gestión del Proyecto</p></div>
-                          <button onClick={handleLoadProjectData} disabled={loadingAction} className="w-full text-left px-4 py-3 text-xs font-bold text-violet-700 hover:bg-violet-50 flex items-center gap-2">
-                              {loadingAction ? <RefreshCw className="animate-spin" size={14}/> : <UploadCloud size={14}/>} Cargar Info 2026 (PDF)
-                          </button>
-                          <button onClick={handleResetProject} disabled={loadingAction} className="w-full text-left px-4 py-3 text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2">
-                              <Trash2 size={14}/> Reiniciar / Borrar Todo
-                          </button>
+                          <button onClick={handleLoadProjectData} disabled={loadingAction} className="w-full text-left px-4 py-3 text-xs font-bold text-violet-700 hover:bg-violet-50 flex items-center gap-2">{loadingAction ? <RefreshCw className="animate-spin" size={14}/> : <UploadCloud size={14}/>} Cargar Info 2026 (PDF)</button>
+                          <button onClick={handleResetProject} disabled={loadingAction} className="w-full text-left px-4 py-3 text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2"><Trash2 size={14}/> Reiniciar Todo</button>
                       </div>
                   )}
               </div>
@@ -1388,13 +1390,18 @@ function ProyectoView({ user }) {
       </div>
 
       <div className="space-y-3">
-          {periods.map(period => (
-              <div key={period.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          {periods.map(period => {
+              const isCurrent = period.id === currentId;
+              return (
+              <div key={period.id} className={`bg-white rounded-2xl shadow-sm border overflow-hidden transition-all duration-500 ${isCurrent ? 'border-orange-400 ring-2 ring-orange-100 shadow-orange-100 transform scale-[1.02]' : 'border-gray-100'}`}>
                   <div onClick={() => setExpandedPeriod(expandedPeriod?.id === period.id ? null : period)} className={`p-4 flex justify-between items-center cursor-pointer transition-colors ${expandedPeriod?.id === period.id ? 'bg-violet-50' : 'hover:bg-gray-50'}`}>
                       <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-[10px] ${expandedPeriod?.id === period.id ? 'bg-violet-600 text-white' : 'bg-gray-100 text-gray-500'}`}>{period.name.substring(0,3)}</div>
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-[10px] ${expandedPeriod?.id === period.id ? 'bg-violet-600 text-white' : isCurrent ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-500'}`}>{period.name.substring(0,3)}</div>
                           <div>
-                              <h3 className="font-bold text-gray-800 text-xs uppercase">{period.name}</h3>
+                              <div className="flex items-center gap-2">
+                                  <h3 className={`font-bold text-xs uppercase ${isCurrent ? 'text-orange-600' : 'text-gray-800'}`}>{period.name}</h3>
+                                  {isCurrent && <span className="bg-orange-100 text-orange-700 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">📍 Estación Actual</span>}
+                              </div>
                               <p className="text-[10px] text-gray-400 truncate max-w-[200px]">{period.paises || 'Sin contenido cargado'}</p>
                           </div>
                       </div>
@@ -1407,14 +1414,22 @@ function ProyectoView({ user }) {
                               <div className="space-y-4">
                                   <div><h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Eje Temático</h4><p className="text-sm font-bold text-violet-700">{period.paises || '-'}</p></div>
                                   <div><h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Fundamentación</h4><p className="text-xs text-gray-600 italic">{period.fundamentacion || '-'}</p></div>
+                                  
+                                  {/* SECCIÓN DE CONTENIDOS DIVIDIDA */}
+                                  <div className="bg-white p-4 rounded-xl border border-gray-200">
+                                      <h4 className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-2 flex items-center gap-1"><BookOpen size={10}/> Contenidos Curriculares</h4>
+                                      <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed font-medium">{period.contenidos || '-'}</p>
+                                  </div>
+
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                      <div className="bg-white p-3 rounded-xl border border-gray-200">
-                                          <h4 className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-2 flex items-center gap-1"><BookOpen size={10}/> Contenidos</h4>
-                                          <p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed">{period.contenidos || '-'}</p>
-                                      </div>
                                       <div className="bg-white p-3 rounded-xl border border-gray-200">
                                           <h4 className="text-[9px] font-black text-orange-500 uppercase tracking-widest mb-2 flex items-center gap-1"><Lightbulb size={10}/> Actividades</h4>
                                           <p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed">{period.actividades || '-'}</p>
+                                      </div>
+                                      {/* NUEVA CAJA: HERRAMIENTAS DOCENTES */}
+                                      <div className="bg-orange-50 p-3 rounded-xl border border-orange-100">
+                                          <h4 className="text-[9px] font-black text-orange-700 uppercase tracking-widest mb-2 flex items-center gap-1"><Briefcase size={10}/> Caja de Herramientas</h4>
+                                          <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-bold">{period.herramientas || 'Sin herramientas cargadas.'}</p>
                                       </div>
                                   </div>
                                   {isAdmin && <button onClick={() => setEditing(true)} className="w-full py-2 bg-white border border-violet-200 text-violet-600 font-bold text-xs rounded-xl mt-2 hover:bg-violet-50 transition">Editar Manualmente</button>}
@@ -1422,10 +1437,11 @@ function ProyectoView({ user }) {
                           ) : (
                               <form onSubmit={handleSave} className="space-y-3">
                                   <input name="paises" defaultValue={period.paises} placeholder="Título / Eje" className="w-full p-3 rounded-xl border border-gray-200 text-sm font-bold" />
-                                  <textarea name="fundamentacion" defaultValue={period.fundamentacion} placeholder="Fundamentación breve..." className="w-full p-3 rounded-xl border border-gray-200 text-xs h-16" />
+                                  <textarea name="fundamentacion" defaultValue={period.fundamentacion} placeholder="Fundamentación..." className="w-full p-3 rounded-xl border border-gray-200 text-xs h-16" />
+                                  <textarea name="contenidos" defaultValue={period.contenidos} placeholder="Contenidos por área..." className="w-full p-3 rounded-xl border border-gray-200 text-xs h-32 bg-blue-50/50" />
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                      <textarea name="contenidos" defaultValue={period.contenidos} placeholder="Contenidos..." className="w-full p-3 rounded-xl border border-gray-200 text-xs h-32" />
                                       <textarea name="actividades" defaultValue={period.actividades} placeholder="Actividades..." className="w-full p-3 rounded-xl border border-gray-200 text-xs h-32" />
+                                      <textarea name="herramientas" defaultValue={period.herramientas} placeholder="Herramientas Docentes..." className="w-full p-3 rounded-xl border border-orange-200 text-xs h-32 bg-orange-50/30" />
                                   </div>
                                   <div className="flex gap-2">
                                       <button type="button" onClick={() => setEditing(false)} className="flex-1 py-2 text-gray-400 font-bold text-xs hover:bg-gray-200 rounded-xl transition">Cancelar</button>
@@ -1436,19 +1452,14 @@ function ProyectoView({ user }) {
                       </div>
                   )}
               </div>
-          ))}
+          )})}
       </div>
       
-      {/* Icono Settings necesario para esta vista */}
       <style>{`.hidden-icon { display: none; }`}</style>
       <div className="hidden"><Settings size={0}/></div>
     </div>
   );
 }
-
-// --- AGREGAR ESTO AL INICIO DEL ARCHIVO CON LOS OTROS IMPORTS ---
-// Asegurate de importar 'Settings' desde 'lucide-react' arriba de todo:
-// import { ..., Settings, ... } from 'lucide-react';
 // --- VISTA MATRÍCULA (CORREGIDA: ETIQUETAS EN SU LUGAR CORRECTO) ---
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
@@ -2281,6 +2292,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
