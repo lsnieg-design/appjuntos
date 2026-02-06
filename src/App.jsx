@@ -1575,8 +1575,33 @@ function MatriculaView({ user }) {
       </div>
       
       {/* LISTA DE ALUMNOS */}
-      <div className="space-y-3">{filteredStudents.map(s => { const alert = getAlertStatus(s.incidents); const age = calculateAge(s.birthDate); return ( <div key={s.id} onClick={()=>{setViewingStudent(s); setActiveModalTab('info');}} className={`bg-white p-4 rounded-2xl shadow-sm border flex justify-between items-center cursor-pointer active:scale-[0.99] transition ${!s.isActive?'border-red-400 opacity-60':alert.status==='danger'?'border-red-500 border-l-4':'border-gray-100'}`}><div className="flex gap-4 items-center"><div className="w-12 h-12 bg-gray-200 rounded-xl overflow-hidden relative">{s.photoUrl?<img src={s.photoUrl} className="w-full h-full object-cover"/>:<div className="w-full h-full flex items-center justify-center font-bold text-gray-400">{s.firstName[0]}</div>}{alert.status!=='ok' && <div className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border border-white"></div>}</div><div><h4 className="font-bold text-gray-800 flex items-center gap-2">{s.lastName}, {s.firstName} {s.dx && <span className="bg-purple-100 text-purple-700 text-[9px] px-1.5 py-0.5 rounded border border-purple-200">{s.dx}</span>}</h4><div className="flex gap-2 mt-1"><span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200 font-bold">{age} años</span>{(s.groupMorning || s.groupAfternoon) ? <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold">{s.groupMorning || s.groupAfternoon}</span> : <span className="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded border border-red-100 font-bold">Sin grupo</span>}</div></div></div><Eye className="text-gray-300"/></div> ); })}</div>
-      
+      {/* --- BLOQUE DE ETIQUETAS EN LA TARJETA DEL ALUMNO --- */}
+<div className="flex flex-wrap gap-2 mt-1">
+    {/* 1. ETIQUETA EDAD */}
+    <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200 font-bold">
+        {age} años
+    </span>
+
+    {/* 2. ETIQUETA GRUPO (Muestra Mañana o Tarde según tenga) */}
+    {(s.groupMorning || s.groupAfternoon) ? (
+        <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold">
+             {/* Si tiene los dos, los muestra separados por barra, si no, muestra el que tenga */}
+             {[s.groupMorning, s.groupAfternoon].filter(Boolean).join(' / ')}
+        </span>
+    ) : (
+        <span className="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded border border-red-100 font-bold">
+            Sin grupo
+        </span>
+    )}
+
+    {/* 3. NUEVA ETIQUETA: AULA FÍSICA */}
+    {s.classroom && (
+        <span className="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded border border-yellow-200 font-bold flex items-center gap-1 shadow-sm">
+            {/* Usamos el iconito de casa/aula que ya tenés definido abajo de todo */}
+            <StartIcon size={10} /> Aula {s.classroom}
+        </span>
+    )}
+</div>
       {/* MODAL VER ALUMNO */}
       {viewingStudent && !showForm && (<div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm"><div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"><div className="bg-slate-700 p-6 text-white"><div className="flex justify-between items-start"><div className="flex gap-4"><div className="w-16 h-16 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden">{viewingStudent.photoUrl ? <img src={viewingStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={30} className="m-auto mt-4 text-white/50"/>}</div><div><h2 className="text-xl font-bold uppercase">{viewingStudent.lastName}, {viewingStudent.firstName}</h2><div className="flex gap-2 mt-1"><span className="bg-white/20 px-2 py-0.5 rounded text-xs">{calculateAge(viewingStudent.birthDate)} años</span><span className="bg-white/20 px-2 py-0.5 rounded text-xs">{viewingStudent.dni}</span></div></div></div><button onClick={()=>setViewingStudent(null)} className="bg-white/20 p-1 rounded-full hover:bg-white/40"><X/></button></div><div className="flex gap-2 mt-6 bg-slate-800/50 p-1 rounded-xl"><button onClick={()=>setActiveModalTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeModalTab==='info'?'bg-white text-slate-800 shadow-md':'text-white/50 hover:text-white'}`}>Datos Personales</button><button onClick={()=>setActiveModalTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeModalTab==='history'?'bg-white text-slate-800 shadow-md':'text-white/50 hover:text-white'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto bg-gray-50">{activeModalTab==='info' ? (
       <div className="space-y-4 text-sm">
@@ -1716,7 +1741,7 @@ function MainApp({ user, onLogout }) {
     </div>
   );
 }
-// --- VISTA AULA (CON IMPRESIÓN INDIVIDUAL POR GRUPO) ---
+// --- VISTA AULA (MODIFICADA: SCROLL INFINITO HACIA ABAJO EN PC) ---
 function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
@@ -1791,279 +1816,63 @@ function GroupsView({ user }) {
       });
   }
 
-  // --- IMPRESIÓN INDIVIDUAL DE GRUPO ---
- // --- REEMPLAZAR ESTA FUNCIÓN ENTERA ---
+  // --- FUNCIÓN DE IMPRESIÓN (La misma corregida de antes) ---
   const handlePrintSingleGroup = (g) => {
     const printWindow = window.open('', '_blank');
-    if (!printWindow) return alert("Por favor, permite ventanas emergentes para imprimir.");
-
+    if (!printWindow) return alert("Por favor, permite ventanas emergentes.");
     const turnoTexto = turn === 'morning' ? 'MAÑANA' : 'TARDE';
     const fecha = new Date().toLocaleDateString('es-AR');
-    
-    // Ordenamos alfabéticamente antes de generar el HTML
     const sortedStudents = [...g.students].sort((a,b) => a.lastName.localeCompare(b.lastName));
 
-    let content = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Lista ${g.name}</title>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
-            
-            /* ESTO ES LO QUE HACE QUE SALGAN LOS COLORES */
-            * {
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-              box-sizing: border-box;
-            }
-
-            body { 
-              font-family: 'Roboto', sans-serif; 
-              padding: 40px; 
-              color: #333;
-            }
-
-            .header { 
-              border-bottom: 4px solid #7c3aed; /* Borde Violeta Grueso */
-              padding-bottom: 20px; 
-              margin-bottom: 30px; 
-              display: flex; 
-              justify-content: space-between; 
-              align-items: center; 
-            }
-
-            .title { 
-              font-size: 28px; 
-              font-weight: 900; 
-              color: #4c1d95; /* Violeta Oscuro */
-              text-transform: uppercase; 
-              margin: 0; 
-              line-height: 1;
-            }
-
-            .subtitle { 
-              font-size: 14px; 
-              font-weight: bold;
-              color: #666; 
-              margin-top: 5px; 
-              text-transform: uppercase;
-              letter-spacing: 1px;
-            }
-
-            .info-card {
-              background-color: #f3f4f6; /* Gris de fondo */
-              border: 1px solid #e5e7eb;
-              border-radius: 12px;
-              padding: 20px;
-              margin-bottom: 25px;
-              display: flex;
-              justify-content: space-between;
-              font-size: 12px;
-            }
-            
-            .info-col strong {
-              color: #7c3aed;
-              text-transform: uppercase;
-              font-size: 10px;
-              display: block;
-              margin-bottom: 2px;
-            }
-            
-            .info-col p {
-              margin: 0 0 10px 0;
-              font-weight: bold;
-              font-size: 14px;
-            }
-
-            table { 
-              width: 100%; 
-              border-collapse: collapse; 
-              font-size: 12px; 
-            }
-
-            thead tr {
-              background-color: #7c3aed !important; /* Fondo Violeta forzado */
-              color: white !important;
-            }
-
-            th { 
-              padding: 12px 8px; 
-              text-align: left; 
-              text-transform: uppercase; 
-              font-size: 10px; 
-              letter-spacing: 0.5px;
-            }
-
-            td { 
-              border-bottom: 1px solid #e5e7eb; 
-              padding: 10px 8px; 
-            }
-
-            /* Filas alternadas (Gebra Striping) */
-            tr:nth-child(even) { 
-              background-color: #f9fafb !important; 
-            }
-
-            .footer { 
-              margin-top: 40px; 
-              text-align: right; 
-              font-size: 10px; 
-              color: #9ca3af; 
-              border-top: 1px dashed #e5e7eb; 
-              padding-top: 10px; 
-            }
-            
-            .badge {
-                display: inline-block;
-                padding: 2px 6px;
-                border-radius: 4px;
-                font-size: 9px;
-                font-weight: bold;
-                background: #eee;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div>
-              <h1 class="title">Grupo: ${g.name}</h1>
-              <p class="subtitle">Turno ${turnoTexto} • Ciclo 2026</p>
-            </div>
-            <img src="${LOGO_URL}" style="height: 50px; opacity: 0.8;" />
-          </div>
-
-          <div class="info-card">
-            <div class="info-col">
-              <strong>Docente a Cargo</strong>
-              <p>${g.teacher || 'Sin asignar'}</p>
-              <strong>Auxiliar / Preceptor</strong>
-              <p>${g.aux || 'Sin asignar'}</p>
-            </div>
-            <div class="info-col" style="text-align: right;">
-              <strong>Aula Física</strong>
-              <p>${g.classroom || '-'}</p>
-              <strong>Nivel</strong>
-              <p>${g.level || '-'}</p>
-            </div>
-          </div>
-
-          <table>
-            <thead>
-              <tr>
-                <th style="width: 40px;">#</th>
-                <th>Apellido y Nombre</th>
-                <th>DNI</th>
-                <th>Fecha Nac.</th>
-                <th>Edad</th>
-              </tr>
-            </thead>
-            <tbody>
-    `;
-
+    let content = `<!DOCTYPE html><html><head><title>Lista ${g.name}</title><style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');*{ -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }body{font-family:'Roboto',sans-serif;padding:40px;color:#333;}.header{border-bottom:4px solid #7c3aed;padding-bottom:20px;margin-bottom:30px;display:flex;justify-content:space-between;align-items:center;}.title{font-size:28px;font-weight:900;color:#4c1d95;text-transform:uppercase;margin:0;line-height:1;}.subtitle{font-size:14px;font-weight:bold;color:#666;margin-top:5px;text-transform:uppercase;letter-spacing:1px;}.info-card{background-color:#f3f4f6;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:25px;display:flex;justify-content:space-between;font-size:12px;}.info-col strong{color:#7c3aed;text-transform:uppercase;font-size:10px;display:block;margin-bottom:2px;}.info-col p{margin:0 0 10px 0;font-weight:bold;font-size:14px;}table{width:100%;border-collapse:collapse;font-size:12px;}thead tr{background-color:#7c3aed!important;color:white!important;}th{padding:12px 8px;text-align:left;text-transform:uppercase;font-size:10px;letter-spacing:0.5px;}td{border-bottom:1px solid #e5e7eb;padding:10px 8px;}tr:nth-child(even){background-color:#f9fafb!important;}.footer{margin-top:40px;text-align:right;font-size:10px;color:#9ca3af;border-top:1px dashed #e5e7eb;padding-top:10px;}.badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:bold;background:#eee;}</style></head><body><div class="header"><div><h1 class="title">Grupo: ${g.name}</h1><p class="subtitle">Turno ${turnoTexto} • Ciclo 2026</p></div><img src="${LOGO_URL}" style="height:50px;opacity:0.8;"/></div><div class="info-card"><div class="info-col"><strong>Docente a Cargo</strong><p>${g.teacher||'Sin asignar'}</p><strong>Auxiliar / Preceptor</strong><p>${g.aux||'Sin asignar'}</p></div><div class="info-col" style="text-align:right;"><strong>Aula Física</strong><p>${g.classroom||'-'}</p><strong>Nivel</strong><p>${g.level||'-'}</p></div></div><table><thead><tr><th style="width:40px;">#</th><th>Apellido y Nombre</th><th>DNI</th><th>Fecha Nac.</th><th>Edad</th></tr></thead><tbody>`;
     sortedStudents.forEach((s, index) => {
         const birth = s.birthDate ? new Date(s.birthDate + 'T00:00').toLocaleDateString('es-AR') : '-';
-        // Función simple para edad dentro del loop para no depender de externas
-        const today = new Date();
-        const dob = new Date(s.birthDate + 'T00:00');
-        let age = '-';
-        if(s.birthDate) {
-            age = today.getFullYear() - dob.getFullYear();
-            const m = today.getMonth() - dob.getMonth();
-            if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
-        }
-
-        content += `
-              <tr>
-                <td style="color: #7c3aed; font-weight: bold;">${index + 1}</td>
-                <td>
-                    <span style="font-weight: 900; text-transform: uppercase;">${s.lastName}</span>, ${s.firstName}
-                    ${s.dx ? `<span class="badge" style="margin-left:5px;">${s.dx}</span>` : ''}
-                </td>
-                <td>${s.dni || '-'}</td>
-                <td>${birth}</td>
-                <td><strong>${age}</strong></td>
-              </tr>
-        `;
+        const today = new Date(); const dob = new Date(s.birthDate + 'T00:00'); let age = '-';
+        if(s.birthDate) { age = today.getFullYear() - dob.getFullYear(); const m = today.getMonth() - dob.getMonth(); if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--; }
+        content += `<tr><td style="color:#7c3aed;font-weight:bold;">${index + 1}</td><td><span style="font-weight:900;text-transform:uppercase;">${s.lastName}</span>, ${s.firstName} ${s.dx ? `<span class="badge" style="margin-left:5px;">${s.dx}</span>` : ''}</td><td>${s.dni||'-'}</td><td>${birth}</td><td><strong>${age}</strong></td></tr>`;
     });
-
-    content += `
-            </tbody>
-          </table>
-          
-          <div class="footer">
-            Reporte generado automáticamente el ${fecha} • Juntos a la Par
-          </div>
-        </body>
-      </html>
-    `;
-
-    printWindow.document.write(content);
-    printWindow.document.close();
-    
-    // Esperamos un momento para asegurar que carguen los estilos
-    setTimeout(() => {
-        printWindow.focus();
-        printWindow.print();
-    }, 500);
+    content += `</tbody></table><div class="footer">Reporte generado automáticamente el ${fecha} • Juntos a la Par</div></body></html>`;
+    printWindow.document.write(content); printWindow.document.close(); setTimeout(() => { printWindow.focus(); printWindow.print(); }, 500);
   };
 
   const handleUpdateGroup = async (e) => {
       e.preventDefault();
       if (!editingGroup) return;
       if (!confirm(`⚠️ ¿Estás seguro?\n\nEsto actualizará a ${editingGroup.students.length} alumnos.`)) return;
-
       setUpdatingGroup(true);
       const fd = new FormData(e.target);
       const updates = {};
       
       if (turn === 'morning') {
-          updates.teacherMorning = fd.get('teacher');
-          updates.auxMorning = fd.get('aux');
-          updates.sup1Morning = fd.get('sup1');
-          updates.sup2Morning = fd.get('sup2');
-          updates.groupMorning = fd.get('groupName'); 
+          updates.teacherMorning = fd.get('teacher'); updates.auxMorning = fd.get('aux'); updates.sup1Morning = fd.get('sup1'); updates.sup2Morning = fd.get('sup2'); updates.groupMorning = fd.get('groupName'); 
       } else {
-          updates.teacherAfternoon = fd.get('teacher');
-          updates.auxAfternoon = fd.get('aux');
-          updates.sup1Afternoon = fd.get('sup1');
-          updates.sup2Afternoon = fd.get('sup2');
-          updates.groupAfternoon = fd.get('groupName');
+          updates.teacherAfternoon = fd.get('teacher'); updates.auxAfternoon = fd.get('aux'); updates.sup1Afternoon = fd.get('sup1'); updates.sup2Afternoon = fd.get('sup2'); updates.groupAfternoon = fd.get('groupName');
       }
-      updates.classroom = fd.get('classroom');
-      updates.updatedAt = serverTimestamp();
-
+      updates.classroom = fd.get('classroom'); updates.updatedAt = serverTimestamp();
       try {
           const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates));
           await Promise.all(promises);
-          alert("✅ Grupo actualizado correctamente.");
-          setEditingGroup(null);
+          alert("✅ Grupo actualizado correctamente."); setEditingGroup(null);
       } catch (err) { alert("Error: " + err.message); } finally { setUpdatingGroup(false); }
   };
 
   const handleSaveIncident = async (type, severity) => { if (!showBitacoraModal) return; setSavingIncident(true); try { const incidentData = { type, severity, date: new Date().toISOString(), author: user.fullName || user.firstName, authorId: user.id }; const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id); await updateDoc(studentRef, { incidents: arrayUnion(incidentData), lastIncident: incidentData.date, lastIncidentType: type }); alert("✅ Registro guardado"); setShowBitacoraModal(null); } catch (e) { console.error(e); } finally { setSavingIncident(false); } };
-  const deleteIncident = async (studentId, incident) => { if(!confirm("¿Borrar?")) return; try { const { updateDoc, doc, arrayRemove } = await import('firebase/firestore'); await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', studentId), { incidents: arrayRemove(incident) }); } catch (e) {} };
   const calculateAge = (dateString) => { if (!dateString) return '-'; const today = new Date(); const birthDate = new Date(dateString); let age = today.getFullYear() - birthDate.getFullYear(); const m = today.getMonth() - birthDate.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--; return age; };
 
-  // IMPRESIÓN GENERAL (Todas las listas)
   const handlePrintAll = () => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return alert("Permitir ventanas emergentes");
+    const printWindow = window.open('', '_blank'); if (!printWindow) return alert("Permitir ventanas emergentes");
     const turnoTexto = turn === 'morning' ? 'MAÑANA' : 'TARDE';
     let content = `<html><head><title>Listas Completas</title><style>body{font-family:sans-serif;padding:20px}.header{text-align:center;margin-bottom:20px}h1{margin:0}</style></head><body><div class="header"><h1>Listas Turno ${turnoTexto}</h1></div>`;
-    groups.forEach(g => {
-        content += `<h3>${g.name}</h3><ul>${g.students.map(s=>`<li>${s.lastName}, ${s.firstName}</li>`).join('')}</ul><hr>`;
-    });
-    content += `</body></html>`;
-    printWindow.document.write(content); printWindow.document.close(); setTimeout(() => printWindow.print(), 1000);
+    groups.forEach(g => { content += `<h3>${g.name}</h3><ul>${g.students.map(s=>`<li>${s.lastName}, ${s.firstName}</li>`).join('')}</ul><hr>`; });
+    content += `</body></html>`; printWindow.document.write(content); printWindow.document.close(); setTimeout(() => printWindow.print(), 1000);
   };
 
   return (
     <div className="flex flex-col h-full bg-slate-100 animate-in fade-in">
+      {/* HEADER DE GRUPOS */}
       <div className="bg-white p-4 shadow-sm z-10 sticky top-0 flex flex-col gap-3">
           <div className="flex justify-between items-center">
               <div><h2 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2"><Grid size={24} className="text-orange-500"/> Mis Grupos</h2><p className="text-xs text-gray-400 font-bold uppercase">{isManagement ? "Vista Institucional" : `Espacio Docente`}</p></div>
-              {/* Botón Imprimir TODO (Solo Admin) */}
               {isManagement && <button onClick={handlePrintAll} className="bg-violet-100 text-violet-700 p-2 rounded-xl shadow-sm hover:bg-violet-200 transition" title="Imprimir Todo"><FileText size={24}/></button>}
           </div>
           <div className="flex bg-gray-100 p-1 rounded-xl">
@@ -2072,27 +1881,51 @@ function GroupsView({ user }) {
           </div>
       </div>
       
-      <div className="flex-1 overflow-x-auto p-6"><div className="flex gap-6 h-full">{groups.length === 0 && (<div className="m-auto text-center opacity-50"><LayoutDashboard size={48} className="mx-auto mb-2 text-gray-300"/><p className="font-bold text-gray-400">No tienes grupos en este turno.</p></div>)} {groups.map((g) => (
-          <div key={g.name} className="min-w-[280px] w-[300px] flex flex-col h-full bg-white rounded-[30px] border border-gray-200 shadow-sm relative overflow-hidden group-hover:shadow-md transition">
-              {/* CABECERA DE GRUPO */}
-              <div className={`p-4 border-b-4 ${turn==='morning'?'border-orange-400 bg-orange-50':'border-indigo-400 bg-indigo-50'} relative`}>
-                  {/* BOTONERA CABECERA: EDITAR (Admin) + IMPRIMIR (Todos) */}
-                  <div className="absolute top-2 right-2 flex gap-1">
-                      <button onClick={()=>handlePrintSingleGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition" title="Imprimir Lista"><Printer size={14}/></button>
-                      {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition" title="Editar Grupo"><Edit3 size={14}/></button>}
+      {/* CAMBIOS CLAVE AQUÍ PARA EL SCROLL:
+         1. h-full -> md:h-auto (Para que la altura no esté bloqueada en PC)
+         2. items-start (Para que las columnas no se estiren innecesariamente)
+      */}
+      <div className="flex-1 overflow-x-auto p-6">
+        <div className="flex gap-6 h-full md:h-auto items-start">
+            {groups.length === 0 && (<div className="m-auto text-center opacity-50"><LayoutDashboard size={48} className="mx-auto mb-2 text-gray-300"/><p className="font-bold text-gray-400">No tienes grupos en este turno.</p></div>)} 
+            
+            {groups.map((g) => (
+                /* CAMBIO AQUÍ: 
+                   h-full -> h-[calc(100vh-220px)] md:h-fit 
+                   (En móvil altura fija, en PC altura ajustable al contenido)
+                */
+                <div key={g.name} className="min-w-[280px] w-[300px] flex flex-col h-[calc(100vh-220px)] md:h-fit bg-white rounded-[30px] border border-gray-200 shadow-sm relative overflow-hidden group-hover:shadow-md transition shrink-0">
+                  <div className={`p-4 border-b-4 ${turn==='morning'?'border-orange-400 bg-orange-50':'border-indigo-400 bg-indigo-50'} relative`}>
+                      <div className="absolute top-2 right-2 flex gap-1">
+                          <button onClick={()=>handlePrintSingleGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition" title="Imprimir Lista"><Printer size={14}/></button>
+                          {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition" title="Editar Grupo"><Edit3 size={14}/></button>}
+                      </div>
+                      <h3 className="font-black text-gray-800 text-lg">{g.name}</h3>
+                      <div className="mt-2 text-xs text-gray-500 font-medium space-y-1">
+                          <p>DOC: <span className="font-bold text-violet-700 uppercase">{g.teacher || 'Sin asignar'}</span></p>
+                          {g.aux && <p>AUX: <span className="font-bold uppercase">{g.aux}</span></p>}
+                          {(g.sup1 || g.sup2) && <p className="text-violet-600 font-bold truncate">SUP: {g.sup1 || ''} {g.sup2 ? `& ${g.sup2}` : ''}</p>}
+                          {g.classroom && <p className="inline-flex items-center gap-1 bg-white/50 px-2 rounded-md"><StartIcon size={10}/> Aula {g.classroom}</p>}
+                      </div>
                   </div>
                   
-                  <h3 className="font-black text-gray-800 text-lg">{g.name}</h3>
-                  <div className="mt-2 text-xs text-gray-500 font-medium space-y-1">
-                      <p>DOC: <span className="font-bold text-violet-700 uppercase">{g.teacher || 'Sin asignar'}</span></p>
-                      {g.aux && <p>AUX: <span className="font-bold uppercase">{g.aux}</span></p>}
-                      {(g.sup1 || g.sup2) && <p className="text-violet-600 font-bold truncate">SUP: {g.sup1 || ''} {g.sup2 ? `& ${g.sup2}` : ''}</p>}
-                      {g.classroom && <p className="inline-flex items-center gap-1 bg-white/50 px-2 rounded-md"><StartIcon size={10}/> Aula {g.classroom}</p>}
+                  {/* CAMBIO AQUÍ: 
+                     overflow-y-auto -> md:overflow-visible 
+                     (Quitamos scroll interno en PC)
+                  */}
+                  <div className="flex-1 overflow-y-auto md:overflow-visible p-3 space-y-3 bg-gray-50">
+                    {g.students.map(s => (
+                        <div key={s.id} onClick={() => {setSelectedStudent(s); setActiveTab('info');}} className="bg-white p-3 rounded-2xl shadow-sm flex items-center gap-3 cursor-pointer hover:scale-[1.02] transition">
+                            <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden shrink-0 border border-gray-100">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="flex items-center justify-center w-full h-full font-bold text-gray-400">{s.firstName[0]}</div>}</div>
+                            <div><h4 className="font-bold text-gray-700 text-sm">{s.firstName} {s.lastName}</h4></div>
+                            <button onClick={(e) => {e.stopPropagation(); setShowBitacoraModal(s);}} className="ml-auto w-8 h-8 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center hover:bg-violet-600 hover:text-white transition">⚡</button>
+                        </div>
+                    ))}
                   </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50">{g.students.map(s => (<div key={s.id} onClick={() => {setSelectedStudent(s); setActiveTab('info');}} className="bg-white p-3 rounded-2xl shadow-sm flex items-center gap-3 cursor-pointer hover:scale-[1.02] transition"><div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden shrink-0 border border-gray-100">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="flex items-center justify-center w-full h-full font-bold text-gray-400">{s.firstName[0]}</div>}</div><div><h4 className="font-bold text-gray-700 text-sm">{s.firstName} {s.lastName}</h4></div><button onClick={(e) => {e.stopPropagation(); setShowBitacoraModal(s);}} className="ml-auto w-8 h-8 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center hover:bg-violet-600 hover:text-white transition">⚡</button></div>))}</div>
-          </div>
-      ))}</div></div>
+          ))}
+        </div>
+      </div>
 
       {/* MODAL EDICIÓN */}
       {editingGroup && (
@@ -2126,7 +1959,6 @@ function GroupsView({ user }) {
     </div>
   );
 }
-
 
 // ===============================================================
 // PEGAR ESTO AL FINAL DEL ARCHIVO (FUERA DE CUALQUIER OTRA FUNCIÓN)
@@ -2217,6 +2049,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
