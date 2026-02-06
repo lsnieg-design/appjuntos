@@ -1792,29 +1792,136 @@ function GroupsView({ user }) {
   }
 
   // --- IMPRESIÓN INDIVIDUAL DE GRUPO ---
+ // --- REEMPLAZAR ESTA FUNCIÓN ENTERA ---
   const handlePrintSingleGroup = (g) => {
     const printWindow = window.open('', '_blank');
-    if (!printWindow) return alert("Permitir ventanas emergentes");
-    
+    if (!printWindow) return alert("Por favor, permite ventanas emergentes para imprimir.");
+
     const turnoTexto = turn === 'morning' ? 'MAÑANA' : 'TARDE';
     const fecha = new Date().toLocaleDateString('es-AR');
     
+    // Ordenamos alfabéticamente antes de generar el HTML
+    const sortedStudents = [...g.students].sort((a,b) => a.lastName.localeCompare(b.lastName));
+
     let content = `
+      <!DOCTYPE html>
       <html>
         <head>
           <title>Lista ${g.name}</title>
           <style>
-            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
-            body { font-family: 'Roboto', sans-serif; padding: 40px; }
-            .header { border-bottom: 2px solid #7c3aed; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
-            .title { font-size: 24px; font-weight: bold; color: #4c1d95; text-transform: uppercase; margin: 0; }
-            .subtitle { font-size: 14px; color: #666; margin-top: 5px; }
-            .info-box { background: #f3f4f6; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 12px; }
-            table { width: 100%; border-collapse: collapse; font-size: 12px; }
-            th { background: #7c3aed; color: white; padding: 8px; text-align: left; text-transform: uppercase; font-size: 10px; }
-            td { border-bottom: 1px solid #eee; padding: 8px; }
-            tr:nth-child(even) { background-color: #f9fafb; }
-            .footer { margin-top: 30px; text-align: right; font-size: 10px; color: #999; border-top: 1px solid #eee; padding-top: 10px; }
+            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
+            
+            /* ESTO ES LO QUE HACE QUE SALGAN LOS COLORES */
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              box-sizing: border-box;
+            }
+
+            body { 
+              font-family: 'Roboto', sans-serif; 
+              padding: 40px; 
+              color: #333;
+            }
+
+            .header { 
+              border-bottom: 4px solid #7c3aed; /* Borde Violeta Grueso */
+              padding-bottom: 20px; 
+              margin-bottom: 30px; 
+              display: flex; 
+              justify-content: space-between; 
+              align-items: center; 
+            }
+
+            .title { 
+              font-size: 28px; 
+              font-weight: 900; 
+              color: #4c1d95; /* Violeta Oscuro */
+              text-transform: uppercase; 
+              margin: 0; 
+              line-height: 1;
+            }
+
+            .subtitle { 
+              font-size: 14px; 
+              font-weight: bold;
+              color: #666; 
+              margin-top: 5px; 
+              text-transform: uppercase;
+              letter-spacing: 1px;
+            }
+
+            .info-card {
+              background-color: #f3f4f6; /* Gris de fondo */
+              border: 1px solid #e5e7eb;
+              border-radius: 12px;
+              padding: 20px;
+              margin-bottom: 25px;
+              display: flex;
+              justify-content: space-between;
+              font-size: 12px;
+            }
+            
+            .info-col strong {
+              color: #7c3aed;
+              text-transform: uppercase;
+              font-size: 10px;
+              display: block;
+              margin-bottom: 2px;
+            }
+            
+            .info-col p {
+              margin: 0 0 10px 0;
+              font-weight: bold;
+              font-size: 14px;
+            }
+
+            table { 
+              width: 100%; 
+              border-collapse: collapse; 
+              font-size: 12px; 
+            }
+
+            thead tr {
+              background-color: #7c3aed !important; /* Fondo Violeta forzado */
+              color: white !important;
+            }
+
+            th { 
+              padding: 12px 8px; 
+              text-align: left; 
+              text-transform: uppercase; 
+              font-size: 10px; 
+              letter-spacing: 0.5px;
+            }
+
+            td { 
+              border-bottom: 1px solid #e5e7eb; 
+              padding: 10px 8px; 
+            }
+
+            /* Filas alternadas (Gebra Striping) */
+            tr:nth-child(even) { 
+              background-color: #f9fafb !important; 
+            }
+
+            .footer { 
+              margin-top: 40px; 
+              text-align: right; 
+              font-size: 10px; 
+              color: #9ca3af; 
+              border-top: 1px dashed #e5e7eb; 
+              padding-top: 10px; 
+            }
+            
+            .badge {
+                display: inline-block;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 9px;
+                font-weight: bold;
+                background: #eee;
+            }
           </style>
         </head>
         <body>
@@ -1823,24 +1930,28 @@ function GroupsView({ user }) {
               <h1 class="title">Grupo: ${g.name}</h1>
               <p class="subtitle">Turno ${turnoTexto} • Ciclo 2026</p>
             </div>
-            <img src="${LOGO_URL}" style="height: 60px;" />
+            <img src="${LOGO_URL}" style="height: 50px; opacity: 0.8;" />
           </div>
 
-          <div class="info-box">
-            <div>
-              <strong>Docente:</strong> ${g.teacher || 'Sin asignar'}<br>
-              <strong>Auxiliar:</strong> ${g.aux || 'Sin asignar'}
+          <div class="info-card">
+            <div class="info-col">
+              <strong>Docente a Cargo</strong>
+              <p>${g.teacher || 'Sin asignar'}</p>
+              <strong>Auxiliar / Preceptor</strong>
+              <p>${g.aux || 'Sin asignar'}</p>
             </div>
-            <div>
-              <strong>Aula:</strong> ${g.classroom || '-'}<br>
-              <strong>Nivel:</strong> ${g.level || '-'}
+            <div class="info-col" style="text-align: right;">
+              <strong>Aula Física</strong>
+              <p>${g.classroom || '-'}</p>
+              <strong>Nivel</strong>
+              <p>${g.level || '-'}</p>
             </div>
           </div>
 
           <table>
             <thead>
               <tr>
-                <th style="width: 30px;">#</th>
+                <th style="width: 40px;">#</th>
                 <th>Apellido y Nombre</th>
                 <th>DNI</th>
                 <th>Fecha Nac.</th>
@@ -1850,20 +1961,29 @@ function GroupsView({ user }) {
             <tbody>
     `;
 
-    // Ordenar alfabéticamente
-    g.students.sort((a,b) => a.lastName.localeCompare(b.lastName));
+    sortedStudents.forEach((s, index) => {
+        const birth = s.birthDate ? new Date(s.birthDate + 'T00:00').toLocaleDateString('es-AR') : '-';
+        // Función simple para edad dentro del loop para no depender de externas
+        const today = new Date();
+        const dob = new Date(s.birthDate + 'T00:00');
+        let age = '-';
+        if(s.birthDate) {
+            age = today.getFullYear() - dob.getFullYear();
+            const m = today.getMonth() - dob.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+        }
 
-    g.students.forEach((s, index) => {
-        const birth = s.birthDate ? new Date(s.birthDate + 'T00:00').toLocaleDateString() : '-';
-        const age = calculateAge(s.birthDate);
         content += `
-          <tr>
-            <td>${index + 1}</td>
-            <td><strong>${s.lastName}</strong>, ${s.firstName}</td>
-            <td>${s.dni || '-'}</td>
-            <td>${birth}</td>
-            <td>${age}</td>
-          </tr>
+              <tr>
+                <td style="color: #7c3aed; font-weight: bold;">${index + 1}</td>
+                <td>
+                    <span style="font-weight: 900; text-transform: uppercase;">${s.lastName}</span>, ${s.firstName}
+                    ${s.dx ? `<span class="badge" style="margin-left:5px;">${s.dx}</span>` : ''}
+                </td>
+                <td>${s.dni || '-'}</td>
+                <td>${birth}</td>
+                <td><strong>${age}</strong></td>
+              </tr>
         `;
     });
 
@@ -1872,7 +1992,7 @@ function GroupsView({ user }) {
           </table>
           
           <div class="footer">
-            Documento generado el ${fecha}
+            Reporte generado automáticamente el ${fecha} • Juntos a la Par
           </div>
         </body>
       </html>
@@ -1880,10 +2000,12 @@ function GroupsView({ user }) {
 
     printWindow.document.write(content);
     printWindow.document.close();
-    // Esperar un poquito para que carguen estilos e imágenes antes de imprimir
-    printWindow.onload = function() {
-        setTimeout(() => printWindow.print(), 500);
-    };
+    
+    // Esperamos un momento para asegurar que carguen los estilos
+    setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+    }, 500);
   };
 
   const handleUpdateGroup = async (e) => {
@@ -2095,6 +2217,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
