@@ -1581,7 +1581,7 @@ function ProyectoView({ user }) {
     </div>
   );
 }
-// --- VISTA MATRÍCULA (VERSIÓN FINAL: SIN ERRORES DE SINTAXIS + BÚSQUEDA DETECTIVE) ---
+// --- VISTA MATRÍCULA (FINAL: CARPETA + BÚSQUEDA INTELIGENTE) ---
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
@@ -1619,27 +1619,29 @@ function MatriculaView({ user }) {
     const qS = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), orderBy('lastName', 'asc'));
     const uS = onSnapshot(qS, (snap) => setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const qU = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('lastName', 'asc'));
-    const uU = onSnapshot(qU, (snap) => {
-        setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
+    const uU = onSnapshot(qU, (snap) => setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     return () => { uS(); uU(); };
   }, []);
 
-  // --- FUNCIÓN DETECTIVE DE DRIVE (BÚSQUEDA GENÉRICA POR NOMBRE) ---
-  const abrirDriveAlumno = (url, student) => {
-      // Opción 1: Si no hay link en el aula, no hacemos nada (o podrías abrir el Drive general)
-      if (!url) return alert("Este grupo no tiene carpeta de Drive asignada.");
+  // 1. ABRIR CARPETA (Navegación manual)
+  const abrirCarpeta = (url) => {
+      if (!url) return alert("No hay link asignado.");
+      window.open(url, '_blank');
+  };
 
-      // Opción 2: BÚSQUEDA INTELIGENTE
-      // "Buscame cualquier archivo que tenga el apellido Y el nombre del chico, y que no esté en la basura"
-      // Usamos comillas para buscar la frase exacta o palabras sueltas.
+  // 2. BUSCAR INFORMES (Detective de Archivos)
+  const buscarInformes = (student) => {
+      // Limpiamos el nombre para evitar errores con tildes
+      const cleanName = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const nombre = cleanName(student.firstName).split(" ")[0]; // Primer nombre
+      const apellido = cleanName(student.lastName).split(" ")[0]; // Primer apellido
       
-      const busqueda = `"${student.lastName} ${student.firstName}"`; 
-      // Si quieres ser menos estricta y que busque archivos con solo una de las dos palabras, quita las comillas.
+      // Búsqueda: "Apellido" Y "Nombre" Y (NO en papelera)
+      // Agregamos "type:application/vnd.google-apps.document" o similar si quisieras solo Docs, 
+      // pero por ahora buscamos todo lo que coincida por nombre.
+      const query = `name contains '${apellido}' and name contains '${nombre}' and trashed = false`;
       
-      const searchUrl = `https://drive.google.com/drive/search?q=${encodeURIComponent(busqueda)}`;
-      
-      // Abrimos en nueva pestaña
+      const searchUrl = `https://drive.google.com/drive/search?q=${encodeURIComponent(query)}`;
       window.open(searchUrl, '_blank');
   };
 
@@ -1652,21 +1654,17 @@ function MatriculaView({ user }) {
     const isStudentActive = s.isActive === undefined || s.isActive === true;
     if (showArchived && isStudentActive) return false; 
     if (!showArchived && !isStudentActive) return false;
-
     const txt = filterText.toLowerCase();
     const matchText = (s.firstName||'').toLowerCase().includes(txt) || (s.lastName||'').toLowerCase().includes(txt) || (s.dni||'').toString().includes(txt);
     if (!matchText) return false;
-
     if (filters.level !== 'all' && s.level !== filters.level) return false;
     if (filters.group !== 'all' && s.groupMorning !== filters.group && s.groupAfternoon !== filters.group) return false;
-    
     if (filters.teacher !== 'all') {
         const search = filters.teacher.toLowerCase();
         const tM = (s.teacherMorning || '').toLowerCase();
         const tT = (s.teacherAfternoon || '').toLowerCase();
         if (!tM.includes(search) && !tT.includes(search)) return false;
     }
-
     if (filters.dx !== 'all' && s.dx !== filters.dx) return false;
     if (filters.gender !== 'all' && s.gender !== filters.gender) return false;
     if (filters.journey !== 'all' && s.journey !== filters.journey) return false;
@@ -1674,7 +1672,6 @@ function MatriculaView({ user }) {
     if (filters.os !== 'all' && currentOS !== filters.os) return false;
     if (filters.turn === 'Mañana' && !s.groupMorning) return false;
     if (filters.turn === 'Tarde' && !s.groupAfternoon) return false;
-
     return true;
   });
 
@@ -1685,18 +1682,15 @@ function MatriculaView({ user }) {
   const handlePhotoChange = async (e) => { const f = e.target.files[0]; if(!f) return; setUploading(true); try { const reader = new FileReader(); reader.onload=(ev)=>{const img=new Image(); img.onload=()=>{const c=document.createElement('canvas'); const s=300/img.width; c.width=300; c.height=img.height*s; const ctx=c.getContext('2d'); ctx.drawImage(img,0,0,c.width,c.height); setPhotoPreview(c.toDataURL('image/jpeg',0.7)); setUploading(false);}; img.src=ev.target.result;}; reader.readAsDataURL(f); } catch(e){ setUploading(false); } };
   const openNew = () => { setEditingStudent(null); setPhotoPreview(null); setShowForm(true); };
   const openEdit = (s) => { setEditingStudent(s); setPhotoPreview(s.photoUrl); setViewingStudent(null); setShowForm(true); };
-  
   const handleSave = async (e) => { 
       e.preventDefault(); const fd = new FormData(e.target); const d = Object.fromEntries(fd.entries()); d.isActive = d.isActive === 'true'; d.photoUrl = photoPreview || editingStudent?.photoUrl || ''; 
       try { if (editingStudent) { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', editingStudent.id), d); } else { const newStatus = d.isActive !== undefined ? d.isActive : true; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...d, isActive: newStatus, createdAt: serverTimestamp(), incidents: [] }); } setShowForm(false); setEditingStudent(null); setPhotoPreview(null); } catch (err) { alert("Error: " + err.message); } 
   };
-  
   const handleDelete = async (id) => { if(confirm("⚠️ ¿Eliminar definitivamente?")) { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id)); setShowForm(false); setEditingStudent(null); } };
   const deleteIncident = async (sid, inc) => { if(confirm("¿Borrar evento?")) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', sid), { incidents: arrayRemove(inc) }); };
   const markAsInactive = async (s) => { if(!confirm(`¿Dar de baja a ${s.firstName}?`)) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { isActive: false }); setUnassignedList(p=>p.filter(x=>x.id!==s.id)); };
   
   const findDuplicates = () => { alert("Función en mantenimiento."); };
-  const mergeStudents = async (keep, drop) => { alert("Función en mantenimiento."); };
   const checkUnassigned = () => { const found = students.filter(s => (s.isActive === undefined || s.isActive === true) && !s.groupMorning && !s.groupAfternoon); setUnassignedList(found); setShowDataManagement(false); setShowUnassigned(true); };
   const limpiarEspaciosMasivo = async () => { alert("Función en mantenimiento."); };
   const descargarBackup = () => { if(!confirm("¿Descargar?")) return; const blob = new Blob([JSON.stringify(students, null, 2)], { type: "application/json" }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = "BACKUP.json"; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
@@ -1708,7 +1702,6 @@ function MatriculaView({ user }) {
   const imprimirFichasMasivas = () => { if (filteredStudents.length > 20 && !confirm(`¿Imprimir ${filteredStudents.length} fichas?`)) return; imprimirListado(filteredStudents); };
   const exportFiltered = () => { if (filteredStudents.length === 0) return alert("Sin datos"); const headers = ["Apellido", "Nombre", "DNI", "Nivel", "Obra Social"]; const csv = [headers.join(';'), ...filteredStudents.map(s => [`"${s.lastName}"`, `"${s.firstName}"`, `"${s.dni}"`, `"${s.level}"`, `"${s.healthInsurance}"`].join(';'))].join('\n'); const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = "Matricula.csv"; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
 
-  // --- RENDER ---
   return (
     <div className="animate-in fade-in pb-20">
       <div className={`p-6 rounded-3xl shadow-lg text-white mb-6 transition-colors ${showArchived?'bg-gray-600':'bg-gradient-to-r from-blue-600 to-cyan-500'}`}>
@@ -1769,16 +1762,30 @@ function MatriculaView({ user }) {
                             
                             {/* BOTONES DRIVE EN LISTA */}
                             {s.driveLinkMorning && (
-                                <button onClick={(e) => { e.stopPropagation(); abrirDriveAlumno(s.driveLinkMorning, s); }} className="text-[10px] bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-200 font-bold flex items-center gap-1 hover:bg-green-100 transition">
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                                    Informes TM
-                                </button>
+                                <div className="flex gap-1">
+                                    {/* 1. IR A CARPETA */}
+                                    <button onClick={(e) => { e.stopPropagation(); abrirCarpeta(s.driveLinkMorning); }} className="text-[10px] bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-200 font-bold flex items-center gap-1 hover:bg-green-100 transition" title="Ir a Carpeta">
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                                        TM
+                                    </button>
+                                    {/* 2. BUSCAR ALUMNO (LUPA) */}
+                                    <button onClick={(e) => { e.stopPropagation(); buscarInformes(s); }} className="text-[10px] bg-white text-gray-500 px-2 py-0.5 rounded border border-gray-200 font-bold hover:bg-gray-100 transition" title="Buscar archivos del alumno">
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                    </button>
+                                </div>
                             )}
                             {s.driveLinkAfternoon && (
-                                <button onClick={(e) => { e.stopPropagation(); abrirDriveAlumno(s.driveLinkAfternoon, s); }} className="text-[10px] bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-200 font-bold flex items-center gap-1 hover:bg-green-100 transition">
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                                    Informes TT
-                                </button>
+                                <div className="flex gap-1">
+                                    <button onClick={(e) => { e.stopPropagation(); abrirCarpeta(s.driveLinkAfternoon); }} className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200 font-bold flex items-center gap-1 hover:bg-blue-100 transition" title="Ir a Carpeta">
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                                        TT
+                                    </button>
+                                    {!s.driveLinkMorning && ( 
+                                        <button onClick={(e) => { e.stopPropagation(); buscarInformes(s); }} className="text-[10px] bg-white text-gray-500 px-2 py-0.5 rounded border border-gray-200 font-bold hover:bg-gray-100 transition">
+                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                        </button>
+                                    )}
+                                </div>
                             )}
                         </div>
                     </div>
@@ -1788,24 +1795,37 @@ function MatriculaView({ user }) {
           ); 
       })}</div>
       
-      {/* MODALES */}
+      {/* MODAL VER ALUMNO */}
       {viewingStudent && !showForm && (<div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm"><div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"><div className="bg-slate-700 p-6 text-white"><div className="flex justify-between items-start"><div className="flex gap-4"><div className="w-16 h-16 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden">{viewingStudent.photoUrl ? <img src={viewingStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={30} className="m-auto mt-4 text-white/50"/>}</div><div><h2 className="text-xl font-bold uppercase">{viewingStudent.lastName}, {viewingStudent.firstName}</h2><div className="flex gap-2 mt-1"><span className="bg-white/20 px-2 py-0.5 rounded text-xs">{calculateAge(viewingStudent.birthDate)} años</span><span className="bg-white/20 px-2 py-0.5 rounded text-xs">{viewingStudent.dni}</span></div></div></div><button onClick={()=>setViewingStudent(null)} className="bg-white/20 p-1 rounded-full hover:bg-white/40"><X/></button></div><div className="flex gap-2 mt-6 bg-slate-800/50 p-1 rounded-xl"><button onClick={()=>setActiveModalTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeModalTab==='info'?'bg-white text-slate-800 shadow-md':'text-white/50 hover:text-white'}`}>Datos Personales</button><button onClick={()=>setActiveModalTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeModalTab==='history'?'bg-white text-slate-800 shadow-md':'text-white/50 hover:text-white'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto bg-gray-50">{activeModalTab==='info' ? (
       <div className="space-y-4 text-sm">
         
-        {/* BOTONES DRIVE EN MODAL */}
+        {/* BOTONES DRIVE EN MODAL (GRANDES) */}
         {(viewingStudent.driveLinkMorning || viewingStudent.driveLinkAfternoon) && (
-            <div className="flex gap-2 mb-2">
+            <div className="flex flex-col gap-2 mb-2">
                 {viewingStudent.driveLinkMorning && (
-                    <button onClick={() => abrirDriveAlumno(viewingStudent.driveLinkMorning, viewingStudent)} className="flex-1 bg-green-100 text-green-800 py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-green-200 transition border border-green-300">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                        INFORMES TM (Drive)
-                    </button>
+                    <div className="flex gap-2">
+                         <button onClick={() => abrirCarpeta(viewingStudent.driveLinkMorning)} className="flex-1 bg-green-100 text-green-800 py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-green-200 transition border border-green-300">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                            CARPETA TM (Ver Todo)
+                        </button>
+                        <button onClick={() => buscarInformes(viewingStudent)} className="w-16 bg-white text-gray-600 border border-gray-200 rounded-xl flex items-center justify-center hover:bg-gray-50" title="Buscar informes de este alumno">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        </button>
+                    </div>
                 )}
                 {viewingStudent.driveLinkAfternoon && (
-                    <button onClick={() => abrirDriveAlumno(viewingStudent.driveLinkAfternoon, viewingStudent)} className="flex-1 bg-blue-100 text-blue-800 py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-blue-200 transition border border-blue-300">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                        INFORMES TT (Drive)
-                    </button>
+                    <div className="flex gap-2">
+                        <button onClick={() => abrirCarpeta(viewingStudent.driveLinkAfternoon)} className="flex-1 bg-blue-100 text-blue-800 py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-blue-200 transition border border-blue-300">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                            CARPETA TT (Ver Todo)
+                        </button>
+                         {/* Solo mostramos la lupa si no se mostró en la mañana (para no repetir) */}
+                        {!viewingStudent.driveLinkMorning && (
+                            <button onClick={() => buscarInformes(viewingStudent)} className="w-16 bg-white text-gray-600 border border-gray-200 rounded-xl flex items-center justify-center hover:bg-gray-50" title="Buscar informes de este alumno">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            </button>
+                        )}
+                    </div>
                 )}
             </div>
         )}
@@ -2282,6 +2302,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
