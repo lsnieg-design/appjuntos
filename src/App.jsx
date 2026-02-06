@@ -136,7 +136,7 @@ export default function App() {
   if (configError) return <div className="flex flex-col items-center justify-center h-screen bg-red-50 p-6 text-center"><AlertCircle className="text-red-500 w-16 h-16 mb-4" /><h1 className="text-xl font-bold text-red-700">Error de Configuración</h1></div>;
   if (!currentUserProfile) return <LoginScreen onLogin={handleLogin} />;
 
-  // CORRECCIÓN: Agregado "MainApp"
+  // CORRECCIÓN: Agregado ""
  return <MainApp user={currentUserProfile} onLogout={handleLogout} />;
 }
 
@@ -1663,7 +1663,16 @@ function MainApp({ user, onLogout }) {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 font-sans text-slate-800">
-      <style>{`.no-scrollbar::-webkit-scrollbar { display: none; } .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }`}</style>
+      {/* --- PARCHE CSS GLOBAL: OCULTA BARRAS, PERMITE SCROLL --- */}
+      <style>{`
+        *::-webkit-scrollbar {
+          display: none;
+        }
+        * {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
       <header className="bg-violet-800 text-white shadow-lg px-4 py-3 flex justify-between items-center z-50 sticky top-0">
         <div className="flex items-center space-x-3"><img src={LOGO_URL} alt="Logo" className="w-10 h-8 object-contain" /><div><h1 className="font-bold text-sm leading-tight">Juntos a la Par</h1><p className="text-[10px] text-orange-200 uppercase font-bold">{user.firstName}</p></div></div>
         <div className="flex items-center gap-3">
@@ -2086,6 +2095,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
