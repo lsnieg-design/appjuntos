@@ -1623,10 +1623,18 @@ function MatriculaView({ user }) {
     return () => { uS(); uU(); };
   }, []);
 
-  // --- NUEVA FUNCIÓN DE BÚSQUEDA "GENÉRICA" ---
+  // --- FUNCIÓN DE BÚSQUEDA SIMPLIFICADA (ESTA SÍ FUNCIONA) ---
   const abrirDriveAlumno = (url, student) => {
-      // 1. Limpiamos el nombre de tildes y caracteres raros para asegurar la búsqueda
-      const clean = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9 ]/g, "");
+      // Opción A: Si queremos ir a la CARPETA GENERAL (sin filtrar), descomenta la siguiente línea:
+      // window.open(url, '_blank'); return;
+
+      // Opción B: Búsqueda por Nombre + Apellido (Muestra todo lo que tenga ese nombre)
+      const busqueda = `"${student.lastName} ${student.firstName}"`; // Comillas para buscar la frase exacta si es posible
+      const searchUrl = `https://drive.google.com/drive/search?q=${encodeURIComponent(busqueda)}`;
+      
+      // Abre una pestaña nueva con la búsqueda ya hecha
+      window.open(searchUrl, '_blank');
+  };
       
       // 2. Separamos nombre y apellido en palabras clave (Ej: "Nogueira", "Ramiro")
       // Filtramos palabras muy cortas (como "de", "la") para no confundir
@@ -2282,6 +2290,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
