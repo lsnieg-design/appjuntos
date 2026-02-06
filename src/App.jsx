@@ -1581,7 +1581,7 @@ function ProyectoView({ user }) {
     </div>
   );
 }
-// --- VISTA MATRÍCULA (FINAL: CARPETA + BÚSQUEDA INTELIGENTE) ---
+// --- VISTA MATRÍCULA (UN SOLO BOTÓN BUSCADOR INTELIGENTE) ---
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
@@ -1623,22 +1623,15 @@ function MatriculaView({ user }) {
     return () => { uS(); uU(); };
   }, []);
 
-  // 1. ABRIR CARPETA (Navegación manual)
-  const abrirCarpeta = (url) => {
-      if (!url) return alert("No hay link asignado.");
-      window.open(url, '_blank');
-  };
+  // --- BUSCADOR DEL PIBE (UN SOLO CLIC) ---
+  const abrirBuscadorAlumno = (student) => {
+      // Limpiamos nombre y apellido para la búsqueda
+      const clean = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9 ]/g, "");
+      const nombre = clean(student.firstName).split(' ')[0];
+      const apellido = clean(student.lastName).split(' ')[0];
 
-  // 2. BUSCAR INFORMES (Detective de Archivos)
-  const buscarInformes = (student) => {
-      // Limpiamos el nombre para evitar errores con tildes
-      const cleanName = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      const nombre = cleanName(student.firstName).split(" ")[0]; // Primer nombre
-      const apellido = cleanName(student.lastName).split(" ")[0]; // Primer apellido
-      
-      // Búsqueda: "Apellido" Y "Nombre" Y (NO en papelera)
-      // Agregamos "type:application/vnd.google-apps.document" o similar si quisieras solo Docs, 
-      // pero por ahora buscamos todo lo que coincida por nombre.
+      // Búsqueda exacta: Que tenga el Apellido Y el Nombre (en cualquier orden)
+      // Esto encuentra "INFORME RAMIRO NOGUEIRA" y "NOGUEIRA RAMIRO LEGAJO"
       const query = `name contains '${apellido}' and name contains '${nombre}' and trashed = false`;
       
       const searchUrl = `https://drive.google.com/drive/search?q=${encodeURIComponent(query)}`;
@@ -1753,39 +1746,21 @@ function MatriculaView({ user }) {
                             ) : (
                                 <span className="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded border border-red-100 font-bold">Sin grupo</span>
                             )}
+                            
+                            {/* ETIQUETA AULA */}
                             {s.classroom && (
                                 <span className="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded border border-yellow-200 font-bold flex items-center gap-1 shadow-sm">
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
                                     Aula {s.classroom}
                                 </span>
                             )}
-                            
-                            {/* BOTONES DRIVE EN LISTA */}
-                            {s.driveLinkMorning && (
-                                <div className="flex gap-1">
-                                    {/* 1. IR A CARPETA */}
-                                    <button onClick={(e) => { e.stopPropagation(); abrirCarpeta(s.driveLinkMorning); }} className="text-[10px] bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-200 font-bold flex items-center gap-1 hover:bg-green-100 transition" title="Ir a Carpeta">
-                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                                        TM
-                                    </button>
-                                    {/* 2. BUSCAR ALUMNO (LUPA) */}
-                                    <button onClick={(e) => { e.stopPropagation(); buscarInformes(s); }} className="text-[10px] bg-white text-gray-500 px-2 py-0.5 rounded border border-gray-200 font-bold hover:bg-gray-100 transition" title="Buscar archivos del alumno">
-                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                                    </button>
-                                </div>
-                            )}
-                            {s.driveLinkAfternoon && (
-                                <div className="flex gap-1">
-                                    <button onClick={(e) => { e.stopPropagation(); abrirCarpeta(s.driveLinkAfternoon); }} className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200 font-bold flex items-center gap-1 hover:bg-blue-100 transition" title="Ir a Carpeta">
-                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                                        TT
-                                    </button>
-                                    {!s.driveLinkMorning && ( 
-                                        <button onClick={(e) => { e.stopPropagation(); buscarInformes(s); }} className="text-[10px] bg-white text-gray-500 px-2 py-0.5 rounded border border-gray-200 font-bold hover:bg-gray-100 transition">
-                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                                        </button>
-                                    )}
-                                </div>
+
+                            {/* UN SOLO BOTÓN DE DRIVE (BUSCADOR) */}
+                            {(s.driveLinkMorning || s.driveLinkAfternoon) && (
+                                <button onClick={(e) => { e.stopPropagation(); abrirBuscadorAlumno(s); }} className="text-[10px] bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-200 font-bold flex items-center gap-1 hover:bg-green-100 transition" title="Buscar todos los archivos de este alumno">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                                    Ver Legajo Drive
+                                </button>
                             )}
                         </div>
                     </div>
@@ -1799,35 +1774,12 @@ function MatriculaView({ user }) {
       {viewingStudent && !showForm && (<div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm"><div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"><div className="bg-slate-700 p-6 text-white"><div className="flex justify-between items-start"><div className="flex gap-4"><div className="w-16 h-16 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden">{viewingStudent.photoUrl ? <img src={viewingStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={30} className="m-auto mt-4 text-white/50"/>}</div><div><h2 className="text-xl font-bold uppercase">{viewingStudent.lastName}, {viewingStudent.firstName}</h2><div className="flex gap-2 mt-1"><span className="bg-white/20 px-2 py-0.5 rounded text-xs">{calculateAge(viewingStudent.birthDate)} años</span><span className="bg-white/20 px-2 py-0.5 rounded text-xs">{viewingStudent.dni}</span></div></div></div><button onClick={()=>setViewingStudent(null)} className="bg-white/20 p-1 rounded-full hover:bg-white/40"><X/></button></div><div className="flex gap-2 mt-6 bg-slate-800/50 p-1 rounded-xl"><button onClick={()=>setActiveModalTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeModalTab==='info'?'bg-white text-slate-800 shadow-md':'text-white/50 hover:text-white'}`}>Datos Personales</button><button onClick={()=>setActiveModalTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeModalTab==='history'?'bg-white text-slate-800 shadow-md':'text-white/50 hover:text-white'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto bg-gray-50">{activeModalTab==='info' ? (
       <div className="space-y-4 text-sm">
         
-        {/* BOTONES DRIVE EN MODAL (GRANDES) */}
+        {/* BOTÓN DRIVE EN MODAL (ÚNICO Y GRANDE) */}
         {(viewingStudent.driveLinkMorning || viewingStudent.driveLinkAfternoon) && (
-            <div className="flex flex-col gap-2 mb-2">
-                {viewingStudent.driveLinkMorning && (
-                    <div className="flex gap-2">
-                         <button onClick={() => abrirCarpeta(viewingStudent.driveLinkMorning)} className="flex-1 bg-green-100 text-green-800 py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-green-200 transition border border-green-300">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                            CARPETA TM (Ver Todo)
-                        </button>
-                        <button onClick={() => buscarInformes(viewingStudent)} className="w-16 bg-white text-gray-600 border border-gray-200 rounded-xl flex items-center justify-center hover:bg-gray-50" title="Buscar informes de este alumno">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                        </button>
-                    </div>
-                )}
-                {viewingStudent.driveLinkAfternoon && (
-                    <div className="flex gap-2">
-                        <button onClick={() => abrirCarpeta(viewingStudent.driveLinkAfternoon)} className="flex-1 bg-blue-100 text-blue-800 py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-blue-200 transition border border-blue-300">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                            CARPETA TT (Ver Todo)
-                        </button>
-                         {/* Solo mostramos la lupa si no se mostró en la mañana (para no repetir) */}
-                        {!viewingStudent.driveLinkMorning && (
-                            <button onClick={() => buscarInformes(viewingStudent)} className="w-16 bg-white text-gray-600 border border-gray-200 rounded-xl flex items-center justify-center hover:bg-gray-50" title="Buscar informes de este alumno">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                            </button>
-                        )}
-                    </div>
-                )}
-            </div>
+             <button onClick={() => abrirBuscadorAlumno(viewingStudent)} className="w-full bg-green-100 text-green-800 py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-green-200 transition border border-green-300 mb-4 shadow-sm">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                VER LEGAJO DIGITAL (DRIVE)
+             </button>
         )}
 
         <div className="grid grid-cols-4 gap-2"><div className="bg-white p-2 rounded-xl border border-gray-100 text-center shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase">Nivel</p><p className="font-bold text-slate-800">{viewingStudent.level || '-'}</p></div><div className="bg-purple-50 p-2 rounded-xl border border-purple-100 text-center shadow-sm"><p className="text-[9px] text-purple-400 font-bold uppercase">DX</p><p className="font-bold text-purple-800">{viewingStudent.dx || '-'}</p></div><div className="bg-white p-2 rounded-xl border border-gray-100 text-center shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase">Género</p><p className="font-bold text-slate-800">{viewingStudent.gender || '-'}</p></div><div className="bg-white p-2 rounded-xl border border-gray-100 text-center shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase">Jornada</p><p className="font-bold text-slate-800">{viewingStudent.journey || '-'}</p></div></div>
@@ -2302,6 +2254,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
