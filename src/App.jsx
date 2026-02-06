@@ -1225,7 +1225,7 @@ function UsersAdminView() {
    </div>
   );
 }
-// --- VISTA PROYECTO INSTITUCIONAL (ACTUALIZADA: PDF, MES ACTUAL Y CONTENIDOS DETALLADOS) ---
+// --- VISTA PROYECTO INSTITUCIONAL (VERSIÓN FINAL: ESTRUCTURA EXACTA PDF) ---
 function ProyectoView({ user }) {
   const [periods, setPeriods] = useState([]);
   const [expandedPeriod, setExpandedPeriod] = useState(null);
@@ -1237,49 +1237,55 @@ function ProyectoView({ user }) {
   
   const PERIOD_NAMES = ["MARZO", "ABRIL Y MAYO", "JUNIO Y JULIO", "AGOSTO Y SEPTIEMBRE", "OCTUBRE Y NOVIEMBRE", "DICIEMBRE"];
 
-  // --- DATOS COMPLETOS EXTRAÍDOS DEL PDF ---
+  // --- BASE DE DATOS DEL PROYECTO (TEXTOS DEL PDF) ---
   const PROJECT_DATA_2026 = {
       "MARZO": {
-          paises: "Estación 1: Los Preparativos",
-          fundamentacion: "Inicio del viaje. Identidad, valija y pasaporte.",
-          contenidos: "📌 Prácticas del Lenguaje:\n- Escritura del nombre propio.\n- Lectura de listas (qué llevar).\n\n📌 Ciencias Sociales:\n- Identidad: DNI, historia personal.\n- Objetos personales y su función.\n\n📌 Matemática:\n- Calendario (uso social).\n- Medida (comparación de alturas).\n\n📌 ESI:\n- Cuidado del cuerpo e higiene.",
-          actividades: "1. Juego sensorial: 'Valija Ciega' (texturas).\n2. Huella de Identidad (dactilar).\n3. Circuito de Aeropuerto.\n4. Medición de alturas.\n5. Foto Carnet.",
-          herramientas: "🛠️ CAJA DE HERRAMIENTAS DOCENTE:\n- El Pasaporte: Confección del librillo.\n- Lista de Viaje: Escribir 5 cosas esenciales.\n- Calendario de Ruta: Marcar salida y llegada.\n- DNI Gigante: Analizar partes del documento."
+          title: "Estación 1: Los Preparativos",
+          [cite_start]narrativa: "Un grupo de estudiantes encuentra en la biblioteca del colegio el libro 'La vuelta al mundo en 80 días'. Lo leen y deciden emprender un viaje similar[cite: 41].",
+          paises: "🧳 LOS PREPARATIVOS DEL VIAJE\n\n• Identidad: El nombre, el DNI, la historia personal.\n• Equipaje: Qué llevar, cómo organizarnos.\n• La Ruta: Armado del itinerario.",
+          [cite_start]contenidos: "📌 Prácticas del Lenguaje:\n- Escritura del nombre propio en etiquetas y pasaportes.\n- Lectura de listas (qué llevar en la valija).\n\n📌 Ciencias Sociales:\n- Identidad: El nombre, el DNI.\n- Vida cotidiana: Objetos personales y su función.\n\n📌 Matemática:\n- Números Naturales: Uso social (calendario, fecha).\n- Medida: Comparación de longitudes (alturas)[cite: 41].",
+          actividades: "1. Confección del Pasaporte Viajero.\n2. Armado de la Valija Real.\n3. Medición de alturas para el registro.\n4. Foto Carnet en el aula.\n5. Circuito de Aeropuerto (Simulación).",
+          herramientas: "🧠 PEDAGÓGICAS:\n• El Pasaporte: Confección del librillo. [cite_start]Completar datos personales.\n• Lista de Viaje: Escribir qué 5 cosas no pueden faltar.\n• Calendario de Ruta: Marcar salida y llegada.\n• DNI Gigante: Analizar dónde está el número y la foto [cite: 41][cite_start].\n\n🖐️ SENSORIALES:\n• Reconocimiento Táctil: 'La Valija Ciega' (texturas).\n• Huella de Identidad: Pintarse el dedo y observar líneas con lupa.\n• El Peso del Equipaje: Comparar mochilas 'pesadas' vs 'livianas'.\n• Sonidos Propios: Juego 'Adivina quién habla' [cite: 42][cite_start].\n\n🧱 CONCRETAS:\n• Armado de Valija Real: Practicar doblar y guardar.\n• Medición de Alturas: Cintas métricas en la pared.\n• Foto Carnet: Simular estudio fotográfico.\n• Circuito de Aeropuerto: Mostrar pasaporte para pasar [cite: 42][cite_start].\n\n🎨 ARTÍSTICAS:\n• Autorretrato: Dibujo frente al espejo.\n• Decoración de Valijas: Cajas de zapatos con collage.\n• Collage del Nombre: Relleno con papeles.\n• Sellos de Manos: Mural 'Nuestras manos viajan unidas'[cite: 42]."
       },
       "ABRIL_Y_MAYO": {
-          paises: "Estación 2: América (Argentina, Brasil, México)",
-          fundamentacion: "Tierra, raíces, maíz y selva.",
-          contenidos: "📌 Prácticas del Lenguaje:\n- Lectura de leyendas tradicionales.\n- Escritura de nombres de países.\n\n📌 Cs. Sociales:\n- Pueblos Originarios: Viviendas.\n- Paisajes naturales vs humanizados.\n\n📌 Cs. Naturales:\n- Animales: Coberturas (plumas, pelo).\n- Plantas: Semillas diversas.",
-          actividades: "1. Cocina: Chipá y Ensalada de Frutas.\n2. Taller de Aromas (Yerba, Café, Cacao).\n3. Máscaras de Carnaval (Brasil).\n4. Papel Picado y Pirámides (México).\n5. Construcción de nido de hornero.",
-          herramientas: "🛠️ CAJA DE HERRAMIENTAS DOCENTE:\n- Secuencia de Leyenda (Orden temporal).\n- Receta de Cocina (Lectura de pasos).\n- Clasificación: Plumas vs Pelo.\n- Bandera Rompecabezas (Argentina/Brasil)."
+          title: "Estación 2: América",
+          narrativa: "Llegan a nuestro continente. [cite_start]Tierra, raíces, maíz y selva[cite: 43].",
+          [cite_start]paises: "🇦🇷 ARGENTINA (Nuestra Casa)\n• Capital: Buenos Aires.\n• Comida: Mate, Asado, Empanadas.\n• Animal: Hornero.\n• Símbolos: Obelisco, Escarapela, Tango.\n\n🇧🇷 BRASIL (Vecinos y Selva)\n• Capital: Brasilia.\n• Comida: Frutas tropicales, Feijoada.\n• Animal: Tucán / Guacamayo.\n• Símbolos: Carnaval, Samba.\n\n🇲🇽 MÉXICO (Colores y Tradición)\n• Capital: Ciudad de México.\n• Comida: Tacos, Chocolate.\n• Animal: Águila Real / Xoloitzcuintle.\n• Símbolos: Mariachis, Calaveras, Pirámides[cite: 43, 44].",
+          contenidos: "📌 Prácticas del Lenguaje:\n- Lectura de leyendas tradicionales.\n- Escritura de nombres de países.\n\n📌 Cs. Sociales:\n- Pueblos Originarios: Viviendas y costumbres.\n- Paisajes: Naturales y humanizados.\n\n📌 Cs. [cite_start]Naturales:\n- Animales: Coberturas (plumas, pelos, lana).\n- Plantas: Diversidad de semillas[cite: 44].",
+          actividades: "1. Cocina: Chipá y Ensalada de Frutas.\n2. Construcción de nido de hornero (barro).\n3. Máscaras de Carnaval.\n4. Siembra de maíz/porotos.\n5. Pintura con tierra.",
+          [cite_start]herramientas: "🧠 PEDAGÓGICAS:\n• Secuencia de Leyenda: Ordenar imágenes (Hornero/Yerba Mate).\n• Receta de Cocina: Leer pasos para Chipá.\n• Clasificación: Animales con Plumas vs Pelo.\n• Bandera Rompecabezas: Armar Argentina y Brasil [cite: 44, 45][cite_start].\n\n🖐️ SENSORIALES:\n• Taller de Aromas: Yerba, café, chocolate, vainilla.\n• Caja Táctil 'La Llama': Lana cruda, aguayos ásperos.\n• Degustación: Frutas tropicales (ananá, mango).\n• Sonidos de la Selva: Lluvia y pájaros [cite: 45][cite_start].\n\n🧱 CONCRETAS:\n• Molienda Ancestral: Moler maíz/polenta con mortero.\n• Cocina: Amasar chipá (motricidad fina).\n• Construcción de Nido: Barro y paja.\n• Siembra: Germinadores en frascos [cite: 45][cite_start].\n\n🎨 ARTÍSTICAS:\n• Telar Aborigen: Tejer con lanas sobre cartón.\n• Máscaras de Carnaval: Plumas y lentejuelas.\n• Papel Picado Mexicano: Figuras en papel doblado.\n• Pintura con Tierra: Tierra + cola vinílica[cite: 45]."
       },
       "JUNIO_Y_JULIO": {
-          paises: "Estación 3: Europa & Mundial (Inglaterra, Italia, España)",
-          fundamentacion: "Historia (castillos) y presente (fútbol/Mundial).",
-          contenidos: "📌 Cs. Sociales:\n- Pasado/Presente (Castillos vs Estadios).\n- Normas y Reglas de juego.\n\n📌 Matemática:\n- Conteo de colecciones (goles).\n- Espacio: Ubicación y trayectorias.",
-          actividades: "1. Mini Mundial (penales y conteo).\n2. Taller de Masas (Ñoquis/Fideos).\n3. Experiencia Térmica: Hielo vs Té.\n4. Arte: Mosaico estilo Gaudí.\n5. Diseño de camisetas.",
-          herramientas: "🛠️ CAJA DE HERRAMIENTAS DOCENTE:\n- Álbum de Figuritas (Correspondencia número).\n- Tabla de Goles (Registro de datos).\n- Lectura de Camisetas (Nombre y Número).\n- Reglamento del Aula (3 reglas de oro)."
+          title: "Estación 3: Europa & Mundial",
+          narrativa: "Europa es historia (castillos) y presente (fútbol). [cite_start]El grupo recorre países, pero el mundo se detiene para jugar[cite: 46].",
+          [cite_start]paises: "🏴󠁧󠁢󠁥󠁮󠁧󠁿 INGLATERRA\n• Capital: Londres.\n• Símbolos: Big Ben, Té, Autobús rojo.\n\n🇮🇹 ITALIA (Sabores de la Abuela)\n• Capital: Roma.\n• Comida: Pizza y Pastas.\n• Símbolos: Coliseo, Máscaras Venecia.\n\n🇪🇸 ESPAÑA (Música y Color)\n• Capital: Madrid.\n• Símbolos: Abanicos, Molinos, Guitarra[cite: 46, 47].",
+          contenidos: "📌 Cs. Sociales:\n- Pasado/Presente: Castillos vs Estadios.\n- Normas: Reglas de juego.\n\n📌 Matemática:\n- Conteo de colecciones (goles).\n- Espacio: Ubicación y trayectorias.",
+          actividades: "1. Mini Mundial: Penales y goles.\n2. Taller de Masas (Ñoquis).\n3. Construcción de Torres (Big Ben).\n4. Hora del Té (Juego simbólico).\n5. Diseño de camisetas.",
+          [cite_start]herramientas: "🧠 PEDAGÓGICAS:\n• Álbum de Figuritas: Correspondencia número-imagen.\n• Tabla de Goles: Registrar con palitos los goles del recreo.\n• Lectura de Camisetas: Leer nombres y números.\n• Reglamento del Aula: Escribir 3 reglas de oro [cite: 48][cite_start].\n\n🖐️ SENSORIALES:\n• Taller de Masas: Harina seca vs Masa húmeda.\n• Sonidos de Estadio: Fuertes (gol) vs Suaves (susurro).\n• Temperatura: Hielo (Londres) vs Té tibio.\n• Textura de Balones: Cuero, tenis, ping pong [cite: 48][cite_start].\n\n🧱 CONCRETAS:\n• Mini Mundial: Patear penales.\n• Construcción de Torres: Bloques de madera (Torre de Pisa).\n• Hora del Té: Servir y poner la mesa.\n• Circuito de Entrenamiento: Zigzag y túnel [cite: 48][cite_start].\n\n🎨 ARTÍSTICAS:\n• Mosaico (Gaudí): Papel glacé sobre cartón.\n• Diseño de Camisetas: Estampado con esponjas.\n• Abanicos Españoles: Plegado de papel.\n• Coronas de Reyes: Cartulina y decoración[cite: 48]."
       },
       "AGOSTO_Y_SEPTIEMBRE": {
-          paises: "Estación 4: Asia (China, India, Japón)",
-          fundamentacion: "Paciencia, detalle, luz y sombra.",
-          contenidos: "📌 Prácticas del Lenguaje:\n- Poesía: Haikus.\n- Escritura: Trazos no convencionales.\n\n📌 Matemática:\n- Geometría: Figuras geométricas.\n- Espacio: Plegado (Origami).",
-          actividades: "1. Arroz Sensorial (búsqueda).\n2. Sombras Chinas con linternas.\n3. Origami simple.\n4. Ceremonia de Té y relajación.\n5. Jardín Zen (arena).",
-          herramientas: "🛠️ CAJA DE HERRAMIENTAS DOCENTE:\n- Tangram: Armar figuras con formas.\n- Secuencia de Crecimiento (Semilla a Planta).\n- Escritura Vertical (Tiras de papel).\n- Haikus: Leer y dibujar."
+          title: "Estación 4: Asia",
+          [cite_start]narrativa: "El Oriente nos enseña la paciencia, el detalle y el contraste entre la luz y la sombra[cite: 49].",
+          [cite_start]paises: "🇨🇳 CHINA (El Dragón)\n• Símbolos: Muralla, Farolitos, Oso Panda.\n\n🇮🇳 INDIA (Los Aromas)\n• Símbolos: Taj Mahal, Elefante, Mandalas.\n\n🇯🇵 JAPÓN (La Calma)\n• Símbolos: Flor de Cerezo, Sushi, Pez Koi[cite: 49, 50].",
+          contenidos: "📌 Prácticas del Lenguaje:\n- Poesía: Haikus.\n- Escritura: Trazos no convencionales (Pincel).\n\n📌 Matemática:\n- Geometría: Figuras (Tangram).\n- Espacio: Plegado (Origami).",
+          actividades: "1. Arroz Sensorial.\n2. Escritura Vertical con tinta.\n3. Sombras Chinas.\n4. Origami simple.\n5. Jardín Zen.",
+          [cite_start]herramientas: "🧠 PEDAGÓGICAS:\n• Tangram: Armar figuras con triángulos y cuadrados.\n• Secuencia de Crecimiento: Semilla -> Brote -> Arroz.\n• Escritura Vertical: Nombre propio de arriba a abajo.\n• Haikus: Leer poemas cortos y dibujar [cite: 51][cite_start].\n\n🖐️ SENSORIALES:\n• Arroz Sensorial: Buscar objetos en bateas de arroz.\n• Ceremonia de Té: Oler jazmín, observar vapor.\n• Luces y Sombras: Linternas y sábanas.\n• Vibración: Tocar cuenco tibetano o campana [cite: 51][cite_start].\n\n🧱 CONCRETAS:\n• Uso de Palitos: Agarrar pompones con palitos chinos.\n• Origami Simple: Plegar perrito o vaso.\n• Jardín Zen: Rastrillar arena fina con tenedor.\n• Yoga Animal: Imitar posturas (tigre, flor de loto) [cite: 51][cite_start].\n\n🎨 ARTÍSTICAS:\n• Manchas Sopladas: Tinta china con sorbete (Dragones).\n• Escritura con Pincel: Trazos gruesos sobre diario.\n• Mandalas Naturales: Con hojas y piedras en el piso.\n• Farolitos Chinos: Cortar y pegar cartulina roja[cite: 51]."
       },
       "OCTUBRE_Y_NOVIEMBRE": {
-          paises: "Estación 5: África y Oceanía (Egipto, Sudáfrica, Australia)",
-          fundamentacion: "Fuerza de la naturaleza: desiertos, selvas y océanos.",
-          contenidos: "📌 Cs. Naturales:\n- Animales: Desplazamiento.\n- Ambientes: Acuático / Aeroterrestre.\n\n📌 Matemática:\n- Cuerpos Geométricos: Pirámide, Esfera.",
-          actividades: "1. Arenero Egipcio (tesoros).\n2. Botellas del Océano (calma visual).\n3. Juego de Momias.\n4. Arte: Puntillismo (Australia).\n5. Máscaras Tribales.",
-          herramientas: "🛠️ CAJA DE HERRAMIENTAS DOCENTE:\n- Clasificación de Hábitat (Mural Tierra/Mar).\n- Adivinanzas de Animales.\n- Laberinto (Camino del canguro).\n- Conteo de Patas (Araña vs León)."
+          title: "Estación 5: África y Oceanía",
+          narrativa: "La fuerza de la naturaleza. [cite_start]Cruzamos desiertos, selvas y el inmenso océano[cite: 52].",
+          [cite_start]paises: "🇪🇬 EGIPTO (El Desierto)\n• Símbolos: Pirámides, Momias, Camello.\n\n🇿🇦 SUDÁFRICA (La Sabana)\n• Símbolos: León, Jirafa, Máscaras.\n\n🇦🇺 AUSTRALIA (El Océano)\n• Símbolos: Canguro, Koala, Surf[cite: 53].",
+          contenidos: "📌 Cs. Naturales:\n- Animales: Desplazamiento (nadar/correr).\n- Ambientes: Acuático / Aeroterrestre.\n\n📌 Matemática:\n- Cuerpos Geométricos: Pirámide, Esfera.",
+          actividades: "1. Arenero Egipcio.\n2. Botellas del Océano.\n3. Juego de Momias.\n4. Puntillismo.\n5. Máscaras Tribales.",
+          [cite_start]herramientas: "🧠 PEDAGÓGICAS:\n• Clasificación de Hábitat: Mural Tierra vs Mar.\n• Adivinanzas: Pistas de animales (Cuello largo = Jirafa).\n• Laberinto: Ayuda al canguro a encontrar a mamá.\n• Conteo de Patas: Araña vs León vs Flamenco [cite: 54][cite_start].\n\n🖐️ SENSORIALES:\n• Arenero Egipcio: Arena seca y tesoros dorados.\n• Botellas del Océano: Agua, aceite, colorante azul.\n• Percusión Corporal: Golpes en pecho y muslos.\n• Pieles: Texturas rugosas vs suaves [cite: 54][cite_start].\n\n🧱 CONCRETAS:\n• Momias: Envolver compañero con papel higiénico.\n• Salto de Canguro: Competencia en el patio.\n• Construcción de Pirámides: Vasos de plástico.\n• Pesca: Con imanes en palangana [cite: 54][cite_start].\n\n🎨 ARTÍSTICAS:\n• Puntillismo (Australia): Hisopos sobre fondo negro.\n• Máscaras Tribales: Cartón corrugado y rafia.\n• Collares Egipcios: Platos de cartón dorados.\n• Huellas de Animales: Estampado con esponjas[cite: 54]."
       },
       "DICIEMBRE": {
-          paises: "Estación 6: El Regreso a Casa",
-          fundamentacion: "Cierre del ciclo y socialización.",
+          title: "Estación 6: El Regreso a Casa",
+          [cite_start]narrativa: "Los estudiantes vuelven al colegio y socializan todo lo recorrido[cite: 55].",
+          paises: "🏠 MUESTRA DEL VIAJERO\n\n• Recorrido por el patio transformado en mapa.\n• Merienda con sabores del mundo.\n• Entrega de Pasaportes Completos.",
           contenidos: "📌 Evaluación y celebración.\n📌 Muestra a la comunidad.",
-          actividades: "1. Completado final del Pasaporte.\n2. 'Muestra del Viajero'.\n3. Merienda compartida con familias.\n4. Exhibición de objetos.",
-          herramientas: "🛠️ CAJA DE HERRAMIENTAS DOCENTE:\n- Finalización de registros.\n- Armado de muestra interactiva."
+          actividades: "1. Completado final del Pasaporte.\n2. Muestra interactiva para familias.\n3. Cierre del ciclo.",
+          [cite_start]herramientas: "🧠 CIERRE DEL PROYECTO:\n• Finalización de lectura del libro.\n• Armado de la muestra con los objetos creados (máscaras, pirámides).\n• Evaluación de la 'Bitácora de Viaje'[cite: 57, 81]."
       }
   };
 
@@ -1297,9 +1303,8 @@ function ProyectoView({ user }) {
     return () => unsub();
   }, []);
 
-  // Lógica para detectar el mes actual y resaltar la tarjeta
   const getCurrentPeriodId = () => {
-      const month = new Date().getMonth(); // 0 = Enero, 2 = Marzo
+      const month = new Date().getMonth(); 
       if (month === 2) return "MARZO";
       if (month === 3 || month === 4) return "ABRIL_Y_MAYO";
       if (month === 5 || month === 6) return "JUNIO_Y_JULIO";
@@ -1314,11 +1319,12 @@ function ProyectoView({ user }) {
       e.preventDefault();
       const fd = new FormData(e.target);
       const data = {
+          narrativa: fd.get('narrativa'),
+          paises: fd.get('paises'),
           fundamentacion: fd.get('fundamentacion'),
           contenidos: fd.get('contenidos'),
           actividades: fd.get('actividades'),
-          herramientas: fd.get('herramientas'), // Nuevo campo
-          paises: fd.get('paises'),
+          herramientas: fd.get('herramientas'),
           updatedAt: serverTimestamp()
       };
       const { setDoc, doc: docRef } = await import('firebase/firestore'); 
@@ -1347,7 +1353,9 @@ function ProyectoView({ user }) {
           const { setDoc, doc: docRef } = await import('firebase/firestore');
           const promises = PERIOD_NAMES.map(name => {
               const id = name.replace(/\s+/g, '_');
-              return setDoc(docRef(db, 'artifacts', appId, 'public', 'data', 'proyecto2026_periods', id), { paises: '', fundamentacion: '', contenidos: '', actividades: '', herramientas: '' });
+              return setDoc(docRef(db, 'artifacts', appId, 'public', 'data', 'proyecto2026_periods', id), { 
+                  paises: '', fundamentacion: '', contenidos: '', actividades: '', herramientas: '', narrativa: '' 
+              });
           });
           await Promise.all(promises);
           alert("🗑️ Proyecto reiniciado.");
@@ -1358,13 +1366,12 @@ function ProyectoView({ user }) {
   return (
     <div className="space-y-6 pb-24 animate-in fade-in duration-700 relative">
       
-      {/* --- PORTADA CON BOTÓN AL ARCHIVO --- */}
+      {/* PORTADA CON LINK */}
       <div className="relative w-full h-56 rounded-[35px] overflow-hidden shadow-2xl group border border-violet-100">
           <img src="/PPI.png" alt="Portada" className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" onError={(e) => { e.target.style.display = 'none'; }} />
           <div className="absolute inset-0 bg-gradient-to-t from-violet-900 via-violet-900/40 to-transparent flex flex-col justify-end p-8">
               <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter drop-shadow-md mb-1">Proyecto 2026</h2>
               
-              {/* LINK AL ARCHIVO DRIVE */}
               <a href="https://drive.google.com/file/d/1Cgb9QQ5XNy_RvmdIShPc2cZX317tcmga/view?usp=sharing" target="_blank" rel="noopener noreferrer" className="absolute top-4 left-4 bg-white/20 hover:bg-white/40 backdrop-blur-md px-3 py-2 rounded-xl text-white text-xs font-bold flex items-center gap-2 transition shadow-lg border border-white/30">
                   <FileText size={16}/> Ver PDF Completo
               </a>
@@ -1375,7 +1382,6 @@ function ProyectoView({ user }) {
               </div>
           </div>
           
-          {/* BOTÓN ADMIN */}
           {isAdmin && (
               <div className="absolute top-4 right-4">
                   <button onClick={() => setShowAdminMenu(!showAdminMenu)} className="bg-white/20 hover:bg-white/40 backdrop-blur-md p-2 rounded-full text-white shadow-lg transition"><Settings size={20}/></button>
@@ -1392,60 +1398,86 @@ function ProyectoView({ user }) {
       <div className="space-y-3">
           {periods.map(period => {
               const isCurrent = period.id === currentId;
+              const displayTitle = PROJECT_DATA_2026[period.id]?.title || period.name;
+
               return (
               <div key={period.id} className={`bg-white rounded-2xl shadow-sm border overflow-hidden transition-all duration-500 ${isCurrent ? 'border-orange-400 ring-2 ring-orange-100 shadow-orange-100 transform scale-[1.02]' : 'border-gray-100'}`}>
                   <div onClick={() => setExpandedPeriod(expandedPeriod?.id === period.id ? null : period)} className={`p-4 flex justify-between items-center cursor-pointer transition-colors ${expandedPeriod?.id === period.id ? 'bg-violet-50' : 'hover:bg-gray-50'}`}>
                       <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-[10px] ${expandedPeriod?.id === period.id ? 'bg-violet-600 text-white' : isCurrent ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-500'}`}>{period.name.substring(0,3)}</div>
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs ${expandedPeriod?.id === period.id ? 'bg-violet-600 text-white' : isCurrent ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400'}`}>{period.name.substring(0,3)}</div>
                           <div>
                               <div className="flex items-center gap-2">
-                                  <h3 className={`font-bold text-xs uppercase ${isCurrent ? 'text-orange-600' : 'text-gray-800'}`}>{period.name}</h3>
+                                  <h3 className={`font-black text-sm uppercase italic tracking-tighter ${isCurrent ? 'text-orange-600' : 'text-gray-800'}`}>{displayTitle}</h3>
                                   {isCurrent && <span className="bg-orange-100 text-orange-700 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">📍 Estación Actual</span>}
                               </div>
-                              <p className="text-[10px] text-gray-400 truncate max-w-[200px]">{period.paises || 'Sin contenido cargado'}</p>
+                              <p className="text-[10px] text-gray-400 truncate max-w-[250px] font-medium">{period.fundamentacion || 'Clic para ver contenidos...'}</p>
                           </div>
                       </div>
                       <ChevronRight size={16} className={`text-gray-300 transition-transform ${expandedPeriod?.id === period.id ? 'rotate-90 text-violet-600' : ''}`} />
                   </div>
 
                   {expandedPeriod?.id === period.id && (
-                      <div className="p-4 border-t border-gray-100 bg-gray-50/50 animate-in slide-in-from-top-2">
+                      <div className="p-5 border-t border-gray-100 bg-gray-50/50 animate-in slide-in-from-top-2">
                           {!editing ? (
-                              <div className="space-y-4">
-                                  <div><h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Eje Temático</h4><p className="text-sm font-bold text-violet-700">{period.paises || '-'}</p></div>
-                                  <div><h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Fundamentación</h4><p className="text-xs text-gray-600 italic">{period.fundamentacion || '-'}</p></div>
+                              <div className="space-y-6">
                                   
-                                  {/* SECCIÓN DE CONTENIDOS DIVIDIDA */}
-                                  <div className="bg-white p-4 rounded-xl border border-gray-200">
-                                      <h4 className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-2 flex items-center gap-1"><BookOpen size={10}/> Contenidos Curriculares</h4>
-                                      <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed font-medium">{period.contenidos || '-'}</p>
+                                  {/* SECCIÓN NARRATIVA (Cuento) */}
+                                  <div className="bg-white p-4 rounded-2xl border border-violet-100 shadow-sm relative overflow-hidden">
+                                      <div className="absolute top-0 left-0 w-1 h-full bg-violet-400"></div>
+                                      <h4 className="text-[10px] font-black text-violet-400 uppercase tracking-widest mb-2 flex items-center gap-1"><BookOpen size={12}/> Narrativa del Cuento</h4>
+                                      <p className="text-sm font-medium text-gray-700 italic leading-relaxed">"{period.narrativa || '...'}"</p>
+                                  </div>
+
+                                  {/* SECCIÓN EJES / PAÍSES */}
+                                  <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
+                                      <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1"><Globe size={12}/> Países y Ejes</h4>
+                                      <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-bold">{period.paises || '-'}</p>
                                   </div>
 
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                      <div className="bg-white p-3 rounded-xl border border-gray-200">
-                                          <h4 className="text-[9px] font-black text-orange-500 uppercase tracking-widest mb-2 flex items-center gap-1"><Lightbulb size={10}/> Actividades</h4>
-                                          <p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed">{period.actividades || '-'}</p>
+                                      {/* CONTENIDOS */}
+                                      <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                                          <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-2 flex items-center gap-1"><List size={12}/> Contenidos Curriculares</h4>
+                                          <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">{period.contenidos || '-'}</p>
                                       </div>
-                                      {/* NUEVA CAJA: HERRAMIENTAS DOCENTES */}
-                                      <div className="bg-orange-50 p-3 rounded-xl border border-orange-100">
-                                          <h4 className="text-[9px] font-black text-orange-700 uppercase tracking-widest mb-2 flex items-center gap-1"><Briefcase size={10}/> Caja de Herramientas</h4>
-                                          <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-bold">{period.herramientas || 'Sin herramientas cargadas.'}</p>
+                                      
+                                      {/* CAJA DE HERRAMIENTAS (DIVIDIDA) */}
+                                      <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100">
+                                          <h4 className="text-[10px] font-black text-orange-700 uppercase tracking-widest mb-2 flex items-center gap-1"><Briefcase size={12}/> Caja de Herramientas</h4>
+                                          <div className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium">
+                                              {period.herramientas || 'Sin herramientas cargadas.'}
+                                          </div>
                                       </div>
                                   </div>
-                                  {isAdmin && <button onClick={() => setEditing(true)} className="w-full py-2 bg-white border border-violet-200 text-violet-600 font-bold text-xs rounded-xl mt-2 hover:bg-violet-50 transition">Editar Manualmente</button>}
+
+                                  {/* ACTIVIDADES */}
+                                  <div className="bg-white p-4 rounded-2xl border border-gray-200">
+                                      <h4 className="text-[10px] font-black text-green-600 uppercase tracking-widest mb-2 flex items-center gap-1"><Lightbulb size={12}/> Actividades Sugeridas</h4>
+                                      <p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed">{period.actividades || '-'}</p>
+                                  </div>
+
+                                  {isAdmin && <button onClick={() => setEditing(true)} className="w-full py-3 bg-white border border-violet-200 text-violet-600 font-bold text-xs rounded-xl mt-2 hover:bg-violet-50 transition shadow-sm">Editar Manualmente</button>}
                               </div>
                           ) : (
-                              <form onSubmit={handleSave} className="space-y-3">
-                                  <input name="paises" defaultValue={period.paises} placeholder="Título / Eje" className="w-full p-3 rounded-xl border border-gray-200 text-sm font-bold" />
-                                  <textarea name="fundamentacion" defaultValue={period.fundamentacion} placeholder="Fundamentación..." className="w-full p-3 rounded-xl border border-gray-200 text-xs h-16" />
-                                  <textarea name="contenidos" defaultValue={period.contenidos} placeholder="Contenidos por área..." className="w-full p-3 rounded-xl border border-gray-200 text-xs h-32 bg-blue-50/50" />
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                      <textarea name="actividades" defaultValue={period.actividades} placeholder="Actividades..." className="w-full p-3 rounded-xl border border-gray-200 text-xs h-32" />
-                                      <textarea name="herramientas" defaultValue={period.herramientas} placeholder="Herramientas Docentes..." className="w-full p-3 rounded-xl border border-orange-200 text-xs h-32 bg-orange-50/30" />
+                              <form onSubmit={handleSave} className="space-y-4">
+                                  <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-3">
+                                      <label className="text-[10px] font-bold text-gray-400 uppercase">Narrativa</label>
+                                      <textarea name="narrativa" defaultValue={period.narrativa} className="w-full p-3 rounded-lg border border-gray-200 text-xs h-20 outline-none focus:border-violet-400" />
+                                      
+                                      <label className="text-[10px] font-bold text-gray-400 uppercase">Países y Ejes</label>
+                                      <textarea name="paises" defaultValue={period.paises} className="w-full p-3 rounded-lg border border-gray-200 text-xs h-24 outline-none focus:border-violet-400" />
                                   </div>
-                                  <div className="flex gap-2">
-                                      <button type="button" onClick={() => setEditing(false)} className="flex-1 py-2 text-gray-400 font-bold text-xs hover:bg-gray-200 rounded-xl transition">Cancelar</button>
-                                      <button type="submit" className="flex-1 py-2 bg-violet-600 text-white font-bold text-xs rounded-xl shadow-lg hover:bg-violet-700 transition">Guardar Cambios</button>
+
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                      <div><label className="text-[10px] font-bold text-gray-400 uppercase">Contenidos</label><textarea name="contenidos" defaultValue={period.contenidos} className="w-full p-3 rounded-lg border border-gray-200 text-xs h-40 outline-none focus:border-violet-400" /></div>
+                                      <div><label className="text-[10px] font-bold text-gray-400 uppercase">Caja Herramientas</label><textarea name="herramientas" defaultValue={period.herramientas} className="w-full p-3 rounded-lg border border-gray-200 text-xs h-40 outline-none focus:border-violet-400 bg-orange-50" /></div>
+                                  </div>
+                                  
+                                  <div><label className="text-[10px] font-bold text-gray-400 uppercase">Actividades</label><textarea name="actividades" defaultValue={period.actividades} className="w-full p-3 rounded-lg border border-gray-200 text-xs h-24 outline-none focus:border-violet-400" /></div>
+
+                                  <div className="flex gap-2 pt-2">
+                                      <button type="button" onClick={() => setEditing(false)} className="flex-1 py-3 text-gray-400 font-bold text-xs hover:bg-gray-200 rounded-xl transition">Cancelar</button>
+                                      <button type="submit" className="flex-1 py-3 bg-violet-600 text-white font-bold text-xs rounded-xl shadow-lg hover:bg-violet-700 transition">Guardar Cambios</button>
                                   </div>
                               </form>
                           )}
@@ -2292,6 +2324,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
