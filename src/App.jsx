@@ -1581,7 +1581,7 @@ function ProyectoView({ user }) {
     </div>
   );
 }
-// --- VISTA MATRÍCULA (CON BOTONES DRIVE INTELIGENTES Y FILTRADO) ---
+// --- VISTA MATRÍCULA (CON BÚSQUEDA DE DRIVE "TIPO DETECTIVE") ---
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
@@ -1589,21 +1589,26 @@ function MatriculaView({ user }) {
   const [viewingStudent, setViewingStudent] = useState(null);
   const [activeModalTab, setActiveModalTab] = useState('info');
   
-  // Modales y Estados
+  // Modales
   const [showStats, setShowStats] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showDataManagement, setShowDataManagement] = useState(false);
   const [showDupes, setShowDupes] = useState(false);
   const [showUnassigned, setShowUnassigned] = useState(false);
+
+  // Estados de Datos
   const [editingStudent, setEditingStudent] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
   const [potentialDupes, setPotentialDupes] = useState([]);
   const [unassignedList, setUnassignedList] = useState([]);
+
+  // Estados de Proceso
   const [importJson, setImportJson] = useState('');
   const [processing, setProcessing] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   
+  // Filtros
   const [statFilters, setStatFilters] = useState({ level: 'all', dx: 'all', gender: 'all', journey: 'all', turn: 'all' });
   const [filters, setFilters] = useState({ level: 'all', group: 'all', turn: 'all', teacher: 'all', dx: 'all', gender: 'all', journey: 'all', os: 'all' });
 
@@ -1614,30 +1619,32 @@ function MatriculaView({ user }) {
     const qS = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), orderBy('lastName', 'asc'));
     const uS = onSnapshot(qS, (snap) => setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const qU = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('lastName', 'asc'));
-    const uU = onSnapshot(qU, (snap) => {
-        setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
+    const uU = onSnapshot(qU, (snap) => setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     return () => { uS(); uU(); };
   }, []);
 
-  // --- FUNCIÓN MAGICA: ABRIR DRIVE FILTRADO ---
+  // --- NUEVA FUNCIÓN DE BÚSQUEDA "GENÉRICA" ---
   const abrirDriveAlumno = (url, student) => {
-      if (!url) return;
-      // 1. Intentamos extraer el ID de la carpeta del link largo de Google
-      // Los links suelen ser .../folders/1A2b3C... o ?id=1A2b3C...
-      const idMatch = url.match(/[-\w]{25,}/);
+      // 1. Limpiamos el nombre de tildes y caracteres raros para asegurar la búsqueda
+      const clean = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9 ]/g, "");
       
-      if (idMatch) {
-          const folderId = idMatch[0];
-          const studentName = `${student.lastName} ${student.firstName}`; // Buscamos por "Apellido Nombre"
-          // 2. Construimos la búsqueda: 'ID' in parents AND fullText contains 'Nombre'
-          const query = `'${folderId}' in parents and fullText contains '${studentName}'`;
-          const searchUrl = `https://drive.google.com/drive/search?q=${encodeURIComponent(query)}`;
-          window.open(searchUrl, '_blank');
-      } else {
-          // 3. Si no reconocemos el ID, abrimos la carpeta normal
-          window.open(url, '_blank');
-      }
+      // 2. Separamos nombre y apellido en palabras clave (Ej: "Nogueira", "Ramiro")
+      // Filtramos palabras muy cortas (como "de", "la") para no confundir
+      const keywords = [
+          ...clean(student.lastName).split(' '), 
+          ...clean(student.firstName).split(' ')
+      ].filter(w => w.length > 2);
+
+      // 3. Construimos la consulta: "name contains 'Nogueira' AND name contains 'Ramiro'"
+      // Esto busca archivos que tengan ESAS palabras en el título, sin importar el orden ni la carpeta
+      const query = keywords.map(w => `name contains '${w}'`).join(' and ');
+      
+      // Agregamos "trashed = false" para que no muestre cosas de la papelera
+      const finalQuery = `${query} and trashed = false`;
+      
+      // 4. Abrimos la búsqueda en Drive
+      const searchUrl = `https://drive.google.com/drive/search?q=${encodeURIComponent(finalQuery)}`;
+      window.open(searchUrl, '_blank');
   };
 
   const staffOptions = (usersList||[]).filter(u => ['Docente', 'Auxiliar/Preceptor', 'Equipo Técnico', 'Profes Especiales'].includes(u.role));
@@ -1649,9 +1656,11 @@ function MatriculaView({ user }) {
     const isStudentActive = s.isActive === undefined || s.isActive === true;
     if (showArchived && isStudentActive) return false; 
     if (!showArchived && !isStudentActive) return false;
+
     const txt = filterText.toLowerCase();
     const matchText = (s.firstName||'').toLowerCase().includes(txt) || (s.lastName||'').toLowerCase().includes(txt) || (s.dni||'').toString().includes(txt);
     if (!matchText) return false;
+
     if (filters.level !== 'all' && s.level !== filters.level) return false;
     if (filters.group !== 'all' && s.groupMorning !== filters.group && s.groupAfternoon !== filters.group) return false;
     if (filters.teacher !== 'all') {
@@ -1749,13 +1758,15 @@ function MatriculaView({ user }) {
                             ) : (
                                 <span className="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded border border-red-100 font-bold">Sin grupo</span>
                             )}
+                            
+                            {/* ETIQUETA AULA */}
                             {s.classroom && (
                                 <span className="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded border border-yellow-200 font-bold flex items-center gap-1 shadow-sm">
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
                                     Aula {s.classroom}
                                 </span>
                             )}
-                            
+
                             {/* BOTONES DE DRIVE (EN LA LISTA PRINCIPAL) */}
                             {s.driveLinkMorning && (
                                 <button onClick={(e) => { e.stopPropagation(); abrirDriveAlumno(s.driveLinkMorning, s); }} className="text-[10px] bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-200 font-bold flex items-center gap-1 hover:bg-green-100 transition">
@@ -1777,7 +1788,7 @@ function MatriculaView({ user }) {
           ); 
       })}</div>
       
-      {/* MODAL VER ALUMNO (AHORA CON BOTONES DE DRIVE ADENTRO TAMBIÉN) */}
+      {/* MODAL VER ALUMNO */}
       {viewingStudent && !showForm && (<div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm"><div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"><div className="bg-slate-700 p-6 text-white"><div className="flex justify-between items-start"><div className="flex gap-4"><div className="w-16 h-16 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden">{viewingStudent.photoUrl ? <img src={viewingStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={30} className="m-auto mt-4 text-white/50"/>}</div><div><h2 className="text-xl font-bold uppercase">{viewingStudent.lastName}, {viewingStudent.firstName}</h2><div className="flex gap-2 mt-1"><span className="bg-white/20 px-2 py-0.5 rounded text-xs">{calculateAge(viewingStudent.birthDate)} años</span><span className="bg-white/20 px-2 py-0.5 rounded text-xs">{viewingStudent.dni}</span></div></div></div><button onClick={()=>setViewingStudent(null)} className="bg-white/20 p-1 rounded-full hover:bg-white/40"><X/></button></div><div className="flex gap-2 mt-6 bg-slate-800/50 p-1 rounded-xl"><button onClick={()=>setActiveModalTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeModalTab==='info'?'bg-white text-slate-800 shadow-md':'text-white/50 hover:text-white'}`}>Datos Personales</button><button onClick={()=>setActiveModalTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeModalTab==='history'?'bg-white text-slate-800 shadow-md':'text-white/50 hover:text-white'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto bg-gray-50">{activeModalTab==='info' ? (
       <div className="space-y-4 text-sm">
         
@@ -1809,8 +1820,8 @@ function MatriculaView({ user }) {
       {showStats && (<div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4"><div className="bg-white rounded-[40px] w-full max-w-lg p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600"><div className="flex justify-between items-center mb-6"><div><h3 className="text-2xl font-black text-violet-900 uppercase italic">Estadísticas</h3><p className="text-xs text-gray-500">Filtrado en tiempo real</p></div><button onClick={() => setShowStats(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button></div><div className="bg-violet-50 p-6 rounded-3xl text-center mb-6 border border-violet-100 shadow-inner"><span className="text-5xl font-black text-violet-600 block mb-2">{statsResults.length}</span><span className="text-xs font-bold text-violet-400 uppercase tracking-[4px]">Estudiantes Encontrados</span></div><div className="space-y-3"><div className="grid grid-cols-2 gap-2"><select value={statFilters.turn} onChange={e => setStatFilters({...statFilters, turn: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Turno: Todos</option><option value="Mañana">Mañana</option><option value="Tarde">Tarde</option></select><select value={statFilters.level} onChange={e => setStatFilters({...statFilters, level: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Nivel: Todos</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option></select><select value={statFilters.dx} onChange={e => setStatFilters({...statFilters, dx: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">DX: Todos</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select><select value={statFilters.gender} onChange={e => setStatFilters({...statFilters, gender: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Género: Todos</option><option value="M">Varón</option><option value="F">Mujer</option></select><select value={statFilters.journey} onChange={e => setStatFilters({...statFilters, journey: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Jornada: Todas</option><option value="Simple Mañana">Simple Mañana</option><option value="Simple Tarde">Simple Tarde</option><option value="Doble">Doble</option></select></div><button onClick={() => setStatFilters({ level: 'all', dx: 'all', gender: 'all', journey: 'all', turn: 'all' })} className="w-full py-3 text-red-400 font-bold text-xs hover:bg-red-50 rounded-xl transition mt-2">Limpiar Filtros</button></div></div></div>)}
       {showUnassigned && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[90]"><div className="bg-white rounded-3xl p-6 w-full max-w-2xl h-[80vh] flex flex-col"><div className="flex justify-between mb-4"><h3 className="font-bold text-red-600">Alumnos Sin Grupo ({unassignedList.length})</h3><button onClick={()=>setShowUnassigned(false)}><X/></button></div><div className="flex-1 overflow-y-auto space-y-2">{unassignedList.map(s=>(<div key={s.id} className="flex justify-between items-center bg-red-50 p-3 rounded-xl"><span className="font-bold">{s.lastName}, {s.firstName}</span><div className="flex gap-2"><button onClick={()=>{openEdit(s); setShowUnassigned(false)}} className="text-xs bg-white px-2 py-1 rounded border">Editar</button><button onClick={()=>markAsInactive(s)} className="text-xs bg-red-600 text-white px-2 py-1 rounded">Baja</button></div></div>))}</div></div></div>)}
       {showForm && (<div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"><div className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto"><h3 className="text-xl font-bold mb-4">{editingStudent?'Editar':'Nuevo'} Legajo</h3><form onSubmit={handleSave} className="space-y-4"><div className={`p-3 rounded-xl border mb-4 flex justify-between items-center ${editingStudent?.isActive === false ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}><div><label className="text-xs font-bold text-gray-700 uppercase">Estado Actual</label><p className="text-[10px] text-gray-500 font-bold">{editingStudent?.isActive === false ? '🛑 BAJA / INACTIVO' : '✅ ACTIVO (CURSANDO)'}</p></div><select name="isActive" defaultValue={editingStudent?.isActive === false ? 'false' : 'true'} className="p-2 rounded-lg border text-xs font-bold bg-white outline-none"><option value="true">Activo</option><option value="false">Inactivo (Baja)</option></select></div><div className="grid grid-cols-2 gap-3"><input name="firstName" defaultValue={editingStudent?.firstName} placeholder="Nombre" required className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/><input name="lastName" defaultValue={editingStudent?.lastName} placeholder="Apellido" required className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/></div><div className="grid grid-cols-2 gap-3"><input name="dni" type="number" defaultValue={editingStudent?.dni} placeholder="DNI" className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/><input name="birthDate" type="date" defaultValue={getSafeDate(editingStudent?.birthDate)} className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm text-gray-500"/></div><div className="p-3 bg-blue-50 rounded-xl border border-blue-100 space-y-2"><p className="text-xs font-bold text-blue-800 uppercase">Institucional</p><div className="grid grid-cols-2 gap-2"><select name="level" defaultValue={editingStudent?.level} className="p-2 rounded-lg border text-xs font-bold"><option value="">Nivel...</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option></select><select name="dx" defaultValue={editingStudent?.dx} className="p-2 rounded-lg border text-xs font-bold"><option value="">DX...</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select></div><div className="grid grid-cols-2 gap-2"><input name="groupMorning" defaultValue={editingStudent?.groupMorning} placeholder="Grupo TM" className="p-2 rounded-lg border text-xs"/><input name="groupAfternoon" defaultValue={editingStudent?.groupAfternoon} placeholder="Grupo TT" className="p-2 rounded-lg border text-xs"/></div><div className="grid grid-cols-2 gap-2"><select name="teacherMorning" defaultValue={editingStudent?.teacherMorning} className="p-2 rounded-lg border text-xs"><option value="">Docente TM...</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="teacherAfternoon" defaultValue={editingStudent?.teacherAfternoon} className="p-2 rounded-lg border text-xs"><option value="">Docente TT...</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div className="grid grid-cols-2 gap-2"><select name="auxMorning" defaultValue={editingStudent?.auxMorning} className="p-2 rounded-lg border text-xs"><option value="">Auxiliar TM...</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="auxAfternoon" defaultValue={editingStudent?.auxAfternoon} className="p-2 rounded-lg border text-xs"><option value="">Auxiliar TT...</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div className="grid grid-cols-2 gap-2"><select name="sup1Morning" defaultValue={editingStudent?.sup1Morning} className="p-2 rounded-lg border text-xs text-violet-700 font-bold"><option value="">Sup. 1 TM...</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="sup2Morning" defaultValue={editingStudent?.sup2Morning} className="p-2 rounded-lg border text-xs text-violet-700 font-bold"><option value="">Sup. 2 TM...</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div className="grid grid-cols-2 gap-2"><select name="sup1Afternoon" defaultValue={editingStudent?.sup1Afternoon} className="p-2 rounded-lg border text-xs text-violet-700 font-bold"><option value="">Sup. 1 TT...</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="sup2Afternoon" defaultValue={editingStudent?.sup2Afternoon} className="p-2 rounded-lg border text-xs text-violet-700 font-bold"><option value="">Sup. 2 TT...</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div></div><div className="p-3 bg-green-50 rounded-xl border border-green-100 space-y-2"><p className="text-xs font-bold text-green-800 uppercase">Salud y Familia</p><div className="grid grid-cols-2 gap-2"><input name="healthInsurance" defaultValue={editingStudent?.healthInsurance} placeholder="Obra Social" className="w-full p-2 rounded-lg border text-xs"/><input name="cudExpiration" type="date" defaultValue={getSafeDate(editingStudent?.cudExpiration)} className="w-full p-2 rounded-lg border text-xs text-gray-500"/></div><input name="address" defaultValue={editingStudent?.address} className="w-full p-2 rounded-lg border text-xs" placeholder="Dirección"/><div className="grid grid-cols-2 gap-2"><input name="motherName" defaultValue={editingStudent?.motherName} placeholder="Madre" className="w-full p-2 rounded-lg border text-xs"/><input name="motherContact" defaultValue={editingStudent?.motherContact} placeholder="Contacto Madre" className="w-full p-2 rounded-lg border text-xs"/></div><div className="grid grid-cols-2 gap-2"><input name="fatherName" defaultValue={editingStudent?.fatherName} placeholder="Padre" className="w-full p-2 rounded-lg border text-xs"/><input name="fatherContact" defaultValue={editingStudent?.fatherContact} placeholder="Contacto Padre" className="w-full p-2 rounded-lg border text-xs"/></div></div><div className="flex gap-2 pt-4 border-t"><button type="button" onClick={()=>setShowForm(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs">Cancelar</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg">Guardar</button>{editingStudent && <button type="button" onClick={() => handleDelete(editingStudent.id)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition border border-red-100"><Trash2 size={20}/></button>}</div></form></div></div>)}
-    </div>
-  );
+    </div>
+  );
 }
 // --- APP PRINCIPAL (FIX NOTIFICACIONES + SCROLL GLOBAL) ---
 function MainApp({ user, onLogout }) {
@@ -2271,6 +2282,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
