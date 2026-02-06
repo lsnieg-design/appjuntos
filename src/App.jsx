@@ -1623,7 +1623,7 @@ function MatriculaView({ user }) {
     return () => { uS(); uU(); };
   }, []);
 
-  // --- FUNCIÓN DE BÚSQUEDA SIMPLIFICADA (ESTA SÍ FUNCIONA) ---
+// --- FUNCIÓN DE BÚSQUEDA SIMPLIFICADA (ESTA SÍ FUNCIONA) ---
   const abrirDriveAlumno = (url, student) => {
       // Opción A: Si queremos ir a la CARPETA GENERAL (sin filtrar), descomenta la siguiente línea:
       // window.open(url, '_blank'); return;
@@ -1633,25 +1633,6 @@ function MatriculaView({ user }) {
       const searchUrl = `https://drive.google.com/drive/search?q=${encodeURIComponent(busqueda)}`;
       
       // Abre una pestaña nueva con la búsqueda ya hecha
-      window.open(searchUrl, '_blank');
-  };
-      
-      // 2. Separamos nombre y apellido en palabras clave (Ej: "Nogueira", "Ramiro")
-      // Filtramos palabras muy cortas (como "de", "la") para no confundir
-      const keywords = [
-          ...clean(student.lastName).split(' '), 
-          ...clean(student.firstName).split(' ')
-      ].filter(w => w.length > 2);
-
-      // 3. Construimos la consulta: "name contains 'Nogueira' AND name contains 'Ramiro'"
-      // Esto busca archivos que tengan ESAS palabras en el título, sin importar el orden ni la carpeta
-      const query = keywords.map(w => `name contains '${w}'`).join(' and ');
-      
-      // Agregamos "trashed = false" para que no muestre cosas de la papelera
-      const finalQuery = `${query} and trashed = false`;
-      
-      // 4. Abrimos la búsqueda en Drive
-      const searchUrl = `https://drive.google.com/drive/search?q=${encodeURIComponent(finalQuery)}`;
       window.open(searchUrl, '_blank');
   };
 
@@ -2290,6 +2271,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
