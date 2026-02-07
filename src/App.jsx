@@ -484,24 +484,22 @@ function ResourcesView({ resources, canEdit }) {
   );
 }
 
-// --- VISTA TAREAS (FINAL: CUENTA REGRESIVA + FEEDBACK COMENTARIOS) ---
+// --- VISTA TAREAS (FINAL: OPTIMIZADA PARA CELULAR - TEXTOS CORTOS) ---
 function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
   
-  // Estados formulario
   const [assignType, setAssignType] = useState('user'); 
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [selectedUserObj, setSelectedUserObj] = useState(null); 
   
-  // Checklist y comentarios
   const [checklist, setChecklist] = useState([]); 
   const [newItem, setNewItem] = useState(""); 
   const [userSearch, setUserSearch] = useState("");
   const [openCommentsId, setOpenCommentsId] = useState(null); 
   const [newComment, setNewComment] = useState("");
   const [editingTask, setEditingTask] = useState(null); 
-  const [filter, setFilter] = useState('pending'); // 'pending', 'completed', 'scheduled'
+  const [filter, setFilter] = useState('pending'); 
 
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor'];
   const canManage = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
@@ -518,25 +516,19 @@ function TasksView({ tasks, user, canEdit }) {
     return () => unsub();
   }, [editingTask]);
 
-  // --- FUNCIÓN PARA CALCULAR LA CUENTA REGRESIVA ---
   const getCountdown = (dateStr) => {
       if (!dateStr) return null;
       const today = new Date();
       today.setHours(0,0,0,0);
-      
-      // Agregamos T00:00:00 para evitar problemas de zona horaria
       const due = new Date(dateStr + 'T00:00:00'); 
-      
-      // Diferencia en milisegundos
       const diffTime = due - today;
-      // Diferencia en días (redondeando hacia arriba)
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      if (diffDays < 0) return { text: `Vencida hace ${Math.abs(diffDays)} días`, color: 'bg-red-100 text-red-700 border-red-200' };
-      if (diffDays === 0) return { text: '¡Vence HOY!', color: 'bg-orange-100 text-orange-700 border-orange-200 animate-pulse' };
+      if (diffDays < 0) return { text: `Vencida (${Math.abs(diffDays)}d)`, color: 'bg-red-100 text-red-700 border-red-200' };
+      if (diffDays === 0) return { text: '¡HOY!', color: 'bg-orange-100 text-orange-700 border-orange-200 animate-pulse' };
       if (diffDays === 1) return { text: 'Mañana', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' };
-      if (diffDays <= 7) return { text: `Faltan ${diffDays} días`, color: 'bg-blue-100 text-blue-700 border-blue-200' };
-      return { text: `Faltan ${diffDays} días`, color: 'bg-gray-100 text-gray-500 border-gray-200' };
+      if (diffDays <= 7) return { text: `${diffDays} días`, color: 'bg-blue-100 text-blue-700 border-blue-200' };
+      return { text: `${diffDays} días`, color: 'bg-gray-100 text-gray-500 border-gray-200' };
   };
 
   const handleSaveTask = async (e) => {
@@ -588,7 +580,7 @@ function TasksView({ tasks, user, canEdit }) {
              const today = new Date().toISOString().split('T')[0];
              if (!taskData.showDate || taskData.showDate <= today) {
                  const notifData = {
-                     title: `Tarea ${fd.get('priority') === 'alta' ? 'URGENTE 🔴' : 'Asignada'}`,
+                     title: `Tarea ${fd.get('priority') === 'alta' ? 'URGENTE' : 'Asignada'}`,
                      message: `${user.firstName}: "${fd.get('title')}"`,
                      read: false,
                      createdAt: serverTimestamp(),
@@ -696,12 +688,10 @@ function TasksView({ tasks, user, canEdit }) {
                     </div>
                     
                     <div className="flex flex-col items-end gap-2">
-                        {/* FECHA Y CUENTA REGRESIVA */}
                         <div className="flex flex-col items-end gap-1">
                             {t.dueDate ? (
                                 <>
                                     <div className="text-[9px] font-black bg-white px-2 py-1 rounded-full text-gray-400 border uppercase tracking-tighter italic shadow-inner">{t.dueDate}</div>
-                                    {/* AVISO DE DÍAS RESTANTES */}
                                     {t.status !== 'completed' && (
                                         <span className={`text-[8px] font-black px-2 py-0.5 rounded-md uppercase border ${countdown.color}`}>
                                             {countdown.text}
@@ -720,13 +710,14 @@ function TasksView({ tasks, user, canEdit }) {
                     </div>
                 </div>
 
-                {openCommentsId === t.id && ( <div className="bg-white/60 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in"><div className="max-h-32 overflow-y-auto space-y-2 mb-2">{(t.comments || []).map((c, idx) => ( <p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p> ))}</div><div className="flex gap-2"><input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Comentar..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" /><button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button></div></div> )}
+                {openCommentsId === t.id && ( <div className="bg-white/60 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in"><div className="max-h-32 overflow-y-auto space-y-2 mb-2">{(t.comments || []).map((c, idx) => ( <p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p> ))}</div><div className="flex gap-2"><input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribe..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" /><button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button></div></div> )}
                 
                 <div className="pt-2 border-t border-black/5 flex justify-between items-center">
-                    {/* BOTÓN DE COMENTARIOS MEJORADO */}
-                    <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition ${t.comments?.length > 0 ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500 hover:bg-violet-50 hover:text-violet-600'}`}>
+                    {/* BOTÓN COMENTAR OPTIMIZADO */}
+                    <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className={`flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 rounded-xl transition ${t.comments?.length > 0 ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500 hover:bg-violet-50 hover:text-violet-600'}`}>
                         <MessageSquare size={14}/> 
-                        {t.comments?.length > 0 ? `${t.comments.length} Comentarios` : 'Escribir comentario...'}
+                        {/* AQUÍ ESTÁ EL CAMBIO: TEXTO CORTO PARA MÓVIL */}
+                        {t.comments?.length > 0 ? `${t.comments.length} Msjs` : 'Comentar'}
                     </button>
 
                     <div className="flex bg-white/60 rounded-lg p-0.5 shadow-sm">
@@ -781,7 +772,6 @@ function TasksView({ tasks, user, canEdit }) {
                 </select>
             </div>
             
-            {/* PROGRAMACIÓN (SOLO PARA ADMINS/DIRECTIVOS) */}
             {canManage && (
                 <div className="bg-orange-50 p-3 rounded-xl border border-orange-100">
                     <label className="text-[10px] font-bold text-orange-700 uppercase mb-1 block flex items-center gap-1">
@@ -937,7 +927,7 @@ function UsersView({ user }) {
   );
 }
 
-// --- VISTA CALENDARIO (COLORES DE ALTO CONTRASTE + CARGA INTELIGENTE) ---
+// --- VISTA CALENDARIO (TEXTO AJUSTADO: GRANDE EN PC, COMPACTO EN MÓVIL) ---
 function CalendarView({ events, canEdit, user }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDayEvents, setSelectedDayEvents] = useState(null);
@@ -1008,7 +998,6 @@ function CalendarView({ events, canEdit, user }) {
       setShowModal(false); setEditingEvent(null);
   };
 
-  // --- CARGA RÁPIDA INTELIGENTE ---
   const handleQuickSave = async () => {
       if (!quickText.trim()) return;
       setProcessing(true);
@@ -1018,7 +1007,6 @@ function CalendarView({ events, canEdit, user }) {
 
           const promises = lines.map(line => {
               const match = line.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})\s+(.+)$/);
-              
               if (match) {
                   let [_, day, month, year, rawText] = match;
                   if (year.length === 2) year = "20" + year;
@@ -1080,13 +1068,15 @@ function CalendarView({ events, canEdit, user }) {
       days.push(
         <div key={d} onClick={() => handleDayClick(dateStr)} className={`relative border-b border-r border-gray-100 p-1 transition flex flex-col group cursor-pointer ${isToday ? 'bg-violet-50' : 'bg-white hover:bg-gray-50'}`}>
           <div className="flex justify-center">
-             <span className={`text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold ${isToday ? 'bg-violet-600 text-white shadow-md' : 'text-gray-500'}`}>{d}</span>
+             {/* NÚMERO DE DÍA: AJUSTADO PARA PC (md:text-sm, md:w-7, md:h-7) */}
+             <span className={`text-[10px] md:text-sm w-5 h-5 md:w-7 md:h-7 flex items-center justify-center rounded-full font-bold ${isToday ? 'bg-violet-600 text-white shadow-md' : 'text-gray-500'}`}>{d}</span>
           </div>
           <div className="flex flex-col gap-1 mt-1 overflow-y-auto no-scrollbar flex-1">
             {dayEvents.map((ev, idx) => {
                 const style = EVENT_TYPES[ev.type] ? EVENT_TYPES[ev.type].color : EVENT_TYPES['GENERAL'].color;
                 return (
-                    <div key={idx} className={`text-[7px] rounded-[3px] px-1 py-0.5 truncate font-bold uppercase border-l-2 shadow-sm ${style}`}>
+                    // EVENTO: AJUSTADO PARA PC (text-[9px] md:text-xs)
+                    <div key={idx} className={`text-[9px] md:text-xs rounded-[3px] px-1 py-0.5 truncate font-bold uppercase border-l-2 shadow-sm ${style}`}>
                         {ev.title}
                     </div>
                 );
@@ -1104,12 +1094,12 @@ function CalendarView({ events, canEdit, user }) {
       {/* HEADER */}
       <div className="flex justify-between items-center p-3 bg-white border-b border-gray-100 shrink-0">
         <div className="flex gap-2 items-center">
-             <h2 className="text-xl font-black text-violet-900 uppercase italic tracking-tighter">{currentDate.toLocaleDateString('es-ES', { month: 'long' })} <span className="text-gray-400 text-sm not-italic font-medium">{currentDate.getFullYear()}</span></h2>
+             <h2 className="text-xl md:text-2xl font-black text-violet-900 uppercase italic tracking-tighter">{currentDate.toLocaleDateString('es-ES', { month: 'long' })} <span className="text-gray-400 text-sm md:text-lg not-italic font-medium">{currentDate.getFullYear()}</span></h2>
         </div>
         <div className="flex gap-2">
              <div className="flex bg-gray-100 rounded-lg p-0.5">
                 <button onClick={() => changeMonth(-1)} className="p-2 text-gray-600 hover:bg-white hover:shadow-sm rounded-md transition"><ChevronLeft size={16}/></button>
-                <button onClick={() => setCurrentDate(new Date())} className="px-3 text-xs font-bold text-gray-600 hover:bg-white hover:shadow-sm rounded-md transition">HOY</button>
+                <button onClick={() => setCurrentDate(new Date())} className="px-3 text-xs md:text-sm font-bold text-gray-600 hover:bg-white hover:shadow-sm rounded-md transition">HOY</button>
                 <button onClick={() => changeMonth(1)} className="p-2 text-gray-600 hover:bg-white hover:shadow-sm rounded-md transition"><ChevronRight size={16}/></button>
              </div>
              
@@ -1124,11 +1114,11 @@ function CalendarView({ events, canEdit, user }) {
         </div>
       </div>
 
-      {/* BARRA DE FILTROS */}
+      {/* BARRA DE FILTROS (TEXTO MÁS GRANDE EN PC) */}
       <div className="flex gap-2 overflow-x-auto p-2 bg-gray-50 border-b border-gray-200 no-scrollbar">
-          <button onClick={() => setFilterType('TODOS')} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase whitespace-nowrap transition border ${filterType === 'TODOS' ? 'bg-violet-600 text-white border-violet-600 shadow-md' : 'bg-white text-gray-500 border-gray-200'}`}>Todos</button>
+          <button onClick={() => setFilterType('TODOS')} className={`px-3 py-1 rounded-full text-[10px] md:text-xs font-bold uppercase whitespace-nowrap transition border ${filterType === 'TODOS' ? 'bg-violet-600 text-white border-violet-600 shadow-md' : 'bg-white text-gray-500 border-gray-200'}`}>Todos</button>
           {Object.keys(EVENT_TYPES).map(type => (
-              <button key={type} onClick={() => setFilterType(type)} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase whitespace-nowrap transition border ${filterType === type ? `${EVENT_TYPES[type].color} ring-1 ring-offset-1` : 'bg-white text-gray-400 border-gray-200'}`}>
+              <button key={type} onClick={() => setFilterType(type)} className={`px-3 py-1 rounded-full text-[10px] md:text-xs font-bold uppercase whitespace-nowrap transition border ${filterType === type ? `${EVENT_TYPES[type].color} ring-1 ring-offset-1` : 'bg-white text-gray-400 border-gray-200'}`}>
                   {EVENT_TYPES[type].label}
               </button>
           ))}
@@ -1150,9 +1140,9 @@ function CalendarView({ events, canEdit, user }) {
           </div>
       )}
       
-      {/* HEADER DÍAS */}
+      {/* HEADER DÍAS (TEXTO AJUSTADO) */}
       <div className="grid grid-cols-7 bg-white border-b border-gray-200 shrink-0">
-         {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d => <div key={d} className="py-2 text-center text-[9px] font-black text-gray-300 uppercase tracking-widest">{d}</div>)}
+         {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d => <div key={d} className="py-2 text-center text-[9px] md:text-xs font-black text-gray-300 uppercase tracking-widest">{d}</div>)}
       </div>
 
       {/* GRILLA CALENDARIO */}
@@ -1219,7 +1209,6 @@ function CalendarView({ events, canEdit, user }) {
     </div>
   );
 }
-
 // --- VISTA PERFIL (CON FOOTER) ---
 function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
   const [formData, setFormData] = useState({ firstName: user.firstName || '', lastName: user.lastName || '', photoUrl: user.photoUrl || '' });
@@ -2349,6 +2338,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
