@@ -1951,7 +1951,7 @@ function MainApp({ user, onLogout }) {
     </div>
   );
 }
-// --- VISTA AULA (FINAL: DRIVE + TERMÓMETRO DE CLIMA ÁULICO) ---
+// --- VISTA AULA (LIMPIA + ESTADÍSTICAS AVANZADAS PARA DIRECTIVOS) ---
 function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
@@ -1961,8 +1961,12 @@ function GroupsView({ user }) {
   const [savingIncident, setSavingIncident] = useState(false);
   const [activeTab, setActiveTab] = useState('info');
   
+  // Estado para editar grupo
   const [editingGroup, setEditingGroup] = useState(null);
   const [updatingGroup, setUpdatingGroup] = useState(false);
+
+  // NUEVO: Estado para el Modal de Estadísticas del Grupo
+  const [statsGroup, setStatsGroup] = useState(null);
 
   const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración'].includes(user.role) || user.rol === 'admin';
   const LOGO_URL = "/icon-192.png";
@@ -2105,6 +2109,37 @@ function GroupsView({ user }) {
     printWindow.document.write(content); printWindow.document.close(); setTimeout(() => { printWindow.focus(); printWindow.print(); }, 1000);
   };
 
+  // --- CÁLCULO DE ESTADÍSTICAS PARA EL MODAL ---
+  const calculateGroupStats = (group) => {
+      let total = 0;
+      let positive = 0;
+      let high = 0;
+      let medium = 0;
+      let low = 0;
+      const typeCounts = {};
+
+      group.students.forEach(s => {
+          if (s.incidents) {
+              s.incidents.forEach(inc => {
+                  total++;
+                  if (inc.severity === 'positive') positive++;
+                  if (inc.severity === 'high') high++;
+                  if (inc.severity === 'medium') medium++;
+                  if (inc.severity === 'low') low++;
+                  
+                  typeCounts[inc.type] = (typeCounts[inc.type] || 0) + 1;
+              });
+          }
+      });
+
+      // Ordenar tipos por frecuencia
+      const topTypes = Object.entries(typeCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5); // Top 5
+
+      return { total, positive, high, medium, low, topTypes };
+  };
+
   return (
     <div className="flex flex-col h-full bg-slate-100 animate-in fade-in">
       <div className="bg-white p-4 shadow-sm z-10 sticky top-0 flex flex-col gap-3">
@@ -2122,13 +2157,7 @@ function GroupsView({ user }) {
         <div className="flex gap-6 h-full md:h-auto items-start">
             {groups.length === 0 && (<div className="m-auto text-center opacity-50"><LayoutDashboard size={48} className="mx-auto mb-2 text-gray-300"/><p className="font-bold text-gray-400">No tienes grupos en este turno.</p></div>)} 
             
-            {groups.map((g) => {
-                // CÁLCULO DE CLIMA ÁULICO
-                const totalLogs = g.students.reduce((acc, s) => acc + (s.incidents?.length || 0), 0);
-                const posLogs = g.students.reduce((acc, s) => acc + (s.incidents?.filter(i => i.severity === 'positive').length || 0), 0);
-                const posPercent = totalLogs > 0 ? Math.round((posLogs / totalLogs) * 100) : 100; // Si no hay registros, asumimos 100% positivo (neutro)
-
-                return (
+            {groups.map((g) => (
                 <div key={g.name} className="min-w-[280px] w-[300px] flex flex-col h-[calc(100vh-220px)] md:h-fit bg-white rounded-[30px] border border-gray-200 shadow-sm relative overflow-hidden group-hover:shadow-md transition shrink-0">
                   <div className={`p-4 border-b-4 ${turn==='morning'?'border-orange-400 bg-orange-50':'border-indigo-400 bg-indigo-50'} relative`}>
                       <div className="absolute top-2 right-2 flex gap-1">
@@ -2138,23 +2167,20 @@ function GroupsView({ user }) {
                               </a>
                           )}
                           <button onClick={()=>handlePrintSingleGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition" title="Imprimir Lista"><Printer size={14}/></button>
+                          
+                          {/* BOTÓN ESTADÍSTICAS (SOLO GESTIÓN) */}
+                          {isManagement && (
+                              <button onClick={() => setStatsGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-blue-600 shadow-sm transition" title="Estadísticas de Clima">
+                                  <PieChart size={14}/>
+                              </button>
+                          )}
+
                           {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition" title="Editar Grupo"><Edit3 size={14}/></button>}
                       </div>
                       
                       <h3 className="font-black text-gray-800 text-lg">{g.name}</h3>
                       
-                      {/* TERMÓMETRO DE CLIMA ÁULICO */}
-                      <div className="mt-2 mb-2">
-                          <div className="flex justify-between text-[9px] font-bold uppercase text-gray-400 mb-1">
-                              <span>Clima del Grupo</span>
-                              <span>{totalLogs > 0 ? `${posPercent}% Positivo` : 'Sin datos'}</span>
-                          </div>
-                          <div className="h-2 w-full bg-red-200 rounded-full overflow-hidden flex">
-                              <div style={{width: `${posPercent}%`}} className="h-full bg-emerald-400 transition-all duration-500"></div>
-                          </div>
-                      </div>
-
-                      <div className="text-xs text-gray-500 font-medium space-y-1">
+                      <div className="mt-2 text-xs text-gray-500 font-medium space-y-1">
                           <p>DOC: <span className="font-bold text-violet-700 uppercase">{g.teacher || 'Sin asignar'}</span></p>
                           {g.aux && <p>AUX: <span className="font-bold uppercase">{g.aux}</span></p>}
                           {(g.sup1 || g.sup2) && <p className="text-violet-600 font-bold truncate">SUP: {g.sup1 || ''} {g.sup2 ? `& ${g.sup2}` : ''}</p>}
@@ -2210,6 +2236,75 @@ function GroupsView({ user }) {
                 </div>
             </form>
         </div>
+      )}
+
+      {/* MODAL ESTADÍSTICAS DEL GRUPO (NUEVO) */}
+      {statsGroup && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[250] flex items-center justify-center p-4" onClick={() => setStatsGroup(null)}>
+              <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-blue-500" onClick={e => e.stopPropagation()}>
+                  <div className="flex justify-between items-center mb-4">
+                      <div>
+                          <h3 className="text-lg font-black text-gray-800 uppercase italic">{statsGroup.name}</h3>
+                          <p className="text-xs text-gray-500 font-bold">Reporte de Clima Áulico</p>
+                      </div>
+                      <button onClick={() => setStatsGroup(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button>
+                  </div>
+
+                  {(() => {
+                      const { total, positive, high, medium, low, topTypes } = calculateGroupStats(statsGroup);
+                      const posPercent = total > 0 ? Math.round((positive/total)*100) : 0;
+                      
+                      if (total === 0) return <p className="text-center text-gray-400 py-10 font-bold text-xs">Aún no hay registros en este grupo.</p>;
+
+                      return (
+                          <div className="space-y-6">
+                              {/* GRÁFICO DE TORTA */}
+                              <div className="flex justify-center py-2">
+                                  <div className="w-32 h-32 rounded-full relative shadow-inner" style={{background: `conic-gradient(#10b981 0% ${posPercent}%, #f87171 ${posPercent}% 100%)`}}>
+                                      <div className="absolute inset-4 bg-white rounded-full flex flex-col items-center justify-center">
+                                          <span className="text-2xl font-black text-gray-700">{posPercent}%</span>
+                                          <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-wide">Positivo</span>
+                                      </div>
+                                  </div>
+                              </div>
+
+                              {/* DETALLE POR GRAVEDAD */}
+                              <div className="grid grid-cols-2 gap-2">
+                                  <div className="bg-emerald-50 p-2 rounded-xl text-center border border-emerald-100">
+                                      <span className="block text-xl font-black text-emerald-600">{positive}</span>
+                                      <span className="text-[9px] font-bold text-emerald-400 uppercase">Logros</span>
+                                  </div>
+                                  <div className="bg-red-50 p-2 rounded-xl text-center border border-red-100">
+                                      <span className="block text-xl font-black text-red-600">{high}</span>
+                                      <span className="text-[9px] font-bold text-red-400 uppercase">Alertas</span>
+                                  </div>
+                                  <div className="bg-orange-50 p-2 rounded-xl text-center border border-orange-100">
+                                      <span className="block text-xl font-black text-orange-600">{medium}</span>
+                                      <span className="text-[9px] font-bold text-orange-400 uppercase">Media</span>
+                                  </div>
+                                  <div className="bg-yellow-50 p-2 rounded-xl text-center border border-yellow-100">
+                                      <span className="block text-xl font-black text-yellow-600">{low}</span>
+                                      <span className="text-[9px] font-bold text-yellow-400 uppercase">Leve</span>
+                                  </div>
+                              </div>
+
+                              {/* TOP INDICADORES */}
+                              <div>
+                                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Principales Registros</h4>
+                                  <div className="space-y-1">
+                                      {topTypes.map(([type, count]) => (
+                                          <div key={type} className="flex justify-between items-center text-xs border-b border-gray-50 pb-1">
+                                              <span className="font-bold text-gray-600">{type}</span>
+                                              <span className="bg-gray-100 px-2 py-0.5 rounded-full font-bold text-gray-500">{count}</span>
+                                          </div>
+                                      ))}
+                                  </div>
+                              </div>
+                          </div>
+                      );
+                  })()}
+              </div>
+          </div>
       )}
 
       {showBitacoraModal && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-emerald-500"><div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3><p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p></div><button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button></div><div className="grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto p-1">{INCIDENT_TYPES.map((type) => (<button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? 'opacity-50' : 'hover:brightness-95'}`}><span className="text-2xl">{type.emoji}</span><span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span></button>))}</div></div></div>)}
@@ -2307,6 +2402,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
