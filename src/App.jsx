@@ -937,31 +937,31 @@ function UsersView({ user }) {
   );
 }
 
-// --- VISTA CALENDARIO (CON FILTROS DE COLORES Y ETIQUETAS) ---
+// --- VISTA CALENDARIO (COLORES DE ALTO CONTRASTE + CARGA INTELIGENTE) ---
 function CalendarView({ events, canEdit, user }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDayEvents, setSelectedDayEvents] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
-  const [filterType, setFilterType] = useState('TODOS'); // Estado para el filtro
+  const [filterType, setFilterType] = useState('TODOS'); 
   
   // --- ESTADOS PARA CARGA RÁPIDA ---
   const [showQuickLoad, setShowQuickLoad] = useState(false);
   const [quickText, setQuickText] = useState("");
   const [processing, setProcessing] = useState(false);
   
-  // --- DEFINICIÓN DE TIPOS Y COLORES ---
+  // --- DEFINICIÓN DE TIPOS Y COLORES (NUEVA PALETA VIBRANTE) ---
   const EVENT_TYPES = {
-      'GENERAL': { color: 'bg-gray-100 text-gray-700 border-gray-300', label: 'General' },
-      'TAREAS ADMINISTRATIVAS': { color: 'bg-slate-200 text-slate-800 border-slate-400', label: 'Admin' },
-      'EFEMÉRIDES': { color: 'bg-sky-100 text-sky-800 border-sky-300', label: 'Efemérides' },
-      'CALENDARIO ACADÉMICO': { color: 'bg-indigo-100 text-indigo-800 border-indigo-300', label: 'Académico' },
-      'REUNIONES': { color: 'bg-violet-100 text-violet-800 border-violet-300', label: 'Reuniones' },
-      'ENCUENTROS CON FAMILIAS': { color: 'bg-pink-100 text-pink-800 border-pink-300', label: 'Familias' },
-      'CUMPLEAÑOS': { color: 'bg-yellow-100 text-yellow-800 border-yellow-300', label: 'Cumples' },
-      'SALIDAS EDUCATIVAS': { color: 'bg-emerald-100 text-emerald-800 border-emerald-300', label: 'Salidas' },
-      'ACTO': { color: 'bg-orange-100 text-orange-800 border-orange-300', label: 'Actos' },
-      'FERIADO': { color: 'bg-red-100 text-red-800 border-red-300', label: 'Feriado' }
+      'FERIADO': { color: 'bg-red-200 text-red-900 border-red-400', label: 'Feriado' },
+      'ACTO': { color: 'bg-orange-100 text-orange-900 border-orange-400', label: 'Actos' },
+      'CUMPLEAÑOS': { color: 'bg-yellow-100 text-yellow-900 border-yellow-400', label: 'Cumples' },
+      'SALIDAS EDUCATIVAS': { color: 'bg-lime-100 text-lime-900 border-lime-400', label: 'Salidas' },
+      'ENCUENTROS CON FAMILIAS': { color: 'bg-fuchsia-100 text-fuchsia-900 border-fuchsia-300', label: 'Familias' },
+      'REUNIONES': { color: 'bg-violet-100 text-violet-900 border-violet-400', label: 'Reuniones' },
+      'CALENDARIO ACADÉMICO': { color: 'bg-blue-100 text-blue-900 border-blue-400', label: 'Académico' },
+      'EFEMÉRIDES': { color: 'bg-cyan-100 text-cyan-900 border-cyan-400', label: 'Efemérides' },
+      'TAREAS ADMINISTRATIVAS': { color: 'bg-zinc-200 text-zinc-800 border-zinc-400', label: 'Admin' },
+      'GENERAL': { color: 'bg-gray-50 text-gray-600 border-gray-200', label: 'General' },
   };
 
   // --- SWIPE ---
@@ -981,8 +981,6 @@ function CalendarView({ events, canEdit, user }) {
   const changeMonth = (offset) => { const d = new Date(currentDate); d.setMonth(d.getMonth() + offset); setCurrentDate(new Date(d)); };
   
   const handleDayClick = (dateStr) => {
-      // Al hacer clic en un día, mostramos TODOS los eventos de ese día, independientemente del filtro visual
-      // para que no se pierda info al querer editar.
       const eventsOnDay = events.filter(e => e.date === dateStr);
       if (eventsOnDay.length > 0 || canEdit) setSelectedDayEvents({ date: dateStr, events: eventsOnDay });
   };
@@ -1010,23 +1008,41 @@ function CalendarView({ events, canEdit, user }) {
       setShowModal(false); setEditingEvent(null);
   };
 
+  // --- CARGA RÁPIDA INTELIGENTE ---
   const handleQuickSave = async () => {
       if (!quickText.trim()) return;
       setProcessing(true);
       try {
           const lines = quickText.split('\n').filter(line => line.trim() !== '');
+          const validTypes = Object.keys(EVENT_TYPES); 
+
           const promises = lines.map(line => {
               const match = line.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})\s+(.+)$/);
+              
               if (match) {
-                  let [_, day, month, year, title] = match;
+                  let [_, day, month, year, rawText] = match;
                   if (year.length === 2) year = "20" + year;
                   const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
                   
+                  let finalType = 'GENERAL';
+                  let finalTitle = rawText.trim();
+
+                  for (const type of validTypes) {
+                      if (finalTitle.toUpperCase().includes(type)) {
+                          finalType = type;
+                          finalTitle = finalTitle.replace(new RegExp(`\\(?\\b${type}\\b\\)?`, 'i'), '').trim();
+                          finalTitle = finalTitle.replace(/^[:\-\s]+|[:\-\s]+$/g, '');
+                          break; 
+                      }
+                  }
+                  
+                  if (!finalTitle) finalTitle = rawText.replace(new RegExp(`\\(?\\b${finalType}\\b\\)?`, 'i'), '').trim() || finalType;
+
                   return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), {
-                      title: title.trim(),
+                      title: finalTitle,
                       date: isoDate,
-                      type: 'GENERAL', 
-                      description: 'Carga rápida',
+                      type: finalType, 
+                      description: 'Carga masiva',
                       author: user.firstName,
                       createdAt: serverTimestamp()
                   });
@@ -1053,7 +1069,6 @@ function CalendarView({ events, canEdit, user }) {
     for (let d = 1; d <= new Date(year, month + 1, 0).getDate(); d++) {
       const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       
-      // FILTRADO DE EVENTOS PARA LA VISTA
       const dayEvents = events.filter(e => {
           if (e.date !== dateStr) return false;
           if (filterType !== 'TODOS' && e.type !== filterType) return false;
@@ -1111,18 +1126,9 @@ function CalendarView({ events, canEdit, user }) {
 
       {/* BARRA DE FILTROS */}
       <div className="flex gap-2 overflow-x-auto p-2 bg-gray-50 border-b border-gray-200 no-scrollbar">
-          <button 
-              onClick={() => setFilterType('TODOS')} 
-              className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase whitespace-nowrap transition border ${filterType === 'TODOS' ? 'bg-violet-600 text-white border-violet-600 shadow-md' : 'bg-white text-gray-500 border-gray-200'}`}
-          >
-              Todos
-          </button>
+          <button onClick={() => setFilterType('TODOS')} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase whitespace-nowrap transition border ${filterType === 'TODOS' ? 'bg-violet-600 text-white border-violet-600 shadow-md' : 'bg-white text-gray-500 border-gray-200'}`}>Todos</button>
           {Object.keys(EVENT_TYPES).map(type => (
-              <button 
-                  key={type}
-                  onClick={() => setFilterType(type)}
-                  className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase whitespace-nowrap transition border ${filterType === type ? `${EVENT_TYPES[type].color} ring-1 ring-offset-1` : 'bg-white text-gray-400 border-gray-200'}`}
-              >
+              <button key={type} onClick={() => setFilterType(type)} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase whitespace-nowrap transition border ${filterType === type ? `${EVENT_TYPES[type].color} ring-1 ring-offset-1` : 'bg-white text-gray-400 border-gray-200'}`}>
                   {EVENT_TYPES[type].label}
               </button>
           ))}
@@ -1132,10 +1138,14 @@ function CalendarView({ events, canEdit, user }) {
       {showQuickLoad && (
           <div className="bg-yellow-50 p-4 border-b border-yellow-200 animate-in slide-in-from-top-5">
               <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-bold text-yellow-800 text-xs uppercase flex items-center gap-2">⚡ Carga Masiva</h3>
+                  <h3 className="font-bold text-yellow-800 text-xs uppercase flex items-center gap-2">⚡ Carga Masiva Inteligente</h3>
                   <button onClick={() => setShowQuickLoad(false)}><X size={16} className="text-yellow-600"/></button>
               </div>
-              <textarea value={quickText} onChange={(e) => setQuickText(e.target.value)} className="w-full h-32 p-3 rounded-xl border border-yellow-300 text-xs font-medium focus:ring-2 focus:ring-yellow-400 outline-none bg-white" placeholder="10/02/2026 Inicio de Clases"/>
+              <p className="text-[10px] text-yellow-700 mb-2 leading-relaxed">
+                  Pega tu lista abajo. Para asignar color, escribe la palabra clave (ej: FERIADO, ACTO, REUNIONES) junto al título.<br/>
+                  Ej: <b>10/02/2026 Carnaval (FERIADO)</b>
+              </p>
+              <textarea value={quickText} onChange={(e) => setQuickText(e.target.value)} className="w-full h-32 p-3 rounded-xl border border-yellow-300 text-xs font-medium focus:ring-2 focus:ring-yellow-400 outline-none bg-white" placeholder="12/03/2026 Inicio de clases (CALENDARIO ACADÉMICO)&#10;25/05/2026 Revolución de Mayo (ACTO)"/>
               <button onClick={handleQuickSave} disabled={processing} className="mt-2 w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 rounded-xl text-xs uppercase shadow transition flex justify-center gap-2">{processing ? <RefreshCw className="animate-spin" size={14}/> : 'Procesar y Guardar'}</button>
           </div>
       )}
@@ -1150,7 +1160,7 @@ function CalendarView({ events, canEdit, user }) {
         {renderGrid()}
       </div>
       
-      {/* MODAL NUEVO/EDITAR (CON SELECTOR DE COLOR) */}
+      {/* MODAL NUEVO/EDITAR */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
           <form onSubmit={handleSaveEvent} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600">
@@ -2339,6 +2349,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
