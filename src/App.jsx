@@ -485,7 +485,7 @@ function ResourcesView({ resources, canEdit }) {
 }
 
 
-// --- VISTA TAREAS (LIBERADA: TODOS PUEDEN AGREGAR) ---
+// --- VISTA TAREAS (FINAL: FECHAS OPCIONALES + PROGRAMACIÓN FUTURA) ---
 function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
@@ -502,11 +502,11 @@ function TasksView({ tasks, user, canEdit }) {
   const [openCommentsId, setOpenCommentsId] = useState(null); 
   const [newComment, setNewComment] = useState("");
   const [editingTask, setEditingTask] = useState(null); 
-  const [filter, setFilter] = useState('pending');
+  const [filter, setFilter] = useState('pending'); // 'pending', 'completed', 'scheduled'
 
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor'];
   
-  // "canManage" sigue sirviendo para ver TODO, pero ya no restringe el crear
+  // Permisos: Admin y Directivos pueden gestionar y programar
   const canManage = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
 
   useEffect(() => {
@@ -539,9 +539,14 @@ function TasksView({ tasks, user, canEdit }) {
         finalAssignedName = selectedRoles.join(", ");
     }
 
+    // Lógica de fechas
+    const dueDateVal = fd.get('dueDate'); // Ahora puede ser vacío
+    const showDateVal = fd.get('showDate'); // Fecha de aparición (opcional)
+
     const taskData = { 
         title: fd.get('title'), 
-        dueDate: fd.get('dueDate'), 
+        dueDate: dueDateVal || null, // Guardamos null si está vacío
+        showDate: showDateVal || new Date().toISOString().split('T')[0], // Si no ponen nada, se muestra hoy
         priority: fd.get('priority'), 
         targetType: assignType, 
         targetUserId: finalTargetId, 
@@ -563,23 +568,27 @@ function TasksView({ tasks, user, canEdit }) {
                  comments: [] 
              });
              
-             // NOTIFICACIONES
-             const notifData = {
-                 title: `Tarea ${fd.get('priority') === 'alta' ? 'URGENTE 🔴' : 'Asignada'}`,
-                 message: `${user.firstName}: "${fd.get('title')}"`,
-                 read: false,
-                 createdAt: serverTimestamp(),
-                 targetTab: 'tasks',
-                 relatedId: newTaskRef.id,
-                 type: 'task_assigned'
-             };
+             // NOTIFICACIONES (Solo si la fecha de aparición es HOY o anterior)
+             // Si es futura, no notificamos todavía para no spoilear.
+             const today = new Date().toISOString().split('T')[0];
+             if (!taskData.showDate || taskData.showDate <= today) {
+                 const notifData = {
+                     title: `Tarea ${fd.get('priority') === 'alta' ? 'URGENTE 🔴' : 'Asignada'}`,
+                     message: `${user.firstName}: "${fd.get('title')}"`,
+                     read: false,
+                     createdAt: serverTimestamp(),
+                     targetTab: 'tasks',
+                     relatedId: newTaskRef.id,
+                     type: 'task_assigned'
+                 };
 
-             if (assignType === 'user' && finalTargetId) {
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: finalTargetId });
-             } else if (assignType === 'roles') {
-                const targets = usersList.filter(u => u.role && finalRoles.some(r => r.toLowerCase() === u.role.toLowerCase()));
-                const promises = targets.map(t => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: t.id }));
-                await Promise.all(promises);
+                 if (assignType === 'user' && finalTargetId) {
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: finalTargetId });
+                 } else if (assignType === 'roles') {
+                    const targets = usersList.filter(u => u.role && finalRoles.some(r => r.toLowerCase() === u.role.toLowerCase()));
+                    const promises = targets.map(t => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: t.id }));
+                    await Promise.all(promises);
+                 }
              }
         }
         setShowModal(false);
@@ -600,20 +609,34 @@ function TasksView({ tasks, user, canEdit }) {
       setEditingTask(t); setAssignType(t.targetType || 'user'); setSelectedRoles(t.targetRoles || []); setChecklist(t.checklist || []); setShowModal(true); 
   };
   
+  // --- FILTRADO INTELIGENTE ---
   const filteredTasks = tasks.filter(t => {
-      if (filter === 'pending' && t.status === 'completed') return false;
-      if (filter === 'completed' && t.status !== 'completed') return false;
+      const todayStr = new Date().toISOString().split('T')[0];
+      const showDate = t.showDate || '2000-01-01'; // Si no tiene, asumimos pasado
+
+      // 1. FILTRO DE ESTADO (PESTAÑAS)
+      if (filter === 'completed') {
+          if (t.status !== 'completed') return false;
+      } else if (filter === 'scheduled') {
+          // Solo para admins: Tareas que AÚN NO se deben mostrar (Futuras)
+          if (t.status === 'completed') return false;
+          if (showDate <= todayStr) return false; // Si ya pasó la fecha, no es "próxima", es "activa"
+      } else {
+          // 'pending' (Activas): No completadas Y que la fecha de mostrar ya llegó
+          if (t.status === 'completed') return false;
+          if (showDate > todayStr) return false; // Si es futura, no la muestres acá
+      }
       
-      // Si soy admin/directivo veo todo
+      // 2. FILTRO DE VISIBILIDAD (QUIÉN LA VE)
+      // Si soy admin/directivo veo todo (respetando las pestañas de arriba)
       if (canManage) return true; 
       
-      // Si yo la creé, la veo
+      // Si soy usuario normal, NO debo ver tareas futuras (scheduled)
+      if (showDate > todayStr) return false;
+
+      // Filtros normales de asignación
       if (t.createdById === user.id) return true; 
-      
-      // Si es para mí (usuario específico), la veo
       if (t.targetType === 'user') return t.targetUserId === user.id; 
-      
-      // Si es para mi rol, la veo
       if (t.targetType === 'roles') return t.targetRoles && user.role && t.targetRoles.some(r => r.toLowerCase() === user.role.toLowerCase()); 
       
       return false;
@@ -633,10 +656,11 @@ function TasksView({ tasks, user, canEdit }) {
           <div><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2><p className="text-xs text-gray-400 font-bold">{filteredTasks.length} visibles</p></div>
           <div className="flex gap-2">
              <div className="flex bg-gray-100 rounded-xl p-1">
-                <button onClick={()=>setFilter('pending')} className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='pending'?'bg-white shadow text-slate-800':'text-gray-400'}`}>Activas</button>
-                <button onClick={()=>setFilter('completed')} className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='completed'?'bg-white shadow text-green-600':'text-gray-400'}`}>Listas</button>
+                <button onClick={()=>setFilter('pending')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='pending'?'bg-white shadow text-slate-800':'text-gray-400'}`}>Activas</button>
+                {/* SOLO ADMIN VE PESTAÑA PRÓXIMAS */}
+                {canManage && <button onClick={()=>setFilter('scheduled')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='scheduled'?'bg-white shadow text-orange-600':'text-gray-400'}`}>Próximas</button>}
+                <button onClick={()=>setFilter('completed')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='completed'?'bg-white shadow text-green-600':'text-gray-400'}`}>Listas</button>
              </div>
-             {/* CAMBIO AQUÍ: Botón '+' disponible para TODOS */}
              <button onClick={openNew} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg hover:scale-110 transition-all"><Plus size={20}/></button>
           </div>
       </div>
@@ -657,10 +681,21 @@ function TasksView({ tasks, user, canEdit }) {
                         <p className="text-[9px] font-black text-violet-600 uppercase tracking-widest italic mb-1">Para: {t.assignedToName}</p>
                         <h3 className={`font-bold text-gray-800 text-sm uppercase italic tracking-tighter leading-none ${t.status==='completed'?'line-through opacity-50':''}`}>{t.title}</h3>
                         <p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName}</p>
+                        
+                        {/* AVISO DE PROGRAMACIÓN (SOLO ADMINS) */}
+                        {t.showDate > new Date().toISOString().split('T')[0] && (
+                            <div className="mt-2 inline-flex items-center gap-1 bg-yellow-100 text-yellow-800 text-[9px] font-bold px-2 py-1 rounded-md border border-yellow-200">
+                                <Clock size={10}/> Visible el: {new Date(t.showDate).toLocaleDateString()}
+                            </div>
+                        )}
                     </div>
                     <div className="flex flex-col items-end gap-2">
-                        <div className="text-[9px] font-black bg-white px-2 py-1 rounded-full text-gray-400 border uppercase tracking-tighter italic shadow-inner">{t.dueDate}</div>
-                        {/* CAMBIO AQUÍ: Edición/Borrado si eres Admin O si tú creaste la tarea */}
+                        {t.dueDate ? (
+                             <div className="text-[9px] font-black bg-white px-2 py-1 rounded-full text-gray-400 border uppercase tracking-tighter italic shadow-inner">{t.dueDate}</div>
+                        ) : (
+                             <div className="text-[9px] font-black bg-gray-50 px-2 py-1 rounded-full text-gray-300 border border-gray-100 uppercase tracking-tighter italic">Sin Fecha</div>
+                        )}
+                       
                         <div className="flex gap-1">
                             {(canManage || t.createdById === user.id) && <button onClick={() => openEdit(t)} className="text-blue-300 hover:text-blue-600 p-1 bg-white rounded-full shadow-sm"><Edit3 size={14}/></button>}
                             {(canManage || t.createdById === user.id) && <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm"><Trash2 size={14}/></button>}
@@ -710,14 +745,31 @@ function TasksView({ tasks, user, canEdit }) {
             )}
 
             <div className="grid grid-cols-2 gap-4">
-                <input name="dueDate" type="date" defaultValue={editingTask?.dueDate} required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs text-gray-400" />
-                <select name="priority" defaultValue={editingTask?.priority} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-xs uppercase text-orange-600 italic">
+                {/* FECHA LÍMITE (NO OBLIGATORIA) */}
+                <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Vencimiento (Opcional)</label>
+                    <input name="dueDate" type="date" defaultValue={editingTask?.dueDate} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs text-gray-600 border border-gray-200" />
+                </div>
+                
+                <select name="priority" defaultValue={editingTask?.priority} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs uppercase text-orange-600 italic border border-gray-200 h-[66px] mt-auto">
                     <option value="baja">🟢 Baja</option>
                     <option value="media">🟠 Media</option>
                     <option value="alta">🔴 Alta</option>
                 </select>
             </div>
-            <div className="flex gap-2 pt-4"><button type="button" onClick={() => setShowModal(false)} className="flex-1 font-bold text-gray-400 text-xs uppercase">Cancelar</button><button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">GUARDAR</button></div>
+            
+            {/* PROGRAMACIÓN (SOLO PARA ADMINS/DIRECTIVOS) */}
+            {canManage && (
+                <div className="bg-orange-50 p-3 rounded-xl border border-orange-100">
+                    <label className="text-[10px] font-bold text-orange-700 uppercase mb-1 block flex items-center gap-1">
+                        <Clock size={10}/> Programar Aparición
+                    </label>
+                    <input name="showDate" type="date" defaultValue={editingTask?.showDate} className="w-full p-2 bg-white rounded-lg outline-none font-bold text-xs text-orange-800 border border-orange-200" />
+                    <p className="text-[9px] text-orange-600 mt-1">Si pones una fecha futura, la tarea quedará en "Próximas" hasta ese día.</p>
+                </div>
+            )}
+
+            <div className="flex gap-2 pt-2"><button type="button" onClick={() => setShowModal(false)} className="flex-1 font-bold text-gray-400 text-xs uppercase">Cancelar</button><button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">GUARDAR</button></div>
           </form>
         </div>
       )}
@@ -1951,7 +2003,7 @@ function MainApp({ user, onLogout }) {
     </div>
   );
 }
-// --- VISTA AULA (FINAL: DRIVE + TERMÓMETRO DE CLIMA ÁULICO) ---
+// --- VISTA AULA (LIMPIA PARA DOCENTES + ANALÍTICA PARA DIRECTIVOS) ---
 function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
@@ -1961,19 +2013,24 @@ function GroupsView({ user }) {
   const [savingIncident, setSavingIncident] = useState(false);
   const [activeTab, setActiveTab] = useState('info');
   
+  // Estado para editar grupo y estadísticas
   const [editingGroup, setEditingGroup] = useState(null);
+  const [groupStats, setGroupStats] = useState(null); // Nuevo estado para el modal de gráficos
   const [updatingGroup, setUpdatingGroup] = useState(false);
 
+  // PERMISOS: "isManagement" es para editar. "isStrategic" es para ver gráficos sensibles.
   const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración'].includes(user.role) || user.rol === 'admin';
+  
+  // SOLO ESTOS ROLES VEN LOS GRÁFICOS (Docentes y Admin NO)
+  const isStrategic = ['super-admin', 'admin', 'Equipo Directivo', 'Equipo Técnico'].includes(user.role) || user.rol === 'admin';
+
   const LOGO_URL = "/icon-192.png";
 
   const INCIDENT_TYPES = [
-      // POSITIVOS (VERDES)
       { label: "Trabajó Muy Bien", emoji: "🌟", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
       { label: "Ayudó a un amigo", emoji: "🤝", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
       { label: "Logro de Aprendizaje", emoji: "🚀", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
       { label: "Buena Conducta", emoji: "😇", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
-      // ALERTA
       { label: "Crisis Llanto", emoji: "😭", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" },
       { label: "Higiene / Esfínter", emoji: "💩", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" },
       { label: "No trabajó", emoji: "💤", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
@@ -2123,38 +2180,30 @@ function GroupsView({ user }) {
             {groups.length === 0 && (<div className="m-auto text-center opacity-50"><LayoutDashboard size={48} className="mx-auto mb-2 text-gray-300"/><p className="font-bold text-gray-400">No tienes grupos en este turno.</p></div>)} 
             
             {groups.map((g) => {
-                // CÁLCULO DE CLIMA ÁULICO
-                const totalLogs = g.students.reduce((acc, s) => acc + (s.incidents?.length || 0), 0);
-                const posLogs = g.students.reduce((acc, s) => acc + (s.incidents?.filter(i => i.severity === 'positive').length || 0), 0);
-                const posPercent = totalLogs > 0 ? Math.round((posLogs / totalLogs) * 100) : 100; // Si no hay registros, asumimos 100% positivo (neutro)
-
                 return (
                 <div key={g.name} className="min-w-[280px] w-[300px] flex flex-col h-[calc(100vh-220px)] md:h-fit bg-white rounded-[30px] border border-gray-200 shadow-sm relative overflow-hidden group-hover:shadow-md transition shrink-0">
                   <div className={`p-4 border-b-4 ${turn==='morning'?'border-orange-400 bg-orange-50':'border-indigo-400 bg-indigo-50'} relative`}>
                       <div className="absolute top-2 right-2 flex gap-1">
+                          {/* BOTÓN ESTADÍSTICAS (Solo Estratégicos) */}
+                          {isStrategic && (
+                              <button onClick={()=>setGroupStats(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition" title="Ver Estadísticas">
+                                  <PieChart size={14}/>
+                              </button>
+                          )}
+                          
+                          {/* BOTÓN DRIVE */}
                           {g.driveLink && (
                               <a href={g.driveLink} target="_blank" rel="noopener noreferrer" className="p-2 bg-white/50 hover:bg-white rounded-full text-green-600 shadow-sm transition flex items-center justify-center" title="Carpeta Drive">
                                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
                               </a>
                           )}
+                          
                           <button onClick={()=>handlePrintSingleGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition" title="Imprimir Lista"><Printer size={14}/></button>
                           {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition" title="Editar Grupo"><Edit3 size={14}/></button>}
                       </div>
                       
                       <h3 className="font-black text-gray-800 text-lg">{g.name}</h3>
-                      
-                      {/* TERMÓMETRO DE CLIMA ÁULICO */}
-                      <div className="mt-2 mb-2">
-                          <div className="flex justify-between text-[9px] font-bold uppercase text-gray-400 mb-1">
-                              <span>Clima del Grupo</span>
-                              <span>{totalLogs > 0 ? `${posPercent}% Positivo` : 'Sin datos'}</span>
-                          </div>
-                          <div className="h-2 w-full bg-red-200 rounded-full overflow-hidden flex">
-                              <div style={{width: `${posPercent}%`}} className="h-full bg-emerald-400 transition-all duration-500"></div>
-                          </div>
-                      </div>
-
-                      <div className="text-xs text-gray-500 font-medium space-y-1">
+                      <div className="mt-2 text-xs text-gray-500 font-medium space-y-1">
                           <p>DOC: <span className="font-bold text-violet-700 uppercase">{g.teacher || 'Sin asignar'}</span></p>
                           {g.aux && <p>AUX: <span className="font-bold uppercase">{g.aux}</span></p>}
                           {(g.sup1 || g.sup2) && <p className="text-violet-600 font-bold truncate">SUP: {g.sup1 || ''} {g.sup2 ? `& ${g.sup2}` : ''}</p>}
@@ -2175,6 +2224,67 @@ function GroupsView({ user }) {
             )})}
         </div>
       </div>
+
+      {/* MODAL ESTADÍSTICAS DEL GRUPO (NUEVO) */}
+      {groupStats && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[250] flex items-center justify-center p-4" onClick={() => setGroupStats(null)}>
+              <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+                  <div className="flex justify-between items-center mb-6">
+                      <div>
+                          <h3 className="text-xl font-black text-violet-900 uppercase italic">Análisis de Grupo</h3>
+                          <p className="text-xs text-gray-500 font-bold">{groupStats.name}</p>
+                      </div>
+                      <button onClick={() => setGroupStats(null)}><X/></button>
+                  </div>
+                  
+                  {/* CÁLCULOS INTERNOS */}
+                  {(() => {
+                      const allIncidents = groupStats.students.flatMap(s => s.incidents || []);
+                      const total = allIncidents.length;
+                      const positives = allIncidents.filter(i => i.severity === 'positive').length;
+                      const negatives = total - positives;
+                      const posPercent = total ? Math.round((positives/total)*100) : 100;
+                      
+                      // Top 3 Tipos
+                      const typeCounts = {};
+                      allIncidents.forEach(i => { typeCounts[i.type] = (typeCounts[i.type] || 0) + 1; });
+                      const topTypes = Object.entries(typeCounts).sort((a,b) => b[1] - a[1]).slice(0, 3);
+
+                      return (
+                          <div className="space-y-6">
+                              {/* GRÁFICO TORTA CLIMA */}
+                              <div className="flex items-center justify-around bg-gray-50 p-4 rounded-3xl border border-gray-100">
+                                  <div className="w-28 h-28 rounded-full relative shadow-inner" style={{ background: `conic-gradient(#34d399 ${posPercent}%, #f87171 0)` }}>
+                                      <div className="absolute inset-4 bg-white rounded-full flex flex-col items-center justify-center">
+                                          <span className="text-xl font-black text-gray-800">{total}</span>
+                                          <span className="text-[9px] text-gray-400 uppercase font-bold">Registros</span>
+                                      </div>
+                                  </div>
+                                  <div className="text-xs space-y-2 font-bold">
+                                      <div className="flex items-center gap-2"><div className="w-3 h-3 bg-emerald-400 rounded-full"></div> <span className="text-emerald-700">{posPercent}% Positivo</span></div>
+                                      <div className="flex items-center gap-2"><div className="w-3 h-3 bg-red-400 rounded-full"></div> <span className="text-red-600">{100-posPercent}% Alerta</span></div>
+                                  </div>
+                              </div>
+
+                              {/* TOP 3 MOTIVOS */}
+                              <div>
+                                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Principales Motivos</h4>
+                                  <div className="space-y-2">
+                                      {topTypes.length === 0 ? <p className="text-xs text-gray-400 italic">Sin datos suficientes.</p> : 
+                                      topTypes.map(([type, count]) => (
+                                          <div key={type} className="flex justify-between items-center bg-white border border-gray-100 p-3 rounded-xl shadow-sm">
+                                              <span className="text-xs font-bold text-gray-700">{type}</span>
+                                              <span className="text-xs font-black bg-violet-100 text-violet-700 px-2 py-1 rounded-lg">{count}</span>
+                                          </div>
+                                      ))}
+                                  </div>
+                              </div>
+                          </div>
+                      );
+                  })()}
+              </div>
+          </div>
+      )}
 
       {/* MODAL EDICIÓN */}
       {editingGroup && (
@@ -2307,6 +2417,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
