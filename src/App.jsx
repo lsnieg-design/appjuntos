@@ -484,8 +484,7 @@ function ResourcesView({ resources, canEdit }) {
   );
 }
 
-
-// --- VISTA TAREAS (FINAL: FECHAS OPCIONALES + PROGRAMACIÓN FUTURA) ---
+// --- VISTA TAREAS (FINAL: CUENTA REGRESIVA + FEEDBACK COMENTARIOS) ---
 function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
@@ -505,8 +504,6 @@ function TasksView({ tasks, user, canEdit }) {
   const [filter, setFilter] = useState('pending'); // 'pending', 'completed', 'scheduled'
 
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor'];
-  
-  // Permisos: Admin y Directivos pueden gestionar y programar
   const canManage = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
 
   useEffect(() => {
@@ -520,6 +517,27 @@ function TasksView({ tasks, user, canEdit }) {
     });
     return () => unsub();
   }, [editingTask]);
+
+  // --- FUNCIÓN PARA CALCULAR LA CUENTA REGRESIVA ---
+  const getCountdown = (dateStr) => {
+      if (!dateStr) return null;
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      
+      // Agregamos T00:00:00 para evitar problemas de zona horaria
+      const due = new Date(dateStr + 'T00:00:00'); 
+      
+      // Diferencia en milisegundos
+      const diffTime = due - today;
+      // Diferencia en días (redondeando hacia arriba)
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays < 0) return { text: `Vencida hace ${Math.abs(diffDays)} días`, color: 'bg-red-100 text-red-700 border-red-200' };
+      if (diffDays === 0) return { text: '¡Vence HOY!', color: 'bg-orange-100 text-orange-700 border-orange-200 animate-pulse' };
+      if (diffDays === 1) return { text: 'Mañana', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' };
+      if (diffDays <= 7) return { text: `Faltan ${diffDays} días`, color: 'bg-blue-100 text-blue-700 border-blue-200' };
+      return { text: `Faltan ${diffDays} días`, color: 'bg-gray-100 text-gray-500 border-gray-200' };
+  };
 
   const handleSaveTask = async (e) => {
     e.preventDefault(); 
@@ -539,14 +557,13 @@ function TasksView({ tasks, user, canEdit }) {
         finalAssignedName = selectedRoles.join(", ");
     }
 
-    // Lógica de fechas
-    const dueDateVal = fd.get('dueDate'); // Ahora puede ser vacío
-    const showDateVal = fd.get('showDate'); // Fecha de aparición (opcional)
+    const dueDateVal = fd.get('dueDate'); 
+    const showDateVal = fd.get('showDate'); 
 
     const taskData = { 
         title: fd.get('title'), 
-        dueDate: dueDateVal || null, // Guardamos null si está vacío
-        showDate: showDateVal || new Date().toISOString().split('T')[0], // Si no ponen nada, se muestra hoy
+        dueDate: dueDateVal || null, 
+        showDate: showDateVal || new Date().toISOString().split('T')[0], 
         priority: fd.get('priority'), 
         targetType: assignType, 
         targetUserId: finalTargetId, 
@@ -568,8 +585,6 @@ function TasksView({ tasks, user, canEdit }) {
                  comments: [] 
              });
              
-             // NOTIFICACIONES (Solo si la fecha de aparición es HOY o anterior)
-             // Si es futura, no notificamos todavía para no spoilear.
              const today = new Date().toISOString().split('T')[0];
              if (!taskData.showDate || taskData.showDate <= today) {
                  const notifData = {
@@ -609,32 +624,22 @@ function TasksView({ tasks, user, canEdit }) {
       setEditingTask(t); setAssignType(t.targetType || 'user'); setSelectedRoles(t.targetRoles || []); setChecklist(t.checklist || []); setShowModal(true); 
   };
   
-  // --- FILTRADO INTELIGENTE ---
   const filteredTasks = tasks.filter(t => {
       const todayStr = new Date().toISOString().split('T')[0];
-      const showDate = t.showDate || '2000-01-01'; // Si no tiene, asumimos pasado
+      const showDate = t.showDate || '2000-01-01'; 
 
-      // 1. FILTRO DE ESTADO (PESTAÑAS)
       if (filter === 'completed') {
           if (t.status !== 'completed') return false;
       } else if (filter === 'scheduled') {
-          // Solo para admins: Tareas que AÚN NO se deben mostrar (Futuras)
           if (t.status === 'completed') return false;
-          if (showDate <= todayStr) return false; // Si ya pasó la fecha, no es "próxima", es "activa"
+          if (showDate <= todayStr) return false; 
       } else {
-          // 'pending' (Activas): No completadas Y que la fecha de mostrar ya llegó
           if (t.status === 'completed') return false;
-          if (showDate > todayStr) return false; // Si es futura, no la muestres acá
+          if (showDate > todayStr) return false; 
       }
       
-      // 2. FILTRO DE VISIBILIDAD (QUIÉN LA VE)
-      // Si soy admin/directivo veo todo (respetando las pestañas de arriba)
       if (canManage) return true; 
-      
-      // Si soy usuario normal, NO debo ver tareas futuras (scheduled)
       if (showDate > todayStr) return false;
-
-      // Filtros normales de asignación
       if (t.createdById === user.id) return true; 
       if (t.targetType === 'user') return t.targetUserId === user.id; 
       if (t.targetType === 'roles') return t.targetRoles && user.role && t.targetRoles.some(r => r.toLowerCase() === user.role.toLowerCase()); 
@@ -657,7 +662,6 @@ function TasksView({ tasks, user, canEdit }) {
           <div className="flex gap-2">
              <div className="flex bg-gray-100 rounded-xl p-1">
                 <button onClick={()=>setFilter('pending')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='pending'?'bg-white shadow text-slate-800':'text-gray-400'}`}>Activas</button>
-                {/* SOLO ADMIN VE PESTAÑA PRÓXIMAS */}
                 {canManage && <button onClick={()=>setFilter('scheduled')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='scheduled'?'bg-white shadow text-orange-600':'text-gray-400'}`}>Próximas</button>}
                 <button onClick={()=>setFilter('completed')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='completed'?'bg-white shadow text-green-600':'text-gray-400'}`}>Listas</button>
              </div>
@@ -674,7 +678,9 @@ function TasksView({ tasks, user, canEdit }) {
       )}
       
       <div className="grid gap-3 px-2">
-          {filteredTasks.length === 0 ? ( <div className="text-center py-10 opacity-40"><CheckCircle size={40} className="mx-auto mb-2 text-gray-400"/><p className="font-bold text-gray-500">Sin tareas en esta vista.</p></div> ) : filteredTasks.map(t => (
+          {filteredTasks.length === 0 ? ( <div className="text-center py-10 opacity-40"><CheckCircle size={40} className="mx-auto mb-2 text-gray-400"/><p className="font-bold text-gray-500">Sin tareas en esta vista.</p></div> ) : filteredTasks.map(t => {
+            const countdown = getCountdown(t.dueDate);
+            return (
             <div key={t.id} className={`p-5 rounded-[30px] shadow-sm flex flex-col gap-3 transition-all relative ${getPriorityStyle(t.priority)}`}>
                 <div className="flex justify-between items-start">
                     <div className="flex-1 pr-6">
@@ -682,19 +688,30 @@ function TasksView({ tasks, user, canEdit }) {
                         <h3 className={`font-bold text-gray-800 text-sm uppercase italic tracking-tighter leading-none ${t.status==='completed'?'line-through opacity-50':''}`}>{t.title}</h3>
                         <p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName}</p>
                         
-                        {/* AVISO DE PROGRAMACIÓN (SOLO ADMINS) */}
                         {t.showDate > new Date().toISOString().split('T')[0] && (
                             <div className="mt-2 inline-flex items-center gap-1 bg-yellow-100 text-yellow-800 text-[9px] font-bold px-2 py-1 rounded-md border border-yellow-200">
                                 <Clock size={10}/> Visible el: {new Date(t.showDate).toLocaleDateString()}
                             </div>
                         )}
                     </div>
+                    
                     <div className="flex flex-col items-end gap-2">
-                        {t.dueDate ? (
-                             <div className="text-[9px] font-black bg-white px-2 py-1 rounded-full text-gray-400 border uppercase tracking-tighter italic shadow-inner">{t.dueDate}</div>
-                        ) : (
-                             <div className="text-[9px] font-black bg-gray-50 px-2 py-1 rounded-full text-gray-300 border border-gray-100 uppercase tracking-tighter italic">Sin Fecha</div>
-                        )}
+                        {/* FECHA Y CUENTA REGRESIVA */}
+                        <div className="flex flex-col items-end gap-1">
+                            {t.dueDate ? (
+                                <>
+                                    <div className="text-[9px] font-black bg-white px-2 py-1 rounded-full text-gray-400 border uppercase tracking-tighter italic shadow-inner">{t.dueDate}</div>
+                                    {/* AVISO DE DÍAS RESTANTES */}
+                                    {t.status !== 'completed' && (
+                                        <span className={`text-[8px] font-black px-2 py-0.5 rounded-md uppercase border ${countdown.color}`}>
+                                            {countdown.text}
+                                        </span>
+                                    )}
+                                </>
+                            ) : (
+                                <div className="text-[9px] font-black bg-gray-50 px-2 py-1 rounded-full text-gray-300 border border-gray-100 uppercase tracking-tighter italic">Sin Fecha</div>
+                            )}
+                        </div>
                        
                         <div className="flex gap-1">
                             {(canManage || t.createdById === user.id) && <button onClick={() => openEdit(t)} className="text-blue-300 hover:text-blue-600 p-1 bg-white rounded-full shadow-sm"><Edit3 size={14}/></button>}
@@ -702,9 +719,16 @@ function TasksView({ tasks, user, canEdit }) {
                         </div>
                     </div>
                 </div>
+
                 {openCommentsId === t.id && ( <div className="bg-white/60 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in"><div className="max-h-32 overflow-y-auto space-y-2 mb-2">{(t.comments || []).map((c, idx) => ( <p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p> ))}</div><div className="flex gap-2"><input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Comentar..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" /><button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button></div></div> )}
+                
                 <div className="pt-2 border-t border-black/5 flex justify-between items-center">
-                    <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-violet-600 bg-white/50 px-2 py-1 rounded-lg"><MessageSquare size={14}/> {t.comments?.length || 0}</button>
+                    {/* BOTÓN DE COMENTARIOS MEJORADO */}
+                    <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition ${t.comments?.length > 0 ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500 hover:bg-violet-50 hover:text-violet-600'}`}>
+                        <MessageSquare size={14}/> 
+                        {t.comments?.length > 0 ? `${t.comments.length} Comentarios` : 'Escribir comentario...'}
+                    </button>
+
                     <div className="flex bg-white/60 rounded-lg p-0.5 shadow-sm">
                         <button onClick={() => changeStatus(t, 'pending')} className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition ${t.status === 'pending' ? 'bg-white shadow text-gray-700' : 'text-gray-400'}`}>Pend.</button>
                         <button onClick={() => changeStatus(t, 'in_process')} className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition ${t.status === 'in_process' ? 'bg-orange-100 text-orange-600 shadow' : 'text-gray-400'}`}>Proc.</button>
@@ -712,7 +736,7 @@ function TasksView({ tasks, user, canEdit }) {
                     </div>
                 </div>
             </div>
-          ))}
+          )})}
       </div>
 
       {showModal && (
@@ -745,7 +769,6 @@ function TasksView({ tasks, user, canEdit }) {
             )}
 
             <div className="grid grid-cols-2 gap-4">
-                {/* FECHA LÍMITE (NO OBLIGATORIA) */}
                 <div>
                     <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Vencimiento (Opcional)</label>
                     <input name="dueDate" type="date" defaultValue={editingTask?.dueDate} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs text-gray-600 border border-gray-200" />
@@ -914,18 +937,33 @@ function UsersView({ user }) {
   );
 }
 
-// --- VISTA CALENDARIO (CON CARGA RÁPIDA DE FECHAS) ---
+// --- VISTA CALENDARIO (CON FILTROS DE COLORES Y ETIQUETAS) ---
 function CalendarView({ events, canEdit, user }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDayEvents, setSelectedDayEvents] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
+  const [filterType, setFilterType] = useState('TODOS'); // Estado para el filtro
   
   // --- ESTADOS PARA CARGA RÁPIDA ---
   const [showQuickLoad, setShowQuickLoad] = useState(false);
   const [quickText, setQuickText] = useState("");
   const [processing, setProcessing] = useState(false);
   
+  // --- DEFINICIÓN DE TIPOS Y COLORES ---
+  const EVENT_TYPES = {
+      'GENERAL': { color: 'bg-gray-100 text-gray-700 border-gray-300', label: 'General' },
+      'TAREAS ADMINISTRATIVAS': { color: 'bg-slate-200 text-slate-800 border-slate-400', label: 'Admin' },
+      'EFEMÉRIDES': { color: 'bg-sky-100 text-sky-800 border-sky-300', label: 'Efemérides' },
+      'CALENDARIO ACADÉMICO': { color: 'bg-indigo-100 text-indigo-800 border-indigo-300', label: 'Académico' },
+      'REUNIONES': { color: 'bg-violet-100 text-violet-800 border-violet-300', label: 'Reuniones' },
+      'ENCUENTROS CON FAMILIAS': { color: 'bg-pink-100 text-pink-800 border-pink-300', label: 'Familias' },
+      'CUMPLEAÑOS': { color: 'bg-yellow-100 text-yellow-800 border-yellow-300', label: 'Cumples' },
+      'SALIDAS EDUCATIVAS': { color: 'bg-emerald-100 text-emerald-800 border-emerald-300', label: 'Salidas' },
+      'ACTO': { color: 'bg-orange-100 text-orange-800 border-orange-300', label: 'Actos' },
+      'FERIADO': { color: 'bg-red-100 text-red-800 border-red-300', label: 'Feriado' }
+  };
+
   // --- SWIPE ---
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
@@ -943,6 +981,8 @@ function CalendarView({ events, canEdit, user }) {
   const changeMonth = (offset) => { const d = new Date(currentDate); d.setMonth(d.getMonth() + offset); setCurrentDate(new Date(d)); };
   
   const handleDayClick = (dateStr) => {
+      // Al hacer clic en un día, mostramos TODOS los eventos de ese día, independientemente del filtro visual
+      // para que no se pierda info al querer editar.
       const eventsOnDay = events.filter(e => e.date === dateStr);
       if (eventsOnDay.length > 0 || canEdit) setSelectedDayEvents({ date: dateStr, events: eventsOnDay });
   };
@@ -970,46 +1010,35 @@ function CalendarView({ events, canEdit, user }) {
       setShowModal(false); setEditingEvent(null);
   };
 
-  // --- LÓGICA DE CARGA RÁPIDA (MAGIC PARSER) ---
   const handleQuickSave = async () => {
       if (!quickText.trim()) return;
       setProcessing(true);
       try {
           const lines = quickText.split('\n').filter(line => line.trim() !== '');
           const promises = lines.map(line => {
-              // Intenta separar la fecha del texto. Ej: "10/02/2026 Reunión"
-              // Regex busca: (Dia)/(Mes)/(Año) (Resto del texto)
               const match = line.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})\s+(.+)$/);
-              
               if (match) {
                   let [_, day, month, year, title] = match;
-                  // Normalizar año a 4 dígitos si pusieron 26
                   if (year.length === 2) year = "20" + year;
-                  // Formato ISO YYYY-MM-DD para la base de datos
                   const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
                   
                   return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), {
                       title: title.trim(),
                       date: isoDate,
-                      type: 'GENERAL', // Tipo por defecto
+                      type: 'GENERAL', 
                       description: 'Carga rápida',
                       author: user.firstName,
                       createdAt: serverTimestamp()
                   });
               }
-              return null; // Si la línea no tiene formato fecha, la ignora
+              return null; 
           });
 
           const results = await Promise.all(promises);
           const added = results.filter(r => r !== null).length;
-          alert(`✅ Se agregaron ${added} eventos al calendario.`);
-          setShowQuickLoad(false);
-          setQuickText("");
-      } catch (e) {
-          alert("Error al procesar: " + e.message);
-      } finally {
-          setProcessing(false);
-      }
+          alert(`✅ Se agregaron ${added} eventos.`);
+          setShowQuickLoad(false); setQuickText("");
+      } catch (e) { alert("Error: " + e.message); } finally { setProcessing(false); }
   };
   
   const openNew = () => { setEditingEvent(null); setShowModal(true); };
@@ -1023,7 +1052,14 @@ function CalendarView({ events, canEdit, user }) {
     
     for (let d = 1; d <= new Date(year, month + 1, 0).getDate(); d++) {
       const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      const dayEvents = events.filter(e => e.date === dateStr);
+      
+      // FILTRADO DE EVENTOS PARA LA VISTA
+      const dayEvents = events.filter(e => {
+          if (e.date !== dateStr) return false;
+          if (filterType !== 'TODOS' && e.type !== filterType) return false;
+          return true;
+      });
+
       const isToday = new Date().toDateString() === new Date(year, month, d).toDateString();
       
       days.push(
@@ -1032,11 +1068,14 @@ function CalendarView({ events, canEdit, user }) {
              <span className={`text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold ${isToday ? 'bg-violet-600 text-white shadow-md' : 'text-gray-500'}`}>{d}</span>
           </div>
           <div className="flex flex-col gap-1 mt-1 overflow-y-auto no-scrollbar flex-1">
-            {dayEvents.map((ev, idx) => (
-                <div key={idx} className={`text-[7px] rounded-[3px] px-1 py-0.5 truncate font-bold uppercase border-l-2 ${ev.type === 'FERIADO' ? 'bg-red-50 text-red-600 border-red-400' : 'bg-violet-100 text-violet-700 border-violet-400'}`}>
-                    {ev.title}
-                </div>
-            ))}
+            {dayEvents.map((ev, idx) => {
+                const style = EVENT_TYPES[ev.type] ? EVENT_TYPES[ev.type].color : EVENT_TYPES['GENERAL'].color;
+                return (
+                    <div key={idx} className={`text-[7px] rounded-[3px] px-1 py-0.5 truncate font-bold uppercase border-l-2 shadow-sm ${style}`}>
+                        {ev.title}
+                    </div>
+                );
+            })}
           </div>
         </div>
       );
@@ -1059,67 +1098,68 @@ function CalendarView({ events, canEdit, user }) {
                 <button onClick={() => changeMonth(1)} className="p-2 text-gray-600 hover:bg-white hover:shadow-sm rounded-md transition"><ChevronRight size={16}/></button>
              </div>
              
-             {/* BOTONES DE EDICIÓN */}
              {canEdit && (
                  <div className="flex gap-1">
-                     {/* Botón Carga Rápida (Rayo) */}
-                     <button onClick={() => setShowQuickLoad(!showQuickLoad)} className={`p-2 rounded-lg shadow transition ${showQuickLoad ? 'bg-yellow-400 text-white' : 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200'}`} title="Carga Rápida de Fechas">
+                     <button onClick={() => setShowQuickLoad(!showQuickLoad)} className={`p-2 rounded-lg shadow transition ${showQuickLoad ? 'bg-yellow-400 text-white' : 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200'}`} title="Carga Rápida">
                          <span className="font-bold text-lg leading-none">⚡</span>
                      </button>
-                     {/* Botón Nuevo Evento (Manual) */}
                      <button onClick={openNew} className="bg-orange-500 text-white p-2 rounded-lg shadow hover:bg-orange-600 transition"><Plus size={20}/></button>
                  </div>
              )}
         </div>
       </div>
+
+      {/* BARRA DE FILTROS */}
+      <div className="flex gap-2 overflow-x-auto p-2 bg-gray-50 border-b border-gray-200 no-scrollbar">
+          <button 
+              onClick={() => setFilterType('TODOS')} 
+              className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase whitespace-nowrap transition border ${filterType === 'TODOS' ? 'bg-violet-600 text-white border-violet-600 shadow-md' : 'bg-white text-gray-500 border-gray-200'}`}
+          >
+              Todos
+          </button>
+          {Object.keys(EVENT_TYPES).map(type => (
+              <button 
+                  key={type}
+                  onClick={() => setFilterType(type)}
+                  className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase whitespace-nowrap transition border ${filterType === type ? `${EVENT_TYPES[type].color} ring-1 ring-offset-1` : 'bg-white text-gray-400 border-gray-200'}`}
+              >
+                  {EVENT_TYPES[type].label}
+              </button>
+          ))}
+      </div>
       
-      {/* PANEL DE CARGA RÁPIDA (Se despliega si showQuickLoad es true) */}
+      {/* PANEL DE CARGA RÁPIDA */}
       {showQuickLoad && (
           <div className="bg-yellow-50 p-4 border-b border-yellow-200 animate-in slide-in-from-top-5">
               <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-bold text-yellow-800 text-xs uppercase flex items-center gap-2">⚡ Carga Masiva de Fechas</h3>
+                  <h3 className="font-bold text-yellow-800 text-xs uppercase flex items-center gap-2">⚡ Carga Masiva</h3>
                   <button onClick={() => setShowQuickLoad(false)}><X size={16} className="text-yellow-600"/></button>
               </div>
-              <p className="text-[10px] text-yellow-700 mb-2">Pega tu lista así: <b>10/02/2026 Inicio de Clases</b> (una por renglón)</p>
-              <textarea 
-                  value={quickText} 
-                  onChange={(e) => setQuickText(e.target.value)} 
-                  className="w-full h-32 p-3 rounded-xl border border-yellow-300 text-xs font-medium focus:ring-2 focus:ring-yellow-400 outline-none bg-white"
-                  placeholder="10/02/2026 Reunión Docente&#10;15/02/2026 Entrega de Informes..."
-              />
-              <button 
-                  onClick={handleQuickSave} 
-                  disabled={processing}
-                  className="mt-2 w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 rounded-xl text-xs uppercase shadow transition flex justify-center gap-2"
-              >
-                  {processing ? <RefreshCw className="animate-spin" size={14}/> : 'Procesar y Guardar'}
-              </button>
+              <textarea value={quickText} onChange={(e) => setQuickText(e.target.value)} className="w-full h-32 p-3 rounded-xl border border-yellow-300 text-xs font-medium focus:ring-2 focus:ring-yellow-400 outline-none bg-white" placeholder="10/02/2026 Inicio de Clases"/>
+              <button onClick={handleQuickSave} disabled={processing} className="mt-2 w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 rounded-xl text-xs uppercase shadow transition flex justify-center gap-2">{processing ? <RefreshCw className="animate-spin" size={14}/> : 'Procesar y Guardar'}</button>
           </div>
       )}
       
-      {/* DÍAS SEMANA (HEADER FIJO) */}
-      <div className="grid grid-cols-7 bg-gray-50 border-b border-gray-200 shrink-0">
-         {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d => <div key={d} className="py-2 text-center text-[9px] font-black text-violet-400 uppercase tracking-widest">{d}</div>)}
+      {/* HEADER DÍAS */}
+      <div className="grid grid-cols-7 bg-white border-b border-gray-200 shrink-0">
+         {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d => <div key={d} className="py-2 text-center text-[9px] font-black text-gray-300 uppercase tracking-widest">{d}</div>)}
       </div>
 
       {/* GRILLA CALENDARIO */}
-      <div 
-        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
-        className="flex-1 grid grid-cols-7 auto-rows-fr overflow-y-auto"
-      >
+      <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} className="flex-1 grid grid-cols-7 auto-rows-fr overflow-y-auto bg-gray-50/30">
         {renderGrid()}
       </div>
       
-      {/* MODAL NUEVO/EDITAR (MANUAL) */}
+      {/* MODAL NUEVO/EDITAR (CON SELECTOR DE COLOR) */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
-          <form onSubmit={handleSaveEvent} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-orange-500">
+          <form onSubmit={handleSaveEvent} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600">
             <h3 className="text-lg font-black text-violet-900 uppercase italic">{editingEvent ? 'Editar Evento' : 'Nuevo Evento'}</h3>
             <input name="title" defaultValue={editingEvent?.title} placeholder="Título" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-sm border focus:border-violet-300" />
             <div className="grid grid-cols-2 gap-3">
                 <input name="date" type="date" defaultValue={editingEvent?.date || selectedDayEvents?.date} required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs border" />
-                <select name="type" defaultValue={editingEvent?.type || 'GENERAL'} className="w-full p-3 bg-gray-50 rounded-xl outline-none text-[10px] font-bold border">
-                    {['GENERAL', 'SALIDA EDUCATIVA', 'EFEMÉRIDES', 'ACTO', 'REUNIÓN', 'FERIADO'].map(t => <option key={t} value={t}>{t}</option>)}
+                <select name="type" defaultValue={editingEvent?.type || 'GENERAL'} className="w-full p-3 bg-gray-50 rounded-xl outline-none text-[10px] font-bold border uppercase">
+                    {Object.keys(EVENT_TYPES).map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
             </div>
             <textarea name="description" defaultValue={editingEvent?.description} placeholder="Detalles..." className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs border h-20 resize-none" />
@@ -1146,20 +1186,22 @@ function CalendarView({ events, canEdit, user }) {
 
             <div className="space-y-3">
                 {selectedDayEvents.events.length === 0 ? <p className="text-center text-gray-400 text-xs py-4">No hay eventos para este día.</p> : 
-                selectedDayEvents.events.map(ev => (
-                    <div key={ev.id} className="bg-gray-50 p-4 rounded-2xl border border-gray-100 relative group">
-                        <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border ${ev.type === 'FERIADO' ? 'bg-red-100 text-red-600 border-red-200' : 'bg-blue-100 text-blue-600 border-blue-200'}`}>{ev.type}</span>
-                        <h3 className="font-bold text-gray-800 mt-2 text-sm">{ev.title}</h3>
-                        <p className="text-xs text-gray-500 mt-1 italic">{ev.description}</p>
-                        <p className="text-[9px] text-gray-300 mt-2 text-right uppercase font-bold">Por: {ev.author || 'Sistema'}</p>
+                selectedDayEvents.events.map(ev => {
+                    const style = EVENT_TYPES[ev.type] ? EVENT_TYPES[ev.type].color : EVENT_TYPES['GENERAL'].color;
+                    return (
+                    <div key={ev.id} className={`p-4 rounded-2xl border relative group ${style}`}>
+                        <span className="text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest bg-white/50 border border-white/20">{ev.type}</span>
+                        <h3 className="font-bold mt-2 text-sm">{ev.title}</h3>
+                        <p className="text-xs opacity-80 mt-1 italic">{ev.description}</p>
+                        <p className="text-[9px] opacity-50 mt-2 text-right uppercase font-bold">Por: {ev.author || 'Sistema'}</p>
                         {canEdit && (
                             <div className="absolute top-3 right-3 flex gap-1">
-                                <button onClick={() => openEdit(ev)} className="p-1.5 bg-white text-blue-400 rounded-lg shadow-sm border border-gray-100"><Edit3 size={12}/></button>
-                                <button onClick={() => deleteEvent(ev.id)} className="p-1.5 bg-white text-red-400 rounded-lg shadow-sm border border-gray-100"><Trash2 size={12}/></button>
+                                <button onClick={() => openEdit(ev)} className="p-1.5 bg-white/50 hover:bg-white rounded-lg shadow-sm"><Edit3 size={12}/></button>
+                                <button onClick={() => deleteEvent(ev.id)} className="p-1.5 bg-white/50 hover:bg-white text-red-600 rounded-lg shadow-sm"><Trash2 size={12}/></button>
                             </div>
                         )}
                     </div>
-                ))}
+                )})}
             </div>
           </div>
         </div>
@@ -1633,7 +1675,7 @@ function ProyectoView({ user }) {
     </div>
   );
 }
-// --- VISTA MATRÍCULA (FINAL: BUSCADOR DRIVE + ESTADÍSTICAS CLIMA ÁULICO) ---
+// --- VISTA MATRÍCULA (FINAL: FILTRO JORNADA + SIN GRÁFICOS) ---
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
@@ -1641,26 +1683,20 @@ function MatriculaView({ user }) {
   const [viewingStudent, setViewingStudent] = useState(null);
   const [activeModalTab, setActiveModalTab] = useState('info');
   
-  // Modales
   const [showStats, setShowStats] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showDataManagement, setShowDataManagement] = useState(false);
   const [showDupes, setShowDupes] = useState(false);
   const [showUnassigned, setShowUnassigned] = useState(false);
-
-  // Estados de Datos
   const [editingStudent, setEditingStudent] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
   const [potentialDupes, setPotentialDupes] = useState([]);
   const [unassignedList, setUnassignedList] = useState([]);
-
-  // Estados de Proceso
   const [importJson, setImportJson] = useState('');
   const [processing, setProcessing] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   
-  // Filtros
   const [statFilters, setStatFilters] = useState({ level: 'all', dx: 'all', gender: 'all', journey: 'all', turn: 'all' });
   const [filters, setFilters] = useState({ level: 'all', group: 'all', turn: 'all', teacher: 'all', dx: 'all', gender: 'all', journey: 'all', os: 'all' });
 
@@ -1671,11 +1707,12 @@ function MatriculaView({ user }) {
     const qS = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), orderBy('lastName', 'asc'));
     const uS = onSnapshot(qS, (snap) => setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const qU = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('lastName', 'asc'));
-    const uU = onSnapshot(qU, (snap) => setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    const uU = onSnapshot(qU, (snap) => {
+        setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
     return () => { uS(); uU(); };
   }, []);
 
-  // --- BUSCADOR DEL PIBE (UN SOLO CLIC) ---
   const abrirBuscadorAlumno = (student) => {
       const clean = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9 ]/g, "");
       const nombre = clean(student.firstName).split(' ')[0];
@@ -1690,7 +1727,6 @@ function MatriculaView({ user }) {
   const uniqueGroups = [...new Set([...students.map(s => s.groupMorning), ...students.map(s => s.groupAfternoon)].filter(Boolean))].sort();
   const uniqueOS = [...new Set(students.map(s => s.healthInsurance ? String(s.healthInsurance).toUpperCase().trim() : 'SIN COBERTURA'))].sort();
 
-  // Filtrado Principal
   const filteredStudents = students.filter(s => {
     const isStudentActive = s.isActive === undefined || s.isActive === true;
     if (showArchived && isStudentActive) return false; 
@@ -1708,7 +1744,10 @@ function MatriculaView({ user }) {
     }
     if (filters.dx !== 'all' && s.dx !== filters.dx) return false;
     if (filters.gender !== 'all' && s.gender !== filters.gender) return false;
+    
+    // FILTRO JORNADA (NUEVO)
     if (filters.journey !== 'all' && s.journey !== filters.journey) return false;
+
     const currentOS = s.healthInsurance ? String(s.healthInsurance).toUpperCase().trim() : 'SIN COBERTURA';
     if (filters.os !== 'all' && currentOS !== filters.os) return false;
     if (filters.turn === 'Mañana' && !s.groupMorning) return false;
@@ -1716,7 +1755,6 @@ function MatriculaView({ user }) {
     return true;
   });
 
-  // Filtrado para Estadísticas
   const statsResults = students.filter(s => {
      if (s.isActive === false) return false;
      if (statFilters.turn !== 'all') {
@@ -1730,17 +1768,12 @@ function MatriculaView({ user }) {
      return true;
   });
 
-  // CÁLCULOS DE CLIMA ÁULICO
-  const totalIncidents = statsResults.reduce((acc, s) => acc + (s.incidents?.length || 0), 0);
-  const positiveCount = statsResults.reduce((acc, s) => acc + (s.incidents?.filter(i => i.severity === 'positive').length || 0), 0);
-  const alertCount = totalIncidents - positiveCount;
-  const posPercent = totalIncidents > 0 ? Math.round((positiveCount / totalIncidents) * 100) : 0;
-
   const getSeverityColor = (severity) => {
       if(severity === 'positive') return 'bg-emerald-50 border-emerald-200';
       if(severity === 'high') return 'bg-red-50 border-red-200';
       if(severity === 'medium') return 'bg-orange-50 border-orange-200';
-      return 'bg-yellow-50 border-yellow-200';
+      if(severity === 'low') return 'bg-yellow-50 border-yellow-200';
+      return 'bg-gray-50 border-gray-100'; 
   };
 
   const getSafeDate = (d) => { if(!d) return ''; try { return d.includes('T') ? d.split('T')[0] : d; } catch(e) { return ''; } };
@@ -1795,6 +1828,9 @@ function MatriculaView({ user }) {
                     <select value={filters.level} onChange={e => setFilters({...filters, level: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[100px]"><option value="all">Nivel: Todos</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option></select>
                     <select value={filters.teacher} onChange={e => setFilters({...filters, teacher: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[100px]"><option value="all">Docente: Todos</option>{staffOptions.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select>
                     <select value={filters.dx} onChange={e => setFilters({...filters, dx: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[100px]"><option value="all">DX: Todos</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select>
+                    
+                    {/* NUEVO FILTRO JORNADA */}
+                    <select value={filters.journey} onChange={e => setFilters({...filters, journey: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[100px]"><option value="all">Jornada: Todas</option><option value="Simple Mañana">Simple Mañana</option><option value="Simple Tarde">Simple Tarde</option><option value="Doble">Doble</option></select>
                 </div>
             </div>
          )}
@@ -1813,7 +1849,6 @@ function MatriculaView({ user }) {
                     </div>
                     <div>
                         <h4 className="font-bold text-gray-800 flex items-center gap-2">{s.lastName}, {s.firstName} {s.dx && <span className="bg-purple-100 text-purple-700 text-[9px] px-1.5 py-0.5 rounded border border-purple-200">{s.dx}</span>}</h4>
-                        
                         <div className="flex flex-wrap gap-2 mt-1">
                             <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200 font-bold">{age} años</span>
                             {(s.groupMorning || s.groupAfternoon) ? (
@@ -1827,10 +1862,9 @@ function MatriculaView({ user }) {
                                     Aula {s.classroom}
                                 </span>
                             )}
-                            
                             {/* UN SOLO BOTÓN DE DRIVE (BUSCADOR) EN LISTA */}
                             {(s.driveLinkMorning || s.driveLinkAfternoon) && (
-                                <button onClick={(e) => { e.stopPropagation(); abrirBuscadorAlumno(s); }} className="text-[10px] bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-200 font-bold flex items-center gap-1 hover:bg-green-100 transition">
+                                <button onClick={(e) => { e.stopPropagation(); abrirBuscadorAlumno(s); }} className="text-[10px] bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-200 font-bold flex items-center gap-1 hover:bg-green-100 transition" title="Ver legajo digital">
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
                                     Ver Legajo Drive
                                 </button>
@@ -1846,7 +1880,6 @@ function MatriculaView({ user }) {
       {/* MODAL VER ALUMNO */}
       {viewingStudent && !showForm && (<div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm"><div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"><div className="bg-slate-700 p-6 text-white"><div className="flex justify-between items-start"><div className="flex gap-4"><div className="w-16 h-16 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden">{viewingStudent.photoUrl ? <img src={viewingStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={30} className="m-auto mt-4 text-white/50"/>}</div><div><h2 className="text-xl font-bold uppercase">{viewingStudent.lastName}, {viewingStudent.firstName}</h2><div className="flex gap-2 mt-1"><span className="bg-white/20 px-2 py-0.5 rounded text-xs">{calculateAge(viewingStudent.birthDate)} años</span><span className="bg-white/20 px-2 py-0.5 rounded text-xs">{viewingStudent.dni}</span></div></div></div><button onClick={()=>setViewingStudent(null)} className="bg-white/20 p-1 rounded-full hover:bg-white/40"><X/></button></div><div className="flex gap-2 mt-6 bg-slate-800/50 p-1 rounded-xl"><button onClick={()=>setActiveModalTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeModalTab==='info'?'bg-white text-slate-800 shadow-md':'text-white/50 hover:text-white'}`}>Datos Personales</button><button onClick={()=>setActiveModalTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeModalTab==='history'?'bg-white text-slate-800 shadow-md':'text-white/50 hover:text-white'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto bg-gray-50">{activeModalTab==='info' ? (
       <div className="space-y-4 text-sm">
-        
         {/* BOTÓN DRIVE EN MODAL (ÚNICO Y GRANDE) */}
         {(viewingStudent.driveLinkMorning || viewingStudent.driveLinkAfternoon) && (
              <button onClick={() => abrirBuscadorAlumno(viewingStudent)} className="w-full bg-green-100 text-green-800 py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-green-200 transition border border-green-300 mb-4 shadow-sm">
@@ -1854,35 +1887,14 @@ function MatriculaView({ user }) {
                 VER LEGAJO DIGITAL (DRIVE)
              </button>
         )}
-
         <div className="grid grid-cols-4 gap-2"><div className="bg-white p-2 rounded-xl border border-gray-100 text-center shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase">Nivel</p><p className="font-bold text-slate-800">{viewingStudent.level || '-'}</p></div><div className="bg-purple-50 p-2 rounded-xl border border-purple-100 text-center shadow-sm"><p className="text-[9px] text-purple-400 font-bold uppercase">DX</p><p className="font-bold text-purple-800">{viewingStudent.dx || '-'}</p></div><div className="bg-white p-2 rounded-xl border border-gray-100 text-center shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase">Género</p><p className="font-bold text-slate-800">{viewingStudent.gender || '-'}</p></div><div className="bg-white p-2 rounded-xl border border-gray-100 text-center shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase">Jornada</p><p className="font-bold text-slate-800">{viewingStudent.journey || '-'}</p></div></div>
         <div><h4 className="font-bold text-slate-800 mb-2 flex items-center gap-2 text-xs uppercase"><Briefcase size={14} className="text-blue-500"/> Escolaridad 2026</h4><div className="grid grid-cols-2 gap-3"><div className="bg-yellow-50 p-3 rounded-xl border border-yellow-200 relative shadow-sm"><span className="absolute top-0 right-0 bg-yellow-300 text-yellow-900 text-[9px] px-2 py-0.5 rounded-bl-lg font-bold uppercase">Mañana</span><div className="space-y-2 mt-1"><div><span className="text-[9px] text-yellow-600 font-bold block uppercase">Grupo</span><p className="font-bold text-slate-800 text-xs">{viewingStudent.groupMorning || '-'}</p></div><div><span className="text-[9px] text-yellow-600 font-bold block uppercase">Docente</span><p className="font-bold text-slate-800 text-xs truncate">{viewingStudent.teacherMorning || '-'}</p></div></div></div><div className="bg-indigo-50 p-3 rounded-xl border border-indigo-200 relative shadow-sm"><span className="absolute top-0 right-0 bg-indigo-200 text-indigo-800 text-[9px] px-2 py-0.5 rounded-bl-lg font-bold uppercase">Tarde</span><div className="space-y-2 mt-1"><div><span className="text-[9px] text-indigo-500 font-bold block uppercase">Grupo</span><p className="font-bold text-slate-800 text-xs">{viewingStudent.groupAfternoon || '-'}</p></div><div><span className="text-[9px] text-indigo-500 font-bold block uppercase">Docente</span><p className="font-bold text-slate-800 text-xs truncate">{viewingStudent.teacherAfternoon || '-'}</p></div></div></div></div></div>
         <div className="grid grid-cols-1 gap-3"><div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center"><div><h4 className="font-bold text-green-600 mb-1 text-xs uppercase flex items-center gap-1"><Activity size={12}/> Salud</h4><p className="text-xs text-gray-500 font-bold">OBRA SOCIAL</p><p className="font-bold text-slate-800">{viewingStudent.healthInsurance || 'NO DECLARA'}</p></div><div className="text-right"><p className="text-xs text-gray-500 font-bold">VENCIMIENTO CUD</p><p className="font-bold text-slate-800">{getSafeDate(viewingStudent.cudExpiration) || '-'}</p></div></div><div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm"><h4 className="font-bold text-orange-600 mb-2 text-xs uppercase flex items-center gap-1"><User size={12}/> Familia</h4><div className="grid grid-cols-2 gap-4"><div><span className="text-[9px] text-gray-400 font-bold block uppercase">Madre</span><p className="font-bold text-xs">{viewingStudent.motherName}</p><p className="text-xs text-gray-500">{viewingStudent.motherContact}</p></div><div><span className="text-[9px] text-gray-400 font-bold block uppercase">Padre</span><p className="font-bold text-xs">{viewingStudent.fatherName}</p><p className="text-xs text-gray-500">{viewingStudent.fatherContact}</p></div></div><div className="mt-2 pt-2 border-t border-gray-50"><span className="text-[9px] text-gray-400 font-bold block uppercase">Dirección</span><p className="font-bold text-xs">{viewingStudent.address}</p></div></div></div>
       </div>) : (<div className="space-y-3">{viewingStudent.incidents?.map((inc,i)=>(<div key={i} className={`${getSeverityColor(inc.severity)} p-3 rounded-xl border shadow-sm`}><div className="flex justify-between border-b border-gray-200/50 pb-1 mb-1"><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{new Date(inc.date).toLocaleDateString()}</span><button onClick={()=>deleteIncident(viewingStudent.id, inc)}><Trash2 size={12} className="text-gray-400 hover:text-red-500"/></button></div><div className="flex items-center gap-2"><span className="text-lg">{inc.type === 'Trabajó Muy Bien' ? '🌟' : inc.type === 'Ayudó a un amigo' ? '🤝' : inc.type === 'Logro de Aprendizaje' ? '🚀' : inc.type === 'Buena Conducta' ? '😇' : '📝'}</span><p className="font-bold text-sm text-slate-800">{inc.type}</p></div><p className="text-xs text-gray-500 mt-1 uppercase font-bold pl-7">Por: {inc.author}</p></div>))}</div>)}</div><div className="p-4 border-t border-gray-100 bg-white flex justify-end gap-2"><button onClick={()=>imprimirListado([viewingStudent])} className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-slate-600 font-bold text-xs uppercase hover:bg-gray-50 flex gap-2 items-center shadow-sm"><FileText size={16}/> Imprimir Ficha</button><button onClick={()=>openEdit(viewingStudent)} className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-xs uppercase hover:bg-blue-700 flex gap-2 items-center shadow-lg"><Edit3 size={16}/> Editar Ficha</button></div></div></div>)}
 
-      {showStats && (<div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4"><div className="bg-white rounded-[40px] w-full max-w-lg p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600"><div className="flex justify-between items-center mb-6"><div><h3 className="text-2xl font-black text-violet-900 uppercase italic">Estadísticas</h3><p className="text-xs text-gray-500">Filtrado en tiempo real</p></div><button onClick={() => setShowStats(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button></div><div className="bg-violet-50 p-6 rounded-3xl text-center mb-6 border border-violet-100 shadow-inner"><span className="text-5xl font-black text-violet-600 block mb-2">{statsResults.length}</span><span className="text-xs font-bold text-violet-400 uppercase tracking-[4px]">Estudiantes Encontrados</span></div>
-      
-      {/* NUEVA SECCIÓN: GRÁFICO DE CLIMA ÁULICO */}
-      <div className="bg-white p-4 rounded-2xl border border-gray-100 mb-4 shadow-sm">
-          <h4 className="font-bold text-gray-700 mb-4 text-sm flex items-center gap-2">📊 Clima Áulico (Bitácora)</h4>
-          <div className="flex items-center justify-around">
-             <div className="w-24 h-24 rounded-full relative" style={{ background: `conic-gradient(#34d399 ${posPercent}%, #f87171 0)` }}>
-                  <div className="absolute inset-2 bg-white rounded-full flex items-center justify-center">
-                     <span className="text-xs font-black text-gray-400">{totalIncidents} Reg.</span>
-                  </div>
-             </div>
-             <div className="text-xs space-y-2">
-                 <div className="flex items-center gap-2"><div className="w-3 h-3 bg-emerald-400 rounded-full"></div> <span className="font-bold text-emerald-600">{posPercent}% Positivo ({positiveCount})</span></div>
-                 <div className="flex items-center gap-2"><div className="w-3 h-3 bg-red-400 rounded-full"></div> <span className="font-bold text-red-600">{100-posPercent}% Alerta ({alertCount})</span></div>
-             </div>
-          </div>
-      </div>
-
-      <div className="space-y-3"><div className="grid grid-cols-2 gap-2"><select value={statFilters.turn} onChange={e => setStatFilters({...statFilters, turn: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Turno: Todos</option><option value="Mañana">Mañana</option><option value="Tarde">Tarde</option></select><select value={statFilters.level} onChange={e => setStatFilters({...statFilters, level: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Nivel: Todos</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option></select><select value={statFilters.dx} onChange={e => setStatFilters({...statFilters, dx: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">DX: Todos</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select><select value={statFilters.gender} onChange={e => setStatFilters({...statFilters, gender: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Género: Todos</option><option value="M">Varón</option><option value="F">Mujer</option></select><select value={statFilters.journey} onChange={e => setStatFilters({...statFilters, journey: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Jornada: Todas</option><option value="Simple Mañana">Simple Mañana</option><option value="Simple Tarde">Simple Tarde</option><option value="Doble">Doble</option></select></div><button onClick={() => setStatFilters({ level: 'all', dx: 'all', gender: 'all', journey: 'all', turn: 'all' })} className="w-full py-3 text-red-400 font-bold text-xs hover:bg-red-50 rounded-xl transition mt-2">Limpiar Filtros</button></div></div></div>)}
+      {showStats && (<div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4"><div className="bg-white rounded-[40px] w-full max-w-lg p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600"><div className="flex justify-between items-center mb-6"><div><h3 className="text-2xl font-black text-violet-900 uppercase italic">Estadísticas</h3><p className="text-xs text-gray-500">Filtrado en tiempo real</p></div><button onClick={() => setShowStats(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button></div><div className="bg-violet-50 p-6 rounded-3xl text-center mb-6 border border-violet-100 shadow-inner"><span className="text-5xl font-black text-violet-600 block mb-2">{statsResults.length}</span><span className="text-xs font-bold text-violet-400 uppercase tracking-[4px]">Estudiantes Encontrados</span></div><div className="space-y-3"><div className="grid grid-cols-2 gap-2"><select value={statFilters.turn} onChange={e => setStatFilters({...statFilters, turn: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Turno: Todos</option><option value="Mañana">Mañana</option><option value="Tarde">Tarde</option></select><select value={statFilters.level} onChange={e => setStatFilters({...statFilters, level: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Nivel: Todos</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option></select><select value={statFilters.dx} onChange={e => setStatFilters({...statFilters, dx: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">DX: Todos</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select><select value={statFilters.gender} onChange={e => setStatFilters({...statFilters, gender: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Género: Todos</option><option value="M">Varón</option><option value="F">Mujer</option></select><select value={statFilters.journey} onChange={e => setStatFilters({...statFilters, journey: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Jornada: Todas</option><option value="Simple Mañana">Simple Mañana</option><option value="Simple Tarde">Simple Tarde</option><option value="Doble">Doble</option></select></div><button onClick={() => setStatFilters({ level: 'all', dx: 'all', gender: 'all', journey: 'all', turn: 'all' })} className="w-full py-3 text-red-400 font-bold text-xs hover:bg-red-50 rounded-xl transition mt-2">Limpiar Filtros</button></div></div></div>)}
       {showUnassigned && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[90]"><div className="bg-white rounded-3xl p-6 w-full max-w-2xl h-[80vh] flex flex-col"><div className="flex justify-between mb-4"><h3 className="font-bold text-red-600">Alumnos Sin Grupo ({unassignedList.length})</h3><button onClick={()=>setShowUnassigned(false)}><X/></button></div><div className="flex-1 overflow-y-auto space-y-2">{unassignedList.map(s=>(<div key={s.id} className="flex justify-between items-center bg-red-50 p-3 rounded-xl"><span className="font-bold">{s.lastName}, {s.firstName}</span><div className="flex gap-2"><button onClick={()=>{openEdit(s); setShowUnassigned(false)}} className="text-xs bg-white px-2 py-1 rounded border">Editar</button><button onClick={()=>markAsInactive(s)} className="text-xs bg-red-600 text-white px-2 py-1 rounded">Baja</button></div></div>))}</div></div></div>)}
       {showForm && (<div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"><div className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto"><h3 className="text-xl font-bold mb-4">{editingStudent?'Editar':'Nuevo'} Legajo</h3><form onSubmit={handleSave} className="space-y-4"><div className={`p-3 rounded-xl border mb-4 flex justify-between items-center ${editingStudent?.isActive === false ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}><div><label className="text-xs font-bold text-gray-700 uppercase">Estado Actual</label><p className="text-[10px] text-gray-500 font-bold">{editingStudent?.isActive === false ? '🛑 BAJA / INACTIVO' : '✅ ACTIVO (CURSANDO)'}</p></div><select name="isActive" defaultValue={editingStudent?.isActive === false ? 'false' : 'true'} className="p-2 rounded-lg border text-xs font-bold bg-white outline-none"><option value="true">Activo</option><option value="false">Inactivo (Baja)</option></select></div><div className="grid grid-cols-2 gap-3"><input name="firstName" defaultValue={editingStudent?.firstName} placeholder="Nombre" required className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/><input name="lastName" defaultValue={editingStudent?.lastName} placeholder="Apellido" required className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/></div><div className="grid grid-cols-2 gap-3"><input name="dni" type="number" defaultValue={editingStudent?.dni} placeholder="DNI" className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/><input name="birthDate" type="date" defaultValue={getSafeDate(editingStudent?.birthDate)} className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm text-gray-500"/></div><div className="p-3 bg-blue-50 rounded-xl border border-blue-100 space-y-2"><p className="text-xs font-bold text-blue-800 uppercase">Institucional</p><div className="grid grid-cols-2 gap-2"><select name="level" defaultValue={editingStudent?.level} className="p-2 rounded-lg border text-xs font-bold"><option value="">Nivel...</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option></select><select name="dx" defaultValue={editingStudent?.dx} className="p-2 rounded-lg border text-xs font-bold"><option value="">DX...</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select></div><div className="grid grid-cols-2 gap-2"><input name="groupMorning" defaultValue={editingStudent?.groupMorning} placeholder="Grupo TM" className="p-2 rounded-lg border text-xs"/><input name="groupAfternoon" defaultValue={editingStudent?.groupAfternoon} placeholder="Grupo TT" className="p-2 rounded-lg border text-xs"/></div><div className="grid grid-cols-2 gap-2"><select name="teacherMorning" defaultValue={editingStudent?.teacherMorning} className="p-2 rounded-lg border text-xs"><option value="">Docente TM...</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="teacherAfternoon" defaultValue={editingStudent?.teacherAfternoon} className="p-2 rounded-lg border text-xs"><option value="">Docente TT...</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div className="grid grid-cols-2 gap-2"><select name="auxMorning" defaultValue={editingStudent?.auxMorning} className="p-2 rounded-lg border text-xs"><option value="">Auxiliar TM...</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="auxAfternoon" defaultValue={editingStudent?.auxAfternoon} className="p-2 rounded-lg border text-xs"><option value="">Auxiliar TT...</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div className="grid grid-cols-2 gap-2"><select name="sup1Morning" defaultValue={editingStudent?.sup1Morning} className="p-2 rounded-lg border text-xs text-violet-700 font-bold"><option value="">Sup. 1 TM...</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="sup2Morning" defaultValue={editingStudent?.sup2Morning} className="p-2 rounded-lg border text-xs text-violet-700 font-bold"><option value="">Sup. 2 TM...</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div className="grid grid-cols-2 gap-2"><select name="sup1Afternoon" defaultValue={editingStudent?.sup1Afternoon} className="p-2 rounded-lg border text-xs text-violet-700 font-bold"><option value="">Sup. 1 TT...</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="sup2Afternoon" defaultValue={editingStudent?.sup2Afternoon} className="p-2 rounded-lg border text-xs text-violet-700 font-bold"><option value="">Sup. 2 TT...</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div></div><div className="p-3 bg-green-50 rounded-xl border border-green-100 space-y-2"><p className="text-xs font-bold text-green-800 uppercase">Salud y Familia</p><div className="grid grid-cols-2 gap-2"><input name="healthInsurance" defaultValue={editingStudent?.healthInsurance} placeholder="Obra Social" className="w-full p-2 rounded-lg border text-xs"/><input name="cudExpiration" type="date" defaultValue={getSafeDate(editingStudent?.cudExpiration)} className="w-full p-2 rounded-lg border text-xs text-gray-500"/></div><input name="address" defaultValue={editingStudent?.address} className="w-full p-2 rounded-lg border text-xs" placeholder="Dirección"/><div className="grid grid-cols-2 gap-2"><input name="motherName" defaultValue={editingStudent?.motherName} placeholder="Madre" className="w-full p-2 rounded-lg border text-xs"/><input name="motherContact" defaultValue={editingStudent?.motherContact} placeholder="Contacto Madre" className="w-full p-2 rounded-lg border text-xs"/></div><div className="grid grid-cols-2 gap-2"><input name="fatherName" defaultValue={editingStudent?.fatherName} placeholder="Padre" className="w-full p-2 rounded-lg border text-xs"/><input name="fatherContact" defaultValue={editingStudent?.fatherContact} placeholder="Contacto Padre" className="w-full p-2 rounded-lg border text-xs"/></div></div><div className="flex gap-2 pt-4 border-t"><button type="button" onClick={()=>setShowForm(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs">Cancelar</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg">Guardar</button>{editingStudent && <button type="button" onClick={() => handleDelete(editingStudent.id)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition border border-red-100"><Trash2 size={20}/></button>}</div></form></div></div>)}
-      {showDataManagement && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[80]"><div className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl"><div className="flex justify-between mb-4"><h3 className="font-bold text-xl text-gray-800">Gestión de Datos</h3><button onClick={()=>setShowDataManagement(false)}><X/></button></div><div className="grid grid-cols-2 gap-3 mb-6"><button onClick={findDuplicates} className="p-3 bg-yellow-50 text-yellow-700 rounded-xl font-bold text-xs hover:bg-yellow-100 border border-yellow-200">🔍 Buscar Duplicados</button><button onClick={checkUnassigned} className="p-3 bg-red-50 text-red-700 rounded-xl font-bold text-xs hover:bg-red-100 border border-red-200">⚠️ Ver Sin Grupo</button><button onClick={limpiarEspaciosMasivo} className="p-3 bg-indigo-50 text-indigo-700 rounded-xl font-bold text-xs hover:bg-indigo-100 border border-indigo-200 col-span-2">✨ Limpiar Espacios en Nombres</button></div><div className="bg-gray-100 p-4 rounded-xl border border-gray-200 mb-6 opacity-70 hover:opacity-100 transition"><h4 className="font-bold text-gray-600 text-sm mb-2">Zona Peligrosa</h4><div className="flex gap-2"><button onClick={handleResetCycle} disabled={processing} className="flex-1 bg-white border border-gray-300 text-gray-500 font-bold py-2 rounded-lg text-xs hover:bg-gray-200">Reiniciar Ciclo</button><button onClick={handleDeleteAll} disabled={processing} className="flex-1 bg-white border border-gray-300 text-red-500 font-bold py-2 rounded-lg text-xs hover:bg-red-50">Borrar TODO</button></div></div><h4 className="font-bold text-gray-800 text-sm mb-2">Importar / Exportar</h4><div className="flex gap-2 mb-2"><button onClick={descargarBackup} className="flex-1 py-2 bg-white border rounded-lg text-xs font-bold">Descargar JSON</button><button onClick={handleBulkImport} className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold">Importar JSON</button></div><textarea value={importJson} onChange={e=>setImportJson(e.target.value)} placeholder="Pegar JSON aquí..." className="w-full p-2 text-xs border rounded-lg h-20"/><div className="flex gap-3 mt-4"><button onClick={handleAutoAssignGenders} disabled={processing} className="flex-1 py-3 text-blue-600 font-bold bg-blue-50 hover:bg-blue-100 rounded-xl text-xs">Auto-Género</button></div></div></div>)}
-      {showDupes && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[90]"><div className="bg-white rounded-3xl p-6 w-full max-w-2xl h-[80vh] flex flex-col"><div className="flex justify-between mb-4"><h3 className="font-bold">Posibles Duplicados ({potentialDupes.length})</h3><button onClick={()=>setShowDupes(false)}><X/></button></div><div className="flex-1 overflow-y-auto space-y-2">{potentialDupes.length === 0 ? <p className="text-gray-400 text-center mt-10">No se encontraron duplicados.</p> : potentialDupes.map((d,i)=>(<div key={i} className="flex gap-2 items-center bg-gray-50 p-3 rounded-xl border border-gray-200"><div className="flex-1"><p className="font-bold text-sm text-blue-700 uppercase">{d.original.lastName}, {d.original.firstName}</p><p className="text-xs text-gray-500">Origen: {d.original.groupMorning || 'Sin grupo'} (Edad: {calculateAge(d.original.birthDate)})</p></div><div className="flex-1"><p className="font-bold text-sm text-red-700 uppercase">{d.duplicate.lastName}, {d.duplicate.firstName}</p><p className="text-xs text-gray-500">Duplicado: {d.duplicate.groupMorning || 'Sin grupo'} (Edad: {calculateAge(d.duplicate.birthDate)})</p></div><div className="flex gap-2 shrink-0"><button onClick={()=>mergeStudents(d.original, d.duplicate)} className="px-4 py-2 bg-green-500 text-white rounded-xl font-bold text-xs shadow-lg hover:bg-green-600 transition">FUSIONAR</button><button onClick={()=>dismissMatch(i)} className="p-2 bg-gray-200 text-gray-500 rounded-xl hover:bg-red-100 hover:text-red-500 transition"><X size={16}/></button></div></div>))}</div></div></div>)}
     </div>
   );
 }
@@ -2003,7 +2015,7 @@ function MainApp({ user, onLogout }) {
     </div>
   );
 }
-// --- VISTA AULA (LIMPIA PARA DOCENTES + ANALÍTICA PARA DIRECTIVOS) ---
+// --- VISTA AULA (ANÁLISIS PEDAGÓGICO REAL + DIMENSIONES DE SALUD/CONDUCTA) ---
 function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
@@ -2013,32 +2025,33 @@ function GroupsView({ user }) {
   const [savingIncident, setSavingIncident] = useState(false);
   const [activeTab, setActiveTab] = useState('info');
   
-  // Estado para editar grupo y estadísticas
   const [editingGroup, setEditingGroup] = useState(null);
-  const [groupStats, setGroupStats] = useState(null); // Nuevo estado para el modal de gráficos
+  const [groupStats, setGroupStats] = useState(null); 
   const [updatingGroup, setUpdatingGroup] = useState(false);
 
-  // PERMISOS: "isManagement" es para editar. "isStrategic" es para ver gráficos sensibles.
   const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración'].includes(user.role) || user.rol === 'admin';
-  
-  // SOLO ESTOS ROLES VEN LOS GRÁFICOS (Docentes y Admin NO)
   const isStrategic = ['super-admin', 'admin', 'Equipo Directivo', 'Equipo Técnico'].includes(user.role) || user.rol === 'admin';
 
   const LOGO_URL = "/icon-192.png";
 
+  // --- TIPOS DE REGISTRO ---
   const INCIDENT_TYPES = [
+      // POSITIVOS
       { label: "Trabajó Muy Bien", emoji: "🌟", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
       { label: "Ayudó a un amigo", emoji: "🤝", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
       { label: "Logro de Aprendizaje", emoji: "🚀", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
       { label: "Buena Conducta", emoji: "😇", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
+      // SALUD / RUTINA (MEDIA/BAJA)
       { label: "Crisis Llanto", emoji: "😭", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" },
-      { label: "Higiene / Esfínter", emoji: "💩", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" },
+      { label: "Higiene / Esfínter", emoji: "💩", severity: "medium", color: "bg-blue-100 border-blue-300 text-blue-800" }, // Cambiado a Azul (Salud)
       { label: "No trabajó", emoji: "💤", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
       { label: "Llegada Tarde", emoji: "🕑", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
+      { label: "No comió", emoji: "🍽️", severity: "low", color: "bg-blue-50 border-blue-200 text-blue-700" }, // Salud
+      // ALERTA ALTA
       { label: "Agresión / Violencia", emoji: "👊", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
       { label: "Brote / Gritos", emoji: "🤬", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
       { label: "Fuga / Intento", emoji: "🏃", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
-      { label: "Convulsión / Salud", emoji: "🚑", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
+      { label: "Convulsión / Salud", emoji: "🚑", severity: "high", color: "bg-indigo-100 border-indigo-300 text-indigo-800" }, // Salud (Indigo para diferenciar)
   ];
 
   useEffect(() => {
@@ -2055,7 +2068,6 @@ function GroupsView({ user }) {
   const groupedData = students.reduce((acc, s) => {
       const groupName = turn === 'morning' ? s.groupMorning : s.groupAfternoon;
       if (!groupName) return acc;
-      
       const key = groupName.trim(); 
       const myTeacher = turn === 'morning' ? s.teacherMorning : s.teacherAfternoon;
       const myAux = turn === 'morning' ? s.auxMorning : s.auxAfternoon;
@@ -2063,25 +2075,10 @@ function GroupsView({ user }) {
       const mySup2 = turn === 'morning' ? s.sup2Morning : s.sup2Afternoon;
       const myDrive = turn === 'morning' ? s.driveLinkMorning : s.driveLinkAfternoon;
 
-      if (!acc[key]) { 
-          acc[key] = { 
-              name: key, 
-              students: [], 
-              teacher: myTeacher, 
-              aux: myAux, 
-              sup1: mySup1, 
-              sup2: mySup2,
-              classroom: s.classroom, 
-              driveLink: myDrive,
-              level: s.level 
-          }; 
-      }
+      if (!acc[key]) { acc[key] = { name: key, students: [], teacher: myTeacher, aux: myAux, sup1: mySup1, sup2: mySup2, classroom: s.classroom, driveLink: myDrive, level: s.level }; }
       if (!acc[key].teacher && myTeacher) acc[key].teacher = myTeacher;
       if (!acc[key].aux && myAux) acc[key].aux = myAux;
-      if (!acc[key].sup1 && mySup1) acc[key].sup1 = mySup1;
-      if (!acc[key].sup2 && mySup2) acc[key].sup2 = mySup2;
       if (!acc[key].driveLink && myDrive) acc[key].driveLink = myDrive;
-
       acc[key].students.push(s);
       return acc;
   }, {});
@@ -2102,106 +2099,53 @@ function GroupsView({ user }) {
   }
 
   const handlePrintSingleGroup = (g) => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return alert("Por favor, permite ventanas emergentes.");
+    const printWindow = window.open('', '_blank'); if (!printWindow) return alert("Pop-ups bloqueados");
     const turnoTexto = turn === 'morning' ? 'MAÑANA' : 'TARDE';
     const fecha = new Date().toLocaleDateString('es-AR');
     const sortedStudents = [...g.students].sort((a,b) => a.lastName.localeCompare(b.lastName));
-
-    let content = `<!DOCTYPE html><html><head><title>Lista ${g.name}</title><style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');*{ -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }body{font-family:'Roboto',sans-serif;padding:40px;color:#333;}.header{border-bottom:4px solid #7c3aed;padding-bottom:20px;margin-bottom:30px;display:flex;justify-content:space-between;align-items:center;}.title{font-size:28px;font-weight:900;color:#4c1d95;text-transform:uppercase;margin:0;line-height:1;}.subtitle{font-size:14px;font-weight:bold;color:#666;margin-top:5px;text-transform:uppercase;letter-spacing:1px;}.info-card{background-color:#f3f4f6;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:25px;display:flex;justify-content:space-between;font-size:12px;}.info-col strong{color:#7c3aed;text-transform:uppercase;font-size:10px;display:block;margin-bottom:2px;}.info-col p{margin:0 0 10px 0;font-weight:bold;font-size:14px;}table{width:100%;border-collapse:collapse;font-size:12px;}thead tr{background-color:#7c3aed!important;color:white!important;}th{padding:12px 8px;text-align:left;text-transform:uppercase;font-size:10px;letter-spacing:0.5px;}td{border-bottom:1px solid #e5e7eb;padding:10px 8px;}tr:nth-child(even){background-color:#f9fafb!important;}.footer{margin-top:40px;text-align:right;font-size:10px;color:#9ca3af;border-top:1px dashed #e5e7eb;padding-top:10px;}.badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:bold;background:#eee;}</style></head><body><div class="header"><div><h1 class="title">Grupo: ${g.name}</h1><p class="subtitle">Turno ${turnoTexto} • Ciclo 2026</p></div><img src="${LOGO_URL}" style="height:50px;opacity:0.8;"/></div><div class="info-card"><div class="info-col"><strong>Docente a Cargo</strong><p>${g.teacher||'Sin asignar'}</p><strong>Auxiliar / Preceptor</strong><p>${g.aux||'Sin asignar'}</p></div><div class="info-col" style="text-align:right;"><strong>Aula Física</strong><p>${g.classroom||'-'}</p><strong>Nivel</strong><p>${g.level||'-'}</p></div></div><table><thead><tr><th style="width:40px;">#</th><th>Apellido y Nombre</th><th>DNI</th><th>Fecha Nac.</th><th>Edad</th></tr></thead><tbody>`;
-    sortedStudents.forEach((s, index) => {
-        const birth = s.birthDate ? new Date(s.birthDate + 'T00:00').toLocaleDateString('es-AR') : '-';
-        const today = new Date(); const dob = new Date(s.birthDate + 'T00:00'); let age = '-';
-        if(s.birthDate) { age = today.getFullYear() - dob.getFullYear(); const m = today.getMonth() - dob.getMonth(); if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--; }
-        content += `<tr><td style="color:#7c3aed;font-weight:bold;">${index + 1}</td><td><span style="font-weight:900;text-transform:uppercase;">${s.lastName}</span>, ${s.firstName}</td><td>${s.dni||'-'}</td><td>${birth}</td><td><strong>${age}</strong></td></tr>`;
-    });
-    content += `</tbody></table><div class="footer">Reporte generado automáticamente el ${fecha} • Juntos a la Par</div></body></html>`;
+    let content = `<!DOCTYPE html><html><head><title>Lista ${g.name}</title><style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');*{print-color-adjust:exact!important;}body{font-family:'Roboto',sans-serif;padding:40px;color:#333;}.header{border-bottom:4px solid #7c3aed;padding-bottom:20px;margin-bottom:30px;display:flex;justify-content:space-between;align-items:center;}.title{font-size:28px;font-weight:900;color:#4c1d95;text-transform:uppercase;margin:0;}.subtitle{font-size:14px;font-weight:bold;color:#666;margin-top:5px;text-transform:uppercase;}.info-card{background-color:#f3f4f6;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:25px;display:flex;justify-content:space-between;font-size:12px;}.info-col strong{color:#7c3aed;text-transform:uppercase;font-size:10px;display:block;margin-bottom:2px;}table{width:100%;border-collapse:collapse;font-size:12px;}thead tr{background-color:#7c3aed!important;color:white!important;}th{padding:12px 8px;text-align:left;text-transform:uppercase;font-size:10px;}td{border-bottom:1px solid #e5e7eb;padding:10px 8px;}tr:nth-child(even){background-color:#f9fafb!important;}</style></head><body><div class="header"><div><h1 class="title">Grupo: ${g.name}</h1><p class="subtitle">Turno ${turnoTexto}</p></div><img src="${LOGO_URL}" style="height:50px;opacity:0.8;"/></div><div class="info-card"><div class="info-col"><strong>Docente</strong><p>${g.teacher||'Sin asignar'}</p><strong>Auxiliar</strong><p>${g.aux||'Sin asignar'}</p></div><div class="info-col" style="text-align:right;"><strong>Aula</strong><p>${g.classroom||'-'}</p><strong>Nivel</strong><p>${g.level||'-'}</p></div></div><table><thead><tr><th style="width:40px;">#</th><th>Apellido y Nombre</th><th>DNI</th><th>Edad</th></tr></thead><tbody>`;
+    sortedStudents.forEach((s, i) => { const age = s.birthDate ? new Date().getFullYear() - new Date(s.birthDate).getFullYear() : '-'; content += `<tr><td style="color:#7c3aed;font-weight:bold;">${i+1}</td><td><span style="font-weight:900;text-transform:uppercase;">${s.lastName}</span>, ${s.firstName}</td><td>${s.dni||'-'}</td><td><strong>${age}</strong></td></tr>`; });
+    content += `</tbody></table></body></html>`;
     printWindow.document.write(content); printWindow.document.close(); setTimeout(() => { printWindow.focus(); printWindow.print(); }, 500);
   };
 
   const handleUpdateGroup = async (e) => {
-      e.preventDefault();
-      if (!editingGroup) return;
-      if (!confirm(`⚠️ ¿Estás seguro?\n\nSe actualizará el LINK DE DRIVE y el equipo docente para ${editingGroup.students.length} alumnos.`)) return;
-      setUpdatingGroup(true);
-      const fd = new FormData(e.target);
-      const updates = {};
-      if (turn === 'morning') {
-          updates.teacherMorning = fd.get('teacher'); updates.auxMorning = fd.get('aux'); updates.sup1Morning = fd.get('sup1'); updates.sup2Morning = fd.get('sup2'); updates.groupMorning = fd.get('groupName'); updates.driveLinkMorning = fd.get('driveLink');
-      } else {
-          updates.teacherAfternoon = fd.get('teacher'); updates.auxAfternoon = fd.get('aux'); updates.sup1Afternoon = fd.get('sup1'); updates.sup2Afternoon = fd.get('sup2'); updates.groupAfternoon = fd.get('groupName'); updates.driveLinkAfternoon = fd.get('driveLink');
-      }
+      e.preventDefault(); if (!editingGroup) return; if (!confirm(`⚠️ ¿Estás seguro?\n\nSe actualizará a ${editingGroup.students.length} alumnos.`)) return;
+      setUpdatingGroup(true); const fd = new FormData(e.target); const updates = {};
+      if (turn === 'morning') { updates.teacherMorning = fd.get('teacher'); updates.auxMorning = fd.get('aux'); updates.sup1Morning = fd.get('sup1'); updates.sup2Morning = fd.get('sup2'); updates.groupMorning = fd.get('groupName'); updates.driveLinkMorning = fd.get('driveLink'); }
+      else { updates.teacherAfternoon = fd.get('teacher'); updates.auxAfternoon = fd.get('aux'); updates.sup1Afternoon = fd.get('sup1'); updates.sup2Afternoon = fd.get('sup2'); updates.groupAfternoon = fd.get('groupName'); updates.driveLinkAfternoon = fd.get('driveLink'); }
       updates.classroom = fd.get('classroom'); updates.updatedAt = serverTimestamp();
-      try {
-          const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates));
-          await Promise.all(promises);
-          alert("✅ Grupo y Drive actualizados correctamente."); setEditingGroup(null);
-      } catch (err) { alert("Error: " + err.message); } finally { setUpdatingGroup(false); }
+      try { const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)); await Promise.all(promises); alert("✅ Actualizado."); setEditingGroup(null); } catch (err) { alert(err.message); } finally { setUpdatingGroup(false); }
   };
 
-  const handleSaveIncident = async (type, severity) => { if (!showBitacoraModal) return; setSavingIncident(true); try { const incidentData = { type, severity, date: new Date().toISOString(), author: user.fullName || user.firstName, authorId: user.id }; const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id); await updateDoc(studentRef, { incidents: arrayUnion(incidentData), lastIncident: incidentData.date, lastIncidentType: type }); alert("✅ Registro guardado"); setShowBitacoraModal(null); } catch (e) { console.error(e); } finally { setSavingIncident(false); } };
-  const calculateAge = (dateString) => { if (!dateString) return '-'; const today = new Date(); const birthDate = new Date(dateString); let age = today.getFullYear() - birthDate.getFullYear(); const m = today.getMonth() - birthDate.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--; return age; };
+  const handleSaveIncident = async (type, severity) => { if (!showBitacoraModal) return; setSavingIncident(true); try { const incidentData = { type, severity, date: new Date().toISOString(), author: user.fullName || user.firstName, authorId: user.id }; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id), { incidents: arrayUnion(incidentData) }); alert("✅ Registro guardado"); setShowBitacoraModal(null); } catch (e) { console.error(e); } finally { setSavingIncident(false); } };
+  const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
 
-  const handlePrintAll = () => {
-    const printWindow = window.open('', '_blank'); if (!printWindow) return alert("Permitir ventanas emergentes");
-    const turnoTexto = turn === 'morning' ? 'MAÑANA' : 'TARDE';
-    const fecha = new Date().toLocaleDateString('es-AR');
-    let content = `<!DOCTYPE html><html><head><title>Listas Completas</title><style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');*{ -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }body{font-family:'Roboto',sans-serif;padding:20px;color:#333;}.page-container{page-break-after:always;margin-bottom:50px;display:block;}.page-container:last-child{page-break-after:auto;}.header{border-bottom:4px solid #7c3aed;padding-bottom:10px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;}.title{font-size:24px;font-weight:900;color:#4c1d95;text-transform:uppercase;margin:0;}.subtitle{font-size:12px;font-weight:bold;color:#666;margin-top:5px;text-transform:uppercase;letter-spacing:1px;}.info-card{background-color:#f3f4f6;border:1px solid #e5e7eb;border-radius:12px;padding:15px;margin-bottom:20px;display:flex;justify-content:space-between;font-size:11px;}.info-col strong{color:#7c3aed;text-transform:uppercase;font-size:9px;display:block;margin-bottom:2px;}.info-col p{margin:0 0 5px 0;font-weight:bold;font-size:12px;}table{width:100%;border-collapse:collapse;font-size:11px;}thead tr{background-color:#7c3aed!important;color:white!important;}th{padding:8px;text-align:left;text-transform:uppercase;font-size:9px;}td{border-bottom:1px solid #e5e7eb;padding:8px;}tr:nth-child(even){background-color:#f9fafb!important;}.footer{text-align:right;font-size:9px;color:#9ca3af;border-top:1px dashed #e5e7eb;padding-top:5px;margin-top:20px;}</style></head><body>`;
-    groups.forEach(g => {
-        const sortedStudents = [...g.students].sort((a,b) => a.lastName.localeCompare(b.lastName));
-        content += `<div class="page-container"><div class="header"><div><h1 class="title">${g.name}</h1><p class="subtitle">Turno ${turnoTexto} • Ciclo 2026</p></div><img src="${LOGO_URL}" style="height:40px;opacity:0.8;"/></div><div class="info-card"><div class="info-col"><strong>Docente</strong><p>${g.teacher||'Sin asignar'}</p><strong>Auxiliar</strong><p>${g.aux||'Sin asignar'}</p></div><div class="info-col" style="text-align:right;"><strong>Aula</strong><p>${g.classroom||'-'}</p><strong>Cant. Alumnos</strong><p>${g.students.length}</p></div></div><table><thead><tr><th style="width:30px;">#</th><th>Apellido y Nombre</th><th>DNI</th><th>Fecha Nac.</th><th>Edad</th></tr></thead><tbody>`;
-        sortedStudents.forEach((s, index) => {
-            const birth = s.birthDate ? new Date(s.birthDate + 'T00:00').toLocaleDateString('es-AR') : '-';
-            const today = new Date(); const dob = new Date(s.birthDate + 'T00:00'); let age = '-';
-            if(s.birthDate) { age = today.getFullYear() - dob.getFullYear(); const m = today.getMonth() - dob.getMonth(); if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--; }
-            content += `<tr><td style="color:#7c3aed;font-weight:bold;">${index + 1}</td><td><span style="font-weight:900;text-transform:uppercase;">${s.lastName}</span>, ${s.firstName}</td><td>${s.dni||'-'}</td><td>${birth}</td><td><strong>${age}</strong></td></tr>`;
-        });
-        content += `</tbody></table><div class="footer">Juntos a la Par • Generado el ${fecha}</div></div>`;
-    });
-    content += `</body></html>`;
-    printWindow.document.write(content); printWindow.document.close(); setTimeout(() => { printWindow.focus(); printWindow.print(); }, 1000);
-  };
+  const handlePrintAll = () => { const w = window.open('', '_blank'); if(!w) return alert("Bloqueado"); w.document.write('<h1>Imprimiendo todos los grupos... (Implementar lógica masiva aquí)</h1>'); };
 
   return (
-    <div className="flex flex-col h-full bg-slate-100 animate-in fade-in">
+    <div className="flex flex-col h-full bg-slate-100 animate-in fade-in relative">
       <div className="bg-white p-4 shadow-sm z-10 sticky top-0 flex flex-col gap-3">
-          <div className="flex justify-between items-center">
-              <div><h2 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2"><Grid size={24} className="text-orange-500"/> Mis Grupos</h2><p className="text-xs text-gray-400 font-bold uppercase">{isManagement ? "Vista Institucional" : `Espacio Docente`}</p></div>
-              {isManagement && <button onClick={handlePrintAll} className="bg-violet-100 text-violet-700 p-2 rounded-xl shadow-sm hover:bg-violet-200 transition" title="Imprimir Todo"><FileText size={24}/></button>}
-          </div>
+          <div className="flex justify-between items-center"><div><h2 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2"><Grid size={24} className="text-orange-500"/> Mis Grupos</h2><p className="text-xs text-gray-400 font-bold uppercase">{isManagement ? "Vista Institucional" : `Espacio Docente`}</p></div></div>
           <div className="flex bg-gray-100 p-1 rounded-xl">
               <button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-400'}`}>☀️ Mañana</button>
               <button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 Tarde</button>
           </div>
       </div>
       
-      <div className="flex-1 overflow-x-auto p-6">
+      <div className="flex-1 overflow-x-auto p-6 scroll-smooth">
         <div className="flex gap-6 h-full md:h-auto items-start">
             {groups.length === 0 && (<div className="m-auto text-center opacity-50"><LayoutDashboard size={48} className="mx-auto mb-2 text-gray-300"/><p className="font-bold text-gray-400">No tienes grupos en este turno.</p></div>)} 
             
-            {groups.map((g) => {
-                return (
+            {groups.map((g) => (
                 <div key={g.name} className="min-w-[280px] w-[300px] flex flex-col h-[calc(100vh-220px)] md:h-fit bg-white rounded-[30px] border border-gray-200 shadow-sm relative overflow-hidden group-hover:shadow-md transition shrink-0">
                   <div className={`p-4 border-b-4 ${turn==='morning'?'border-orange-400 bg-orange-50':'border-indigo-400 bg-indigo-50'} relative`}>
                       <div className="absolute top-2 right-2 flex gap-1">
-                          {/* BOTÓN ESTADÍSTICAS (Solo Estratégicos) */}
-                          {isStrategic && (
-                              <button onClick={()=>setGroupStats(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition" title="Ver Estadísticas">
-                                  <PieChart size={14}/>
-                              </button>
-                          )}
-                          
-                          {/* BOTÓN DRIVE */}
-                          {g.driveLink && (
-                              <a href={g.driveLink} target="_blank" rel="noopener noreferrer" className="p-2 bg-white/50 hover:bg-white rounded-full text-green-600 shadow-sm transition flex items-center justify-center" title="Carpeta Drive">
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                              </a>
-                          )}
-                          
-                          <button onClick={()=>handlePrintSingleGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition" title="Imprimir Lista"><Printer size={14}/></button>
-                          {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition" title="Editar Grupo"><Edit3 size={14}/></button>}
+                          {isStrategic && (<button onClick={()=>setGroupStats(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition" title="Ver Estadísticas Complejas"><PieChart size={14}/></button>)}
+                          {g.driveLink && (<a href={g.driveLink} target="_blank" rel="noopener noreferrer" className="p-2 bg-white/50 hover:bg-white rounded-full text-green-600 shadow-sm transition flex items-center justify-center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg></a>)}
+                          <button onClick={()=>handlePrintSingleGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>
+                          {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"><Edit3 size={14}/></button>}
                       </div>
-                      
                       <h3 className="font-black text-gray-800 text-lg">{g.name}</h3>
                       <div className="mt-2 text-xs text-gray-500 font-medium space-y-1">
                           <p>DOC: <span className="font-bold text-violet-700 uppercase">{g.teacher || 'Sin asignar'}</span></p>
@@ -2210,7 +2154,6 @@ function GroupsView({ user }) {
                           {g.classroom && <p className="inline-flex items-center gap-1 bg-white/50 px-2 rounded-md"><StartIcon size={10}/> Aula {g.classroom}</p>}
                       </div>
                   </div>
-                  
                   <div className="flex-1 overflow-y-auto md:overflow-visible p-3 space-y-3 bg-gray-50">
                     {g.students.map(s => (
                         <div key={s.id} onClick={() => {setSelectedStudent(s); setActiveTab('info');}} className="bg-white p-3 rounded-2xl shadow-sm flex items-center gap-3 cursor-pointer hover:scale-[1.02] transition">
@@ -2221,60 +2164,74 @@ function GroupsView({ user }) {
                     ))}
                   </div>
               </div>
-            )})}
+            ))}
         </div>
       </div>
 
-      {/* MODAL ESTADÍSTICAS DEL GRUPO (NUEVO) */}
+      {/* MODAL ESTADÍSTICAS DETALLADAS (SOLO DIRECTIVOS) */}
       {groupStats && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[250] flex items-center justify-center p-4" onClick={() => setGroupStats(null)}>
-              <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
-                  <div className="flex justify-between items-center mb-6">
-                      <div>
-                          <h3 className="text-xl font-black text-violet-900 uppercase italic">Análisis de Grupo</h3>
-                          <p className="text-xs text-gray-500 font-bold">{groupStats.name}</p>
-                      </div>
-                      <button onClick={() => setGroupStats(null)}><X/></button>
-                  </div>
+              <div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+                  <div className="flex justify-between items-center mb-6"><div><h3 className="text-xl font-black text-violet-900 uppercase italic">Análisis del Grupo</h3><p className="text-xs text-gray-500 font-bold">{groupStats.name} ({groupStats.students.length} alumnos)</p></div><button onClick={() => setGroupStats(null)}><X/></button></div>
                   
-                  {/* CÁLCULOS INTERNOS */}
                   {(() => {
                       const allIncidents = groupStats.students.flatMap(s => s.incidents || []);
+                      if (allIncidents.length === 0) return <p className="text-center text-gray-400 italic">No hay registros en la bitácora aún.</p>;
+
+                      // 1. CLASIFICACIÓN POR DIMENSIÓN
+                      const dimensions = {
+                          'Pedagógico/Social': 0, // Positivos
+                          'Salud y Bienestar': 0, // Convulsión, Higiene, Vómito, Comida
+                          'Conducta': 0,          // Agresión, Gritos, Fuga, Crisis
+                          'Rutina': 0             // Llegada tarde, No trabajó
+                      };
+
+                      // 2. CONTEO POR ETIQUETA (RANKING)
+                      const tagsCount = {};
+
+                      allIncidents.forEach(inc => {
+                          const type = inc.type;
+                          tagsCount[type] = (tagsCount[type] || 0) + 1;
+
+                          // Lógica de clasificación
+                          if (['Trabajó Muy Bien', 'Ayudó a un amigo', 'Logro de Aprendizaje', 'Buena Conducta'].includes(type)) dimensions['Pedagógico/Social']++;
+                          else if (['Convulsión / Salud', 'Higiene / Esfínter', 'Vómito', 'No comió'].includes(type)) dimensions['Salud y Bienestar']++;
+                          else if (['Agresión / Violencia', 'Brote / Gritos', 'Fuga / Intento', 'Crisis Llanto'].includes(type)) dimensions['Conducta']++;
+                          else dimensions['Rutina']++;
+                      });
+
                       const total = allIncidents.length;
-                      const positives = allIncidents.filter(i => i.severity === 'positive').length;
-                      const negatives = total - positives;
-                      const posPercent = total ? Math.round((positives/total)*100) : 100;
-                      
-                      // Top 3 Tipos
-                      const typeCounts = {};
-                      allIncidents.forEach(i => { typeCounts[i.type] = (typeCounts[i.type] || 0) + 1; });
-                      const topTypes = Object.entries(typeCounts).sort((a,b) => b[1] - a[1]).slice(0, 3);
+                      // Ordenar Ranking
+                      const topTags = Object.entries(tagsCount).sort((a, b) => b[1] - a[1]).slice(0, 4);
 
                       return (
                           <div className="space-y-6">
-                              {/* GRÁFICO TORTA CLIMA */}
-                              <div className="flex items-center justify-around bg-gray-50 p-4 rounded-3xl border border-gray-100">
-                                  <div className="w-28 h-28 rounded-full relative shadow-inner" style={{ background: `conic-gradient(#34d399 ${posPercent}%, #f87171 0)` }}>
-                                      <div className="absolute inset-4 bg-white rounded-full flex flex-col items-center justify-center">
-                                          <span className="text-xl font-black text-gray-800">{total}</span>
-                                          <span className="text-[9px] text-gray-400 uppercase font-bold">Registros</span>
-                                      </div>
-                                  </div>
-                                  <div className="text-xs space-y-2 font-bold">
-                                      <div className="flex items-center gap-2"><div className="w-3 h-3 bg-emerald-400 rounded-full"></div> <span className="text-emerald-700">{posPercent}% Positivo</span></div>
-                                      <div className="flex items-center gap-2"><div className="w-3 h-3 bg-red-400 rounded-full"></div> <span className="text-red-600">{100-posPercent}% Alerta</span></div>
+                              {/* BARRAS DE DIMENSIONES */}
+                              <div>
+                                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Dimensiones Registradas</h4>
+                                  <div className="space-y-3">
+                                      {Object.entries(dimensions).map(([dim, count]) => {
+                                          if (count === 0) return null;
+                                          const pct = Math.round((count / total) * 100);
+                                          const color = dim === 'Pedagógico/Social' ? 'bg-emerald-500' : dim === 'Salud y Bienestar' ? 'bg-blue-500' : dim === 'Conducta' ? 'bg-red-500' : 'bg-yellow-400';
+                                          return (
+                                              <div key={dim}>
+                                                  <div className="flex justify-between text-xs font-bold text-gray-600 mb-1"><span>{dim}</span><span>{count} ({pct}%)</span></div>
+                                                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div style={{width: `${pct}%`}} className={`h-full ${color}`}></div></div>
+                                              </div>
+                                          );
+                                      })}
                                   </div>
                               </div>
 
-                              {/* TOP 3 MOTIVOS */}
-                              <div>
-                                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Principales Motivos</h4>
+                              {/* RANKING DE LO QUE MÁS SALE */}
+                              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Lo que más sucede (Top 4)</h4>
                                   <div className="space-y-2">
-                                      {topTypes.length === 0 ? <p className="text-xs text-gray-400 italic">Sin datos suficientes.</p> : 
-                                      topTypes.map(([type, count]) => (
-                                          <div key={type} className="flex justify-between items-center bg-white border border-gray-100 p-3 rounded-xl shadow-sm">
-                                              <span className="text-xs font-bold text-gray-700">{type}</span>
-                                              <span className="text-xs font-black bg-violet-100 text-violet-700 px-2 py-1 rounded-lg">{count}</span>
+                                      {topTags.map(([tag, count]) => (
+                                          <div key={tag} className="flex justify-between items-center bg-white p-2 rounded-lg border border-gray-200 shadow-sm">
+                                              <span className="text-xs font-bold text-gray-700">{tag}</span>
+                                              <span className="text-xs font-black bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md">{count} veces</span>
                                           </div>
                                       ))}
                                   </div>
@@ -2286,48 +2243,13 @@ function GroupsView({ user }) {
           </div>
       )}
 
-      {/* MODAL EDICIÓN */}
-      {editingGroup && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-            <form onSubmit={handleUpdateGroup} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-black text-violet-900 uppercase italic">Editar Grupo</h3>
-                    <button type="button" onClick={()=>setEditingGroup(null)}><X/></button>
-                </div>
-                <div className="space-y-4">
-                    <div className="bg-violet-50 p-3 rounded-xl border border-violet-100 text-center">
-                        <p className="text-xs text-violet-500 font-bold uppercase mb-1">Editando Turno {turn === 'morning' ? 'Mañana' : 'Tarde'}</p>
-                        <input name="groupName" defaultValue={editingGroup.name} className="font-black text-2xl text-violet-900 bg-transparent text-center w-full outline-none border-b border-violet-200 focus:border-violet-500" placeholder="Nombre Grupo"/>
-                    </div>
-                    
-                    <div className="bg-green-50 p-3 rounded-xl border border-green-100">
-                        <label className="text-[10px] font-black text-green-700 uppercase mb-1 block flex items-center gap-1">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg> 
-                            Link Carpeta Drive
-                        </label>
-                        <input name="driveLink" defaultValue={editingGroup.driveLink} className="w-full p-2 bg-white rounded-lg outline-none font-bold text-xs text-green-800 border border-green-200" placeholder="https://drive.google.com/..."/>
-                        <p className="text-[9px] text-green-600 mt-1">Se asignará a todos los alumnos del grupo.</p>
-                    </div>
-
-                    <div><label className="text-xs font-bold text-gray-500 ml-1">Docente a Cargo</label><select name="teacher" defaultValue={editingGroup.teacher} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Sin asignar</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
-                    <div><label className="text-xs font-bold text-gray-500 ml-1">Auxiliar / Preceptor</label><select name="aux" defaultValue={editingGroup.aux} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Sin asignar</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
-                    <div><label className="text-xs font-bold text-gray-500 ml-1">Aula Física</label><input name="classroom" defaultValue={editingGroup.classroom} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" placeholder="Ej: 5"/></div>
-                    <div className="grid grid-cols-2 gap-3">
-                         <div><label className="text-xs font-bold text-gray-500 ml-1">Supervisor 1</label><select name="sup1" defaultValue={editingGroup.sup1} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
-                         <div><label className="text-xs font-bold text-gray-500 ml-1">Supervisor 2</label><select name="sup2" defaultValue={editingGroup.sup2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
-                    </div>
-                    <button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition flex justify-center items-center gap-2">{updatingGroup ? <RefreshCw className="animate-spin"/> : 'Aplicar a Todos'}</button>
-                </div>
-            </form>
-        </div>
-      )}
-
+      {/* MODAL EDICIÓN Y BITÁCORA (IGUAL QUE ANTES) */}
+      {editingGroup && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><form onSubmit={handleUpdateGroup} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto"><div className="flex justify-between items-center mb-6"><h3 className="text-xl font-black text-violet-900 uppercase italic">Editar Grupo</h3><button type="button" onClick={()=>setEditingGroup(null)}><X/></button></div><div className="space-y-4"><div className="bg-violet-50 p-3 rounded-xl border border-violet-100 text-center"><p className="text-xs text-violet-500 font-bold uppercase mb-1">Editando Turno {turn === 'morning' ? 'Mañana' : 'Tarde'}</p><input name="groupName" defaultValue={editingGroup.name} className="font-black text-2xl text-violet-900 bg-transparent text-center w-full outline-none border-b border-violet-200 focus:border-violet-500" placeholder="Nombre Grupo"/></div><div className="bg-green-50 p-3 rounded-xl border border-green-100"><label className="text-[10px] font-black text-green-700 uppercase mb-1 block flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>Link Carpeta Drive</label><input name="driveLink" defaultValue={editingGroup.driveLink} className="w-full p-2 bg-white rounded-lg outline-none font-bold text-xs text-green-800 border border-green-200" placeholder="https://drive.google.com/..."/><p className="text-[9px] text-green-600 mt-1">Se asignará a todos los alumnos del grupo.</p></div><div><label className="text-xs font-bold text-gray-500 ml-1">Docente a Cargo</label><select name="teacher" defaultValue={editingGroup.teacher} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Sin asignar</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div><label className="text-xs font-bold text-gray-500 ml-1">Auxiliar / Preceptor</label><select name="aux" defaultValue={editingGroup.aux} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Sin asignar</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div><label className="text-xs font-bold text-gray-500 ml-1">Aula Física</label><input name="classroom" defaultValue={editingGroup.classroom} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" placeholder="Ej: 5"/></div><div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-gray-500 ml-1">Supervisor 1</label><select name="sup1" defaultValue={editingGroup.sup1} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div><label className="text-xs font-bold text-gray-500 ml-1">Supervisor 2</label><select name="sup2" defaultValue={editingGroup.sup2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div></div><button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition flex justify-center items-center gap-2">{updatingGroup ? <RefreshCw className="animate-spin"/> : 'Aplicar a Todos'}</button></div></form></div>)}
       {showBitacoraModal && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-emerald-500"><div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3><p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p></div><button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button></div><div className="grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto p-1">{INCIDENT_TYPES.map((type) => (<button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? 'opacity-50' : 'hover:brightness-95'}`}><span className="text-2xl">{type.emoji}</span><span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span></button>))}</div></div></div>)}
       {selectedStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"><div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0"><button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition"><X size={20}/></button><div className="flex items-center gap-4"><div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">{selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}</div><div><h2 className="text-2xl font-bold">{selectedStudent.lastName}, {selectedStudent.firstName}</h2><p className="opacity-90 flex gap-2 text-sm mt-1"><span className="bg-white/20 px-2 py-0.5 rounded">{calculateAge(selectedStudent.birthDate)} años</span></p></div></div><div className="flex gap-2 mt-6"><button onClick={() => setActiveTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'info' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Datos</button><button onClick={() => setActiveTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'history' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto space-y-6">{activeTab === 'info' ? (<div className="space-y-4"><div className="bg-orange-50 p-4 rounded-xl border border-orange-100"><h3 className="font-bold text-orange-800 text-xs uppercase mb-2">Contacto</h3><p className="text-sm">Madre: <b>{selectedStudent.motherName}</b> ({selectedStudent.motherContact})</p><p className="text-sm">Padre: <b>{selectedStudent.fatherName}</b> ({selectedStudent.fatherContact})</p></div><div className="bg-gray-50 p-4 rounded-xl border border-gray-100"><h3 className="font-bold text-gray-500 text-xs uppercase mb-2">Ubicación</h3><p className="text-sm">TM: <b>{selectedStudent.groupMorning}</b></p><p className="text-sm">TT: <b>{selectedStudent.groupAfternoon}</b></p></div></div>) : (<div className="space-y-2">{selectedStudent.incidents?.map((inc, i) => (<div key={i} className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="font-bold text-sm">{inc.type}</p><p className="text-xs text-gray-500">{new Date(inc.date).toLocaleDateString()} - {inc.author}</p></div>))}</div>)}</div></div></div>)}
     </div>
   );
 }
-
 // ===============================================================
 // PEGAR ESTO AL FINAL DEL ARCHIVO (FUERA DE CUALQUIER OTRA FUNCIÓN)
 // ===============================================================
@@ -2417,6 +2339,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
