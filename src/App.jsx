@@ -1759,7 +1759,7 @@ function ProyectoView({ user }) {
     </div>
   );
 }
-// --- VISTA MATRÍCULA (FINAL: GESTIÓN RECUPERADA + ESTADÍSTICAS ACUMULATIVAS) ---
+// --- VISTA MATRÍCULA (CORREGIDA: DEFINICIÓN DE STAFF Y FILTROS) ---
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
@@ -1770,7 +1770,7 @@ function MatriculaView({ user }) {
   // Estados de Modales
   const [showStats, setShowStats] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [showDataManagement, setShowDataManagement] = useState(false); // ¡RECUPERADO!
+  const [showDataManagement, setShowDataManagement] = useState(false);
   const [showDupes, setShowDupes] = useState(false);
   const [showUnassigned, setShowUnassigned] = useState(false);
   
@@ -1787,13 +1787,13 @@ function MatriculaView({ user }) {
   const [photoPreview, setPhotoPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   
-  // FILTROS PRINCIPALES (Barra Azul)
+  // FILTROS PRINCIPALES
   const [filters, setFilters] = useState({ modality: 'all', level: 'all', group: 'all', turn: 'all', teacher: 'all', dx: 'all', gender: 'all', journey: 'all', os: 'all' });
 
   // FILTROS DE ESTADÍSTICAS (ACUMULATIVOS)
   const [statFilters, setStatFilters] = useState({
-      modality: [], // Array para selección múltiple
-      level: [],    // Array para selección múltiple (Ej: 1° y 2° ciclo juntos)
+      modality: [], 
+      level: [],    
       gender: 'all',
       dx: 'all'
   });
@@ -1809,13 +1809,15 @@ function MatriculaView({ user }) {
     return () => { uS(); uU(); };
   }, []);
 
-  // Listas para desplegables
+  // --- LISTAS PARA DESPLEGABLES (CORREGIDO) ---
   const staffSede = (usersList||[]).filter(u => ['Docente', 'Auxiliar/Preceptor', 'Equipo Técnico'].includes(u.role));
   const staffInclusion = (usersList||[]).filter(u => ['DAI', 'Equipo Técnico Inclusión', 'Inclusión'].includes(u.role));
+  const staffAll = usersList || []; // <--- ESTA ERA LA LÍNEA QUE FALTABA
+  
   const uniqueGroups = [...new Set([...students.map(s => s.groupMorning), ...students.map(s => s.groupAfternoon)].filter(Boolean))].sort();
   const uniqueOS = [...new Set(students.map(s => s.healthInsurance ? String(s.healthInsurance).toUpperCase().trim() : 'SIN COBERTURA'))].sort();
 
-  // --- FILTRADO PRINCIPAL (LISTADO) ---
+  // --- FILTRADO PRINCIPAL ---
   const filteredStudents = students.filter(s => {
     const isStudentActive = s.isActive === undefined || s.isActive === true;
     if (showArchived && isStudentActive) return false; 
@@ -1825,7 +1827,6 @@ function MatriculaView({ user }) {
     const matchText = (s.firstName||'').toLowerCase().includes(txt) || (s.lastName||'').toLowerCase().includes(txt) || (s.dni||'').toString().includes(txt);
     if (!matchText) return false;
 
-    // Filtros
     const sModality = s.modality || 'Sede';
     if (filters.modality !== 'all' && sModality !== filters.modality) return false;
     if (filters.level !== 'all' && s.level !== filters.level) return false;
@@ -1851,34 +1852,22 @@ function MatriculaView({ user }) {
     return true;
   });
 
-  // --- FILTRADO PARA ESTADÍSTICAS (ACUMULATIVO) ---
+  // --- FILTRADO PARA ESTADÍSTICAS ---
   const statsResults = students.filter(s => {
      if (s.isActive === false) return false;
-     
-     // 1. Filtro Modalidad (Multiselección)
      const sModality = s.modality || 'Sede';
      if (statFilters.modality.length > 0 && !statFilters.modality.includes(sModality)) return false;
-
-     // 2. Filtro Nivel (Multiselección - ACUMULATIVO)
-     // Si el array de niveles tiene algo, verificamos si el nivel del alumno está incluido
      if (statFilters.level.length > 0 && !statFilters.level.includes(s.level)) return false;
-
-     // 3. Filtros Simples
      if (statFilters.dx !== 'all' && s.dx !== statFilters.dx) return false;
      if (statFilters.gender !== 'all' && s.gender !== statFilters.gender) return false;
-     
      return true;
   });
 
-  // Helpers de lógica estadística
   const toggleStatFilter = (category, value) => {
       setStatFilters(prev => {
           const currentList = prev[category];
-          if (currentList.includes(value)) {
-              return { ...prev, [category]: currentList.filter(item => item !== value) };
-          } else {
-              return { ...prev, [category]: [...currentList, value] };
-          }
+          if (currentList.includes(value)) return { ...prev, [category]: currentList.filter(item => item !== value) };
+          else return { ...prev, [category]: [...currentList, value] };
       });
   };
 
@@ -1903,9 +1892,9 @@ function MatriculaView({ user }) {
   
   const handlePhotoChange = async (e) => { const f = e.target.files[0]; if(!f) return; setUploading(true); try { const reader = new FileReader(); reader.onload=(ev)=>{const img=new Image(); img.onload=()=>{const c=document.createElement('canvas'); const s=300/img.width; c.width=300; c.height=img.height*s; const ctx=c.getContext('2d'); ctx.drawImage(img,0,0,c.width,c.height); setPhotoPreview(c.toDataURL('image/jpeg',0.7)); setUploading(false);}; img.src=ev.target.result;}; reader.readAsDataURL(f); } catch(e){ setUploading(false); } };
   
-  // Actions
   const openNew = () => { setEditingStudent(null); setPhotoPreview(null); setFormModalidad('Sede'); setShowForm(true); };
   const openEdit = (s) => { setEditingStudent(s); setPhotoPreview(s.photoUrl); setFormModalidad(s.modality || 'Sede'); setShowForm(true); };
+  
   const handleSave = async (e) => { 
       e.preventDefault(); const fd = new FormData(e.target); const d = Object.fromEntries(fd.entries()); d.isActive = d.isActive === 'true'; d.photoUrl = photoPreview || editingStudent?.photoUrl || ''; d.modality = formModalidad;
       try { if (editingStudent) { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', editingStudent.id), d); } else { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...d, isActive: true, createdAt: serverTimestamp(), incidents: [] }); } setShowForm(false); setEditingStudent(null); setPhotoPreview(null); } catch (err) { alert("Error: " + err.message); } 
@@ -1914,7 +1903,6 @@ function MatriculaView({ user }) {
   const deleteIncident = async (sid, inc) => { if(confirm("¿Borrar evento?")) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', sid), { incidents: arrayRemove(inc) }); };
   const markAsInactive = async (s) => { if(!confirm(`¿Dar de baja a ${s.firstName}?`)) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { isActive: false }); setUnassignedList(p=>p.filter(x=>x.id!==s.id)); };
   
-  // Botones de Gestión (Recuperados)
   const findDuplicates = () => { alert("Función en mantenimiento."); };
   const checkUnassigned = () => { const found = students.filter(s => (s.isActive === undefined || s.isActive === true) && !s.groupMorning && !s.groupAfternoon && !s.daiMorning && !s.daiAfternoon); setUnassignedList(found); setShowDataManagement(false); setShowUnassigned(true); };
   const imprimirListado = (list) => { const w = window.open('', '_blank'); if(!w) return alert("Permitir Pop-ups"); let h = `<html><head><title>Fichas</title><style>body{font-family:sans-serif;padding:20px}.card{border:1px solid #ccc;padding:20px;margin-bottom:20px;page-break-after:always}.head{display:flex;justify-content:space-between;border-bottom:2px solid #6d28d9;padding-bottom:10px;margin-bottom:15px}h1{color:#4c1d95;margin:0}img{height:50px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.label{font-size:10px;color:#666;font-weight:bold;text-transform:uppercase}.val{font-weight:bold}</style></head><body>`; list.forEach(s => { h += `<div class="card"><div class="head"><div><h1>${s.lastName}, ${s.firstName}</h1><p>DNI: ${s.dni} - Edad: ${calculateAge(s.birthDate)}</p></div><img src="${LOGO_URL}"/></div><div class="grid"><div><span class="label">Nacimiento</span><div class="val">${getSafeDate(s.birthDate)}</div></div><div><span class="label">Diagnóstico</span><div class="val">${s.dx}</div></div><div><span class="label">Obra Social</span><div class="val">${s.healthInsurance||'-'}</div></div><div><span class="label">CUD Vto</span><div class="val">${getSafeDate(s.cudExpiration)}</div></div></div><br><h3>Escolaridad</h3><div class="grid"><div><span class="label">Nivel</span><div class="val">${s.level||'-'}</div></div><div><span class="label">Modalidad</span><div class="val">${s.modality||'Sede'}</div></div></div><br><div class="grid"><div><span class="label" style="background:#fef08a;padding:2px;">Turno Mañana</span><div class="val">${s.groupMorning||s.daiMorning||'-'}</div></div><div><span class="label" style="background:#c7d2fe;padding:2px;">Turno Tarde</span><div class="val">${s.groupAfternoon||s.daiAfternoon||'-'}</div></div></div><br><h3>Familia</h3><p><b>Madre:</b> ${s.motherName} (${s.motherContact})</p><p><b>Padre:</b> ${s.fatherName} (${s.fatherContact})</p><p><b>Dirección:</b> ${s.address}</p></div>`; }); h += '</body></html>'; w.document.write(h); w.document.close(); setTimeout(()=>w.print(), 500); };
@@ -1931,7 +1919,7 @@ function MatriculaView({ user }) {
              <div className="flex gap-2 flex-wrap justify-center md:justify-end">
                  <button onClick={()=>setShowArchived(!showArchived)} className="px-3 py-2 border border-white/30 rounded-xl text-xs font-bold uppercase hover:bg-white/10 flex items-center gap-1">{showArchived? <><CheckCircle size={14}/> Activos</> : <><LogOut size={14}/> Bajas</>}</button>
                  
-                 {/* BOTONES DE GESTIÓN RECUPERADOS */}
+                 {/* BOTONES DE GESTIÓN */}
                  {isSuperAdmin && <button onClick={()=>setShowDataManagement(true)} className="p-2 border border-white/30 rounded-xl hover:bg-white/10" title="Gestión (Nube)"><UploadCloud size={18}/></button>}
                  {isSuperAdmin && <button onClick={()=>setShowStats(true)} className="p-2 border border-white/30 rounded-xl hover:bg-white/10" title="Estadísticas"><PieChart size={18}/></button>}
                  
@@ -1945,7 +1933,6 @@ function MatriculaView({ user }) {
             <div className="mt-4 space-y-2">
                 <div className="bg-white/20 p-2 rounded-xl flex items-center"><Search className="ml-2 opacity-70"/><input value={filterText} onChange={e=>setFilterText(e.target.value)} placeholder="Buscar alumno..." className="bg-transparent border-none outline-none text-white w-full font-bold placeholder-white/60 ml-2"/>{filterText && <button onClick={()=>setFilterText('')}><X/></button>}</div>
                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                    {/* FILTROS RECUPERADOS */}
                     <select value={filters.modality} onChange={e=>setFilters({...filters, modality:e.target.value})} className="bg-orange-100 text-orange-800 text-xs p-2 rounded-lg font-bold min-w-[100px] border border-orange-200"><option value="all">Modalidad: Todas</option><option value="Sede">Sede</option><option value="Inclusión">Inclusión</option></select>
                     <select value={filters.group} onChange={e=>setFilters({...filters, group:e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[100px]"><option value="all">Grupo: Todos</option>{uniqueGroups.map(g=><option key={g} value={g}>{g}</option>)}</select>
                     <select value={filters.level} onChange={e => setFilters({...filters, level: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[100px]"><option value="all">Nivel: Todos</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option></select>
@@ -1958,7 +1945,7 @@ function MatriculaView({ user }) {
          )}
       </div>
       
-      {/* LISTA DE ALUMNOS */}
+      {/* LISTA DE ALUMNOS (RENDERIZADO IGUAL QUE ANTES) */}
       <div className="space-y-3">{filteredStudents.map(s => { 
           const alert = getAlertStatus(s.incidents); 
           const age = calculateAge(s.birthDate); 
@@ -1992,7 +1979,7 @@ function MatriculaView({ user }) {
           ); 
       })}</div>
       
-      {/* MODAL VER ALUMNO */}
+      {/* MODAL VER ALUMNO (IGUAL) */}
       {viewingStudent && !showForm && (<div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm"><div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"><div className="bg-slate-700 p-6 text-white"><div className="flex justify-between items-start"><div className="flex gap-4"><div className="w-16 h-16 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden">{viewingStudent.photoUrl ? <img src={viewingStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={30} className="m-auto mt-4 text-white/50"/>}</div><div><h2 className="text-xl font-bold uppercase">{viewingStudent.lastName}, {viewingStudent.firstName}</h2><div className="flex gap-2 mt-1"><span className="bg-white/20 px-2 py-0.5 rounded text-xs">{calculateAge(viewingStudent.birthDate)} años</span><span className="bg-white/20 px-2 py-0.5 rounded text-xs">{viewingStudent.dni}</span></div></div></div><button onClick={()=>setViewingStudent(null)} className="bg-white/20 p-1 rounded-full hover:bg-white/40"><X/></button></div><div className="flex gap-2 mt-6 bg-slate-800/50 p-1 rounded-xl"><button onClick={()=>setActiveModalTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeModalTab==='info'?'bg-white text-slate-800 shadow-md':'text-white/50 hover:text-white'}`}>Datos Personales</button><button onClick={()=>setActiveModalTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeModalTab==='history'?'bg-white text-slate-800 shadow-md':'text-white/50 hover:text-white'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto bg-gray-50">{activeModalTab==='info' ? (<div className="space-y-4 text-sm"><button onClick={() => abrirBuscadorAlumno(viewingStudent)} className="w-full bg-green-100 text-green-800 py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-green-200 transition border border-green-300 mb-4 shadow-sm"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>VER LEGAJO DIGITAL (DRIVE)</button><div className="grid grid-cols-2 gap-3"><div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase">Modalidad</p><p className="font-bold text-slate-800">{viewingStudent.modality || 'Sede'}</p></div><div className="bg-purple-50 p-3 rounded-xl border border-purple-100 shadow-sm"><p className="text-[9px] text-purple-400 font-bold uppercase">Diagnóstico</p><p className="font-bold text-purple-800">{viewingStudent.dx || '-'}</p></div></div>{viewingStudent.modality === 'Inclusión' ? (<div className="bg-indigo-50 p-4 rounded-xl border border-indigo-200 space-y-3"><h4 className="font-bold text-indigo-800 text-xs uppercase flex items-center gap-2">🏫 Escuela de Origen</h4><div className="grid grid-cols-2 gap-2"><div><span className="text-[9px] text-indigo-400 font-bold uppercase">Escuela</span><p className="font-bold text-sm">{viewingStudent.originSchool || '-'}</p></div><div><span className="text-[9px] text-indigo-400 font-bold uppercase">Grado/Año</span><p className="font-bold text-sm">{viewingStudent.originGrade || '-'}</p></div></div><div className="pt-2 border-t border-indigo-200"><span className="text-[9px] text-indigo-400 font-bold uppercase">DAI Asignada</span><p className="font-bold text-sm text-indigo-900">{viewingStudent.daiMorning || viewingStudent.daiAfternoon || 'Sin asignar'}</p></div></div>) : (<div><h4 className="font-bold text-slate-800 mb-2 flex items-center gap-2 text-xs uppercase"><Briefcase size={14} className="text-blue-500"/> Escolaridad Sede</h4><div className="grid grid-cols-2 gap-3"><div className="bg-yellow-50 p-3 rounded-xl border border-yellow-200 relative shadow-sm"><span className="absolute top-0 right-0 bg-yellow-300 text-yellow-900 text-[9px] px-2 py-0.5 rounded-bl-lg font-bold uppercase">Mañana</span><div className="space-y-2 mt-1"><div><span className="text-[9px] text-yellow-600 font-bold block uppercase">Grupo</span><p className="font-bold text-slate-800 text-xs">{viewingStudent.groupMorning || '-'}</p></div><div><span className="text-[9px] text-yellow-600 font-bold block uppercase">Docente</span><p className="font-bold text-slate-800 text-xs truncate">{viewingStudent.teacherMorning || '-'}</p></div></div></div><div className="bg-indigo-50 p-3 rounded-xl border border-indigo-200 relative shadow-sm"><span className="absolute top-0 right-0 bg-indigo-200 text-indigo-800 text-[9px] px-2 py-0.5 rounded-bl-lg font-bold uppercase">Tarde</span><div className="space-y-2 mt-1"><div><span className="text-[9px] text-indigo-500 font-bold block uppercase">Grupo</span><p className="font-bold text-slate-800 text-xs">{viewingStudent.groupAfternoon || '-'}</p></div><div><span className="text-[9px] text-indigo-500 font-bold block uppercase">Docente</span><p className="font-bold text-slate-800 text-xs truncate">{viewingStudent.teacherAfternoon || '-'}</p></div></div></div></div></div>)}</div>) : (<div className="space-y-3">{viewingStudent.incidents?.map((inc,i)=>(<div key={i} className={`${getSeverityColor(inc.severity)} p-3 rounded-xl border shadow-sm`}><div className="flex justify-between border-b border-gray-200/50 pb-1 mb-1"><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{new Date(inc.date).toLocaleDateString()}</span><button onClick={()=>deleteIncident(viewingStudent.id, inc)}><Trash2 size={12} className="text-gray-400 hover:text-red-500"/></button></div><p className="font-bold text-sm text-slate-800">{inc.type}</p><p className="text-xs text-gray-500 mt-1 uppercase font-bold pl-7">Por: {inc.author}</p></div>))}</div>)}</div><div className="p-4 border-t border-gray-100 bg-white flex justify-end gap-2"><button onClick={()=>imprimirListado([viewingStudent])} className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-slate-600 font-bold text-xs uppercase hover:bg-gray-50 flex gap-2 items-center shadow-sm"><FileText size={16}/> Imprimir Ficha</button><button onClick={()=>openEdit(viewingStudent)} className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-xs uppercase hover:bg-blue-700 flex gap-2 items-center shadow-lg"><Edit3 size={16}/> Editar Ficha</button></div></div></div>)}
 
       {/* MODAL ESTADÍSTICAS AVANZADAS (ACUMULATIVAS) */}
@@ -2007,7 +1994,7 @@ function MatriculaView({ user }) {
                     <div>
                         <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Niveles (Selección Múltiple)</p>
                         <div className="flex flex-wrap gap-2">
-                            {['INICIAL', '1° Ciclo', '2° Ciclo', 'CFI'].map(lvl => (
+                            {['INICIAL', '1° Ciclo', '2° Ciclo', 'CFI', 'SECUNDARIA'].map(lvl => (
                                 <button key={lvl} onClick={() => toggleStatFilter('level', lvl)} className={`px-3 py-2 rounded-lg text-xs font-bold border transition ${statFilters.level.includes(lvl) ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-500 border-gray-200'}`}>
                                     {lvl}
                                 </button>
@@ -2038,7 +2025,7 @@ function MatriculaView({ user }) {
         </div>
       )}
 
-      {/* MODAL GESTIÓN DE DATOS (RECUPERADO) */}
+      {/* MODAL GESTIÓN DE DATOS */}
       {showDataManagement && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[80]"><div className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl"><div className="flex justify-between mb-4"><h3 className="font-bold text-xl text-gray-800">Gestión de Datos</h3><button onClick={()=>setShowDataManagement(false)}><X/></button></div><div className="grid grid-cols-2 gap-3 mb-6"><button onClick={findDuplicates} className="p-3 bg-yellow-50 text-yellow-700 rounded-xl font-bold text-xs hover:bg-yellow-100 border border-yellow-200">🔍 Buscar Duplicados</button><button onClick={checkUnassigned} className="p-3 bg-red-50 text-red-700 rounded-xl font-bold text-xs hover:bg-red-100 border border-red-200">⚠️ Ver Sin Grupo</button></div><div className="bg-gray-100 p-4 rounded-xl border border-gray-200 mb-6 opacity-70 hover:opacity-100 transition"><h4 className="font-bold text-gray-600 text-sm mb-2">Zona Peligrosa</h4><div className="flex gap-2"><button onClick={handleResetCycle} disabled={processing} className="flex-1 bg-white border border-gray-300 text-gray-500 font-bold py-2 rounded-lg text-xs hover:bg-gray-200">Reiniciar Ciclo</button><button onClick={handleDeleteAll} disabled={processing} className="flex-1 bg-white border border-gray-300 text-red-500 font-bold py-2 rounded-lg text-xs hover:bg-red-50">Borrar TODO</button></div></div><h4 className="font-bold text-gray-800 text-sm mb-2">Importar / Exportar</h4><div className="flex gap-2 mb-2"><button onClick={descargarBackup} className="flex-1 py-2 bg-white border rounded-lg text-xs font-bold">Descargar JSON</button><button onClick={handleBulkImport} className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold">Importar JSON</button></div><textarea value={importJson} onChange={e=>setImportJson(e.target.value)} placeholder="Pegar JSON aquí..." className="w-full p-2 text-xs border rounded-lg h-20"/><div className="flex gap-3 mt-4"><button onClick={handleAutoAssignGenders} disabled={processing} className="flex-1 py-3 text-blue-600 font-bold bg-blue-50 hover:bg-blue-100 rounded-xl text-xs">Auto-Género</button></div></div></div>)}
 
       {/* FORMULARIO DINÁMICO */}
@@ -2514,6 +2501,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
