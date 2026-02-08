@@ -66,7 +66,7 @@ const ROLES = [
 ];
 // Tipos de Modalidad para filtrar
 const MODALIDADES = ['Sede', 'Inclusión'];
-const EVENT_TYPES = ['SALIDA EDUCATIVA', 'GENERAL', 'ADMINISTRATIVO', 'INFORMES', 'EVENTOS', 'ACTOS', 'EFEMÉRIDES', 'CUMPLEAÑOS' 'INCLUSIÓN' ];
+const EVENT_TYPES = ['SALIDA EDUCATIVA', 'GENERAL', 'ADMINISTRATIVO', 'INFORMES', 'EVENTOS', 'ACTOS', 'EFEMÉRIDES', 'CUMPLEAÑOS', 'INCLUSIÓN' ];
 
 // --- Utils ---
 const calculateDaysLeft = (dateString) => {
@@ -2521,6 +2521,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
