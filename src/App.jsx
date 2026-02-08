@@ -145,7 +145,7 @@ export default function App() {
  return <MainApp user={currentUserProfile} onLogout={handleLogout} />;
 }
 
-// --- PANTALLA LOGIN ---
+// --- PANTALLA LOGIN (CON INSTRUCCIONES DE INSTALACIÓN MEJORADAS) ---
 function LoginScreen({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -172,8 +172,9 @@ function LoginScreen({ onLogin }) {
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    // En iOS forzamos el cartel si no está instalada
     if (iosCheck && !isStandalone) {
-       const timer = setTimeout(() => setShowInstall(true), 3000);
+       const timer = setTimeout(() => setShowInstall(true), 2000);
        return () => clearTimeout(timer);
     }
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -193,6 +194,7 @@ function LoginScreen({ onLogin }) {
     setError('');
     setChecking(true);
 
+    // Backdoor admin para emergencias (Opcional, podés quitarlo en prod)
     if (username === 'admin' && password === 'admin123') {
       onLogin({
         id: 'super-admin', firstName: 'Super', lastName: 'Admin', fullName: 'Super Admin',
@@ -224,7 +226,6 @@ function LoginScreen({ onLogin }) {
     }
   };
 
-  // Resto del login (Recuperar contraseña)
   const handleRequestReset = async (e) => {
     e.preventDefault();
     if(!recoverUser.trim()) return;
@@ -252,21 +253,43 @@ function LoginScreen({ onLogin }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-900 to-fuchsia-900 flex items-center justify-center p-6 relative">
+      
+      {/* CARTEL DE INSTALACIÓN (MEJORADO) */}
       {!isStandalone && showInstall && (
-         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-             <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm text-center">
-                 <div className="mx-auto bg-purple-100 w-20 h-20 rounded-full flex items-center justify-center mb-5 animate-bounce">
-                    <Smartphone className="text-violet-600" size={40} />
+         <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
+             <div className="bg-white rounded-[35px] shadow-2xl p-6 w-full max-w-sm text-center mb-4 md:mb-0 border-t-8 border-violet-500">
+                 <div className="flex justify-between items-start mb-4">
+                    <div className="bg-violet-100 p-3 rounded-2xl">
+                        <Smartphone className="text-violet-600" size={32} />
+                    </div>
+                    <button onClick={() => setShowInstall(false)} className="bg-gray-100 p-2 rounded-full text-gray-400 hover:bg-gray-200"><X size={20}/></button>
                  </div>
-                 <h3 className="text-2xl font-extrabold text-gray-800 mb-2">¡Instala la App! 📲</h3>
-                 <p className="text-gray-600 mb-6 text-sm">Para mejor experiencia, descarga la aplicación ahora.</p>
+                 
+                 <h3 className="text-xl font-black text-gray-800 mb-2 leading-tight">¡Llevanos en tu celular! 📲</h3>
+                 <p className="text-gray-500 mb-6 text-xs font-medium px-4">Instalá la App para entrar más rápido y recibir notificaciones importantes.</p>
+                 
                  <div className="flex flex-col gap-3">
                      {!esIos ? (
-                         <button onClick={handleInstalarClick} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg">INSTALAR AHORA</button>
+                         <button onClick={handleInstalarClick} className="w-full bg-violet-600 text-white font-bold py-4 px-4 rounded-2xl shadow-xl hover:bg-violet-700 transition flex items-center justify-center gap-2 animate-pulse">
+                             <Download size={20}/> INSTALAR AHORA
+                         </button>
                      ) : (
-                         <div className="text-left bg-gray-50 p-4 rounded-xl border text-sm text-gray-700"><p className="mb-2 font-bold">En iPhone:</p>1. Toca <strong>Compartir</strong> <Share size={12} className="inline"/><br/>2. Selecciona <strong>"Agregar a Inicio"</strong> <PlusSquare size={12} className="inline"/></div>
+                         <div className="text-left bg-gray-50 p-4 rounded-2xl border border-gray-100 text-xs text-gray-600 space-y-3">
+                             <p className="font-bold text-violet-600 text-center uppercase tracking-wider mb-2">Cómo instalar en iPhone:</p>
+                             <div className="flex items-center gap-3">
+                                 <div className="bg-white p-2 rounded-lg shadow-sm"><Share size={16} className="text-blue-500"/></div>
+                                 <span>1. Toca el botón <b>Compartir</b> (abajo al medio).</span>
+                             </div>
+                             <div className="flex items-center gap-3">
+                                 <div className="bg-white p-2 rounded-lg shadow-sm"><PlusSquare size={16} className="text-gray-500"/></div>
+                                 <span>2. Deslizá hacia arriba y elegí <b>"Agregar a Inicio"</b>.</span>
+                             </div>
+                             <div className="flex items-center gap-3">
+                                 <div className="bg-white p-2 rounded-lg shadow-sm"><span className="font-bold text-blue-500 text-[10px]">Add</span></div>
+                                 <span>3. Dale a <b>Agregar</b> (arriba a la derecha).</span>
+                             </div>
+                         </div>
                      )}
-                     <button onClick={() => setShowInstall(false)} className="text-gray-400 text-sm font-medium hover:text-gray-600 underline mt-2">Quizás más tarde</button>
                  </div>
              </div>
          </div>
@@ -2057,7 +2080,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
-// --- APP PRINCIPAL (FIX NOTIFICACIONES + SCROLL GLOBAL) ---
+// --- APP PRINCIPAL (CON AUTO-PEDIDO DE NOTIFICACIONES) ---
 function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -2069,16 +2092,19 @@ function MainApp({ user, onLogout }) {
   const [notifications, setNotifications] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   
+  // Estados de Interfaz
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [globalViewingStudent, setGlobalViewingStudent] = useState(null);
+  
+  // NUEVO: Estado para el popup de pedir notificaciones
+  const [showNotifRequest, setShowNotifRequest] = useState(false);
 
   const prevNotifCount = useRef(0);
   const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin'; 
   const canManageContent = user.rol === 'admin' || isSuperAdmin || user.role === 'Equipo Directivo';
-  // IMPORTANTE: Quitamos 'dashboard' de isWideTab para que no se ensanche de más, pero controlamos el scroll
   const isWideTab = ['groups', 'calendar', 'matricula', 'resources', 'users'].includes(activeTab);
 
   useEffect(() => {
@@ -2088,29 +2114,31 @@ function MainApp({ user, onLogout }) {
     const unsubEvents = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc')), (snap) => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const unsubResources = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc')), (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     
-    // SUSCRIPCIÓN A NOTIFICACIONES ROBUSTA
+    // SUSCRIPCIÓN A NOTIFICACIONES
     const qNotifs = query(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), where('toUserId', '==', user.id));
     const unsubNotifs = onSnapshot(qNotifs, (snap) => { 
         const d = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
         d.sort((a,b)=> (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)); 
         const unread = d.filter(n=>!n.read);
-        
         setNotifications(unread);
 
-        // Si hay más notificaciones que antes, disparar alerta
         if (unread.length > prevNotifCount.current) {
             const latest = unread[0];
             if (latest) {
-                // Notificación Nativa
                 if ("Notification" in window && Notification.permission === "granted") {
                     new Notification(`🔔 ${latest.title}`, { body: latest.message, icon: LOGO_URL });
                 }
-                // Sonido
                 try { new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play().catch(()=>{}); } catch(e){}
             }
         }
         prevNotifCount.current = unread.length;
     });
+
+    // NUEVO: Verificar si las notificaciones están activas al iniciar
+    if ("Notification" in window && Notification.permission === 'default') {
+        // Si no han respondido nunca (ni sí ni no), esperamos 3 segundos y mostramos el cartel
+        setTimeout(() => setShowNotifRequest(true), 3000);
+    }
 
     return () => { unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); };
   }, [user.id]);
@@ -2119,18 +2147,25 @@ function MainApp({ user, onLogout }) {
   const handleNotificationClick = async (n) => { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', n.id)); if (n.targetTab) setActiveTab(n.targetTab); setShowNotifPanel(false); };
   const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
 
+  // NUEVO: Función para activar desde el popup
+  const enableNotifications = async () => {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+          // Intentamos registrar token si existe messaging
+          try {
+             const { getMessaging, getToken } = await import("firebase/messaging");
+             const messaging = getMessaging();
+             const token = await getToken(messaging, { vapidKey: 'BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw' });
+             if(token) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { fcmTokens: arrayUnion(token) });
+          } catch(e) {}
+          alert("✅ ¡Genial! Te avisaremos de las novedades.");
+      }
+      setShowNotifRequest(false);
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-50 font-sans text-slate-800">
-      {/* --- PARCHE CSS GLOBAL: OCULTA BARRAS, PERMITE SCROLL --- */}
-      <style>{`
-        *::-webkit-scrollbar {
-          display: none;
-        }
-        * {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-      `}</style>
+      <style>{` *::-webkit-scrollbar { display: none; } * { -ms-overflow-style: none; scrollbar-width: none; } `}</style>
       <header className="bg-violet-800 text-white shadow-lg px-4 py-3 flex justify-between items-center z-50 sticky top-0">
         <div className="flex items-center space-x-3"><img src={LOGO_URL} alt="Logo" className="w-10 h-8 object-contain" /><div><h1 className="font-bold text-sm leading-tight">Juntos a la Par</h1><p className="text-[10px] text-orange-200 uppercase font-bold">{user.firstName}</p></div></div>
         <div className="flex items-center gap-3">
@@ -2140,7 +2175,6 @@ function MainApp({ user, onLogout }) {
         </div>
       </header>
 
-      {/* SCROLL GLOBAL ARREGLADO */}
       <main className={`flex-1 overflow-y-auto no-scrollbar pb-24 pt-6 mx-auto w-full transition-all duration-300 ${isWideTab ? 'px-2 max-w-[98%]' : 'px-4 max-w-4xl'}`}>
         {activeTab === 'dashboard' && <DashboardView user={user} tasks={tasks} events={events} announcements={announcements} setActiveTab={setActiveTab} />}
         {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
@@ -2171,9 +2205,27 @@ function MainApp({ user, onLogout }) {
       </nav>
       {showSearch && ( <div className="fixed inset-0 bg-violet-900/90 z-[300] flex flex-col p-4 backdrop-blur-md animate-in fade-in"><div className="flex justify-between items-center text-white mb-4"><h3 className="font-black italic uppercase">Buscador Rápido</h3><button onClick={() => {setShowSearch(false); setSearchQuery(''); setSearchResults([]);}} className="p-2 bg-white/20 rounded-full"><X/></button></div><input autoFocus value={searchQuery} onChange={(e) => handleGlobalSearch(e.target.value)} placeholder="Escribí un nombre o apellido..." className="w-full p-4 rounded-2xl bg-white text-lg font-bold text-gray-800 outline-none shadow-xl mb-4"/><div className="flex-1 overflow-y-auto space-y-2">{searchResults.map(s => (<div key={s.id} onClick={() => setGlobalViewingStudent(s)} className="bg-white p-3 rounded-xl flex items-center gap-3 active:scale-95 transition cursor-pointer"><div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center font-bold text-gray-400">{s.firstName[0]}</div>}</div><div><p className="font-bold text-gray-800 text-sm">{s.lastName}, {s.firstName}</p><p className="text-[10px] text-gray-500">{s.level} • {s.groupMorning || s.groupAfternoon || 'Sin Grupo'}</p></div></div>))}{searchQuery.length > 2 && searchResults.length === 0 && <p className="text-white/50 text-center mt-4">No se encontraron resultados.</p>}</div></div> )}
       {globalViewingStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[350] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95"><div className="bg-violet-600 p-4 text-white flex justify-between items-center"><h3 className="font-bold text-lg">{globalViewingStudent.lastName}, {globalViewingStudent.firstName}</h3><button onClick={() => setGlobalViewingStudent(null)}><X/></button></div><div className="p-6"><div className="flex gap-4 items-center mb-4"><div className="w-20 h-20 bg-gray-200 rounded-2xl overflow-hidden">{globalViewingStudent.photoUrl && <img src={globalViewingStudent.photoUrl} className="w-full h-full object-cover"/>}</div><div><p className="text-sm font-bold text-gray-600">Edad: {calculateAge(globalViewingStudent.birthDate)} años</p><p className="text-sm font-bold text-gray-600">DNI: {globalViewingStudent.dni}</p><p className="text-xs text-orange-500 font-bold mt-1 uppercase">{globalViewingStudent.dx}</p></div></div><button onClick={() => { setActiveTab('matricula'); setShowSearch(false); setGlobalViewingStudent(null); alert("Te llevamos a la sección Legajos. Buscalo ahí para editar."); }} className="w-full bg-violet-100 text-violet-700 py-3 rounded-xl font-bold text-xs uppercase hover:bg-violet-200 transition">Ir a Legajo Completo</button></div></div></div>)}
+      
+      {/* --- NUEVO: POPUP DE NOTIFICACIONES --- */}
+      {showNotifRequest && (
+          <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in">
+              <div className="bg-white rounded-[30px] p-6 w-full max-w-sm shadow-2xl text-center border-t-8 border-orange-500">
+                  <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                      <Bell size={32} className="text-orange-500"/>
+                  </div>
+                  <h3 className="text-xl font-black text-gray-800 mb-2">¡No te pierdas nada!</h3>
+                  <p className="text-sm text-gray-500 mb-6">Activa las notificaciones para saber cuando tienes una tarea nueva o un aviso urgente.</p>
+                  <div className="flex flex-col gap-3">
+                      <button onClick={enableNotifications} className="w-full bg-violet-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-violet-700 transition">ACTIVAR AHORA</button>
+                      <button onClick={() => setShowNotifRequest(false)} className="text-gray-400 text-xs font-bold uppercase hover:text-gray-600">Ahora no</button>
+                  </div>
+              </div>
+          </div>
+      )}
     </div>
   );
 }
+
 // --- VISTA AULA (FINAL: FILTROS VISUALES SEDE/INCLUSIÓN) ---
 function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
@@ -2518,6 +2570,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
