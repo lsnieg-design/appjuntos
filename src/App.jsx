@@ -59,7 +59,7 @@ const ROLES = [
   'Auxiliar/Preceptor', 
   'Inclusión', 
   'Profes Especiales', 
-  'Administración'
+  'Administración',
   'Dirección Inclusión', // NUEVO
   'Equipo Técnico Inclusión', // NUEVO
   'DAI' // NUEVO (Docente de Apoyo a la Inclusión)
@@ -2521,6 +2521,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
