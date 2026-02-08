@@ -592,7 +592,7 @@ function ResourcesView({ resources, canEdit }) {
   );
 }
 
-// --- VISTA TAREAS (FINAL: OPTIMIZADA PARA CELULAR - TEXTOS CORTOS) ---
+// --- VISTA TAREAS (FINAL: ROLES DE INCLUSIÓN AGREGADOS) ---
 function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
@@ -609,8 +609,21 @@ function TasksView({ tasks, user, canEdit }) {
   const [editingTask, setEditingTask] = useState(null); 
   const [filter, setFilter] = useState('pending'); 
 
-  const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor'];
-  const canManage = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
+  // --- LISTA DE ROLES ACTUALIZADA (CON INCLUSIÓN) ---
+  const ROLES_OPTIONS = [
+      'Docente', 
+      'Profes Especiales', 
+      'Equipo Técnico', 
+      'Equipo Directivo', 
+      'Administración', 
+      'Auxiliar/Preceptor',
+      'DAI',                      // NUEVO
+      'Dirección Inclusión',      // NUEVO
+      'Equipo Técnico Inclusión'  // NUEVO
+  ];
+
+  // Permisos: Admin, Directivos y ahora también Dirección Inclusión pueden gestionar
+  const canManage = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo' || user.role === 'Dirección Inclusión';
 
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc')), (snap) => {
@@ -700,6 +713,7 @@ function TasksView({ tasks, user, canEdit }) {
                  if (assignType === 'user' && finalTargetId) {
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: finalTargetId });
                  } else if (assignType === 'roles') {
+                    // FILTRO INTELIGENTE: Busca usuarios que tengan CUALQUIERA de los roles seleccionados
                     const targets = usersList.filter(u => u.role && finalRoles.some(r => r.toLowerCase() === u.role.toLowerCase()));
                     const promises = targets.map(t => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: t.id }));
                     await Promise.all(promises);
@@ -821,10 +835,8 @@ function TasksView({ tasks, user, canEdit }) {
                 {openCommentsId === t.id && ( <div className="bg-white/60 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in"><div className="max-h-32 overflow-y-auto space-y-2 mb-2">{(t.comments || []).map((c, idx) => ( <p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p> ))}</div><div className="flex gap-2"><input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribe..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" /><button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button></div></div> )}
                 
                 <div className="pt-2 border-t border-black/5 flex justify-between items-center">
-                    {/* BOTÓN COMENTAR OPTIMIZADO */}
                     <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className={`flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 rounded-xl transition ${t.comments?.length > 0 ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500 hover:bg-violet-50 hover:text-violet-600'}`}>
                         <MessageSquare size={14}/> 
-                        {/* AQUÍ ESTÁ EL CAMBIO: TEXTO CORTO PARA MÓVIL */}
                         {t.comments?.length > 0 ? `${t.comments.length} Msjs` : 'Comentar'}
                     </button>
 
@@ -897,6 +909,7 @@ function TasksView({ tasks, user, canEdit }) {
     </div>
   );
 }
+
 // --- VISTA NOTIFICACIONES (PANTALLA COMPLETA CON REDIRECCIÓN) ---
 function NotificationsView({ notifications, canEdit, user }) {
   const sortedNotifs = [...notifications].sort((a, b) => {
@@ -2570,6 +2583,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
