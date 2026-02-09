@@ -1374,85 +1374,7 @@ function CalendarView({ events, canEdit, user }) {
     </div>
   );
 }
-// --- VISTA PERFIL (CON FOOTER) ---
-function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
-  const [formData, setFormData] = useState({ firstName: user.firstName || '', lastName: user.lastName || '', photoUrl: user.photoUrl || '' });
-  const [uploading, setUploading] = useState(false);
-  const [showAdminUsers, setShowAdminUsers] = useState(false);
-  const [showAudit, setShowAudit] = useState(false);
 
- const activarNotificaciones = async () => {
-    if (!("Notification" in window)) {
-        alert("Tu dispositivo no soporta notificaciones.");
-        return;
-    }
-    
-    // Paso 1: Pedir permiso simple
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
-        // Intentamos enviar una notificación de prueba local (no falla si no hay server)
-        try {
-            new Notification("¡Juntos a la Par!", { 
-                body: "Notificaciones activadas correctamente en este dispositivo.",
-                icon: '/icon-192.png'
-            });
-        } catch (e) {
-            console.log("Notificación nativa enviada.");
-        }
-        
-        // Paso 2: Intentamos conectar con Firebase (si falla, no mostramos error feo)
-        try {
-            const messaging = getMessaging(app);
-            const token = await getToken(messaging, { vapidKey: 'BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw' });
-            if (token) {
-                 const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-                 await updateDoc(userRef, { fcmTokens: arrayUnion(token) });
-            }
-        } catch (error) {
-            console.log("Firebase Messaging no disponible (probablemente falta HTTPS o sw.js), pero las notificaciones locales funcionarán.");
-        }
-        alert("✅ Permisos concedidos.");
-    } else {
-        alert("❌ Permiso denegado. Habilitá las notificaciones en la configuración del navegador.");
-    }
-  };
-
-  const handleFileChange = async (e) => {
-    const file = e.target.files[0];
-    if (file) { setUploading(true); try { const resized = await resizeImage(file); const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id); await updateDoc(userRef, { photoUrl: resized }); setFormData({ ...formData, photoUrl: resized }); alert("Foto actualizada."); } catch (error) { alert("Error al subir."); } finally { setUploading(false); } }
-  };
-  const resizeImage = (file) => { return new Promise((resolve) => { const reader = new FileReader(); reader.onload = (e) => { const img = new Image(); img.onload = () => { const canvas = document.createElement('canvas'); const MAX_WIDTH = 300; const scaleSize = MAX_WIDTH / img.width; canvas.width = MAX_WIDTH; canvas.height = img.height * scaleSize; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, canvas.width, canvas.height); resolve(canvas.toDataURL('image/jpeg', 0.7)); }; img.src = e.target.result; }; reader.readAsDataURL(file); }); };
-  const exportData = () => { if(!tasks || tasks.length === 0) return alert("No hay datos."); const csvContent = "Titulo,Fecha Limite,Estado\n" + tasks.map(t => `${t.title},${t.dueDate},${t.status}`).join("\n"); const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = "Mis_Tareas.csv"; link.click(); };
-
-  return (
-    <div className="space-y-6 text-center animate-in fade-in duration-700 pb-20">
-      <div className="bg-white rounded-3xl shadow-sm border border-violet-50 overflow-hidden mb-6 relative">
-          <div className="bg-gradient-to-r from-violet-600 to-orange-500 h-28 relative"></div>
-          <div className="px-6 pb-6 pt-12 relative">
-             <div className="absolute -top-10 left-6 w-24 h-24 bg-white p-1 rounded-2xl shadow-lg group">
-                <div className="w-full h-full rounded-xl overflow-hidden relative border border-violet-100 bg-violet-50 flex items-center justify-center cursor-pointer hover:opacity-80 transition">{formData.photoUrl ? <img src={formData.photoUrl} className="w-full h-full object-cover" alt="Perfil" /> : <div className="text-violet-600 font-bold text-3xl">{user.firstName?.[0]}{user.lastName?.[0]}</div>}<input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileChange} accept="image/*" />{uploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><RefreshCw className="text-white animate-spin" /></div>}</div>
-             </div>
-             <div className="flex justify-between items-start"><div className="pl-2 text-left pt-2"><h2 className="text-2xl font-bold text-gray-800 leading-tight">{user.fullName}</h2><p className="text-orange-600 font-bold text-xs uppercase tracking-wider">{user.role}</p></div></div>
-          </div>
-      </div>
-      <h3 className="text-lg font-bold text-violet-900 mb-4 px-2 text-left">Acciones</h3>
-      <div className="grid gap-3">
-        {isSuperAdmin && (<><button onClick={() => setShowAdminUsers(true)} className="bg-orange-600 p-4 rounded-2xl shadow-xl flex items-center gap-4 hover:scale-[1.02] transition text-white"><div className="bg-white/20 p-3 rounded-xl"><Users size={24} /></div><div className="text-left"><h4 className="font-bold">Gestionar Personal</h4><p className="text-xs opacity-80">Administración de usuarios</p></div></button><button onClick={() => setShowAudit(true)} className="bg-indigo-900 p-4 rounded-2xl shadow-xl flex items-center gap-4 hover:scale-[1.02] transition text-white border border-indigo-700"><div className="bg-white/20 p-3 rounded-xl"><Activity size={24} /></div><div className="text-left"><h4 className="font-bold">Auditoría Global</h4><p className="text-xs opacity-80">Ver registro de todas las tareas</p></div></button></>)}
-        <button onClick={exportData} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]"><div className="bg-green-100 text-green-700 p-3 rounded-xl"><Download size={24} /></div><div className="text-left"><h4 className="font-bold text-gray-800">Exportar Reporte</h4><p className="text-xs text-gray-500">Descargar mis tareas en Excel</p></div></button>
-        <button onClick={activarNotificaciones} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]"><div className="bg-yellow-100 text-yellow-700 p-3 rounded-xl"><Bell size={24} /></div><div className="text-left"><h4 className="font-bold text-gray-800">Activar Notificaciones</h4><p className="text-xs text-gray-500">Habilitar avisos en este dispositivo</p></div></button>
-        <button onClick={() => { if(confirm("¿Cerrar sesión?")) onLogout(); }} className="bg-red-50 p-4 rounded-2xl border border-red-100 shadow-sm flex items-center gap-4 hover:bg-red-100 transition active:scale-[0.98]"><div className="bg-white text-red-500 p-3 rounded-xl"><LogOut size={24} /></div><div className="text-left"><h4 className="font-bold text-red-600">Cerrar Sesión</h4><p className="text-xs text-red-400">Salir de la cuenta segura</p></div></button>
-      </div>
-      
-      <div className="mt-10 pt-6 border-t border-gray-100 opacity-50 pb-10">
-          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[4px]">Creado por <a href="https://www.somosnomade.com.ar" target="_blank" className="hover:text-violet-600 transition">NOMADE</a></p>
-      </div>
-
-      {showAdminUsers && (<div className="fixed inset-0 bg-violet-900/95 z-[200] flex flex-col p-6 animate-in slide-in-from-bottom duration-500 overflow-y-auto"><div className="flex justify-between items-center text-white mb-8"><h2 className="text-2xl font-black uppercase italic tracking-tighter">Administración Personal</h2><button onClick={() => setShowAdminUsers(false)}><X size={32} /></button></div><UsersAdminView /></div>)}
-      {showAudit && (<div className="fixed inset-0 bg-gray-900/95 z-[200] flex flex-col p-6 animate-in slide-in-from-bottom duration-500 overflow-y-auto"><div className="flex justify-between items-center text-white mb-8"><h2 className="text-2xl font-black uppercase italic tracking-tighter">Auditoría Institucional</h2><button onClick={() => setShowAudit(false)}><X size={32} /></button></div><ActivityLogView /></div>)}
-    </div>
-  );
-}
-// --- VISTA ADMINISTRACIÓN DE USUARIOS (FIX ERROR + RESPONSIVE + LAST LOGIN) ---
 function UsersAdminView() {
   const [users, setUsers] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -1566,7 +1488,7 @@ function UsersAdminView() {
         <div className="grid grid-cols-2 gap-2"><input name="firstName" defaultValue={editingUser?.firstName} placeholder="Nombre" className="p-2 bg-gray-50 rounded-lg text-xs border" required/><input name="lastName" defaultValue={editingUser?.lastName} placeholder="Apellido" className="p-2 bg-gray-50 rounded-lg text-xs border" required/></div>
         <input name="username" defaultValue={editingUser?.username} placeholder="Usuario" className="w-full p-2 bg-gray-50 rounded-lg text-xs border" required/>
         <input name="password" defaultValue={editingUser?.password} placeholder="Contraseña" className="w-full p-2 bg-gray-50 rounded-lg text-xs border" required/>
-        <select name="role" defaultValue={editingUser?.role || 'Docente'} className="w-full p-2 bg-gray-50 rounded-lg text-xs border">{['Docente', 'Equipo Directivo', 'Equipo Técnico', 'Auxiliar', 'Inclusión', 'Profes Especiales', 'Administración'].map(r=><option key={r} value={r}>{r}</option>)}</select>
+        <select name="role" defaultValue={editingUser?.role || 'Docente'} className="w-full p-2 bg-gray-50 rounded-lg text-xs border">{['Docente', 'Equipo Directivo', 'Equipo Técnico', 'Auxiliar', 'Dirección inclusión', 'Equipo técnico inclusión', 'Profes Especiales', 'Administración'].map(r=><option key={r} value={r}>{r}</option>)}</select>
         <div className="flex items-center gap-2"><input type="checkbox" name="isAdmin" defaultChecked={editingUser?.rol === 'admin'} /><span className="text-xs">¿Es Admin?</span></div>
         <div className="flex gap-2"><button type="button" onClick={()=>setShowModal(false)} className="flex-1 py-2 text-gray-500 text-xs font-bold">Cancelar</button><button type="submit" className="flex-1 py-2 bg-violet-600 text-white rounded-lg text-xs font-bold">Guardar</button></div>
        </form>
@@ -2629,6 +2551,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
