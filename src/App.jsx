@@ -10,6 +10,7 @@ import { getMessaging, getToken, onMessage } from "firebase/messaging";
 // --- CONSTANTES GLOBALES ---
 const LOGO_URL = "/icon-192.png";
 
+
 // --- FUNCIÓN SEGURA PARA NOTIFICACIONES ---
 const triggerMobileNotification = (title, body) => {
   if (!("Notification" in window)) return;
@@ -2277,6 +2278,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
