@@ -334,11 +334,10 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-// --- VISTA DASHBOARD (CORREGIDA: CARTELERA VISIBLE PARA EL AUTOR) ---
+// --- VISTA DASHBOARD (PARCHEADA: CARTELERA AUTOR) ---
 function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEvents = events.filter(e => e.date === todayStr);
-  
   const [showAnnounceModal, setShowAnnounceModal] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [birthdays, setBirthdays] = useState([]);
@@ -358,45 +357,25 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
 
   useEffect(() => {
     const qNotes = query(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), where('userId', '==', user.id));
-    const unsubNotes = onSnapshot(qNotes, (snap) => setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.done - b.done)));
+    const unsubNotes = onSnapshot(qNotes, (snap) => { const rawNotes = snap.docs.map(d => ({ id: d.id, ...d.data() })); rawNotes.sort((a, b) => (a.done === b.done) ? 0 : a.done ? 1 : -1); setNotes(rawNotes); });
     const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
     const unsubStudents = onSnapshot(qStudents, (snap) => {
         const today = new Date(); const nextWeek = new Date(); nextWeek.setDate(today.getDate() + 7); let noGroupCounter = 0;
-        const upcoming = snap.docs.map(d => {
-            const data = d.data();
-            if (!data.groupMorning && !data.groupAfternoon && !data.daiMorning && !data.daiAfternoon) noGroupCounter++;
-            if(!data.birthDate) return null;
-            const dob = new Date(data.birthDate + 'T00:00:00');
-            const currentYearBirth = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
-            if (currentYearBirth < today.setHours(0,0,0,0)) currentYearBirth.setFullYear(today.getFullYear() + 1);
-            return { ...data, id: d.id, nextBirthday: currentYearBirth };
-        }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday);
-        setBirthdays(upcoming); setUngroupedCount(noGroupCounter);
+        const upcoming = snap.docs.map(d => { const data = d.data(); if (!data.groupMorning && !data.groupAfternoon && !data.daiMorning && !data.daiAfternoon) noGroupCounter++; if(!data.birthDate) return null; const dob = new Date(data.birthDate + 'T00:00:00'); const currentYearBirth = new Date(today.getFullYear(), dob.getMonth(), dob.getDate()); if (currentYearBirth < today.setHours(0,0,0,0)) currentYearBirth.setFullYear(today.getFullYear() + 1); return { ...data, id: d.id, nextBirthday: currentYearBirth }; }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday); setBirthdays(upcoming); setUngroupedCount(noGroupCounter);
     });
     return () => { unsubNotes(); unsubStudents(); };
   }, [user.id]);
 
-  const handlePost = async (e) => { 
-      e.preventDefault(); 
-      const text = e.target.message.value; 
-      const channel = e.target.channel?.value || 'general'; 
-      if(!text.trim()) return;
-      try {
-          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), { 
-              message: text, author: user.fullName || user.firstName, authorId: user.id, role: user.role, channel: channel, createdAt: serverTimestamp() 
-          }); 
-          setShowAnnounceModal(false); 
-      } catch(e) { alert("Error al publicar: " + e.message); }
-  };
-
+  const handlePost = async (e) => { e.preventDefault(); const text = e.target.message.value; const channel = e.target.channel?.value || 'general'; if(!text.trim()) return; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), { message: text, author: user.fullName || user.firstName, authorId: user.id, role: user.role, channel: channel, createdAt: serverTimestamp() }); setShowAnnounceModal(false); };
   const deleteAnnouncement = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'announcements', id)); };
   const saveNote = async (e) => { e.preventDefault(); if (!newNote.trim()) return; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), { text: newNote, userId: user.id, done: false, createdAt: serverTimestamp() }); setNewNote(''); };
   const toggleNote = async (note) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', note.id), { done: !note.done });
   const deleteNote = async (id) => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', id));
 
+  // --- FILTRO CORREGIDO ---
   const visibleAnnouncements = announcements.filter(a => {
       if (isSuperAdmin) return true;
-      if (a.authorId === user.id) return true; // EL AUTOR SIEMPRE VE SU AVISO
+      if (a.authorId === user.id) return true; // AUTOR SIEMPRE VE SU AVISO
       if (!a.channel || a.channel === 'general') return true;
       if (a.channel === 'inclusion' && isInclusionStaff) return true;
       if (a.channel === 'sede' && isSedeStaff) return true;
@@ -408,27 +387,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
       <div className="flex justify-between items-center px-2"><div><h2 className="text-2xl font-black text-slate-800 tracking-tighter italic">¡Hola, {user.firstName}! 👋</h2><p className="text-slate-500 font-medium text-xs">Panel de Control</p></div><div className="flex gap-2"><button onClick={() => setShowTutorial(true)} className="bg-white text-violet-600 px-3 py-2 rounded-xl text-xs font-bold shadow-sm border border-violet-100 flex items-center gap-1 hover:bg-violet-50 transition"><HelpCircle size={16}/> Ayuda</button>{canPost && <button onClick={() => setShowAnnounceModal(true)} className="bg-orange-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-lg hover:scale-105 transition flex items-center gap-1"><Edit3 size={14}/> Aviso</button>}</div></div>
       {isManagement && ungroupedCount > 0 && (<div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl flex items-center justify-between shadow-sm animate-pulse"><div className="flex items-center gap-3"><AlertTriangle className="text-red-500" size={24} /><div><h4 className="font-black text-red-700 text-xs uppercase tracking-widest">Atención Administrativa</h4><p className="text-xs text-red-600 font-bold">Hay {ungroupedCount} estudiantes activos sin grupo asignado.</p></div></div></div>)}
       {birthdays.length > 0 && (<button onClick={() => setShowBirthdayModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-rose-500 p-3 rounded-2xl shadow-md text-white flex items-center justify-between active:scale-95 transition"><div className="flex items-center gap-3"><div className="bg-white/20 p-2 rounded-xl"><Crown size={20} className="text-white"/></div><div className="text-left"><h3 className="font-bold text-sm uppercase tracking-widest">¡Hay Cumpleaños!</h3><p className="text-xs opacity-90">{birthdays.length} festejos esta semana</p></div></div><ChevronRight size={20}/></button>)}
-      
-      {visibleAnnouncements.length > 0 && (
-          <div className="bg-yellow-100 p-5 rounded-[30px] border-2 border-yellow-200 shadow-sm relative">
-              <h3 className="text-[10px] font-black text-yellow-700 uppercase tracking-widest flex items-center gap-1 mb-3"><Bell size={12}/> Cartelera Oficial</h3>
-              <div className="space-y-3">
-                  {visibleAnnouncements.map(a => (
-                      <div key={a.id} className="bg-white/80 p-3 rounded-2xl border border-yellow-200/50 text-sm text-gray-800 flex justify-between items-start">
-                          <div>
-                              {a.channel === 'inclusion' && <span className="bg-indigo-100 text-indigo-700 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-indigo-200">Canal Inclusión</span>}
-                              {a.channel === 'sede' && <span className="bg-orange-100 text-orange-700 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-orange-200">Canal Sede</span>}
-                              {(a.channel === 'general' || !a.channel) && <span className="bg-gray-100 text-gray-500 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-gray-200">General</span>}
-                              <p className="italic font-medium">"{a.message}"</p>
-                              <p className="text-[9px] text-yellow-600 font-bold mt-1 uppercase tracking-wider">- {a.author}</p>
-                          </div>
-                          {(canPost || a.authorId === user.id) && (<button onClick={() => deleteAnnouncement(a.id)} className="text-yellow-600 hover:text-red-500 p-1 bg-yellow-50 rounded-lg transition"><Trash2 size={14}/></button>)}
-                      </div>
-                  ))}
-              </div>
-          </div>
-      )}
-      
+      {visibleAnnouncements.length > 0 && (<div className="bg-yellow-100 p-5 rounded-[30px] border-2 border-yellow-200 shadow-sm relative"><h3 className="text-[10px] font-black text-yellow-700 uppercase tracking-widest flex items-center gap-1 mb-3"><Bell size={12}/> Cartelera Oficial</h3><div className="space-y-3">{visibleAnnouncements.map(a => (<div key={a.id} className="bg-white/80 p-3 rounded-2xl border border-yellow-200/50 text-sm text-gray-800 flex justify-between items-start"><div>{a.channel === 'inclusion' && <span className="bg-indigo-100 text-indigo-700 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-indigo-200">Canal Inclusión</span>}{a.channel === 'sede' && <span className="bg-orange-100 text-orange-700 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-orange-200">Canal Sede</span>}{(a.channel === 'general' || !a.channel) && <span className="bg-gray-100 text-gray-500 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-gray-200">General</span>}<p className="italic font-medium">"{a.message}"</p><p className="text-[9px] text-yellow-600 font-bold mt-1 uppercase tracking-wider">- {a.author}</p></div>{(canPost || a.authorId === user.id) && (<button onClick={() => deleteAnnouncement(a.id)} className="text-yellow-600 hover:text-red-500 p-1 bg-yellow-50 rounded-lg transition"><Trash2 size={14}/></button>)}</div>))}</div></div>)}
       <div className="grid grid-cols-2 gap-3"><div onClick={() => setActiveTab('tasks')} className="bg-white p-5 rounded-[30px] border border-orange-100 shadow-sm cursor-pointer hover:shadow-md transition"><h4 className="text-3xl font-black text-orange-500">{tasks.filter(t=>t.status!=='completed').length}</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Tareas Pendientes</p></div><div onClick={() => setActiveTab('calendar')} className={`p-5 rounded-[30px] border shadow-sm relative overflow-hidden cursor-pointer hover:shadow-md transition ${todayEvents.length > 0 ? 'bg-violet-600 text-white border-violet-600' : 'bg-white border-violet-100'}`}>{todayEvents.length > 0 ? ( <><h4 className="text-lg font-black leading-tight mb-1">{todayEvents[0].title}</h4><p className="text-[9px] opacity-80 uppercase tracking-widest font-bold">Es Hoy</p></> ) : ( <><h4 className="text-3xl font-black text-violet-600">0</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Eventos Hoy</p></> )}</div></div>
       <div className="bg-gray-50 p-5 rounded-[35px] border border-gray-100 shadow-inner"><h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px] mb-3 flex items-center gap-2"><Lock size={12}/> Tareas Personales</h3><form onSubmit={saveNote} className="flex gap-2 mb-3"><input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Nueva nota..." className="flex-1 p-3 rounded-xl border-none outline-none text-xs bg-white shadow-sm font-medium" /><button type="submit" className="bg-violet-600 text-white p-3 rounded-xl font-bold shadow-lg hover:bg-violet-700 transition"><Plus size={16}/></button></form><div className="space-y-2">{notes.map(n => (<div key={n.id} className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm group"><button onClick={() => toggleNote(n)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${n.done ? 'bg-violet-400 border-violet-400' : 'border-violet-200'}`}>{n.done && <Check size={12} className="text-white"/>}</button><span className={`text-xs flex-1 font-medium ${n.done ? 'line-through text-gray-300' : 'text-gray-600'}`}>{n.text}</span><button onClick={() => deleteNote(n.id)} className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"><Trash2 size={14}/></button></div>))}</div></div>
       {showAnnounceModal && (<div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm"><form onSubmit={handlePost} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95"><h3 className="text-lg font-black text-orange-500 mb-2 uppercase italic">Nuevo Aviso</h3><textarea name="message" className="w-full p-4 bg-orange-50 rounded-2xl outline-none text-sm h-32 resize-none border border-orange-100 focus:ring-2 ring-orange-200 text-gray-700" placeholder="Escribe aquí..." required></textarea><div className="mt-3"><label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">¿Quién puede ver esto?</label><select name="channel" className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200 outline-none focus:border-orange-300"><option value="general">🌍 Toda la Escuela</option><option value="sede">🏫 Solo Sede</option><option value="inclusion">💙 Solo Inclusión</option></select></div><div className="flex gap-2 mt-4"><button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 text-gray-400 font-bold text-xs uppercase tracking-widest">Cancelar</button><button type="submit" className="flex-1 bg-orange-500 text-white py-3 rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-orange-600 transition">Publicar</button></div></form></div>)}
@@ -520,8 +479,7 @@ function ResourcesView({ resources, canEdit }) {
     </div>
   );
 }
-
-// --- VISTA TAREAS (CORREGIDA: PRIVACIDAD ESTRICTA) ---
+// --- VISTA TAREAS (PARCHEADA: PRIVACIDAD ESTRICTA) ---
 function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
@@ -557,20 +515,10 @@ function TasksView({ tasks, user, canEdit }) {
     e.preventDefault(); 
     const fd = new FormData(e.target);
     let finalTargetId = null; let finalAssignedName = "Todos"; let finalRoles = [];
+    if (assignType === 'user') { if (!selectedUserObj) return alert("⚠️ Error: Selecciona un usuario."); finalTargetId = selectedUserObj.id; finalAssignedName = selectedUserObj.fullName; } 
+    else { if (selectedRoles.length === 0) return alert("⚠️ Error: Elige roles."); finalRoles = selectedRoles; finalAssignedName = selectedRoles.join(", "); }
 
-    if (assignType === 'user') {
-        if (!selectedUserObj) return alert("⚠️ Error: Selecciona un usuario.");
-        finalTargetId = selectedUserObj.id; finalAssignedName = selectedUserObj.fullName;
-    } else {
-        if (selectedRoles.length === 0) return alert("⚠️ Error: Elige roles.");
-        finalRoles = selectedRoles; finalAssignedName = selectedRoles.join(", ");
-    }
-
-    const taskData = { 
-        title: fd.get('title'), dueDate: fd.get('dueDate') || null, showDate: fd.get('showDate') || new Date().toISOString().split('T')[0], 
-        priority: fd.get('priority'), targetType: assignType, targetUserId: finalTargetId, targetRoles: finalRoles, 
-        assignedToName: finalAssignedName, checklist: checklist 
-    };
+    const taskData = { title: fd.get('title'), dueDate: fd.get('dueDate') || null, showDate: fd.get('showDate') || new Date().toISOString().split('T')[0], priority: fd.get('priority'), targetType: assignType, targetUserId: finalTargetId, targetRoles: finalRoles, assignedToName: finalAssignedName, checklist: checklist };
 
     try {
         if (editingTask) { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData); } 
@@ -598,13 +546,13 @@ function TasksView({ tasks, user, canEdit }) {
       if (filter === 'scheduled' && (t.status === 'completed' || showDate <= todayStr)) return false;
       if (filter === 'pending' && (t.status === 'completed' || showDate > todayStr)) return false;
       
-      // LÓGICA DE PRIVACIDAD ESTRICTA
-      if (isSuperAdmin) return true; // Solo SuperAdmin ve todo
-      if (t.createdById === user.id) return true; // Si la creé yo, la veo
-      if (t.targetType === 'user' && t.targetUserId === user.id) return true; // Si es para mí, la veo
-      if (t.targetType === 'roles' && t.targetRoles && user.role && t.targetRoles.some(r => r.toLowerCase() === user.role.toLowerCase())) return true; // Si es para mi rol, la veo
+      // PRIVACIDAD ESTRICTA
+      if (isSuperAdmin) return true; 
+      if (t.createdById === user.id) return true; // Creador
+      if (t.targetType === 'user' && t.targetUserId === user.id) return true; // Destinatario Directo
+      if (t.targetType === 'roles' && t.targetRoles && user.role && t.targetRoles.some(r => r.toLowerCase() === user.role.toLowerCase())) return true; // Destinatario Rol
       
-      return false; // Si no, oculta.
+      return false; 
   });
 
   const addComment = async (task) => { if (!newComment.trim()) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion({ text: newComment, author: user.firstName, date: new Date().toISOString() }) }); setNewComment(""); };
@@ -1148,7 +1096,7 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
     </div>
   );
 }
-// --- VISTA ADMINISTRACIÓN DE USUARIOS (CORREGIDA: ROLES NUEVOS DISPONIBLES) ---
+// --- VISTA ADMINISTRACIÓN DE USUARIOS (PARCHEADA: ROLES NUEVOS) ---
 function UsersAdminView() {
   const [users, setUsers] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -1214,6 +1162,7 @@ function UsersAdminView() {
             <Search className="text-white/50 ml-2" size={16} />
             <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar..." className="bg-transparent border-none outline-none text-white text-xs w-full placeholder-white/30" />
         </div>
+        
         <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
              <button onClick={analizarConflictos} className="whitespace-nowrap px-3 py-1.5 bg-violet-600/50 border border-violet-400 text-white rounded-lg text-[10px] font-bold uppercase flex-shrink-0">🕵️ Detective</button>
              <button onClick={()=>setShowRenamer(true)} className="whitespace-nowrap px-3 py-1.5 bg-blue-600/50 border border-blue-400 text-white rounded-lg text-[10px] font-bold uppercase flex-shrink-0">🔄 Reemplazar</button>
@@ -1252,6 +1201,7 @@ function UsersAdminView() {
         <input name="username" defaultValue={editingUser?.username} placeholder="Usuario" className="w-full p-2 bg-gray-50 rounded-lg text-xs border" required/>
         <input name="password" defaultValue={editingUser?.password} placeholder="Contraseña" className="w-full p-2 bg-gray-50 rounded-lg text-xs border" required/>
         
+        {/* CORRECCIÓN: USA LA LISTA GLOBAL ROLES */}
         <select name="role" defaultValue={editingUser?.role || 'Docente'} className="w-full p-2 bg-gray-50 rounded-lg text-xs border">
             {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
         </select>
@@ -1528,7 +1478,7 @@ function ProyectoView({ user }) {
     </div>
   );
 }
-// --- VISTA MATRÍCULA (CORREGIDA: DATOS RECUPERADOS + ESTABILIDAD) ---
+// --- VISTA MATRÍCULA (PARCHEADA: DATOS COMPLETOS + ESTABILIDAD) ---
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
@@ -1613,7 +1563,7 @@ function MatriculaView({ user }) {
       e.preventDefault(); const fd = new FormData(e.target); const d = Object.fromEntries(fd.entries()); d.isActive = d.isActive === 'true'; d.photoUrl = photoPreview || editingStudent?.photoUrl || ''; d.modality = formModalidad;
       try { if (editingStudent) { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', editingStudent.id), d); } else { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...d, isActive: true, createdAt: serverTimestamp(), incidents: [] }); } setShowForm(false); setEditingStudent(null); setPhotoPreview(null); } catch (err) { alert("Error: " + err.message); } 
   };
-  const handleDelete = async (id) => { if(confirm("¿Eliminar definitivamente?")) { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id)); setShowForm(false); setEditingStudent(null); } };
+  const handleDelete = async (id) => { if(confirm("⚠️ ¿Eliminar definitivamente?")) { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id)); setShowForm(false); setEditingStudent(null); } };
   const deleteIncident = async (sid, inc) => { if(confirm("¿Borrar evento?")) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', sid), { incidents: arrayRemove(inc) }); };
   const markAsInactive = async (s) => { if(!confirm(`¿Dar de baja a ${s.firstName}?`)) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { isActive: false }); setUnassignedList(p=>p.filter(x=>x.id!==s.id)); };
   
@@ -2278,6 +2228,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
