@@ -333,7 +333,7 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-// --- VISTA DASHBOARD (FINAL: FILTROS ESTRICTOS POR CANAL SEDE/INCLUSIÓN) ---
+// --- VISTA DASHBOARD (PARCHADA: CARTELERA FUNCIONAL) ---
 function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEvents = events.filter(e => e.date === todayStr);
@@ -346,29 +346,19 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const [newNote, setNewNote] = useState('');
   const [ungroupedCount, setUngroupedCount] = useState(0);
 
-  // ROLES QUE PUEDEN PUBLICAR
-  const canPost = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo' || user.role === 'Dirección Inclusión';
+  // ROLES
+  const canPost = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión'].includes(user.rol || user.role);
   const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración', 'Dirección Inclusión'].includes(user.role) || user.rol === 'admin';
+  const isSuperAdmin = user.rol === 'admin' || user.rol === 'super-admin';
   
-  // --- DEFINICIÓN ESTRICTA DE GRUPOS DE ROLES ---
   const INCLUSION_ROLES = ['DAI', 'Inclusión', 'Dirección Inclusión', 'Equipo Técnico Inclusión'];
   const SEDE_ROLES = ['Docente', 'Equipo Directivo', 'Equipo Técnico', 'Auxiliar/Preceptor', 'Profes Especiales', 'Administración'];
-
-  // DETECCIÓN DEL USUARIO ACTUAL
   const isInclusionStaff = INCLUSION_ROLES.includes(user.role);
   const isSedeStaff = SEDE_ROLES.includes(user.role);
-  const isSuperAdmin = user.rol === 'admin' || user.rol === 'super-admin';
 
   useEffect(() => {
-    // Notas personales
     const qNotes = query(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), where('userId', '==', user.id));
-    const unsubNotes = onSnapshot(qNotes, (snap) => { 
-        const rawNotes = snap.docs.map(d => ({ id: d.id, ...d.data() })); 
-        rawNotes.sort((a, b) => (a.done === b.done) ? 0 : a.done ? 1 : -1); 
-        setNotes(rawNotes); 
-    });
-
-    // Cumpleaños y Alumnos sin grupo
+    const unsubNotes = onSnapshot(qNotes, (snap) => setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.done - b.done)));
     const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
     const unsubStudents = onSnapshot(qStudents, (snap) => {
         const today = new Date(); const nextWeek = new Date(); nextWeek.setDate(today.getDate() + 7); let noGroupCounter = 0;
@@ -390,17 +380,13 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
       e.preventDefault(); 
       const text = e.target.message.value; 
       const channel = e.target.channel?.value || 'general'; 
-
-      if(!text.trim()) return; 
-      
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), { 
-          message: text, 
-          author: user.fullName || user.firstName, 
-          role: user.role, 
-          channel: channel, 
-          createdAt: serverTimestamp() 
-      }); 
-      setShowAnnounceModal(false); 
+      if(!text.trim()) return;
+      try {
+          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), { 
+              message: text, author: user.fullName || user.firstName, authorId: user.id, role: user.role, channel: channel, createdAt: serverTimestamp() 
+          }); 
+          setShowAnnounceModal(false); 
+      } catch(e) { alert("Error al publicar: " + e.message); }
   };
 
   const deleteAnnouncement = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'announcements', id)); };
@@ -408,34 +394,22 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const toggleNote = async (note) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', note.id), { done: !note.done });
   const deleteNote = async (id) => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', id));
 
-  // --- FILTRADO DE AVISOS (LÓGICA ESTRICTA) ---
+  // --- FILTRO CORREGIDO: AUTOR SIEMPRE VE SU POST ---
   const visibleAnnouncements = announcements.filter(a => {
-      const channel = a.channel || 'general';
-      
-      if (isSuperAdmin) return true; // Super Admin ve todo siempre
-      
-      if (channel === 'general') return true; // General es para todos
-      
-      if (channel === 'inclusion' && isInclusionStaff) return true; // Si es canal inclusión y soy inclusión, lo veo
-      
-      if (channel === 'sede' && isSedeStaff) return true; // Si es canal sede y soy sede, lo veo
-      
-      return false; // Si no cumplo ninguno, no lo veo
+      if (isSuperAdmin) return true;
+      if (a.authorId === user.id) return true; // ¡ESTO FALTABA!
+      if (!a.channel || a.channel === 'general') return true;
+      if (a.channel === 'inclusion' && isInclusionStaff) return true;
+      if (a.channel === 'sede' && isSedeStaff) return true;
+      return false;
   });
 
   return (
     <div className="space-y-4 animate-in fade-in pb-10">
       <div className="flex justify-between items-center px-2"><div><h2 className="text-2xl font-black text-slate-800 tracking-tighter italic">¡Hola, {user.firstName}! 👋</h2><p className="text-slate-500 font-medium text-xs">Panel de Control</p></div><div className="flex gap-2"><button onClick={() => setShowTutorial(true)} className="bg-white text-violet-600 px-3 py-2 rounded-xl text-xs font-bold shadow-sm border border-violet-100 flex items-center gap-1 hover:bg-violet-50 transition"><HelpCircle size={16}/> Ayuda</button>{canPost && <button onClick={() => setShowAnnounceModal(true)} className="bg-orange-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-lg hover:scale-105 transition flex items-center gap-1"><Edit3 size={14}/> Aviso</button>}</div></div>
       {isManagement && ungroupedCount > 0 && (<div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl flex items-center justify-between shadow-sm animate-pulse"><div className="flex items-center gap-3"><AlertTriangle className="text-red-500" size={24} /><div><h4 className="font-black text-red-700 text-xs uppercase tracking-widest">Atención Administrativa</h4><p className="text-xs text-red-600 font-bold">Hay {ungroupedCount} estudiantes activos sin grupo asignado.</p></div></div></div>)}
+      {birthdays.length > 0 && (<button onClick={() => setShowBirthdayModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-rose-500 p-3 rounded-2xl shadow-md text-white flex items-center justify-between active:scale-95 transition"><div className="flex items-center gap-3"><div className="bg-white/20 p-2 rounded-xl"><Crown size={20} className="text-white"/></div><div className="text-left"><h3 className="font-bold text-sm uppercase tracking-widest">¡Hay Cumpleaños!</h3><p className="text-xs opacity-90">{birthdays.length} festejos esta semana</p></div></div><ChevronRight size={20}/></button>)}
       
-      {/* BOTÓN CUMPLEAÑOS */}
-      {birthdays.length > 0 && (
-        <button onClick={() => setShowBirthdayModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-rose-500 p-3 rounded-2xl shadow-md text-white flex items-center justify-between active:scale-95 transition">
-            <div className="flex items-center gap-3"><div className="bg-white/20 p-2 rounded-xl"><Crown size={20} className="text-white"/></div><div className="text-left"><h3 className="font-bold text-sm uppercase tracking-widest">¡Hay Cumpleaños!</h3><p className="text-xs opacity-90">{birthdays.length} festejos esta semana</p></div></div><ChevronRight size={20}/>
-        </button>
-      )}
-
-      {/* CARTELERA OFICIAL (FILTRADA) */}
       {visibleAnnouncements.length > 0 && (
           <div className="bg-yellow-100 p-5 rounded-[30px] border-2 border-yellow-200 shadow-sm relative">
               <h3 className="text-[10px] font-black text-yellow-700 uppercase tracking-widest flex items-center gap-1 mb-3"><Bell size={12}/> Cartelera Oficial</h3>
@@ -445,66 +419,22 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
                           <div>
                               {a.channel === 'inclusion' && <span className="bg-indigo-100 text-indigo-700 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-indigo-200">Canal Inclusión</span>}
                               {a.channel === 'sede' && <span className="bg-orange-100 text-orange-700 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-orange-200">Canal Sede</span>}
-                              {a.channel === 'general' && <span className="bg-gray-100 text-gray-500 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-gray-200">General</span>}
+                              {(a.channel === 'general' || !a.channel) && <span className="bg-gray-100 text-gray-500 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-gray-200">General</span>}
                               <p className="italic font-medium">"{a.message}"</p>
                               <p className="text-[9px] text-yellow-600 font-bold mt-1 uppercase tracking-wider">- {a.author}</p>
                           </div>
-                          {canPost && (<button onClick={() => deleteAnnouncement(a.id)} className="text-yellow-600 hover:text-red-500 p-1 bg-yellow-50 rounded-lg transition"><Trash2 size={14}/></button>)}
+                          {(canPost || a.authorId === user.id) && (<button onClick={() => deleteAnnouncement(a.id)} className="text-yellow-600 hover:text-red-500 p-1 bg-yellow-50 rounded-lg transition"><Trash2 size={14}/></button>)}
                       </div>
                   ))}
               </div>
           </div>
       )}
       
-      {/* RESUMEN TAREAS Y EVENTOS */}
-      <div className="grid grid-cols-2 gap-3"><div onClick={() => setActiveTab('tasks')} className="bg-white p-5 rounded-[30px] border border-orange-100 shadow-sm cursor-pointer hover:shadow-md transition"><h4 className="text-3xl font-black text-orange-500">{tasks.filter(t=>t.status!=='completed').length}</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Tareas Pendientes</p></div><div onClick={() => setActiveTab('calendar')} className={`p-5 rounded-[30px] border shadow-sm relative overflow-hidden cursor-pointer hover:shadow-md transition ${todayEvents.length > 0 ? 'bg-violet-600 text-white border-violet-600' : 'bg-white border-violet-100'}`}>{todayEvents.length > 0 ? ( <><h4 className="text-lg font-black leading-tight mb-1">{todayEvents[0].title}</h4><p className="text-[9px] opacity-80 uppercase tracking-widest font-bold">Es Hoy</p>{todayEvents.length > 1 && <span className="absolute top-4 right-4 text-[10px] bg-white/20 px-2 rounded-full">+{todayEvents.length - 1} más</span>}</> ) : ( <><h4 className="text-3xl font-black text-violet-600">0</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Eventos Hoy</p></> )}</div></div>
-      
-      {/* NOTAS PERSONALES */}
-      <div className="bg-gray-50 p-5 rounded-[35px] border border-gray-100 shadow-inner">
-          <h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px] mb-3 flex items-center gap-2"><Lock size={12}/> Tareas Personales</h3>
-          <form onSubmit={saveNote} className="flex gap-2 mb-3">
-              <input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Nueva nota..." className="flex-1 p-3 rounded-xl border-none outline-none text-xs bg-white shadow-sm font-medium" />
-              <button type="submit" className="bg-violet-600 text-white p-3 rounded-xl font-bold shadow-lg hover:bg-violet-700 transition"><Plus size={16}/></button>
-          </form>
-          <div className="space-y-2">
-              {notes.map(n => (
-                  <div key={n.id} className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm group">
-                      <button onClick={() => toggleNote(n)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${n.done ? 'bg-violet-400 border-violet-400' : 'border-violet-200'}`}>
-                          {n.done && <Check size={12} className="text-white"/>}
-                      </button>
-                      <span className={`text-xs flex-1 font-medium ${n.done ? 'line-through text-gray-300' : 'text-gray-600'}`}>{n.text}</span>
-                      <button onClick={() => deleteNote(n.id)} className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"><Trash2 size={14}/></button>
-                  </div>
-              ))}
-              {notes.length === 0 && <p className="text-center text-gray-300 text-xs py-2 italic">No tienes notas.</p>}
-          </div>
-      </div>
-      
+      <div className="grid grid-cols-2 gap-3"><div onClick={() => setActiveTab('tasks')} className="bg-white p-5 rounded-[30px] border border-orange-100 shadow-sm cursor-pointer hover:shadow-md transition"><h4 className="text-3xl font-black text-orange-500">{tasks.filter(t=>t.status!=='completed').length}</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Tareas Pendientes</p></div><div onClick={() => setActiveTab('calendar')} className={`p-5 rounded-[30px] border shadow-sm relative overflow-hidden cursor-pointer hover:shadow-md transition ${todayEvents.length > 0 ? 'bg-violet-600 text-white border-violet-600' : 'bg-white border-violet-100'}`}>{todayEvents.length > 0 ? ( <><h4 className="text-lg font-black leading-tight mb-1">{todayEvents[0].title}</h4><p className="text-[9px] opacity-80 uppercase tracking-widest font-bold">Es Hoy</p></> ) : ( <><h4 className="text-3xl font-black text-violet-600">0</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Eventos Hoy</p></> )}</div></div>
+      <div className="bg-gray-50 p-5 rounded-[35px] border border-gray-100 shadow-inner"><h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px] mb-3 flex items-center gap-2"><Lock size={12}/> Tareas Personales</h3><form onSubmit={saveNote} className="flex gap-2 mb-3"><input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Nueva nota..." className="flex-1 p-3 rounded-xl border-none outline-none text-xs bg-white shadow-sm font-medium" /><button type="submit" className="bg-violet-600 text-white p-3 rounded-xl font-bold shadow-lg hover:bg-violet-700 transition"><Plus size={16}/></button></form><div className="space-y-2">{notes.map(n => (<div key={n.id} className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm group"><button onClick={() => toggleNote(n)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${n.done ? 'bg-violet-400 border-violet-400' : 'border-violet-200'}`}>{n.done && <Check size={12} className="text-white"/>}</button><span className={`text-xs flex-1 font-medium ${n.done ? 'line-through text-gray-300' : 'text-gray-600'}`}>{n.text}</span><button onClick={() => deleteNote(n.id)} className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"><Trash2 size={14}/></button></div>))}</div></div>
+      {showAnnounceModal && (<div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm"><form onSubmit={handlePost} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95"><h3 className="text-lg font-black text-orange-500 mb-2 uppercase italic">Nuevo Aviso</h3><textarea name="message" className="w-full p-4 bg-orange-50 rounded-2xl outline-none text-sm h-32 resize-none border border-orange-100 focus:ring-2 ring-orange-200 text-gray-700" placeholder="Escribe aquí..." required></textarea><div className="mt-3"><label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">¿Quién puede ver esto?</label><select name="channel" className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200 outline-none focus:border-orange-300"><option value="general">🌍 Toda la Escuela</option><option value="sede">🏫 Solo Sede</option><option value="inclusion">💙 Solo Inclusión</option></select></div><div className="flex gap-2 mt-4"><button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 text-gray-400 font-bold text-xs uppercase tracking-widest">Cancelar</button><button type="submit" className="flex-1 bg-orange-500 text-white py-3 rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-orange-600 transition">Publicar</button></div></form></div>)}
+      {showTutorial && (<div className="fixed inset-0 bg-violet-900/90 z-[300] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in"><div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl max-h-[80vh] overflow-y-auto relative"><button onClick={() => setShowTutorial(false)} className="absolute top-4 right-4 bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button><div className="text-center mb-6"><h2 className="text-2xl font-black text-violet-900 italic uppercase">Guía Rápida</h2></div><div className="space-y-6"><p className="text-sm text-gray-600">1. Gestiona alumnos en "Legajos".<br/>2. Carga eventos en "Agenda".<br/>3. Usa "Tareas" para pedidos internos.</p></div><button onClick={() => setShowTutorial(false)} className="w-full bg-violet-600 text-white py-3 rounded-2xl font-bold mt-8 shadow-lg uppercase text-xs tracking-widest">¡Entendido!</button></div></div>)}
       {showBirthdayModal && (<div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowBirthdayModal(false)}><div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-pink-500" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-4"><h3 className="text-xl font-black text-pink-500 uppercase italic">Cumpleaños</h3><button onClick={() => setShowBirthdayModal(false)}><X size={24}/></button></div><div className="space-y-3 max-h-[60vh] overflow-y-auto">{birthdays.map(b => (<div key={b.id} className="flex items-center gap-4 bg-pink-50 p-3 rounded-2xl border border-pink-100"><div className="w-12 h-12 rounded-full bg-white border-2 border-pink-200 overflow-hidden shrink-0 flex items-center justify-center font-bold text-pink-400">{b.photoUrl ? <img src={b.photoUrl} className="w-full h-full object-cover"/> : b.firstName[0]}</div><div><h4 className="font-bold text-gray-800">{b.firstName} {b.lastName}</h4><p className="text-xs text-pink-600 font-bold">{[b.groupMorning, b.groupAfternoon].filter(Boolean).join(' / ') || 'Sin Grupo'}</p><p className="text-[10px] text-gray-400 uppercase tracking-widest">{new Date(b.nextBirthday).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}</p></div></div>))}</div></div></div>)}
-      
-      {/* MODAL NUEVO AVISO CON SELECTOR DE CANAL */}
-      {showAnnounceModal && (
-        <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
-            <form onSubmit={handlePost} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95">
-                <h3 className="text-lg font-black text-orange-500 mb-2 uppercase italic">Nuevo Aviso</h3>
-                <textarea name="message" className="w-full p-4 bg-orange-50 rounded-2xl outline-none text-sm h-32 resize-none border border-orange-100 focus:ring-2 ring-orange-200 text-gray-700" placeholder="Escribe aquí..." required></textarea>
-                
-                {/* SELECTOR DE CANAL */}
-                <div className="mt-3">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">¿Quién puede ver esto?</label>
-                    <select name="channel" className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200 outline-none focus:border-orange-300">
-                        <option value="general">🌍 Toda la Escuela (General)</option>
-                        <option value="sede">🏫 Solo Sede (Docentes, Aux, Equipo)</option>
-                        <option value="inclusion">💙 Solo Inclusión (DAI, Téc. Inclusión)</option>
-                    </select>
-                </div>
-
-                <div className="flex gap-2 mt-4"><button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 text-gray-400 font-bold text-xs uppercase tracking-widest">Cancelar</button><button type="submit" className="flex-1 bg-orange-500 text-white py-3 rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-orange-600 transition">Publicar</button></div>
-            </form>
-        </div>
-      )}
-      
-      {showTutorial && (<div className="fixed inset-0 bg-violet-900/90 z-[300] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in"><div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl max-h-[80vh] overflow-y-auto relative"><button onClick={() => setShowTutorial(false)} className="absolute top-4 right-4 bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button><div className="text-center mb-6"><h2 className="text-2xl font-black text-violet-900 italic uppercase">Guía Rápida</h2><p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Para Docentes y Equipo</p></div><div className="space-y-6"><div className="flex gap-4 items-start"><div className="bg-orange-100 p-3 rounded-2xl text-orange-600"><Grid size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">1. Mi Aula / Grupos</h4><p className="text-xs text-gray-500 mt-1">Aquí ves a tus alumnos. Toca las pestañas "Mañana" o "Tarde" para cambiar de grupo.</p></div></div><div className="flex gap-4 items-start"><div className="bg-red-100 p-3 rounded-2xl text-red-600"><Activity size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">2. Bitácora Express (El Rayo)</h4><p className="text-xs text-gray-500 mt-1">En la tarjeta de cada alumno hay un ícono de rayo ⚡. Úsalo para registrar incidentes (golpes, crisis, salud) rápidamente con un solo toque.</p></div></div><div className="flex gap-4 items-start"><div className="bg-blue-100 p-3 rounded-2xl text-blue-600"><CheckSquare size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">3. Pedidos y tareas</h4><p className="text-xs text-gray-500 mt-1">Usa la sección "Tareas" para pedir materiales, arreglos, informes y tareas. Puedes asignar a un <b>Rol</b> o una <b>Persona</b>. Solo lo ven los involucrados.</p></div></div><div className="flex gap-4 items-start"><div className="bg-green-100 p-3 rounded-2xl text-green-600"><LinkIcon size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">4. Recursos</h4><p className="text-xs text-gray-500 mt-1">Encuentra documentos, planillas y enlaces útiles organizados por carpetas.</p></div></div></div><button onClick={() => setShowTutorial(false)} className="w-full bg-violet-600 text-white py-3 rounded-2xl font-bold mt-8 shadow-lg uppercase text-xs tracking-widest">¡Entendido!</button></div></div>)}
     </div>
   );
 }
@@ -592,122 +522,55 @@ function ResourcesView({ resources, canEdit }) {
   );
 }
 
-// --- VISTA TAREAS (REPARADA: BUSCADOR DE PERSONAS FUNCIONANDO) ---
+// --- VISTA TAREAS (PARCHADA: PRIVACIDAD ESTRICTA) ---
 function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
-  
   const [assignType, setAssignType] = useState('user'); 
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [selectedUserObj, setSelectedUserObj] = useState(null); 
-  
   const [checklist, setChecklist] = useState([]); 
   const [newItem, setNewItem] = useState(""); 
-  
-  // ESTADO DEL BUSCADOR (AQUÍ ESTABA EL PROBLEMA POTENCIAL)
   const [userSearch, setUserSearch] = useState("");
-  
   const [openCommentsId, setOpenCommentsId] = useState(null); 
   const [newComment, setNewComment] = useState("");
   const [editingTask, setEditingTask] = useState(null); 
   const [filter, setFilter] = useState('pending'); 
 
-  // Roles actualizados con Inclusión
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor', 'DAI', 'Dirección Inclusión', 'Equipo Técnico Inclusión'];
+  const isSuperAdmin = user.rol === 'admin' || user.rol === 'super-admin'; 
   const canManage = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo' || user.role === 'Dirección Inclusión';
 
-  // Carga de usuarios optimizada
   useEffect(() => {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
     const unsub = onSnapshot(q, (snap) => {
         const users = snap.docs.map(d => ({id: d.id, ...d.data()}));
         setUsersList(users);
-        
-        // Si estamos editando, buscamos el usuario asignado
         if (editingTask && editingTask.targetUserId) {
             const found = users.find(u => u.id === editingTask.targetUserId);
             if (found) setSelectedUserObj(found);
         }
     });
     return () => unsub();
-  }, [editingTask]); // Solo se recarga si cambiamos de tarea a editar
-
-  const getCountdown = (dateStr) => {
-      if (!dateStr) return null;
-      const today = new Date();
-      today.setHours(0,0,0,0);
-      const due = new Date(dateStr + 'T00:00:00'); 
-      const diffTime = due - today;
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays < 0) return { text: `Vencida (${Math.abs(diffDays)}d)`, color: 'bg-red-100 text-red-700 border-red-200' };
-      if (diffDays === 0) return { text: '¡HOY!', color: 'bg-orange-100 text-orange-700 border-orange-200 animate-pulse' };
-      if (diffDays === 1) return { text: 'Mañana', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' };
-      if (diffDays <= 7) return { text: `${diffDays} días`, color: 'bg-blue-100 text-blue-700 border-blue-200' };
-      return { text: `${diffDays} días`, color: 'bg-gray-100 text-gray-500 border-gray-200' };
-  };
+  }, [editingTask]);
 
   const handleSaveTask = async (e) => {
     e.preventDefault(); 
     const fd = new FormData(e.target);
-    
-    let finalTargetId = null;
-    let finalAssignedName = "Todos";
-    let finalRoles = [];
+    let finalTargetId = null; let finalAssignedName = "Todos"; let finalRoles = [];
+    if (assignType === 'user') { if (!selectedUserObj) return alert("⚠️ Error: Selecciona un usuario."); finalTargetId = selectedUserObj.id; finalAssignedName = selectedUserObj.fullName; } 
+    else { if (selectedRoles.length === 0) return alert("⚠️ Error: Elige roles."); finalRoles = selectedRoles; finalAssignedName = selectedRoles.join(", "); }
 
-    if (assignType === 'user') {
-        if (!selectedUserObj) return alert("⚠️ Error: Selecciona un usuario del buscador.");
-        finalTargetId = selectedUserObj.id;
-        finalAssignedName = selectedUserObj.fullName;
-    } else {
-        if (selectedRoles.length === 0) return alert("⚠️ Error: Elige al menos un rol.");
-        finalRoles = selectedRoles;
-        finalAssignedName = selectedRoles.join(", ");
-    }
-
-    const dueDateVal = fd.get('dueDate'); 
-    const showDateVal = fd.get('showDate'); 
-
-    const taskData = { 
-        title: fd.get('title'), 
-        dueDate: dueDateVal || null, 
-        showDate: showDateVal || new Date().toISOString().split('T')[0], 
-        priority: fd.get('priority'), 
-        targetType: assignType, 
-        targetUserId: finalTargetId, 
-        targetRoles: finalRoles, 
-        assignedToName: finalAssignedName,
-        checklist: checklist 
-    };
-
+    const taskData = { title: fd.get('title'), dueDate: fd.get('dueDate') || null, showDate: fd.get('showDate') || new Date().toISOString().split('T')[0], priority: fd.get('priority'), targetType: assignType, targetUserId: finalTargetId, targetRoles: finalRoles, assignedToName: finalAssignedName, checklist: checklist };
     try {
-        if (editingTask) {
-             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData);
-        } else {
-             const newTaskRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
-                 ...taskData, 
-                 createdByName: user.fullName || user.firstName, 
-                 createdById: user.id, 
-                 status: 'pending', 
-                 createdAt: serverTimestamp(), 
-                 comments: [] 
-             });
-             
+        if (editingTask) { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData); } 
+        else { 
+             const newTaskRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { ...taskData, createdByName: user.fullName || user.firstName, createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: [] });
              const today = new Date().toISOString().split('T')[0];
              if (!taskData.showDate || taskData.showDate <= today) {
-                 const notifData = {
-                     title: `Tarea ${fd.get('priority') === 'alta' ? 'URGENTE' : 'Asignada'}`,
-                     message: `${user.firstName}: "${fd.get('title')}"`,
-                     read: false,
-                     createdAt: serverTimestamp(),
-                     targetTab: 'tasks',
-                     relatedId: newTaskRef.id,
-                     type: 'task_assigned'
-                 };
-
-                 if (assignType === 'user' && finalTargetId) {
-                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: finalTargetId });
-                 } else if (assignType === 'roles') {
+                 const notifData = { title: `Tarea Nueva`, message: `${user.firstName}: "${fd.get('title')}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks', relatedId: newTaskRef.id, type: 'task_assigned' };
+                 if (assignType === 'user' && finalTargetId) await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: finalTargetId });
+                 else if (assignType === 'roles') {
                     const targets = usersList.filter(u => u.role && finalRoles.some(r => r.toLowerCase() === u.role.toLowerCase()));
                     const promises = targets.map(t => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: t.id }));
                     await Promise.all(promises);
@@ -715,204 +578,58 @@ function TasksView({ tasks, user, canEdit }) {
              }
         }
         setShowModal(false);
-    } catch (err) { console.error(err); alert("Error: " + err.message); }
+    } catch (err) { alert("Error: " + err.message); }
   };
 
-  const addComment = async (task) => { if (!newComment.trim()) return; const commentData = { text: newComment, author: user.firstName, date: new Date().toISOString() }; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion(commentData) }); setNewComment(""); };
-  const handleDelete = async (id) => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
-  
-  const changeStatus = async (task, newStatus) => { 
-      if (newStatus === 'completed' && !confirm("¿Marcar como lista?")) return;
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); 
-  };
-  
-  const openNew = () => { setEditingTask(null); setAssignType('user'); setSelectedRoles([]); setChecklist([]); setNewItem(""); setUserSearch(""); setSelectedUserObj(null); setShowModal(true); };
-  
-  const openEdit = (t) => { 
-      setEditingTask(t); setAssignType(t.targetType || 'user'); setSelectedRoles(t.targetRoles || []); setChecklist(t.checklist || []); setShowModal(true); 
-  };
-  
   const filteredTasks = tasks.filter(t => {
       const todayStr = new Date().toISOString().split('T')[0];
       const showDate = t.showDate || '2000-01-01'; 
-
-      if (filter === 'completed') {
-          if (t.status !== 'completed') return false;
-      } else if (filter === 'scheduled') {
-          if (t.status === 'completed') return false;
-          if (showDate <= todayStr) return false; 
-      } else {
-          if (t.status === 'completed') return false;
-          if (showDate > todayStr) return false; 
-      }
+      if (filter === 'completed' && t.status !== 'completed') return false;
+      if (filter === 'scheduled' && (t.status === 'completed' || showDate <= todayStr)) return false;
+      if (filter === 'pending' && (t.status === 'completed' || showDate > todayStr)) return false;
       
-      if (canManage) return true; 
-      if (showDate > todayStr) return false;
+      // PRIVACIDAD ESTRICTA
+      if (isSuperAdmin) return true; 
       if (t.createdById === user.id) return true; 
-      if (t.targetType === 'user') return t.targetUserId === user.id; 
-      if (t.targetType === 'roles') return t.targetRoles && user.role && t.targetRoles.some(r => r.toLowerCase() === user.role.toLowerCase()); 
-      
-      return false;
+      if (t.targetType === 'user' && t.targetUserId === user.id) return true; 
+      if (t.targetType === 'roles' && t.targetRoles && user.role && t.targetRoles.some(r => r.toLowerCase() === user.role.toLowerCase())) return true;
+      return false; 
   });
 
-  // FILTRO SEGURO PARA EL BUSCADOR
+  const addComment = async (task) => { if (!newComment.trim()) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion({ text: newComment, author: user.firstName, date: new Date().toISOString() }) }); setNewComment(""); };
+  const handleDelete = async (id) => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
+  const changeStatus = async (task, newStatus) => { if (newStatus === 'completed' && !confirm("¿Lista?")) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
+  const openNew = () => { setEditingTask(null); setAssignType('user'); setSelectedRoles([]); setChecklist([]); setNewItem(""); setUserSearch(""); setSelectedUserObj(null); setShowModal(true); };
+  const openEdit = (t) => { setEditingTask(t); setAssignType(t.targetType || 'user'); setSelectedRoles(t.targetRoles || []); setChecklist(t.checklist || []); setShowModal(true); };
   const searchResults = userSearch.length > 0 ? (usersList || []).filter(u => u.fullName.toLowerCase().includes(userSearch.toLowerCase())) : [];
-
-  const getPriorityStyle = (p) => { 
-      if (p === 'alta') return 'border-l-4 border-l-red-500 bg-red-50/50'; 
-      if (p === 'media') return 'border-l-4 border-l-orange-400 bg-orange-50/50'; 
-      return 'border-l-4 border-l-green-400 bg-green-50/50'; 
-  };
+  const getPriorityStyle = (p) => { if (p === 'alta') return 'border-l-4 border-l-red-500 bg-red-50/50'; if (p === 'media') return 'border-l-4 border-l-orange-400 bg-orange-50/50'; return 'border-l-4 border-l-green-400 bg-green-50/50'; };
 
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-20">
       <div className="flex justify-between items-center mb-2 bg-white p-4 sticky top-0 z-10 shadow-sm rounded-b-3xl">
           <div><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2><p className="text-xs text-gray-400 font-bold">{filteredTasks.length} visibles</p></div>
           <div className="flex gap-2">
-             <div className="flex bg-gray-100 rounded-xl p-1">
-                <button onClick={()=>setFilter('pending')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='pending'?'bg-white shadow text-slate-800':'text-gray-400'}`}>Activas</button>
-                {canManage && <button onClick={()=>setFilter('scheduled')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='scheduled'?'bg-white shadow text-orange-600':'text-gray-400'}`}>Próximas</button>}
-                <button onClick={()=>setFilter('completed')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='completed'?'bg-white shadow text-green-600':'text-gray-400'}`}>Listas</button>
-             </div>
+             <div className="flex bg-gray-100 rounded-xl p-1"><button onClick={()=>setFilter('pending')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='pending'?'bg-white shadow text-slate-800':'text-gray-400'}`}>Activas</button><button onClick={()=>setFilter('completed')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='completed'?'bg-white shadow text-green-600':'text-gray-400'}`}>Listas</button></div>
              <button onClick={openNew} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg hover:scale-110 transition-all"><Plus size={20}/></button>
           </div>
       </div>
-
-      {filter === 'pending' && (
-          <div className="flex justify-center gap-4 py-2 opacity-80">
-              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-red-500 shadow-sm"></div><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Urgente</span></div>
-              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-orange-400 shadow-sm"></div><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Media</span></div>
-              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-green-400 shadow-sm"></div><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Normal</span></div>
-          </div>
-      )}
-      
       <div className="grid gap-3 px-2">
-          {filteredTasks.length === 0 ? ( <div className="text-center py-10 opacity-40"><CheckCircle size={40} className="mx-auto mb-2 text-gray-400"/><p className="font-bold text-gray-500">Sin tareas en esta vista.</p></div> ) : filteredTasks.map(t => {
-            const countdown = getCountdown(t.dueDate);
-            return (
+          {filteredTasks.length === 0 ? ( <div className="text-center py-10 opacity-40"><CheckCircle size={40} className="mx-auto mb-2 text-gray-400"/><p className="font-bold text-gray-500">Sin tareas.</p></div> ) : filteredTasks.map(t => (
             <div key={t.id} className={`p-5 rounded-[30px] shadow-sm flex flex-col gap-3 transition-all relative ${getPriorityStyle(t.priority)}`}>
-                <div className="flex justify-between items-start">
-                    <div className="flex-1 pr-6">
-                        <p className="text-[9px] font-black text-violet-600 uppercase tracking-widest italic mb-1">Para: {t.assignedToName}</p>
-                        <h3 className={`font-bold text-gray-800 text-sm uppercase italic tracking-tighter leading-none ${t.status==='completed'?'line-through opacity-50':''}`}>{t.title}</h3>
-                        <p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName}</p>
-                        
-                        {t.showDate > new Date().toISOString().split('T')[0] && (
-                            <div className="mt-2 inline-flex items-center gap-1 bg-yellow-100 text-yellow-800 text-[9px] font-bold px-2 py-1 rounded-md border border-yellow-200">
-                                <Clock size={10}/> Visible el: {new Date(t.showDate).toLocaleDateString()}
-                            </div>
-                        )}
-                    </div>
-                    
-                    <div className="flex flex-col items-end gap-2">
-                        <div className="flex flex-col items-end gap-1">
-                            {t.dueDate ? (
-                                <>
-                                    <div className="text-[9px] font-black bg-white px-2 py-1 rounded-full text-gray-400 border uppercase tracking-tighter italic shadow-inner">{t.dueDate}</div>
-                                    {t.status !== 'completed' && (
-                                        <span className={`text-[8px] font-black px-2 py-0.5 rounded-md uppercase border ${countdown.color}`}>
-                                            {countdown.text}
-                                        </span>
-                                    )}
-                                </>
-                            ) : (
-                                <div className="text-[9px] font-black bg-gray-50 px-2 py-1 rounded-full text-gray-300 border border-gray-100 uppercase tracking-tighter italic">Sin Fecha</div>
-                            )}
-                        </div>
-                       
-                        <div className="flex gap-1">
-                            {(canManage || t.createdById === user.id) && <button onClick={() => openEdit(t)} className="text-blue-300 hover:text-blue-600 p-1 bg-white rounded-full shadow-sm"><Edit3 size={14}/></button>}
-                            {(canManage || t.createdById === user.id) && <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm"><Trash2 size={14}/></button>}
-                        </div>
-                    </div>
-                </div>
-
+                <div className="flex justify-between items-start"><div className="flex-1 pr-6"><p className="text-[9px] font-black text-violet-600 uppercase tracking-widest italic mb-1">Para: {t.assignedToName}</p><h3 className={`font-bold text-gray-800 text-sm uppercase italic tracking-tighter leading-none ${t.status==='completed'?'line-through opacity-50':''}`}>{t.title}</h3><p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName}</p></div><div className="flex flex-col items-end gap-2"><div className="flex gap-1">{(t.createdById === user.id || isSuperAdmin) && <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm"><Trash2 size={14}/></button>}</div></div></div>
                 {openCommentsId === t.id && ( <div className="bg-white/60 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in"><div className="max-h-32 overflow-y-auto space-y-2 mb-2">{(t.comments || []).map((c, idx) => ( <p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p> ))}</div><div className="flex gap-2"><input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribe..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" /><button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button></div></div> )}
-                
-                <div className="pt-2 border-t border-black/5 flex justify-between items-center">
-                    <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className={`flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 rounded-xl transition ${t.comments?.length > 0 ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500 hover:bg-violet-50 hover:text-violet-600'}`}>
-                        <MessageSquare size={14}/> 
-                        {t.comments?.length > 0 ? `${t.comments.length} Msjs` : 'Comentar'}
-                    </button>
-
-                    <div className="flex bg-white/60 rounded-lg p-0.5 shadow-sm">
-                        <button onClick={() => changeStatus(t, 'pending')} className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition ${t.status === 'pending' ? 'bg-white shadow text-gray-700' : 'text-gray-400'}`}>Pend.</button>
-                        <button onClick={() => changeStatus(t, 'in_process')} className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition ${t.status === 'in_process' ? 'bg-orange-100 text-orange-600 shadow' : 'text-gray-400'}`}>Proc.</button>
-                        <button onClick={() => changeStatus(t, 'completed')} className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition ${t.status === 'completed' ? 'bg-green-100 text-green-700 shadow' : 'text-gray-400'}`}>Lista</button>
-                    </div>
-                </div>
+                <div className="pt-2 border-t border-black/5 flex justify-between items-center"><button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className={`flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 rounded-xl transition ${t.comments?.length > 0 ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500 hover:bg-violet-50 hover:text-violet-600'}`}><MessageSquare size={14}/> {t.comments?.length > 0 ? `${t.comments.length} Msjs` : 'Comentar'}</button><div className="flex bg-white/60 rounded-lg p-0.5 shadow-sm"><button onClick={() => changeStatus(t, 'pending')} className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition ${t.status === 'pending' ? 'bg-white shadow text-gray-700' : 'text-gray-400'}`}>Pend.</button><button onClick={() => changeStatus(t, 'completed')} className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition ${t.status === 'completed' ? 'bg-green-100 text-green-700 shadow' : 'text-gray-400'}`}>Lista</button></div></div>
             </div>
-          )})}
+          ))}
       </div>
-
       {showModal && (
         <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
           <form onSubmit={handleSaveTask} className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-black text-violet-900 uppercase italic">{editingTask ? 'Editar Tarea' : 'Nueva Tarea'}</h3>
             <input name="title" defaultValue={editingTask?.title} placeholder="Título de la tarea" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm shadow-inner" />
-            
-            <div className="flex gap-2 bg-gray-100 p-1 rounded-xl">
-                <button type="button" onClick={() => setAssignType('user')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'user' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Persona</button>
-                <button type="button" onClick={() => setAssignType('roles')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'roles' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Roles</button>
-            </div>
-            
-            {assignType === 'user' ? (
-                <div className="space-y-2">
-                    {selectedUserObj ? (
-                        <div className="flex items-center justify-between p-3 bg-violet-50 border border-violet-200 rounded-xl">
-                            <div className="flex items-center gap-2"><div className="w-8 h-8 bg-violet-600 text-white rounded-full flex items-center justify-center font-bold text-xs">{selectedUserObj.firstName[0]}</div><span className="text-xs font-bold text-violet-900">{selectedUserObj.fullName}</span></div>
-                            <button type="button" onClick={() => setSelectedUserObj(null)} className="text-red-400 p-1"><X size={16}/></button>
-                        </div>
-                    ) : (
-                        <div className="relative">
-                            {/* INPUT REPARADO: Sin autoComplete y con Value seguro */}
-                            <input 
-                                placeholder="🔍 Escribí para buscar..." 
-                                value={userSearch} 
-                                onChange={(e) => setUserSearch(e.target.value)} 
-                                autoComplete="off"
-                                className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none focus:border-violet-500 rounded-t-xl" 
-                            />
-                            {userSearch.length > 0 && (
-                                <div className="max-h-40 overflow-y-auto border-x border-b border-gray-200 rounded-b-xl bg-white shadow-xl absolute w-full z-50">
-                                    {searchResults.length > 0 ? searchResults.map(u => (
-                                        <div key={u.id} onClick={() => { setSelectedUserObj(u); setUserSearch(""); }} className="p-3 hover:bg-violet-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0">
-                                            <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">{u.firstName[0]}</div>
-                                            <p className="text-xs font-bold text-gray-700">{u.fullName}</p>
-                                        </div>
-                                    )) : <p className="p-3 text-xs text-gray-400 italic text-center">No encontrado</p>}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-            ) : (
-                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 max-h-32 overflow-y-auto">{ROLES_OPTIONS.map(role => ( <label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={selectedRoles.includes(role)} onChange={(e) => { if(e.target.checked) setSelectedRoles([...selectedRoles, role]); else setSelectedRoles(selectedRoles.filter(r => r !== role)); }} className="accent-violet-600"/> {role}</label> ))}</div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-                <div>
-                    <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Vencimiento (Opcional)</label>
-                    <input name="dueDate" type="date" defaultValue={editingTask?.dueDate} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs text-gray-600 border border-gray-200" />
-                </div>
-                
-                <select name="priority" defaultValue={editingTask?.priority} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs uppercase text-orange-600 italic border border-gray-200 h-[66px] mt-auto">
-                    <option value="baja">🟢 Baja</option>
-                    <option value="media">🟠 Media</option>
-                    <option value="alta">🔴 Alta</option>
-                </select>
-            </div>
-            
-            {canManage && (
-                <div className="bg-orange-50 p-3 rounded-xl border border-orange-100">
-                    <label className="text-[10px] font-bold text-orange-700 uppercase mb-1 block flex items-center gap-1">
-                        <Clock size={10}/> Programar Aparición
-                    </label>
-                    <input name="showDate" type="date" defaultValue={editingTask?.showDate} className="w-full p-2 bg-white rounded-lg outline-none font-bold text-xs text-orange-800 border border-orange-200" />
-                    <p className="text-[9px] text-orange-600 mt-1">Si pones una fecha futura, la tarea quedará en "Próximas" hasta ese día.</p>
-                </div>
-            )}
-
+            <div className="flex gap-2 bg-gray-100 p-1 rounded-xl"><button type="button" onClick={() => setAssignType('user')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'user' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Persona</button><button type="button" onClick={() => setAssignType('roles')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'roles' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Roles</button></div>
+            {assignType === 'user' ? ( <div className="space-y-2">{selectedUserObj ? ( <div className="flex items-center justify-between p-3 bg-violet-50 border border-violet-200 rounded-xl"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-violet-600 text-white rounded-full flex items-center justify-center font-bold text-xs">{selectedUserObj.firstName[0]}</div><span className="text-xs font-bold text-violet-900">{selectedUserObj.fullName}</span></div><button type="button" onClick={() => setSelectedUserObj(null)} className="text-red-400 p-1"><X size={16}/></button></div> ) : ( <div className="relative"><input placeholder="🔍 Escribí para buscar..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} autoComplete="off" className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none focus:border-violet-500 rounded-t-xl" />{userSearch.length > 0 && (<div className="max-h-40 overflow-y-auto border-x border-b border-gray-200 rounded-b-xl bg-white shadow-xl absolute w-full z-50">{searchResults.length > 0 ? searchResults.map(u => (<div key={u.id} onClick={() => { setSelectedUserObj(u); setUserSearch(""); }} className="p-3 hover:bg-violet-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0"><div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">{u.firstName[0]}</div><p className="text-xs font-bold text-gray-700">{u.fullName}</p></div>)) : <p className="p-3 text-xs text-gray-400 italic text-center">No encontrado</p>}</div>)}</div> )}</div> ) : ( <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 max-h-32 overflow-y-auto">{ROLES_OPTIONS.map(role => ( <label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={selectedRoles.includes(role)} onChange={(e) => { if(e.target.checked) setSelectedRoles([...selectedRoles, role]); else setSelectedRoles(selectedRoles.filter(r => r !== role)); }} className="accent-violet-600"/> {role}</label> ))}</div> )}
+            <div className="grid grid-cols-2 gap-4"><div><label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Vencimiento</label><input name="dueDate" type="date" defaultValue={editingTask?.dueDate} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs text-gray-600 border border-gray-200" /></div><select name="priority" defaultValue={editingTask?.priority} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs uppercase text-orange-600 italic border border-gray-200 h-[66px] mt-auto"><option value="baja">🟢 Baja</option><option value="media">🟠 Media</option><option value="alta">🔴 Alta</option></select></div>
             <div className="flex gap-2 pt-2"><button type="button" onClick={() => setShowModal(false)} className="flex-1 font-bold text-gray-400 text-xs uppercase">Cancelar</button><button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">GUARDAR</button></div>
           </form>
         </div>
@@ -920,7 +637,6 @@ function TasksView({ tasks, user, canEdit }) {
     </div>
   );
 }
-
 
 // --- VISTA NOTIFICACIONES (PANTALLA COMPLETA CON REDIRECCIÓN) ---
 function NotificationsView({ notifications, canEdit, user }) {
@@ -1255,48 +971,43 @@ function CalendarView({ events, canEdit, user }) {
   );
 }
 
-// --- VISTA PERFIL (TU VERSIÓN ORIGINAL INTACTA) ---
+// --- VISTA PERFIL (PARCHADA: MANTENIMIENTO + AUDITORÍA) ---
 function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
   const [formData, setFormData] = useState({ firstName: user.firstName || '', lastName: user.lastName || '', photoUrl: user.photoUrl || '' });
   const [uploading, setUploading] = useState(false);
   const [showAdminUsers, setShowAdminUsers] = useState(false);
   const [showAudit, setShowAudit] = useState(false);
+  
+  // ESTADO DE MANTENIMIENTO
+  const [maintenance, setMaintenance] = useState(false);
+
+  useEffect(() => {
+      const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'system_config'), (d) => {
+          if (d.exists()) setMaintenance(d.data().maintenance);
+      });
+      return () => unsub();
+  }, []);
+
+  const toggleMaintenance = async () => {
+      const newState = !maintenance;
+      if(!confirm(`¿${newState ? 'ACTIVAR' : 'DESACTIVAR'} el Modo Mantenimiento?\n\nEsto bloqueará el acceso a todos los usuarios excepto Super Admin.`)) return;
+      const { setDoc, doc: d } = await import('firebase/firestore');
+      await setDoc(d(db, 'artifacts', appId, 'public', 'data', 'system_config'), { maintenance: newState }, { merge: true });
+  };
 
   const activarNotificaciones = async () => {
-    if (!("Notification" in window)) {
-        alert("Tu dispositivo no soporta notificaciones.");
-        return;
-    }
-    
-    // Paso 1: Pedir permiso simple
+    if (!("Notification" in window)) { alert("Tu dispositivo no soporta notificaciones."); return; }
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
-        // Intentamos enviar una notificación de prueba local
-        try {
-            new Notification("¡Juntos a la Par!", { 
-                body: "Notificaciones activadas correctamente en este dispositivo.",
-                icon: '/icon-192.png'
-            });
-        } catch (e) {
-            console.log("Notificación nativa enviada.");
-        }
-        
-        // Paso 2: Intentamos conectar con Firebase
+        try { new Notification("¡Juntos a la Par!", { body: "Notificaciones activadas.", icon: '/icon-192.png' }); } catch (e) {}
         try {
             const { getMessaging, getToken } = await import("firebase/messaging");
             const messaging = getMessaging();
             const token = await getToken(messaging, { vapidKey: 'BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw' });
-            if (token) {
-                 const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-                 await updateDoc(userRef, { fcmTokens: arrayUnion(token) });
-            }
-        } catch (error) {
-            console.log("Firebase Messaging no disponible, pero las locales funcionarán.");
-        }
+            if (token) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { fcmTokens: arrayUnion(token) });
+        } catch (error) {}
         alert("✅ Permisos concedidos.");
-    } else {
-        alert("❌ Permiso denegado. Habilitá las notificaciones en la configuración del navegador.");
-    }
+    } else { alert("❌ Permiso denegado."); }
   };
 
   const handleFileChange = async (e) => {
@@ -1323,11 +1034,17 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
         <button onClick={exportData} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]"><div className="bg-green-100 text-green-700 p-3 rounded-xl"><Download size={24} /></div><div className="text-left"><h4 className="font-bold text-gray-800">Exportar Reporte</h4><p className="text-xs text-gray-500">Descargar mis tareas en Excel</p></div></button>
         <button onClick={activarNotificaciones} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]"><div className="bg-yellow-100 text-yellow-700 p-3 rounded-xl"><Bell size={24} /></div><div className="text-left"><h4 className="font-bold text-gray-800">Activar Notificaciones</h4><p className="text-xs text-gray-500">Habilitar avisos en este dispositivo</p></div></button>
         <button onClick={() => { if(confirm("¿Cerrar sesión?")) onLogout(); }} className="bg-red-50 p-4 rounded-2xl border border-red-100 shadow-sm flex items-center gap-4 hover:bg-red-100 transition active:scale-[0.98]"><div className="bg-white text-red-500 p-3 rounded-xl"><LogOut size={24} /></div><div className="text-left"><h4 className="font-bold text-red-600">Cerrar Sesión</h4><p className="text-xs text-red-400">Salir de la cuenta segura</p></div></button>
+        
+        {/* BOTÓN MODO MANTENIMIENTO */}
+        {isSuperAdmin && (
+            <button onClick={toggleMaintenance} className={`p-4 rounded-2xl shadow-xl flex items-center gap-4 hover:scale-[1.02] transition text-white border mt-4 ${maintenance ? 'bg-red-600 border-red-800 animate-pulse' : 'bg-gray-800 border-gray-900'}`}>
+                <div className="bg-white/20 p-3 rounded-xl"><Settings size={24} /></div>
+                <div className="text-left"><h4 className="font-bold">{maintenance ? 'DESACTIVAR MANTENIMIENTO' : 'ACTIVAR MANTENIMIENTO'}</h4><p className="text-xs opacity-80">{maintenance ? 'El sistema está BLOQUEADO' : 'Bloquear acceso a usuarios'}</p></div>
+            </button>
+        )}
       </div>
       
-      <div className="mt-10 pt-6 border-t border-gray-100 opacity-50 pb-10">
-          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[4px]">Creado por <a href="https://www.somosnomade.com.ar" target="_blank" className="hover:text-violet-600 transition">NOMADE</a></p>
-      </div>
+      <div className="mt-10 pt-6 border-t border-gray-100 opacity-50 pb-10"><p className="text-[9px] font-bold text-gray-400 uppercase tracking-[4px]">Creado por <a href="https://www.somosnomade.com.ar" target="_blank" className="hover:text-violet-600 transition">NOMADE</a></p></div>
 
       {showAdminUsers && (<div className="fixed inset-0 bg-violet-900/95 z-[200] flex flex-col p-6 animate-in slide-in-from-bottom duration-500 overflow-y-auto"><div className="flex justify-between items-center text-white mb-8"><h2 className="text-2xl font-black uppercase italic tracking-tighter">Administración Personal</h2><button onClick={() => setShowAdminUsers(false)}><X size={32} /></button></div><UsersAdminView /></div>)}
       {showAudit && (<div className="fixed inset-0 bg-gray-900/95 z-[200] flex flex-col p-6 animate-in slide-in-from-bottom duration-500 overflow-y-auto"><div className="flex justify-between items-center text-white mb-8"><h2 className="text-2xl font-black uppercase italic tracking-tighter">Auditoría Institucional</h2><button onClick={() => setShowAudit(false)}><X size={32} /></button></div><ActivityLogView /></div>)}
@@ -1335,7 +1052,7 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
   );
 }
 
-// --- VISTA ADMINISTRACIÓN DE USUARIOS (TU VERSIÓN + ROLES NUEVOS) ---
+// --- VISTA ADMINISTRACIÓN DE USUARIOS (PARCHADA: ROLES NUEVOS) ---
 function UsersAdminView() {
   const [users, setUsers] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -1343,8 +1060,6 @@ function UsersAdminView() {
   const [showRenamer, setShowRenamer] = useState(false);
   const [editingUser, setEditingUser] = useState(null); 
   const [searchTerm, setSearchTerm] = useState('');
-
-  // Estados dummy
   const [csvContent, setCsvContent] = useState('');
   const [importing, setImporting] = useState(false);
 
@@ -1403,7 +1118,6 @@ function UsersAdminView() {
             <Search className="text-white/50 ml-2" size={16} />
             <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar..." className="bg-transparent border-none outline-none text-white text-xs w-full placeholder-white/30" />
         </div>
-        
         <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
              <button onClick={analizarConflictos} className="whitespace-nowrap px-3 py-1.5 bg-violet-600/50 border border-violet-400 text-white rounded-lg text-[10px] font-bold uppercase flex-shrink-0">🕵️ Detective</button>
              <button onClick={()=>setShowRenamer(true)} className="whitespace-nowrap px-3 py-1.5 bg-blue-600/50 border border-blue-400 text-white rounded-lg text-[10px] font-bold uppercase flex-shrink-0">🔄 Reemplazar</button>
@@ -1434,7 +1148,6 @@ function UsersAdminView() {
       ))}
     </div>
 
-    {/* MODAL EDICIÓN */}
     {showModal && (
       <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4">
        <form onSubmit={handleSubmit} className="bg-white rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl">
@@ -1443,7 +1156,7 @@ function UsersAdminView() {
         <input name="username" defaultValue={editingUser?.username} placeholder="Usuario" className="w-full p-2 bg-gray-50 rounded-lg text-xs border" required/>
         <input name="password" defaultValue={editingUser?.password} placeholder="Contraseña" className="w-full p-2 bg-gray-50 rounded-lg text-xs border" required/>
         
-        {/* 🔥 AQUÍ ESTÁ LA ACTUALIZACIÓN: USA LOS ROLES GLOBALES 🔥 */}
+        {/* CORRECCIÓN: USA LA LISTA GLOBAL ROLES */}
         <select name="role" defaultValue={editingUser?.role || 'Docente'} className="w-full p-2 bg-gray-50 rounded-lg text-xs border">
             {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
         </select>
@@ -2059,102 +1772,68 @@ function MatriculaView({ user }) {
     </div>
   );
 }
-// --- APP PRINCIPAL (OPTIMIZADA PARA ROTACIÓN Y RESPONSIVE) ---
+// --- APP PRINCIPAL (PARCHADA: PANTALLA DE MANTENIMIENTO) ---
 function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
-  
-  // Datos
   const [tasks, setTasks] = useState([]);
   const [events, setEvents] = useState([]);
   const [resources, setResources] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
-  
-  // Estados de Interfaz
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [globalViewingStudent, setGlobalViewingStudent] = useState(null);
-  
-  // Estado para el popup de pedir notificaciones
   const [showNotifRequest, setShowNotifRequest] = useState(false);
+  
+  // ESTADO MANTENIMIENTO
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
 
   const prevNotifCount = useRef(0);
   const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin'; 
   const canManageContent = user.rol === 'admin' || isSuperAdmin || user.role === 'Equipo Directivo';
-  
-  // Responsive: Define si la vista es ancha (oculta barras laterales en dashboard)
   const isWideTab = ['groups', 'calendar', 'matricula', 'resources', 'users'].includes(activeTab);
 
   useEffect(() => {
     if (user?.id) updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { lastLogin: serverTimestamp() }).catch(()=>{});
-
     const unsubTasks = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('dueDate', 'asc')), (snap) => setTasks(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const unsubEvents = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc')), (snap) => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const unsubResources = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc')), (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    const unsubAnnounce = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc')), (snap) => setAnnouncements(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     
+    // LISTENER MANTENIMIENTO
+    const unsubMaint = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'system_config'), (doc) => { setMaintenanceMode(doc.exists() ? doc.data().maintenance : false); });
+
     const qNotifs = query(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), where('toUserId', '==', user.id));
     const unsubNotifs = onSnapshot(qNotifs, (snap) => { 
-        const d = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
-        d.sort((a,b)=> (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)); 
-        const unread = d.filter(n=>!n.read);
-        setNotifications(unread);
-
-        if (unread.length > prevNotifCount.current) {
-            const latest = unread[0];
-            if (latest) {
-                if ("Notification" in window && Notification.permission === "granted") {
-                    new Notification(`🔔 ${latest.title}`, { body: latest.message, icon: LOGO_URL });
-                }
-                try { new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play().catch(()=>{}); } catch(e){}
-            }
-        }
+        const d = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); d.sort((a,b)=> (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)); 
+        const unread = d.filter(n=>!n.read); setNotifications(unread);
+        if (unread.length > prevNotifCount.current) { const latest = unread[0]; if (latest) { if ("Notification" in window && Notification.permission === "granted") { new Notification(`🔔 ${latest.title}`, { body: latest.message, icon: LOGO_URL }); } try { new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play().catch(()=>{}); } catch(e){} } }
         prevNotifCount.current = unread.length;
     });
-
-    if ("Notification" in window && Notification.permission === 'default') {
-        setTimeout(() => setShowNotifRequest(true), 3000);
-    }
-
-    return () => { unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); };
+    if ("Notification" in window && Notification.permission === 'default') setTimeout(() => setShowNotifRequest(true), 3000);
+    return () => { unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); unsubAnnounce(); unsubMaint(); };
   }, [user.id]);
 
   const handleGlobalSearch = async (text) => { setSearchQuery(text); if (text.length < 2) { setSearchResults([]); return; } const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students')); const s = await getDocs(q); const r = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(s => (s.isActive===undefined || s.isActive) && (s.firstName.toLowerCase().includes(text.toLowerCase()) || s.lastName.toLowerCase().includes(text.toLowerCase()))); setSearchResults(r.slice(0, 5)); };
   const handleNotificationClick = async (n) => { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', n.id)); if (n.targetTab) setActiveTab(n.targetTab); setShowNotifPanel(false); };
   const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
+  const enableNotifications = async () => { const permission = await Notification.requestPermission(); if (permission === 'granted') { try { const { getMessaging, getToken } = await import("firebase/messaging"); const messaging = getMessaging(); const token = await getToken(messaging, { vapidKey: 'BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw' }); if(token) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { fcmTokens: arrayUnion(token) }); } catch(e) {} alert("✅ ¡Genial! Te avisaremos de las novedades."); } setShowNotifRequest(false); };
 
-  const enableNotifications = async () => {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-          try {
-             const { getMessaging, getToken } = await import("firebase/messaging");
-             const messaging = getMessaging();
-             const token = await getToken(messaging, { vapidKey: 'BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw' });
-             if(token) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { fcmTokens: arrayUnion(token) });
-          } catch(e) {}
-          alert("✅ ¡Genial! Te avisaremos de las novedades.");
-      }
-      setShowNotifRequest(false);
-  };
+  // PANTALLA DE BLOQUEO POR MANTENIMIENTO
+  if (maintenanceMode && user.rol !== 'super-admin') {
+      return (<div className="flex flex-col h-screen w-full bg-violet-900 items-center justify-center p-6 text-center text-white animate-in fade-in duration-1000"><div className="bg-white/10 p-6 rounded-full mb-6 animate-bounce"><Settings size={64} className="text-orange-400"/></div><h1 className="text-3xl font-black uppercase italic mb-2">¡Estamos en Obra! 🚧</h1><p className="text-lg font-medium opacity-80 max-w-xs mx-auto mb-8">Estamos ajustando unas tuercas en la App. Volvemos en unos minutos.</p><div className="bg-orange-500 text-white px-6 py-2 rounded-full font-bold text-sm transform rotate-[-2deg] shadow-lg">"No rompo, mejoro" - El Desarrollador</div><button onClick={() => window.location.reload()} className="mt-10 text-white/50 text-xs hover:text-white flex items-center gap-2"><RefreshCw size={12}/> Probar si ya volvió</button></div>);
+  }
 
   return (
-    // CAMBIO CLAVE: h-[100dvh] se adapta mejor al giro de pantalla en móviles que h-screen
     <div className="flex flex-col h-[100dvh] w-full bg-gray-50 font-sans text-slate-800 overflow-hidden">
       <style>{` *::-webkit-scrollbar { display: none; } * { -ms-overflow-style: none; scrollbar-width: none; } `}</style>
-      
-      {/* HEADER */}
       <header className="bg-violet-800 text-white shadow-lg px-4 py-3 flex justify-between items-center z-50 sticky top-0 shrink-0">
         <div className="flex items-center space-x-3"><img src={LOGO_URL} alt="Logo" className="w-10 h-8 object-contain" /><div><h1 className="font-bold text-sm leading-tight">Juntos a la Par</h1><p className="text-[10px] text-orange-200 uppercase font-bold">{user.firstName}</p></div></div>
-        <div className="flex items-center gap-3">
-          <button onClick={() => setShowSearch(true)} className="p-2 rounded-full bg-violet-900/50 hover:bg-orange-500 transition"><Search size={20} /></button>
-          <div className="relative"><button onClick={() => setShowNotifPanel(!showNotifPanel)} className={`p-2 rounded-full transition ${showNotifPanel ? 'bg-orange-500' : 'bg-violet-900/50'}`}><Bell size={20} />{notifications.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-pulse border border-white">{notifications.length}</span>}</button>{showNotifPanel && (<div className="absolute right-0 mt-3 w-72 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[100]"><div className="p-4 bg-violet-50 border-b flex justify-between items-center"><h3 className="font-bold text-violet-900 text-sm">Avisos</h3><button onClick={() => setShowNotifPanel(false)}><X size={16} className="text-gray-400"/></button></div><div className="max-h-80 overflow-y-auto">{notifications.length===0?<div className="p-10 text-center text-gray-400"><p className="text-xs font-bold uppercase">Sin novedades</p></div>:notifications.map(n=>(<div key={n.id} onClick={()=>handleNotificationClick(n)} className="p-4 border-b hover:bg-gray-50 cursor-pointer"><p className="text-[10px] font-bold text-orange-600 mb-1 uppercase">{n.title}</p><p className="text-xs text-gray-700">{n.message}</p></div>))}</div></div>)}</div>
-          <div onClick={() => {setActiveTab('profile'); setShowNotifPanel(false);}} className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold border-2 border-orange-400 overflow-hidden cursor-pointer active:scale-95 transition">{user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover" /> : user.firstName?.[0]}</div>
-        </div>
+        <div className="flex items-center gap-3"><button onClick={() => setShowSearch(true)} className="p-2 rounded-full bg-violet-900/50 hover:bg-orange-500 transition"><Search size={20} /></button><div className="relative"><button onClick={() => setShowNotifPanel(!showNotifPanel)} className={`p-2 rounded-full transition ${showNotifPanel ? 'bg-orange-500' : 'bg-violet-900/50'}`}><Bell size={20} />{notifications.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-pulse border border-white">{notifications.length}</span>}</button>{showNotifPanel && (<div className="absolute right-0 mt-3 w-72 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[100]"><div className="p-4 bg-violet-50 border-b flex justify-between items-center"><h3 className="font-bold text-violet-900 text-sm">Avisos</h3><button onClick={() => setShowNotifPanel(false)}><X size={16} className="text-gray-400"/></button></div><div className="max-h-80 overflow-y-auto">{notifications.length===0?<div className="p-10 text-center text-gray-400"><p className="text-xs font-bold uppercase">Sin novedades</p></div>:notifications.map(n=>(<div key={n.id} onClick={()=>handleNotificationClick(n)} className="p-4 border-b hover:bg-gray-50 cursor-pointer"><p className="text-[10px] font-bold text-orange-600 mb-1 uppercase">{n.title}</p><p className="text-xs text-gray-700">{n.message}</p></div>))}</div></div>)}</div><div onClick={() => {setActiveTab('profile'); setShowNotifPanel(false);}} className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold border-2 border-orange-400 overflow-hidden cursor-pointer active:scale-95 transition">{user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover" /> : user.firstName?.[0]}</div></div>
       </header>
-
-      {/* MAIN CONTENT (Responsive Padding) */}
       <main className={`flex-1 overflow-y-auto no-scrollbar pb-24 pt-6 mx-auto w-full transition-all duration-300 ${isWideTab ? 'px-2 max-w-[98%]' : 'px-4 max-w-4xl'}`}>
         {activeTab === 'dashboard' && <DashboardView user={user} tasks={tasks} events={events} announcements={announcements} setActiveTab={setActiveTab} />}
         {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
@@ -2167,8 +1846,6 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'users' && isSuperAdmin && <UsersAdminView />}
         {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={isSuperAdmin} user={user} />}
       </main>
-
-      {/* NAVBAR */}
       <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-16 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] pb-safe shrink-0">
         <div className="grid grid-cols-5 md:grid-cols-7 h-full max-w-5xl mx-auto px-2 relative">
           <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Inicio" />
@@ -2179,63 +1856,37 @@ function MainApp({ user, onLogout }) {
           <div className="hidden md:block"><NavButton active={activeTab === 'matricula'} onClick={() => setActiveTab('matricula')} icon={<GraduationCap size={20} />} label="Legajos" /></div>
           <div className="hidden md:block"><NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<LinkIcon size={20} />} label="Recursos" /></div>
           <div className="hidden md:block"><NavButton active={activeTab === 'proyecto'} onClick={() => setActiveTab('proyecto')} icon={<PieChart size={20} />} label="P.I." /></div>
-          <div className="relative block md:hidden"><NavButton active={['matricula', 'resources', 'proyecto'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={20} />} label="Más" />
-            {showMoreMenu && (<div className="absolute bottom-16 right-0 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 w-48 animate-in slide-in-from-bottom-5 zoom-in-95 origin-bottom-right z-50"><button onClick={() => { setActiveTab('matricula'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><GraduationCap size={18} className="text-violet-500"/> Legajos</button><button onClick={() => { setActiveTab('resources'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><LinkIcon size={18} className="text-green-500"/> Recursos</button><button onClick={() => { setActiveTab('proyecto'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><PieChart size={18} className="text-orange-500"/> Proyecto Inst.</button></div>)}
-          </div>
+          <div className="relative block md:hidden"><NavButton active={['matricula', 'resources', 'proyecto'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={20} />} label="Más" />{showMoreMenu && (<div className="absolute bottom-16 right-0 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 w-48 animate-in slide-in-from-bottom-5 zoom-in-95 origin-bottom-right z-50"><button onClick={() => { setActiveTab('matricula'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><GraduationCap size={18} className="text-violet-500"/> Legajos</button><button onClick={() => { setActiveTab('resources'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><LinkIcon size={18} className="text-green-500"/> Recursos</button><button onClick={() => { setActiveTab('proyecto'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><PieChart size={18} className="text-orange-500"/> Proyecto Inst.</button></div>)}</div>
         </div>
       </nav>
       {showSearch && ( <div className="fixed inset-0 bg-violet-900/90 z-[300] flex flex-col p-4 backdrop-blur-md animate-in fade-in"><div className="flex justify-between items-center text-white mb-4"><h3 className="font-black italic uppercase">Buscador Rápido</h3><button onClick={() => {setShowSearch(false); setSearchQuery(''); setSearchResults([]);}} className="p-2 bg-white/20 rounded-full"><X/></button></div><input autoFocus value={searchQuery} onChange={(e) => handleGlobalSearch(e.target.value)} placeholder="Escribí un nombre o apellido..." className="w-full p-4 rounded-2xl bg-white text-lg font-bold text-gray-800 outline-none shadow-xl mb-4"/><div className="flex-1 overflow-y-auto space-y-2">{searchResults.map(s => (<div key={s.id} onClick={() => setGlobalViewingStudent(s)} className="bg-white p-3 rounded-xl flex items-center gap-3 active:scale-95 transition cursor-pointer"><div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center font-bold text-gray-400">{s.firstName[0]}</div>}</div><div><p className="font-bold text-gray-800 text-sm">{s.lastName}, {s.firstName}</p><p className="text-[10px] text-gray-500">{s.level} • {s.groupMorning || s.groupAfternoon || 'Sin Grupo'}</p></div></div>))}{searchQuery.length > 2 && searchResults.length === 0 && <p className="text-white/50 text-center mt-4">No se encontraron resultados.</p>}</div></div> )}
       {globalViewingStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[350] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95"><div className="bg-violet-600 p-4 text-white flex justify-between items-center"><h3 className="font-bold text-lg">{globalViewingStudent.lastName}, {globalViewingStudent.firstName}</h3><button onClick={() => setGlobalViewingStudent(null)}><X/></button></div><div className="p-6"><div className="flex gap-4 items-center mb-4"><div className="w-20 h-20 bg-gray-200 rounded-2xl overflow-hidden">{globalViewingStudent.photoUrl && <img src={globalViewingStudent.photoUrl} className="w-full h-full object-cover"/>}</div><div><p className="text-sm font-bold text-gray-600">Edad: {calculateAge(globalViewingStudent.birthDate)} años</p><p className="text-sm font-bold text-gray-600">DNI: {globalViewingStudent.dni}</p><p className="text-xs text-orange-500 font-bold mt-1 uppercase">{globalViewingStudent.dx}</p></div></div><button onClick={() => { setActiveTab('matricula'); setShowSearch(false); setGlobalViewingStudent(null); alert("Te llevamos a la sección Legajos. Buscalo ahí para editar."); }} className="w-full bg-violet-100 text-violet-700 py-3 rounded-xl font-bold text-xs uppercase hover:bg-violet-200 transition">Ir a Legajo Completo</button></div></div></div>)}
-      
-      {/* POPUP DE NOTIFICACIONES */}
-      {showNotifRequest && (
-          <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in">
-              <div className="bg-white rounded-[30px] p-6 w-full max-w-sm shadow-2xl text-center border-t-8 border-orange-500">
-                  <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
-                      <Bell size={32} className="text-orange-500"/>
-                  </div>
-                  <h3 className="text-xl font-black text-gray-800 mb-2">¡No te pierdas nada!</h3>
-                  <p className="text-sm text-gray-500 mb-6">Activa las notificaciones para saber cuando tienes una tarea nueva o un aviso urgente.</p>
-                  <div className="flex flex-col gap-3">
-                      <button onClick={enableNotifications} className="w-full bg-violet-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-violet-700 transition">ACTIVAR AHORA</button>
-                      <button onClick={() => setShowNotifRequest(false)} className="text-gray-400 text-xs font-bold uppercase hover:text-gray-600">Ahora no</button>
-                  </div>
-              </div>
-          </div>
-      )}
+      {showNotifRequest && (<div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in"><div className="bg-white rounded-[30px] p-6 w-full max-w-sm shadow-2xl text-center border-t-8 border-orange-500"><div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce"><Bell size={32} className="text-orange-500"/></div><h3 className="text-xl font-black text-gray-800 mb-2">¡No te pierdas nada!</h3><p className="text-sm text-gray-500 mb-6">Activa las notificaciones para saber cuando tienes una tarea nueva o un aviso urgente.</p><div className="flex flex-col gap-3"><button onClick={enableNotifications} className="w-full bg-violet-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-violet-700 transition">ACTIVAR AHORA</button><button onClick={() => setShowNotifRequest(false)} className="text-gray-400 text-xs font-bold uppercase hover:text-gray-600">Ahora no</button></div></div></div>)}
     </div>
   );
 }
 
-// --- VISTA AULA (FINAL: FILTROS VISUALES SEDE/INCLUSIÓN) ---
+// --- VISTA AULA (PARCHADA: BITÁCORA TEXTO + IMPRESIÓN + POPUPS) ---
 function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
   const [turn, setTurn] = useState('morning'); 
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [showBitacoraModal, setShowBitacoraModal] = useState(null); 
-  const [savingIncident, setSavingIncident] = useState(false);
   const [activeTab, setActiveTab] = useState('info');
   
-  const [editingGroup, setEditingGroup] = useState(null);
-  const [groupStats, setGroupStats] = useState(null); 
-  const [updatingGroup, setUpdatingGroup] = useState(false);
+  // ESTADOS NUEVOS
+  const [newNote, setNewNote] = useState("");
+  const [isWriting, setIsWriting] = useState(false);
 
-  // NUEVO: Filtro visual para directivos (Para no ver todo mezclado)
-  const [viewFilter, setViewFilter] = useState('all'); // 'all', 'sede', 'inclusion'
+  const [editingGroup, setEditingGroup] = useState(null);
+  const [viewFilter, setViewFilter] = useState('all'); 
+  const [groupStats, setGroupStats] = useState(null);
+  const [updatingGroup, setUpdatingGroup] = useState(false);
+  const [savingIncident, setSavingIncident] = useState(false);
 
   const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración', 'Dirección Inclusión', 'Equipo Técnico Inclusión'].includes(user.role) || user.rol === 'admin';
   const isStrategic = ['super-admin', 'admin', 'Equipo Directivo', 'Equipo Técnico', 'Dirección Inclusión', 'Equipo Técnico Inclusión'].includes(user.role);
-  
-  // REFERENCIA PARA SCROLL
-  const scrollContainerRef = useRef(null);
-  const scroll = (direction) => {
-      if (scrollContainerRef.current) {
-          const scrollAmount = 350;
-          scrollContainerRef.current.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
-      }
-  };
-
   const LOGO_URL = "/icon-192.png";
 
   const INCIDENT_TYPES = [
@@ -2262,203 +1913,113 @@ function GroupsView({ user }) {
     return () => { unsubS(); unsubU(); };
   }, []);
 
-  const staffOptions = usersList.filter(u => ['Docente', 'Auxiliar/Preceptor', 'Equipo Técnico', 'Profes Especiales', 'DAI', 'Inclusión'].includes(u.role));
-  const techOptions = usersList.filter(u => u.role === 'Equipo Técnico' || u.role === 'Equipo Técnico Inclusión');
-
   const groupedData = students.reduce((acc, s) => {
-      let groupKey = "";
-      let myTeacher = "";
-      
-      // AGRUPACIÓN INTELIGENTE
-      if (s.modality === 'Inclusión') {
-          const daiName = turn === 'morning' ? s.daiMorning : s.daiAfternoon;
-          if (!daiName) return acc; 
-          groupKey = `DAI: ${daiName}`;
-          myTeacher = daiName;
-      } else {
-          const groupName = turn === 'morning' ? s.groupMorning : s.groupAfternoon;
-          if (!groupName) return acc;
-          groupKey = groupName.trim();
-          myTeacher = turn === 'morning' ? s.teacherMorning : s.teacherAfternoon;
-      }
-
-      if (!acc[groupKey]) { 
-          acc[groupKey] = { 
-              name: groupKey, 
-              students: [], 
-              teacher: myTeacher, 
-              aux: turn === 'morning' ? s.auxMorning : s.auxAfternoon, 
-              sup1: turn === 'morning' ? s.sup1Morning : s.sup1Afternoon, 
-              sup2: turn === 'morning' ? s.sup2Morning : s.sup2Afternoon,
-              classroom: s.classroom, 
-              driveLink: turn === 'morning' ? s.driveLinkMorning : s.driveLinkAfternoon,
-              level: s.level,
-              isInclusionGroup: s.modality === 'Inclusión' 
-          }; 
-      }
-      acc[groupKey].students.push(s);
-      return acc;
+      let groupKey = ""; let myTeacher = "";
+      if (s.modality === 'Inclusión') { const daiName = turn === 'morning' ? s.daiMorning : s.daiAfternoon; if (!daiName) return acc; groupKey = `DAI: ${daiName}`; myTeacher = daiName; } 
+      else { const groupName = turn === 'morning' ? s.groupMorning : s.groupAfternoon; if (!groupName) return acc; groupKey = groupName.trim(); myTeacher = turn === 'morning' ? s.teacherMorning : s.teacherAfternoon; }
+      if (!acc[groupKey]) acc[groupKey] = { name: groupKey, students: [], teacher: myTeacher, isInclusionGroup: s.modality === 'Inclusión' }; 
+      acc[groupKey].students.push(s); return acc;
   }, {});
 
   let groups = Object.values(groupedData).sort((a, b) => a.name.localeCompare(b.name));
 
-  // FILTRO 1: SEGURIDAD (Si no es management, solo ve lo suyo)
   if (!isManagement) {
       const myName = (user.fullName || "").toLowerCase();
-      groups = groups.filter(g => {
-          if ((g.teacher || "").toLowerCase().includes(myName)) return true;
-          if ((g.aux || "").toLowerCase().includes(myName)) return true;
-          return g.students.some(s => {
-             const t = turn === 'morning' ? s.teacherMorning : s.teacherAfternoon;
-             const dai = turn === 'morning' ? s.daiMorning : s.daiAfternoon;
-             return (t || "").toLowerCase().includes(myName) || (dai || "").toLowerCase().includes(myName);
-          });
-      });
+      groups = groups.filter(g => (g.teacher || "").toLowerCase().includes(myName));
   }
-
-  // FILTRO 2: VISUAL (Para que el Equipo Técnico no vea todo mezclado si no quiere)
   if (viewFilter !== 'all') {
       groups = groups.filter(g => viewFilter === 'inclusion' ? g.isInclusionGroup : !g.isInclusionGroup);
   }
 
-  // --- HANDLERS (Igual que antes) ---
   const handlePrintSingleGroup = (g) => {
-    const printWindow = window.open('', '_blank'); if (!printWindow) return alert("Pop-ups bloqueados");
-    const turnoTexto = turn === 'morning' ? 'MAÑANA' : 'TARDE';
-    const sortedStudents = [...g.students].sort((a,b) => a.lastName.localeCompare(b.lastName));
-    let content = `<!DOCTYPE html><html><head><title>Lista ${g.name}</title><style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');*{print-color-adjust:exact!important;}body{font-family:'Roboto',sans-serif;padding:40px;color:#333;}.header{border-bottom:4px solid #7c3aed;padding-bottom:20px;margin-bottom:30px;display:flex;justify-content:space-between;align-items:center;}.title{font-size:28px;font-weight:900;color:#4c1d95;text-transform:uppercase;margin:0;}.subtitle{font-size:14px;font-weight:bold;color:#666;margin-top:5px;text-transform:uppercase;}.info-card{background-color:#f3f4f6;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:25px;display:flex;justify-content:space-between;font-size:12px;}.info-col strong{color:#7c3aed;text-transform:uppercase;font-size:10px;display:block;margin-bottom:2px;}table{width:100%;border-collapse:collapse;font-size:12px;}thead tr{background-color:#7c3aed!important;color:white!important;}th{padding:12px 8px;text-align:left;text-transform:uppercase;font-size:10px;}td{border-bottom:1px solid #e5e7eb;padding:10px 8px;}tr:nth-child(even){background-color:#f9fafb!important;}</style></head><body><div class="header"><div><h1 class="title">${g.isInclusionGroup ? 'Grupo Inclusión' : 'Grupo Sede'}</h1><p class="subtitle">${g.name}</p></div><img src="${LOGO_URL}" style="height:50px;opacity:0.8;"/></div><div class="info-card"><div class="info-col"><strong>Responsable</strong><p>${g.teacher||'Sin asignar'}</p></div><div class="info-col" style="text-align:right;"><strong>Cant. Alumnos</strong><p>${g.students.length}</p></div></div><table><thead><tr><th style="width:40px;">#</th><th>Apellido y Nombre</th><th>DNI</th><th>Info Extra</th></tr></thead><tbody>`;
-    sortedStudents.forEach((s, i) => { const extra = s.modality === 'Inclusión' ? `Esc. ${s.originSchool} (${s.originGrade})` : `Edad: ${calculateAge(s.birthDate)}`; content += `<tr><td style="color:#7c3aed;font-weight:bold;">${i+1}</td><td><span style="font-weight:900;text-transform:uppercase;">${s.lastName}</span>, ${s.firstName}</td><td>${s.dni||'-'}</td><td><strong>${extra}</strong></td></tr>`; });
-    content += `</tbody></table></body></html>`;
-    printWindow.document.write(content); printWindow.document.close(); setTimeout(() => { printWindow.focus(); printWindow.print(); }, 500);
+      const w = window.open('', '_blank'); if (!w) return alert("Permitir Pop-ups");
+      const sorted = [...g.students].sort((a,b) => a.lastName.localeCompare(b.lastName));
+      const formatDate = (d) => { if(!d) return '-'; try { return new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('es-AR'); } catch(e) { return d; } };
+      let rows = sorted.map((s, i) => { const flia = `M: ${s.motherName||'-'} (${s.motherContact||'-'}) / P: ${s.fatherName||'-'} (${s.fatherContact||'-'})`; return `<tr><td style="text-align:center">${i+1}</td><td><b>${s.lastName}, ${s.firstName}</b></td><td>${s.dni||'-'}</td><td>${formatDate(s.birthDate)}</td><td style="font-size:9px">${flia}</td></tr>`; }).join('');
+      let html = `<html><head><title>Lista ${g.name}</title><style>body{font-family:Arial,sans-serif;padding:20px;font-size:11px}table{width:100%;border-collapse:collapse;margin-top:10px}th{background:#f3e8ff;color:#4c1d95;padding:8px;border:1px solid #ccc;font-size:9px}td{padding:6px;border:1px solid #ccc}tr:nth-child(even){background:#f9fafb}.header{border-bottom:2px solid #6d28d9;padding-bottom:10px;margin-bottom:15px;display:flex;justify-content:space-between}h1{margin:0;color:#4c1d95}</style></head><body><div class="header"><div><h1>Lista: ${g.name}</h1><span>Docente: ${g.teacher||'-'} | Cant: ${g.students.length}</span></div><img src="${LOGO_URL}" height="40"/></div><table><thead><tr><th width="5%">#</th><th width="25%">Alumno</th><th width="10%">DNI</th><th width="10%">Nacimiento</th><th>Familia</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
+      w.document.write(html); w.document.close(); setTimeout(() => w.print(), 500);
   };
-  const handleUpdateGroup = async (e) => {
-      e.preventDefault(); if (!editingGroup) return; 
-      if (editingGroup.isInclusionGroup && !confirm("⚠️ Estás editando un grupo de INCLUSIÓN. Esto cambiará el DAI asignado a todos estos alumnos.")) return;
-      setUpdatingGroup(true); const fd = new FormData(e.target); const updates = {};
-      if (editingGroup.isInclusionGroup) { if (turn === 'morning') updates.daiMorning = fd.get('teacher'); else updates.daiAfternoon = fd.get('teacher'); } 
-      else { if (turn === 'morning') { updates.teacherMorning = fd.get('teacher'); updates.auxMorning = fd.get('aux'); updates.sup1Morning = fd.get('sup1'); updates.sup2Morning = fd.get('sup2'); updates.groupMorning = fd.get('groupName'); } else { updates.teacherAfternoon = fd.get('teacher'); updates.auxAfternoon = fd.get('aux'); updates.sup1Afternoon = fd.get('sup1'); updates.sup2Afternoon = fd.get('sup2'); updates.groupAfternoon = fd.get('groupName'); } updates.classroom = fd.get('classroom'); }
-      updates.driveLink = fd.get('driveLink'); 
-      try { const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)); await Promise.all(promises); alert("✅ Actualizado."); setEditingGroup(null); } catch (err) { alert(err.message); } finally { setUpdatingGroup(false); }
+  
+  const handlePrintAll = () => {
+    // IMPRESIÓN MASIVA REAL (TIPO EXCEL)
+    const w = window.open('', '_blank'); if (!w) return alert("Permitir Pop-ups");
+    let fullHtml = `<html><head><title>Listado General</title><style>body{font-family:Arial,sans-serif;padding:20px;font-size:10px}h2{color:#4c1d95;border-bottom:2px solid #ddd;padding-bottom:5px;margin-top:20px}table{width:100%;border-collapse:collapse;margin-bottom:10px}th{background:#f3e8ff;padding:5px;border:1px solid #ccc}td{padding:4px;border:1px solid #ccc}</style></head><body><h1>Listado General de Grupos</h1>`;
+    
+    groups.forEach(g => {
+        const sorted = [...g.students].sort((a,b) => a.lastName.localeCompare(b.lastName));
+        fullHtml += `<h2>${g.name} (${g.teacher || 'Sin Asignar'})</h2><table><thead><tr><th>#</th><th>Alumno</th><th>DNI</th><th>Nacimiento</th></tr></thead><tbody>`;
+        sorted.forEach((s, i) => {
+             fullHtml += `<tr><td>${i+1}</td><td>${s.lastName}, ${s.firstName}</td><td>${s.dni}</td><td>${new Date(s.birthDate+'T00:00:00').toLocaleDateString()}</td></tr>`;
+        });
+        fullHtml += `</tbody></table>`;
+    });
+    fullHtml += `</body></html>`;
+    w.document.write(fullHtml); w.document.close(); setTimeout(() => w.print(), 1000);
+  };
+
+  const addIncident = async (type, text = "") => {
+      if (!showBitacoraModal) return;
+      const newInc = { date: new Date().toISOString(), type: text ? "Nota" : type, severity: type, text: text || type, author: user.firstName };
+      try {
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id), { incidents: arrayUnion(newInc) });
+          setStudents(prev => prev.map(s => s.id === showBitacoraModal.id ? {...s, incidents: [...(s.incidents||[]), newInc]} : s));
+          setNewNote(""); setIsWriting(false); setShowBitacoraModal(null);
+          alert("✅ Guardado en bitácora.");
+      } catch (e) { alert(e.message); }
   };
   const handleSaveIncident = async (type, severity) => { if (!showBitacoraModal) return; setSavingIncident(true); try { const incidentData = { type, severity, date: new Date().toISOString(), author: user.fullName || user.firstName, authorId: user.id }; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id), { incidents: arrayUnion(incidentData) }); alert("✅ Registro guardado"); setShowBitacoraModal(null); } catch (e) { console.error(e); } finally { setSavingIncident(false); } };
   const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
-  const handlePrintAll = () => { alert("Función de impresión masiva en desarrollo."); };
+  const handleUpdateGroup = async (e) => { e.preventDefault(); if (!editingGroup) return; if (editingGroup.isInclusionGroup && !confirm("⚠️ Estás editando un grupo de INCLUSIÓN. Esto cambiará el DAI asignado a todos estos alumnos.")) return; setUpdatingGroup(true); const fd = new FormData(e.target); const updates = {}; if (editingGroup.isInclusionGroup) { if (turn === 'morning') updates.daiMorning = fd.get('teacher'); else updates.daiAfternoon = fd.get('teacher'); } else { if (turn === 'morning') { updates.teacherMorning = fd.get('teacher'); updates.auxMorning = fd.get('aux'); updates.sup1Morning = fd.get('sup1'); updates.sup2Morning = fd.get('sup2'); updates.groupMorning = fd.get('groupName'); } else { updates.teacherAfternoon = fd.get('teacher'); updates.auxAfternoon = fd.get('aux'); updates.sup1Afternoon = fd.get('sup1'); updates.sup2Afternoon = fd.get('sup2'); updates.groupAfternoon = fd.get('groupName'); } updates.classroom = fd.get('classroom'); } updates.driveLink = fd.get('driveLink'); try { const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)); await Promise.all(promises); alert("✅ Actualizado."); setEditingGroup(null); } catch (err) { alert(err.message); } finally { setUpdatingGroup(false); } };
+  const staffOptions = usersList.filter(u => ['Docente', 'Auxiliar/Preceptor', 'Equipo Técnico', 'Profes Especiales', 'DAI', 'Inclusión'].includes(u.role));
+  const techOptions = usersList.filter(u => u.role === 'Equipo Técnico' || u.role === 'Equipo Técnico Inclusión');
 
   return (
     <div className="flex flex-col h-full bg-slate-100 animate-in fade-in relative">
       <div className="bg-white p-4 shadow-sm z-10 sticky top-0 flex flex-col gap-3">
-          <div className="flex justify-between items-center">
-              <div><h2 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2"><Grid size={24} className="text-orange-500"/> Mis Grupos</h2><p className="text-xs text-gray-400 font-bold uppercase">{isManagement ? "Vista Institucional" : `Espacio Docente`}</p></div>
-              {isManagement && <button onClick={handlePrintAll} className="bg-violet-100 text-violet-700 p-2 rounded-xl shadow-sm hover:bg-violet-200 transition" title="Imprimir Todo"><FileText size={24}/></button>}
-          </div>
-          
-          <div className="flex gap-2">
-              <div className="flex bg-gray-100 p-1 rounded-xl flex-1">
-                  <button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-400'}`}>☀️ Mañana</button>
-                  <button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 Tarde</button>
-              </div>
-
-              {/* FILTRO VISUAL SOLO PARA DIRECTIVOS/TÉCNICOS */}
-              {isManagement && (
-                  <div className="flex bg-gray-100 p-1 rounded-xl">
-                      <button onClick={() => setViewFilter('all')} className={`px-3 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'all' ? 'bg-white shadow text-gray-800' : 'text-gray-400'}`}>Todos</button>
-                      <button onClick={() => setViewFilter('sede')} className={`px-3 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'sede' ? 'bg-white shadow text-blue-600' : 'text-gray-400'}`}>Sede</button>
-                      <button onClick={() => setViewFilter('inclusion')} className={`px-3 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'inclusion' ? 'bg-white shadow text-indigo-600' : 'text-gray-400'}`}>Inclusión</button>
-                  </div>
-              )}
-          </div>
+          <div className="flex justify-between items-center"><div><h2 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2"><Grid size={24} className="text-orange-500"/> Mis Grupos</h2><p className="text-xs text-gray-400 font-bold uppercase">{isManagement ? "Vista Institucional" : `Espacio Docente`}</p></div>{isManagement && <button onClick={handlePrintAll} className="bg-violet-100 text-violet-700 p-2 rounded-xl shadow-sm hover:bg-violet-200 transition" title="Imprimir Todo"><FileText size={24}/></button>}</div>
+          <div className="flex gap-2"><div className="flex bg-gray-100 p-1 rounded-xl flex-1"><button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-400'}`}>☀️ Mañana</button><button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 Tarde</button></div>{isManagement && (<div className="flex bg-gray-100 p-1 rounded-xl"><button onClick={() => setViewFilter('all')} className={`px-3 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'all' ? 'bg-white shadow text-gray-800' : 'text-gray-400'}`}>Todos</button><button onClick={() => setViewFilter('sede')} className={`px-3 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'sede' ? 'bg-white shadow text-blue-600' : 'text-gray-400'}`}>Sede</button><button onClick={() => setViewFilter('inclusion')} className={`px-3 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'inclusion' ? 'bg-white shadow text-indigo-600' : 'text-gray-400'}`}>Inclusión</button></div>)}</div>
       </div>
       
-      {/* BOTONES DE SCROLL LATERAL (SOLO PC) */}
-      <button onClick={() => scroll('left')} className="hidden md:flex absolute left-4 top-1/2 z-20 bg-white/80 hover:bg-white text-violet-600 p-3 rounded-full shadow-xl border border-gray-100 transition transform hover:scale-110"><ChevronLeft size={24}/></button>
-      <button onClick={() => scroll('right')} className="hidden md:flex absolute right-4 top-1/2 z-20 bg-white/80 hover:bg-white text-violet-600 p-3 rounded-full shadow-xl border border-gray-100 transition transform hover:scale-110"><ChevronRight size={24}/></button>
-
-      <div ref={scrollContainerRef} className="flex-1 overflow-x-auto p-6 scroll-smooth">
-        <div className="flex gap-6 h-full md:h-auto items-start">
-            {groups.length === 0 && (<div className="m-auto text-center opacity-50"><LayoutDashboard size={48} className="mx-auto mb-2 text-gray-300"/><p className="font-bold text-gray-400">No hay grupos visibles.</p></div>)} 
-            
+      <div className="flex-1 overflow-x-auto p-6 scroll-smooth"><div className="flex gap-6 h-full md:h-auto items-start">
+            {groups.length === 0 && (<div className="m-auto text-center opacity-50"><p className="font-bold text-gray-400">No hay grupos visibles.</p></div>)} 
             {groups.map((g) => (
                 <div key={g.name} className={`min-w-[280px] w-[300px] flex flex-col h-[calc(100vh-220px)] md:h-fit bg-white rounded-[30px] border shadow-sm relative overflow-hidden group-hover:shadow-md transition shrink-0 ${g.isInclusionGroup ? 'border-indigo-200' : 'border-gray-200'}`}>
                   <div className={`p-4 border-b-4 relative ${g.isInclusionGroup ? 'bg-indigo-50 border-indigo-400' : (turn==='morning'?'border-orange-400 bg-orange-50':'border-indigo-400 bg-indigo-50')}`}>
-                      <div className="absolute top-2 right-2 flex gap-1">
-                          {isStrategic && (<button onClick={()=>setGroupStats(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><PieChart size={14}/></button>)}
-                          {g.driveLink && (<a href={g.driveLink} target="_blank" rel="noopener noreferrer" className="p-2 bg-white/50 hover:bg-white rounded-full text-green-600 shadow-sm transition flex items-center justify-center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg></a>)}
-                          <button onClick={()=>handlePrintSingleGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>
-                          {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"><Edit3 size={14}/></button>}
-                      </div>
-                      
-                      {g.isInclusionGroup ? (
-                          <>
-                              <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">DAI RESPONSABLE</p>
-                              <h3 className="font-black text-indigo-900 text-lg leading-tight">{g.teacher}</h3>
-                          </>
-                      ) : (
-                          <h3 className="font-black text-gray-800 text-lg">{g.name}</h3>
-                      )}
-
-                      <div className="mt-2 text-xs text-gray-500 font-medium space-y-1">
-                          {!g.isInclusionGroup && <p>DOC: <span className="font-bold text-violet-700 uppercase">{g.teacher || 'Sin asignar'}</span></p>}
-                          {g.aux && <p>AUX: <span className="font-bold uppercase">{g.aux}</span></p>}
-                          {(g.sup1 || g.sup2) && <p className="text-violet-600 font-bold truncate">SUP: {g.sup1 || ''} {g.sup2 ? `& ${g.sup2}` : ''}</p>}
-                          {g.classroom && <p className="inline-flex items-center gap-1 bg-white/50 px-2 rounded-md"><StartIcon size={10}/> Aula {g.classroom}</p>}
-                      </div>
+                      <div className="absolute top-2 right-2 flex gap-1">{isStrategic && (<button onClick={()=>setGroupStats(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><PieChart size={14}/></button>)}<button onClick={()=>handlePrintSingleGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>{isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"><Edit3 size={14}/></button>}</div>
+                      <h3 className="font-black text-gray-800 text-lg">{g.name}</h3><p className="text-xs text-gray-500 font-medium mt-1">DOC: <span className="font-bold text-violet-700 uppercase">{g.teacher || 'Sin asignar'}</span></p>
                   </div>
-                  
                   <div className="flex-1 overflow-y-auto md:overflow-visible p-3 space-y-3 bg-gray-50">
                     {g.students.map(s => (
                         <div key={s.id} onClick={() => {setSelectedStudent(s); setActiveTab('info');}} className="bg-white p-3 rounded-2xl shadow-sm flex items-center gap-3 cursor-pointer hover:scale-[1.02] transition">
                             <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden shrink-0 border border-gray-100">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="flex items-center justify-center w-full h-full font-bold text-gray-400">{s.firstName[0]}</div>}</div>
-                            <div>
-                                <h4 className="font-bold text-gray-700 text-sm">{s.firstName} {s.lastName}</h4>
-                                {g.isInclusionGroup && <p className="text-[10px] text-indigo-500 font-bold">Esc. {s.originSchool}</p>}
-                            </div>
-                            <button onClick={(e) => {e.stopPropagation(); setShowBitacoraModal(s);}} className="ml-auto w-8 h-8 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center hover:bg-violet-600 hover:text-white transition">⚡</button>
+                            <div><h4 className="font-bold text-gray-700 text-sm">{s.firstName} {s.lastName}</h4>{g.isInclusionGroup && <p className="text-[10px] text-indigo-500 font-bold">Esc. {s.originSchool}</p>}</div>
+                            <button onClick={(e) => {e.stopPropagation(); setShowBitacoraModal(s); setIsWriting(false); setNewNote("");}} className="ml-auto w-8 h-8 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center hover:bg-violet-600 hover:text-white transition">⚡</button>
                         </div>
                     ))}
                   </div>
-              </div>
+                </div>
             ))}
-        </div>
-      </div>
-      
-      {/* MODALES IGUALES A LA VERSIÓN ANTERIOR... */}
-      {/* Pega aquí los modales groupStats, editingGroup, showBitacoraModal y selectedStudent del código anterior */}
-      {/* ... (Son idénticos a la versión anterior que funcionaba bien, los omito para no exceder caracteres pero deben estar) ... */}
-      {groupStats && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[250] flex items-center justify-center p-4" onClick={() => setGroupStats(null)}>
-              <div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
-                  <div className="flex justify-between items-center mb-6"><div><h3 className="text-xl font-black text-violet-900 uppercase italic">Análisis del Grupo</h3><p className="text-xs text-gray-500 font-bold">{groupStats.name} ({groupStats.students.length} alumnos)</p></div><button onClick={() => setGroupStats(null)}><X/></button></div>
-                  {(() => {
-                      const allIncidents = groupStats.students.flatMap(s => s.incidents || []);
-                      if (allIncidents.length === 0) return <p className="text-center text-gray-400 italic">No hay registros en la bitácora aún.</p>;
-                      const dimensions = { 'Pedagógico/Social': 0, 'Salud y Bienestar': 0, 'Conducta': 0, 'Rutina': 0 };
-                      const tagsCount = {};
-                      allIncidents.forEach(inc => {
-                          const type = inc.type;
-                          tagsCount[type] = (tagsCount[type] || 0) + 1;
-                          if (['Trabajó Muy Bien', 'Ayudó a un amigo', 'Logro de Aprendizaje', 'Buena Conducta'].includes(type)) dimensions['Pedagógico/Social']++;
-                          else if (['Convulsión / Salud', 'Higiene / Esfínter', 'Vómito', 'No comió'].includes(type)) dimensions['Salud y Bienestar']++;
-                          else if (['Agresión / Violencia', 'Brote / Gritos', 'Fuga / Intento', 'Crisis Llanto'].includes(type)) dimensions['Conducta']++;
-                          else dimensions['Rutina']++;
-                      });
-                      const total = allIncidents.length;
-                      const topTags = Object.entries(tagsCount).sort((a, b) => b[1] - a[1]).slice(0, 4);
-                      return (
-                          <div className="space-y-6">
-                              <div>
-                                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Dimensiones Registradas</h4>
-                                  <div className="space-y-3">{Object.entries(dimensions).map(([dim, count]) => { if (count === 0) return null; const pct = Math.round((count / total) * 100); const color = dim === 'Pedagógico/Social' ? 'bg-emerald-500' : dim === 'Salud y Bienestar' ? 'bg-blue-500' : dim === 'Conducta' ? 'bg-red-500' : 'bg-yellow-400'; return (<div key={dim}><div className="flex justify-between text-xs font-bold text-gray-600 mb-1"><span>{dim}</span><span>{count} ({pct}%)</span></div><div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div style={{width: `${pct}%`}} className={`h-full ${color}`}></div></div></div>); })}</div>
-                              </div>
-                              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100"><h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Lo que más sucede (Top 4)</h4><div className="space-y-2">{topTags.map(([tag, count]) => (<div key={tag} className="flex justify-between items-center bg-white p-2 rounded-lg border border-gray-200 shadow-sm"><span className="text-xs font-bold text-gray-700">{tag}</span><span className="text-xs font-black bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md">{count} veces</span></div>))}</div></div>
-                          </div>
-                      );
-                  })()}
-              </div>
-          </div>
-      )}
+      </div></div>
+
+      {showBitacoraModal && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-emerald-500">
+        <div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3><p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p></div><button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button></div>
+        {!isWriting ? (
+            <>
+                <div className="grid grid-cols-2 gap-3 mb-4 max-h-[50vh] overflow-y-auto">{INCIDENT_TYPES.map((type) => (<button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? 'opacity-50' : 'hover:brightness-95'}`}><span className="text-2xl">{type.emoji}</span><span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span></button>))}</div>
+                <button onClick={() => setIsWriting(true)} className="w-full py-3 bg-gray-900 text-white rounded-2xl font-bold uppercase text-xs flex items-center justify-center gap-2"><Edit3 size={16}/> Escribir Nota</button>
+            </>
+        ) : (
+            <div className="animate-in slide-in-from-bottom">
+                <textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Escribí los detalles..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm mb-2 h-24 outline-none focus:border-violet-500"/>
+                <div className="flex gap-2"><button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs hover:bg-gray-100 rounded-xl">Volver</button><button onClick={() => addIncident('medium', newNote)} disabled={!newNote.trim()} className="flex-1 py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg">Guardar</button></div>
+            </div>
+        )}
+      </div></div>)}
+
       {editingGroup && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><form onSubmit={handleUpdateGroup} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto"><div className="flex justify-between items-center mb-6"><h3 className="text-xl font-black text-violet-900 uppercase italic">Editar Grupo</h3><button type="button" onClick={()=>setEditingGroup(null)}><X/></button></div><div className="space-y-4"><div className="bg-violet-50 p-3 rounded-xl border border-violet-100 text-center"><p className="text-xs text-violet-500 font-bold uppercase mb-1">{editingGroup.isInclusionGroup ? 'Editando Cartera DAI' : 'Editando Grupo Sede'}</p>{!editingGroup.isInclusionGroup && <input name="groupName" defaultValue={editingGroup.name} className="font-black text-2xl text-violet-900 bg-transparent text-center w-full outline-none border-b border-violet-200 focus:border-violet-500" placeholder="Nombre Grupo"/>}</div><div><label className="text-xs font-bold text-gray-500 ml-1">{editingGroup.isInclusionGroup ? 'DAI Responsable' : 'Docente a Cargo'}</label><select name="teacher" defaultValue={editingGroup.teacher} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Sin asignar</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>{!editingGroup.isInclusionGroup && (<><div><label className="text-xs font-bold text-gray-500 ml-1">Auxiliar</label><select name="aux" defaultValue={editingGroup.aux} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Sin asignar</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div><label className="text-xs font-bold text-gray-500 ml-1">Aula Física</label><input name="classroom" defaultValue={editingGroup.classroom} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" placeholder="Ej: 5"/></div><div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-gray-500 ml-1">Sup. 1</label><select name="sup1" defaultValue={editingGroup.sup1} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div><label className="text-xs font-bold text-gray-500 ml-1">Sup. 2</label><select name="sup2" defaultValue={editingGroup.sup2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div></div></>)}<button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition flex justify-center items-center gap-2">{updatingGroup ? <RefreshCw className="animate-spin"/> : 'Aplicar Cambios'}</button></div></form></div>)}
-      {showBitacoraModal && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-emerald-500"><div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3><p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p></div><button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button></div><div className="grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto p-1">{INCIDENT_TYPES.map((type) => (<button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? 'opacity-50' : 'hover:brightness-95'}`}><span className="text-2xl">{type.emoji}</span><span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span></button>))}</div></div></div>)}
-      {selectedStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"><div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0"><button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition"><X size={20}/></button><div className="flex items-center gap-4"><div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">{selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}</div><div><h2 className="text-2xl font-bold">{selectedStudent.lastName}, {selectedStudent.firstName}</h2><p className="opacity-90 flex gap-2 text-sm mt-1"><span className="bg-white/20 px-2 py-0.5 rounded">{calculateAge(selectedStudent.birthDate)} años</span></p></div></div><div className="flex gap-2 mt-6"><button onClick={() => setActiveTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'info' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Datos</button><button onClick={() => setActiveTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'history' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto space-y-6">{activeTab === 'info' ? (<div className="space-y-4"><div className="bg-orange-50 p-4 rounded-xl border border-orange-100"><h3 className="font-bold text-orange-800 text-xs uppercase mb-2">Contacto</h3><p className="text-sm">Madre: <b>{selectedStudent.motherName}</b> ({selectedStudent.motherContact})</p><p className="text-sm">Padre: <b>{selectedStudent.fatherName}</b> ({selectedStudent.fatherContact})</p></div><div className="bg-gray-50 p-4 rounded-xl border border-gray-100"><h3 className="font-bold text-gray-500 text-xs uppercase mb-2">Ubicación</h3><p className="text-sm">TM: <b>{selectedStudent.groupMorning}</b></p><p className="text-sm">TT: <b>{selectedStudent.groupAfternoon}</b></p></div></div>) : (<div className="space-y-2">{selectedStudent.incidents?.map((inc, i) => (<div key={i} className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="font-bold text-sm">{inc.type}</p><p className="text-xs text-gray-500">{new Date(inc.date).toLocaleDateString()} - {inc.author}</p></div>))}</div>)}</div></div></div>)}
+      
+      {groupStats && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[250] flex items-center justify-center p-4" onClick={() => setGroupStats(null)}><div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-6"><div><h3 className="text-xl font-black text-violet-900 uppercase italic">Análisis del Grupo</h3><p className="text-xs text-gray-500 font-bold">{groupStats.name} ({groupStats.students.length} alumnos)</p></div><button onClick={() => setGroupStats(null)}><X/></button></div>{(() => { const allIncidents = groupStats.students.flatMap(s => s.incidents || []); if (allIncidents.length === 0) return <p className="text-center text-gray-400 italic">No hay registros en la bitácora aún.</p>; const dimensions = { 'Pedagógico/Social': 0, 'Salud y Bienestar': 0, 'Conducta': 0, 'Rutina': 0 }; const tagsCount = {}; allIncidents.forEach(inc => { const type = inc.type; tagsCount[type] = (tagsCount[type] || 0) + 1; if (['Trabajó Muy Bien', 'Ayudó a un amigo', 'Logro de Aprendizaje', 'Buena Conducta'].includes(type)) dimensions['Pedagógico/Social']++; else if (['Convulsión / Salud', 'Higiene / Esfínter', 'Vómito', 'No comió'].includes(type)) dimensions['Salud y Bienestar']++; else if (['Agresión / Violencia', 'Brote / Gritos', 'Fuga / Intento', 'Crisis Llanto'].includes(type)) dimensions['Conducta']++; else dimensions['Rutina']++; }); const total = allIncidents.length; const topTags = Object.entries(tagsCount).sort((a, b) => b[1] - a[1]).slice(0, 4); return (<div className="space-y-6"><div><h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Dimensiones Registradas</h4><div className="space-y-3">{Object.entries(dimensions).map(([dim, count]) => { if (count === 0) return null; const pct = Math.round((count / total) * 100); const color = dim === 'Pedagógico/Social' ? 'bg-emerald-500' : dim === 'Salud y Bienestar' ? 'bg-blue-500' : dim === 'Conducta' ? 'bg-red-500' : 'bg-yellow-400'; return (<div key={dim}><div className="flex justify-between text-xs font-bold text-gray-600 mb-1"><span>{dim}</span><span>{count} ({pct}%)</span></div><div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div style={{width: `${pct}%`}} className={`h-full ${color}`}></div></div></div>); })}</div></div><div className="bg-gray-50 p-4 rounded-2xl border border-gray-100"><h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Lo que más sucede (Top 4)</h4><div className="space-y-2">{topTags.map(([tag, count]) => (<div key={tag} className="flex justify-between items-center bg-white p-2 rounded-lg border border-gray-200 shadow-sm"><span className="text-xs font-bold text-gray-700">{tag}</span><span className="text-xs font-black bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md">{count} veces</span></div>))}</div></div></div>); })()}</div></div>)}
+      {selectedStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"><div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0"><button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition"><X size={20}/></button><div className="flex items-center gap-4"><div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">{selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}</div><div><h2 className="text-2xl font-bold">{selectedStudent.lastName}, {selectedStudent.firstName}</h2><p className="opacity-90 flex gap-2 text-sm mt-1"><span className="bg-white/20 px-2 py-0.5 rounded">{calculateAge(selectedStudent.birthDate)} años</span></p></div></div><div className="flex gap-2 mt-6"><button onClick={() => setActiveTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'info' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Datos</button><button onClick={() => setActiveTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'history' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto space-y-6">{activeTab === 'info' ? (<div className="space-y-4"><div className="bg-orange-50 p-4 rounded-xl border border-orange-100"><h3 className="font-bold text-orange-800 text-xs uppercase mb-2">Contacto</h3><p className="text-sm">Madre: <b>{selectedStudent.motherName}</b> ({selectedStudent.motherContact})</p><p className="text-sm">Padre: <b>{selectedStudent.fatherName}</b> ({selectedStudent.fatherContact})</p></div><div className="bg-gray-50 p-4 rounded-xl border border-gray-100"><h3 className="font-bold text-gray-500 text-xs uppercase mb-2">Ubicación</h3><p className="text-sm">TM: <b>{selectedStudent.groupMorning}</b></p><p className="text-sm">TT: <b>{selectedStudent.groupAfternoon}</b></p></div></div>) : (<div className="space-y-2">{selectedStudent.incidents?.map((inc, i) => (<div key={i} className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="font-bold text-sm">{inc.text || inc.type}</p><p className="text-xs text-gray-500">{new Date(inc.date).toLocaleDateString()} - {inc.author}</p></div>))}</div>)}</div></div></div>)}
     </div>
   );
 }
@@ -2480,3 +2041,4 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
