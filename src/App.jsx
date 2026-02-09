@@ -1052,14 +1052,16 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
   );
 }
 
-// --- VISTA ADMINISTRACIÓN DE USUARIOS (PARCHADA: ROLES NUEVOS) ---
+// --- VISTA ADMINISTRACIÓN DE USUARIOS (VERSIÓN PRO: CON BUSCADOR, DETECTIVE Y ROLES NUEVOS) ---
 function UsersAdminView() {
   const [users, setUsers] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [showImport, setShowImport] = useState(false);
-  const [showRenamer, setShowRenamer] = useState(false);
+  const [showImport, setShowImport] = useState(false); // Para carga masiva
+  const [showRenamer, setShowRenamer] = useState(false); // Para reemplazar
   const [editingUser, setEditingUser] = useState(null); 
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Estados dummy para funciones futuras (evitan que rompa al hacer clic)
   const [csvContent, setCsvContent] = useState('');
   const [importing, setImporting] = useState(false);
 
@@ -1093,8 +1095,9 @@ function UsersAdminView() {
   const deleteUser = async (id) => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id)); };
   const openEdit = (u) => { setEditingUser(u); setShowModal(true); };
   
-  const analizarConflictos = () => alert("Función Detective en mantenimiento.");
-  const handleBulkImport = () => alert("Importación masiva en mantenimiento.");
+  // Funciones de los botones especiales
+  const analizarConflictos = () => alert("🕵️ Función Detective: Aquí se buscarán duplicados y usuarios inactivos (En desarrollo).");
+  const handleBulkImport = () => alert("☁️ Carga Masiva: Aquí podrás subir un Excel con muchos usuarios (En desarrollo).");
 
   const filteredUsers = users.filter(u => (u.fullName||'').toLowerCase().includes(searchTerm.toLowerCase()));
 
@@ -1105,44 +1108,49 @@ function UsersAdminView() {
   };
 
   return (
-   <div className="flex flex-col h-full bg-slate-900/50 p-4 rounded-3xl overflow-hidden">
+   <div className="flex flex-col h-full bg-slate-50 p-4 rounded-3xl overflow-hidden animate-in fade-in">
     <div className="flex flex-col gap-3 mb-4 shrink-0">
         <div className="flex justify-between items-center">
-            <h3 className="text-white font-bold text-sm uppercase tracking-widest">{users.length} Usuarios</h3>
+            <h3 className="text-violet-900 font-black text-lg uppercase tracking-tighter italic">Gestión de Personal</h3>
             <div className="flex gap-2">
-               <button onClick={()=>setShowImport(true)} className="p-2 bg-emerald-500 text-white rounded-xl shadow"><UploadCloud size={16}/></button>
-               <button onClick={()=>{setEditingUser(null); setShowModal(true);}} className="p-2 bg-orange-500 text-white rounded-xl shadow"><Plus size={16}/></button>
+               <button onClick={handleBulkImport} className="p-2 bg-emerald-500 text-white rounded-xl shadow hover:bg-emerald-600 transition" title="Carga Masiva"><UploadCloud size={20}/></button>
+               <button onClick={()=>{setEditingUser(null); setShowModal(true);}} className="p-2 bg-orange-500 text-white rounded-xl shadow hover:bg-orange-600 transition" title="Nuevo Usuario"><Plus size={20}/></button>
             </div>
         </div>
-        <div className="bg-black/40 p-2 rounded-xl flex items-center gap-2 border border-white/10">
-            <Search className="text-white/50 ml-2" size={16} />
-            <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar..." className="bg-transparent border-none outline-none text-white text-xs w-full placeholder-white/30" />
+        
+        {/* BARRA DE BÚSQUEDA */}
+        <div className="bg-white p-3 rounded-xl flex items-center gap-2 border border-violet-100 shadow-sm">
+            <Search className="text-gray-400 ml-1" size={18} />
+            <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar por nombre..." className="bg-transparent border-none outline-none text-gray-700 text-sm w-full font-bold" />
         </div>
+        
+        {/* BOTONES DE HERRAMIENTAS (DETECTIVE / REEMPLAZAR) */}
         <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-             <button onClick={analizarConflictos} className="whitespace-nowrap px-3 py-1.5 bg-violet-600/50 border border-violet-400 text-white rounded-lg text-[10px] font-bold uppercase flex-shrink-0">🕵️ Detective</button>
-             <button onClick={()=>setShowRenamer(true)} className="whitespace-nowrap px-3 py-1.5 bg-blue-600/50 border border-blue-400 text-white rounded-lg text-[10px] font-bold uppercase flex-shrink-0">🔄 Reemplazar</button>
+             <button onClick={analizarConflictos} className="whitespace-nowrap px-4 py-2 bg-violet-100 text-violet-700 rounded-xl text-xs font-black uppercase flex items-center gap-2 hover:bg-violet-200 transition">🕵️ Detective</button>
+             <button onClick={()=>setShowRenamer(true)} className="whitespace-nowrap px-4 py-2 bg-blue-100 text-blue-700 rounded-xl text-xs font-black uppercase flex items-center gap-2 hover:bg-blue-200 transition">🔄 Reemplazar</button>
         </div>
     </div>
 
     <div className="flex-1 overflow-y-auto space-y-2 pb-10">
+      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">{filteredUsers.length} Usuarios Encontrados</h3>
       {filteredUsers.map(u => (
-      <div key={u.id} className="bg-white p-3 rounded-xl flex items-center justify-between group">
+      <div key={u.id} className="bg-white p-3 rounded-xl flex items-center justify-between group shadow-sm border border-gray-100">
        <div className="flex items-center gap-3 overflow-hidden">
-        <div className="w-8 h-8 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center font-black text-xs shrink-0 relative">
+        <div className="w-10 h-10 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center font-black text-sm shrink-0 relative">
             {u.firstName?.[0]}
-            {u.lastLogin && new Date(u.lastLogin.seconds * 1000).toDateString() === new Date().toDateString() && <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border border-white"></div>}
+            {u.rol === 'admin' && <div className="absolute -top-1 -right-1 bg-orange-500 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center"><Shield size={8} className="text-white"/></div>}
         </div>
         <div className="min-w-0">
-            <p className="font-bold text-xs text-gray-800 truncate">{u.fullName}</p>
-            <div className="flex flex-wrap gap-2 items-center">
-                <p className="text-[9px] text-gray-400 truncate bg-gray-100 px-1 rounded">{u.role}</p>
-                <p className="text-[8px] text-gray-400 flex items-center gap-1"><Clock size={8}/> {formatLastLogin(u.lastLogin)}</p>
+            <p className="font-bold text-sm text-gray-800 truncate">{u.fullName}</p>
+            <div className="flex flex-wrap gap-2 items-center mt-0.5">
+                <span className="text-[9px] text-white bg-violet-400 px-1.5 py-0.5 rounded font-bold uppercase">{u.role}</span>
+                <span className="text-[9px] text-gray-400 flex items-center gap-1"><Clock size={8}/> {formatLastLogin(u.lastLogin)}</span>
             </div>
         </div>
        </div>
        <div className="flex gap-2 shrink-0">
-           <button onClick={() => openEdit(u)} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"><Edit3 size={14}/></button>
-           {u.username !== 'admin' && <button onClick={() => deleteUser(u.id)} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Trash2 size={14}/></button>}
+           <button onClick={() => openEdit(u)} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"><Edit3 size={16}/></button>
+           {u.username !== 'admin' && <button onClick={() => deleteUser(u.id)} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Trash2 size={16}/></button>}
        </div>
       </div>
       ))}
@@ -1150,19 +1158,26 @@ function UsersAdminView() {
 
     {showModal && (
       <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4">
-       <form onSubmit={handleSubmit} className="bg-white rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl">
-        <h3 className="font-bold text-violet-900">{editingUser ? 'Editar' : 'Nuevo'} Usuario</h3>
-        <div className="grid grid-cols-2 gap-2"><input name="firstName" defaultValue={editingUser?.firstName} placeholder="Nombre" className="p-2 bg-gray-50 rounded-lg text-xs border" required/><input name="lastName" defaultValue={editingUser?.lastName} placeholder="Apellido" className="p-2 bg-gray-50 rounded-lg text-xs border" required/></div>
-        <input name="username" defaultValue={editingUser?.username} placeholder="Usuario" className="w-full p-2 bg-gray-50 rounded-lg text-xs border" required/>
-        <input name="password" defaultValue={editingUser?.password} placeholder="Contraseña" className="w-full p-2 bg-gray-50 rounded-lg text-xs border" required/>
+       <form onSubmit={handleSubmit} className="bg-white rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl animate-in zoom-in-95">
+        <h3 className="font-bold text-violet-900 text-xl">{editingUser ? 'Editar' : 'Nuevo'} Usuario</h3>
+        <div className="grid grid-cols-2 gap-2"><input name="firstName" defaultValue={editingUser?.firstName} placeholder="Nombre" className="p-3 bg-gray-50 rounded-xl text-sm border outline-none focus:border-violet-500" required/><input name="lastName" defaultValue={editingUser?.lastName} placeholder="Apellido" className="p-3 bg-gray-50 rounded-xl text-sm border outline-none focus:border-violet-500" required/></div>
+        <input name="username" defaultValue={editingUser?.username} placeholder="Usuario" className="w-full p-3 bg-gray-50 rounded-xl text-sm border outline-none focus:border-violet-500" required/>
+        <input name="password" defaultValue={editingUser?.password} placeholder="Contraseña" className="w-full p-3 bg-gray-50 rounded-xl text-sm border outline-none focus:border-violet-500" required/>
         
-        {/* CORRECCIÓN: USA LA LISTA GLOBAL ROLES */}
-        <select name="role" defaultValue={editingUser?.role || 'Docente'} className="w-full p-2 bg-gray-50 rounded-lg text-xs border">
+        {/* LISTA COMPLETA DE ROLES */}
+        <select name="role" defaultValue={editingUser?.role || 'Docente'} className="w-full p-3 bg-gray-50 rounded-xl text-sm border outline-none focus:border-violet-500 font-bold text-gray-600">
             {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
         </select>
 
-        <div className="flex items-center gap-2"><input type="checkbox" name="isAdmin" defaultChecked={editingUser?.rol === 'admin'} /><span className="text-xs">¿Es Admin?</span></div>
-        <div className="flex gap-2"><button type="button" onClick={()=>setShowModal(false)} className="flex-1 py-2 text-gray-500 text-xs font-bold">Cancelar</button><button type="submit" className="flex-1 py-2 bg-violet-600 text-white rounded-lg text-xs font-bold">Guardar</button></div>
+        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+            <input type="checkbox" name="isAdmin" defaultChecked={editingUser?.rol === 'admin'} className="w-5 h-5 accent-violet-600"/>
+            <div>
+                <span className="text-sm font-bold text-gray-700 block">Permisos de Administrador</span>
+                <span className="text-[10px] text-gray-400 block">Puede editar tareas y eventos globales</span>
+            </div>
+        </div>
+        
+        <div className="flex gap-2 pt-2"><button type="button" onClick={()=>setShowModal(false)} className="flex-1 py-3 text-gray-400 text-xs font-bold uppercase hover:bg-gray-100 rounded-xl">Cancelar</button><button type="submit" className="flex-1 py-3 bg-violet-600 text-white rounded-xl text-xs font-bold uppercase shadow-lg hover:bg-violet-700">Guardar</button></div>
        </form>
       </div>
     )}
@@ -2041,4 +2056,5 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
