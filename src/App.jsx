@@ -522,7 +522,7 @@ function ResourcesView({ resources, canEdit }) {
   );
 }
 
-// --- VISTA TAREAS (FINAL: CRONOGRAMA, ESTADOS Y PRIVACIDAD) ---
+// --- VISTA TAREAS (PARCHADA: BOTÓN + FUNCIONAL Y PRIVACIDAD) ---
 function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
@@ -530,11 +530,12 @@ function TasksView({ tasks, user, canEdit }) {
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [selectedUserObj, setSelectedUserObj] = useState(null); 
   const [checklist, setChecklist] = useState([]); 
+  const [newItem, setNewItem] = useState(""); 
   const [userSearch, setUserSearch] = useState("");
   const [openCommentsId, setOpenCommentsId] = useState(null); 
   const [newComment, setNewComment] = useState("");
   const [editingTask, setEditingTask] = useState(null); 
-  const [filter, setFilter] = useState('pending'); // pending, scheduled, completed
+  const [filter, setFilter] = useState('pending'); 
 
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor', 'DAI', 'Dirección Inclusión', 'Equipo Técnico Inclusión'];
   const isSuperAdmin = user.rol === 'admin' || user.rol === 'super-admin'; 
@@ -557,22 +558,14 @@ function TasksView({ tasks, user, canEdit }) {
     e.preventDefault(); 
     const fd = new FormData(e.target);
     let finalTargetId = null; let finalAssignedName = "Todos"; let finalRoles = [];
-    if (assignType === 'user') { if (!selectedUserObj) return alert("⚠️ Selecciona un usuario."); finalTargetId = selectedUserObj.id; finalAssignedName = selectedUserObj.fullName; } 
-    else { if (selectedRoles.length === 0) return alert("⚠️ Elige roles."); finalRoles = selectedRoles; finalAssignedName = selectedRoles.join(", "); }
-
-    const taskData = { 
-        title: fd.get('title'), 
-        dueDate: fd.get('dueDate') || null, 
-        showDate: fd.get('showDate') || new Date().toISOString().split('T')[0], // FECHA PROGRAMADA
-        priority: fd.get('priority'), targetType: assignType, targetUserId: finalTargetId, targetRoles: finalRoles, assignedToName: finalAssignedName, checklist: checklist 
-    };
-
+    if (assignType === 'user') { if (!selectedUserObj) return alert("⚠️ Error: Selecciona un usuario."); finalTargetId = selectedUserObj.id; finalAssignedName = selectedUserObj.fullName; } 
+    else { if (selectedRoles.length === 0) return alert("⚠️ Error: Elige roles."); finalRoles = selectedRoles; finalAssignedName = selectedRoles.join(", "); }
+    const taskData = { title: fd.get('title'), dueDate: fd.get('dueDate') || null, showDate: fd.get('showDate') || new Date().toISOString().split('T')[0], priority: fd.get('priority'), targetType: assignType, targetUserId: finalTargetId, targetRoles: finalRoles, assignedToName: finalAssignedName, checklist: checklist };
     try {
         if (editingTask) { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData); } 
         else { 
              const newTaskRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { ...taskData, createdByName: user.fullName || user.firstName, createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: [] });
              const today = new Date().toISOString().split('T')[0];
-             // Solo notificar si ya es visible
              if (!taskData.showDate || taskData.showDate <= today) {
                  const notifData = { title: `Tarea Nueva`, message: `${user.firstName}: "${fd.get('title')}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks', relatedId: newTaskRef.id, type: 'task_assigned' };
                  if (assignType === 'user' && finalTargetId) await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: finalTargetId });
@@ -590,19 +583,11 @@ function TasksView({ tasks, user, canEdit }) {
   const filteredTasks = tasks.filter(t => {
       const todayStr = new Date().toISOString().split('T')[0];
       const showDate = t.showDate || '2000-01-01'; 
+      if (filter === 'completed' && t.status !== 'completed') return false;
+      if (filter === 'scheduled' && (t.status === 'completed' || showDate <= todayStr)) return false;
+      if (filter === 'pending' && (t.status === 'completed' || showDate > todayStr)) return false;
       
-      // LOGICA DE FILTROS (PENDIENTE / PROGRAMADA / LISTA)
-      if (filter === 'completed') {
-          if (t.status !== 'completed') return false;
-      } else if (filter === 'scheduled') {
-          if (t.status === 'completed') return false;
-          if (showDate <= todayStr) return false; // Si ya pasó la fecha, no es programada, es pendiente
-      } else { // 'pending'
-          if (t.status === 'completed') return false;
-          if (showDate > todayStr) return false; // Si es futura, no es pendiente aún
-      }
-      
-      // PRIVACIDAD
+      // PRIVACIDAD ESTRICTA
       if (isSuperAdmin) return true; 
       if (t.createdById === user.id) return true; 
       if (t.targetType === 'user' && t.targetUserId === user.id) return true; 
@@ -613,7 +598,6 @@ function TasksView({ tasks, user, canEdit }) {
   const addComment = async (task) => { if (!newComment.trim()) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion({ text: newComment, author: user.firstName, date: new Date().toISOString() }) }); setNewComment(""); };
   const handleDelete = async (id) => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
   const changeStatus = async (task, newStatus) => { if (newStatus === 'completed' && !confirm("¿Lista?")) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
-  
   const openNew = () => { setEditingTask(null); setAssignType('user'); setSelectedRoles([]); setChecklist([]); setNewItem(""); setUserSearch(""); setSelectedUserObj(null); setShowModal(true); };
   const openEdit = (t) => { setEditingTask(t); setAssignType(t.targetType || 'user'); setSelectedRoles(t.targetRoles || []); setChecklist(t.checklist || []); setShowModal(true); };
   const searchResults = userSearch.length > 0 ? (usersList || []).filter(u => u.fullName.toLowerCase().includes(userSearch.toLowerCase())) : [];
@@ -624,26 +608,16 @@ function TasksView({ tasks, user, canEdit }) {
       <div className="flex justify-between items-center mb-2 bg-white p-4 sticky top-0 z-10 shadow-sm rounded-b-3xl">
           <div><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2><p className="text-xs text-gray-400 font-bold">{filteredTasks.length} visibles</p></div>
           <div className="flex gap-2">
-             <div className="flex bg-gray-100 rounded-xl p-1">
-                 <button onClick={()=>setFilter('pending')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='pending'?'bg-white shadow text-slate-800':'text-gray-400'}`}>Activas</button>
-                 {canManage && <button onClick={()=>setFilter('scheduled')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='scheduled'?'bg-white shadow text-orange-600':'text-gray-400'}`}>Próximas</button>}
-                 <button onClick={()=>setFilter('completed')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='completed'?'bg-white shadow text-green-600':'text-gray-400'}`}>Listas</button>
-             </div>
+             <div className="flex bg-gray-100 rounded-xl p-1"><button onClick={()=>setFilter('pending')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='pending'?'bg-white shadow text-slate-800':'text-gray-400'}`}>Activas</button><button onClick={()=>setFilter('completed')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='completed'?'bg-white shadow text-green-600':'text-gray-400'}`}>Listas</button></div>
              <button onClick={openNew} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg hover:scale-110 transition-all"><Plus size={20}/></button>
           </div>
       </div>
       <div className="grid gap-3 px-2">
-          {filteredTasks.length === 0 ? ( <div className="text-center py-10 opacity-40"><CheckCircle size={40} className="mx-auto mb-2 text-gray-400"/><p className="font-bold text-gray-500">Sin tareas en esta vista.</p></div> ) : filteredTasks.map(t => (
+          {filteredTasks.length === 0 ? ( <div className="text-center py-10 opacity-40"><CheckCircle size={40} className="mx-auto mb-2 text-gray-400"/><p className="font-bold text-gray-500">Sin tareas.</p></div> ) : filteredTasks.map(t => (
             <div key={t.id} className={`p-5 rounded-[30px] shadow-sm flex flex-col gap-3 transition-all relative ${getPriorityStyle(t.priority)}`}>
-                <div className="flex justify-between items-start"><div className="flex-1 pr-6"><p className="text-[9px] font-black text-violet-600 uppercase tracking-widest italic mb-1">Para: {t.assignedToName}</p><h3 className={`font-bold text-gray-800 text-sm uppercase italic tracking-tighter leading-none ${t.status==='completed'?'line-through opacity-50':''}`}>{t.title}</h3><p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName}</p>
-                {t.showDate > new Date().toISOString().split('T')[0] && (<div className="mt-2 inline-flex items-center gap-1 bg-yellow-100 text-yellow-800 text-[9px] font-bold px-2 py-1 rounded-md border border-yellow-200"><Clock size={10}/> Visible el: {new Date(t.showDate).toLocaleDateString()}</div>)}</div><div className="flex flex-col items-end gap-2"><div className="flex gap-1">{(t.createdById === user.id || isSuperAdmin) && <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm"><Trash2 size={14}/></button>}</div></div></div>
+                <div className="flex justify-between items-start"><div className="flex-1 pr-6"><p className="text-[9px] font-black text-violet-600 uppercase tracking-widest italic mb-1">Para: {t.assignedToName}</p><h3 className={`font-bold text-gray-800 text-sm uppercase italic tracking-tighter leading-none ${t.status==='completed'?'line-through opacity-50':''}`}>{t.title}</h3><p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName}</p></div><div className="flex flex-col items-end gap-2"><div className="flex gap-1">{(t.createdById === user.id || isSuperAdmin) && <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm"><Trash2 size={14}/></button>}</div></div></div>
                 {openCommentsId === t.id && ( <div className="bg-white/60 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in"><div className="max-h-32 overflow-y-auto space-y-2 mb-2">{(t.comments || []).map((c, idx) => ( <p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p> ))}</div><div className="flex gap-2"><input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribe..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" /><button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button></div></div> )}
-                <div className="pt-2 border-t border-black/5 flex justify-between items-center"><button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className={`flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 rounded-xl transition ${t.comments?.length > 0 ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500 hover:bg-violet-50 hover:text-violet-600'}`}><MessageSquare size={14}/> {t.comments?.length > 0 ? `${t.comments.length} Msjs` : 'Comentar'}</button>
-                <div className="flex bg-white/60 rounded-lg p-0.5 shadow-sm">
-                    <button onClick={() => changeStatus(t, 'pending')} className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition ${t.status === 'pending' ? 'bg-white shadow text-gray-700' : 'text-gray-400'}`}>Pend.</button>
-                    <button onClick={() => changeStatus(t, 'in_process')} className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition ${t.status === 'in_process' ? 'bg-orange-100 text-orange-600 shadow' : 'text-gray-400'}`}>Proc.</button>
-                    <button onClick={() => changeStatus(t, 'completed')} className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition ${t.status === 'completed' ? 'bg-green-100 text-green-700 shadow' : 'text-gray-400'}`}>Lista</button>
-                </div></div>
+                <div className="pt-2 border-t border-black/5 flex justify-between items-center"><button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className={`flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 rounded-xl transition ${t.comments?.length > 0 ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500 hover:bg-violet-50 hover:text-violet-600'}`}><MessageSquare size={14}/> {t.comments?.length > 0 ? `${t.comments.length} Msjs` : 'Comentar'}</button><div className="flex bg-white/60 rounded-lg p-0.5 shadow-sm"><button onClick={() => changeStatus(t, 'pending')} className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition ${t.status === 'pending' ? 'bg-white shadow text-gray-700' : 'text-gray-400'}`}>Pend.</button><button onClick={() => changeStatus(t, 'completed')} className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition ${t.status === 'completed' ? 'bg-green-100 text-green-700 shadow' : 'text-gray-400'}`}>Lista</button></div></div>
             </div>
           ))}
       </div>
@@ -655,7 +629,6 @@ function TasksView({ tasks, user, canEdit }) {
             <div className="flex gap-2 bg-gray-100 p-1 rounded-xl"><button type="button" onClick={() => setAssignType('user')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'user' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Persona</button><button type="button" onClick={() => setAssignType('roles')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'roles' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Roles</button></div>
             {assignType === 'user' ? ( <div className="space-y-2">{selectedUserObj ? ( <div className="flex items-center justify-between p-3 bg-violet-50 border border-violet-200 rounded-xl"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-violet-600 text-white rounded-full flex items-center justify-center font-bold text-xs">{selectedUserObj.firstName[0]}</div><span className="text-xs font-bold text-violet-900">{selectedUserObj.fullName}</span></div><button type="button" onClick={() => setSelectedUserObj(null)} className="text-red-400 p-1"><X size={16}/></button></div> ) : ( <div className="relative"><input placeholder="🔍 Escribí para buscar..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} autoComplete="off" className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none focus:border-violet-500 rounded-t-xl" />{userSearch.length > 0 && (<div className="max-h-40 overflow-y-auto border-x border-b border-gray-200 rounded-b-xl bg-white shadow-xl absolute w-full z-50">{searchResults.length > 0 ? searchResults.map(u => (<div key={u.id} onClick={() => { setSelectedUserObj(u); setUserSearch(""); }} className="p-3 hover:bg-violet-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0"><div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">{u.firstName[0]}</div><p className="text-xs font-bold text-gray-700">{u.fullName}</p></div>)) : <p className="p-3 text-xs text-gray-400 italic text-center">No encontrado</p>}</div>)}</div> )}</div> ) : ( <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 max-h-32 overflow-y-auto">{ROLES_OPTIONS.map(role => ( <label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={selectedRoles.includes(role)} onChange={(e) => { if(e.target.checked) setSelectedRoles([...selectedRoles, role]); else setSelectedRoles(selectedRoles.filter(r => r !== role)); }} className="accent-violet-600"/> {role}</label> ))}</div> )}
             <div className="grid grid-cols-2 gap-4"><div><label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Vencimiento</label><input name="dueDate" type="date" defaultValue={editingTask?.dueDate} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs text-gray-600 border border-gray-200" /></div><select name="priority" defaultValue={editingTask?.priority} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs uppercase text-orange-600 italic border border-gray-200 h-[66px] mt-auto"><option value="baja">🟢 Baja</option><option value="media">🟠 Media</option><option value="alta">🔴 Alta</option></select></div>
-            {canManage && (<div className="bg-orange-50 p-3 rounded-xl border border-orange-100"><label className="text-[10px] font-bold text-orange-700 uppercase mb-1 block flex items-center gap-1"><Clock size={10}/> Programar Aparición</label><input name="showDate" type="date" defaultValue={editingTask?.showDate} className="w-full p-2 bg-white rounded-lg outline-none font-bold text-xs text-orange-800 border border-orange-200" /><p className="text-[9px] text-orange-600 mt-1">Si pones una fecha futura, la tarea quedará en "Próximas".</p></div>)}
             <div className="flex gap-2 pt-2"><button type="button" onClick={() => setShowModal(false)} className="flex-1 font-bold text-gray-400 text-xs uppercase">Cancelar</button><button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">GUARDAR</button></div>
           </form>
         </div>
@@ -663,7 +636,6 @@ function TasksView({ tasks, user, canEdit }) {
     </div>
   );
 }
-
 // --- VISTA NOTIFICACIONES (PANTALLA COMPLETA CON REDIRECCIÓN) ---
 function NotificationsView({ notifications, canEdit, user }) {
   const sortedNotifs = [...notifications].sort((a, b) => {
@@ -1474,7 +1446,7 @@ function ProyectoView({ user }) {
     </div>
   );
 }
-// --- VISTA MATRÍCULA (FINAL: DATOS COMPLETOS + ESTABILIDAD) ---
+// --- VISTA MATRÍCULA (PARCHADA: ESTABLE + DATOS COMPLETOS) ---
 function MatriculaView({ user }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
@@ -1494,8 +1466,7 @@ function MatriculaView({ user }) {
   const [showUnassigned, setShowUnassigned] = useState(false);
   const [unassignedList, setUnassignedList] = useState([]);
   const [photoPreview, setPhotoPreview] = useState(null);
-  
-  // Dummy states
+  // ESTADOS DUMMY PARA EVITAR CRASH
   const [importJson, setImportJson] = useState('');
   const [processing, setProcessing] = useState(false);
   const [showDupes, setShowDupes] = useState(false);
@@ -1700,76 +1671,57 @@ function MatriculaView({ user }) {
     </div>
   );
 }
-// --- VISTA AUDITORÍA (REAL + DESCARGA) ---
+// --- VISTA AUDITORÍA (NECESARIA PARA QUE NO QUEDE EN BLANCO) ---
 function ActivityLogView() {
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Escuchar cambios en tareas y notificaciones para simular un log si no hay colección dedicada aun
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), orderBy('createdAt', 'desc'));
-    const unsub = onSnapshot(q, (snap) => {
-        const data = snap.docs.map(d => ({
-            id: d.id,
-            action: d.data().title || 'Acción del sistema',
-            details: d.data().message,
-            user: 'Sistema/Admin', // En una versión futura guardaremos quién lo hizo
-            date: d.data().createdAt ? new Date(d.data().createdAt.seconds * 1000) : new Date()
-        }));
-        setLogs(data);
-        setLoading(false);
-    });
-    return () => unsub();
-  }, []);
+  useEffect(() => {
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), orderBy('createdAt', 'desc'));
+    const unsub = onSnapshot(q, (snap) => {
+        const data = snap.docs.map(d => ({
+            id: d.id,
+            action: d.data().title || 'Acción del sistema',
+            details: d.data().message,
+            user: 'Sistema', 
+            date: d.data().createdAt ? new Date(d.data().createdAt.seconds * 1000) : new Date()
+        }));
+        setLogs(data);
+        setLoading(false);
+    });
+    return () => unsub();
+  }, []);
 
-  const downloadReport = () => {
-      const headers = ["Fecha", "Hora", "Acción", "Detalles"];
-      const rows = logs.map(l => [
-          l.date.toLocaleDateString(),
-          l.date.toLocaleTimeString(),
-          l.action,
-          `"${l.details}"`
-      ]);
-      const csvContent = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
-      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `AUDITORIA_${new Date().toISOString().slice(0,10)}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-  };
+  const downloadReport = () => {
+      const headers = ["Fecha", "Hora", "Acción", "Detalles"];
+      const rows = logs.map(l => [l.date.toLocaleDateString(), l.date.toLocaleTimeString(), l.action, `"${l.details}"`]);
+      const csvContent = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url; link.download = `AUDITORIA_${new Date().toISOString().slice(0,10)}.csv`;
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+  };
 
-  return (
-    <div className="flex flex-col h-full bg-slate-900/90 text-white rounded-3xl overflow-hidden p-6">
-        <div className="flex justify-between items-center mb-6 shrink-0">
-            <div>
-                <h2 className="text-2xl font-black uppercase italic tracking-tighter">Auditoría Global</h2>
-                <p className="text-white/50 text-xs">Registro de movimientos del sistema</p>
-            </div>
-            <button onClick={downloadReport} className="bg-emerald-500 hover:bg-emerald-600 text-white p-3 rounded-xl shadow-lg transition">
-                <Download size={20}/>
-            </button>
-        </div>
-        
-        <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-            {loading ? <p className="text-center opacity-50">Cargando registros...</p> : logs.map(log => (
-                <div key={log.id} className="bg-white/10 p-3 rounded-xl border border-white/5 flex gap-3 items-start">
-                    <div className="mt-1"><Clock size={14} className="text-orange-400"/></div>
-                    <div>
-                        <p className="font-bold text-xs text-orange-200">{log.date.toLocaleString()}</p>
-                        <p className="font-bold text-sm">{log.action}</p>
-                        <p className="text-xs text-white/70">{log.details}</p>
-                    </div>
-                </div>
-            ))}
-            {logs.length === 0 && !loading && <div className="text-center opacity-30 py-10">No hay registros recientes.</div>}
-        </div>
-    </div>
-  );
+  return (
+    <div className="flex flex-col h-full bg-slate-900 text-white rounded-3xl overflow-hidden p-6">
+        <div className="flex justify-between items-center mb-6 shrink-0">
+            <div><h2 className="text-2xl font-black uppercase italic tracking-tighter">Auditoría Global</h2><p className="text-white/50 text-xs">Registro de movimientos</p></div>
+            <button onClick={downloadReport} className="bg-emerald-500 hover:bg-emerald-600 text-white p-3 rounded-xl shadow-lg transition"><Download size={20}/></button>
+        </div>
+        <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+            {loading ? <p className="text-center opacity-50">Cargando...</p> : logs.map(log => (
+                <div key={log.id} className="bg-white/10 p-3 rounded-xl border border-white/5 flex gap-3 items-start">
+                    <div className="mt-1"><Clock size={14} className="text-orange-400"/></div>
+                    <div><p className="font-bold text-xs text-orange-200">{log.date.toLocaleString()}</p><p className="font-bold text-sm">{log.action}</p><p className="text-xs text-white/70">{log.details}</p></div>
+                </div>
+            ))}
+            {logs.length === 0 && !loading && <div className="text-center opacity-30 py-10">No hay registros recientes.</div>}
+        </div>
+    </div>
+  );
 }
-// --- APP PRINCIPAL (CORREGIDA: ERROR FIREBASE RESUELTO) ---
+// --- APP PRINCIPAL (CON AVISO DE MANTENIMIENTO CERRABLE) ---
 function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -1778,13 +1730,17 @@ function MainApp({ user, onLogout }) {
   const [resources, setResources] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
+  
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [globalViewingStudent, setGlobalViewingStudent] = useState(null);
   const [showNotifRequest, setShowNotifRequest] = useState(false);
+  
+  // ESTADOS MANTENIMIENTO
   const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [showMaintenanceAlert, setShowMaintenanceAlert] = useState(false); // Para poder cerrarlo
 
   const prevNotifCount = useRef(0);
   const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin'; 
@@ -1798,8 +1754,12 @@ function MainApp({ user, onLogout }) {
     const unsubResources = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc')), (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const unsubAnnounce = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc')), (snap) => setAnnouncements(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     
-    // CORRECCIÓN AQUÍ: Agregamos 'config' para tener 6 segmentos (par)
-    const unsubMaint = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'maintenance'), (doc) => { setMaintenanceMode(doc.exists() ? doc.data().active : false); });
+    // LISTENER MANTENIMIENTO
+    const unsubMaint = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'maintenance'), (doc) => { 
+        const isActive = doc.exists() ? doc.data().active : false;
+        setMaintenanceMode(isActive);
+        if(isActive) setShowMaintenanceAlert(true); // Mostrar cartel si se activa
+    });
 
     const qNotifs = query(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), where('toUserId', '==', user.id));
     const unsubNotifs = onSnapshot(qNotifs, (snap) => { 
@@ -1817,17 +1777,35 @@ function MainApp({ user, onLogout }) {
   const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
   const enableNotifications = async () => { const permission = await Notification.requestPermission(); if (permission === 'granted') { try { const { getMessaging, getToken } = await import("firebase/messaging"); const messaging = getMessaging(); const token = await getToken(messaging, { vapidKey: 'BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw' }); if(token) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { fcmTokens: arrayUnion(token) }); } catch(e) {} alert("✅ ¡Genial! Te avisaremos de las novedades."); } setShowNotifRequest(false); };
 
-  if (maintenanceMode && user.rol !== 'super-admin') {
-      return (<div className="flex flex-col h-screen w-full bg-violet-900 items-center justify-center p-6 text-center text-white animate-in fade-in duration-1000"><div className="bg-white/10 p-6 rounded-full mb-6 animate-bounce"><Settings size={64} className="text-orange-400"/></div><h1 className="text-3xl font-black uppercase italic mb-2">¡Estamos en Obra! 🚧</h1><p className="text-lg font-medium opacity-80 max-w-xs mx-auto mb-8">Estamos ajustando unas tuercas en la App. Volvemos en unos minutos.</p><div className="bg-orange-500 text-white px-6 py-2 rounded-full font-bold text-sm transform rotate-[-2deg] shadow-lg">"No rompo, mejoro" - El Desarrollador</div><button onClick={() => window.location.reload()} className="mt-10 text-white/50 text-xs hover:text-white flex items-center gap-2"><RefreshCw size={12}/> Probar si ya volvió</button></div>);
-  }
-
   return (
-    <div className="flex flex-col h-[100dvh] w-full bg-gray-50 font-sans text-slate-800 overflow-hidden">
+    <div className="flex flex-col h-[100dvh] w-full bg-gray-50 font-sans text-slate-800 overflow-hidden relative">
       <style>{` *::-webkit-scrollbar { display: none; } * { -ms-overflow-style: none; scrollbar-width: none; } `}</style>
+      
+      {/* HEADER */}
       <header className="bg-violet-800 text-white shadow-lg px-4 py-3 flex justify-between items-center z-50 sticky top-0 shrink-0">
         <div className="flex items-center space-x-3"><img src={LOGO_URL} alt="Logo" className="w-10 h-8 object-contain" /><div><h1 className="font-bold text-sm leading-tight">Juntos a la Par</h1><p className="text-[10px] text-orange-200 uppercase font-bold">{user.firstName}</p></div></div>
         <div className="flex items-center gap-3"><button onClick={() => setShowSearch(true)} className="p-2 rounded-full bg-violet-900/50 hover:bg-orange-500 transition"><Search size={20} /></button><div className="relative"><button onClick={() => setShowNotifPanel(!showNotifPanel)} className={`p-2 rounded-full transition ${showNotifPanel ? 'bg-orange-500' : 'bg-violet-900/50'}`}><Bell size={20} />{notifications.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-pulse border border-white">{notifications.length}</span>}</button>{showNotifPanel && (<div className="absolute right-0 mt-3 w-72 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[100]"><div className="p-4 bg-violet-50 border-b flex justify-between items-center"><h3 className="font-bold text-violet-900 text-sm">Avisos</h3><button onClick={() => setShowNotifPanel(false)}><X size={16} className="text-gray-400"/></button></div><div className="max-h-80 overflow-y-auto">{notifications.length===0?<div className="p-10 text-center text-gray-400"><p className="text-xs font-bold uppercase">Sin novedades</p></div>:notifications.map(n=>(<div key={n.id} onClick={()=>handleNotificationClick(n)} className="p-4 border-b hover:bg-gray-50 cursor-pointer"><p className="text-[10px] font-bold text-orange-600 mb-1 uppercase">{n.title}</p><p className="text-xs text-gray-700">{n.message}</p></div>))}</div></div>)}</div><div onClick={() => {setActiveTab('profile'); setShowNotifPanel(false);}} className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold border-2 border-orange-400 overflow-hidden cursor-pointer active:scale-95 transition">{user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover" /> : user.firstName?.[0]}</div></div>
       </header>
+
+      {/* CARTEL DE MANTENIMIENTO CERRABLE */}
+      {maintenanceMode && showMaintenanceAlert && (
+          <div className="fixed top-16 left-0 right-0 z-[999] p-4 animate-in slide-in-from-top-2">
+              <div className="bg-gradient-to-r from-orange-500 to-red-600 rounded-2xl shadow-2xl p-4 text-white flex flex-col md:flex-row items-center justify-between gap-4 border-2 border-white/20">
+                  <div className="flex items-center gap-4">
+                      <div className="bg-white/20 p-3 rounded-full animate-bounce"><Settings size={24}/></div>
+                      <div>
+                          <h3 className="font-black uppercase text-sm tracking-wider">👷 ¡Estamos en Obra!</h3>
+                          <p className="text-xs opacity-90">Se están realizando mejoras. Puede haber errores temporales.</p>
+                      </div>
+                  </div>
+                  <button onClick={() => setShowMaintenanceAlert(false)} className="bg-white text-red-600 px-4 py-2 rounded-xl text-xs font-bold shadow-lg uppercase tracking-wide hover:bg-gray-50 transition">
+                      Entendido, continuar igual
+                  </button>
+              </div>
+          </div>
+      )}
+
+      {/* CONTENIDO PRINCIPAL */}
       <main className={`flex-1 overflow-y-auto no-scrollbar pb-24 pt-6 mx-auto w-full transition-all duration-300 ${isWideTab ? 'px-2 max-w-[98%]' : 'px-4 max-w-4xl'}`}>
         {activeTab === 'dashboard' && <DashboardView user={user} tasks={tasks} events={events} announcements={announcements} setActiveTab={setActiveTab} />}
         {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
@@ -1840,6 +1818,8 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'users' && isSuperAdmin && <UsersAdminView />}
         {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={isSuperAdmin} user={user} />}
       </main>
+
+      {/* NAVBAR */}
       <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-16 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] pb-safe shrink-0">
         <div className="grid grid-cols-5 md:grid-cols-7 h-full max-w-5xl mx-auto px-2 relative">
           <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Inicio" />
@@ -1860,7 +1840,7 @@ function MainApp({ user, onLogout }) {
   );
 }
 
-// --- VISTA AULA (FINAL: IMPRESIÓN PRO + BITÁCORA ESCRITURA) ---
+// --- VISTA AULA (PARCHADA: IMPRESIÓN PRO + BITÁCORA TEXTO) ---
 function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
@@ -1868,8 +1848,11 @@ function GroupsView({ user }) {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [showBitacoraModal, setShowBitacoraModal] = useState(null); 
   const [activeTab, setActiveTab] = useState('info');
+  
+  // ESTADOS NUEVOS
   const [newNote, setNewNote] = useState("");
   const [isWriting, setIsWriting] = useState(false);
+
   const [editingGroup, setEditingGroup] = useState(null);
   const [viewFilter, setViewFilter] = useState('all'); 
   const [groupStats, setGroupStats] = useState(null);
@@ -1924,21 +1907,28 @@ function GroupsView({ user }) {
 
   const getSafeDate = (d) => { if(!d) return '-'; try { return new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('es-AR'); } catch(e) { return d; } };
 
+  // --- IMPRESIÓN PRO (Tabla con Logo y Colores) ---
   const handlePrintSingleGroup = (g) => {
       const w = window.open('', '_blank'); if (!w) return alert("Permitir Pop-ups");
       const sorted = [...g.students].sort((a,b) => a.lastName.localeCompare(b.lastName));
       
       let rows = sorted.map((s, i) => { const flia = `M: ${s.motherName||'-'} (${s.motherContact||'-'}) / P: ${s.fatherName||'-'} (${s.fatherContact||'-'})`; return `<tr><td style="text-align:center">${i+1}</td><td><b>${s.lastName}, ${s.firstName}</b></td><td>${s.dni||'-'}</td><td>${getSafeDate(s.birthDate)}</td><td style="font-size:9px">${flia}</td></tr>`; }).join('');
-      let html = `<html><head><title>Lista ${g.name}</title><style>body{font-family:Arial,sans-serif;padding:20px;font-size:11px}table{width:100%;border-collapse:collapse;margin-top:10px}th{background:#f3e8ff;color:#4c1d95;padding:8px;border:1px solid #ccc;font-size:9px}td{padding:6px;border:1px solid #ccc}tr:nth-child(even){background:#f9fafb}.header{border-bottom:2px solid #6d28d9;padding-bottom:10px;margin-bottom:15px;display:flex;justify-content:space-between}h1{margin:0;color:#4c1d95}</style></head><body><div class="header"><div><h1>Lista: ${g.name}</h1><p>Docente: <b>${g.teacher||'-'}</b> | Aux: <b>${g.aux||'-'}</b> | Sup: <b>${g.sup1||'-'}</b></p></div><img src="${LOGO_URL}" height="40"/></div><table><thead><tr><th width="5%">#</th><th width="25%">Alumno</th><th width="10%">DNI</th><th width="10%">Nacimiento</th><th>Familia</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
+      
+      let html = `<html><head><title>Lista ${g.name}</title><style>body{font-family:Arial,sans-serif;padding:20px;font-size:11px}table{width:100%;border-collapse:collapse;margin-top:10px}th{background:#f3e8ff;color:#4c1d95;padding:8px;border:1px solid #ccc;font-size:9px}td{padding:6px;border:1px solid #ccc}tr:nth-child(even){background:#f9fafb}.header{border-bottom:2px solid #6d28d9;padding-bottom:10px;margin-bottom:15px;display:flex;justify-content:space-between}h1{margin:0;color:#4c1d95;text-transform:uppercase}</style></head><body>
+      <div class="header"><div><h1>Lista: ${g.name}</h1>
+      <p style="margin:5px 0;font-size:12px;">
+         Docente: <b>${g.teacher||'-'}</b> | Auxiliar: <b>${g.aux||'-'}</b> | Supervisor: <b>${g.sup1||'-'}</b>
+      </p></div><img src="${LOGO_URL}" height="50"/></div>
+      <table><thead><tr><th width="5%">#</th><th width="25%">Alumno</th><th width="10%">DNI</th><th width="10%">Nacimiento</th><th>Familia y Contacto</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
       w.document.write(html); w.document.close(); setTimeout(() => w.print(), 500);
   };
   
   const handlePrintAll = () => {
     const w = window.open('', '_blank'); if (!w) return alert("Permitir Pop-ups");
-    let fullHtml = `<html><head><title>Listado General</title><style>body{font-family:Arial,sans-serif;padding:20px;font-size:10px}h2{color:#4c1d95;border-bottom:2px solid #ddd;padding-bottom:5px;margin-top:20px}table{width:100%;border-collapse:collapse;margin-bottom:10px}th{background:#f3e8ff;padding:5px;border:1px solid #ccc}td{padding:4px;border:1px solid #ccc}</style></head><body><h1>Listado General de Grupos</h1>`;
+    let fullHtml = `<html><head><title>Listado General</title><style>body{font-family:Arial,sans-serif;padding:20px;font-size:10px}h2{color:#4c1d95;border-bottom:2px solid #ddd;padding-bottom:5px;margin-top:20px;page-break-after:avoid}table{width:100%;border-collapse:collapse;margin-bottom:10px;page-break-inside:avoid}th{background:#f3e8ff;padding:5px;border:1px solid #ccc}td{padding:4px;border:1px solid #ccc}</style></head><body><h1 style="color:#4c1d95">Listado General de Grupos</h1>`;
     groups.forEach(g => {
         const sorted = [...g.students].sort((a,b) => a.lastName.localeCompare(b.lastName));
-        fullHtml += `<h2>${g.name} (${g.teacher || 'Sin Asignar'})</h2><table><thead><tr><th>#</th><th>Alumno</th><th>DNI</th><th>Nacimiento</th></tr></thead><tbody>`;
+        fullHtml += `<h2>${g.name} (Doc: ${g.teacher || '-'} / Aux: ${g.aux || '-'})</h2><table><thead><tr><th>#</th><th>Alumno</th><th>DNI</th><th>Nacimiento</th></tr></thead><tbody>`;
         sorted.forEach((s, i) => { fullHtml += `<tr><td>${i+1}</td><td>${s.lastName}, ${s.firstName}</td><td>${s.dni}</td><td>${getSafeDate(s.birthDate)}</td></tr>`; });
         fullHtml += `</tbody></table>`;
     });
@@ -1958,7 +1948,7 @@ function GroupsView({ user }) {
   };
   const handleSaveIncident = async (type, severity) => { if (!showBitacoraModal) return; setSavingIncident(true); try { const incidentData = { type, severity, date: new Date().toISOString(), author: user.fullName || user.firstName, authorId: user.id }; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id), { incidents: arrayUnion(incidentData) }); alert("✅ Registro guardado"); setShowBitacoraModal(null); } catch (e) { console.error(e); } finally { setSavingIncident(false); } };
   const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
-  const handleUpdateGroup = async (e) => { e.preventDefault(); if (!editingGroup) return; if (editingGroup.isInclusionGroup && !confirm("⚠️ Estás editando un grupo de INCLUSIÓN.")) return; setUpdatingGroup(true); const fd = new FormData(e.target); const updates = {}; if (editingGroup.isInclusionGroup) { if (turn === 'morning') updates.daiMorning = fd.get('teacher'); else updates.daiAfternoon = fd.get('teacher'); } else { if (turn === 'morning') { updates.teacherMorning = fd.get('teacher'); updates.auxMorning = fd.get('aux'); updates.sup1Morning = fd.get('sup1'); updates.sup2Morning = fd.get('sup2'); updates.groupMorning = fd.get('groupName'); } else { updates.teacherAfternoon = fd.get('teacher'); updates.auxAfternoon = fd.get('aux'); updates.sup1Afternoon = fd.get('sup1'); updates.sup2Afternoon = fd.get('sup2'); updates.groupAfternoon = fd.get('groupName'); } updates.classroom = fd.get('classroom'); } updates.driveLink = fd.get('driveLink'); try { const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)); await Promise.all(promises); alert("✅ Actualizado."); setEditingGroup(null); } catch (err) { alert(err.message); } finally { setUpdatingGroup(false); } };
+  const handleUpdateGroup = async (e) => { e.preventDefault(); if (!editingGroup) return; if (editingGroup.isInclusionGroup && !confirm("⚠️ Estás editando un grupo de INCLUSIÓN. Esto cambiará el DAI asignado a todos estos alumnos.")) return; setUpdatingGroup(true); const fd = new FormData(e.target); const updates = {}; if (editingGroup.isInclusionGroup) { if (turn === 'morning') updates.daiMorning = fd.get('teacher'); else updates.daiAfternoon = fd.get('teacher'); } else { if (turn === 'morning') { updates.teacherMorning = fd.get('teacher'); updates.auxMorning = fd.get('aux'); updates.sup1Morning = fd.get('sup1'); updates.sup2Morning = fd.get('sup2'); updates.groupMorning = fd.get('groupName'); } else { updates.teacherAfternoon = fd.get('teacher'); updates.auxAfternoon = fd.get('aux'); updates.sup1Afternoon = fd.get('sup1'); updates.sup2Afternoon = fd.get('sup2'); updates.groupAfternoon = fd.get('groupName'); } updates.classroom = fd.get('classroom'); } updates.driveLink = fd.get('driveLink'); try { const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)); await Promise.all(promises); alert("✅ Actualizado."); setEditingGroup(null); } catch (err) { alert(err.message); } finally { setUpdatingGroup(false); } };
   const staffOptions = usersList.filter(u => ['Docente', 'Auxiliar/Preceptor', 'Equipo Técnico', 'Profes Especiales', 'DAI', 'Inclusión'].includes(u.role));
   const techOptions = usersList.filter(u => u.role === 'Equipo Técnico' || u.role === 'Equipo Técnico Inclusión');
 
@@ -2004,7 +1994,9 @@ function GroupsView({ user }) {
             </div>
         )}
       </div></div>)}
+
       {editingGroup && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><form onSubmit={handleUpdateGroup} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto"><div className="flex justify-between items-center mb-6"><h3 className="text-xl font-black text-violet-900 uppercase italic">Editar Grupo</h3><button type="button" onClick={()=>setEditingGroup(null)}><X/></button></div><div className="space-y-4"><div className="bg-violet-50 p-3 rounded-xl border border-violet-100 text-center"><p className="text-xs text-violet-500 font-bold uppercase mb-1">{editingGroup.isInclusionGroup ? 'Editando Cartera DAI' : 'Editando Grupo Sede'}</p>{!editingGroup.isInclusionGroup && <input name="groupName" defaultValue={editingGroup.name} className="font-black text-2xl text-violet-900 bg-transparent text-center w-full outline-none border-b border-violet-200 focus:border-violet-500" placeholder="Nombre Grupo"/>}</div><div><label className="text-xs font-bold text-gray-500 ml-1">{editingGroup.isInclusionGroup ? 'DAI Responsable' : 'Docente a Cargo'}</label><select name="teacher" defaultValue={editingGroup.teacher} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Sin asignar</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>{!editingGroup.isInclusionGroup && (<><div><label className="text-xs font-bold text-gray-500 ml-1">Auxiliar</label><select name="aux" defaultValue={editingGroup.aux} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Sin asignar</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div><label className="text-xs font-bold text-gray-500 ml-1">Aula Física</label><input name="classroom" defaultValue={editingGroup.classroom} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" placeholder="Ej: 5"/></div><div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-gray-500 ml-1">Sup. 1</label><select name="sup1" defaultValue={editingGroup.sup1} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div><label className="text-xs font-bold text-gray-500 ml-1">Sup. 2</label><select name="sup2" defaultValue={editingGroup.sup2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div></div></>)}<button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition flex justify-center items-center gap-2">{updatingGroup ? <RefreshCw className="animate-spin"/> : 'Aplicar Cambios'}</button></div></form></div>)}
+      
       {groupStats && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[250] flex items-center justify-center p-4" onClick={() => setGroupStats(null)}><div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-6"><div><h3 className="text-xl font-black text-violet-900 uppercase italic">Análisis del Grupo</h3><p className="text-xs text-gray-500 font-bold">{groupStats.name} ({groupStats.students.length} alumnos)</p></div><button onClick={() => setGroupStats(null)}><X/></button></div>{(() => { const allIncidents = groupStats.students.flatMap(s => s.incidents || []); if (allIncidents.length === 0) return <p className="text-center text-gray-400 italic">No hay registros en la bitácora aún.</p>; const dimensions = { 'Pedagógico/Social': 0, 'Salud y Bienestar': 0, 'Conducta': 0, 'Rutina': 0 }; const tagsCount = {}; allIncidents.forEach(inc => { const type = inc.type; tagsCount[type] = (tagsCount[type] || 0) + 1; if (['Trabajó Muy Bien', 'Ayudó a un amigo', 'Logro de Aprendizaje', 'Buena Conducta'].includes(type)) dimensions['Pedagógico/Social']++; else if (['Convulsión / Salud', 'Higiene / Esfínter', 'Vómito', 'No comió'].includes(type)) dimensions['Salud y Bienestar']++; else if (['Agresión / Violencia', 'Brote / Gritos', 'Fuga / Intento', 'Crisis Llanto'].includes(type)) dimensions['Conducta']++; else dimensions['Rutina']++; }); const total = allIncidents.length; const topTags = Object.entries(tagsCount).sort((a, b) => b[1] - a[1]).slice(0, 4); return (<div className="space-y-6"><div><h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Dimensiones Registradas</h4><div className="space-y-3">{Object.entries(dimensions).map(([dim, count]) => { if (count === 0) return null; const pct = Math.round((count / total) * 100); const color = dim === 'Pedagógico/Social' ? 'bg-emerald-500' : dim === 'Salud y Bienestar' ? 'bg-blue-500' : dim === 'Conducta' ? 'bg-red-500' : 'bg-yellow-400'; return (<div key={dim}><div className="flex justify-between text-xs font-bold text-gray-600 mb-1"><span>{dim}</span><span>{count} ({pct}%)</span></div><div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div style={{width: `${pct}%`}} className={`h-full ${color}`}></div></div></div>); })}</div></div><div className="bg-gray-50 p-4 rounded-2xl border border-gray-100"><h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Lo que más sucede (Top 4)</h4><div className="space-y-2">{topTags.map(([tag, count]) => (<div key={tag} className="flex justify-between items-center bg-white p-2 rounded-lg border border-gray-200 shadow-sm"><span className="text-xs font-bold text-gray-700">{tag}</span><span className="text-xs font-black bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md">{count} veces</span></div>))}</div></div></div>); })()}</div></div>)}
       {selectedStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"><div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0"><button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition"><X size={20}/></button><div className="flex items-center gap-4"><div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">{selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}</div><div><h2 className="text-2xl font-bold">{selectedStudent.lastName}, {selectedStudent.firstName}</h2><p className="opacity-90 flex gap-2 text-sm mt-1"><span className="bg-white/20 px-2 py-0.5 rounded">{calculateAge(selectedStudent.birthDate)} años</span></p></div></div><div className="flex gap-2 mt-6"><button onClick={() => setActiveTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'info' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Datos</button><button onClick={() => setActiveTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'history' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto space-y-6">{activeTab === 'info' ? (<div className="space-y-4"><div className="bg-orange-50 p-4 rounded-xl border border-orange-100"><h3 className="font-bold text-orange-800 text-xs uppercase mb-2">Contacto</h3><p className="text-sm">Madre: <b>{selectedStudent.motherName}</b> ({selectedStudent.motherContact})</p><p className="text-sm">Padre: <b>{selectedStudent.fatherName}</b> ({selectedStudent.fatherContact})</p></div><div className="bg-gray-50 p-4 rounded-xl border border-gray-100"><h3 className="font-bold text-gray-500 text-xs uppercase mb-2">Ubicación</h3><p className="text-sm">TM: <b>{selectedStudent.groupMorning}</b></p><p className="text-sm">TT: <b>{selectedStudent.groupAfternoon}</b></p></div></div>) : (<div className="space-y-2">{selectedStudent.incidents?.map((inc, i) => (<div key={i} className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="font-bold text-sm">{inc.text || inc.type}</p><p className="text-xs text-gray-500">{new Date(inc.date).toLocaleDateString()} - {inc.author}</p></div>))}</div>)}</div></div></div>)}
     </div>
@@ -2028,6 +2020,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
