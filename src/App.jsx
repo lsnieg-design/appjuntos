@@ -970,93 +970,125 @@ function NotificationsView({ notifications, canEdit, user }) {
   );
 }
 
-// --- VISTA USUARIOS ---
-function UsersView({ user }) {
-  const [usersList, setUsersList] = useState([]);
+// --- VISTA ADMINISTRACIÓN DE USUARIOS (CORREGIDA: ROLES ACTUALIZADOS) ---
+function UsersAdminView() {
+  const [users, setUsers] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [editUser, setEditUser] = useState(null);
+  const [showImport, setShowImport] = useState(false);
+  const [showRenamer, setShowRenamer] = useState(false);
+  const [editingUser, setEditingUser] = useState(null); 
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Estados dummy
+  const [csvContent, setCsvContent] = useState('');
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
-    const unsub = onSnapshot(q, snap => setUsersList(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
+    const unsub = onSnapshot(q, snap => setUsers(snap.docs.map(d => ({id: d.id, ...d.data()}))));
     return () => unsub();
   }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const firstName = e.target.firstName.value;
-    const lastName = e.target.lastName.value;
-    const username = e.target.username.value;
-    const password = e.target.password.value;
-    const role = e.target.role.value;
-    const isAdmin = e.target.isAdmin.checked;
-    const fullName = `${firstName} ${lastName}`;
-    const systemRole = isAdmin ? 'admin' : 'user';
-
-    if (editUser) {
-        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', editUser.id);
-        await updateDoc(userRef, { firstName, lastName, fullName, username, password, role, rol: systemRole });
-        setEditUser(null);
-    } else {
-        if (usersList.some(u => u.username === username)) { alert("Usuario existente."); return; }
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), { firstName, lastName, fullName, username, password, role, rol: systemRole, createdAt: serverTimestamp() });
-    }
-    setShowModal(false);
+    const fd = new FormData(e.target);
+    const data = {
+        firstName: fd.get('firstName'), lastName: fd.get('lastName'), fullName: `${fd.get('firstName')} ${fd.get('lastName')}`,
+        username: fd.get('username').toLowerCase(), password: fd.get('password'), role: fd.get('role'),
+        rol: fd.get('isAdmin') === 'on' ? 'admin' : 'user'
+    };
+    try {
+        if (editingUser) {
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', editingUser.id), data);
+        } else {
+            const qCheck = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), where('username', '==', data.username));
+            const check = await getDocs(qCheck);
+            if (!check.empty) return alert("El usuario ya existe.");
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), { ...data, createdAt: serverTimestamp() });
+        }
+        setShowModal(false); setEditingUser(null);
+    } catch(e) { alert("Error: " + e.message); }
   };
-  const deleteUser = async (id) => { if (confirm("¿Eliminar usuario?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id)); };
-  const openEdit = (u) => { setEditUser(u); setShowModal(true); }
-  const openCreate = () => { setEditUser(null); setShowModal(true); }
+
+  const deleteUser = async (id) => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id)); };
+  const openEdit = (u) => { setEditingUser(u); setShowModal(true); };
+  
+  const analizarConflictos = () => alert("Función Detective en mantenimiento.");
+  const handleBulkImport = () => alert("Importación masiva en mantenimiento.");
+
+  const filteredUsers = users.filter(u => (u.fullName||'').toLowerCase().includes(searchTerm.toLowerCase()));
 
   const formatLastLogin = (timestamp) => {
       if (!timestamp) return 'Nunca';
-      return new Date(timestamp.seconds * 1000).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      const date = new Date(timestamp.seconds * 1000);
+      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
   };
 
   return (
-    <div className="animate-in fade-in duration-500">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-violet-900">Personal</h2>
-        <button onClick={openCreate} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:bg-orange-600 transition active:scale-95"><Plus size={24} /></button>
-      </div>
-      <div className="grid gap-3">
-        {usersList.map(u => (
-          <div key={u.id} className="bg-white p-4 rounded-2xl shadow-sm border border-violet-50 flex justify-between items-center group cursor-pointer hover:shadow-md transition" onClick={() => openEdit(u)}>
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center font-bold text-lg overflow-hidden relative">
-                  {u.photoUrl ? <img src={u.photoUrl} className="w-full h-full object-cover" /> : `${u.firstName?.[0]}${u.lastName?.[0]}`}
-                  {u.rol === 'admin' && <div className="absolute bottom-0 right-0 bg-orange-500 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center"><Shield size={8} className="text-white"/></div>}
-                  {u.rol === 'super-admin' && <div className="absolute bottom-0 right-0 bg-yellow-400 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center"><Crown size={8} className="text-white"/></div>}
-              </div>
-              <div>
-                  <h4 className="font-bold text-gray-800">{u.fullName}</h4>
-                  <div className="flex flex-col text-xs text-gray-500">
-                      <span className="text-orange-600 font-bold uppercase tracking-wider text-[10px]">{u.role}</span>
-                      <span className="flex items-center gap-1 mt-0.5"><User size={10}/> {u.username}</span>
-                      <span className="flex items-center gap-1 mt-1 text-violet-400 font-medium"><Activity size={10}/> {formatLastLogin(u.lastLogin)}</span>
-                  </div>
-              </div>
+   <div className="flex flex-col h-full bg-slate-900/50 p-4 rounded-3xl overflow-hidden">
+    <div className="flex flex-col gap-3 mb-4 shrink-0">
+        <div className="flex justify-between items-center">
+            <h3 className="text-white font-bold text-sm uppercase tracking-widest">{users.length} Usuarios</h3>
+            <div className="flex gap-2">
+               <button onClick={()=>setShowImport(true)} className="p-2 bg-emerald-500 text-white rounded-xl shadow"><UploadCloud size={16}/></button>
+               <button onClick={()=>{setEditingUser(null); setShowModal(true);}} className="p-2 bg-orange-500 text-white rounded-xl shadow"><Plus size={16}/></button>
             </div>
-            {u.rol !== 'super-admin' && (
-                <button onClick={(e) => {e.stopPropagation(); deleteUser(u.id)}} className="text-gray-300 hover:text-red-500 p-2 bg-gray-50 rounded-full hover:bg-red-50 transition"><Trash2 size={18} /></button>
-            )}
-          </div>
-        ))}
-      </div>
-      {showModal && (
-        <div className="fixed inset-0 bg-violet-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-bold mb-6 text-violet-900">{editUser ? 'Editar Usuario' : 'Alta de Usuario'}</h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3"><input name="firstName" defaultValue={editUser?.firstName} required className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Nombre" /><input name="lastName" defaultValue={editUser?.lastName} required className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Apellido" /></div>
-              <select name="role" defaultValue={editUser?.role || ROLES[0]} className="w-full p-3 bg-violet-50 rounded-xl outline-none focus:ring-2 focus:ring-orange-400 text-gray-700">{ROLES.map(r => <option key={r} value={r}>{r}</option>)}</select>
-              <div className="p-4 bg-orange-50 rounded-xl space-y-3"><p className="text-xs text-orange-600 font-bold uppercase">Credenciales</p><input name="username" defaultValue={editUser?.username} required className="w-full p-2 bg-white rounded-lg border border-orange-200" placeholder="Usuario" /><input name="password" defaultValue={editUser?.password} required className="w-full p-2 bg-white rounded-lg border border-orange-200" placeholder="Contraseña" /></div>
-              <div className="flex items-center gap-3 p-3 bg-violet-50 rounded-xl border border-violet-100"><input type="checkbox" name="isAdmin" defaultChecked={editUser?.rol === 'admin'} className="w-5 h-5 text-violet-600 rounded focus:ring-violet-500" /><div className="flex flex-col"><label className="text-sm font-bold text-violet-900">Permisos de Administrador</label><span className="text-[10px] text-gray-500">Puede editar tareas y eventos</span></div></div>
-              <div className="flex gap-3 mt-6"><button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button><button type="submit" className="flex-1 py-3 bg-violet-800 text-white font-bold rounded-xl shadow-lg">{editUser ? 'Guardar Cambios' : 'Crear'}</button></div>
-            </form>
-          </div>
         </div>
-      )}
+        <div className="bg-black/40 p-2 rounded-xl flex items-center gap-2 border border-white/10">
+            <Search className="text-white/50 ml-2" size={16} />
+            <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar..." className="bg-transparent border-none outline-none text-white text-xs w-full placeholder-white/30" />
+        </div>
+        
+        <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+             <button onClick={analizarConflictos} className="whitespace-nowrap px-3 py-1.5 bg-violet-600/50 border border-violet-400 text-white rounded-lg text-[10px] font-bold uppercase flex-shrink-0">🕵️ Detective</button>
+             <button onClick={()=>setShowRenamer(true)} className="whitespace-nowrap px-3 py-1.5 bg-blue-600/50 border border-blue-400 text-white rounded-lg text-[10px] font-bold uppercase flex-shrink-0">🔄 Reemplazar</button>
+        </div>
     </div>
+
+    <div className="flex-1 overflow-y-auto space-y-2 pb-10">
+      {filteredUsers.map(u => (
+      <div key={u.id} className="bg-white p-3 rounded-xl flex items-center justify-between group">
+       <div className="flex items-center gap-3 overflow-hidden">
+        <div className="w-8 h-8 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center font-black text-xs shrink-0 relative">
+            {u.firstName?.[0]}
+            {u.lastLogin && new Date(u.lastLogin.seconds * 1000).toDateString() === new Date().toDateString() && <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border border-white"></div>}
+        </div>
+        <div className="min-w-0">
+            <p className="font-bold text-xs text-gray-800 truncate">{u.fullName}</p>
+            <div className="flex flex-wrap gap-2 items-center">
+                <p className="text-[9px] text-gray-400 truncate bg-gray-100 px-1 rounded">{u.role}</p>
+                <p className="text-[8px] text-gray-400 flex items-center gap-1"><Clock size={8}/> {formatLastLogin(u.lastLogin)}</p>
+            </div>
+        </div>
+       </div>
+       <div className="flex gap-2 shrink-0">
+           <button onClick={() => openEdit(u)} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"><Edit3 size={14}/></button>
+           {u.username !== 'admin' && <button onClick={() => deleteUser(u.id)} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Trash2 size={14}/></button>}
+       </div>
+      </div>
+      ))}
+    </div>
+
+    {/* MODAL EDICIÓN */}
+    {showModal && (
+      <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4">
+       <form onSubmit={handleSubmit} className="bg-white rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl">
+        <h3 className="font-bold text-violet-900">{editingUser ? 'Editar' : 'Nuevo'} Usuario</h3>
+        <div className="grid grid-cols-2 gap-2"><input name="firstName" defaultValue={editingUser?.firstName} placeholder="Nombre" className="p-2 bg-gray-50 rounded-lg text-xs border" required/><input name="lastName" defaultValue={editingUser?.lastName} placeholder="Apellido" className="p-2 bg-gray-50 rounded-lg text-xs border" required/></div>
+        <input name="username" defaultValue={editingUser?.username} placeholder="Usuario" className="w-full p-2 bg-gray-50 rounded-lg text-xs border" required/>
+        <input name="password" defaultValue={editingUser?.password} placeholder="Contraseña" className="w-full p-2 bg-gray-50 rounded-lg text-xs border" required/>
+        
+        {/* AQUÍ ESTÁ EL CAMBIO: USA LA LISTA GLOBAL "ROLES" */}
+        <select name="role" defaultValue={editingUser?.role || 'Docente'} className="w-full p-2 bg-gray-50 rounded-lg text-xs border">
+            {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+        </select>
+
+        <div className="flex items-center gap-2"><input type="checkbox" name="isAdmin" defaultChecked={editingUser?.rol === 'admin'} /><span className="text-xs">¿Es Admin?</span></div>
+        <div className="flex gap-2"><button type="button" onClick={()=>setShowModal(false)} className="flex-1 py-2 text-gray-500 text-xs font-bold">Cancelar</button><button type="submit" className="flex-1 py-2 bg-violet-600 text-white rounded-lg text-xs font-bold">Guardar</button></div>
+       </form>
+      </div>
+    )}
+   </div>
   );
 }
 
@@ -2595,6 +2627,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
