@@ -971,19 +971,18 @@ function CalendarView({ events, canEdit, user }) {
   );
 }
 
-// --- VISTA PERFIL (PARCHADA: MANTENIMIENTO + AUDITORÍA) ---
+// --- VISTA PERFIL (CORREGIDA: BOTÓN MANTENIMIENTO) ---
 function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
   const [formData, setFormData] = useState({ firstName: user.firstName || '', lastName: user.lastName || '', photoUrl: user.photoUrl || '' });
   const [uploading, setUploading] = useState(false);
   const [showAdminUsers, setShowAdminUsers] = useState(false);
   const [showAudit, setShowAudit] = useState(false);
-  
-  // ESTADO DE MANTENIMIENTO
   const [maintenance, setMaintenance] = useState(false);
 
+  // CORRECCIÓN AQUÍ: MISMA RUTA QUE MAINAPP
   useEffect(() => {
-      const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'system_config'), (d) => {
-          if (d.exists()) setMaintenance(d.data().maintenance);
+      const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'maintenance'), (d) => {
+          if (d.exists()) setMaintenance(d.data().active);
       });
       return () => unsub();
   }, []);
@@ -992,7 +991,8 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
       const newState = !maintenance;
       if(!confirm(`¿${newState ? 'ACTIVAR' : 'DESACTIVAR'} el Modo Mantenimiento?\n\nEsto bloqueará el acceso a todos los usuarios excepto Super Admin.`)) return;
       const { setDoc, doc: d } = await import('firebase/firestore');
-      await setDoc(d(db, 'artifacts', appId, 'public', 'data', 'system_config'), { maintenance: newState }, { merge: true });
+      // CORRECCIÓN AQUÍ: GUARDA EN LA CARPETA CORRECTA
+      await setDoc(d(db, 'artifacts', appId, 'public', 'data', 'config', 'maintenance'), { active: newState }, { merge: true });
   };
 
   const activarNotificaciones = async () => {
@@ -1787,7 +1787,7 @@ function MatriculaView({ user }) {
     </div>
   );
 }
-// --- APP PRINCIPAL (PARCHADA: PANTALLA DE MANTENIMIENTO) ---
+// --- APP PRINCIPAL (CORREGIDA: ERROR FIREBASE RESUELTO) ---
 function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -1802,8 +1802,6 @@ function MainApp({ user, onLogout }) {
   const [searchResults, setSearchResults] = useState([]);
   const [globalViewingStudent, setGlobalViewingStudent] = useState(null);
   const [showNotifRequest, setShowNotifRequest] = useState(false);
-  
-  // ESTADO MANTENIMIENTO
   const [maintenanceMode, setMaintenanceMode] = useState(false);
 
   const prevNotifCount = useRef(0);
@@ -1818,8 +1816,8 @@ function MainApp({ user, onLogout }) {
     const unsubResources = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc')), (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const unsubAnnounce = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc')), (snap) => setAnnouncements(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     
-    // LISTENER MANTENIMIENTO
-    const unsubMaint = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'system_config'), (doc) => { setMaintenanceMode(doc.exists() ? doc.data().maintenance : false); });
+    // CORRECCIÓN AQUÍ: Agregamos 'config' para tener 6 segmentos (par)
+    const unsubMaint = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'maintenance'), (doc) => { setMaintenanceMode(doc.exists() ? doc.data().active : false); });
 
     const qNotifs = query(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), where('toUserId', '==', user.id));
     const unsubNotifs = onSnapshot(qNotifs, (snap) => { 
@@ -1837,7 +1835,6 @@ function MainApp({ user, onLogout }) {
   const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
   const enableNotifications = async () => { const permission = await Notification.requestPermission(); if (permission === 'granted') { try { const { getMessaging, getToken } = await import("firebase/messaging"); const messaging = getMessaging(); const token = await getToken(messaging, { vapidKey: 'BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw' }); if(token) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { fcmTokens: arrayUnion(token) }); } catch(e) {} alert("✅ ¡Genial! Te avisaremos de las novedades."); } setShowNotifRequest(false); };
 
-  // PANTALLA DE BLOQUEO POR MANTENIMIENTO
   if (maintenanceMode && user.rol !== 'super-admin') {
       return (<div className="flex flex-col h-screen w-full bg-violet-900 items-center justify-center p-6 text-center text-white animate-in fade-in duration-1000"><div className="bg-white/10 p-6 rounded-full mb-6 animate-bounce"><Settings size={64} className="text-orange-400"/></div><h1 className="text-3xl font-black uppercase italic mb-2">¡Estamos en Obra! 🚧</h1><p className="text-lg font-medium opacity-80 max-w-xs mx-auto mb-8">Estamos ajustando unas tuercas en la App. Volvemos en unos minutos.</p><div className="bg-orange-500 text-white px-6 py-2 rounded-full font-bold text-sm transform rotate-[-2deg] shadow-lg">"No rompo, mejoro" - El Desarrollador</div><button onClick={() => window.location.reload()} className="mt-10 text-white/50 text-xs hover:text-white flex items-center gap-2"><RefreshCw size={12}/> Probar si ya volvió</button></div>);
   }
@@ -2056,5 +2053,6 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
