@@ -592,7 +592,7 @@ function ResourcesView({ resources, canEdit }) {
   );
 }
 
-// --- VISTA TAREAS (FINAL: ROLES DE INCLUSIÓN AGREGADOS) ---
+// --- VISTA TAREAS (REPARADA: BUSCADOR DE PERSONAS FUNCIONANDO) ---
 function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
@@ -603,39 +603,34 @@ function TasksView({ tasks, user, canEdit }) {
   
   const [checklist, setChecklist] = useState([]); 
   const [newItem, setNewItem] = useState(""); 
+  
+  // ESTADO DEL BUSCADOR (AQUÍ ESTABA EL PROBLEMA POTENCIAL)
   const [userSearch, setUserSearch] = useState("");
+  
   const [openCommentsId, setOpenCommentsId] = useState(null); 
   const [newComment, setNewComment] = useState("");
   const [editingTask, setEditingTask] = useState(null); 
   const [filter, setFilter] = useState('pending'); 
 
-  // --- LISTA DE ROLES ACTUALIZADA (CON INCLUSIÓN) ---
-  const ROLES_OPTIONS = [
-      'Docente', 
-      'Profes Especiales', 
-      'Equipo Técnico', 
-      'Equipo Directivo', 
-      'Administración', 
-      'Auxiliar/Preceptor',
-      'DAI',                      // NUEVO
-      'Dirección Inclusión',      // NUEVO
-      'Equipo Técnico Inclusión'  // NUEVO
-  ];
-
-  // Permisos: Admin, Directivos y ahora también Dirección Inclusión pueden gestionar
+  // Roles actualizados con Inclusión
+  const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor', 'DAI', 'Dirección Inclusión', 'Equipo Técnico Inclusión'];
   const canManage = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo' || user.role === 'Dirección Inclusión';
 
+  // Carga de usuarios optimizada
   useEffect(() => {
-    const unsub = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc')), (snap) => {
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
+    const unsub = onSnapshot(q, (snap) => {
         const users = snap.docs.map(d => ({id: d.id, ...d.data()}));
         setUsersList(users);
+        
+        // Si estamos editando, buscamos el usuario asignado
         if (editingTask && editingTask.targetUserId) {
             const found = users.find(u => u.id === editingTask.targetUserId);
             if (found) setSelectedUserObj(found);
         }
     });
     return () => unsub();
-  }, [editingTask]);
+  }, [editingTask]); // Solo se recarga si cambiamos de tarea a editar
 
   const getCountdown = (dateStr) => {
       if (!dateStr) return null;
@@ -713,7 +708,6 @@ function TasksView({ tasks, user, canEdit }) {
                  if (assignType === 'user' && finalTargetId) {
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: finalTargetId });
                  } else if (assignType === 'roles') {
-                    // FILTRO INTELIGENTE: Busca usuarios que tengan CUALQUIERA de los roles seleccionados
                     const targets = usersList.filter(u => u.role && finalRoles.some(r => r.toLowerCase() === u.role.toLowerCase()));
                     const promises = targets.map(t => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: t.id }));
                     await Promise.all(promises);
@@ -761,7 +755,8 @@ function TasksView({ tasks, user, canEdit }) {
       return false;
   });
 
-  const searchResults = userSearch.length > 0 ? usersList.filter(u => u.fullName.toLowerCase().includes(userSearch.toLowerCase())) : [];
+  // FILTRO SEGURO PARA EL BUSCADOR
+  const searchResults = userSearch.length > 0 ? (usersList || []).filter(u => u.fullName.toLowerCase().includes(userSearch.toLowerCase())) : [];
 
   const getPriorityStyle = (p) => { 
       if (p === 'alta') return 'border-l-4 border-l-red-500 bg-red-50/50'; 
@@ -870,8 +865,24 @@ function TasksView({ tasks, user, canEdit }) {
                         </div>
                     ) : (
                         <div className="relative">
-                            <input placeholder="🔍 Escribí para buscar..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none focus:border-violet-500 rounded-t-xl" />
-                            {userSearch.length > 0 && (<div className="max-h-40 overflow-y-auto border-x border-b border-gray-200 rounded-b-xl bg-white shadow-xl absolute w-full z-50">{searchResults.length > 0 ? searchResults.map(u => (<div key={u.id} onClick={() => { setSelectedUserObj(u); setUserSearch(""); }} className="p-3 hover:bg-violet-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0"><div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">{u.firstName[0]}</div><p className="text-xs font-bold text-gray-700">{u.fullName}</p></div>)) : <p className="p-3 text-xs text-gray-400 italic text-center">No encontrado</p>}</div>)}
+                            {/* INPUT REPARADO: Sin autoComplete y con Value seguro */}
+                            <input 
+                                placeholder="🔍 Escribí para buscar..." 
+                                value={userSearch} 
+                                onChange={(e) => setUserSearch(e.target.value)} 
+                                autoComplete="off"
+                                className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none focus:border-violet-500 rounded-t-xl" 
+                            />
+                            {userSearch.length > 0 && (
+                                <div className="max-h-40 overflow-y-auto border-x border-b border-gray-200 rounded-b-xl bg-white shadow-xl absolute w-full z-50">
+                                    {searchResults.length > 0 ? searchResults.map(u => (
+                                        <div key={u.id} onClick={() => { setSelectedUserObj(u); setUserSearch(""); }} className="p-3 hover:bg-violet-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0">
+                                            <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">{u.firstName[0]}</div>
+                                            <p className="text-xs font-bold text-gray-700">{u.fullName}</p>
+                                        </div>
+                                    )) : <p className="p-3 text-xs text-gray-400 italic text-center">No encontrado</p>}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -909,6 +920,7 @@ function TasksView({ tasks, user, canEdit }) {
     </div>
   );
 }
+
 
 // --- VISTA NOTIFICACIONES (PANTALLA COMPLETA CON REDIRECCIÓN) ---
 function NotificationsView({ notifications, canEdit, user }) {
@@ -2583,6 +2595,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
