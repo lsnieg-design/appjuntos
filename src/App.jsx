@@ -1068,7 +1068,7 @@ function CalendarView({ events, canEdit, user }) {
     </div>
   );
 }
-// --- VISTA PERFIL (CON BOTÓN DE MANTENIMIENTO) ---
+// --- VISTA PERFIL (CON MANTENIMIENTO Y AUDITORÍA ARREGLADA) ---
 function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
   const [formData, setFormData] = useState({ firstName: user.firstName || '', lastName: user.lastName || '', photoUrl: user.photoUrl || '' });
   const [uploading, setUploading] = useState(false);
@@ -1085,9 +1085,10 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
   }, []);
 
   const toggleMaintenance = async () => {
-      if(!confirm(`¿${maintenance ? 'Desactivar' : 'ACTIVAR'} el Modo Mantenimiento?\n\nEsto bloqueará la app para todos los usuarios excepto Super Admin.`)) return;
+      const nuevoEstado = !maintenance;
+      if(!confirm(`¿${nuevoEstado ? 'ACTIVAR' : 'DESACTIVAR'} el Modo Mantenimiento?\n\nEsto bloqueará la app para todos los usuarios excepto Super Admin.`)) return;
       const { setDoc, doc: d } = await import('firebase/firestore');
-      await setDoc(d(db, 'artifacts', appId, 'public', 'data', 'system_config'), { maintenance: !maintenance }, { merge: true });
+      await setDoc(d(db, 'artifacts', appId, 'public', 'data', 'system_config'), { maintenance: nuevoEstado }, { merge: true });
   };
 
   const activarNotificaciones = async () => {
@@ -1129,14 +1130,18 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
         <button onClick={exportData} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]"><div className="bg-green-100 text-green-700 p-3 rounded-xl"><Download size={24} /></div><div className="text-left"><h4 className="font-bold text-gray-800">Exportar Reporte</h4><p className="text-xs text-gray-500">Descargar mis tareas en Excel</p></div></button>
         <button onClick={activarNotificaciones} className="bg-white p-4 rounded-2xl border border-violet-50 shadow-sm flex items-center gap-4 hover:shadow-md transition active:scale-[0.98]"><div className="bg-yellow-100 text-yellow-700 p-3 rounded-xl"><Bell size={24} /></div><div className="text-left"><h4 className="font-bold text-gray-800">Activar Notificaciones</h4><p className="text-xs text-gray-500">Habilitar avisos en este dispositivo</p></div></button>
         <button onClick={() => { if(confirm("¿Cerrar sesión?")) onLogout(); }} className="bg-red-50 p-4 rounded-2xl border border-red-100 shadow-sm flex items-center gap-4 hover:bg-red-100 transition active:scale-[0.98]"><div className="bg-white text-red-500 p-3 rounded-xl"><LogOut size={24} /></div><div className="text-left"><h4 className="font-bold text-red-600">Cerrar Sesión</h4><p className="text-xs text-red-400">Salir de la cuenta segura</p></div></button>
+        
+        {/* BOTÓN MODO MANTENIMIENTO */}
         {isSuperAdmin && (
             <button onClick={toggleMaintenance} className={`p-4 rounded-2xl shadow-xl flex items-center gap-4 hover:scale-[1.02] transition text-white border mt-4 ${maintenance ? 'bg-red-600 border-red-800 animate-pulse' : 'bg-gray-800 border-gray-900'}`}>
                 <div className="bg-white/20 p-3 rounded-xl"><Settings size={24} /></div>
-                <div className="text-left"><h4 className="font-bold">{maintenance ? 'DESACTIVAR MANTENIMIENTO' : 'ACTIVAR MANTENIMIENTO'}</h4><p className="text-xs opacity-80">{maintenance ? 'El sistema está bloqueado' : 'Bloquear acceso a usuarios'}</p></div>
+                <div className="text-left"><h4 className="font-bold">{maintenance ? 'DESACTIVAR MANTENIMIENTO' : 'ACTIVAR MANTENIMIENTO'}</h4><p className="text-xs opacity-80">{maintenance ? 'El sistema está BLOQUEADO' : 'Bloquear acceso a usuarios'}</p></div>
             </button>
         )}
       </div>
+      
       <div className="mt-10 pt-6 border-t border-gray-100 opacity-50 pb-10"><p className="text-[9px] font-bold text-gray-400 uppercase tracking-[4px]">Creado por <a href="https://www.somosnomade.com.ar" target="_blank" className="hover:text-violet-600 transition">NOMADE</a></p></div>
+
       {showAdminUsers && (<div className="fixed inset-0 bg-violet-900/95 z-[200] flex flex-col p-6 animate-in slide-in-from-bottom duration-500 overflow-y-auto"><div className="flex justify-between items-center text-white mb-8"><h2 className="text-2xl font-black uppercase italic tracking-tighter">Administración Personal</h2><button onClick={() => setShowAdminUsers(false)}><X size={32} /></button></div><UsersAdminView /></div>)}
       {showAudit && (<div className="fixed inset-0 bg-gray-900/95 z-[200] flex flex-col p-6 animate-in slide-in-from-bottom duration-500 overflow-y-auto"><div className="flex justify-between items-center text-white mb-8"><h2 className="text-2xl font-black uppercase italic tracking-tighter">Auditoría Institucional</h2><button onClick={() => setShowAudit(false)}><X size={32} /></button></div><ActivityLogView /></div>)}
     </div>
@@ -2272,6 +2277,7 @@ function ActivityLogView() {
     </div>
   );
 }
+
 
 
 
