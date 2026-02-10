@@ -1576,7 +1576,41 @@ function MatriculaView({ user }) {
   const exportFiltered = () => { if (filteredStudents.length === 0) return alert("Sin datos"); const headers = ["Apellido", "Nombre", "DNI", "Nivel", "Modalidad"]; const csv = [headers.join(';'), ...filteredStudents.map(s => [`"${s.lastName}"`, `"${s.firstName}"`, `"${s.dni}"`, `"${s.level}"`, `"${s.modality||'Sede'}"`].join(';'))].join('\n'); const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = "Matricula.csv"; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
   const statsResults = students.filter(s => { if (s.isActive === false) return false; if (statFilters.modality.length > 0 && !statFilters.modality.includes(s.modality || 'Sede')) return false; if (statFilters.level.length > 0 && !statFilters.level.includes(s.level)) return false; if (statFilters.dx !== 'all' && s.dx !== statFilters.dx) return false; if (statFilters.gender !== 'all' && s.gender !== statFilters.gender) return false; return true; });
   const toggleStatFilter = (category, value) => { setStatFilters(prev => { const currentList = prev[category]; if (currentList.includes(value)) return { ...prev, [category]: currentList.filter(item => item !== value) }; else return { ...prev, [category]: [...currentList, value] }; }); };
-
+// --- FUNCIONES DE LA NUBE (GESTIÓN) ---
+  const findDuplicates = () => alert("🔍 Buscador de duplicados en mantenimiento.");
+  const checkUnassigned = () => { 
+      const found = students.filter(s => (s.isActive === undefined || s.isActive === true) && !s.groupMorning && !s.groupAfternoon && !s.daiMorning && !s.daiAfternoon); 
+      setUnassignedList(found); 
+      setShowDataManagement(false); 
+      setShowUnassigned(true); 
+  };
+  const descargarBackup = () => { 
+      if(!confirm("¿Descargar copia de seguridad de todos los alumnos?")) return; 
+      const blob = new Blob([JSON.stringify(students, null, 2)], { type: "application/json" }); 
+      const link = document.createElement('a'); 
+      link.href = URL.createObjectURL(blob); 
+      link.download = `BACKUP_MATRICULA_${new Date().toISOString().slice(0,10)}.json`; 
+      document.body.appendChild(link); link.click(); document.body.removeChild(link); 
+  };
+  const handleBulkImport = () => alert("☁️ La importación masiva se realiza desde el panel de Administración de Usuarios.");
+  const handleDeleteAll = () => alert("⛔ Función protegida por seguridad.");
+  const handleResetCycle = () => alert("⛔ Función protegida por seguridad.");
+  
+  const handleAutoAssignGenders = async () => {
+    if(!confirm("🤖 ¿Asignar género automáticamente basado en el nombre?\n(Nombres terminados en 'a' serán F, resto M)")) return;
+    setProcessing(true);
+    try {
+        const updates = students.map(s => {
+            if(s.gender) return null; // Si ya tiene, no tocar
+            const name = (s.firstName || "").toLowerCase().trim();
+            const gender = name.endsWith('a') ? 'F' : 'M';
+            return updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { gender });
+        }).filter(p => p !== null);
+        await Promise.all(updates);
+        alert(`✅ Géneros asignados a ${updates.length} alumnos.`);
+    } catch(e) { alert(e.message); }
+    setProcessing(false);
+  };
   return (
     <div className="animate-in fade-in pb-20">
       <div className={`p-6 rounded-3xl shadow-lg text-white mb-6 transition-colors ${showArchived?'bg-gray-600':'bg-gradient-to-r from-blue-600 to-cyan-500'}`}>
@@ -1799,6 +1833,47 @@ function MatriculaView({ user }) {
         <div className="grid grid-cols-2 gap-3"><input name="firstName" defaultValue={editingStudent?.firstName} placeholder="Nombre" required className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/><input name="lastName" defaultValue={editingStudent?.lastName} placeholder="Apellido" required className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/></div>
         <div className="grid grid-cols-2 gap-3"><input name="dni" type="number" defaultValue={editingStudent?.dni} placeholder="DNI" className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/><input name="birthDate" type="date" defaultValue={getSafeDate(editingStudent?.birthDate)} className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm text-gray-500"/></div>
         
+       {/* MODAL GESTIÓN (NUBE) - PARCHADO */}
+      {showDataManagement && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[9999]">
+            <div className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl animate-in zoom-in-95">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="font-bold text-xl text-gray-800 flex items-center gap-2"><UploadCloud className="text-blue-500"/> Gestión de Datos</h3>
+                    <button onClick={()=>setShowDataManagement(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button>
+                </div>
+                
+                <div className="space-y-4">
+                    {/* Herramientas Rápidas */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <button onClick={findDuplicates} className="p-3 bg-yellow-50 text-yellow-700 rounded-xl font-bold text-xs hover:bg-yellow-100 border border-yellow-200 flex flex-col items-center gap-1">
+                            <Search size={16}/> Buscar Duplicados
+                        </button>
+                        <button onClick={checkUnassigned} className="p-3 bg-red-50 text-red-700 rounded-xl font-bold text-xs hover:bg-red-100 border border-red-200 flex flex-col items-center gap-1">
+                            <AlertTriangle size={16}/> Ver Sin Grupo
+                        </button>
+                    </div>
+
+                    {/* Importar / Exportar */}
+                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                        <h4 className="font-bold text-gray-600 text-xs mb-2 uppercase">Copia de Seguridad</h4>
+                        <div className="flex gap-2">
+                            <button onClick={descargarBackup} className="flex-1 py-3 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50 shadow-sm flex items-center justify-center gap-2">
+                                <Download size={14}/> Descargar JSON
+                            </button>
+                            <button onClick={handleBulkImport} className="flex-1 py-3 bg-blue-50 border border-blue-100 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-100 shadow-sm flex items-center justify-center gap-2">
+                                <UploadCloud size={14}/> Importar
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Acciones Masivas */}
+                    <button onClick={handleAutoAssignGenders} disabled={processing} className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl text-xs shadow-lg hover:bg-indigo-700 flex items-center justify-center gap-2">
+                        {processing ? <RefreshCw className="animate-spin" size={16}/> : <><User size={16}/> Asignar Género Automático</>}
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
         {/* CAJA AZUL: DATOS ESCOLARES */}
         <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 space-y-3">
              <h4 className="font-bold text-blue-700 text-xs uppercase">Datos Escolares ({formModalidad})</h4>
@@ -2064,7 +2139,7 @@ function MainApp({ user, onLogout }) {
   );
 }
 
-// --- VISTA AULA (FINAL: RECUPERACIÓN DE DATOS DE GRUPO + IMPRESIÓN PRO) ---
+// --- VISTA AULA (MASTER: IMPRESIÓN MASIVA REAL + DISEÑO VIOLETA) ---
 function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
@@ -2072,6 +2147,8 @@ function GroupsView({ user }) {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [showBitacoraModal, setShowBitacoraModal] = useState(null); 
   const [activeTab, setActiveTab] = useState('info');
+  
+  // ESTADOS
   const [newNote, setNewNote] = useState("");
   const [isWriting, setIsWriting] = useState(false);
   const [editingGroup, setEditingGroup] = useState(null);
@@ -2110,7 +2187,7 @@ function GroupsView({ user }) {
 
   const groupedData = students.reduce((acc, s) => {
       let groupKey = ""; let myTeacher = "";
-      // Datos actuales del alumno para este turno
+      // Datos dinámicos según el turno seleccionado
       const sAux = turn === 'morning' ? s.auxMorning : s.auxAfternoon;
       const sSup1 = turn === 'morning' ? s.sup1Morning : s.sup1Afternoon;
       const sSup2 = turn === 'morning' ? s.sup2Morning : s.sup2Afternoon;
@@ -2142,11 +2219,9 @@ function GroupsView({ user }) {
               isInclusionGroup: s.modality === 'Inclusión' 
           }; 
       } else {
-          // LÓGICA DE RECUPERACIÓN: Si el grupo ya existe pero le faltan datos, y este alumno los tiene, completamos.
+          // Llenar datos faltantes del grupo si vienen vacíos
           if (!acc[groupKey].aux && sAux) acc[groupKey].aux = sAux;
           if (!acc[groupKey].sup1 && sSup1) acc[groupKey].sup1 = sSup1;
-          if (!acc[groupKey].sup2 && sSup2) acc[groupKey].sup2 = sSup2;
-          if (!acc[groupKey].classroom && sClass) acc[groupKey].classroom = sClass;
           if (!acc[groupKey].teacher && myTeacher) acc[groupKey].teacher = myTeacher;
       }
       acc[groupKey].students.push(s); 
@@ -2165,72 +2240,102 @@ function GroupsView({ user }) {
 
   const getSafeDate = (d) => { if(!d) return '-'; try { return new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('es-AR'); } catch(e) { return d; } };
 
-  const handlePrintSingleGroup = (g) => {
-      const w = window.open('', '_blank'); if (!w) return alert("Permitir Pop-ups");
-      const sorted = [...g.students].sort((a,b) => a.lastName.localeCompare(b.lastName));
-      
-      let rows = sorted.map((s, i) => { const flia = `M: ${s.motherName||'-'} (${s.motherContact||'-'}) / P: ${s.fatherName||'-'} (${s.fatherContact||'-'})`; return `<tr><td style="text-align:center">${i+1}</td><td><b>${s.lastName}, ${s.firstName}</b></td><td>${s.dni||'-'}</td><td>${getSafeDate(s.birthDate)}</td><td style="font-size:9px">${flia}</td></tr>`; }).join('');
-      
-      let html = `<html><head><title>Lista ${g.name}</title><style>
-      body{font-family:Arial,sans-serif;padding:20px;font-size:11px}
-      table{width:100%;border-collapse:collapse;margin-top:10px}
-      th{background:#7c3aed;color:white;padding:8px;border:1px solid #ccc;font-size:10px;text-transform:uppercase}
-      td{padding:6px;border:1px solid #ccc}
-      tr:nth-child(even){background:#f9fafb}
-      .header{border-bottom:4px solid #7c3aed;padding-bottom:10px;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center}
-      h1{margin:0;color:#4c1d95;font-size:24px;text-transform:uppercase}
-      .meta {font-size:12px;color:#555;margin-top:5px;font-weight:bold;}
+  // --- FUNCIÓN DE IMPRESIÓN COMPARTIDA (DISEÑO VIOLETA ROBUSTO) ---
+  const generatePrintHTML = (groupsToPrint, title) => {
+      let content = `
+      <html><head><title>${title}</title><style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
+        body { font-family: 'Roboto', sans-serif; padding: 30px; color: #333; }
+        
+        /* HEADER PRINCIPAL */
+        .main-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 5px solid #7c3aed; padding-bottom: 15px; margin-bottom: 25px; }
+        .main-title { font-size: 28px; font-weight: 900; color: #4c1d95; text-transform: uppercase; margin: 0; }
+        .main-subtitle { font-size: 14px; font-weight: bold; color: #666; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; }
+        
+        /* SECCIÓN DE GRUPO */
+        .group-container { margin-bottom: 40px; page-break-inside: avoid; }
+        .group-header { background-color: #f3f4f6; border-left: 8px solid #7c3aed; padding: 10px 20px; margin-bottom: 10px; border-radius: 0 8px 8px 0; }
+        .group-name { font-size: 20px; font-weight: 900; color: #5b21b6; margin: 0; }
+        .group-staff { font-size: 11px; font-weight: bold; color: #555; margin-top: 5px; text-transform: uppercase; }
+        
+        /* TABLA */
+        table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 5px; }
+        thead tr { background-color: #7c3aed !important; color: white !important; }
+        th { padding: 10px; text-align: left; text-transform: uppercase; font-weight: 900; border: 1px solid #ddd; }
+        td { border: 1px solid #e5e7eb; padding: 8px 10px; color: #374151; vertical-align: middle; }
+        tr:nth-child(even) { background-color: #f9fafb !important; }
+        
+        /* FOOTER */
+        .footer { text-align: right; font-size: 9px; color: #9ca3af; margin-top: 50px; border-top: 1px solid #eee; padding-top: 5px; }
       </style></head><body>
-      <div class="header">
+      
+      <div class="main-header">
           <div>
-            <h1>Lista de Alumnos: ${g.name}</h1>
-            <div class="meta">
-               DOCENTE: ${g.teacher||'Sin Asignar'} <br>
-               AUXILIAR: ${g.aux||'Sin Asignar'} | SUPERVISIÓN: ${g.sup1||'-'} ${g.sup2 ? ' y '+g.sup2 : ''}
-            </div>
+            <h1 class="main-title">${title}</h1>
+            <p class="main-subtitle">Juntos a la Par - Ciclo 2026 - Turno ${turn === 'morning' ? 'Mañana' : 'Tarde'}</p>
           </div>
-          <img src="${LOGO_URL}" height="60" style="opacity:0.9"/>
-      </div>
-      <table><thead><tr><th width="5%">#</th><th width="25%">Apellido y Nombre</th><th width="10%">DNI</th><th width="10%">Nacimiento</th><th>Familia y Contacto</th></tr></thead><tbody>${rows}</tbody></table>
-      <div style="margin-top:20px;font-size:10px;text-align:right;color:#999">Generado el ${new Date().toLocaleDateString()}</div>
-      </body></html>`;
-      w.document.write(html); w.document.close(); setTimeout(() => w.print(), 500);
-  };
-  
-  const handlePrintAll = () => {
-    const w = window.open('', '_blank'); if (!w) return alert("Permitir Pop-ups");
-    let fullHtml = `<html><head><title>Listado General</title><style>
-      @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
-      body{font-family:'Roboto', sans-serif; padding:40px; color:#333;}
-      .main-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 5px solid #7c3aed; padding-bottom: 20px; margin-bottom: 30px; }
-      .main-title { font-size: 32px; font-weight: 900; color: #4c1d95; text-transform: uppercase; margin: 0; }
-      .main-subtitle { font-size: 14px; font-weight: bold; color: #666; margin-top: 5px; text-transform: uppercase; letter-spacing: 2px; }
-      .group-section { margin-bottom: 40px; page-break-inside: avoid; }
-      .group-header { background-color: #f3f4f6; border-left: 6px solid #7c3aed; padding: 10px 15px; margin-bottom: 10px; border-radius: 0 8px 8px 0; }
-      .group-name { font-size: 20px; font-weight: 900; color: #5b21b6; margin: 0; }
-      .group-staff { font-size: 11px; font-weight: bold; color: #666; margin-top: 4px; text-transform: uppercase; }
-      table { width: 100%; border-collapse: collapse; font-size: 11px; }
-      thead tr { background-color: #7c3aed !important; color: white !important; }
-      th { padding: 8px 10px; text-align: left; text-transform: uppercase; font-weight: bold; font-size: 10px; border: 1px solid #ddd; }
-      td { border: 1px solid #e5e7eb; padding: 6px 10px; color: #374151; }
-      tr:nth-child(even) { background-color: #f9fafb !important; }
-      .footer { margin-top: 50px; border-top: 1px solid #ddd; padding-top: 10px; text-align: right; font-size: 10px; color: #9ca3af; font-style: italic; }
-    </style></head><body>
-    <div class="main-header"><div><h1 class="main-title">Listado Institucional</h1><p class="main-subtitle">Juntos a la Par - Ciclo Lectivo 2026</p></div><img src="${LOGO_URL}" style="height: 70px; opacity: 0.9;" /></div>`;
+          <img src="${LOGO_URL}" height="70" style="opacity: 0.9;" />
+      </div>`;
 
-    groups.forEach(g => {
-        const sorted = [...g.students].sort((a,b) => a.lastName.localeCompare(b.lastName));
-        fullHtml += `<div class="group-section"><div class="group-header"><h2 class="group-name">${g.name}</h2><div class="group-staff">Docente: ${g.teacher || 'VACANTE'} | Auxiliar: ${g.aux || '-'} | Sup: ${g.sup1 || '-'} | Cantidad: ${sorted.length}</div></div><table><thead><tr><th style="width: 5%">#</th><th style="width: 25%">Apellido y Nombre</th><th style="width: 15%">DNI</th><th style="width: 15%">Nacimiento</th><th style="width: 40%">Familia y Contacto</th></tr></thead><tbody>`;
-        sorted.forEach((s, i) => {
-             const flia = `M: ${s.motherName||'-'} (${s.motherContact||'-'}) / P: ${s.fatherName||'-'} (${s.fatherContact||'-'})`;
-             fullHtml += `<tr><td style="text-align:center; font-weight:bold; color:#7c3aed;">${i+1}</td><td style="font-weight:bold; text-transform:uppercase;">${s.lastName}, ${s.firstName}</td><td>${s.dni || '-'}</td><td>${getSafeDate(s.birthDate)}</td><td style="font-size:10px;">${flia}</td></tr>`;
-        });
-        fullHtml += `</tbody></table></div>`;
-    });
-    
-    fullHtml += `<div class="footer">Documento generado el ${new Date().toLocaleDateString()} a las ${new Date().toLocaleTimeString()}</div></body></html>`;
-    w.document.write(fullHtml); w.document.close(); setTimeout(() => w.print(), 1000);
+      groupsToPrint.forEach(g => {
+          const sorted = [...g.students].sort((a,b) => a.lastName.localeCompare(b.lastName));
+          
+          content += `
+          <div class="group-container">
+              <div class="group-header">
+                  <h2 class="group-name">${g.name}</h2>
+                  <div class="group-staff">
+                     DOCENTE: <span style="color:#7c3aed">${g.teacher || 'VACANTE'}</span> | 
+                     AUXILIAR: ${g.aux || '-'} | 
+                     SUPERVISIÓN: ${g.sup1 || ''} ${g.sup2 ? ' y ' + g.sup2 : ''}
+                  </div>
+              </div>
+              <table>
+                  <thead>
+                      <tr>
+                          <th style="width: 5%">#</th>
+                          <th style="width: 30%">Apellido y Nombre</th>
+                          <th style="width: 15%">DNI</th>
+                          <th style="width: 15%">Nacimiento</th>
+                          <th style="width: 35%">Familia / Obs</th>
+                      </tr>
+                  </thead>
+                  <tbody>`;
+          
+          sorted.forEach((s, i) => {
+              // Si es inclusión mostramos escuela origen, si es sede mostramos familia
+              const extraInfo = g.isInclusionGroup 
+                  ? `Esc. Origen: ${s.originSchool || '-'} (${s.originGrade || '-'})` 
+                  : `M: ${s.motherName||'-'} / P: ${s.fatherName||'-'}`;
+                  
+              content += `
+                  <tr>
+                      <td style="text-align:center; font-weight:bold; color:#7c3aed;">${i+1}</td>
+                      <td style="font-weight:bold; text-transform:uppercase;">${s.lastName}, ${s.firstName}</td>
+                      <td>${s.dni || '-'}</td>
+                      <td>${getSafeDate(s.birthDate)}</td>
+                      <td style="font-size:10px;">${extraInfo}</td>
+                  </tr>`;
+          });
+          
+          content += `</tbody></table></div>`;
+      });
+      
+      content += `<div class="footer">Documento generado el ${new Date().toLocaleDateString()} a las ${new Date().toLocaleTimeString()}</div></body></html>`;
+      
+      const w = window.open('', '_blank');
+      if(w) {
+          w.document.write(content);
+          w.document.close();
+          // Esperar carga de imágenes (logo) antes de imprimir
+          setTimeout(() => { w.focus(); w.print(); }, 500);
+      } else {
+          alert("Por favor, permite los Pop-ups para imprimir.");
+      }
   };
+
+  const handlePrintSingleGroup = (g) => generatePrintHTML([g], `Lista: ${g.name}`);
+  const handlePrintAll = () => generatePrintHTML(groups, "Listado General Institucional");
 
   const addIncident = async (type, text = "") => {
       if (!showBitacoraModal) return;
@@ -2321,6 +2426,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
