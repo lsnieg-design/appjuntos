@@ -305,10 +305,11 @@ function LoginScreen({ onLogin }) {
     </div>
   );
 }
-// --- VISTA DASHBOARD (GUÍA EXTENSA + AVISOS REALES) ---
+// --- VISTA DASHBOARD (MANUAL COMPLETO: AULA + RECURSOS + PROYECTO) ---
 function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEvents = events.filter(e => e.date === todayStr);
+  
   const [showAnnounceModal, setShowAnnounceModal] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [birthdays, setBirthdays] = useState([]);
@@ -316,7 +317,9 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const [notes, setNotes] = useState([]);
   const [newNote, setNewNote] = useState('');
   const [ungroupedCount, setUngroupedCount] = useState(0);
-  const [tutorialTab, setTutorialTab] = useState('inicio'); // inicio, legajos, tareas, agenda
+  
+  // ESTADO DEL MANUAL
+  const [tutorialTab, setTutorialTab] = useState('inicio'); 
 
   const canPost = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión'].includes(user.rol || user.role);
   const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración', 'Dirección Inclusión'].includes(user.role) || user.rol === 'admin';
@@ -326,11 +329,11 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const isInclusionStaff = INCLUSION_ROLES.includes(user.role);
   const isSedeStaff = SEDE_ROLES.includes(user.role);
 
-  // Contador real de tareas
+  // Contador de tareas
   const myPendingTasksCount = tasks.filter(t => {
       if (t.status === 'completed') return false;
       const scheduledTime = new Date(`${t.showDate || '2000-01-01'}T${t.showTime || '00:00'}`);
-      if (scheduledTime > new Date()) return false; // Aún no visibles
+      if (scheduledTime > new Date()) return false; 
       if (isSuperAdmin) return true;
       if (t.createdById === user.id) return true;
       if (t.targetType === 'user' && t.targetUserId === user.id) return true;
@@ -368,19 +371,21 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
       <div className="bg-gray-50 p-5 rounded-[35px] border border-gray-100 shadow-inner"><h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px] mb-3 flex items-center gap-2"><Lock size={12}/> Tareas Personales</h3><form onSubmit={saveNote} className="flex gap-2 mb-3"><input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Nueva nota..." className="flex-1 p-3 rounded-xl border-none outline-none text-xs bg-white shadow-sm font-medium" /><button type="submit" className="bg-violet-600 text-white p-3 rounded-xl font-bold shadow-lg hover:bg-violet-700 transition"><Plus size={16}/></button></form><div className="space-y-2">{notes.map(n => (<div key={n.id} className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm group"><button onClick={() => toggleNote(n)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${n.done ? 'bg-violet-400 border-violet-400' : 'border-violet-200'}`}>{n.done && <Check size={12} className="text-white"/>}</button><span className={`text-xs flex-1 font-medium ${n.done ? 'line-through text-gray-300' : 'text-gray-600'}`}>{n.text}</span><button onClick={() => deleteNote(n.id)} className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"><Trash2 size={14}/></button></div>))}</div></div>
       {showAnnounceModal && (<div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm"><form onSubmit={handlePost} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95"><h3 className="text-lg font-black text-orange-500 mb-2 uppercase italic">Nuevo Aviso</h3><textarea name="message" className="w-full p-4 bg-orange-50 rounded-2xl outline-none text-sm h-32 resize-none border border-orange-100 focus:ring-2 ring-orange-200 text-gray-700" placeholder="Escribe aquí..." required></textarea><div className="mt-3"><label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">¿Quién puede ver esto?</label><select name="channel" className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200 outline-none focus:border-orange-300"><option value="general">🌍 Toda la Escuela</option><option value="sede">🏫 Solo Sede</option><option value="inclusion">💙 Solo Inclusión</option></select></div><div className="flex gap-2 mt-4"><button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 text-gray-400 font-bold text-xs uppercase tracking-widest">Cancelar</button><button type="submit" className="flex-1 bg-orange-500 text-white py-3 rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-orange-600 transition">Publicar</button></div></form></div>)}
       
-      {/* GUÍA RÁPIDA EXTENDIDA */}
+      {/* MANUAL DE AYUDA (TUTORIAL COMPLETO) */}
       {showTutorial && (
         <div className="fixed inset-0 bg-violet-900/95 z-[300] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in">
             <div className="bg-white rounded-[40px] w-full max-w-lg p-6 shadow-2xl max-h-[85vh] flex flex-col relative">
                 <button onClick={() => setShowTutorial(false)} className="absolute top-4 right-4 bg-gray-100 p-2 rounded-full hover:bg-gray-200 z-10"><X size={20}/></button>
-                <div className="text-center mb-6 pt-4"><h2 className="text-2xl font-black text-violet-900 italic uppercase">Manual de Ayuda</h2><p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Guía completa de uso</p></div>
+                <div className="text-center mb-6 pt-4"><h2 className="text-2xl font-black text-violet-900 italic uppercase">Manual de Ayuda</h2><p className="text-xs text-gray-500 font-bold uppercase tracking-widest">¿Cómo usar la App?</p></div>
                 
-                {/* Pestañas de Navegación */}
                 <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
                     <button onClick={()=>setTutorialTab('inicio')} className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${tutorialTab==='inicio'?'bg-violet-600 text-white shadow-md':'bg-gray-100 text-gray-500'}`}>Inicio</button>
                     <button onClick={()=>setTutorialTab('legajos')} className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${tutorialTab==='legajos'?'bg-violet-600 text-white shadow-md':'bg-gray-100 text-gray-500'}`}>Legajos</button>
+                    <button onClick={()=>setTutorialTab('aula')} className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${tutorialTab==='aula'?'bg-violet-600 text-white shadow-md':'bg-gray-100 text-gray-500'}`}>Mi Aula</button>
                     <button onClick={()=>setTutorialTab('tareas')} className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${tutorialTab==='tareas'?'bg-violet-600 text-white shadow-md':'bg-gray-100 text-gray-500'}`}>Tareas</button>
                     <button onClick={()=>setTutorialTab('agenda')} className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${tutorialTab==='agenda'?'bg-violet-600 text-white shadow-md':'bg-gray-100 text-gray-500'}`}>Agenda</button>
+                    <button onClick={()=>setTutorialTab('recursos')} className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${tutorialTab==='recursos'?'bg-violet-600 text-white shadow-md':'bg-gray-100 text-gray-500'}`}>Recursos</button>
+                    <button onClick={()=>setTutorialTab('proyecto')} className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${tutorialTab==='proyecto'?'bg-violet-600 text-white shadow-md':'bg-gray-100 text-gray-500'}`}>Proyecto</button>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto pr-2 space-y-4 text-sm text-gray-600 leading-relaxed">
@@ -388,52 +393,70 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
                         <>
                             <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100">
                                 <h4 className="font-bold text-orange-800 mb-1 flex items-center gap-2"><LayoutDashboard size={16}/> Panel Principal</h4>
-                                <p>Aquí verás un resumen de tu día. El contador de <b>Tareas</b> solo muestra las que tienes pendientes tú (o tu rol). La <b>Cartelera</b> muestra avisos institucionales importantes.</p>
+                                <p>Es tu centro de mando. El contador de <b>Tareas</b> muestra tus pendientes. La <b>Cartelera</b> te avisa de noticias institucionales.</p>
                             </div>
                             <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
                                 <h4 className="font-bold text-blue-800 mb-1 flex items-center gap-2"><Lock size={16}/> Tareas Personales</h4>
-                                <p>El recuadro inferior es tu agenda personal. Lo que anotes ahí es privado y solo tú puedes verlo. Úsalo como recordatorio rápido o lista de compras.</p>
+                                <p>Anota recordatorios rápidos aquí. Son privados, solo tú puedes verlos.</p>
                             </div>
                         </>
                     )}
                     {tutorialTab === 'legajos' && (
                         <>
                             <div className="bg-green-50 p-4 rounded-2xl border border-green-100">
-                                <h4 className="font-bold text-green-800 mb-1 flex items-center gap-2"><GraduationCap size={16}/> Gestión de Alumnos</h4>
-                                <p>En "Legajos" puedes buscar a cualquier alumno. Usa los filtros superiores para ver por Turno, Docente o Nivel. Haz clic en un alumno para ver su ficha completa.</p>
+                                <h4 className="font-bold text-green-800 mb-1 flex items-center gap-2"><GraduationCap size={16}/> Buscador Institucional</h4>
+                                <p>Busca cualquier alumno de la escuela. Usa los filtros (Turno, Docente, DX) para refinar. Al entrar a un alumno, verás su ficha completa.</p>
                             </div>
                             <div className="bg-white p-4 rounded-2xl border border-gray-200">
                                 <h4 className="font-bold text-gray-800 mb-1 flex items-center gap-2"><UploadCloud size={16}/> La Nube (Gestión)</h4>
-                                <p>Solo visible para directivos. Permite descargar copias de seguridad, hacer cargas masivas de alumnos y usar herramientas avanzadas como "Auto-Género".</p>
+                                <p>Solo directivos: Herramientas para descargar copias de seguridad (Backup) y herramientas avanzadas de administración.</p>
+                            </div>
+                        </>
+                    )}
+                    {tutorialTab === 'aula' && (
+                        <>
+                            <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
+                                <h4 className="font-bold text-indigo-800 mb-1 flex items-center gap-2"><Grid size={16}/> Gestión de Clases</h4>
+                                <p>Aquí ves a los grupos armados. Puedes filtrar por Mañana/Tarde y Sede/Inclusión. Usa el botón de imprimir arriba para sacar la lista de asistencia.</p>
+                            </div>
+                            <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-100">
+                                <h4 className="font-bold text-yellow-800 mb-1 flex items-center gap-2">⚡ Bitácora Express</h4>
+                                <p>Toca el rayo en un alumno para registrar rápidamente una conducta, logro o incidente de salud. Queda guardado en su historia.</p>
                             </div>
                         </>
                     )}
                     {tutorialTab === 'tareas' && (
                         <>
                             <div className="bg-purple-50 p-4 rounded-2xl border border-purple-100">
-                                <h4 className="font-bold text-purple-800 mb-1 flex items-center gap-2"><CheckSquare size={16}/> Sistema de Pedidos</h4>
-                                <p>Crea tareas para pedir materiales, arreglos, informes o trámites. Puedes asignarlas a una <b>Persona</b> específica (ej: Secretaria) o a un <b>Rol</b> (ej: Mantenimiento).</p>
+                                <h4 className="font-bold text-purple-800 mb-1 flex items-center gap-2"><CheckSquare size={16}/> Pedidos y Organización</h4>
+                                <p>Crea tareas para solicitar materiales o informes. Puedes asignarlas a una persona o a un rol (ej: Mantenimiento).</p>
                             </div>
-                            <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-100">
-                                <h4 className="font-bold text-yellow-800 mb-1 flex items-center gap-2"><Eye size={16}/> Privacidad</h4>
-                                <p>Las tareas son privadas entre el creador y el receptor. Nadie más las ve, salvo los Directivos que supervisan todo.</p>
+                            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200">
+                                <h4 className="font-bold text-gray-800 mb-1 flex items-center gap-2"><Eye size={16}/> Privacidad</h4>
+                                <p>Las tareas solo las ven el creador, el destinatario y los directivos. Son privadas.</p>
                             </div>
                         </>
                     )}
                     {tutorialTab === 'agenda' && (
-                        <>
-                            <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
-                                <h4 className="font-bold text-red-800 mb-1 flex items-center gap-2"><CalendarIcon size={16}/> Calendario Institucional</h4>
-                                <p>Aquí se cargan actos, feriados, efemérides y reuniones. Puedes tocar un día para ver los detalles del evento.</p>
-                            </div>
-                            <div className="bg-white p-4 rounded-2xl border border-gray-200">
-                                <h4 className="font-bold text-gray-800 mb-1 flex items-center gap-2"><RefreshCw size={16}/> Carga Rápida</h4>
-                                <p>Si eres directivo, usa el rayo amarillo para cargar muchos eventos a la vez pegando una lista de texto simple.</p>
-                            </div>
-                        </>
+                         <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
+                             <h4 className="font-bold text-red-800 mb-1 flex items-center gap-2"><CalendarIcon size={16}/> Calendario</h4>
+                             <p>Visualiza actos, feriados y reuniones. Toca un día para ver detalles. Los directivos pueden usar el rayo para carga rápida de fechas.</p>
+                         </div>
+                    )}
+                    {tutorialTab === 'recursos' && (
+                         <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
+                             <h4 className="font-bold text-emerald-800 mb-1 flex items-center gap-2"><LinkIcon size={16}/> Biblioteca Digital</h4>
+                             <p>Encuentra documentos institucionales, actas y planillas organizadas por carpetas. Toca para abrir o descargar.</p>
+                         </div>
+                    )}
+                    {tutorialTab === 'proyecto' && (
+                         <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                             <h4 className="font-bold text-blue-800 mb-1 flex items-center gap-2"><PieChart size={16}/> Proyecto 2026</h4>
+                             <p>Accede a la planificación anual "La Vuelta al Mundo". Puedes ver las estaciones, actividades y descargar el PDF completo.</p>
+                         </div>
                     )}
                 </div>
-                <button onClick={() => setShowTutorial(false)} className="w-full bg-violet-600 text-white py-3 rounded-2xl font-bold mt-4 shadow-lg uppercase text-xs tracking-widest">¡Entendido!</button>
+                <button onClick={() => setShowTutorial(false)} className="w-full bg-violet-600 text-white py-3 rounded-2xl font-bold mt-4 shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition">¡Entendido!</button>
             </div>
         </div>
       )}
@@ -1485,26 +1508,27 @@ function ProyectoView({ user }) {
     </div>
   );
 }
-// --- VISTA MATRÍCULA (MASTER FINAL: FORMULARIO COMPLETO + BITÁCORA FIXED) ---
+// --- VISTA MATRÍCULA (MASTER TOTAL: GESTIÓN FULL + FORMULARIO COMPLETO + DISEÑO) ---
 function MatriculaView({ user }) {
-  // 1. ESTADOS
+  // 1. ESTADOS DE DATOS
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
   const [viewingStudent, setViewingStudent] = useState(null);
   const [editingStudent, setEditingStudent] = useState(null);
   const [activeModalTab, setActiveModalTab] = useState('info');
+  
+  // 2. ESTADOS DE INTERFAZ Y FILTROS
   const [filterText, setFilterText] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [formModalidad, setFormModalidad] = useState('Sede');
-  
   const [filters, setFilters] = useState({ modality: 'all', level: 'all', group: 'all', turn: 'all', teacher: 'all', dx: 'all', gender: 'all', journey: 'all', os: 'all' });
   const [statFilters, setStatFilters] = useState({ modality: [], level: [], gender: 'all', dx: 'all' });
 
-  // BITÁCORA
+  // 3. ESTADOS DE BITÁCORA
   const [newNote, setNewNote] = useState("");
   const [isWriting, setIsWriting] = useState(false);
 
-  // MODALES
+  // 4. ESTADOS DE MODALES Y GESTIÓN
   const [showStats, setShowStats] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showDataManagement, setShowDataManagement] = useState(false);
@@ -1520,7 +1544,7 @@ function MatriculaView({ user }) {
   const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin' || user.role === 'Equipo Directivo' || user.role === 'Dirección Inclusión';
   const LOGO_URL = "/icon-192.png"; 
 
-  // CONSTANTES NECESARIAS PARA QUE NO QUEDE EN BLANCO LA BITÁCORA
+  // CONSTANTES DE BITÁCORA
   const INCIDENT_TYPES = [
       { label: "Trabajó Muy Bien", emoji: "🌟", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
       { label: "Ayudó a un amigo", emoji: "🤝", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
@@ -1559,7 +1583,7 @@ function MatriculaView({ user }) {
     const txt = filterText.toLowerCase();
     if (txt && !((s.firstName||'').toLowerCase().includes(txt) || (s.lastName||'').toLowerCase().includes(txt) || (s.dni||'').toString().includes(txt))) return false;
     
-    // FILTROS RECUPERADOS
+    // FILTROS
     if (filters.modality !== 'all' && (s.modality || 'Sede') !== filters.modality) return false;
     if (filters.level !== 'all' && s.level !== filters.level) return false;
     if (filters.group !== 'all' && (s.groupMorning !== filters.group && s.groupAfternoon !== filters.group)) return false;
@@ -1590,7 +1614,7 @@ function MatriculaView({ user }) {
   const addIncident = async (type, text = "") => { if (!viewingStudent) return; const newInc = { date: new Date().toISOString(), type: text ? "Nota" : type, severity: type, text: text || type, author: user.firstName }; try { const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', viewingStudent.id); await updateDoc(studentRef, { incidents: arrayUnion(newInc) }); setViewingStudent(prev => ({...prev, incidents: [...(prev.incidents || []), newInc]})); setNewNote(""); setIsWriting(false); } catch (e) { alert("Error: " + e.message); } };
   const abrirLegajoDigital = (student) => { const clean = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9 ]/g, ""); const query = `name contains '${clean(student.lastName).split(' ')[0]}' and name contains '${clean(student.firstName).split(' ')[0]}' and trashed = false`; window.open(`https://drive.google.com/drive/search?q=${encodeURIComponent(query)}`, '_blank'); };
   
-  // FUNCIONES DE GESTIÓN
+  // --- FUNCIONES GESTIÓN DE DATOS (RECUPERADAS) ---
   const checkUnassigned = () => { const found = students.filter(s => (s.isActive === undefined || s.isActive === true) && !s.groupMorning && !s.groupAfternoon && !s.daiMorning && !s.daiAfternoon); setUnassignedList(found); setShowDataManagement(false); setShowUnassigned(true); };
   const findDuplicates = () => alert("Función en mantenimiento.");
   const descargarBackup = () => { if(!confirm("¿Descargar Backup?")) return; const blob = new Blob([JSON.stringify(students, null, 2)], { type: "application/json" }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = "BACKUP_MATRICULA.json"; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
@@ -1615,6 +1639,7 @@ function MatriculaView({ user }) {
     setProcessing(false);
   };
   
+  // IMPRESIÓN PRO RESTAURADA
   const imprimirListado = (list) => { const w = window.open('', '_blank'); if(!w) return alert("Permitir Pop-ups"); let h = `<html><head><title>Fichas</title><style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');body{font-family:'Roboto',sans-serif;padding:20px;background:#f0f0f0}.page{background:white;padding:40px;margin-bottom:20px;border-radius:8px;box-shadow:0 4px 6px rgba(0,0,0,0.1);page-break-after:always;max-width:800px;margin:0 auto 20px auto;border-top:10px solid #7c3aed}.header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #ddd;padding-bottom:20px;margin-bottom:20px}.header-text h1{color:#4c1d95;font-size:28px;margin:0;text-transform:uppercase}.header-text p{color:#666;font-size:14px;margin:5px 0 0 0}.photo-box{width:80px;height:80px;background:#eee;border-radius:50%;overflow:hidden;border:3px solid #7c3aed}.photo-box img{width:100%;height:100%;object-fit:cover}.section-title{background:#f3f4f6;color:#4c1d95;padding:8px 15px;font-weight:900;text-transform:uppercase;font-size:12px;border-radius:6px;margin-bottom:10px;border-left:5px solid #7c3aed}.grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px}.field{margin-bottom:5px}.label{display:block;font-size:10px;color:#888;text-transform:uppercase;font-weight:bold}.value{font-size:14px;font-weight:bold;color:#333}.footer{text-align:center;font-size:10px;color:#aaa;margin-top:30px;border-top:1px solid #eee;padding-top:10px}@media print{body{background:white;padding:0}.page{box-shadow:none;margin:0;border-radius:0;max-width:none;border-top:none}}</style></head><body>`; list.forEach(s => { h += `<div class="page"><div class="header"><div class="header-text"><h1>${s.lastName}, ${s.firstName}</h1><p>DNI: ${s.dni || '-'} | Edad: ${calculateAge(s.birthDate)} años</p></div><div class="photo-box">${s.photoUrl ? `<img src="${s.photoUrl}"/>` : ''}</div></div><div class="section-title">Datos Personales y Salud</div><div class="grid"><div class="field"><span class="label">Fecha Nacimiento</span><span class="value">${getSafeDate(s.birthDate)}</span></div><div class="field"><span class="label">Diagnóstico</span><span class="value">${s.dx || '-'}</span></div><div class="field"><span class="label">Obra Social</span><span class="value">${s.healthInsurance || 'NO DECLARA'}</span></div><div class="field"><span class="label">Vencimiento CUD</span><span class="value">${getSafeDate(s.cudExpiration)}</span></div></div><div class="section-title">Escolaridad (${s.modality || 'Sede'})</div><div class="grid"><div class="field"><span class="label">Nivel</span><span class="value">${s.level || '-'}</span></div>${s.modality === 'Inclusión' ? `<div class="field"><span class="label">Escuela Origen</span><span class="value">${s.originSchool} (${s.originGrade})</span></div><div class="field"><span class="label">DAI Asignada</span><span class="value">${s.daiMorning || s.daiAfternoon || '-'}</span></div>` : `<div class="field"><span class="label">Turno Mañana</span><span class="value">Grupo: ${s.groupMorning || '-'} (Doc: ${s.teacherMorning || '-'})</span></div><div class="field"><span class="label">Turno Tarde</span><span class="value">Grupo: ${s.groupAfternoon || '-'} (Doc: ${s.teacherAfternoon || '-'})</span></div>`}</div><div class="section-title">Familia y Contacto</div><div class="field" style="margin-bottom:10px;"><span class="label">Dirección</span><span class="value">${s.address || '-'}</span></div><div class="grid"><div class="field"><span class="label">Madre / Tutor 1</span><span class="value">${s.motherName || '-'}</span><br><span style="font-size:12px;color:#666">${s.motherContact || '-'}</span></div><div class="field"><span class="label">Padre / Tutor 2</span><span class="value">${s.fatherName || '-'}</span><br><span style="font-size:12px;color:#666">${s.fatherContact || '-'}</span></div></div><div class="footer">Juntos a la Par - Legajo Digital generado el ${new Date().toLocaleDateString()}</div></div>`; }); h += '</body></html>'; w.document.write(h); w.document.close(); setTimeout(()=>w.print(), 500); };
   const imprimirFichasMasivas = () => { if (filteredStudents.length > 50 && !confirm(`¿Imprimir ${filteredStudents.length} fichas? Es mucho.`)) return; imprimirListado(filteredStudents); };
   const exportFiltered = () => { if (filteredStudents.length === 0) return alert("Sin datos"); const headers = ["Apellido", "Nombre", "DNI", "Nivel", "Modalidad"]; const csv = [headers.join(';'), ...filteredStudents.map(s => [`"${s.lastName}"`, `"${s.firstName}"`, `"${s.dni}"`, `"${s.level}"`, `"${s.modality||'Sede'}"`].join(';'))].join('\n'); const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = "Matricula.csv"; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
@@ -1679,7 +1704,7 @@ function MatriculaView({ user }) {
           ); 
       })}</div>
       
-      {/* MODAL FICHA COMPLETA (DISEÑO PREMIUM) */}
+      {/* MODAL FICHA COMPLETA */}
       {viewingStudent && !showForm && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
             <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -1832,13 +1857,10 @@ function MatriculaView({ user }) {
         <div className="grid grid-cols-2 gap-3"><input name="firstName" defaultValue={editingStudent?.firstName} placeholder="Nombre" required className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/><input name="lastName" defaultValue={editingStudent?.lastName} placeholder="Apellido" required className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/></div>
         <div className="grid grid-cols-2 gap-3"><input name="dni" type="number" defaultValue={editingStudent?.dni} placeholder="DNI" className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/><input name="birthDate" type="date" defaultValue={getSafeDate(editingStudent?.birthDate)} className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm text-gray-500"/></div>
         {formModalidad === 'Sede' ? (<div className="grid grid-cols-2 gap-2"><input name="groupMorning" defaultValue={editingStudent?.groupMorning} placeholder="Grupo TM" className="p-2 rounded-lg border text-xs"/><input name="groupAfternoon" defaultValue={editingStudent?.groupAfternoon} placeholder="Grupo TT" className="p-2 rounded-lg border text-xs"/></div>) : (<div className="grid grid-cols-2 gap-2"><select name="daiMorning" defaultValue={editingStudent?.daiMorning} className="p-2 rounded-lg border text-xs"><option value="">DAI T. Mañana...</option>{staffInclusion.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="daiAfternoon" defaultValue={editingStudent?.daiAfternoon} className="p-2 rounded-lg border text-xs"><option value="">DAI T. Tarde...</option>{staffInclusion.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>)}
-        
-        {/* CAMPOS ADICIONALES RESTAURADOS */}
         <input name="address" defaultValue={editingStudent?.address} className="w-full p-2 rounded-lg border text-xs" placeholder="Dirección"/>
         <div className="grid grid-cols-2 gap-2"><input name="motherName" defaultValue={editingStudent?.motherName} placeholder="Madre" className="w-full p-2 rounded-lg border text-xs"/><input name="motherContact" defaultValue={editingStudent?.motherContact} placeholder="Contacto Madre" className="w-full p-2 rounded-lg border text-xs"/></div>
         <div className="grid grid-cols-2 gap-2"><input name="fatherName" defaultValue={editingStudent?.fatherName} placeholder="Padre" className="w-full p-2 rounded-lg border text-xs"/><input name="fatherContact" defaultValue={editingStudent?.fatherContact} placeholder="Contacto Padre" className="w-full p-2 rounded-lg border text-xs"/></div>
         <div className="grid grid-cols-2 gap-2"><input name="healthInsurance" defaultValue={editingStudent?.healthInsurance} placeholder="Obra Social" className="w-full p-2 rounded-lg border text-xs"/><input name="cudExpiration" type="date" defaultValue={getSafeDate(editingStudent?.cudExpiration)} className="w-full p-2 rounded-lg border text-xs text-gray-500"/></div>
-        
         <div className="flex gap-2 pt-4 border-t"><button type="button" onClick={()=>setShowForm(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs">Cancelar</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg">Guardar</button>{editingStudent && <button type="button" onClick={() => handleDelete(editingStudent.id)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition border border-red-100"><Trash2 size={20}/></button>}</div></form></div></div>)}
       
       {/* MODAL GESTIÓN (NUBE) - PARCHADO */}
@@ -1861,7 +1883,6 @@ function MatriculaView({ user }) {
                             <button onClick={handleBulkImport} className="flex-1 py-3 bg-blue-50 border border-blue-100 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-100 shadow-sm flex items-center justify-center gap-2"><UploadCloud size={14}/> Importar</button>
                         </div>
                     </div>
-                    {/* BOTÓN RECUPERADO: AUTO-GÉNERO */}
                     <button onClick={handleAutoAssignGenders} disabled={processing} className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl text-xs shadow-lg hover:bg-indigo-700 flex items-center justify-center gap-2">
                         {processing ? <RefreshCw className="animate-spin" size={16}/> : <><User size={16}/> Asignar Género Automático</>}
                     </button>
@@ -2462,6 +2483,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
