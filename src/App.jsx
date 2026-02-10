@@ -305,11 +305,10 @@ function LoginScreen({ onLogin }) {
     </div>
   );
 }
-// --- VISTA DASHBOARD (FINAL: CONTADOR REAL DE TAREAS + CARTELERA) ---
+// --- VISTA DASHBOARD (GUÍA PREMIUM + AVISOS) ---
 function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEvents = events.filter(e => e.date === todayStr);
-  
   const [showAnnounceModal, setShowAnnounceModal] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [birthdays, setBirthdays] = useState([]);
@@ -317,8 +316,10 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const [notes, setNotes] = useState([]);
   const [newNote, setNewNote] = useState('');
   const [ungroupedCount, setUngroupedCount] = useState(0);
+  
+  // ESTADO NUEVO PARA EL TUTORIAL INTERACTIVO
+  const [tutorialTab, setTutorialTab] = useState('inicio'); 
 
-  // ROLES
   const canPost = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión'].includes(user.rol || user.role);
   const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración', 'Dirección Inclusión'].includes(user.role) || user.rol === 'admin';
   const isSuperAdmin = user.rol === 'admin' || user.rol === 'super-admin';
@@ -328,19 +329,15 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const isInclusionStaff = INCLUSION_ROLES.includes(user.role);
   const isSedeStaff = SEDE_ROLES.includes(user.role);
 
-  // --- LÓGICA DE CONTADOR DE TAREAS (SOLO LAS MIAS) ---
+  // Contador real de tareas
   const myPendingTasksCount = tasks.filter(t => {
-      if (t.status === 'completed') return false; // Solo pendientes
-      
-      // Si soy admin veo todo lo pendiente
+      if (t.status === 'completed') return false;
+      const scheduledTime = new Date(`${t.showDate || '2000-01-01'}T${t.showTime || '00:00'}`);
+      if (scheduledTime > new Date()) return false; 
       if (isSuperAdmin) return true;
-
-      // Si no, aplico privacidad estricta igual que en la vista de Tareas
-      if (t.createdById === user.id) return true; // Creadas por mí
-      if (t.targetType === 'user' && t.targetUserId === user.id) return true; // Para mí
-      if (t.targetType === 'roles' && t.targetRoles && user.role && 
-          t.targetRoles.some(r => r.toLowerCase() === user.role.toLowerCase())) return true; // Para mi rol
-      
+      if (t.createdById === user.id) return true;
+      if (t.targetType === 'user' && t.targetUserId === user.id) return true;
+      if (t.targetType === 'roles' && t.targetRoles && user.role && t.targetRoles.some(r => r.toLowerCase() === user.role.toLowerCase())) return true;
       return false;
   }).length;
 
@@ -350,46 +347,18 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
     const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
     const unsubStudents = onSnapshot(qStudents, (snap) => {
         const today = new Date(); const nextWeek = new Date(); nextWeek.setDate(today.getDate() + 7); let noGroupCounter = 0;
-        const upcoming = snap.docs.map(d => {
-            const data = d.data();
-            if (!data.groupMorning && !data.groupAfternoon && !data.daiMorning && !data.daiAfternoon) noGroupCounter++;
-            if(!data.birthDate) return null;
-            const dob = new Date(data.birthDate + 'T00:00:00');
-            const currentYearBirth = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
-            if (currentYearBirth < today.setHours(0,0,0,0)) currentYearBirth.setFullYear(today.getFullYear() + 1);
-            return { ...data, id: d.id, nextBirthday: currentYearBirth };
-        }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday);
-        setBirthdays(upcoming); setUngroupedCount(noGroupCounter);
+        const upcoming = snap.docs.map(d => { const data = d.data(); if (!data.groupMorning && !data.groupAfternoon && !data.daiMorning && !data.daiAfternoon) noGroupCounter++; if(!data.birthDate) return null; const dob = new Date(data.birthDate + 'T00:00:00'); const currentYearBirth = new Date(today.getFullYear(), dob.getMonth(), dob.getDate()); if (currentYearBirth < today.setHours(0,0,0,0)) currentYearBirth.setFullYear(today.getFullYear() + 1); return { ...data, id: d.id, nextBirthday: currentYearBirth }; }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday); setBirthdays(upcoming); setUngroupedCount(noGroupCounter);
     });
     return () => { unsubNotes(); unsubStudents(); };
   }, [user.id]);
 
-  const handlePost = async (e) => { 
-      e.preventDefault(); 
-      const text = e.target.message.value; 
-      const channel = e.target.channel?.value || 'general'; 
-      if(!text.trim()) return;
-      try {
-          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), { 
-              message: text, author: user.fullName || user.firstName, authorId: user.id, role: user.role, channel: channel, createdAt: serverTimestamp() 
-          }); 
-          setShowAnnounceModal(false); 
-      } catch(e) { alert("Error al publicar: " + e.message); }
-  };
-
+  const handlePost = async (e) => { e.preventDefault(); const text = e.target.message.value; const channel = e.target.channel?.value || 'general'; if(!text.trim()) return; try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), { message: text, author: user.fullName || user.firstName, authorId: user.id, role: user.role, channel: channel, createdAt: serverTimestamp() }); setShowAnnounceModal(false); } catch(e) { alert("Error: " + e.message); } };
   const deleteAnnouncement = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'announcements', id)); };
   const saveNote = async (e) => { e.preventDefault(); if (!newNote.trim()) return; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), { text: newNote, userId: user.id, done: false, createdAt: serverTimestamp() }); setNewNote(''); };
   const toggleNote = async (note) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', note.id), { done: !note.done });
   const deleteNote = async (id) => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', id));
-
-  const visibleAnnouncements = announcements.filter(a => {
-      if (isSuperAdmin) return true;
-      if (a.authorId === user.id) return true; 
-      if (!a.channel || a.channel === 'general') return true;
-      if (a.channel === 'inclusion' && isInclusionStaff) return true;
-      if (a.channel === 'sede' && isSedeStaff) return true;
-      return false;
-  });
+  
+  const visibleAnnouncements = announcements.filter(a => { if (isSuperAdmin) return true; if (a.authorId === user.id) return true; if (!a.channel || a.channel === 'general') return true; if (a.channel === 'inclusion' && isInclusionStaff) return true; if (a.channel === 'sede' && isSedeStaff) return true; return false; });
 
   return (
     <div className="space-y-4 animate-in fade-in pb-10">
@@ -397,30 +366,81 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
       {isManagement && ungroupedCount > 0 && (<div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl flex items-center justify-between shadow-sm animate-pulse"><div className="flex items-center gap-3"><AlertTriangle className="text-red-500" size={24} /><div><h4 className="font-black text-red-700 text-xs uppercase tracking-widest">Atención Administrativa</h4><p className="text-xs text-red-600 font-bold">Hay {ungroupedCount} estudiantes activos sin grupo asignado.</p></div></div></div>)}
       {birthdays.length > 0 && (<button onClick={() => setShowBirthdayModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-rose-500 p-3 rounded-2xl shadow-md text-white flex items-center justify-between active:scale-95 transition"><div className="flex items-center gap-3"><div className="bg-white/20 p-2 rounded-xl"><Crown size={20} className="text-white"/></div><div className="text-left"><h3 className="font-bold text-sm uppercase tracking-widest">¡Hay Cumpleaños!</h3><p className="text-xs opacity-90">{birthdays.length} festejos esta semana</p></div></div><ChevronRight size={20}/></button>)}
       
-      {visibleAnnouncements.length > 0 && (
-          <div className="bg-yellow-100 p-5 rounded-[30px] border-2 border-yellow-200 shadow-sm relative">
-              <h3 className="text-[10px] font-black text-yellow-700 uppercase tracking-widest flex items-center gap-1 mb-3"><Bell size={12}/> Cartelera Oficial</h3>
-              <div className="space-y-3">
-                  {visibleAnnouncements.map(a => (
-                      <div key={a.id} className="bg-white/80 p-3 rounded-2xl border border-yellow-200/50 text-sm text-gray-800 flex justify-between items-start">
-                          <div>
-                              {a.channel === 'inclusion' && <span className="bg-indigo-100 text-indigo-700 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-indigo-200">Canal Inclusión</span>}
-                              {a.channel === 'sede' && <span className="bg-orange-100 text-orange-700 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-orange-200">Canal Sede</span>}
-                              {(a.channel === 'general' || !a.channel) && <span className="bg-gray-100 text-gray-500 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-gray-200">General</span>}
-                              <p className="italic font-medium">"{a.message}"</p>
-                              <p className="text-[9px] text-yellow-600 font-bold mt-1 uppercase tracking-wider">- {a.author}</p>
-                          </div>
-                          {(canPost || a.authorId === user.id) && (<button onClick={() => deleteAnnouncement(a.id)} className="text-yellow-600 hover:text-red-500 p-1 bg-yellow-50 rounded-lg transition"><Trash2 size={14}/></button>)}
-                      </div>
-                  ))}
-              </div>
-          </div>
-      )}
-      
+      {visibleAnnouncements.length > 0 && (<div className="bg-yellow-100 p-5 rounded-[30px] border-2 border-yellow-200 shadow-sm relative"><h3 className="text-[10px] font-black text-yellow-700 uppercase tracking-widest flex items-center gap-1 mb-3"><Bell size={12}/> Cartelera Oficial</h3><div className="space-y-3">{visibleAnnouncements.map(a => (<div key={a.id} className="bg-white/80 p-3 rounded-2xl border border-yellow-200/50 text-sm text-gray-800 flex justify-between items-start"><div>{a.channel === 'inclusion' && <span className="bg-indigo-100 text-indigo-700 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-indigo-200">Canal Inclusión</span>}{a.channel === 'sede' && <span className="bg-orange-100 text-orange-700 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-orange-200">Canal Sede</span>}{(a.channel === 'general' || !a.channel) && <span className="bg-gray-100 text-gray-500 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-gray-200">General</span>}<p className="italic font-medium">"{a.message}"</p><p className="text-[9px] text-yellow-600 font-bold mt-1 uppercase tracking-wider">- {a.author}</p></div>{(canPost || a.authorId === user.id) && (<button onClick={() => deleteAnnouncement(a.id)} className="text-yellow-600 hover:text-red-500 p-1 bg-yellow-50 rounded-lg transition"><Trash2 size={14}/></button>)}</div>))}</div></div>)}
       <div className="grid grid-cols-2 gap-3"><div onClick={() => setActiveTab('tasks')} className="bg-white p-5 rounded-[30px] border border-orange-100 shadow-sm cursor-pointer hover:shadow-md transition"><h4 className="text-3xl font-black text-orange-500">{myPendingTasksCount}</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Tareas Pendientes</p></div><div onClick={() => setActiveTab('calendar')} className={`p-5 rounded-[30px] border shadow-sm relative overflow-hidden cursor-pointer hover:shadow-md transition ${todayEvents.length > 0 ? 'bg-violet-600 text-white border-violet-600' : 'bg-white border-violet-100'}`}>{todayEvents.length > 0 ? ( <><h4 className="text-lg font-black leading-tight mb-1">{todayEvents[0].title}</h4><p className="text-[9px] opacity-80 uppercase tracking-widest font-bold">Es Hoy</p></> ) : ( <><h4 className="text-3xl font-black text-violet-600">0</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Eventos Hoy</p></> )}</div></div>
       <div className="bg-gray-50 p-5 rounded-[35px] border border-gray-100 shadow-inner"><h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px] mb-3 flex items-center gap-2"><Lock size={12}/> Tareas Personales</h3><form onSubmit={saveNote} className="flex gap-2 mb-3"><input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Nueva nota..." className="flex-1 p-3 rounded-xl border-none outline-none text-xs bg-white shadow-sm font-medium" /><button type="submit" className="bg-violet-600 text-white p-3 rounded-xl font-bold shadow-lg hover:bg-violet-700 transition"><Plus size={16}/></button></form><div className="space-y-2">{notes.map(n => (<div key={n.id} className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm group"><button onClick={() => toggleNote(n)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${n.done ? 'bg-violet-400 border-violet-400' : 'border-violet-200'}`}>{n.done && <Check size={12} className="text-white"/>}</button><span className={`text-xs flex-1 font-medium ${n.done ? 'line-through text-gray-300' : 'text-gray-600'}`}>{n.text}</span><button onClick={() => deleteNote(n.id)} className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"><Trash2 size={14}/></button></div>))}</div></div>
       {showAnnounceModal && (<div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm"><form onSubmit={handlePost} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95"><h3 className="text-lg font-black text-orange-500 mb-2 uppercase italic">Nuevo Aviso</h3><textarea name="message" className="w-full p-4 bg-orange-50 rounded-2xl outline-none text-sm h-32 resize-none border border-orange-100 focus:ring-2 ring-orange-200 text-gray-700" placeholder="Escribe aquí..." required></textarea><div className="mt-3"><label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">¿Quién puede ver esto?</label><select name="channel" className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200 outline-none focus:border-orange-300"><option value="general">🌍 Toda la Escuela</option><option value="sede">🏫 Solo Sede</option><option value="inclusion">💙 Solo Inclusión</option></select></div><div className="flex gap-2 mt-4"><button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 text-gray-400 font-bold text-xs uppercase tracking-widest">Cancelar</button><button type="submit" className="flex-1 bg-orange-500 text-white py-3 rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-orange-600 transition">Publicar</button></div></form></div>)}
-      {showTutorial && (<div className="fixed inset-0 bg-violet-900/90 z-[300] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in"><div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl max-h-[80vh] overflow-y-auto relative"><button onClick={() => setShowTutorial(false)} className="absolute top-4 right-4 bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button><div className="text-center mb-6"><h2 className="text-2xl font-black text-violet-900 italic uppercase">Guía Rápida</h2></div><div className="space-y-6"><div className="flex gap-4 items-start"><div className="bg-orange-100 p-3 rounded-2xl text-orange-600"><Grid size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">1. Mi Aula / Grupos</h4><p className="text-xs text-gray-500 mt-1">Aquí ves a tus alumnos. Toca las pestañas "Mañana" o "Tarde" para cambiar de grupo.</p></div></div><div className="flex gap-4 items-start"><div className="bg-red-100 p-3 rounded-2xl text-red-600"><Activity size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">2. Bitácora Express (El Rayo)</h4><p className="text-xs text-gray-500 mt-1">En la tarjeta de cada alumno hay un ícono de rayo ⚡. Úsalo para registrar incidentes (golpes, crisis, salud) rápidamente con un solo toque.</p></div></div><div className="flex gap-4 items-start"><div className="bg-blue-100 p-3 rounded-2xl text-blue-600"><CheckSquare size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">3. Pedidos y tareas</h4><p className="text-xs text-gray-500 mt-1">Usa la sección "Tareas" para pedir materiales, arreglos, informes y tareas. Puedes asignar a un <b>Rol</b> o una <b>Persona</b>. Solo lo ven los involucrados.</p></div></div><div className="flex gap-4 items-start"><div className="bg-green-100 p-3 rounded-2xl text-green-600"><LinkIcon size={24}/></div><div><h4 className="font-bold text-gray-800 text-sm">4. Recursos</h4><p className="text-xs text-gray-500 mt-1">Encuentra documentos, planillas y enlaces útiles organizados por carpetas.</p></div></div></div><button onClick={() => setShowTutorial(false)} className="w-full bg-violet-600 text-white py-3 rounded-2xl font-bold mt-8 shadow-lg uppercase text-xs tracking-widest">¡Entendido!</button></div></div>)}
+      
+      {/* GUÍA RÁPIDA PREMIUM (PESTAÑAS) */}
+      {showTutorial && (
+        <div className="fixed inset-0 bg-violet-900/95 z-[300] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in">
+            <div className="bg-white rounded-[40px] w-full max-w-lg p-6 shadow-2xl max-h-[85vh] flex flex-col relative">
+                <button onClick={() => setShowTutorial(false)} className="absolute top-4 right-4 bg-gray-100 p-2 rounded-full hover:bg-gray-200 z-10"><X size={20}/></button>
+                <div className="text-center mb-6 pt-4"><h2 className="text-2xl font-black text-violet-900 italic uppercase">Manual de Ayuda</h2><p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Guía completa de uso</p></div>
+                
+                {/* Pestañas de Navegación */}
+                <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
+                    <button onClick={()=>setTutorialTab('inicio')} className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${tutorialTab==='inicio'?'bg-violet-600 text-white shadow-md':'bg-gray-100 text-gray-500'}`}>Inicio</button>
+                    <button onClick={()=>setTutorialTab('legajos')} className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${tutorialTab==='legajos'?'bg-violet-600 text-white shadow-md':'bg-gray-100 text-gray-500'}`}>Legajos</button>
+                    <button onClick={()=>setTutorialTab('tareas')} className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${tutorialTab==='tareas'?'bg-violet-600 text-white shadow-md':'bg-gray-100 text-gray-500'}`}>Tareas</button>
+                    <button onClick={()=>setTutorialTab('agenda')} className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${tutorialTab==='agenda'?'bg-violet-600 text-white shadow-md':'bg-gray-100 text-gray-500'}`}>Agenda</button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto pr-2 space-y-4 text-sm text-gray-600 leading-relaxed">
+                    {tutorialTab === 'inicio' && (
+                        <>
+                            <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100">
+                                <h4 className="font-bold text-orange-800 mb-1 flex items-center gap-2"><LayoutDashboard size={16}/> Panel Principal</h4>
+                                <p>Aquí verás un resumen de tu día. El contador de <b>Tareas</b> solo muestra las que tienes pendientes tú (o tu rol). La <b>Cartelera</b> muestra avisos institucionales importantes.</p>
+                            </div>
+                            <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                                <h4 className="font-bold text-blue-800 mb-1 flex items-center gap-2"><Lock size={16}/> Tareas Personales</h4>
+                                <p>El recuadro inferior es tu agenda personal. Lo que anotes ahí es privado y solo tú puedes verlo. Úsalo como recordatorio rápido o lista de compras.</p>
+                            </div>
+                        </>
+                    )}
+                    {tutorialTab === 'legajos' && (
+                        <>
+                            <div className="bg-green-50 p-4 rounded-2xl border border-green-100">
+                                <h4 className="font-bold text-green-800 mb-1 flex items-center gap-2"><GraduationCap size={16}/> Gestión de Alumnos</h4>
+                                <p>En "Legajos" puedes buscar a cualquier alumno. Usa los filtros superiores para ver por Turno, Docente o Nivel. Haz clic en un alumno para ver su ficha completa.</p>
+                            </div>
+                            <div className="bg-white p-4 rounded-2xl border border-gray-200">
+                                <h4 className="font-bold text-gray-800 mb-1 flex items-center gap-2"><UploadCloud size={16}/> La Nube (Gestión)</h4>
+                                <p>Solo visible para directivos. Permite descargar copias de seguridad, hacer cargas masivas de alumnos y usar herramientas avanzadas como "Auto-Género".</p>
+                            </div>
+                        </>
+                    )}
+                    {tutorialTab === 'tareas' && (
+                        <>
+                            <div className="bg-purple-50 p-4 rounded-2xl border border-purple-100">
+                                <h4 className="font-bold text-purple-800 mb-1 flex items-center gap-2"><CheckSquare size={16}/> Sistema de Pedidos</h4>
+                                <p>Crea tareas para pedir materiales, arreglos, informes o trámites. Puedes asignarlas a una <b>Persona</b> específica (ej: Secretaria) o a un <b>Rol</b> (ej: Mantenimiento).</p>
+                            </div>
+                            <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-100">
+                                <h4 className="font-bold text-yellow-800 mb-1 flex items-center gap-2"><Eye size={16}/> Privacidad</h4>
+                                <p>Las tareas son privadas entre el creador y el receptor. Nadie más las ve, salvo los Directivos que supervisan todo.</p>
+                            </div>
+                        </>
+                    )}
+                    {tutorialTab === 'agenda' && (
+                        <>
+                            <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
+                                <h4 className="font-bold text-red-800 mb-1 flex items-center gap-2"><CalendarIcon size={16}/> Calendario Institucional</h4>
+                                <p>Aquí se cargan actos, feriados, efemérides y reuniones. Puedes tocar un día para ver los detalles del evento.</p>
+                            </div>
+                            <div className="bg-white p-4 rounded-2xl border border-gray-200">
+                                <h4 className="font-bold text-gray-800 mb-1 flex items-center gap-2"><RefreshCw size={16}/> Carga Rápida</h4>
+                                <p>Si eres directivo, usa el rayo amarillo para cargar muchos eventos a la vez pegando una lista de texto simple.</p>
+                            </div>
+                        </>
+                    )}
+                </div>
+                <button onClick={() => setShowTutorial(false)} className="w-full bg-violet-600 text-white py-3 rounded-2xl font-bold mt-4 shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition">¡Entendido!</button>
+            </div>
+        </div>
+      )}
+      
       {showBirthdayModal && (<div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowBirthdayModal(false)}><div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-pink-500" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-4"><h3 className="text-xl font-black text-pink-500 uppercase italic">Cumpleaños</h3><button onClick={() => setShowBirthdayModal(false)}><X size={24}/></button></div><div className="space-y-3 max-h-[60vh] overflow-y-auto">{birthdays.map(b => (<div key={b.id} className="flex items-center gap-4 bg-pink-50 p-3 rounded-2xl border border-pink-100"><div className="w-12 h-12 rounded-full bg-white border-2 border-pink-200 overflow-hidden shrink-0 flex items-center justify-center font-bold text-pink-400">{b.photoUrl ? <img src={b.photoUrl} className="w-full h-full object-cover"/> : b.firstName[0]}</div><div><h4 className="font-bold text-gray-800">{b.firstName} {b.lastName}</h4><p className="text-xs text-pink-600 font-bold">{[b.groupMorning, b.groupAfternoon].filter(Boolean).join(' / ') || 'Sin Grupo'}</p><p className="text-[10px] text-gray-400 uppercase tracking-widest">{new Date(b.nextBirthday).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}</p></div></div>))}</div></div></div>)}
     </div>
   );
@@ -2426,6 +2446,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
