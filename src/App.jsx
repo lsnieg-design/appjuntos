@@ -1485,34 +1485,33 @@ function ProyectoView({ user }) {
     </div>
   );
 }
-// --- VISTA MATRÍCULA (MASTER FINAL: SIN DUPLICADOS + DISEÑO PREMIUM) ---
+// --- VISTA MATRÍCULA (MASTER FINAL: FORMULARIO COMPLETO + BITÁCORA FIXED) ---
 function MatriculaView({ user }) {
-  // 1. ESTADOS DE DATOS
+  // 1. ESTADOS
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
   const [viewingStudent, setViewingStudent] = useState(null);
   const [editingStudent, setEditingStudent] = useState(null);
   const [activeModalTab, setActiveModalTab] = useState('info');
-  
-  // 2. ESTADOS DE INTERFAZ Y FILTROS
   const [filterText, setFilterText] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [formModalidad, setFormModalidad] = useState('Sede');
+  
   const [filters, setFilters] = useState({ modality: 'all', level: 'all', group: 'all', turn: 'all', teacher: 'all', dx: 'all', gender: 'all', journey: 'all', os: 'all' });
   const [statFilters, setStatFilters] = useState({ modality: [], level: [], gender: 'all', dx: 'all' });
 
-  // 3. ESTADOS DE BITÁCORA
+  // BITÁCORA
   const [newNote, setNewNote] = useState("");
   const [isWriting, setIsWriting] = useState(false);
 
-  // 4. ESTADOS DE MODALES Y GESTIÓN
+  // MODALES
   const [showStats, setShowStats] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showDataManagement, setShowDataManagement] = useState(false);
   const [showUnassigned, setShowUnassigned] = useState(false);
   const [unassignedList, setUnassignedList] = useState([]);
   
-  // PROCESOS (SIN DUPLICADOS)
+  // PROCESOS
   const [photoPreview, setPhotoPreview] = useState(null);
   const [importJson, setImportJson] = useState('');
   const [processing, setProcessing] = useState(false);
@@ -1520,6 +1519,23 @@ function MatriculaView({ user }) {
 
   const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin' || user.role === 'Equipo Directivo' || user.role === 'Dirección Inclusión';
   const LOGO_URL = "/icon-192.png"; 
+
+  // CONSTANTES NECESARIAS PARA QUE NO QUEDE EN BLANCO LA BITÁCORA
+  const INCIDENT_TYPES = [
+      { label: "Trabajó Muy Bien", emoji: "🌟", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
+      { label: "Ayudó a un amigo", emoji: "🤝", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
+      { label: "Logro de Aprendizaje", emoji: "🚀", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
+      { label: "Buena Conducta", emoji: "😇", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
+      { label: "Crisis Llanto", emoji: "😭", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" },
+      { label: "Higiene / Esfínter", emoji: "💩", severity: "medium", color: "bg-blue-100 border-blue-300 text-blue-800" }, 
+      { label: "No trabajó", emoji: "💤", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
+      { label: "Llegada Tarde", emoji: "🕑", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
+      { label: "No comió", emoji: "🍽️", severity: "low", color: "bg-blue-50 border-blue-200 text-blue-700" }, 
+      { label: "Agresión / Violencia", emoji: "👊", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
+      { label: "Brote / Gritos", emoji: "🤬", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
+      { label: "Fuga / Intento", emoji: "🏃", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
+      { label: "Convulsión / Salud", emoji: "🚑", severity: "high", color: "bg-indigo-100 border-indigo-300 text-indigo-800" }, 
+  ];
 
   // --- DATA ---
   useEffect(() => {
@@ -1543,7 +1559,7 @@ function MatriculaView({ user }) {
     const txt = filterText.toLowerCase();
     if (txt && !((s.firstName||'').toLowerCase().includes(txt) || (s.lastName||'').toLowerCase().includes(txt) || (s.dni||'').toString().includes(txt))) return false;
     
-    // FILTROS
+    // FILTROS RECUPERADOS
     if (filters.modality !== 'all' && (s.modality || 'Sede') !== filters.modality) return false;
     if (filters.level !== 'all' && s.level !== filters.level) return false;
     if (filters.group !== 'all' && (s.groupMorning !== filters.group && s.groupAfternoon !== filters.group)) return false;
@@ -1582,7 +1598,7 @@ function MatriculaView({ user }) {
   const handleDeleteAll = () => alert("Función protegida.");
   const handleResetCycle = () => alert("Protegido.");
 
-  // AUTO-ASIGNAR GÉNERO (ÚNICA VEZ)
+  // AUTO-ASIGNAR GÉNERO
   const handleAutoAssignGenders = async () => {
     if(!confirm("🤖 ¿Asignar género automáticamente basado en el nombre?\n(Nombres terminados en 'a' serán F, resto M)")) return;
     setProcessing(true);
@@ -1600,9 +1616,9 @@ function MatriculaView({ user }) {
   };
   
   const imprimirListado = (list) => { const w = window.open('', '_blank'); if(!w) return alert("Permitir Pop-ups"); let h = `<html><head><title>Fichas</title><style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');body{font-family:'Roboto',sans-serif;padding:20px;background:#f0f0f0}.page{background:white;padding:40px;margin-bottom:20px;border-radius:8px;box-shadow:0 4px 6px rgba(0,0,0,0.1);page-break-after:always;max-width:800px;margin:0 auto 20px auto;border-top:10px solid #7c3aed}.header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #ddd;padding-bottom:20px;margin-bottom:20px}.header-text h1{color:#4c1d95;font-size:28px;margin:0;text-transform:uppercase}.header-text p{color:#666;font-size:14px;margin:5px 0 0 0}.photo-box{width:80px;height:80px;background:#eee;border-radius:50%;overflow:hidden;border:3px solid #7c3aed}.photo-box img{width:100%;height:100%;object-fit:cover}.section-title{background:#f3f4f6;color:#4c1d95;padding:8px 15px;font-weight:900;text-transform:uppercase;font-size:12px;border-radius:6px;margin-bottom:10px;border-left:5px solid #7c3aed}.grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px}.field{margin-bottom:5px}.label{display:block;font-size:10px;color:#888;text-transform:uppercase;font-weight:bold}.value{font-size:14px;font-weight:bold;color:#333}.footer{text-align:center;font-size:10px;color:#aaa;margin-top:30px;border-top:1px solid #eee;padding-top:10px}@media print{body{background:white;padding:0}.page{box-shadow:none;margin:0;border-radius:0;max-width:none;border-top:none}}</style></head><body>`; list.forEach(s => { h += `<div class="page"><div class="header"><div class="header-text"><h1>${s.lastName}, ${s.firstName}</h1><p>DNI: ${s.dni || '-'} | Edad: ${calculateAge(s.birthDate)} años</p></div><div class="photo-box">${s.photoUrl ? `<img src="${s.photoUrl}"/>` : ''}</div></div><div class="section-title">Datos Personales y Salud</div><div class="grid"><div class="field"><span class="label">Fecha Nacimiento</span><span class="value">${getSafeDate(s.birthDate)}</span></div><div class="field"><span class="label">Diagnóstico</span><span class="value">${s.dx || '-'}</span></div><div class="field"><span class="label">Obra Social</span><span class="value">${s.healthInsurance || 'NO DECLARA'}</span></div><div class="field"><span class="label">Vencimiento CUD</span><span class="value">${getSafeDate(s.cudExpiration)}</span></div></div><div class="section-title">Escolaridad (${s.modality || 'Sede'})</div><div class="grid"><div class="field"><span class="label">Nivel</span><span class="value">${s.level || '-'}</span></div>${s.modality === 'Inclusión' ? `<div class="field"><span class="label">Escuela Origen</span><span class="value">${s.originSchool} (${s.originGrade})</span></div><div class="field"><span class="label">DAI Asignada</span><span class="value">${s.daiMorning || s.daiAfternoon || '-'}</span></div>` : `<div class="field"><span class="label">Turno Mañana</span><span class="value">Grupo: ${s.groupMorning || '-'} (Doc: ${s.teacherMorning || '-'})</span></div><div class="field"><span class="label">Turno Tarde</span><span class="value">Grupo: ${s.groupAfternoon || '-'} (Doc: ${s.teacherAfternoon || '-'})</span></div>`}</div><div class="section-title">Familia y Contacto</div><div class="field" style="margin-bottom:10px;"><span class="label">Dirección</span><span class="value">${s.address || '-'}</span></div><div class="grid"><div class="field"><span class="label">Madre / Tutor 1</span><span class="value">${s.motherName || '-'}</span><br><span style="font-size:12px;color:#666">${s.motherContact || '-'}</span></div><div class="field"><span class="label">Padre / Tutor 2</span><span class="value">${s.fatherName || '-'}</span><br><span style="font-size:12px;color:#666">${s.fatherContact || '-'}</span></div></div><div class="footer">Juntos a la Par - Legajo Digital generado el ${new Date().toLocaleDateString()}</div></div>`; }); h += '</body></html>'; w.document.write(h); w.document.close(); setTimeout(()=>w.print(), 500); };
-  const imprimirFichasMasivas = () => { if (filteredStudents.length > 50 && !confirm(`¿Imprimir ${filteredStudents.length} fichas? Es mucho.`)) return; imprimirListado(filteredStudents); };
-  const exportFiltered = () => { if (filteredStudents.length === 0) return alert("Sin datos"); const headers = ["Apellido", "Nombre", "DNI", "Nivel", "Modalidad"]; const csv = [headers.join(';'), ...filteredStudents.map(s => [`"${s.lastName}"`, `"${s.firstName}"`, `"${s.dni}"`, `"${s.level}"`, `"${s.modality||'Sede'}"`].join(';'))].join('\n'); const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = "Matricula.csv"; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
-  const statsResults = students.filter(s => { if (s.isActive === false) return false; if (statFilters.modality.length > 0 && !statFilters.modality.includes(s.modality || 'Sede')) return false; if (statFilters.level.length > 0 && !statFilters.level.includes(s.level)) return false; if (statFilters.dx !== 'all' && s.dx !== statFilters.dx) return false; if (statFilters.gender !== 'all' && s.gender !== statFilters.gender) return false; return true; });
+  const imprimirFichasMasivas = () => { if (filteredStudents.length > 50 && !confirm(`¿Imprimir ${filteredStudents.length} fichas? Es mucho.`)) return; imprimirListado(filteredStudents); };
+  const exportFiltered = () => { if (filteredStudents.length === 0) return alert("Sin datos"); const headers = ["Apellido", "Nombre", "DNI", "Nivel", "Modalidad"]; const csv = [headers.join(';'), ...filteredStudents.map(s => [`"${s.lastName}"`, `"${s.firstName}"`, `"${s.dni}"`, `"${s.level}"`, `"${s.modality||'Sede'}"`].join(';'))].join('\n'); const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = "Matricula.csv"; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
+  const statsResults = students.filter(s => { if (s.isActive === false) return false; if (statFilters.modality.length > 0 && !statFilters.modality.includes(s.modality || 'Sede')) return false; if (statFilters.level.length > 0 && !statFilters.level.includes(s.level)) return false; if (statFilters.dx !== 'all' && s.dx !== statFilters.dx) return false; if (statFilters.gender !== 'all' && s.gender !== statFilters.gender) return false; return true; });
   const toggleStatFilter = (category, value) => { setStatFilters(prev => { const currentList = prev[category]; if (currentList.includes(value)) return { ...prev, [category]: currentList.filter(item => item !== value) }; else return { ...prev, [category]: [...currentList, value] }; }); };
 
   return (
@@ -1663,7 +1679,7 @@ function MatriculaView({ user }) {
           ); 
       })}</div>
       
-      {/* MODAL FICHA COMPLETA (DISEÑO PREMIUM DE LA IMAGEN) */}
+      {/* MODAL FICHA COMPLETA (DISEÑO PREMIUM) */}
       {viewingStudent && !showForm && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
             <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -1816,10 +1832,13 @@ function MatriculaView({ user }) {
         <div className="grid grid-cols-2 gap-3"><input name="firstName" defaultValue={editingStudent?.firstName} placeholder="Nombre" required className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/><input name="lastName" defaultValue={editingStudent?.lastName} placeholder="Apellido" required className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/></div>
         <div className="grid grid-cols-2 gap-3"><input name="dni" type="number" defaultValue={editingStudent?.dni} placeholder="DNI" className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/><input name="birthDate" type="date" defaultValue={getSafeDate(editingStudent?.birthDate)} className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm text-gray-500"/></div>
         {formModalidad === 'Sede' ? (<div className="grid grid-cols-2 gap-2"><input name="groupMorning" defaultValue={editingStudent?.groupMorning} placeholder="Grupo TM" className="p-2 rounded-lg border text-xs"/><input name="groupAfternoon" defaultValue={editingStudent?.groupAfternoon} placeholder="Grupo TT" className="p-2 rounded-lg border text-xs"/></div>) : (<div className="grid grid-cols-2 gap-2"><select name="daiMorning" defaultValue={editingStudent?.daiMorning} className="p-2 rounded-lg border text-xs"><option value="">DAI T. Mañana...</option>{staffInclusion.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="daiAfternoon" defaultValue={editingStudent?.daiAfternoon} className="p-2 rounded-lg border text-xs"><option value="">DAI T. Tarde...</option>{staffInclusion.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>)}
+        
+        {/* CAMPOS ADICIONALES RESTAURADOS */}
         <input name="address" defaultValue={editingStudent?.address} className="w-full p-2 rounded-lg border text-xs" placeholder="Dirección"/>
         <div className="grid grid-cols-2 gap-2"><input name="motherName" defaultValue={editingStudent?.motherName} placeholder="Madre" className="w-full p-2 rounded-lg border text-xs"/><input name="motherContact" defaultValue={editingStudent?.motherContact} placeholder="Contacto Madre" className="w-full p-2 rounded-lg border text-xs"/></div>
         <div className="grid grid-cols-2 gap-2"><input name="fatherName" defaultValue={editingStudent?.fatherName} placeholder="Padre" className="w-full p-2 rounded-lg border text-xs"/><input name="fatherContact" defaultValue={editingStudent?.fatherContact} placeholder="Contacto Padre" className="w-full p-2 rounded-lg border text-xs"/></div>
         <div className="grid grid-cols-2 gap-2"><input name="healthInsurance" defaultValue={editingStudent?.healthInsurance} placeholder="Obra Social" className="w-full p-2 rounded-lg border text-xs"/><input name="cudExpiration" type="date" defaultValue={getSafeDate(editingStudent?.cudExpiration)} className="w-full p-2 rounded-lg border text-xs text-gray-500"/></div>
+        
         <div className="flex gap-2 pt-4 border-t"><button type="button" onClick={()=>setShowForm(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs">Cancelar</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg">Guardar</button>{editingStudent && <button type="button" onClick={() => handleDelete(editingStudent.id)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition border border-red-100"><Trash2 size={20}/></button>}</div></form></div></div>)}
       
       {/* MODAL GESTIÓN (NUBE) - PARCHADO */}
@@ -1842,6 +1861,7 @@ function MatriculaView({ user }) {
                             <button onClick={handleBulkImport} className="flex-1 py-3 bg-blue-50 border border-blue-100 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-100 shadow-sm flex items-center justify-center gap-2"><UploadCloud size={14}/> Importar</button>
                         </div>
                     </div>
+                    {/* BOTÓN RECUPERADO: AUTO-GÉNERO */}
                     <button onClick={handleAutoAssignGenders} disabled={processing} className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl text-xs shadow-lg hover:bg-indigo-700 flex items-center justify-center gap-2">
                         {processing ? <RefreshCw className="animate-spin" size={16}/> : <><User size={16}/> Asignar Género Automático</>}
                     </button>
@@ -2270,7 +2290,88 @@ function GroupsView({ user }) {
   };
 
   const handlePrintSingleGroup = (g) => generatePrintHTML([g], `Lista: ${g.name}`);
-  const handlePrintAll = () => generatePrintHTML(groups, "Listado General Institucional");
+  // --- PARCHE DE IMPRESIÓN MASIVA (DISEÑO VIOLETA + LOGO) ---
+  const handlePrintAll = () => {
+    const w = window.open('', '_blank'); 
+    if (!w) return alert("Por favor, permite los Pop-ups para imprimir.");
+    
+    let fullHtml = `<html><head><title>Listado General Institucional</title><style>
+      @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
+      body{font-family:'Roboto', sans-serif; padding:40px; color:#333;}
+      
+      /* ENCABEZADO PRINCIPAL */
+      .main-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 5px solid #7c3aed; padding-bottom: 20px; margin-bottom: 30px; }
+      .main-title { font-size: 32px; font-weight: 900; color: #4c1d95; text-transform: uppercase; margin: 0; }
+      .main-subtitle { font-size: 14px; font-weight: bold; color: #666; margin-top: 5px; text-transform: uppercase; letter-spacing: 2px; }
+      
+      /* ESTILOS DE GRUPO */
+      .group-section { margin-bottom: 40px; page-break-inside: avoid; }
+      .group-header { background-color: #f3f4f6; border-left: 6px solid #7c3aed; padding: 10px 15px; margin-bottom: 10px; border-radius: 0 8px 8px 0; }
+      .group-name { font-size: 20px; font-weight: 900; color: #5b21b6; margin: 0; }
+      .group-staff { font-size: 11px; font-weight: bold; color: #666; margin-top: 4px; text-transform: uppercase; }
+
+      /* TABLA */
+      table { width: 100%; border-collapse: collapse; font-size: 11px; }
+      thead tr { background-color: #7c3aed !important; color: white !important; }
+      th { padding: 8px 10px; text-align: left; text-transform: uppercase; font-weight: bold; font-size: 10px; border: 1px solid #ddd; }
+      td { border: 1px solid #e5e7eb; padding: 6px 10px; color: #374151; }
+      tr:nth-child(even) { background-color: #f9fafb !important; }
+      
+      .footer { margin-top: 50px; border-top: 1px solid #ddd; padding-top: 10px; text-align: right; font-size: 10px; color: #9ca3af; font-style: italic; }
+    </style></head><body>
+    
+    <div class="main-header">
+        <div>
+            <h1 class="main-title">Listado Institucional</h1>
+            <p class="main-subtitle">Juntos a la Par - Ciclo Lectivo 2026</p>
+        </div>
+        <img src="${LOGO_URL}" style="height: 70px; opacity: 0.9;" />
+    </div>`;
+
+    groups.forEach(g => {
+        const sorted = [...g.students].sort((a,b) => a.lastName.localeCompare(b.lastName));
+        
+        fullHtml += `
+        <div class="group-section">
+            <div class="group-header">
+                <h2 class="group-name">${g.name}</h2>
+                <div class="group-staff">
+                    Docente: ${g.teacher || 'VACANTE'} | Auxiliar: ${g.aux || '-'} | Sup: ${g.sup1 || '-'}
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 5%">#</th>
+                        <th style="width: 30%">Apellido y Nombre</th>
+                        <th style="width: 15%">DNI</th>
+                        <th style="width: 15%">Nacimiento</th>
+                        <th style="width: 35%">Familia / Obs</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+        
+        sorted.forEach((s, i) => {
+             const flia = g.isInclusionGroup 
+                ? `Esc. Origen: ${s.originSchool} (${s.originGrade})`
+                : `M: ${s.motherName||'-'} / P: ${s.fatherName||'-'}`;
+             
+             fullHtml += `
+                <tr>
+                    <td style="text-align:center; font-weight:bold; color:#7c3aed;">${i+1}</td>
+                    <td style="font-weight:bold; text-transform:uppercase;">${s.lastName}, ${s.firstName}</td>
+                    <td>${s.dni || '-'}</td>
+                    <td>${getSafeDate(s.birthDate)}</td>
+                    <td style="font-size:10px;">${flia}</td>
+                </tr>`;
+        });
+        
+        fullHtml += `</tbody></table></div>`;
+    });
+    
+    fullHtml += `<div class="footer">Documento generado el ${new Date().toLocaleDateString()}</div></body></html>`;
+    w.document.write(fullHtml); w.document.close(); setTimeout(() => w.print(), 1000);
+  };
 
   const addIncident = async (type, text = "") => {
       if (!showBitacoraModal) return;
@@ -2361,6 +2462,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
