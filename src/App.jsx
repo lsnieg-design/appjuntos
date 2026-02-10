@@ -2352,26 +2352,24 @@ const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scr
 
   const handlePrintSingleGroup = (g) => generatePrintHTML([g], `Lista: ${g.name}`);
   // --- PARCHE DE IMPRESIÓN MASIVA (DISEÑO VIOLETA + LOGO) ---
+  // --- PARCHE IMPRESIÓN MASIVA (CON AULA + 2 SUPERVISORAS) ---
   const handlePrintAll = () => {
     const w = window.open('', '_blank'); 
     if (!w) return alert("Por favor, permite los Pop-ups para imprimir.");
     
-    let fullHtml = `<html><head><title>Listado General Institucional</title><style>
+    let fullHtml = `<html><head><title>Listado Institucional Completo</title><style>
       @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
       body{font-family:'Roboto', sans-serif; padding:40px; color:#333;}
       
-      /* ENCABEZADO PRINCIPAL */
       .main-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 5px solid #7c3aed; padding-bottom: 20px; margin-bottom: 30px; }
       .main-title { font-size: 32px; font-weight: 900; color: #4c1d95; text-transform: uppercase; margin: 0; }
       .main-subtitle { font-size: 14px; font-weight: bold; color: #666; margin-top: 5px; text-transform: uppercase; letter-spacing: 2px; }
       
-      /* ESTILOS DE GRUPO */
       .group-section { margin-bottom: 40px; page-break-inside: avoid; }
       .group-header { background-color: #f3f4f6; border-left: 6px solid #7c3aed; padding: 10px 15px; margin-bottom: 10px; border-radius: 0 8px 8px 0; }
       .group-name { font-size: 20px; font-weight: 900; color: #5b21b6; margin: 0; }
-      .group-staff { font-size: 11px; font-weight: bold; color: #666; margin-top: 4px; text-transform: uppercase; }
+      .group-staff { font-size: 11px; font-weight: bold; color: #555; margin-top: 4px; text-transform: uppercase; }
 
-      /* TABLA */
       table { width: 100%; border-collapse: collapse; font-size: 11px; }
       thead tr { background-color: #7c3aed !important; color: white !important; }
       th { padding: 8px 10px; text-align: left; text-transform: uppercase; font-weight: bold; font-size: 10px; border: 1px solid #ddd; }
@@ -2384,7 +2382,7 @@ const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scr
     <div class="main-header">
         <div>
             <h1 class="main-title">Listado Institucional</h1>
-            <p class="main-subtitle">Juntos a la Par - Ciclo Lectivo 2026</p>
+            <p class="main-subtitle">Juntos a la Par - Ciclo Lectivo 2026 - Turno ${turn === 'morning' ? 'Mañana' : 'Tarde'}</p>
         </div>
         <img src="${LOGO_URL}" style="height: 70px; opacity: 0.9;" />
     </div>`;
@@ -2392,12 +2390,19 @@ const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scr
     groups.forEach(g => {
         const sorted = [...g.students].sort((a,b) => a.lastName.localeCompare(b.lastName));
         
+        // Lógica para mostrar las 2 supervisoras
+        let supText = g.sup1 || '-';
+        if (g.sup2) supText += ` / ${g.sup2}`;
+
+        // Lógica para mostrar el aula
+        const aulaText = g.classroom ? ` | 🏫 AULA: ${g.classroom}` : '';
+        
         fullHtml += `
         <div class="group-section">
             <div class="group-header">
                 <h2 class="group-name">${g.name}</h2>
                 <div class="group-staff">
-                    Docente: ${g.teacher || 'VACANTE'} | Auxiliar: ${g.aux || '-'} | Sup: ${g.sup1 || '-'}
+                    DOC: ${g.teacher || 'VACANTE'} | AUX: ${g.aux || '-'} | SUP: ${supText} ${aulaText}
                 </div>
             </div>
             <table>
@@ -2414,7 +2419,7 @@ const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scr
         
         sorted.forEach((s, i) => {
              const flia = g.isInclusionGroup 
-                ? `Esc. Origen: ${s.originSchool} (${s.originGrade})`
+                ? `Esc. Origen: ${s.originSchool || '-'} (${s.originGrade || '-'})`
                 : `M: ${s.motherName||'-'} / P: ${s.fatherName||'-'}`;
              
              fullHtml += `
@@ -2430,10 +2435,9 @@ const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scr
         fullHtml += `</tbody></table></div>`;
     });
     
-    fullHtml += `<div class="footer">Documento generado el ${new Date().toLocaleDateString()}</div></body></html>`;
+    fullHtml += `<div class="footer">Documento generado el ${new Date().toLocaleDateString()} a las ${new Date().toLocaleTimeString()}</div></body></html>`;
     w.document.write(fullHtml); w.document.close(); setTimeout(() => w.print(), 1000);
   };
-
   const addIncident = async (type, text = "") => {
       if (!showBitacoraModal) return;
       const newInc = { date: new Date().toISOString(), type: text ? "Nota" : type, severity: type, text: text || type, author: user.firstName };
@@ -2584,6 +2588,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
