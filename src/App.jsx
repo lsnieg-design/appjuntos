@@ -1508,7 +1508,7 @@ function ProyectoView({ user }) {
     </div>
   );
 }
-// --- VISTA MATRÍCULA (MASTER TOTAL: GESTIÓN FULL + FORMULARIO COMPLETO + DISEÑO) ---
+// --- VISTA MATRÍCULA (FINAL: SIN DUPLICADOS + DISEÑO PREMIUM + CAMPOS COMPLETOS) ---
 function MatriculaView({ user }) {
   // 1. ESTADOS DE DATOS
   const [students, setStudents] = useState([]);
@@ -1614,7 +1614,7 @@ function MatriculaView({ user }) {
   const addIncident = async (type, text = "") => { if (!viewingStudent) return; const newInc = { date: new Date().toISOString(), type: text ? "Nota" : type, severity: type, text: text || type, author: user.firstName }; try { const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', viewingStudent.id); await updateDoc(studentRef, { incidents: arrayUnion(newInc) }); setViewingStudent(prev => ({...prev, incidents: [...(prev.incidents || []), newInc]})); setNewNote(""); setIsWriting(false); } catch (e) { alert("Error: " + e.message); } };
   const abrirLegajoDigital = (student) => { const clean = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9 ]/g, ""); const query = `name contains '${clean(student.lastName).split(' ')[0]}' and name contains '${clean(student.firstName).split(' ')[0]}' and trashed = false`; window.open(`https://drive.google.com/drive/search?q=${encodeURIComponent(query)}`, '_blank'); };
   
-  // --- FUNCIONES GESTIÓN DE DATOS (RECUPERADAS) ---
+  // FUNCIONES DE GESTIÓN (ÚNICAS)
   const checkUnassigned = () => { const found = students.filter(s => (s.isActive === undefined || s.isActive === true) && !s.groupMorning && !s.groupAfternoon && !s.daiMorning && !s.daiAfternoon); setUnassignedList(found); setShowDataManagement(false); setShowUnassigned(true); };
   const findDuplicates = () => alert("Función en mantenimiento.");
   const descargarBackup = () => { if(!confirm("¿Descargar Backup?")) return; const blob = new Blob([JSON.stringify(students, null, 2)], { type: "application/json" }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = "BACKUP_MATRICULA.json"; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
@@ -1639,7 +1639,6 @@ function MatriculaView({ user }) {
     setProcessing(false);
   };
   
-  // IMPRESIÓN PRO RESTAURADA
   const imprimirListado = (list) => { const w = window.open('', '_blank'); if(!w) return alert("Permitir Pop-ups"); let h = `<html><head><title>Fichas</title><style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');body{font-family:'Roboto',sans-serif;padding:20px;background:#f0f0f0}.page{background:white;padding:40px;margin-bottom:20px;border-radius:8px;box-shadow:0 4px 6px rgba(0,0,0,0.1);page-break-after:always;max-width:800px;margin:0 auto 20px auto;border-top:10px solid #7c3aed}.header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #ddd;padding-bottom:20px;margin-bottom:20px}.header-text h1{color:#4c1d95;font-size:28px;margin:0;text-transform:uppercase}.header-text p{color:#666;font-size:14px;margin:5px 0 0 0}.photo-box{width:80px;height:80px;background:#eee;border-radius:50%;overflow:hidden;border:3px solid #7c3aed}.photo-box img{width:100%;height:100%;object-fit:cover}.section-title{background:#f3f4f6;color:#4c1d95;padding:8px 15px;font-weight:900;text-transform:uppercase;font-size:12px;border-radius:6px;margin-bottom:10px;border-left:5px solid #7c3aed}.grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px}.field{margin-bottom:5px}.label{display:block;font-size:10px;color:#888;text-transform:uppercase;font-weight:bold}.value{font-size:14px;font-weight:bold;color:#333}.footer{text-align:center;font-size:10px;color:#aaa;margin-top:30px;border-top:1px solid #eee;padding-top:10px}@media print{body{background:white;padding:0}.page{box-shadow:none;margin:0;border-radius:0;max-width:none;border-top:none}}</style></head><body>`; list.forEach(s => { h += `<div class="page"><div class="header"><div class="header-text"><h1>${s.lastName}, ${s.firstName}</h1><p>DNI: ${s.dni || '-'} | Edad: ${calculateAge(s.birthDate)} años</p></div><div class="photo-box">${s.photoUrl ? `<img src="${s.photoUrl}"/>` : ''}</div></div><div class="section-title">Datos Personales y Salud</div><div class="grid"><div class="field"><span class="label">Fecha Nacimiento</span><span class="value">${getSafeDate(s.birthDate)}</span></div><div class="field"><span class="label">Diagnóstico</span><span class="value">${s.dx || '-'}</span></div><div class="field"><span class="label">Obra Social</span><span class="value">${s.healthInsurance || 'NO DECLARA'}</span></div><div class="field"><span class="label">Vencimiento CUD</span><span class="value">${getSafeDate(s.cudExpiration)}</span></div></div><div class="section-title">Escolaridad (${s.modality || 'Sede'})</div><div class="grid"><div class="field"><span class="label">Nivel</span><span class="value">${s.level || '-'}</span></div>${s.modality === 'Inclusión' ? `<div class="field"><span class="label">Escuela Origen</span><span class="value">${s.originSchool} (${s.originGrade})</span></div><div class="field"><span class="label">DAI Asignada</span><span class="value">${s.daiMorning || s.daiAfternoon || '-'}</span></div>` : `<div class="field"><span class="label">Turno Mañana</span><span class="value">Grupo: ${s.groupMorning || '-'} (Doc: ${s.teacherMorning || '-'})</span></div><div class="field"><span class="label">Turno Tarde</span><span class="value">Grupo: ${s.groupAfternoon || '-'} (Doc: ${s.teacherAfternoon || '-'})</span></div>`}</div><div class="section-title">Familia y Contacto</div><div class="field" style="margin-bottom:10px;"><span class="label">Dirección</span><span class="value">${s.address || '-'}</span></div><div class="grid"><div class="field"><span class="label">Madre / Tutor 1</span><span class="value">${s.motherName || '-'}</span><br><span style="font-size:12px;color:#666">${s.motherContact || '-'}</span></div><div class="field"><span class="label">Padre / Tutor 2</span><span class="value">${s.fatherName || '-'}</span><br><span style="font-size:12px;color:#666">${s.fatherContact || '-'}</span></div></div><div class="footer">Juntos a la Par - Legajo Digital generado el ${new Date().toLocaleDateString()}</div></div>`; }); h += '</body></html>'; w.document.write(h); w.document.close(); setTimeout(()=>w.print(), 500); };
   const imprimirFichasMasivas = () => { if (filteredStudents.length > 50 && !confirm(`¿Imprimir ${filteredStudents.length} fichas? Es mucho.`)) return; imprimirListado(filteredStudents); };
   const exportFiltered = () => { if (filteredStudents.length === 0) return alert("Sin datos"); const headers = ["Apellido", "Nombre", "DNI", "Nivel", "Modalidad"]; const csv = [headers.join(';'), ...filteredStudents.map(s => [`"${s.lastName}"`, `"${s.firstName}"`, `"${s.dni}"`, `"${s.level}"`, `"${s.modality||'Sede'}"`].join(';'))].join('\n'); const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = "Matricula.csv"; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
@@ -1704,7 +1703,7 @@ function MatriculaView({ user }) {
           ); 
       })}</div>
       
-      {/* MODAL FICHA COMPLETA */}
+      {/* MODAL FICHA COMPLETA (DISEÑO PREMIUM DE LA IMAGEN) */}
       {viewingStudent && !showForm && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
             <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -1848,22 +1847,61 @@ function MatriculaView({ user }) {
         </div>
       )}
 
-      {/* FORMULARIO DE EDICIÓN */}
+      {/* FORMULARIO DE EDICIÓN (DISEÑO IMAGEN 2 - COMPLETO) */}
       {showForm && (<div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"><div className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto"><h3 className="text-xl font-bold mb-4">{editingStudent?'Editar':'Nuevo'} Legajo</h3>
-      {/* FOTO */}
+      
+      {/* SECCIÓN FOTO */}
       <div className="flex justify-center mb-6"><div className="relative group w-24 h-24"><div className="w-24 h-24 rounded-full overflow-hidden border-4 border-violet-100 bg-gray-100 shadow-inner">{photoPreview || editingStudent?.photoUrl ? <img src={photoPreview || editingStudent?.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-gray-300 m-auto mt-6"/>}</div><label className="absolute bottom-0 right-0 bg-violet-600 text-white p-2 rounded-full cursor-pointer hover:bg-violet-700 shadow-md"><input type="file" className="hidden" accept="image/*" onChange={handlePhotoChange} />{uploading ? <RefreshCw className="animate-spin" size={14}/> : <Edit3 size={14}/>}</label></div></div>
+
       <form onSubmit={handleSave} className="space-y-4">
+        {/* TABS MODALIDAD */}
         <div className="flex gap-2 mb-4 bg-gray-100 p-1 rounded-xl"><button type="button" onClick={() => setFormModalidad('Sede')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${formModalidad === 'Sede' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>SEDE</button><button type="button" onClick={() => setFormModalidad('Inclusión')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${formModalidad === 'Inclusión' ? 'bg-white shadow text-indigo-700' : 'text-gray-400'}`}>INCLUSIÓN</button></div>
+        
+        {/* ESTADO */}
+        <div className={`p-3 rounded-xl border mb-2 flex justify-between items-center ${editingStudent?.isActive === false ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
+            <div><label className="text-xs font-bold text-gray-700 uppercase">Estado Actual</label><p className="text-[10px] text-gray-500 font-bold">{editingStudent?.isActive === false ? '🛑 BAJA / INACTIVO' : '✅ ACTIVO (CURSANDO)'}</p></div>
+            <select name="isActive" defaultValue={editingStudent?.isActive === false ? 'false' : 'true'} className="p-2 rounded-lg border text-xs font-bold bg-white outline-none"><option value="true">Activo</option><option value="false">Inactivo (Baja)</option></select>
+        </div>
+
+        {/* DATOS PERSONALES */}
         <div className="grid grid-cols-2 gap-3"><input name="firstName" defaultValue={editingStudent?.firstName} placeholder="Nombre" required className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/><input name="lastName" defaultValue={editingStudent?.lastName} placeholder="Apellido" required className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/></div>
         <div className="grid grid-cols-2 gap-3"><input name="dni" type="number" defaultValue={editingStudent?.dni} placeholder="DNI" className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/><input name="birthDate" type="date" defaultValue={getSafeDate(editingStudent?.birthDate)} className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm text-gray-500"/></div>
-        {formModalidad === 'Sede' ? (<div className="grid grid-cols-2 gap-2"><input name="groupMorning" defaultValue={editingStudent?.groupMorning} placeholder="Grupo TM" className="p-2 rounded-lg border text-xs"/><input name="groupAfternoon" defaultValue={editingStudent?.groupAfternoon} placeholder="Grupo TT" className="p-2 rounded-lg border text-xs"/></div>) : (<div className="grid grid-cols-2 gap-2"><select name="daiMorning" defaultValue={editingStudent?.daiMorning} className="p-2 rounded-lg border text-xs"><option value="">DAI T. Mañana...</option>{staffInclusion.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="daiAfternoon" defaultValue={editingStudent?.daiAfternoon} className="p-2 rounded-lg border text-xs"><option value="">DAI T. Tarde...</option>{staffInclusion.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>)}
-        <input name="address" defaultValue={editingStudent?.address} className="w-full p-2 rounded-lg border text-xs" placeholder="Dirección"/>
-        <div className="grid grid-cols-2 gap-2"><input name="motherName" defaultValue={editingStudent?.motherName} placeholder="Madre" className="w-full p-2 rounded-lg border text-xs"/><input name="motherContact" defaultValue={editingStudent?.motherContact} placeholder="Contacto Madre" className="w-full p-2 rounded-lg border text-xs"/></div>
-        <div className="grid grid-cols-2 gap-2"><input name="fatherName" defaultValue={editingStudent?.fatherName} placeholder="Padre" className="w-full p-2 rounded-lg border text-xs"/><input name="fatherContact" defaultValue={editingStudent?.fatherContact} placeholder="Contacto Padre" className="w-full p-2 rounded-lg border text-xs"/></div>
-        <div className="grid grid-cols-2 gap-2"><input name="healthInsurance" defaultValue={editingStudent?.healthInsurance} placeholder="Obra Social" className="w-full p-2 rounded-lg border text-xs"/><input name="cudExpiration" type="date" defaultValue={getSafeDate(editingStudent?.cudExpiration)} className="w-full p-2 rounded-lg border text-xs text-gray-500"/></div>
+        
+        {/* CAJA AZUL: DATOS ESCOLARES */}
+        <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 space-y-3">
+             <h4 className="font-bold text-blue-700 text-xs uppercase">Datos Escolares ({formModalidad})</h4>
+             <div className="grid grid-cols-2 gap-2">
+                 <select name="level" defaultValue={editingStudent?.level} className="p-2 rounded-lg border text-xs font-bold w-full"><option value="">Nivel...</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option><option value="SECUNDARIA">SECUNDARIA</option></select>
+                 <select name="dx" defaultValue={editingStudent?.dx} className="p-2 rounded-lg border text-xs font-bold w-full"><option value="">DX...</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select>
+             </div>
+             
+             {formModalidad === 'Sede' ? (
+                 <>
+                    <div className="grid grid-cols-2 gap-2"><input name="groupMorning" defaultValue={editingStudent?.groupMorning} placeholder="Grupo TM" className="p-2 rounded-lg border text-xs w-full"/><input name="groupAfternoon" defaultValue={editingStudent?.groupAfternoon} placeholder="Grupo TT" className="p-2 rounded-lg border text-xs w-full"/></div>
+                    <div className="grid grid-cols-2 gap-2"><select name="teacherMorning" defaultValue={editingStudent?.teacherMorning} className="p-2 rounded-lg border text-xs w-full"><option value="">Docente TM...</option>{staffSede.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="teacherAfternoon" defaultValue={editingStudent?.teacherAfternoon} className="p-2 rounded-lg border text-xs w-full"><option value="">Docente TT...</option>{staffSede.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
+                 </>
+             ) : (
+                 <>
+                    <input name="originSchool" defaultValue={editingStudent?.originSchool} placeholder="Escuela de Origen" className="w-full p-2 rounded-lg border text-xs font-bold"/>
+                    <input name="originGrade" defaultValue={editingStudent?.originGrade} placeholder="Grado/Año" className="w-full p-2 rounded-lg border text-xs"/>
+                    <div className="grid grid-cols-2 gap-2"><select name="daiMorning" defaultValue={editingStudent?.daiMorning} className="p-2 rounded-lg border text-xs"><option value="">DAI T. Mañana...</option>{staffInclusion.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="daiAfternoon" defaultValue={editingStudent?.daiAfternoon} className="p-2 rounded-lg border text-xs"><option value="">DAI T. Tarde...</option>{staffInclusion.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
+                    <div className="bg-green-50 p-2 rounded-lg border border-green-100 mt-2"><label className="text-[10px] font-bold text-green-700 uppercase block mb-1">📂 Carpeta Drive Personal</label><input name="driveLink" defaultValue={editingStudent?.driveLink} placeholder="https://drive.google.com/..." className="w-full p-2 rounded-lg border text-xs text-green-800"/></div>
+                 </>
+             )}
+        </div>
+
+        {/* CAJA VERDE: SALUD Y FAMILIA (RECUPERADA) */}
+        <div className="p-4 bg-green-50 rounded-2xl border border-green-100 space-y-3">
+            <h4 className="font-bold text-green-800 text-xs uppercase">Salud y Familia</h4>
+            <div className="grid grid-cols-2 gap-2"><input name="healthInsurance" defaultValue={editingStudent?.healthInsurance} placeholder="Obra Social" className="w-full p-2 rounded-lg border text-xs"/><input name="cudExpiration" type="date" defaultValue={getSafeDate(editingStudent?.cudExpiration)} className="w-full p-2 rounded-lg border text-xs text-gray-500"/></div>
+            <input name="address" defaultValue={editingStudent?.address} className="w-full p-2 rounded-lg border text-xs" placeholder="Dirección"/>
+            <div className="grid grid-cols-2 gap-2"><input name="motherName" defaultValue={editingStudent?.motherName} placeholder="Madre" className="w-full p-2 rounded-lg border text-xs"/><input name="motherContact" defaultValue={editingStudent?.motherContact} placeholder="Contacto Madre" className="w-full p-2 rounded-lg border text-xs"/></div>
+            <div className="grid grid-cols-2 gap-2"><input name="fatherName" defaultValue={editingStudent?.fatherName} placeholder="Padre" className="w-full p-2 rounded-lg border text-xs"/><input name="fatherContact" defaultValue={editingStudent?.fatherContact} placeholder="Contacto Padre" className="w-full p-2 rounded-lg border text-xs"/></div>
+        </div>
+        
         <div className="flex gap-2 pt-4 border-t"><button type="button" onClick={()=>setShowForm(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs">Cancelar</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg">Guardar</button>{editingStudent && <button type="button" onClick={() => handleDelete(editingStudent.id)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition border border-red-100"><Trash2 size={20}/></button>}</div></form></div></div>)}
       
-      {/* MODAL GESTIÓN (NUBE) - PARCHADO */}
+      {/* MODAL GESTIÓN (NUBE + AUTO-GÉNERO) */}
       {showDataManagement && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[9999]">
             <div className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl animate-in zoom-in-95">
@@ -2123,6 +2161,8 @@ function GroupsView({ user }) {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [showBitacoraModal, setShowBitacoraModal] = useState(null); 
   const [activeTab, setActiveTab] = useState('info');
+  const scrollRef = useRef(null); // Importante: useRef debe estar importado de 'react'
+const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scrollRef.current.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' }); } };
   
   // ESTADOS
   const [newNote, setNewNote] = useState("");
@@ -2409,40 +2449,101 @@ function GroupsView({ user }) {
   const handleUpdateGroup = async (e) => { e.preventDefault(); if (!editingGroup) return; if (editingGroup.isInclusionGroup && !confirm("⚠️ Estás editando un grupo de INCLUSIÓN. Esto cambiará el DAI asignado a todos estos alumnos.")) return; setUpdatingGroup(true); const fd = new FormData(e.target); const updates = {}; if (editingGroup.isInclusionGroup) { if (turn === 'morning') updates.daiMorning = fd.get('teacher'); else updates.daiAfternoon = fd.get('teacher'); } else { if (turn === 'morning') { updates.teacherMorning = fd.get('teacher'); updates.auxMorning = fd.get('aux'); updates.sup1Morning = fd.get('sup1'); updates.sup2Morning = fd.get('sup2'); updates.groupMorning = fd.get('groupName'); } else { updates.teacherAfternoon = fd.get('teacher'); updates.auxAfternoon = fd.get('aux'); updates.sup1Afternoon = fd.get('sup1'); updates.sup2Afternoon = fd.get('sup2'); updates.groupAfternoon = fd.get('groupName'); } updates.classroom = fd.get('classroom'); } updates.driveLink = fd.get('driveLink'); try { const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)); await Promise.all(promises); alert("✅ Actualizado."); setEditingGroup(null); } catch (err) { alert(err.message); } finally { setUpdatingGroup(false); } };
   const staffOptions = usersList.filter(u => ['Docente', 'Auxiliar/Preceptor', 'Equipo Técnico', 'Profes Especiales', 'DAI', 'Inclusión'].includes(u.role));
   const techOptions = usersList.filter(u => u.role === 'Equipo Técnico' || u.role === 'Equipo Técnico Inclusión');
-
-  return (
+return (
     <div className="flex flex-col h-full bg-slate-100 animate-in fade-in relative">
+      {/* HEADER SUPERIOR */}
       <div className="bg-white p-4 shadow-sm z-10 sticky top-0 flex flex-col gap-3">
-          <div className="flex justify-between items-center"><div><h2 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2"><Grid size={24} className="text-orange-500"/> Mis Grupos</h2><p className="text-xs text-gray-400 font-bold uppercase">{isManagement ? "Vista Institucional" : `Espacio Docente`}</p></div>{isManagement && <button onClick={handlePrintAll} className="bg-violet-100 text-violet-700 p-2 rounded-xl shadow-sm hover:bg-violet-200 transition" title="Imprimir Todo"><FileText size={24}/></button>}</div>
-          <div className="flex gap-2"><div className="flex bg-gray-100 p-1 rounded-xl flex-1"><button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-400'}`}>☀️ Mañana</button><button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 Tarde</button></div>{isManagement && (<div className="flex bg-gray-100 p-1 rounded-xl"><button onClick={() => setViewFilter('all')} className={`px-3 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'all' ? 'bg-white shadow text-gray-800' : 'text-gray-400'}`}>Todos</button><button onClick={() => setViewFilter('sede')} className={`px-3 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'sede' ? 'bg-white shadow text-blue-600' : 'text-gray-400'}`}>Sede</button><button onClick={() => setViewFilter('inclusion')} className={`px-3 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'inclusion' ? 'bg-white shadow text-indigo-600' : 'text-gray-400'}`}>Inclusión</button></div>)}</div>
+          <div className="flex justify-between items-center">
+              <div>
+                  <h2 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2">
+                      <Grid size={24} className="text-orange-500"/> Mis Grupos
+                  </h2>
+                  <p className="text-xs text-gray-400 font-bold uppercase">{isManagement ? "Vista Institucional" : `Espacio Docente`}</p>
+              </div>
+              {isManagement && (
+                  <button onClick={handlePrintAll} className="bg-violet-100 text-violet-700 p-2 rounded-xl shadow-sm hover:bg-violet-200 transition" title="Imprimir Todo">
+                      <FileText size={24}/>
+                  </button>
+              )}
+          </div>
+          <div className="flex gap-2">
+              <div className="flex bg-gray-100 p-1 rounded-xl flex-1">
+                  <button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-400'}`}>☀️ Mañana</button>
+                  <button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 Tarde</button>
+              </div>
+              {isManagement && (
+                  <div className="flex bg-gray-100 p-1 rounded-xl">
+                      <button onClick={() => setViewFilter('all')} className={`px-3 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'all' ? 'bg-white shadow text-gray-800' : 'text-gray-400'}`}>Todos</button>
+                      <button onClick={() => setViewFilter('sede')} className={`px-3 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'sede' ? 'bg-white shadow text-blue-600' : 'text-gray-400'}`}>Sede</button>
+                      <button onClick={() => setViewFilter('inclusion')} className={`px-3 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'inclusion' ? 'bg-white shadow text-indigo-600' : 'text-gray-400'}`}>Inclusión</button>
+                  </div>
+              )}
+          </div>
       </div>
       
-      <div className="flex-1 overflow-x-auto p-6 scroll-smooth"><div className="flex gap-6 h-full md:h-auto items-start">
+      {/* CONTENEDOR DE GRUPOS CON FLECHAS */}
+      <div className="relative flex-1 overflow-hidden">
+          {/* Flecha Izquierda (Solo PC) */}
+          <button onClick={() => scroll('left')} className="hidden md:flex absolute left-2 top-1/2 z-20 bg-white/90 text-violet-600 p-3 rounded-full shadow-xl border border-gray-100 hover:scale-110 transition -translate-y-1/2">
+              <ChevronLeft size={24}/>
+          </button>
+          {/* Flecha Derecha (Solo PC) */}
+          <button onClick={() => scroll('right')} className="hidden md:flex absolute right-2 top-1/2 z-20 bg-white/90 text-violet-600 p-3 rounded-full shadow-xl border border-gray-100 hover:scale-110 transition -translate-y-1/2">
+              <ChevronRight size={24}/>
+          </button>
+
+          {/* Área Scrolleable */}
+          <div ref={scrollRef} className="h-full overflow-x-auto p-6 scroll-smooth flex gap-6 items-start">
             {groups.length === 0 && (<div className="m-auto text-center opacity-50"><p className="font-bold text-gray-400">No hay grupos visibles.</p></div>)} 
+            
             {groups.map((g) => (
                 <div key={g.name} className={`min-w-[280px] w-[300px] flex flex-col h-[calc(100vh-220px)] md:h-fit bg-white rounded-[30px] border shadow-sm relative overflow-hidden group-hover:shadow-md transition shrink-0 ${g.isInclusionGroup ? 'border-indigo-200' : 'border-gray-200'}`}>
+                  {/* Encabezado de la Tarjeta */}
                   <div className={`p-4 border-b-4 relative ${g.isInclusionGroup ? 'bg-indigo-50 border-indigo-400' : (turn==='morning'?'border-orange-400 bg-orange-50':'border-indigo-400 bg-indigo-50')}`}>
-                      <div className="absolute top-2 right-2 flex gap-1">{isStrategic && (<button onClick={()=>setGroupStats(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><PieChart size={14}/></button>)}<button onClick={()=>handlePrintSingleGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>{isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"><Edit3 size={14}/></button>}</div>
+                      <div className="absolute top-2 right-2 flex gap-1">
+                          {isStrategic && (<button onClick={()=>setGroupStats(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><PieChart size={14}/></button>)}
+                          <button onClick={()=>handlePrintSingleGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>
+                          {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"><Edit3 size={14}/></button>}
+                      </div>
                       <h3 className="font-black text-gray-800 text-lg">{g.name}</h3>
+                      
                       <div className="mt-2 text-xs text-gray-500 font-medium space-y-1">
                           <p>DOC: <span className="font-bold text-violet-700 uppercase">{g.teacher || 'Sin asignar'}</span></p>
                           {g.aux && <p>AUX: <span className="font-bold uppercase">{g.aux}</span></p>}
                           {(g.sup1 || g.sup2) && <p className="text-violet-600 font-bold truncate">SUP: {g.sup1 || ''} {g.sup2 ? `& ${g.sup2}` : ''}</p>}
+                          
+                          {/* ETIQUETA DE AULA RECUPERADA */}
+                          {g.classroom && (
+                              <p className="text-orange-600 font-black bg-white/80 px-2 py-0.5 rounded-md inline-block shadow-sm mt-1 border border-orange-100">
+                                  🏫 Aula {g.classroom}
+                              </p>
+                          )}
                       </div>
                   </div>
+
+                  {/* Lista de Alumnos */}
                   <div className="flex-1 overflow-y-auto md:overflow-visible p-3 space-y-3 bg-gray-50">
                     {g.students.map(s => (
                         <div key={s.id} onClick={() => {setSelectedStudent(s); setActiveTab('info');}} className="bg-white p-3 rounded-2xl shadow-sm flex items-center gap-3 cursor-pointer hover:scale-[1.02] transition">
-                            <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden shrink-0 border border-gray-100">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="flex items-center justify-center w-full h-full font-bold text-gray-400">{s.firstName[0]}</div>}</div>
-                            <div><h4 className="font-bold text-gray-700 text-sm">{s.firstName} {s.lastName}</h4>{g.isInclusionGroup && <p className="text-[10px] text-indigo-500 font-bold">Esc. {s.originSchool}</p>}</div>
-                            <button onClick={(e) => {e.stopPropagation(); setShowBitacoraModal(s); setIsWriting(false); setNewNote("");}} className="ml-auto w-8 h-8 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center hover:bg-violet-600 hover:text-white transition">⚡</button>
+                            <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden shrink-0 border border-gray-100">
+                                {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="flex items-center justify-center w-full h-full font-bold text-gray-400">{s.firstName[0]}</div>}
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-gray-700 text-sm">{s.firstName} {s.lastName}</h4>
+                                {g.isInclusionGroup && <p className="text-[10px] text-indigo-500 font-bold">Esc. {s.originSchool}</p>}
+                            </div>
+                            <button onClick={(e) => {e.stopPropagation(); setShowBitacoraModal(s); setIsWriting(false); setNewNote("");}} className="ml-auto w-8 h-8 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center hover:bg-violet-600 hover:text-white transition">
+                                ⚡
+                            </button>
                         </div>
                     ))}
                   </div>
                 </div>
             ))}
-      </div></div>
+          </div>
+      </div>
 
+      {/* MODALES (Bitácora, Editor, etc.) se renderizan aquí abajo, pero el return termina aquí el layout principal */}
       {showBitacoraModal && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-emerald-500">
         <div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3><p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p></div><button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button></div>
         {!isWriting ? (
@@ -2483,6 +2584,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
