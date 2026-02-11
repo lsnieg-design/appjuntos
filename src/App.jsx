@@ -554,6 +554,10 @@ function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
   
+  // --- NUEVO ESTADO: MODO DE VISTA (SOLO PARA ADMINS) ---
+  const [viewMode, setViewMode] = useState('mine'); // 'mine' = Solo mías, 'all' = Todas
+  // -----------------------------------------------------
+
   // ESTADOS DE FORMULARIO
   const [assignType, setAssignType] = useState('user'); 
   const [selectedRoles, setSelectedRoles] = useState([]);
@@ -675,7 +679,7 @@ function TasksView({ tasks, user, canEdit }) {
       setUserSearch(""); // Limpiar búsqueda al seleccionar
   };
 
-  // FILTRADO DE TAREAS
+  // FILTRADO DE TAREAS (MODIFICADO PARA SOPORTAR SWITCH)
   const filteredTasks = tasks.filter(t => {
       const now = new Date();
       const scheduledTime = new Date(`${t.showDate || '2000-01-01'}T${t.showTime || '00:00'}`);
@@ -691,18 +695,26 @@ function TasksView({ tasks, user, canEdit }) {
           if (scheduledTime > now) return false; 
       }
       
-      // PRIVACIDAD
-      if (isSuperAdmin) return true; 
-      if (t.createdById === user.id) return true; 
-      
+      // 2. LÓGICA DE "ES TAREA MÍA"
       // Chequeo de asignación (Compatible con array y single)
+      let isMine = false;
+      if (t.createdById === user.id) isMine = true;
       if (t.targetType === 'user') {
-          if (t.targetUserIds && t.targetUserIds.includes(user.id)) return true; // Nuevo
-          if (t.targetUserId === user.id) return true; // Viejo
+          if (t.targetUserIds && t.targetUserIds.includes(user.id)) isMine = true; // Nuevo
+          if (t.targetUserId === user.id) isMine = true; // Viejo
       }
-      if (t.targetType === 'roles' && t.targetRoles && user.role && t.targetRoles.some(r => r.toLowerCase() === user.role.toLowerCase())) return true;
+      if (t.targetType === 'roles' && t.targetRoles && user.role && t.targetRoles.some(r => r.toLowerCase() === user.role.toLowerCase())) isMine = true;
+
+      // 3. LÓGICA DE PRIVACIDAD + SWITCH ADMIN
+      if (isSuperAdmin) {
+          // Si el Admin eligió "Mías", solo mostrar isMine
+          if (viewMode === 'mine') return isMine;
+          // Si eligió "Global", mostrar todo
+          return true;
+      }
       
-      return false; 
+      // Usuario normal solo ve las suyas
+      return isMine; 
   });
 
   const addComment = async (task) => { if (!newComment.trim()) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion({ text: newComment, author: user.firstName, date: new Date().toISOString() }) }); setNewComment(""); };
@@ -719,7 +731,17 @@ function TasksView({ tasks, user, canEdit }) {
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-20">
       <div className="flex justify-between items-center mb-2 bg-white p-4 sticky top-0 z-10 shadow-sm rounded-b-3xl">
           <div><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2><p className="text-xs text-gray-400 font-bold">{filteredTasks.length} visibles</p></div>
-          <div className="flex gap-2">
+          
+          <div className="flex gap-2 items-center">
+             {/* --- SWITCH DE VISTA (SOLO SUPER ADMIN) --- */}
+             {isSuperAdmin && (
+                  <div className="flex bg-gray-100 p-1 rounded-xl mr-2">
+                      <button onClick={() => setViewMode('mine')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition ${viewMode === 'mine' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>👤 Mías</button>
+                      <button onClick={() => setViewMode('all')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition ${viewMode === 'all' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>👁️ Global</button>
+                  </div>
+             )}
+             {/* ----------------------------------------- */}
+
              <div className="flex bg-gray-100 rounded-xl p-1">
                  <button onClick={()=>setFilter('pending')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='pending'?'bg-white shadow text-slate-800':'text-gray-400'}`}>Activas</button>
                  {canManage && <button onClick={()=>setFilter('scheduled')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='scheduled'?'bg-white shadow text-orange-600':'text-gray-400'}`}>Próximas</button>}
@@ -731,14 +753,19 @@ function TasksView({ tasks, user, canEdit }) {
       
       <div className="grid gap-3 px-2">
           {filteredTasks.length === 0 ? ( <div className="text-center py-10 opacity-40"><CheckCircle size={40} className="mx-auto mb-2 text-gray-400"/><p className="font-bold text-gray-500">Sin tareas en esta vista.</p></div> ) : filteredTasks.map(t => {
-            // LÓGICA DE SUPERVISIÓN
-            const isAssignedToMe = (t.targetUserIds && t.targetUserIds.includes(user.id)) || (t.targetUserId === user.id) || (t.targetRoles && t.targetRoles.includes(user.role));
-            const isCreatedByMe = t.createdById === user.id;
-            // Es "Supervisión" si NO es para mí Y NO la creé yo (pero la veo porque soy admin)
-            const isSupervision = !isAssignedToMe && !isCreatedByMe;
+            // LÓGICA DE SUPERVISIÓN (Para estilo visual)
+            let isMine = false;
+            if (t.createdById === user.id) isMine = true;
+            if (t.targetType === 'user') {
+                if (t.targetUserIds && t.targetUserIds.includes(user.id)) isMine = true; 
+                if (t.targetUserId === user.id) isMine = true;
+            }
+            if (t.targetType === 'roles' && t.targetRoles && user.role && t.targetRoles.some(r => r.toLowerCase() === user.role.toLowerCase())) isMine = true;
+            
+            const isSupervision = !isMine && isSuperAdmin && viewMode === 'all';
 
             return (
-                <div key={t.id} className={`p-5 rounded-[30px] shadow-sm flex flex-col gap-3 transition-all relative ${getPriorityStyle(t.priority)} ${isSupervision ? 'opacity-80 bg-gray-50 grayscale-[0.3]' : 'bg-white'}`}>
+                <div key={t.id} className={`p-5 rounded-[30px] shadow-sm flex flex-col gap-3 transition-all relative ${getPriorityStyle(t.priority)} ${isSupervision ? 'opacity-75 bg-gray-50 grayscale-[0.3]' : 'bg-white'}`}>
                     
                     {/* ETIQUETA SUPERVISIÓN */}
                     {isSupervision && <div className="absolute top-2 right-10 bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-[9px] font-black uppercase flex items-center gap-1 border border-gray-300"><Eye size={10}/> Supervisión</div>}
@@ -2949,6 +2976,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
