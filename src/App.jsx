@@ -2641,7 +2641,7 @@ function GroupsView({ user }) {
     </div>
   );
 }
-// --- VISTA ADMINISTRACIÓN (FINAL: CONSTANCIA INTELIGENTE + ACLARACIÓN) ---
+// --- VISTA ADMINISTRACIÓN (FINAL: MEDIA CARILLA A4 + DISEÑO COMPACTO) ---
 function AdministracionView({ user }) {
   const [students, setStudents] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -2689,7 +2689,6 @@ function AdministracionView({ user }) {
       
       const targets = students.filter(s => selectedIds.includes(s.id));
       
-      // FECHA ACTUAL
       const today = new Date();
       const day = today.getDate();
       const month = today.toLocaleString('es-AR', { month: 'long' });
@@ -2698,86 +2697,83 @@ function AdministracionView({ user }) {
 
       let htmlContent = `<html><head><title>Documentos</title><style>
           @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
-          body { font-family: 'Times New Roman', Times, serif; margin: 0; padding: 20px; color: #000; }
+          body { font-family: 'Times New Roman', Times, serif; margin: 0; padding: 15px; color: #000; }
           .page-break { page-break-after: always; }
 
+          /* CONTENEDOR MEDIA CARILLA (Aprox 14cm de alto) */
           .cert-container { 
-              border: 3px solid #65a30d; /* Verde Institucional */
-              border-radius: 35px; 
-              padding: 40px 50px; 
+              border: 2px solid #65a30d; 
+              border-radius: 20px; 
+              padding: 20px 30px; 
               margin: 0 auto;
               position: relative; 
-              height: 90vh; 
+              height: 135mm; /* MEDIA CARILLA EXACTA */
               box-sizing: border-box; 
-              max-width: 950px;
+              max-width: 900px;
               display: flex;
               flex-direction: column;
+              overflow: hidden; /* Evita que se salga si es muy largo */
           }
 
-          /* HEADER */
-          .cert-header { display: flex; align-items: center; margin-bottom: 40px; }
-          .cert-logo { width: 140px; height: auto; margin-right: 20px; }
+          /* HEADER COMPACTO */
+          .cert-header { display: flex; align-items: center; margin-bottom: 15px; }
+          .cert-logo { width: 90px; height: auto; margin-right: 15px; }
           .cert-title { 
-              font-size: 20px; 
+              font-size: 16px; 
               font-weight: bold; 
               text-decoration: underline; 
               text-transform: uppercase; 
               text-align: center;
               flex-grow: 1;
-              padding-top: 20px;
+              padding-top: 10px;
           }
 
-          /* CUERPO TEXTO */
-          .cert-body { font-size: 18px; line-height: 2.2; flex-grow: 1; margin-top: 20px; }
+          /* CUERPO TEXTO PEQUEÑO */
+          .cert-body { font-size: 13px; line-height: 1.8; flex-grow: 1; margin-top: 10px; }
           
           .dotted { 
               border-bottom: 1px dotted #000; 
               display: inline-block; 
-              padding: 0 10px; 
+              padding: 0 5px; 
               font-weight: bold; 
               text-align: center;
           }
           
-          /* FIRMAS */
+          /* FIRMAS COMPACTAS */
           .signatures-section { 
               margin-top: auto; 
-              margin-bottom: 20px;
               display: flex; 
               justify-content: space-between; 
               align-items: flex-end;
-              padding: 0 40px;
+              padding: 0 20px;
           }
           .sig-box { 
               text-align: center; 
-              width: 250px; 
+              width: 200px; 
               position: relative;
               display: flex;
               flex-direction: column;
               align-items: center;
               justify-content: flex-end;
-              height: 150px; 
+              height: 80px; 
           }
           .sig-img {
-              max-width: 180px;
-              max-height: 100px;
-              margin-bottom: -10px; 
+              max-width: 120px;
+              max-height: 60px;
+              margin-bottom: -5px; 
               z-index: 1;
           }
-          .sig-text { font-size: 16px; margin-top: 5px; z-index: 2; }
+          .sig-text { font-size: 11px; margin-top: 2px; z-index: 2; border-top: 1px solid #000; width: 100%; }
 
           @media print { 
               body { padding: 0; margin: 0; } 
-              .cert-container { margin: 0; border: 3px solid #65a30d; height: 98vh; border-radius: 35px; } 
+              .cert-container { margin: 10mm auto; border: 2px solid #65a30d; height: 135mm; border-radius: 20px; page-break-inside: avoid; } 
           }
       </style></head><body>`;
 
       targets.forEach(s => {
           let content = '';
-          
-          // LÓGICA INTELIGENTE "PRESENTADO ANTE"
-          let presentadoAnte = customTarget.trim() !== "" 
-              ? customTarget 
-              : (s.healthInsurance && s.healthInsurance.length > 2 ? s.healthInsurance : 'quien corresponda');
+          let presentadoAnte = customTarget.trim() !== "" ? customTarget : (s.healthInsurance && s.healthInsurance.length > 2 ? s.healthInsurance : 'quien corresponda');
 
           if (template === 'constancia_regular') {
               content = `
@@ -2789,20 +2785,20 @@ function AdministracionView({ user }) {
                   
                   <div class="cert-body">
                       Escuela Especial Juntos a la Par hace constar que:
-                      <br><br>
-                      <span class="dotted" style="width: 100%; text-align: center;">${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</span>
-                      <br><br>
-                      con DNI N.° <span class="dotted" style="width: 150px;">${s.dni}</span> es alumno/a regular del Nivel:
-                      <br><br>
-                      <span class="dotted" style="width: 100%; text-align: center;">${s.level || '....................'} (${s.modality || 'Sede'})</span>
-                      <br><br>
-                      en esta institución, con &nbsp;&nbsp; CUE 0623214-00.
+                      <br>
+                      <span class="dotted" style="width: 100%; text-align: left;">${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</span>
+                      <br>
+                      con DNI N.° <span class="dotted" style="width: 100px;">${s.dni}</span> es alumno/a regular del Nivel:
+                      <br>
+                      <span class="dotted" style="width: 100%; text-align: left;">${s.level || '................'} (${s.modality || 'Sede'})</span>
+                      <br>
+                      en esta institución, con &nbsp; CUE 0623214-00.
                       <br><br>
                       A pedido del interesado y al efecto de ser presentado ante:
                       <br>
-                      <span class="dotted" style="width: 100%; text-align: center;">${presentadoAnte.toUpperCase()}</span>
+                      <span class="dotted" style="width: 100%; text-align: left;">${presentadoAnte.toUpperCase()}</span>
                       <br><br>
-                      Lugar y fecha: <span class="dotted" style="min-width: 400px;">${fullDate}</span>
+                      Lugar y fecha: <span class="dotted" style="width: 60%; text-align: left;">${fullDate}</span>
                   </div>
 
                   <div class="signatures-section">
@@ -2811,7 +2807,7 @@ function AdministracionView({ user }) {
                           <div class="sig-text">Firma director o vicedirector</div>
                       </div>
                       <div class="sig-box">
-                          <img src="${SELLO_URL}" class="sig-img" onerror="this.style.display='none'"/>
+                          <img src="${SELLO_URL}" class="sig-img" onerror="this.style.display='none'"/> 
                           <div class="sig-text">Sello institución</div>
                       </div>
                   </div>
@@ -2819,7 +2815,7 @@ function AdministracionView({ user }) {
               <div class="page-break"></div>`;
           } 
           else {
-             content = `<div style="padding:50px">Plantilla en construcción...</div><div class="page-break"></div>`; 
+             content = `<div style="padding:20px">Plantilla en construcción...</div><div class="page-break"></div>`; 
           }
 
           htmlContent += content;
@@ -2856,19 +2852,11 @@ function AdministracionView({ user }) {
           <button onClick={toggleSelectAll} className="text-xs font-black uppercase tracking-widest text-blue-700 bg-blue-100/50 px-3 py-1 rounded-full">{selectedIds.length === filteredStudents.length ? 'Deseleccionar' : 'Seleccionar'} Visibles ({selectedIds.length})</button>
           
           <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto items-center">
-              {/* CAMPO CON ACLARACIÓN */}
               <div className="flex flex-col w-full md:w-auto">
-                  <input 
-                      placeholder="Presentar ante..." 
-                      value={customTarget}
-                      onChange={e => setCustomTarget(e.target.value)}
-                      className="w-full md:w-64 p-2 rounded-xl text-xs font-bold border border-blue-200 outline-none focus:border-blue-500 placeholder-blue-300 text-blue-900"
-                  />
+                  <input placeholder="Presentar ante..." value={customTarget} onChange={e => setCustomTarget(e.target.value)} className="w-full md:w-64 p-2 rounded-xl text-xs font-bold border border-blue-200 outline-none focus:border-blue-500 placeholder-blue-300 text-blue-900"/>
                   <span className="text-[9px] text-blue-600 font-bold ml-1 mt-0.5">* Si se deja vacío, usa la O.S. del alumno.</span>
               </div>
-              
               <select value={template} onChange={e=>setTemplate(e.target.value)} className="bg-white text-gray-700 pl-4 pr-8 py-2 rounded-xl text-xs font-bold w-full md:w-auto outline-none border border-blue-200 shadow-sm"><option value="constancia_regular">📄 Constancia Alumno Regular</option></select>
-              
               <button onClick={generateDocument} disabled={generating || selectedIds.length === 0} className={`bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-2 rounded-xl text-xs font-black uppercase shadow-md flex items-center gap-2 ${generating || selectedIds.length === 0 ? 'opacity-50' : 'hover:scale-105'}`}>{generating ? <RefreshCw className="animate-spin"/> : <><Printer size={16}/> Imprimir</>}</button>
           </div>
       </div>
@@ -2909,6 +2897,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
