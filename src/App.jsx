@@ -548,222 +548,278 @@ function ResourcesView({ resources, canEdit }) {
   );
 }
 
-// --- VISTA ADMINISTRACIÓN (DISEÑO REPLICA EXACTA + FIRMA/SELLO) ---
-function AdministracionView({ user }) {
-  const [students, setStudents] = useState([]);
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [filterText, setFilterText] = useState('');
-  const [filters, setFilters] = useState({ os: 'all', level: 'all', modality: 'all' });
-  const [template, setTemplate] = useState('constancia_regular');
-  const [generating, setGenerating] = useState(false);
+// --- VISTA TAREAS (FINAL: MULTI-USUARIO + SUPERVISIÓN + TODAS LAS FUNCIONES) ---
+function TasksView({ tasks, user, canEdit }) {
+  // ESTADOS PRINCIPALES
+  const [showModal, setShowModal] = useState(false);
+  const [usersList, setUsersList] = useState([]);
   
-  const LOGO_URL = "/icon-192.png";
-  // ASEGURATE DE TENER ESTAS IMÁGENES EN TU CARPETA PUBLIC
-  const FIRMA_URL = "/firma.png"; 
-  const SELLO_URL = "/sello.png";
+  // ESTADOS DE FORMULARIO
+  const [assignType, setAssignType] = useState('user'); 
+  const [selectedRoles, setSelectedRoles] = useState([]);
+  
+  // CAMBIO: Ahora esto es un array para soportar múltiples
+  const [selectedUsersObj, setSelectedUsersObj] = useState([]); 
+  
+  const [checklist, setChecklist] = useState([]); 
+  const [newItem, setNewItem] = useState(""); 
+  const [userSearch, setUserSearch] = useState("");
+  const [openCommentsId, setOpenCommentsId] = useState(null); 
+  const [newComment, setNewComment] = useState("");
+  const [editingTask, setEditingTask] = useState(null); 
+  const [filter, setFilter] = useState('pending'); 
 
-  const canAccess = ['admin', 'super-admin', 'Administración', 'Equipo Directivo'].includes(user.role) || user.rol === 'admin';
+  const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor', 'DAI', 'Dirección Inclusión', 'Equipo Técnico Inclusión'];
+  const isSuperAdmin = user.rol === 'admin' || user.rol === 'super-admin'; 
+  const canManage = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo' || user.role === 'Dirección Inclusión';
 
+  // CARGA DE USUARIOS Y EDICIÓN
   useEffect(() => {
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), orderBy('lastName', 'asc'));
-    const unsub = onSnapshot(q, (snap) => { setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
+    const unsub = onSnapshot(q, (snap) => {
+        const users = snap.docs.map(d => ({id: d.id, ...d.data()}));
+        setUsersList(users);
+        
+        // Lógica para recuperar datos al editar (Compatible con versión vieja y nueva)
+        if (editingTask) {
+            // Si tiene array de IDs (Nueva versión)
+            if (editingTask.targetUserIds && editingTask.targetUserIds.length > 0) {
+                const foundUsers = users.filter(u => editingTask.targetUserIds.includes(u.id));
+                setSelectedUsersObj(foundUsers);
+            } 
+            // Si tiene ID único (Versión vieja - Compatibilidad)
+            else if (editingTask.targetUserId) {
+                const found = users.find(u => u.id === editingTask.targetUserId);
+                if (found) setSelectedUsersObj([found]);
+            }
+        }
+    });
     return () => unsub();
-  }, []);
+  }, [editingTask]);
 
-  const filteredStudents = students.filter(s => {
-      if (s.isActive === false) return false;
-      const txt = filterText.toLowerCase();
-      if (txt && !((s.firstName||'').toLowerCase().includes(txt) || (s.lastName||'').toLowerCase().includes(txt) || (s.dni||'').includes(txt))) return false;
-      if (filters.os !== 'all') {
-          if (filters.os === 'con_os' && (!s.healthInsurance || s.healthInsurance.length < 2)) return false;
-          if (filters.os === 'sin_os' && (s.healthInsurance && s.healthInsurance.length > 2)) return false;
-          if (filters.os !== 'con_os' && filters.os !== 'sin_os' && !(s.healthInsurance||'').toLowerCase().includes(filters.os.toLowerCase())) return false;
-      }
-      if (filters.level !== 'all' && s.level !== filters.level) return false;
-      if (filters.modality !== 'all' && (s.modality || 'Sede') !== filters.modality) return false;
-      return true;
-  });
+  // GUARDAR TAREA (CON SOPORTE MULTI-USUARIO)
+  const handleSaveTask = async (e) => {
+    e.preventDefault(); 
+    const fd = new FormData(e.target);
+    
+    let finalTargetIds = []; 
+    let finalAssignedName = "Todos"; 
+    let finalRoles = [];
 
-  const toggleSelectAll = () => { if (selectedIds.length === filteredStudents.length) setSelectedIds([]); else setSelectedIds(filteredStudents.map(s => s.id)); };
-  const toggleSelect = (id) => { if (selectedIds.includes(id)) setSelectedIds(selectedIds.filter(x => x !== id)); else setSelectedIds([...selectedIds, id]); };
+    if (assignType === 'user') { 
+        if (selectedUsersObj.length === 0) return alert("⚠️ Selecciona al menos un usuario."); 
+        finalTargetIds = selectedUsersObj.map(u => u.id);
+        // Crear un string bonito para mostrar (ej: "Juan, Maria...")
+        finalAssignedName = selectedUsersObj.map(u => u.firstName).join(", ");
+    } else { 
+        if (selectedRoles.length === 0) return alert("⚠️ Elige roles."); 
+        finalRoles = selectedRoles; 
+        finalAssignedName = selectedRoles.join(", "); 
+    }
 
-  // --- GENERADOR DE DOCUMENTOS ---
-  const generateDocument = () => {
-      if (selectedIds.length === 0) return alert("Selecciona al menos un estudiante.");
-      setGenerating(true);
-      
-      const targets = students.filter(s => selectedIds.includes(s.id));
-      const today = new Date().toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' });
+    const taskData = { 
+        title: fd.get('title'), 
+        dueDate: fd.get('dueDate') || null, 
+        showDate: fd.get('showDate') || new Date().toISOString().split('T')[0],
+        showTime: fd.get('showTime') || "08:00",
+        priority: fd.get('priority'), 
+        targetType: assignType, 
+        
+        // NUEVO: Array de IDs
+        targetUserIds: finalTargetIds, 
+        // MANTENEMOS COMPATIBILIDAD (Ponemos el primero como principal si hay)
+        targetUserId: finalTargetIds.length > 0 ? finalTargetIds[0] : null, 
+        
+        targetRoles: finalRoles, 
+        assignedToName: finalAssignedName, 
+        checklist: checklist 
+    };
 
-      let htmlContent = `<html><head><title>Documentos Institucionales</title><style>
-          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
-          body { font-family: 'Times New Roman', serif; margin: 0; padding: 0; color: #000; }
-          
-          /* CONTENEDOR TIPO TARJETA CON BORDE VERDE */
-          .cert-container { 
-              border: 3px solid #65a30d; /* Borde Verde */
-              border-radius: 30px; /* Bordes redondeados */
-              padding: 40px; 
-              margin: 20px;
-              position: relative; 
-              height: 90vh; /* Ocupa casi toda la hoja */
-              box-sizing: border-box; 
-              page-break-after: always; 
-          }
-
-          /* HEADER */
-          .cert-header { display: flex; align-items: center; margin-bottom: 40px; }
-          .cert-logo { width: 120px; height: auto; margin-right: 20px; }
-          .cert-title { 
-              font-size: 20px; 
-              font-weight: bold; 
-              text-decoration: underline; 
-              text-transform: uppercase; 
-              margin: 0 auto; /* Centrado */
-              text-align: center;
-              flex-grow: 1;
-          }
-
-          /* CUERPO DEL TEXTO */
-          .cert-body { font-size: 18px; line-height: 2.5; margin-top: 20px; }
-          .dotted { 
-              border-bottom: 1px dotted #000; 
-              display: inline-block; 
-              padding: 0 10px; 
-              font-weight: bold; 
-              min-width: 50px;
-              text-align: center;
-          }
-          
-          /* FIRMAS Y SELLOS */
-          .signatures-section { 
-              margin-top: 100px; 
-              display: flex; 
-              justify-content: space-around; 
-              align-items: flex-end;
-          }
-          .sig-box { 
-              text-align: center; 
-              width: 250px; 
-              position: relative;
-          }
-          .sig-line { border-top: 1px solid #000; margin-top: 10px; padding-top: 5px; font-size: 14px; }
-          
-          /* IMAGENES DE FIRMA/SELLO SUPERPUESTAS */
-          .img-firmas {
-              position: absolute;
-              bottom: 20px; /* Ajustar para que "pise" la línea */
-              left: 50%;
-              transform: translateX(-50%);
-              height: 100px; /* Tamaño de la firma */
-              z-index: -1;
-              opacity: 0.9;
-          }
-
-          @media print { 
-              body { margin: 0; } 
-              .cert-container { margin: 0; border: 3px solid #65a30d; height: 98vh; border-radius: 30px; } 
-          }
-      </style></head><body>`;
-
-      targets.forEach(s => {
-          // Lógica de texto según plantilla
-          let content = '';
-
-          if (template === 'constancia_regular') {
-              content = `
-              <div class="cert-container">
-                  <div class="cert-header">
-                      <img src="${LOGO_URL}" class="cert-logo"/>
-                      <div class="cert-title">CONSTANCIA DE ALUMNO REGULAR</div>
-                  </div>
-                  
-                  <div class="cert-body">
-                      Escuela Especial Juntos a la Par se hace constar que
-                      <br>
-                      <span class="dotted" style="width: 100%; text-align: left;">${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</span>
-                      <br>
-                      con DNI N.° <span class="dotted" style="min-width: 150px;">${s.dni}</span> es alumno/a regular de <span class="dotted" style="min-width: 300px;">${s.level} (${s.modality})</span>
-                      <br>
-                      en esta institución, con &nbsp;&nbsp;&nbsp; CUE 0623214-00.
-                      <br><br>
-                      A pedido del interesado y al efecto de ser presentado <span class="dotted" style="width: 60%;">${s.healthInsurance || 'ante quien corresponda'}...</span>
-                      <br><br>
-                      Lugar &nbsp;&nbsp;&nbsp; y &nbsp;&nbsp;&nbsp; fecha <span class="dotted" style="min-width: 400px;">Villa Udaondo, ${today}</span>....................
-                  </div>
-
-                  <div class="signatures-section">
-                      <div class="sig-box">
-                          <img src="${FIRMA_URL}" class="img-firmas" style="bottom: 10px;" onerror="this.style.display='none'"/> 
-                          <div class="sig-line">Firma director o vicedirector</div>
-                      </div>
-                      <div class="sig-box">
-                          <img src="${SELLO_URL}" class="img-firmas" style="bottom: 10px;" onerror="this.style.display='none'"/>
-                          <div class="sig-line">Sello institución</div>
-                      </div>
-                  </div>
-              </div>`;
-          } 
-          // ... (Mantengo las otras plantillas con diseño simple por ahora o las adaptamos igual)
-          else {
-             // ... lógica de otros docs
-             content = `<div style="padding:50px">Plantilla en construcción...</div>`; 
-          }
-
-          htmlContent += content;
-      });
-
-      htmlContent += '</body></html>';
-
-      const iframe = document.createElement('iframe');
-      iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
-      document.body.appendChild(iframe);
-      const doc = iframe.contentWindow.document; doc.open(); doc.write(htmlContent); doc.close();
-      setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); setGenerating(false); }, 5000); }, 500);
+    try {
+        if (editingTask) { 
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData); 
+        } else { 
+             const newTaskRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { ...taskData, createdByName: user.fullName || user.firstName, createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: [] });
+             
+             // NOTIFICACIONES
+             const scheduledTime = new Date(`${taskData.showDate}T${taskData.showTime}`);
+             const now = new Date();
+             
+             if (scheduledTime <= now) {
+                 const notifData = { title: `Tarea Nueva`, message: `${user.firstName}: "${fd.get('title')}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks', relatedId: newTaskRef.id, type: 'task_assigned' };
+                 
+                 if (assignType === 'user') {
+                     // Enviar a TODOS los seleccionados
+                     const promises = finalTargetIds.map(uid => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: uid }));
+                     await Promise.all(promises);
+                 } else if (assignType === 'roles') {
+                    const targets = usersList.filter(u => u.role && finalRoles.some(r => r.toLowerCase() === u.role.toLowerCase()));
+                    const promises = targets.map(t => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: t.id }));
+                    await Promise.all(promises);
+                 }
+             }
+        }
+        setShowModal(false);
+    } catch (err) { alert("Error: " + err.message); }
   };
 
-  if (!canAccess) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido.</div>;
+  // FUNCIONES AUXILIARES (SELECCIÓN MÚLTIPLE)
+  const toggleUserSelection = (u) => {
+      if (selectedUsersObj.some(sel => sel.id === u.id)) {
+          // Si ya está, lo sacamos
+          setSelectedUsersObj(prev => prev.filter(sel => sel.id !== u.id));
+      } else {
+          // Si no está, lo agregamos
+          setSelectedUsersObj(prev => [...prev, u]);
+      }
+      setUserSearch(""); // Limpiar búsqueda al seleccionar
+  };
+
+  // FILTRADO DE TAREAS
+  const filteredTasks = tasks.filter(t => {
+      const now = new Date();
+      const scheduledTime = new Date(`${t.showDate || '2000-01-01'}T${t.showTime || '00:00'}`);
+      
+      // LOGICA DE ESTADOS
+      if (filter === 'completed') {
+          if (t.status !== 'completed') return false;
+      } else if (filter === 'scheduled') {
+          if (t.status === 'completed') return false;
+          if (scheduledTime <= now) return false; 
+      } else { // 'pending'
+          if (t.status === 'completed') return false;
+          if (scheduledTime > now) return false; 
+      }
+      
+      // PRIVACIDAD
+      if (isSuperAdmin) return true; 
+      if (t.createdById === user.id) return true; 
+      
+      // Chequeo de asignación (Compatible con array y single)
+      if (t.targetType === 'user') {
+          if (t.targetUserIds && t.targetUserIds.includes(user.id)) return true; // Nuevo
+          if (t.targetUserId === user.id) return true; // Viejo
+      }
+      if (t.targetType === 'roles' && t.targetRoles && user.role && t.targetRoles.some(r => r.toLowerCase() === user.role.toLowerCase())) return true;
+      
+      return false; 
+  });
+
+  const addComment = async (task) => { if (!newComment.trim()) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion({ text: newComment, author: user.firstName, date: new Date().toISOString() }) }); setNewComment(""); };
+  const handleDelete = async (id) => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
+  const changeStatus = async (task, newStatus) => { if (newStatus === 'completed' && !confirm("¿Lista?")) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
+  
+  const openNew = () => { setEditingTask(null); setAssignType('user'); setSelectedRoles([]); setChecklist([]); setNewItem(""); setUserSearch(""); setSelectedUsersObj([]); setShowModal(true); };
+  const openEdit = (t) => { setEditingTask(t); setAssignType(t.targetType || 'user'); setSelectedRoles(t.targetRoles || []); setChecklist(t.checklist || []); setShowModal(true); };
+  
+  const searchResults = userSearch.length > 0 ? (usersList || []).filter(u => u.fullName.toLowerCase().includes(userSearch.toLowerCase())) : [];
+  const getPriorityStyle = (p) => { if (p === 'alta') return 'border-l-4 border-l-red-500 bg-red-50/50'; if (p === 'media') return 'border-l-4 border-l-orange-400 bg-orange-50/50'; return 'border-l-4 border-l-green-400 bg-green-50/50'; };
 
   return (
-    <div className="animate-in fade-in pb-20">
-      {/* HEADER */}
-      <div className="bg-white rounded-t-[30px] shadow-sm border-b border-gray-200 relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-600 to-violet-600"></div>
-          <div className="p-6 pt-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-              <div className="flex items-center gap-4"><img src={LOGO_URL} className="w-16 h-auto object-contain" /><div><h2 className="text-2xl font-black text-gray-800 uppercase italic">Administración</h2><p className="text-sm text-blue-600 font-bold uppercase">Centro de Documentación</p></div></div>
-              
-              <div className="grid grid-cols-2 gap-2 w-full md:w-auto md:flex">
-                  <select onChange={e=>setFilters({...filters, os: e.target.value})} className="bg-gray-100 p-2 rounded-lg text-xs font-bold outline-none"><option value="all">OS: Todas</option><option value="con_os">Con OS</option><option value="sin_os">Sin OS</option></select>
-                  <select onChange={e=>setFilters({...filters, level: e.target.value})} className="bg-gray-100 p-2 rounded-lg text-xs font-bold outline-none"><option value="all">Nivel: Todos</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option></select>
-                  <div className="flex bg-gray-100 rounded-lg items-center px-2"><Search size={14} className="text-gray-400"/><input placeholder="Buscar..." onChange={e=>setFilterText(e.target.value)} className="bg-transparent p-2 text-xs font-bold outline-none w-full"/></div>
-              </div>
+    <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-20">
+      <div className="flex justify-between items-center mb-2 bg-white p-4 sticky top-0 z-10 shadow-sm rounded-b-3xl">
+          <div><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2><p className="text-xs text-gray-400 font-bold">{filteredTasks.length} visibles</p></div>
+          <div className="flex gap-2">
+             <div className="flex bg-gray-100 rounded-xl p-1">
+                 <button onClick={()=>setFilter('pending')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='pending'?'bg-white shadow text-slate-800':'text-gray-400'}`}>Activas</button>
+                 {canManage && <button onClick={()=>setFilter('scheduled')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='scheduled'?'bg-white shadow text-orange-600':'text-gray-400'}`}>Próximas</button>}
+                 <button onClick={()=>setFilter('completed')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='completed'?'bg-white shadow text-green-600':'text-gray-400'}`}>Listas</button>
+             </div>
+             <button onClick={openNew} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg hover:scale-110 transition-all"><Plus size={20}/></button>
           </div>
+      </div>
+      
+      <div className="grid gap-3 px-2">
+          {filteredTasks.length === 0 ? ( <div className="text-center py-10 opacity-40"><CheckCircle size={40} className="mx-auto mb-2 text-gray-400"/><p className="font-bold text-gray-500">Sin tareas en esta vista.</p></div> ) : filteredTasks.map(t => {
+            // LÓGICA DE SUPERVISIÓN
+            const isAssignedToMe = (t.targetUserIds && t.targetUserIds.includes(user.id)) || (t.targetUserId === user.id) || (t.targetRoles && t.targetRoles.includes(user.role));
+            const isCreatedByMe = t.createdById === user.id;
+            // Es "Supervisión" si NO es para mí Y NO la creé yo (pero la veo porque soy admin)
+            const isSupervision = !isAssignedToMe && !isCreatedByMe;
+
+            return (
+                <div key={t.id} className={`p-5 rounded-[30px] shadow-sm flex flex-col gap-3 transition-all relative ${getPriorityStyle(t.priority)} ${isSupervision ? 'opacity-80 bg-gray-50 grayscale-[0.3]' : 'bg-white'}`}>
+                    
+                    {/* ETIQUETA SUPERVISIÓN */}
+                    {isSupervision && <div className="absolute top-2 right-10 bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-[9px] font-black uppercase flex items-center gap-1 border border-gray-300"><Eye size={10}/> Supervisión</div>}
+
+                    <div className="flex justify-between items-start">
+                        <div className="flex-1 pr-6">
+                            <p className="text-[9px] font-black text-violet-600 uppercase tracking-widest italic mb-1">Para: {t.assignedToName}</p>
+                            <h3 className={`font-bold text-gray-800 text-sm uppercase italic tracking-tighter leading-none ${t.status==='completed'?'line-through opacity-50':''}`}>{t.title}</h3>
+                            <p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName}</p>
+                            {new Date(`${t.showDate}T${t.showTime}`) > new Date() && (<div className="mt-2 inline-flex items-center gap-1 bg-yellow-100 text-yellow-800 text-[9px] font-bold px-2 py-1 rounded-md border border-yellow-200"><Clock size={10}/> Programada: {new Date(t.showDate).toLocaleDateString()} {t.showTime}hs</div>)}
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                            <div className="flex gap-1">{(t.createdById === user.id || isSuperAdmin) && <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm"><Trash2 size={14}/></button>}</div>
+                        </div>
+                    </div>
+                    
+                    {openCommentsId === t.id && ( <div className="bg-white/60 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in"><div className="max-h-32 overflow-y-auto space-y-2 mb-2">{(t.comments || []).map((c, idx) => ( <p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p> ))}</div><div className="flex gap-2"><input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribe..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" /><button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button></div></div> )}
+                    
+                    <div className="pt-2 border-t border-black/5 flex justify-between items-center">
+                        <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className={`flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 rounded-xl transition ${t.comments?.length > 0 ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500 hover:bg-violet-50 hover:text-violet-600'}`}><MessageSquare size={14}/> {t.comments?.length > 0 ? `${t.comments.length} Msjs` : 'Comentar'}</button>
+                        <div className="flex bg-white/60 rounded-lg p-0.5 shadow-sm">
+                            <button onClick={() => changeStatus(t, 'pending')} className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition ${t.status === 'pending' ? 'bg-white shadow text-gray-700' : 'text-gray-400'}`}>Pend.</button>
+                            <button onClick={() => changeStatus(t, 'in_process')} className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition ${t.status === 'in_process' ? 'bg-orange-100 text-orange-600 shadow' : 'text-gray-400'}`}>Proc.</button>
+                            <button onClick={() => changeStatus(t, 'completed')} className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition ${t.status === 'completed' ? 'bg-green-100 text-green-700 shadow' : 'text-gray-400'}`}>Lista</button>
+                        </div>
+                    </div>
+                </div>
+            );
+          })}
       </div>
 
-      {/* BARRA DE ACCIÓN */}
-      <div className="bg-blue-50/80 p-4 backdrop-blur-sm border-b border-blue-100 flex flex-col md:flex-row justify-between items-center gap-4">
-          <button onClick={toggleSelectAll} className="text-xs font-black uppercase tracking-widest text-blue-700 bg-blue-100/50 px-3 py-1 rounded-full">{selectedIds.length === filteredStudents.length ? 'Deseleccionar' : 'Seleccionar'} Visibles ({selectedIds.length})</button>
-          <div className="flex gap-2 w-full md:w-auto">
-              <select value={template} onChange={e=>setTemplate(e.target.value)} className="bg-white text-gray-700 pl-4 pr-8 py-2 rounded-xl text-xs font-bold w-full md:w-64 outline-none border border-blue-200 shadow-sm"><option value="constancia_regular">📄 Constancia Alumno Regular</option></select>
-              <button onClick={generateDocument} disabled={generating || selectedIds.length === 0} className={`bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-2 rounded-xl text-xs font-black uppercase shadow-md flex items-center gap-2 ${generating || selectedIds.length === 0 ? 'opacity-50' : 'hover:scale-105'}`}>{generating ? <RefreshCw className="animate-spin"/> : <><Printer size={16}/> Imprimir</>}</button>
-          </div>
-      </div>
-
-      {/* LISTA DE ALUMNOS */}
-      <div className="bg-white shadow-sm border-x border-b border-gray-200 overflow-hidden rounded-b-[30px]">
-          <div className="p-3 bg-gray-50 border-b border-gray-200 grid grid-cols-12 gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest"><div className="col-span-1 text-center">Sel</div><div className="col-span-4">Alumno</div><div className="col-span-2">DNI</div><div className="col-span-3">OS</div><div className="col-span-2 text-center">Mod</div></div>
-          <div className="divide-y divide-gray-100 max-h-[60vh] overflow-y-auto">
-              {filteredStudents.map(s => (
-                  <div key={s.id} onClick={() => toggleSelect(s.id)} className={`grid grid-cols-12 gap-2 p-3 items-center cursor-pointer hover:bg-blue-50 ${selectedIds.includes(s.id) ? 'bg-blue-50/80' : ''}`}>
-                      <div className="col-span-1 flex justify-center"><div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${selectedIds.includes(s.id) ? 'bg-blue-500 border-blue-500' : 'border-gray-300 bg-white'}`}>{selectedIds.includes(s.id) && <Check size={12} className="text-white"/>}</div></div>
-                      <div className="col-span-4 font-bold text-sm text-gray-700 truncate">{s.lastName}, {s.firstName}</div>
-                      <div className="col-span-2 text-xs text-gray-500 font-mono">{s.dni}</div>
-                      <div className="col-span-3 text-xs text-blue-600 font-bold truncate">{s.healthInsurance || '-'}</div>
-                      <div className="col-span-2 flex justify-center"><span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${s.modality==='Inclusión'?'bg-indigo-100 text-indigo-700':'bg-orange-100 text-orange-700'}`}>{s.modality||'Sede'}</span></div>
-                  </div>
-              ))}
-          </div>
-      </div>
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
+          <form onSubmit={handleSaveTask} className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-black text-violet-900 uppercase italic">{editingTask ? 'Editar Tarea' : 'Nueva Tarea'}</h3>
+            <input name="title" defaultValue={editingTask?.title} placeholder="Título de la tarea" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm shadow-inner" />
+            <div className="flex gap-2 bg-gray-100 p-1 rounded-xl"><button type="button" onClick={() => setAssignType('user')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'user' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Persona(s)</button><button type="button" onClick={() => setAssignType('roles')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'roles' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Roles</button></div>
+            
+            {assignType === 'user' ? ( 
+                <div className="space-y-2">
+                    {/* LISTA DE SELECCIONADOS */}
+                    <div className="flex flex-wrap gap-2 mb-2">
+                        {selectedUsersObj.map(u => (
+                            <div key={u.id} className="flex items-center gap-1 bg-violet-100 text-violet-800 px-2 py-1 rounded-lg text-xs font-bold">
+                                {u.firstName} 
+                                <button type="button" onClick={() => toggleUserSelection(u)}><X size={12}/></button>
+                            </div>
+                        ))}
+                    </div>
+                    
+                    {/* BUSCADOR */}
+                    <div className="relative">
+                        <input placeholder="🔍 Buscar para agregar..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} autoComplete="off" className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none focus:border-violet-500 rounded-t-xl" />
+                        {userSearch.length > 0 && (
+                            <div className="max-h-40 overflow-y-auto border-x border-b border-gray-200 rounded-b-xl bg-white shadow-xl absolute w-full z-50">
+                                {searchResults.length > 0 ? searchResults.map(u => (
+                                    <div key={u.id} onClick={() => toggleUserSelection(u)} className={`p-3 hover:bg-violet-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0 ${selectedUsersObj.some(s=>s.id===u.id) ? 'bg-violet-50' : ''}`}>
+                                        <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">{u.firstName[0]}</div>
+                                        <p className="text-xs font-bold text-gray-700">{u.fullName}</p>
+                                        {selectedUsersObj.some(s=>s.id===u.id) && <Check size={14} className="ml-auto text-violet-600"/>}
+                                    </div>
+                                )) : <p className="p-3 text-xs text-gray-400 italic text-center">No encontrado</p>}
+                            </div>
+                        )}
+                    </div> 
+                </div> 
+            ) : ( 
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 max-h-32 overflow-y-auto">
+                    {ROLES_OPTIONS.map(role => ( <label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={selectedRoles.includes(role)} onChange={(e) => { if(e.target.checked) setSelectedRoles([...selectedRoles, role]); else setSelectedRoles(selectedRoles.filter(r => r !== role)); }} className="accent-violet-600"/> {role}</label> ))}
+                </div> 
+            )}
+            
+            <div className="grid grid-cols-2 gap-4">
+                <div><label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Vencimiento</label><input name="dueDate" type="date" defaultValue={editingTask?.dueDate} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs text-gray-600 border border-gray-200" /></div>
+                <select name="priority" defaultValue={editingTask?.priority} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs uppercase text-orange-600 italic border border-gray-200 h-[66px] mt-auto"><option value="baja">🟢 Baja</option><option value="media">🟠 Media</option><option value="alta">🔴 Alta</option></select>
+            </div>
+            {canManage && (<div className="bg-orange-50 p-3 rounded-xl border border-orange-100"><label className="text-[10px] font-bold text-orange-700 uppercase mb-1 block flex items-center gap-1"><Clock size={10}/> Programar Aparición</label><div className="flex gap-2"><input name="showDate" type="date" defaultValue={editingTask?.showDate} className="w-full p-2 bg-white rounded-lg outline-none font-bold text-xs text-orange-800 border border-orange-200" /><input name="showTime" type="time" defaultValue={editingTask?.showTime || "08:00"} className="w-24 p-2 bg-white rounded-lg outline-none font-bold text-xs text-orange-800 border border-orange-200" /></div><p className="text-[9px] text-orange-600 mt-1">Si pones una fecha/hora futura, la tarea quedará en "Próximas".</p></div>)}
+            <div className="flex gap-2 pt-2"><button type="button" onClick={() => setShowModal(false)} className="flex-1 font-bold text-gray-400 text-xs uppercase">Cancelar</button><button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">GUARDAR</button></div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
@@ -2585,7 +2641,7 @@ function GroupsView({ user }) {
     </div>
   );
 }
-// --- VISTA ADMINISTRACIÓN (CENTRO DE DOCUMENTACIÓN - DISEÑO MEJORADO + IMPRESIÓN PRO) ---
+// --- VISTA ADMINISTRACIÓN (DISEÑO REPLICA EXACTA + FIRMA/SELLO) ---
 function AdministracionView({ user }) {
   const [students, setStudents] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -2594,21 +2650,19 @@ function AdministracionView({ user }) {
   const [template, setTemplate] = useState('constancia_regular');
   const [generating, setGenerating] = useState(false);
   
+  // ASEGÚRATE DE QUE ESTAS IMÁGENES EXISTAN EN TU CARPETA PUBLIC
   const LOGO_URL = "/icon-192.png";
+  const FIRMA_URL = "/firma.png"; 
+  const SELLO_URL = "/sello.png";
 
-  // ROLES PERMITIDOS
   const canAccess = ['admin', 'super-admin', 'Administración', 'Equipo Directivo'].includes(user.role) || user.rol === 'admin';
 
-  // CARGA DE DATOS
   useEffect(() => {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), orderBy('lastName', 'asc'));
-    const unsub = onSnapshot(q, (snap) => {
-        setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
+    const unsub = onSnapshot(q, (snap) => { setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
     return () => unsub();
   }, []);
 
-  // FILTROS
   const filteredStudents = students.filter(s => {
       if (s.isActive === false) return false;
       const txt = filterText.toLowerCase();
@@ -2624,18 +2678,10 @@ function AdministracionView({ user }) {
       return true;
   });
 
-  // SELECCIÓN
-  const toggleSelectAll = () => {
-      if (selectedIds.length === filteredStudents.length) setSelectedIds([]);
-      else setSelectedIds(filteredStudents.map(s => s.id));
-  };
+  const toggleSelectAll = () => { if (selectedIds.length === filteredStudents.length) setSelectedIds([]); else setSelectedIds(filteredStudents.map(s => s.id)); };
+  const toggleSelect = (id) => { if (selectedIds.includes(id)) setSelectedIds(selectedIds.filter(x => x !== id)); else setSelectedIds([...selectedIds, id]); };
 
-  const toggleSelect = (id) => {
-      if (selectedIds.includes(id)) setSelectedIds(selectedIds.filter(x => x !== id));
-      else setSelectedIds([...selectedIds, id]);
-  };
-
-  // --- GENERADOR DE DOCUMENTOS PDF (DISEÑO PROFESIONAL) ---
+  // --- GENERADOR DE DOCUMENTOS ---
   const generateDocument = () => {
       if (selectedIds.length === 0) return alert("Selecciona al menos un estudiante.");
       setGenerating(true);
@@ -2643,120 +2689,128 @@ function AdministracionView({ user }) {
       const targets = students.filter(s => selectedIds.includes(s.id));
       const today = new Date().toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' });
 
-      // ESTILOS CSS PARA LA IMPRESIÓN
       let htmlContent = `<html><head><title>Documentos Institucionales</title><style>
-          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
-          body { font-family: 'Roboto', Helvetica, Arial, sans-serif; color: #333; line-height: 1.5; margin: 0; padding: 0; }
-          .page-container { padding: 2cm; position: relative; min-height: 90vh; box-sizing: border-box; page-break-after: always; }
+          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+          /* FUENTE SIMILAR A LA IMAGEN (Times New Roman o Serif) */
+          body { font-family: 'Times New Roman', Times, serif; margin: 0; padding: 20px; color: #000; }
           
-          /* Header con Logo */
-          .doc-header { display: flex; align-items: center; gap: 20px; border-bottom: 3px solid #7c3aed; padding-bottom: 20px; margin-bottom: 50px; }
-          .doc-logo { width: 80px; height: auto; object-fit: contain; }
-          .doc-info h1 { margin: 0; font-size: 22px; font-weight: 900; text-transform: uppercase; color: #4c1d95; letter-spacing: 0.5px; }
-          .doc-info p { margin: 5px 0 0 0; font-size: 11px; color: #666; font-weight: bold; text-transform: uppercase; }
+          /* CONTENEDOR TIPO TARJETA CON BORDE VERDE */
+          .cert-container { 
+              border: 3px solid #65a30d; /* Verde similar a la imagen */
+              border-radius: 40px; 
+              padding: 50px; 
+              margin: 0 auto 40px auto;
+              position: relative; 
+              min-height: 85vh; 
+              box-sizing: border-box; 
+              page-break-after: always; 
+              max-width: 900px;
+          }
 
-          /* Título del Documento */
-          .doc-title { text-align: center; font-size: 24px; font-weight: 900; text-transform: uppercase; margin: 0 0 40px 0; color: #111; letter-spacing: 1px; text-decoration: underline; text-underline-offset: 5px; }
+          /* HEADER */
+          .cert-header { display: flex; align-items: center; margin-bottom: 50px; }
+          .cert-logo { width: 150px; height: auto; margin-right: 30px; }
+          .cert-title { 
+              font-size: 22px; 
+              font-weight: bold; 
+              text-decoration: underline; 
+              text-transform: uppercase; 
+              text-align: center;
+              flex-grow: 1;
+              margin-top: 20px;
+          }
 
-          /* Contenido */
-          .doc-content { font-size: 14px; text-align: justify; padding: 0 10px; }
-          .doc-content p { margin-bottom: 20px; }
-          .data-highlight { font-weight: 900; color: #000; background-color: #f3f4f6; padding: 2px 5px; rounded: 4px; border: 1px solid #e5e7eb; }
+          /* CUERPO DEL TEXTO */
+          .cert-body { font-size: 20px; line-height: 2.2; margin-top: 30px; }
           
-          /* Firma */
-          .signature-section { margin-top: 150px; display: flex; justify-content: flex-end; padding-right: 20px; }
-          .signature-box { text-align: center; width: 220px; }
-          .signature-line { border-top: 2px solid #333; margin-bottom: 8px; }
-          .signature-text { font-size: 11px; font-weight: bold; color: #555; text-transform: uppercase; }
+          /* LÍNEAS PUNTEADAS PARA COMPLETAR */
+          .dotted { 
+              border-bottom: 1px dotted #000; 
+              display: inline-block; 
+              padding: 0 10px; 
+              font-weight: bold; 
+              min-width: 100px;
+              text-align: center;
+          }
           
-          /* Footer */
-          .doc-footer { position: absolute; bottom: 1cm; left: 2cm; right: 2cm; text-align: center; font-size: 9px; color: #aaa; border-top: 1px solid #eee; padding-top: 10px; font-style: italic; }
+          /* SECCIÓN DE FIRMAS */
+          .signatures-section { 
+              margin-top: 120px; 
+              display: flex; 
+              justify-content: space-between; 
+              align-items: flex-end;
+              padding: 0 50px;
+          }
+          .sig-box { 
+              text-align: center; 
+              width: 250px; 
+              position: relative;
+          }
+          .sig-text { margin-top: 10px; font-size: 16px; }
+          
+          /* IMÁGENES SUPERPUESTAS */
+          .img-firma {
+              position: absolute;
+              bottom: 20px; 
+              left: 50%;
+              transform: translateX(-50%);
+              height: 100px; 
+              z-index: -1;
+          }
 
-          @media print { body { margin: 0; } .page-container { margin: 0; border: none; height: 100vh; } }
+          @media print { 
+              body { padding: 0; } 
+              .cert-container { margin: 0; border: 3px solid #65a30d; height: 100vh; border-radius: 40px; page-break-after: always; } 
+          }
       </style></head><body>`;
 
       targets.forEach(s => {
-          let bodyText = "";
-          let docTitle = "";
-
-          // Helper para resaltar datos
-          const highlight = (text) => `<span class="data-highlight">${text}</span>`;
+          let content = '';
 
           if (template === 'constancia_regular') {
-              docTitle = "CONSTANCIA DE ALUMNO REGULAR";
-              bodyText = `
-                  <p style="text-align: right; margin-bottom: 40px;">Villa Udaondo, ${today}</p>
-                  <p>Quien suscribe, Dirección de la Institución Educativa <b>"Juntos a la Par"</b>, hace constar por la presente que el/la alumno/a ${highlight(s.lastName.toUpperCase() + ', ' + s.firstName.toUpperCase())}, cuyo Documento Nacional de Identidad es Nº ${highlight(s.dni || '....................')}, es alumno regular de este establecimiento durante el Ciclo Lectivo 2026.</p>
-                  <p>El/la estudiante se encuentra matriculado en el Nivel ${highlight(s.level || '....................')}, bajo la modalidad de ${highlight(s.modality || 'Sede')}.</p>
-                  <p>A pedido de la parte interesada y para ser presentado ante ${highlight(s.healthInsurance || 'quien corresponda')}, se extiende la presente constancia.</p>
-              `;
-          } 
-          else if (template === 'solicitud_transporte') {
-              docTitle = "SOLICITUD DE TRANSPORTE ESCOLAR";
-              bodyText = `
-                  <p style="text-align: right; margin-bottom: 40px;">Villa Udaondo, ${today}</p>
-                  <p>Por la presente se solicita ante quien corresponda la cobertura del servicio de <b>TRANSPORTE ESCOLAR</b> para garantizar la continuidad pedagógica del/la alumno/a ${highlight(s.lastName.toUpperCase() + ', ' + s.firstName.toUpperCase())}, DNI ${highlight(s.dni)}, afiliado a la Obra Social ${highlight(s.healthInsurance || '_____________')}.</p>
-                  <p>El estudiante asiste a nuestra institución con sede en Villa Udaondo, cumpliendo una jornada de tipo ${highlight(s.journey || 'simple')}.</p>
-                  <div style="background: #f9fafb; padding: 20px; border-radius: 12px; border: 2px solid #e5e7eb; margin: 30px 0;">
-                    <p style="margin-bottom: 10px;"><b>📍 Domicilio real del alumno:</b> <br> ${s.address || '____________________________________'}</p>
-                    <p style="margin:0;"><b>🩺 Diagnóstico (CUD):</b> <br> ${s.dx || '____________________'}</p>
+              content = `
+              <div class="cert-container">
+                  <div class="cert-header">
+                      <img src="${LOGO_URL}" class="cert-logo"/>
+                      <div class="cert-title">CONSTANCIA DE ALUMNO REGULAR</div>
                   </div>
-                  <p>Se considera el transporte un recurso indispensable para el acceso a su derecho a la educación.</p>
-              `;
-          }
-          else if (template === 'autorizacion_retiro') {
-              docTitle = "AUTORIZACIÓN DE RETIRO";
-              bodyText = `
-                  <p style="text-align: right; margin-bottom: 40px;">Fecha: ${today}</p>
-                  <p>Por la presente, yo __________________________________ (Padre/Madre/Tutor responsable), DNI: __________________, autorizo expresamente a la institución a permitir el retiro del alumno/a ${highlight(s.lastName + ', ' + s.firstName)} (DNI: ${s.dni}).</p>
                   
-                  <div style="margin: 30px 0; border: 2px dashed #ccc; padding: 20px; background: #fff;">
-                     <p style="font-weight:bold; color: #4c1d95; margin-bottom: 15px;">📋 SITUACIÓN ACTUAL EN SISTEMA:</p>
-                     <p>${s.pickupInfo || 'Sin información de retiro cargada actualmente.'}</p>
+                  <div class="cert-body">
+                      Escuela Especial Juntos a la Par se hace constar que
+                      <br><br>
+                      <span class="dotted" style="width: 100%; text-align: left;">${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</span>
+                      <br><br>
+                      con DNI N.° <span class="dotted" style="width: 200px;">${s.dni}</span> es alumno/a regular de...
+                      <br><br>
+                      en esta institución, con &nbsp;&nbsp;&nbsp; CUE 0623214-00.
+                      <br><br>
+                      A pedido del interesado y al efecto de ser presentado...<span class="dotted" style="width: 100%;">${s.healthInsurance || 'ante quien corresponda'}</span>
+                      <br><br>
+                      Lugar &nbsp;&nbsp;&nbsp; y &nbsp;&nbsp;&nbsp; fecha <span class="dotted" style="width: 300px;">Villa Udaondo, ${today}</span>....................
                   </div>
 
-                  <p style="font-weight: bold; margin-bottom: 10px;">👇 AUTORIZO A LAS SIGUIENTES PERSONAS (MAYORES DE EDAD):</p>
-                  <div style="margin-left: 20px; line-height: 2.5;">
-                     1. Nombre y Apellido: ________________________ DNI: _______________ Firma: _______<br>
-                     2. Nombre y Apellido: ________________________ DNI: _______________ Firma: _______<br>
-                     3. Nombre y Apellido: ________________________ DNI: _______________ Firma: _______
+                  <div class="signatures-section">
+                      <div class="sig-box">
+                          <img src="${FIRMA_URL}" class="img-firma" onerror="this.style.display='none'"/> 
+                          <div class="sig-text">Firma director o vicedirector</div>
+                      </div>
+                      <div class="sig-box">
+                          <img src="${SELLO_URL}" class="img-firma" onerror="this.style.display='none'"/>
+                          <div class="sig-text">Sello institución</div>
+                      </div>
                   </div>
-                  <p style="margin-top: 20px;">Asumo la responsabilidad de notificar fehacientemente cualquier modificación a esta autorización.</p>
-              `;
+              </div>`;
+          } 
+          else {
+             // ... Otras plantillas ...
+             content = `<div style="padding:50px">Plantilla en construcción...</div>`; 
           }
 
-          htmlContent += `
-          <div class="page-container">
-              <div class="doc-header">
-                  <img src="${LOGO_URL}" class="doc-logo"/>
-                  <div class="doc-info">
-                      <h1>Juntos a la Par</h1>
-                      <p>Institución Educativa • Ciclo Lectivo 2026</p>
-                  </div>
-              </div>
-              
-              <h2 class="doc-title">${docTitle}</h2>
-              
-              <div class="doc-content">
-                  ${bodyText}
-              </div>
-              
-              <div class="signature-section">
-                  <div class="signature-box">
-                      <div class="signature-line"></div>
-                      <div class="signature-text">Firma y Sello Dirección</div>
-                  </div>
-              </div>
-              
-              <div class="doc-footer">
-                  Documento generado digitalmente el ${today} a través del sistema de gestión institucional.
-              </div>
-          </div>`;
+          htmlContent += content;
       });
 
       htmlContent += '</body></html>';
 
-      // IMPRESIÓN IFRAME
       const iframe = document.createElement('iframe');
       iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
       document.body.appendChild(iframe);
@@ -2764,97 +2818,43 @@ function AdministracionView({ user }) {
       setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); setGenerating(false); }, 5000); }, 500);
   };
 
-  if (!canAccess) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido al área administrativa.</div>;
+  if (!canAccess) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido.</div>;
 
   return (
     <div className="animate-in fade-in pb-20">
-      {/* CABECERA CON LOGO Y DISEÑO */}
+      {/* HEADER */}
       <div className="bg-white rounded-t-[30px] shadow-sm border-b border-gray-200 relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-600 to-violet-600"></div>
           <div className="p-6 pt-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-              <div className="flex items-center gap-4">
-                  <img src={LOGO_URL} alt="Logo Institucional" className="w-16 h-auto object-contain drop-shadow-sm" />
-                  <div>
-                      <h2 className="text-2xl font-black text-gray-800 uppercase italic flex items-center gap-2">
-                          Administración
-                      </h2>
-                      <p className="text-sm text-blue-600 font-bold uppercase tracking-wider">Centro de Documentación</p>
-                  </div>
-              </div>
-
-              {/* FILTROS COMPACTOS */}
+              <div className="flex items-center gap-4"><img src={LOGO_URL} className="w-16 h-auto object-contain" /><div><h2 className="text-2xl font-black text-gray-800 uppercase italic">Administración</h2><p className="text-sm text-blue-600 font-bold uppercase">Centro de Documentación</p></div></div>
               <div className="grid grid-cols-2 gap-2 w-full md:w-auto md:flex">
-                  <select onChange={e=>setFilters({...filters, os: e.target.value})} className="bg-gray-100 p-2 rounded-lg text-xs font-bold border border-gray-200 outline-none focus:border-blue-500 text-gray-700">
-                      <option value="all">OS: Todas</option>
-                      <option value="con_os">Con OS (Cualquiera)</option>
-                      <option value="IOMA">Solo IOMA</option>
-                      <option value="OSECAC">Solo OSECAC</option>
-                      <option value="PROFE">Solo PROFE/IOMA</option>
-                      <option value="sin_os">Sin OS</option>
-                  </select>
-                  <select onChange={e=>setFilters({...filters, level: e.target.value})} className="bg-gray-100 p-2 rounded-lg text-xs font-bold border border-gray-200 outline-none focus:border-blue-500 text-gray-700">
-                      <option value="all">Nivel: Todos</option>
-                      <option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option>
-                  </select>
-                  <select onChange={e=>setFilters({...filters, modality: e.target.value})} className="bg-gray-100 p-2 rounded-lg text-xs font-bold border border-gray-200 outline-none focus:border-blue-500 text-gray-700">
-                      <option value="all">Mod: Todas</option>
-                      <option value="Sede">Sede</option><option value="Inclusión">Inclusión</option>
-                  </select>
-                  <div className="flex bg-gray-100 rounded-lg items-center px-2 border border-gray-200 focus-within:border-blue-500">
-                      <Search size={14} className="text-gray-400"/>
-                      <input placeholder="Buscar alumno..." onChange={e=>setFilterText(e.target.value)} className="bg-transparent p-2 text-xs font-bold outline-none w-full text-gray-700"/>
-                  </div>
+                  <select onChange={e=>setFilters({...filters, os: e.target.value})} className="bg-gray-100 p-2 rounded-lg text-xs font-bold outline-none"><option value="all">OS: Todas</option><option value="con_os">Con OS</option><option value="sin_os">Sin OS</option></select>
+                  <select onChange={e=>setFilters({...filters, level: e.target.value})} className="bg-gray-100 p-2 rounded-lg text-xs font-bold outline-none"><option value="all">Nivel: Todos</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option></select>
+                  <div className="flex bg-gray-100 rounded-lg items-center px-2"><Search size={14} className="text-gray-400"/><input placeholder="Buscar..." onChange={e=>setFilterText(e.target.value)} className="bg-transparent p-2 text-xs font-bold outline-none w-full"/></div>
               </div>
           </div>
       </div>
 
-      {/* BARRA DE ACCIÓN Y PLANTILLAS */}
+      {/* BARRA DE ACCIÓN */}
       <div className="bg-blue-50/80 p-4 backdrop-blur-sm border-b border-blue-100 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-3 w-full md:w-auto">
-              <button onClick={toggleSelectAll} className="text-xs font-black uppercase tracking-widest text-blue-700 hover:text-blue-900 transition bg-blue-100/50 px-3 py-1 rounded-full">
-                  {selectedIds.length === filteredStudents.length ? 'Deseleccionar' : 'Seleccionar'} Visibles ({selectedIds.length})
-              </button>
-              {selectedIds.length > 0 && <span className="text-xs font-bold text-blue-600">{selectedIds.length} alumnos seleccionados</span>}
-          </div>
+          <button onClick={toggleSelectAll} className="text-xs font-black uppercase tracking-widest text-blue-700 bg-blue-100/50 px-3 py-1 rounded-full">{selectedIds.length === filteredStudents.length ? 'Deseleccionar' : 'Seleccionar'} Visibles ({selectedIds.length})</button>
           <div className="flex gap-2 w-full md:w-auto">
-              <div className="relative flex-1 md:w-72">
-                 <FileText size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"/>
-                 <select value={template} onChange={e=>setTemplate(e.target.value)} className="bg-white text-gray-700 pl-10 pr-4 py-2 rounded-xl text-xs font-bold w-full outline-none border border-blue-200 focus:border-blue-500 shadow-sm appearance-none">
-                      <option value="constancia_regular">📄 Constancia Alumno Regular</option>
-                      <option value="solicitud_transporte">🚌 Solicitud Transporte</option>
-                      <option value="autorizacion_retiro">👋 Autorización de Retiro</option>
-                 </select>
-              </div>
-              <button onClick={generateDocument} disabled={generating || selectedIds.length === 0} className={`bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-2 rounded-xl text-xs font-black uppercase shadow-md flex items-center gap-2 transition transform active:scale-95 ${generating || selectedIds.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg hover:brightness-110'}`}>
-                  {generating ? <RefreshCw className="animate-spin"/> : <><Printer size={16}/> Generar PDF</>}
-              </button>
+              <select value={template} onChange={e=>setTemplate(e.target.value)} className="bg-white text-gray-700 pl-4 pr-8 py-2 rounded-xl text-xs font-bold w-full md:w-64 outline-none border border-blue-200 shadow-sm"><option value="constancia_regular">📄 Constancia Alumno Regular</option></select>
+              <button onClick={generateDocument} disabled={generating || selectedIds.length === 0} className={`bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-2 rounded-xl text-xs font-black uppercase shadow-md flex items-center gap-2 ${generating || selectedIds.length === 0 ? 'opacity-50' : 'hover:scale-105'}`}>{generating ? <RefreshCw className="animate-spin"/> : <><Printer size={16}/> Imprimir</>}</button>
           </div>
       </div>
 
       {/* LISTA DE ALUMNOS */}
       <div className="bg-white shadow-sm border-x border-b border-gray-200 overflow-hidden rounded-b-[30px]">
-          <div className="p-3 bg-gray-50 border-b border-gray-200 grid grid-cols-12 gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest">
-              <div className="col-span-1 text-center">Sel</div>
-              <div className="col-span-4">Alumno</div>
-              <div className="col-span-2">DNI</div>
-              <div className="col-span-3">Obra Social</div>
-              <div className="col-span-2 text-center">Mod.</div>
-          </div>
+          <div className="p-3 bg-gray-50 border-b border-gray-200 grid grid-cols-12 gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest"><div className="col-span-1 text-center">Sel</div><div className="col-span-4">Alumno</div><div className="col-span-2">DNI</div><div className="col-span-3">OS</div><div className="col-span-2 text-center">Mod</div></div>
           <div className="divide-y divide-gray-100 max-h-[60vh] overflow-y-auto">
-              {filteredStudents.length === 0 ? <div className="p-10 text-center text-gray-400 font-bold text-xs italic">No hay alumnos que coincidan con los filtros.</div> : 
-               filteredStudents.map(s => (
-                  <div key={s.id} onClick={() => toggleSelect(s.id)} className={`grid grid-cols-12 gap-2 p-3 items-center cursor-pointer transition duration-150 hover:bg-blue-50 ${selectedIds.includes(s.id) ? 'bg-blue-50/80' : ''}`}>
-                      <div className="col-span-1 flex justify-center">
-                          <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${selectedIds.includes(s.id) ? 'bg-blue-500 border-blue-500 scale-110 shadow-sm' : 'border-gray-300 bg-white group-hover:border-blue-300'}`}>
-                              {selectedIds.includes(s.id) && <Check size={12} className="text-white"/>}
-                          </div>
-                      </div>
+              {filteredStudents.map(s => (
+                  <div key={s.id} onClick={() => toggleSelect(s.id)} className={`grid grid-cols-12 gap-2 p-3 items-center cursor-pointer hover:bg-blue-50 ${selectedIds.includes(s.id) ? 'bg-blue-50/80' : ''}`}>
+                      <div className="col-span-1 flex justify-center"><div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${selectedIds.includes(s.id) ? 'bg-blue-500 border-blue-500' : 'border-gray-300 bg-white'}`}>{selectedIds.includes(s.id) && <Check size={12} className="text-white"/>}</div></div>
                       <div className="col-span-4 font-bold text-sm text-gray-700 truncate">{s.lastName}, {s.firstName}</div>
-                      <div className="col-span-2 text-xs text-gray-500 font-mono font-bold">{s.dni}</div>
+                      <div className="col-span-2 text-xs text-gray-500 font-mono">{s.dni}</div>
                       <div className="col-span-3 text-xs text-blue-600 font-bold truncate">{s.healthInsurance || '-'}</div>
-                      <div className="col-span-2 flex justify-center">
-                          <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase shadow-sm ${s.modality==='Inclusión'?'bg-indigo-100 text-indigo-700 border border-indigo-200':'bg-orange-100 text-orange-700 border border-orange-200'}`}>{s.modality||'Sede'}</span>
-                      </div>
+                      <div className="col-span-2 flex justify-center"><span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${s.modality==='Inclusión'?'bg-indigo-100 text-indigo-700':'bg-orange-100 text-orange-700'}`}>{s.modality||'Sede'}</span></div>
                   </div>
               ))}
           </div>
@@ -2880,31 +2880,3 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
