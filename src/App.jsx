@@ -2641,7 +2641,7 @@ function GroupsView({ user }) {
     </div>
   );
 }
-// --- VISTA ADMINISTRACIÓN (DISEÑO REPLICA EXACTA AL ORIGINAL) ---
+// --- VISTA ADMINISTRACIÓN (FINAL: CONSTANCIA INTELIGENTE + ACLARACIÓN) ---
 function AdministracionView({ user }) {
   const [students, setStudents] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -2650,7 +2650,9 @@ function AdministracionView({ user }) {
   const [template, setTemplate] = useState('constancia_regular');
   const [generating, setGenerating] = useState(false);
   
-  // IMÁGENES (Deben estar en carpeta public)
+  // ESTADO PARA "PRESENTAR ANTE"
+  const [customTarget, setCustomTarget] = useState(""); 
+  
   const LOGO_URL = "/icon-192.png";
   const FIRMA_URL = "/firma.png"; 
   const SELLO_URL = "/sello.png";
@@ -2686,6 +2688,8 @@ function AdministracionView({ user }) {
       setGenerating(true);
       
       const targets = students.filter(s => selectedIds.includes(s.id));
+      
+      // FECHA ACTUAL
       const today = new Date();
       const day = today.getDate();
       const month = today.toLocaleString('es-AR', { month: 'long' });
@@ -2694,18 +2698,16 @@ function AdministracionView({ user }) {
 
       let htmlContent = `<html><head><title>Documentos</title><style>
           @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
-          /* FUENTE TIMES NEW ROMAN COMO LA ORIGINAL */
           body { font-family: 'Times New Roman', Times, serif; margin: 0; padding: 20px; color: #000; }
-          
           .page-break { page-break-after: always; }
 
           .cert-container { 
-              border: 3px solid #65a30d; /* Verde Juntos a la Par */
+              border: 3px solid #65a30d; /* Verde Institucional */
               border-radius: 35px; 
               padding: 40px 50px; 
               margin: 0 auto;
               position: relative; 
-              height: 90vh; /* Altura fija para centrar contenido verticalmente si se quiere, o auto */
+              height: 90vh; 
               box-sizing: border-box; 
               max-width: 950px;
               display: flex;
@@ -2725,10 +2727,9 @@ function AdministracionView({ user }) {
               padding-top: 20px;
           }
 
-          /* CUERPO */
-          .cert-body { font-size: 18px; line-height: 2.5; flex-grow: 1; }
+          /* CUERPO TEXTO */
+          .cert-body { font-size: 18px; line-height: 2.2; flex-grow: 1; margin-top: 20px; }
           
-          /* LÍNEAS PUNTEADAS */
           .dotted { 
               border-bottom: 1px dotted #000; 
               display: inline-block; 
@@ -2737,9 +2738,9 @@ function AdministracionView({ user }) {
               text-align: center;
           }
           
-          /* FOOTER FIRMAS */
+          /* FIRMAS */
           .signatures-section { 
-              margin-top: auto; /* Empuja al fondo */
+              margin-top: auto; 
               margin-bottom: 20px;
               display: flex; 
               justify-content: space-between; 
@@ -2754,12 +2755,12 @@ function AdministracionView({ user }) {
               flex-direction: column;
               align-items: center;
               justify-content: flex-end;
-              height: 150px; /* Altura para que entre la firma */
+              height: 150px; 
           }
           .sig-img {
               max-width: 180px;
               max-height: 100px;
-              margin-bottom: -10px; /* Para que pise un poco el texto si es necesario */
+              margin-bottom: -10px; 
               z-index: 1;
           }
           .sig-text { font-size: 16px; margin-top: 5px; z-index: 2; }
@@ -2772,6 +2773,11 @@ function AdministracionView({ user }) {
 
       targets.forEach(s => {
           let content = '';
+          
+          // LÓGICA INTELIGENTE "PRESENTADO ANTE"
+          let presentadoAnte = customTarget.trim() !== "" 
+              ? customTarget 
+              : (s.healthInsurance && s.healthInsurance.length > 2 ? s.healthInsurance : 'quien corresponda');
 
           if (template === 'constancia_regular') {
               content = `
@@ -2782,17 +2788,21 @@ function AdministracionView({ user }) {
                   </div>
                   
                   <div class="cert-body">
-                      Escuela Especial Juntos a la Par se hace constar que
-                      <br>
+                      Escuela Especial Juntos a la Par hace constar que:
+                      <br><br>
                       <span class="dotted" style="width: 100%; text-align: center;">${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</span>
-                      <br>
-                      con DNI N.° <span class="dotted" style="width: 180px;">${s.dni}</span> es alumno/a regular de...
-                      <br>
-                      en esta institución, con &nbsp;&nbsp;&nbsp; CUE 0623214-00.
                       <br><br>
-                      A pedido del interesado y al efecto de ser presentado <span class="dotted" style="min-width: 300px;">${s.healthInsurance || 'ante quien corresponda'}</span>
+                      con DNI N.° <span class="dotted" style="width: 150px;">${s.dni}</span> es alumno/a regular del Nivel:
                       <br><br>
-                      Lugar &nbsp;&nbsp;&nbsp; y &nbsp;&nbsp;&nbsp; fecha <span class="dotted" style="min-width: 450px;">${fullDate}</span>
+                      <span class="dotted" style="width: 100%; text-align: center;">${s.level || '....................'} (${s.modality || 'Sede'})</span>
+                      <br><br>
+                      en esta institución, con &nbsp;&nbsp; CUE 0623214-00.
+                      <br><br>
+                      A pedido del interesado y al efecto de ser presentado ante:
+                      <br>
+                      <span class="dotted" style="width: 100%; text-align: center;">${presentadoAnte.toUpperCase()}</span>
+                      <br><br>
+                      Lugar y fecha: <span class="dotted" style="min-width: 400px;">${fullDate}</span>
                   </div>
 
                   <div class="signatures-section">
@@ -2844,8 +2854,21 @@ function AdministracionView({ user }) {
       {/* BARRA DE ACCIÓN */}
       <div className="bg-blue-50/80 p-4 backdrop-blur-sm border-b border-blue-100 flex flex-col md:flex-row justify-between items-center gap-4">
           <button onClick={toggleSelectAll} className="text-xs font-black uppercase tracking-widest text-blue-700 bg-blue-100/50 px-3 py-1 rounded-full">{selectedIds.length === filteredStudents.length ? 'Deseleccionar' : 'Seleccionar'} Visibles ({selectedIds.length})</button>
-          <div className="flex gap-2 w-full md:w-auto">
-              <select value={template} onChange={e=>setTemplate(e.target.value)} className="bg-white text-gray-700 pl-4 pr-8 py-2 rounded-xl text-xs font-bold w-full md:w-64 outline-none border border-blue-200 shadow-sm"><option value="constancia_regular">📄 Constancia Alumno Regular</option></select>
+          
+          <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto items-center">
+              {/* CAMPO CON ACLARACIÓN */}
+              <div className="flex flex-col w-full md:w-auto">
+                  <input 
+                      placeholder="Presentar ante..." 
+                      value={customTarget}
+                      onChange={e => setCustomTarget(e.target.value)}
+                      className="w-full md:w-64 p-2 rounded-xl text-xs font-bold border border-blue-200 outline-none focus:border-blue-500 placeholder-blue-300 text-blue-900"
+                  />
+                  <span className="text-[9px] text-blue-600 font-bold ml-1 mt-0.5">* Si se deja vacío, usa la O.S. del alumno.</span>
+              </div>
+              
+              <select value={template} onChange={e=>setTemplate(e.target.value)} className="bg-white text-gray-700 pl-4 pr-8 py-2 rounded-xl text-xs font-bold w-full md:w-auto outline-none border border-blue-200 shadow-sm"><option value="constancia_regular">📄 Constancia Alumno Regular</option></select>
+              
               <button onClick={generateDocument} disabled={generating || selectedIds.length === 0} className={`bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-2 rounded-xl text-xs font-black uppercase shadow-md flex items-center gap-2 ${generating || selectedIds.length === 0 ? 'opacity-50' : 'hover:scale-105'}`}>{generating ? <RefreshCw className="animate-spin"/> : <><Printer size={16}/> Imprimir</>}</button>
           </div>
       </div>
@@ -2886,5 +2909,6 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
