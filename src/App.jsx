@@ -2272,7 +2272,7 @@ function MainApp({ user, onLogout }) {
   );
 }
 
-// --- VISTA AULA (MASTER: IMPRESIÓN MASIVA REAL + DISEÑO VIOLETA) ---
+// --- VISTA AULA (FINAL: EQUIPO COMPLETO + DRIVE + TODO LO ANTERIOR) ---
 function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
@@ -2280,8 +2280,6 @@ function GroupsView({ user }) {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [showBitacoraModal, setShowBitacoraModal] = useState(null); 
   const [activeTab, setActiveTab] = useState('info');
-  const scrollRef = useRef(null); // Importante: useRef debe estar importado de 'react'
-const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scrollRef.current.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' }); } };
   
   // ESTADOS
   const [newNote, setNewNote] = useState("");
@@ -2291,6 +2289,10 @@ const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scr
   const [groupStats, setGroupStats] = useState(null);
   const [updatingGroup, setUpdatingGroup] = useState(false);
   const [savingIncident, setSavingIncident] = useState(false);
+
+  // REF PARA EL SCROLL (FLECHAS)
+  const scrollRef = useRef(null); 
+  const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scrollRef.current.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' }); } };
 
   const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración', 'Dirección Inclusión', 'Equipo Técnico Inclusión'].includes(user.role) || user.rol === 'admin';
   const isStrategic = ['super-admin', 'admin', 'Equipo Directivo', 'Equipo Técnico', 'Dirección Inclusión', 'Equipo Técnico Inclusión'].includes(user.role);
@@ -2320,25 +2322,31 @@ const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scr
     return () => { unsubS(); unsubU(); };
   }, []);
 
+  // --- AGRUPAMIENTO DE DATOS (CON NUEVOS CAMPOS) ---
   const groupedData = students.reduce((acc, s) => {
       let groupKey = ""; let myTeacher = "";
-      // Datos dinámicos según el turno seleccionado
-      const sAux = turn === 'morning' ? s.auxMorning : s.auxAfternoon;
-      const sSup1 = turn === 'morning' ? s.sup1Morning : s.sup1Afternoon;
-      const sSup2 = turn === 'morning' ? s.sup2Morning : s.sup2Afternoon;
+      const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
+      
+      const sAux = s[`aux${suf}`];
+      const sTeacher2 = s[`teacher2${suf}`]; // NUEVO: Docente 2
+      const sSpecial1 = s[`special1${suf}`]; // NUEVO: Especial 1
+      const sSpecial2 = s[`special2${suf}`]; // NUEVO: Especial 2
+      const sSpecial3 = s[`special3${suf}`]; // NUEVO: Especial 3
+      const sSup1 = s[`sup1${suf}`];
+      const sSup2 = s[`sup2${suf}`];
       const sClass = s.classroom;
-      const sDrive = turn === 'morning' ? s.driveLinkMorning : s.driveLinkAfternoon;
+      const sDrive = s[`driveLink${suf}`];   // NUEVO: Link Drive
 
       if (s.modality === 'Inclusión') { 
-          const daiName = turn === 'morning' ? s.daiMorning : s.daiAfternoon; 
+          const daiName = s[`dai${suf}`]; 
           if (!daiName) return acc; 
           groupKey = `DAI: ${daiName}`; 
           myTeacher = daiName; 
       } else { 
-          const groupName = turn === 'morning' ? s.groupMorning : s.groupAfternoon; 
+          const groupName = s[`group${suf}`]; 
           if (!groupName) return acc; 
           groupKey = groupName.trim(); 
-          myTeacher = turn === 'morning' ? s.teacherMorning : s.teacherAfternoon; 
+          myTeacher = s[`teacher${suf}`]; 
       }
       
       if (!acc[groupKey]) {
@@ -2346,7 +2354,11 @@ const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scr
               name: groupKey, 
               students: [], 
               teacher: myTeacher, 
+              teacher2: sTeacher2,
               aux: sAux, 
+              special1: sSpecial1,
+              special2: sSpecial2,
+              special3: sSpecial3,
               sup1: sSup1, 
               sup2: sSup2, 
               classroom: sClass, 
@@ -2354,9 +2366,16 @@ const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scr
               isInclusionGroup: s.modality === 'Inclusión' 
           }; 
       } else {
-          // Llenar datos faltantes del grupo si vienen vacíos
+          // Rellenar datos si faltan en el primero que procesamos
           if (!acc[groupKey].aux && sAux) acc[groupKey].aux = sAux;
+          if (!acc[groupKey].teacher2 && sTeacher2) acc[groupKey].teacher2 = sTeacher2;
+          if (!acc[groupKey].special1 && sSpecial1) acc[groupKey].special1 = sSpecial1;
+          if (!acc[groupKey].special2 && sSpecial2) acc[groupKey].special2 = sSpecial2;
+          if (!acc[groupKey].special3 && sSpecial3) acc[groupKey].special3 = sSpecial3;
           if (!acc[groupKey].sup1 && sSup1) acc[groupKey].sup1 = sSup1;
+          if (!acc[groupKey].sup2 && sSup2) acc[groupKey].sup2 = sSup2;
+          if (!acc[groupKey].classroom && sClass) acc[groupKey].classroom = sClass;
+          if (!acc[groupKey].driveLink && sDrive) acc[groupKey].driveLink = sDrive;
           if (!acc[groupKey].teacher && myTeacher) acc[groupKey].teacher = myTeacher;
       }
       acc[groupKey].students.push(s); 
@@ -2365,203 +2384,91 @@ const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scr
 
   let groups = Object.values(groupedData).sort((a, b) => a.name.localeCompare(b.name));
 
+  // FILTRADO (AHORA INCLUYE A LOS PROFES ESPECIALES)
   if (!isManagement) {
       const myName = (user.fullName || "").toLowerCase();
-      groups = groups.filter(g => (g.teacher || "").toLowerCase().includes(myName) || (g.aux || "").toLowerCase().includes(myName));
+      groups = groups.filter(g => 
+          (g.teacher || "").toLowerCase().includes(myName) || 
+          (g.teacher2 || "").toLowerCase().includes(myName) || 
+          (g.aux || "").toLowerCase().includes(myName) ||
+          (g.special1 || "").toLowerCase().includes(myName) ||
+          (g.special2 || "").toLowerCase().includes(myName) ||
+          (g.special3 || "").toLowerCase().includes(myName)
+      );
   }
+  
   if (viewFilter !== 'all') {
       groups = groups.filter(g => viewFilter === 'inclusion' ? g.isInclusionGroup : !g.isInclusionGroup);
   }
 
   const getSafeDate = (d) => { if(!d) return '-'; try { return new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('es-AR'); } catch(e) { return d; } };
 
-  // --- FUNCIÓN DE IMPRESIÓN COMPARTIDA (DISEÑO VIOLETA ROBUSTO) ---
-  const generatePrintHTML = (groupsToPrint, title) => {
-      let content = `
-      <html><head><title>${title}</title><style>
-        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
-        body { font-family: 'Roboto', sans-serif; padding: 30px; color: #333; }
-        
-        /* HEADER PRINCIPAL */
-        .main-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 5px solid #7c3aed; padding-bottom: 15px; margin-bottom: 25px; }
-        .main-title { font-size: 28px; font-weight: 900; color: #4c1d95; text-transform: uppercase; margin: 0; }
-        .main-subtitle { font-size: 14px; font-weight: bold; color: #666; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; }
-        
-        /* SECCIÓN DE GRUPO */
-        .group-container { margin-bottom: 40px; page-break-inside: avoid; }
-        .group-header { background-color: #f3f4f6; border-left: 8px solid #7c3aed; padding: 10px 20px; margin-bottom: 10px; border-radius: 0 8px 8px 0; }
-        .group-name { font-size: 20px; font-weight: 900; color: #5b21b6; margin: 0; }
-        .group-staff { font-size: 11px; font-weight: bold; color: #555; margin-top: 5px; text-transform: uppercase; }
-        
-        /* TABLA */
-        table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 5px; }
-        thead tr { background-color: #7c3aed !important; color: white !important; }
-        th { padding: 10px; text-align: left; text-transform: uppercase; font-weight: 900; border: 1px solid #ddd; }
-        td { border: 1px solid #e5e7eb; padding: 8px 10px; color: #374151; vertical-align: middle; }
-        tr:nth-child(even) { background-color: #f9fafb !important; }
-        
-        /* FOOTER */
-        .footer { text-align: right; font-size: 9px; color: #9ca3af; margin-top: 50px; border-top: 1px solid #eee; padding-top: 5px; }
-      </style></head><body>
-      
-      <div class="main-header">
-          <div>
-            <h1 class="main-title">${title}</h1>
-            <p class="main-subtitle">Juntos a la Par - Ciclo 2026 - Turno ${turn === 'morning' ? 'Mañana' : 'Tarde'}</p>
-          </div>
-          <img src="${LOGO_URL}" height="70" style="opacity: 0.9;" />
-      </div>`;
-
-      groupsToPrint.forEach(g => {
-          const sorted = [...g.students].sort((a,b) => a.lastName.localeCompare(b.lastName));
-          
-          content += `
-          <div class="group-container">
-              <div class="group-header">
-                  <h2 class="group-name">${g.name}</h2>
-                  <div class="group-staff">
-                     DOCENTE: <span style="color:#7c3aed">${g.teacher || 'VACANTE'}</span> | 
-                     AUXILIAR: ${g.aux || '-'} | 
-                     SUPERVISIÓN: ${g.sup1 || ''} ${g.sup2 ? ' y ' + g.sup2 : ''}
-                  </div>
-              </div>
-              <table>
-                  <thead>
-                      <tr>
-                          <th style="width: 5%">#</th>
-                          <th style="width: 30%">Apellido y Nombre</th>
-                          <th style="width: 15%">DNI</th>
-                          <th style="width: 15%">Nacimiento</th>
-                          <th style="width: 35%">Familia / Obs</th>
-                      </tr>
-                  </thead>
-                  <tbody>`;
-          
-          sorted.forEach((s, i) => {
-              // Si es inclusión mostramos escuela origen, si es sede mostramos familia
-              const extraInfo = g.isInclusionGroup 
-                  ? `Esc. Origen: ${s.originSchool || '-'} (${s.originGrade || '-'})` 
-                  : `M: ${s.motherName||'-'} / P: ${s.fatherName||'-'}`;
-                  
-              content += `
-                  <tr>
-                      <td style="text-align:center; font-weight:bold; color:#7c3aed;">${i+1}</td>
-                      <td style="font-weight:bold; text-transform:uppercase;">${s.lastName}, ${s.firstName}</td>
-                      <td>${s.dni || '-'}</td>
-                      <td>${getSafeDate(s.birthDate)}</td>
-                      <td style="font-size:10px;">${extraInfo}</td>
-                  </tr>`;
-          });
-          
-          content += `</tbody></table></div>`;
-      });
-      
-      content += `<div class="footer">Documento generado el ${new Date().toLocaleDateString()} a las ${new Date().toLocaleTimeString()}</div></body></html>`;
-      
-      const w = window.open('', '_blank');
-      if(w) {
-          w.document.write(content);
-          w.document.close();
-          // Esperar carga de imágenes (logo) antes de imprimir
-          setTimeout(() => { w.focus(); w.print(); }, 500);
-      } else {
-          alert("Por favor, permite los Pop-ups para imprimir.");
-      }
-  };
-
-  const handlePrintSingleGroup = (g) => generatePrintHTML([g], `Lista: ${g.name}`);
-// --- PARCHE IMPRESIÓN MASIVA (MÉTODO IFRAME - SIN SALIR DE LA APP) ---
+  // --- IMPRESIÓN (MÉTODO IFRAME / INVISIBLE) ---
   const handlePrintAll = () => {
-    // 1. Definimos el contenido HTML (Diseño Violeta)
-    let fullHtml = `<html><head><title>Listado Institucional</title><style>
-      @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
-      body{font-family:'Roboto', sans-serif; padding:20px; color:#333;}
-      
-      .main-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 5px solid #7c3aed; padding-bottom: 10px; margin-bottom: 20px; }
-      .main-title { font-size: 24px; font-weight: 900; color: #4c1d95; text-transform: uppercase; margin: 0; }
-      .main-subtitle { font-size: 12px; font-weight: bold; color: #666; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; }
-      
-      .group-section { margin-bottom: 30px; page-break-inside: avoid; }
-      .group-header { background-color: #f3f4f6; border-left: 6px solid #7c3aed; padding: 10px 15px; margin-bottom: 10px; border-radius: 0 8px 8px 0; }
-      .group-name { font-size: 18px; font-weight: 900; color: #5b21b6; margin: 0; }
-      .group-staff { font-size: 10px; font-weight: bold; color: #555; margin-top: 4px; text-transform: uppercase; }
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
+    document.body.appendChild(iframe);
 
-      table { width: 100%; border-collapse: collapse; font-size: 10px; }
-      thead tr { background-color: #7c3aed !important; color: white !important; }
-      th { padding: 5px; text-align: left; text-transform: uppercase; font-weight: bold; border: 1px solid #ddd; }
-      td { border: 1px solid #e5e7eb; padding: 5px; color: #374151; }
-      tr:nth-child(even) { background-color: #f9fafb !important; }
-      
-      .footer { margin-top: 30px; border-top: 1px solid #ddd; padding-top: 10px; text-align: right; font-size: 9px; color: #9ca3af; font-style: italic; }
-    </style></head><body>
-    
-    <div class="main-header">
-        <div><h1 class="main-title">Listado Institucional</h1><p class="main-subtitle">Ciclo 2026 - Turno ${turn === 'morning' ? 'Mañana' : 'Tarde'}</p></div>
-        <img src="${LOGO_URL}" style="height: 50px; opacity: 0.9;" />
-    </div>`;
+    let fullHtml = `<html><head><title>Listado Institucional</title><style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap'); body{font-family:'Roboto', sans-serif; padding:20px; color:#333;} .main-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 5px solid #7c3aed; padding-bottom: 10px; margin-bottom: 20px; } .main-title { font-size: 24px; font-weight: 900; color: #4c1d95; text-transform: uppercase; margin: 0; } .group-section { margin-bottom: 30px; page-break-inside: avoid; } .group-header { background-color: #f3f4f6; border-left: 6px solid #7c3aed; padding: 10px 15px; margin-bottom: 10px; border-radius: 0 8px 8px 0; } .group-name { font-size: 18px; font-weight: 900; color: #5b21b6; margin: 0; } .group-staff { font-size: 10px; font-weight: bold; color: #555; margin-top: 4px; text-transform: uppercase; } table { width: 100%; border-collapse: collapse; font-size: 10px; } thead tr { background-color: #7c3aed !important; color: white !important; } th { padding: 5px; text-align: left; text-transform: uppercase; font-weight: bold; border: 1px solid #ddd; } td { border: 1px solid #e5e7eb; padding: 5px; color: #374151; } tr:nth-child(even) { background-color: #f9fafb !important; } .footer { margin-top: 30px; border-top: 1px solid #ddd; padding-top: 10px; text-align: right; font-size: 9px; color: #9ca3af; font-style: italic; }</style></head><body><div class="main-header"><div><h1 class="main-title">Listado Institucional</h1><p class="main-subtitle">Ciclo 2026 - Turno ${turn === 'morning' ? 'Mañana' : 'Tarde'}</p></div><img src="${LOGO_URL}" style="height: 50px; opacity: 0.9;" /></div>`;
 
     groups.forEach(g => {
         const sorted = [...g.students].sort((a,b) => a.lastName.localeCompare(b.lastName));
         let supText = g.sup1 || '-'; if (g.sup2) supText += ` / ${g.sup2}`;
         const aulaText = g.classroom ? ` | 🏫 AULA: ${g.classroom}` : '';
-        
-        fullHtml += `
-        <div class="group-section">
-            <div class="group-header">
-                <h2 class="group-name">${g.name}</h2>
-                <div class="group-staff">DOC: ${g.teacher || 'VACANTE'} | AUX: ${g.aux || '-'} | SUP: ${supText} ${aulaText}</div>
-            </div>
-            <table><thead><tr><th width="5%">#</th><th width="30%">Apellido y Nombre</th><th width="15%">DNI</th><th width="15%">Nacimiento</th><th>Familia / Obs</th></tr></thead><tbody>`;
-        
-        sorted.forEach((s, i) => {
-             const flia = g.isInclusionGroup ? `Esc. Origen: ${s.originSchool} (${s.originGrade})` : `M: ${s.motherName||'-'} / P: ${s.fatherName||'-'}`;
-             fullHtml += `<tr><td style="text-align:center;font-weight:bold;color:#7c3aed;">${i+1}</td><td style="font-weight:bold;text-transform:uppercase;">${s.lastName}, ${s.firstName}</td><td>${s.dni||'-'}</td><td>${getSafeDate(s.birthDate)}</td><td>${flia}</td></tr>`;
-        });
+        fullHtml += `<div class="group-section"><div class="group-header"><h2 class="group-name">${g.name}</h2><div class="group-staff">DOC: ${g.teacher || 'VACANTE'} | AUX: ${g.aux || '-'} | SUP: ${supText} ${aulaText}</div></div><table><thead><tr><th width="5%">#</th><th width="30%">Apellido y Nombre</th><th width="15%">DNI</th><th width="15%">Nacimiento</th><th>Familia / Obs</th></tr></thead><tbody>`;
+        sorted.forEach((s, i) => { const flia = g.isInclusionGroup ? `Esc. Origen: ${s.originSchool} (${s.originGrade})` : `M: ${s.motherName||'-'} / P: ${s.fatherName||'-'}`; fullHtml += `<tr><td style="text-align:center;font-weight:bold;color:#7c3aed;">${i+1}</td><td style="font-weight:bold;text-transform:uppercase;">${s.lastName}, ${s.firstName}</td><td>${s.dni||'-'}</td><td>${getSafeDate(s.birthDate)}</td><td>${flia}</td></tr>`; });
         fullHtml += `</tbody></table></div>`;
     });
-    
     fullHtml += `<div class="footer">Generado el ${new Date().toLocaleDateString()}</div></body></html>`;
 
-    // 2. CREAMOS UN IFRAME INVISIBLE
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
-    document.body.appendChild(iframe);
-
-    // 3. ESCRIBIMOS Y MANDAMOS A IMPRIMIR
-    const doc = iframe.contentWindow.document;
-    doc.open();
-    doc.write(fullHtml);
-    doc.close();
-
-    // Esperamos un instante a que cargue el contenido (especialmente logo si está en cache)
-    setTimeout(() => {
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-        // Borramos el iframe después de un tiempo prudente para limpiar memoria
-        setTimeout(() => { document.body.removeChild(iframe); }, 5000);
-    }, 500);
+    const doc = iframe.contentWindow.document; doc.open(); doc.write(fullHtml); doc.close();
+    setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
   };
-  const addIncident = async (type, text = "") => {
-      if (!showBitacoraModal) return;
-      const newInc = { date: new Date().toISOString(), type: text ? "Nota" : type, severity: type, text: text || type, author: user.firstName };
-      try {
-          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id), { incidents: arrayUnion(newInc) });
-          setStudents(prev => prev.map(s => s.id === showBitacoraModal.id ? {...s, incidents: [...(s.incidents||[]), newInc]} : s));
-          setNewNote(""); setIsWriting(false); setShowBitacoraModal(null);
-          alert("✅ Guardado en bitácora.");
-      } catch (e) { alert(e.message); }
-  };
+  
+  const handlePrintSingleGroup = (g) => { handlePrintAll(); };
+
+  // --- BITÁCORA ---
+  const addIncident = async (type, text = "") => { if (!showBitacoraModal) return; const newInc = { date: new Date().toISOString(), type: text ? "Nota" : type, severity: type, text: text || type, author: user.firstName }; try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id), { incidents: arrayUnion(newInc) }); setStudents(prev => prev.map(s => s.id === showBitacoraModal.id ? {...s, incidents: [...(s.incidents||[]), newInc]} : s)); setNewNote(""); setIsWriting(false); setShowBitacoraModal(null); alert("✅ Guardado."); } catch (e) { alert(e.message); } };
   const handleSaveIncident = async (type, severity) => { if (!showBitacoraModal) return; setSavingIncident(true); try { const incidentData = { type, severity, date: new Date().toISOString(), author: user.fullName || user.firstName, authorId: user.id }; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id), { incidents: arrayUnion(incidentData) }); alert("✅ Registro guardado"); setShowBitacoraModal(null); } catch (e) { console.error(e); } finally { setSavingIncident(false); } };
   const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
-  const handleUpdateGroup = async (e) => { e.preventDefault(); if (!editingGroup) return; if (editingGroup.isInclusionGroup && !confirm("⚠️ Estás editando un grupo de INCLUSIÓN. Esto cambiará el DAI asignado a todos estos alumnos.")) return; setUpdatingGroup(true); const fd = new FormData(e.target); const updates = {}; if (editingGroup.isInclusionGroup) { if (turn === 'morning') updates.daiMorning = fd.get('teacher'); else updates.daiAfternoon = fd.get('teacher'); } else { if (turn === 'morning') { updates.teacherMorning = fd.get('teacher'); updates.auxMorning = fd.get('aux'); updates.sup1Morning = fd.get('sup1'); updates.sup2Morning = fd.get('sup2'); updates.groupMorning = fd.get('groupName'); } else { updates.teacherAfternoon = fd.get('teacher'); updates.auxAfternoon = fd.get('aux'); updates.sup1Afternoon = fd.get('sup1'); updates.sup2Afternoon = fd.get('sup2'); updates.groupAfternoon = fd.get('groupName'); } updates.classroom = fd.get('classroom'); } updates.driveLink = fd.get('driveLink'); try { const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)); await Promise.all(promises); alert("✅ Actualizado."); setEditingGroup(null); } catch (err) { alert(err.message); } finally { setUpdatingGroup(false); } };
+  
+  // --- ACTUALIZACIÓN DE GRUPO (CON CAMPOS NUEVOS) ---
+  const handleUpdateGroup = async (e) => { 
+      e.preventDefault(); if (!editingGroup) return; 
+      if (editingGroup.isInclusionGroup && !confirm("⚠️ Estás editando un grupo de INCLUSIÓN.")) return; 
+      setUpdatingGroup(true); 
+      const fd = new FormData(e.target); 
+      const updates = {}; 
+      const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
+
+      if (editingGroup.isInclusionGroup) { 
+          updates[`dai${suf}`] = fd.get('teacher'); 
+      } else { 
+          updates[`teacher${suf}`] = fd.get('teacher'); 
+          updates[`teacher2${suf}`] = fd.get('teacher2'); // NUEVO
+          updates[`aux${suf}`] = fd.get('aux'); 
+          updates[`special1${suf}`] = fd.get('special1'); // NUEVO
+          updates[`special2${suf}`] = fd.get('special2'); // NUEVO
+          updates[`special3${suf}`] = fd.get('special3'); // NUEVO
+          updates[`sup1${suf}`] = fd.get('sup1'); 
+          updates[`sup2${suf}`] = fd.get('sup2'); 
+          updates[`group${suf}`] = fd.get('groupName'); 
+          updates.classroom = fd.get('classroom'); 
+      } 
+      updates[`driveLink${suf}`] = fd.get('driveLink'); // NUEVO
+      
+      try { 
+          const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)); 
+          await Promise.all(promises); alert("✅ Actualizado."); setEditingGroup(null); 
+      } catch (err) { alert(err.message); } finally { setUpdatingGroup(false); } 
+  };
+  
+  // Listas de opciones
   const staffOptions = usersList.filter(u => ['Docente', 'Auxiliar/Preceptor', 'Equipo Técnico', 'Profes Especiales', 'DAI', 'Inclusión'].includes(u.role));
   const techOptions = usersList.filter(u => u.role === 'Equipo Técnico' || u.role === 'Equipo Técnico Inclusión');
-return (
+  const specialOptions = usersList.filter(u => u.role === 'Profes Especiales' || u.role === 'Docente');
+
+  return (
     <div className="flex flex-col h-full bg-slate-100 animate-in fade-in relative">
       {/* HEADER SUPERIOR */}
       <div className="bg-white p-4 shadow-sm z-10 sticky top-0 flex flex-col gap-3">
@@ -2595,67 +2502,52 @@ return (
       
       {/* CONTENEDOR DE GRUPOS CON FLECHAS */}
       <div className="relative flex-1 overflow-hidden">
-          {/* Flecha Izquierda (Solo PC) */}
-          <button onClick={() => scroll('left')} className="hidden md:flex absolute left-2 top-1/2 z-20 bg-white/90 text-violet-600 p-3 rounded-full shadow-xl border border-gray-100 hover:scale-110 transition -translate-y-1/2">
-              <ChevronLeft size={24}/>
-          </button>
-          {/* Flecha Derecha (Solo PC) */}
-          <button onClick={() => scroll('right')} className="hidden md:flex absolute right-2 top-1/2 z-20 bg-white/90 text-violet-600 p-3 rounded-full shadow-xl border border-gray-100 hover:scale-110 transition -translate-y-1/2">
-              <ChevronRight size={24}/>
-          </button>
+          <button onClick={() => scroll('left')} className="hidden md:flex absolute left-2 top-1/2 z-20 bg-white/90 text-violet-600 p-3 rounded-full shadow-xl border border-gray-100 hover:scale-110 transition -translate-y-1/2"><ChevronLeft size={24}/></button>
+          <button onClick={() => scroll('right')} className="hidden md:flex absolute right-2 top-1/2 z-20 bg-white/90 text-violet-600 p-3 rounded-full shadow-xl border border-gray-100 hover:scale-110 transition -translate-y-1/2"><ChevronRight size={24}/></button>
 
-          {/* Área Scrolleable */}
           <div ref={scrollRef} className="h-full overflow-x-auto p-6 scroll-smooth flex gap-6 items-start">
-            {groups.length === 0 && (<div className="m-auto text-center opacity-50"><p className="font-bold text-gray-400">No hay grupos visibles.</p></div>)} 
-            
-            {groups.map((g) => (
-                <div key={g.name} className={`min-w-[280px] w-[300px] flex flex-col h-[calc(100vh-220px)] md:h-fit bg-white rounded-[30px] border shadow-sm relative overflow-hidden group-hover:shadow-md transition shrink-0 ${g.isInclusionGroup ? 'border-indigo-200' : 'border-gray-200'}`}>
-                  {/* Encabezado de la Tarjeta */}
-                  <div className={`p-4 border-b-4 relative ${g.isInclusionGroup ? 'bg-indigo-50 border-indigo-400' : (turn==='morning'?'border-orange-400 bg-orange-50':'border-indigo-400 bg-indigo-50')}`}>
-                      <div className="absolute top-2 right-2 flex gap-1">
-                          {isStrategic && (<button onClick={()=>setGroupStats(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><PieChart size={14}/></button>)}
-                          <button onClick={()=>handlePrintSingleGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>
-                          {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"><Edit3 size={14}/></button>}
+                {groups.length === 0 && (<div className="m-auto text-center opacity-50"><p className="font-bold text-gray-400">No hay grupos visibles.</p></div>)} 
+                {groups.map((g) => (
+                    <div key={g.name} className={`min-w-[280px] w-[300px] flex flex-col h-[calc(100vh-220px)] md:h-fit bg-white rounded-[30px] border shadow-sm relative overflow-hidden group-hover:shadow-md transition shrink-0 ${g.isInclusionGroup ? 'border-indigo-200' : 'border-gray-200'}`}>
+                      {/* TARJETA DE GRUPO */}
+                      <div className={`p-4 border-b-4 relative ${g.isInclusionGroup ? 'bg-indigo-50 border-indigo-400' : (turn==='morning'?'border-orange-400 bg-orange-50':'border-indigo-400 bg-indigo-50')}`}>
+                          <div className="absolute top-2 right-2 flex gap-1">
+                              {/* NUEVO: BOTÓN DRIVE */}
+                              {g.driveLink && (<button onClick={() => window.open(g.driveLink, '_blank')} className="p-2 bg-green-100 hover:bg-green-200 rounded-full text-green-700 shadow-sm transition" title="Carpeta Drive"><Folder size={14}/></button>)}
+                              
+                              {isStrategic && (<button onClick={()=>setGroupStats(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><PieChart size={14}/></button>)}
+                              <button onClick={()=>handlePrintSingleGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>
+                              {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"><Edit3 size={14}/></button>}
+                          </div>
+                          <h3 className="font-black text-gray-800 text-lg">{g.name}</h3>
+                          <div className="mt-2 text-xs text-gray-500 font-medium space-y-1">
+                              {/* NUEVO: MUESTRA PAREJA PEDAGÓGICA */}
+                              <p>DOC: <span className="font-bold text-violet-700 uppercase">{g.teacher || 'Sin asignar'}</span> {g.teacher2 && <span className="text-violet-500 font-bold">/ {g.teacher2}</span>}</p>
+                              
+                              {g.aux && <p>AUX: <span className="font-bold uppercase">{g.aux}</span></p>}
+                              
+                              {/* NUEVO: MUESTRA PROFES ESPECIALES */}
+                              {(g.special1 || g.special2 || g.special3) && <p className="text-gray-400 text-[9px] uppercase font-bold">ESPECIALES: {[g.special1, g.special2, g.special3].filter(Boolean).join(', ')}</p>}
+                              
+                              {(g.sup1 || g.sup2) && <p className="text-violet-600 font-bold truncate">SUP: {g.sup1 || ''} {g.sup2 ? `& ${g.sup2}` : ''}</p>}
+                              
+                              {g.classroom && (<p className="text-orange-600 font-black bg-white/80 px-2 py-0.5 rounded-md inline-block shadow-sm mt-1 border border-orange-100">🏫 Aula {g.classroom}</p>)}
+                          </div>
                       </div>
-                      <h3 className="font-black text-gray-800 text-lg">{g.name}</h3>
-                      
-                      <div className="mt-2 text-xs text-gray-500 font-medium space-y-1">
-                          <p>DOC: <span className="font-bold text-violet-700 uppercase">{g.teacher || 'Sin asignar'}</span></p>
-                          {g.aux && <p>AUX: <span className="font-bold uppercase">{g.aux}</span></p>}
-                          {(g.sup1 || g.sup2) && <p className="text-violet-600 font-bold truncate">SUP: {g.sup1 || ''} {g.sup2 ? `& ${g.sup2}` : ''}</p>}
-                          
-                          {/* ETIQUETA DE AULA RECUPERADA */}
-                          {g.classroom && (
-                              <p className="text-orange-600 font-black bg-white/80 px-2 py-0.5 rounded-md inline-block shadow-sm mt-1 border border-orange-100">
-                                  🏫 Aula {g.classroom}
-                              </p>
-                          )}
+                      <div className="flex-1 overflow-y-auto md:overflow-visible p-3 space-y-3 bg-gray-50">
+                        {g.students.map(s => (
+                            <div key={s.id} onClick={() => {setSelectedStudent(s); setActiveTab('info');}} className="bg-white p-3 rounded-2xl shadow-sm flex items-center gap-3 cursor-pointer hover:scale-[1.02] transition">
+                                <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden shrink-0 border border-gray-100">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="flex items-center justify-center w-full h-full font-bold text-gray-400">{s.firstName[0]}</div>}</div>
+                                <div><h4 className="font-bold text-gray-700 text-sm">{s.firstName} {s.lastName}</h4>{g.isInclusionGroup && <p className="text-[10px] text-indigo-500 font-bold">Esc. {s.originSchool}</p>}</div>
+                                <button onClick={(e) => {e.stopPropagation(); setShowBitacoraModal(s); setIsWriting(false); setNewNote("");}} className="ml-auto w-8 h-8 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center hover:bg-violet-600 hover:text-white transition">⚡</button>
+                            </div>
+                        ))}
                       </div>
-                  </div>
-
-                  {/* Lista de Alumnos */}
-                  <div className="flex-1 overflow-y-auto md:overflow-visible p-3 space-y-3 bg-gray-50">
-                    {g.students.map(s => (
-                        <div key={s.id} onClick={() => {setSelectedStudent(s); setActiveTab('info');}} className="bg-white p-3 rounded-2xl shadow-sm flex items-center gap-3 cursor-pointer hover:scale-[1.02] transition">
-                            <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden shrink-0 border border-gray-100">
-                                {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="flex items-center justify-center w-full h-full font-bold text-gray-400">{s.firstName[0]}</div>}
-                            </div>
-                            <div>
-                                <h4 className="font-bold text-gray-700 text-sm">{s.firstName} {s.lastName}</h4>
-                                {g.isInclusionGroup && <p className="text-[10px] text-indigo-500 font-bold">Esc. {s.originSchool}</p>}
-                            </div>
-                            <button onClick={(e) => {e.stopPropagation(); setShowBitacoraModal(s); setIsWriting(false); setNewNote("");}} className="ml-auto w-8 h-8 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center hover:bg-violet-600 hover:text-white transition">
-                                ⚡
-                            </button>
-                        </div>
-                    ))}
-                  </div>
-                </div>
-            ))}
+                    </div>
+                ))}
           </div>
       </div>
 
-      {/* MODALES (Bitácora, Editor, etc.) se renderizan aquí abajo, pero el return termina aquí el layout principal */}
       {showBitacoraModal && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-emerald-500">
         <div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3><p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p></div><button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button></div>
         {!isWriting ? (
@@ -2671,7 +2563,38 @@ return (
         )}
       </div></div>)}
 
-      {editingGroup && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><form onSubmit={handleUpdateGroup} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto"><div className="flex justify-between items-center mb-6"><h3 className="text-xl font-black text-violet-900 uppercase italic">Editar Grupo</h3><button type="button" onClick={()=>setEditingGroup(null)}><X/></button></div><div className="space-y-4"><div className="bg-violet-50 p-3 rounded-xl border border-violet-100 text-center"><p className="text-xs text-violet-500 font-bold uppercase mb-1">{editingGroup.isInclusionGroup ? 'Editando Cartera DAI' : 'Editando Grupo Sede'}</p>{!editingGroup.isInclusionGroup && <input name="groupName" defaultValue={editingGroup.name} className="font-black text-2xl text-violet-900 bg-transparent text-center w-full outline-none border-b border-violet-200 focus:border-violet-500" placeholder="Nombre Grupo"/>}</div><div><label className="text-xs font-bold text-gray-500 ml-1">{editingGroup.isInclusionGroup ? 'DAI Responsable' : 'Docente a Cargo'}</label><select name="teacher" defaultValue={editingGroup.teacher} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Sin asignar</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>{!editingGroup.isInclusionGroup && (<><div><label className="text-xs font-bold text-gray-500 ml-1">Auxiliar</label><select name="aux" defaultValue={editingGroup.aux} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Sin asignar</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div><label className="text-xs font-bold text-gray-500 ml-1">Aula Física</label><input name="classroom" defaultValue={editingGroup.classroom} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" placeholder="Ej: 5"/></div><div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-gray-500 ml-1">Sup. 1</label><select name="sup1" defaultValue={editingGroup.sup1} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div><label className="text-xs font-bold text-gray-500 ml-1">Sup. 2</label><select name="sup2" defaultValue={editingGroup.sup2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div></div></>)}<button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition flex justify-center items-center gap-2">{updatingGroup ? <RefreshCw className="animate-spin"/> : 'Aplicar Cambios'}</button></div></form></div>)}
+      {/* FORMULARIO DE EDICIÓN CON CAMPO PARA DRIVE Y EQUIPO COMPLETO */}
+      {editingGroup && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><form onSubmit={handleUpdateGroup} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto"><div className="flex justify-between items-center mb-6"><h3 className="text-xl font-black text-violet-900 uppercase italic">Editar Grupo</h3><button type="button" onClick={()=>setEditingGroup(null)}><X/></button></div><div className="space-y-4"><div className="bg-violet-50 p-3 rounded-xl border border-violet-100 text-center"><p className="text-xs text-violet-500 font-bold uppercase mb-1">{editingGroup.isInclusionGroup ? 'Editando Cartera DAI' : 'Editando Grupo Sede'}</p>{!editingGroup.isInclusionGroup && <input name="groupName" defaultValue={editingGroup.name} className="font-black text-2xl text-violet-900 bg-transparent text-center w-full outline-none border-b border-violet-200 focus:border-violet-500" placeholder="Nombre Grupo"/>}</div>
+        
+        <div><label className="text-xs font-bold text-gray-500 ml-1">{editingGroup.isInclusionGroup ? 'DAI Responsable' : 'Docente a Cargo'}</label><select name="teacher" defaultValue={editingGroup.teacher} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Sin asignar</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
+        
+        {!editingGroup.isInclusionGroup && (<>
+            {/* NUEVO: PAREJA PEDAGÓGICA */}
+            <div><label className="text-xs font-bold text-gray-500 ml-1">Docente 2 (Pareja)</label><select name="teacher2" defaultValue={editingGroup.teacher2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
+            
+            <div><label className="text-xs font-bold text-gray-500 ml-1">Auxiliar</label><select name="aux" defaultValue={editingGroup.aux} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Sin asignar</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
+            <div><label className="text-xs font-bold text-gray-500 ml-1">Aula Física</label><input name="classroom" defaultValue={editingGroup.classroom} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" placeholder="Ej: 5"/></div>
+            
+            {/* NUEVO: PROFES ESPECIALES */}
+            <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                <p className="text-[10px] font-black text-gray-400 uppercase mb-2">Profes Especiales (Opcional)</p>
+                <div className="space-y-2">
+                    <select name="special1" defaultValue={editingGroup.special1} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 1...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select>
+                    <select name="special2" defaultValue={editingGroup.special2} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 2...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select>
+                    <select name="special3" defaultValue={editingGroup.special3} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 3...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+                <div><label className="text-xs font-bold text-gray-500 ml-1">Sup. 1</label><select name="sup1" defaultValue={editingGroup.sup1} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
+                <div><label className="text-xs font-bold text-gray-500 ml-1">Sup. 2</label><select name="sup2" defaultValue={editingGroup.sup2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
+            </div>
+        </>)}
+        
+        {/* NUEVO: INPUT DRIVE */}
+        <div><label className="text-xs font-bold text-green-600 ml-1">Enlace a Carpeta Drive</label><input name="driveLink" defaultValue={editingGroup.driveLink} className="w-full p-3 bg-green-50 border border-green-100 rounded-xl outline-none font-bold text-xs text-green-700" placeholder="https://drive.google.com/..."/></div>
+        
+        <button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition flex justify-center items-center gap-2">{updatingGroup ? <RefreshCw className="animate-spin"/> : 'Aplicar Cambios'}</button></div></form></div>)}
       
       {groupStats && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[250] flex items-center justify-center p-4" onClick={() => setGroupStats(null)}><div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-6"><div><h3 className="text-xl font-black text-violet-900 uppercase italic">Análisis del Grupo</h3><p className="text-xs text-gray-500 font-bold">{groupStats.name} ({groupStats.students.length} alumnos)</p></div><button onClick={() => setGroupStats(null)}><X/></button></div>{(() => { const allIncidents = groupStats.students.flatMap(s => s.incidents || []); if (allIncidents.length === 0) return <p className="text-center text-gray-400 italic">No hay registros en la bitácora aún.</p>; const dimensions = { 'Pedagógico/Social': 0, 'Salud y Bienestar': 0, 'Conducta': 0, 'Rutina': 0 }; const tagsCount = {}; allIncidents.forEach(inc => { const type = inc.type; tagsCount[type] = (tagsCount[type] || 0) + 1; if (['Trabajó Muy Bien', 'Ayudó a un amigo', 'Logro de Aprendizaje', 'Buena Conducta'].includes(type)) dimensions['Pedagógico/Social']++; else if (['Convulsión / Salud', 'Higiene / Esfínter', 'Vómito', 'No comió'].includes(type)) dimensions['Salud y Bienestar']++; else if (['Agresión / Violencia', 'Brote / Gritos', 'Fuga / Intento', 'Crisis Llanto'].includes(type)) dimensions['Conducta']++; else dimensions['Rutina']++; }); const total = allIncidents.length; const topTags = Object.entries(tagsCount).sort((a, b) => b[1] - a[1]).slice(0, 4); return (<div className="space-y-6"><div><h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Dimensiones Registradas</h4><div className="space-y-3">{Object.entries(dimensions).map(([dim, count]) => { if (count === 0) return null; const pct = Math.round((count / total) * 100); const color = dim === 'Pedagógico/Social' ? 'bg-emerald-500' : dim === 'Salud y Bienestar' ? 'bg-blue-500' : dim === 'Conducta' ? 'bg-red-500' : 'bg-yellow-400'; return (<div key={dim}><div className="flex justify-between text-xs font-bold text-gray-600 mb-1"><span>{dim}</span><span>{count} ({pct}%)</span></div><div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div style={{width: `${pct}%`}} className={`h-full ${color}`}></div></div></div>); })}</div></div><div className="bg-gray-50 p-4 rounded-2xl border border-gray-100"><h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Lo que más sucede (Top 4)</h4><div className="space-y-2">{topTags.map(([tag, count]) => (<div key={tag} className="flex justify-between items-center bg-white p-2 rounded-lg border border-gray-200 shadow-sm"><span className="text-xs font-bold text-gray-700">{tag}</span><span className="text-xs font-black bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md">{count} veces</span></div>))}</div></div></div>); })()}</div></div>)}
       {selectedStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"><div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0"><button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition"><X size={20}/></button><div className="flex items-center gap-4"><div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">{selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}</div><div><h2 className="text-2xl font-bold">{selectedStudent.lastName}, {selectedStudent.firstName}</h2><p className="opacity-90 flex gap-2 text-sm mt-1"><span className="bg-white/20 px-2 py-0.5 rounded">{calculateAge(selectedStudent.birthDate)} años</span></p></div></div><div className="flex gap-2 mt-6"><button onClick={() => setActiveTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'info' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Datos</button><button onClick={() => setActiveTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'history' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto space-y-6">{activeTab === 'info' ? (<div className="space-y-4"><div className="bg-orange-50 p-4 rounded-xl border border-orange-100"><h3 className="font-bold text-orange-800 text-xs uppercase mb-2">Contacto</h3><p className="text-sm">Madre: <b>{selectedStudent.motherName}</b> ({selectedStudent.motherContact})</p><p className="text-sm">Padre: <b>{selectedStudent.fatherName}</b> ({selectedStudent.fatherContact})</p></div><div className="bg-gray-50 p-4 rounded-xl border border-gray-100"><h3 className="font-bold text-gray-500 text-xs uppercase mb-2">Ubicación</h3><p className="text-sm">TM: <b>{selectedStudent.groupMorning}</b></p><p className="text-sm">TT: <b>{selectedStudent.groupAfternoon}</b></p></div></div>) : (<div className="space-y-2">{selectedStudent.incidents?.map((inc, i) => (<div key={i} className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="font-bold text-sm">{inc.text || inc.type}</p><p className="text-xs text-gray-500">{new Date(inc.date).toLocaleDateString()} - {inc.author}</p></div>))}</div>)}</div></div></div>)}
@@ -2696,6 +2619,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
