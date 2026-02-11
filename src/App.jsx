@@ -2641,7 +2641,7 @@ function GroupsView({ user }) {
     </div>
   );
 }
-// --- VISTA ADMINISTRACIÓN (DISEÑO REPLICA EXACTA + FIRMA/SELLO) ---
+// --- VISTA ADMINISTRACIÓN (DISEÑO COMPACTO + FIRMA/SELLO) ---
 function AdministracionView({ user }) {
   const [students, setStudents] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -2691,76 +2691,74 @@ function AdministracionView({ user }) {
 
       let htmlContent = `<html><head><title>Documentos Institucionales</title><style>
           @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
-          /* FUENTE SIMILAR A LA IMAGEN (Times New Roman o Serif) */
           body { font-family: 'Times New Roman', Times, serif; margin: 0; padding: 20px; color: #000; }
           
-          /* CONTENEDOR TIPO TARJETA CON BORDE VERDE */
+          /* CONTENEDOR TIPO TARJETA COMPACTO */
           .cert-container { 
-              border: 3px solid #65a30d; /* Verde similar a la imagen */
-              border-radius: 40px; 
-              padding: 50px; 
-              margin: 0 auto 40px auto;
+              border: 3px solid #65a30d; 
+              border-radius: 25px; 
+              padding: 30px; 
+              margin: 0 auto 30px auto;
               position: relative; 
-              min-height: 85vh; 
+              min-height: auto;
               box-sizing: border-box; 
               page-break-after: always; 
-              max-width: 900px;
+              max-width: 800px;
           }
 
-          /* HEADER */
-          .cert-header { display: flex; align-items: center; margin-bottom: 50px; }
-          .cert-logo { width: 150px; height: auto; margin-right: 30px; }
+          /* HEADER MÁS PEQUEÑO */
+          .cert-header { display: flex; align-items: center; margin-bottom: 30px; }
+          .cert-logo { width: 100px; height: auto; margin-right: 20px; }
           .cert-title { 
-              font-size: 22px; 
+              font-size: 18px; 
               font-weight: bold; 
               text-decoration: underline; 
               text-transform: uppercase; 
               text-align: center;
               flex-grow: 1;
-              margin-top: 20px;
+              margin-top: 10px;
           }
 
-          /* CUERPO DEL TEXTO */
-          .cert-body { font-size: 20px; line-height: 2.2; margin-top: 30px; }
+          /* CUERPO DEL TEXTO MÁS COMPACTO */
+          .cert-body { font-size: 16px; line-height: 1.8; margin-top: 20px; }
           
-          /* LÍNEAS PUNTEADAS PARA COMPLETAR */
           .dotted { 
               border-bottom: 1px dotted #000; 
               display: inline-block; 
-              padding: 0 10px; 
+              padding: 0 5px; 
               font-weight: bold; 
-              min-width: 100px;
+              min-width: 80px;
               text-align: center;
           }
           
-          /* SECCIÓN DE FIRMAS */
+          /* SECCIÓN DE FIRMAS COMPACTA */
           .signatures-section { 
-              margin-top: 120px; 
+              margin-top: 80px; 
               display: flex; 
               justify-content: space-between; 
               align-items: flex-end;
-              padding: 0 50px;
+              padding: 0 30px;
           }
           .sig-box { 
               text-align: center; 
-              width: 250px; 
+              width: 200px; 
               position: relative;
           }
-          .sig-text { margin-top: 10px; font-size: 16px; }
+          .sig-text { margin-top: 5px; font-size: 14px; }
           
-          /* IMÁGENES SUPERPUESTAS */
+          /* IMÁGENES FIRMA/SELLO SUPERPUESTAS */
           .img-firma {
               position: absolute;
-              bottom: 20px; 
+              bottom: 15px; 
               left: 50%;
               transform: translateX(-50%);
-              height: 100px; 
+              height: 80px; 
               z-index: -1;
           }
 
           @media print { 
               body { padding: 0; } 
-              .cert-container { margin: 0; border: 3px solid #65a30d; height: 100vh; border-radius: 40px; page-break-after: always; } 
+              .cert-container { margin: 0; border: 3px solid #65a30d; height: auto; border-radius: 25px; page-break-after: always; } 
           }
       </style></head><body>`;
 
@@ -2780,13 +2778,13 @@ function AdministracionView({ user }) {
                       <br><br>
                       <span class="dotted" style="width: 100%; text-align: left;">${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</span>
                       <br><br>
-                      con DNI N.° <span class="dotted" style="width: 200px;">${s.dni}</span> es alumno/a regular de...
+                      con DNI N.° <span class="dotted" style="width: 150px;">${s.dni}</span> es alumno/a regular de...
                       <br><br>
                       en esta institución, con &nbsp;&nbsp;&nbsp; CUE 0623214-00.
                       <br><br>
                       A pedido del interesado y al efecto de ser presentado...<span class="dotted" style="width: 100%;">${s.healthInsurance || 'ante quien corresponda'}</span>
                       <br><br>
-                      Lugar &nbsp;&nbsp;&nbsp; y &nbsp;&nbsp;&nbsp; fecha <span class="dotted" style="width: 300px;">Villa Udaondo, ${today}</span>....................
+                      Lugar &nbsp;&nbsp;&nbsp; y &nbsp;&nbsp;&nbsp; fecha <span class="dotted" style="width: 250px;">Villa Udaondo, ${today}</span>....................
                   </div>
 
                   <div class="signatures-section">
@@ -2802,7 +2800,6 @@ function AdministracionView({ user }) {
               </div>`;
           } 
           else {
-             // ... Otras plantillas ...
              content = `<div style="padding:50px">Plantilla en construcción...</div>`; 
           }
 
@@ -2880,3 +2877,4 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
