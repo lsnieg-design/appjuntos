@@ -2641,7 +2641,7 @@ function GroupsView({ user }) {
     </div>
   );
 }
-// --- VISTA ADMINISTRACIÓN (CENTRO DE DOCUMENTACIÓN - DISEÑO MEJORADO) ---
+// --- VISTA ADMINISTRACIÓN (CENTRO DE DOCUMENTACIÓN - DISEÑO MEJORADO + IMPRESIÓN PRO) ---
 function AdministracionView({ user }) {
   const [students, setStudents] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -2691,7 +2691,7 @@ function AdministracionView({ user }) {
       else setSelectedIds([...selectedIds, id]);
   };
 
-  // --- PLANTILLAS DE DOCUMENTOS (PASA EL PDF GENERATOR) ---
+  // --- GENERADOR DE DOCUMENTOS PDF (DISEÑO PROFESIONAL) ---
   const generateDocument = () => {
       if (selectedIds.length === 0) return alert("Selecciona al menos un estudiante.");
       setGenerating(true);
@@ -2699,70 +2699,113 @@ function AdministracionView({ user }) {
       const targets = students.filter(s => selectedIds.includes(s.id));
       const today = new Date().toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' });
 
-      let htmlContent = `<html><head><title>Documentos Masivos</title><style>
-          body { font-family: 'Times New Roman', serif; padding: 40px; color: #000; line-height: 1.6; }
-          .page { position: relative; height: 100vh; padding: 40px; page-break-after: always; box-sizing: border-box; }
-          .header { text-align: center; margin-bottom: 40px; text-transform: uppercase; font-weight: bold; border-bottom: 2px solid #000; padding-bottom: 10px; }
-          .title { text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 30px; text-decoration: underline; text-transform: uppercase; }
-          .content { font-size: 14px; text-align: justify; }
-          .signature { margin-top: 100px; text-align: right; }
-          .signature-line { display: inline-block; width: 200px; border-top: 1px solid #000; text-align: center; padding-top: 5px; font-size: 12px; }
-          .logo { position: absolute; top: 20px; left: 40px; width: 80px; height: auto; opacity: 0.9; }
-          @media print { body { padding: 0; } .page { height: auto; min-height: 90vh; margin: 0; } }
+      // ESTILOS CSS PARA LA IMPRESIÓN
+      let htmlContent = `<html><head><title>Documentos Institucionales</title><style>
+          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
+          body { font-family: 'Roboto', Helvetica, Arial, sans-serif; color: #333; line-height: 1.5; margin: 0; padding: 0; }
+          .page-container { padding: 2cm; position: relative; min-height: 90vh; box-sizing: border-box; page-break-after: always; }
+          
+          /* Header con Logo */
+          .doc-header { display: flex; align-items: center; gap: 20px; border-bottom: 3px solid #7c3aed; padding-bottom: 20px; margin-bottom: 50px; }
+          .doc-logo { width: 80px; height: auto; object-fit: contain; }
+          .doc-info h1 { margin: 0; font-size: 22px; font-weight: 900; text-transform: uppercase; color: #4c1d95; letter-spacing: 0.5px; }
+          .doc-info p { margin: 5px 0 0 0; font-size: 11px; color: #666; font-weight: bold; text-transform: uppercase; }
+
+          /* Título del Documento */
+          .doc-title { text-align: center; font-size: 24px; font-weight: 900; text-transform: uppercase; margin: 0 0 40px 0; color: #111; letter-spacing: 1px; text-decoration: underline; text-underline-offset: 5px; }
+
+          /* Contenido */
+          .doc-content { font-size: 14px; text-align: justify; padding: 0 10px; }
+          .doc-content p { margin-bottom: 20px; }
+          .data-highlight { font-weight: 900; color: #000; background-color: #f3f4f6; padding: 2px 5px; rounded: 4px; border: 1px solid #e5e7eb; }
+          
+          /* Firma */
+          .signature-section { margin-top: 150px; display: flex; justify-content: flex-end; padding-right: 20px; }
+          .signature-box { text-align: center; width: 220px; }
+          .signature-line { border-top: 2px solid #333; margin-bottom: 8px; }
+          .signature-text { font-size: 11px; font-weight: bold; color: #555; text-transform: uppercase; }
+          
+          /* Footer */
+          .doc-footer { position: absolute; bottom: 1cm; left: 2cm; right: 2cm; text-align: center; font-size: 9px; color: #aaa; border-top: 1px solid #eee; padding-top: 10px; font-style: italic; }
+
+          @media print { body { margin: 0; } .page-container { margin: 0; border: none; height: 100vh; } }
       </style></head><body>`;
 
       targets.forEach(s => {
           let bodyText = "";
           let docTitle = "";
 
-          // LÓGICA DE PLANTILLAS
+          // Helper para resaltar datos
+          const highlight = (text) => `<span class="data-highlight">${text}</span>`;
+
           if (template === 'constancia_regular') {
               docTitle = "CONSTANCIA DE ALUMNO REGULAR";
               bodyText = `
-                  <p>La Dirección de la Institución <b>"Juntos a la Par"</b> hace constar que el/la alumno/a <b>${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</b>, DNI Nº <b>${s.dni || '....................'}</b>, es alumno regular de este establecimiento en el ciclo lectivo 2026.</p>
-                  <p>Asiste al nivel <b>${s.level || '....................'}</b>, en la modalidad <b>${s.modality || 'Sede'}</b>.</p>
-                  <p>Se extiende la presente a pedido de la parte interesada para ser presentada ante <b>${s.healthInsurance || 'quien corresponda'}</b>.</p>
+                  <p style="text-align: right; margin-bottom: 40px;">Villa Udaondo, ${today}</p>
+                  <p>Quien suscribe, Dirección de la Institución Educativa <b>"Juntos a la Par"</b>, hace constar por la presente que el/la alumno/a ${highlight(s.lastName.toUpperCase() + ', ' + s.firstName.toUpperCase())}, cuyo Documento Nacional de Identidad es Nº ${highlight(s.dni || '....................')}, es alumno regular de este establecimiento durante el Ciclo Lectivo 2026.</p>
+                  <p>El/la estudiante se encuentra matriculado en el Nivel ${highlight(s.level || '....................')}, bajo la modalidad de ${highlight(s.modality || 'Sede')}.</p>
+                  <p>A pedido de la parte interesada y para ser presentado ante ${highlight(s.healthInsurance || 'quien corresponda')}, se extiende la presente constancia.</p>
               `;
           } 
           else if (template === 'solicitud_transporte') {
-              docTitle = "SOLICITUD DE TRANSPORTE";
+              docTitle = "SOLICITUD DE TRANSPORTE ESCOLAR";
               bodyText = `
-                  <p>Por la presente se solicita la cobertura de TRANSPORTE ESCOLAR para el/la alumno/a <b>${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</b>, DNI <b>${s.dni}</b>, afiliado a la Obra Social <b>${s.healthInsurance || '_____________'}</b>.</p>
-                  <p>El estudiante asiste a nuestra institución ubicada en Villa Udaondo, con una jornada ${s.journey || 'simple'}, siendo fundamental el transporte para garantizar su continuidad pedagógica.</p>
-                  <p><b>Domicilio del alumno:</b> ${s.address || '____________________________________'}</p>
-                  <p><b>Diagnóstico:</b> ${s.dx || '____________________'}</p>
+                  <p style="text-align: right; margin-bottom: 40px;">Villa Udaondo, ${today}</p>
+                  <p>Por la presente se solicita ante quien corresponda la cobertura del servicio de <b>TRANSPORTE ESCOLAR</b> para garantizar la continuidad pedagógica del/la alumno/a ${highlight(s.lastName.toUpperCase() + ', ' + s.firstName.toUpperCase())}, DNI ${highlight(s.dni)}, afiliado a la Obra Social ${highlight(s.healthInsurance || '_____________')}.</p>
+                  <p>El estudiante asiste a nuestra institución con sede en Villa Udaondo, cumpliendo una jornada de tipo ${highlight(s.journey || 'simple')}.</p>
+                  <div style="background: #f9fafb; padding: 20px; border-radius: 12px; border: 2px solid #e5e7eb; margin: 30px 0;">
+                    <p style="margin-bottom: 10px;"><b>📍 Domicilio real del alumno:</b> <br> ${s.address || '____________________________________'}</p>
+                    <p style="margin:0;"><b>🩺 Diagnóstico (CUD):</b> <br> ${s.dx || '____________________'}</p>
+                  </div>
+                  <p>Se considera el transporte un recurso indispensable para el acceso a su derecho a la educación.</p>
               `;
           }
           else if (template === 'autorizacion_retiro') {
               docTitle = "AUTORIZACIÓN DE RETIRO";
               bodyText = `
-                  <p>Yo, <b>__________________________________</b> (Padre/Madre/Tutor), DNI: __________________, autorizo a la institución a permitir el retiro del alumno/a <b>${s.lastName}, ${s.firstName}</b> (DNI: ${s.dni}) con las siguientes personas:</p>
-                  <div style="margin: 20px 0; border: 1px solid #000; padding: 15px;">
-                     <p>Actualmente figura en sistema: <b>${s.pickupInfo || 'Sin datos cargados'}</b></p>
-                     <p>Nuevas autorizaciones:</p>
-                     <br>1. Nombre: ____________________ DNI: _______________
-                     <br>2. Nombre: ____________________ DNI: _______________
-                     <br>3. Nombre: ____________________ DNI: _______________
+                  <p style="text-align: right; margin-bottom: 40px;">Fecha: ${today}</p>
+                  <p>Por la presente, yo __________________________________ (Padre/Madre/Tutor responsable), DNI: __________________, autorizo expresamente a la institución a permitir el retiro del alumno/a ${highlight(s.lastName + ', ' + s.firstName)} (DNI: ${s.dni}).</p>
+                  
+                  <div style="margin: 30px 0; border: 2px dashed #ccc; padding: 20px; background: #fff;">
+                     <p style="font-weight:bold; color: #4c1d95; margin-bottom: 15px;">📋 SITUACIÓN ACTUAL EN SISTEMA:</p>
+                     <p>${s.pickupInfo || 'Sin información de retiro cargada actualmente.'}</p>
                   </div>
-                  <p>Me comprometo a notificar cualquier cambio por escrito.</p>
+
+                  <p style="font-weight: bold; margin-bottom: 10px;">👇 AUTORIZO A LAS SIGUIENTES PERSONAS (MAYORES DE EDAD):</p>
+                  <div style="margin-left: 20px; line-height: 2.5;">
+                     1. Nombre y Apellido: ________________________ DNI: _______________ Firma: _______<br>
+                     2. Nombre y Apellido: ________________________ DNI: _______________ Firma: _______<br>
+                     3. Nombre y Apellido: ________________________ DNI: _______________ Firma: _______
+                  </div>
+                  <p style="margin-top: 20px;">Asumo la responsabilidad de notificar fehacientemente cualquier modificación a esta autorización.</p>
               `;
           }
 
           htmlContent += `
-          <div class="page">
-              <img src="${LOGO_URL}" class="logo"/>
-              <div class="header">
-                  JUNTOS A LA PAR - INSTITUCIÓN EDUCATIVA
+          <div class="page-container">
+              <div class="doc-header">
+                  <img src="${LOGO_URL}" class="doc-logo"/>
+                  <div class="doc-info">
+                      <h1>Juntos a la Par</h1>
+                      <p>Institución Educativa • Ciclo Lectivo 2026</p>
+                  </div>
               </div>
-              <h2 class="title">${docTitle}</h2>
-              <div class="content">
-                  <p style="text-align: right;">Villa Udaondo, ${today}</p>
-                  <br>
+              
+              <h2 class="doc-title">${docTitle}</h2>
+              
+              <div class="doc-content">
                   ${bodyText}
-                  <br><br>
               </div>
-              <div class="signature">
-                  <div class="signature-line">Firma y Sello Dirección</div>
+              
+              <div class="signature-section">
+                  <div class="signature-box">
+                      <div class="signature-line"></div>
+                      <div class="signature-text">Firma y Sello Dirección</div>
+                  </div>
+              </div>
+              
+              <div class="doc-footer">
+                  Documento generado digitalmente el ${today} a través del sistema de gestión institucional.
               </div>
           </div>`;
       });
@@ -2865,7 +2908,16 @@ function AdministracionView({ user }) {
                       <div className="col-span-4 font-bold text-sm text-gray-700 truncate">{s.lastName}, {s.firstName}</div>
                       <div className="col-span-2 text-xs text-gray-500 font-mono font-bold">{s.dni}</div>
                       <div className="col-span-3 text-xs text-blue-600 font-bold truncate">{s.healthInsurance || '-'}</div>
-                      <div className="col-
+                      <div className="col-span-2 flex justify-center">
+                          <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase shadow-sm ${s.modality==='Inclusión'?'bg-indigo-100 text-indigo-700 border border-indigo-200':'bg-orange-100 text-orange-700 border border-orange-200'}`}>{s.modality||'Sede'}</span>
+                      </div>
+                  </div>
+              ))}
+          </div>
+      </div>
+    </div>
+  );
+}
 // ===============================================================
 // PEGAR ESTO AL FINAL DEL ARCHIVO (FUERA DE CUALQUIER OTRA FUNCIÓN)
 // ===============================================================
@@ -2884,6 +2936,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
