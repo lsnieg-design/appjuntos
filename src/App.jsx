@@ -548,247 +548,276 @@ function ResourcesView({ resources, canEdit }) {
   );
 }
 
-// --- VISTA TAREAS (FINAL: MULTI-USUARIO + DIFERENCIACIÓN VISUAL) ---
-function TasksView({ user, tasks, usersList }) {
-  // ESTADOS
-  const [filter, setFilter] = useState('all'); // all, mine, sent
+// --- VISTA TAREAS (FINAL: MULTI-USUARIO + SUPERVISIÓN + TODAS LAS FUNCIONES) ---
+function TasksView({ tasks, user, canEdit }) {
+  // ESTADOS PRINCIPALES
   const [showModal, setShowModal] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [usersList, setUsersList] = useState([]);
   
-  // ESTADOS PARA EL FORMULARIO
-  const [targetType, setTargetType] = useState('roles'); // 'roles' o 'users'
+  // ESTADOS DE FORMULARIO
+  const [assignType, setAssignType] = useState('user'); 
   const [selectedRoles, setSelectedRoles] = useState([]);
-  const [selectedUsers, setSelectedUsers] = useState([]); // Array de IDs
+  
+  // CAMBIO: Ahora esto es un array para soportar múltiples
+  const [selectedUsersObj, setSelectedUsersObj] = useState([]); 
+  
+  const [checklist, setChecklist] = useState([]); 
+  const [newItem, setNewItem] = useState(""); 
+  const [userSearch, setUserSearch] = useState("");
+  const [openCommentsId, setOpenCommentsId] = useState(null); 
+  const [newComment, setNewComment] = useState("");
+  const [editingTask, setEditingTask] = useState(null); 
+  const [filter, setFilter] = useState('pending'); 
 
-  // ROLES
-  const STAFF_ROLES = ['Docente', 'Auxiliar/Preceptor', 'Equipo Técnico', 'Equipo Técnico Inclusión', 'Profes Especiales', 'Administración', 'Mantenimiento', 'Cocina'];
-  const isSuperAdmin = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo';
+  const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor', 'DAI', 'Dirección Inclusión', 'Equipo Técnico Inclusión'];
+  const isSuperAdmin = user.rol === 'admin' || user.rol === 'super-admin'; 
+  const canManage = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo' || user.role === 'Dirección Inclusión';
 
-  // --- HANDLERS ---
-  const handleToggleTask = async (task) => {
-    // Solo permitir completar si es mi tarea o soy admin
-    const isMine = task.targetUserIds?.includes(user.id) || task.targetRoles?.includes(user.role) || isSuperAdmin;
-    if (!isMine) return alert("Solo el responsable o un directivo pueden completar esta tarea.");
+  // CARGA DE USUARIOS Y EDICIÓN
+  useEffect(() => {
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
+    const unsub = onSnapshot(q, (snap) => {
+        const users = snap.docs.map(d => ({id: d.id, ...d.data()}));
+        setUsersList(users);
+        
+        // Lógica para recuperar datos al editar (Compatible con versión vieja y nueva)
+        if (editingTask) {
+            // Si tiene array de IDs (Nueva versión)
+            if (editingTask.targetUserIds && editingTask.targetUserIds.length > 0) {
+                const foundUsers = users.filter(u => editingTask.targetUserIds.includes(u.id));
+                setSelectedUsersObj(foundUsers);
+            } 
+            // Si tiene ID único (Versión vieja - Compatibilidad)
+            else if (editingTask.targetUserId) {
+                const found = users.find(u => u.id === editingTask.targetUserId);
+                if (found) setSelectedUsersObj([found]);
+            }
+        }
+    });
+    return () => unsub();
+  }, [editingTask]);
+
+  // GUARDAR TAREA (CON SOPORTE MULTI-USUARIO)
+  const handleSaveTask = async (e) => {
+    e.preventDefault(); 
+    const fd = new FormData(e.target);
     
+    let finalTargetIds = []; 
+    let finalAssignedName = "Todos"; 
+    let finalRoles = [];
+
+    if (assignType === 'user') { 
+        if (selectedUsersObj.length === 0) return alert("⚠️ Selecciona al menos un usuario."); 
+        finalTargetIds = selectedUsersObj.map(u => u.id);
+        // Crear un string bonito para mostrar (ej: "Juan, Maria...")
+        finalAssignedName = selectedUsersObj.map(u => u.firstName).join(", ");
+    } else { 
+        if (selectedRoles.length === 0) return alert("⚠️ Elige roles."); 
+        finalRoles = selectedRoles; 
+        finalAssignedName = selectedRoles.join(", "); 
+    }
+
+    const taskData = { 
+        title: fd.get('title'), 
+        dueDate: fd.get('dueDate') || null, 
+        showDate: fd.get('showDate') || new Date().toISOString().split('T')[0],
+        showTime: fd.get('showTime') || "08:00",
+        priority: fd.get('priority'), 
+        targetType: assignType, 
+        
+        // NUEVO: Array de IDs
+        targetUserIds: finalTargetIds, 
+        // MANTENEMOS COMPATIBILIDAD (Ponemos el primero como principal si hay)
+        targetUserId: finalTargetIds.length > 0 ? finalTargetIds[0] : null, 
+        
+        targetRoles: finalRoles, 
+        assignedToName: finalAssignedName, 
+        checklist: checklist 
+    };
+
     try {
-        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), {
-            status: task.status === 'completed' ? 'pending' : 'completed',
-            completedBy: task.status === 'completed' ? null : user.firstName,
-            completedAt: task.status === 'completed' ? null : new Date().toISOString()
-        });
-    } catch (e) { alert(e.message); }
+        if (editingTask) { 
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData); 
+        } else { 
+             const newTaskRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { ...taskData, createdByName: user.fullName || user.firstName, createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: [] });
+             
+             // NOTIFICACIONES
+             const scheduledTime = new Date(`${taskData.showDate}T${taskData.showTime}`);
+             const now = new Date();
+             
+             if (scheduledTime <= now) {
+                 const notifData = { title: `Tarea Nueva`, message: `${user.firstName}: "${fd.get('title')}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks', relatedId: newTaskRef.id, type: 'task_assigned' };
+                 
+                 if (assignType === 'user') {
+                     // Enviar a TODOS los seleccionados
+                     const promises = finalTargetIds.map(uid => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: uid }));
+                     await Promise.all(promises);
+                 } else if (assignType === 'roles') {
+                    const targets = usersList.filter(u => u.role && finalRoles.some(r => r.toLowerCase() === u.role.toLowerCase()));
+                    const promises = targets.map(t => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: t.id }));
+                    await Promise.all(promises);
+                 }
+             }
+        }
+        setShowModal(false);
+    } catch (err) { alert("Error: " + err.message); }
   };
 
-  const handleDelete = async (e, id) => {
-      e.stopPropagation();
-      if(!confirm("¿Eliminar tarea?")) return;
-      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id));
+  // FUNCIONES AUXILIARES (SELECCIÓN MÚLTIPLE)
+  const toggleUserSelection = (u) => {
+      if (selectedUsersObj.some(sel => sel.id === u.id)) {
+          // Si ya está, lo sacamos
+          setSelectedUsersObj(prev => prev.filter(sel => sel.id !== u.id));
+      } else {
+          // Si no está, lo agregamos
+          setSelectedUsersObj(prev => [...prev, u]);
+      }
+      setUserSearch(""); // Limpiar búsqueda al seleccionar
   };
 
-  const handleCreate = async (e) => {
-      e.preventDefault();
-      setIsSubmitting(true);
-      const fd = new FormData(e.target);
+  // FILTRADO DE TAREAS
+  const filteredTasks = tasks.filter(t => {
+      const now = new Date();
+      const scheduledTime = new Date(`${t.showDate || '2000-01-01'}T${t.showTime || '00:00'}`);
       
-      const title = fd.get('title');
-      const desc = fd.get('description');
-      const priority = fd.get('priority');
-      const date = fd.get('date');
-      const time = fd.get('time');
-
-      // Validaciones
-      if (targetType === 'users' && selectedUsers.length === 0) { alert("Selecciona al menos una persona."); setIsSubmitting(false); return; }
-      if (targetType === 'roles' && selectedRoles.length === 0) { alert("Selecciona al menos un rol."); setIsSubmitting(false); return; }
-
-      try {
-          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), {
-              title,
-              description: desc,
-              status: 'pending',
-              priority,
-              showDate: date,
-              showTime: time,
-              createdById: user.id,
-              createdBy: user.firstName,
-              createdAt: serverTimestamp(),
-              
-              // Lógica de asignación nueva
-              targetType, 
-              targetRoles: targetType === 'roles' ? selectedRoles : [],
-              targetUserIds: targetType === 'users' ? selectedUsers : [],
-              // Mantenemos compatibilidad con estructura vieja por las dudas
-              targetUserId: targetType === 'users' && selectedUsers.length === 1 ? selectedUsers[0] : null
-          });
-          setShowModal(false);
-          // Reset form
-          setSelectedUsers([]); setSelectedRoles([]);
-      } catch (e) { alert(e.message); }
-      setIsSubmitting(false);
-  };
-
-  // --- FILTRADO INTELIGENTE ---
-  const myTasks = tasks.filter(t => {
-      // Tareas que DEBO HACER (Asignadas a mi ID o a mi ROL)
-      return t.status !== 'completed' && (
-          (t.targetUserIds && t.targetUserIds.includes(user.id)) || 
-          (t.targetUserId === user.id) || // Compatibilidad vieja
-          (t.targetRoles && t.targetRoles.includes(user.role))
-      );
+      // LOGICA DE ESTADOS
+      if (filter === 'completed') {
+          if (t.status !== 'completed') return false;
+      } else if (filter === 'scheduled') {
+          if (t.status === 'completed') return false;
+          if (scheduledTime <= now) return false; 
+      } else { // 'pending'
+          if (t.status === 'completed') return false;
+          if (scheduledTime > now) return false; 
+      }
+      
+      // PRIVACIDAD
+      if (isSuperAdmin) return true; 
+      if (t.createdById === user.id) return true; 
+      
+      // Chequeo de asignación (Compatible con array y single)
+      if (t.targetType === 'user') {
+          if (t.targetUserIds && t.targetUserIds.includes(user.id)) return true; // Nuevo
+          if (t.targetUserId === user.id) return true; // Viejo
+      }
+      if (t.targetType === 'roles' && t.targetRoles && user.role && t.targetRoles.some(r => r.toLowerCase() === user.role.toLowerCase())) return true;
+      
+      return false; 
   });
 
-  const sentTasks = tasks.filter(t => t.createdById === user.id);
-
-  // Lista final a mostrar según el filtro de la UI
-  const tasksToRender = tasks.filter(t => {
-      const scheduled = new Date(`${t.showDate}T${t.showTime}`);
-      if (scheduled > new Date()) return false; // Aún no visibles
-
-      if (filter === 'mine') return t.createdById === user.id; // Mis enviadas
-      if (filter === 'pending') return t.status === 'pending';
-      return true; // 'all'
-  }).sort((a,b) => b.createdAt - a.createdAt);
+  const addComment = async (task) => { if (!newComment.trim()) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion({ text: newComment, author: user.firstName, date: new Date().toISOString() }) }); setNewComment(""); };
+  const handleDelete = async (id) => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
+  const changeStatus = async (task, newStatus) => { if (newStatus === 'completed' && !confirm("¿Lista?")) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
+  
+  const openNew = () => { setEditingTask(null); setAssignType('user'); setSelectedRoles([]); setChecklist([]); setNewItem(""); setUserSearch(""); setSelectedUsersObj([]); setShowModal(true); };
+  const openEdit = (t) => { setEditingTask(t); setAssignType(t.targetType || 'user'); setSelectedRoles(t.targetRoles || []); setChecklist(t.checklist || []); setShowModal(true); };
+  
+  const searchResults = userSearch.length > 0 ? (usersList || []).filter(u => u.fullName.toLowerCase().includes(userSearch.toLowerCase())) : [];
+  const getPriorityStyle = (p) => { if (p === 'alta') return 'border-l-4 border-l-red-500 bg-red-50/50'; if (p === 'media') return 'border-l-4 border-l-orange-400 bg-orange-50/50'; return 'border-l-4 border-l-green-400 bg-green-50/50'; };
 
   return (
-    <div className="animate-in fade-in pb-20">
-      {/* HEADER */}
-      <div className="bg-white p-6 rounded-3xl shadow-lg mb-6 flex justify-between items-center relative overflow-hidden">
-          <div className="relative z-10">
-              <h2 className="text-3xl font-black text-gray-800 italic uppercase flex items-center gap-2"><CheckSquare className="text-purple-600"/> Pedidos y Tareas</h2>
-              <p className="text-sm text-gray-500 font-bold mt-1">Organización Institucional</p>
+    <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-20">
+      <div className="flex justify-between items-center mb-2 bg-white p-4 sticky top-0 z-10 shadow-sm rounded-b-3xl">
+          <div><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2><p className="text-xs text-gray-400 font-bold">{filteredTasks.length} visibles</p></div>
+          <div className="flex gap-2">
+             <div className="flex bg-gray-100 rounded-xl p-1">
+                 <button onClick={()=>setFilter('pending')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='pending'?'bg-white shadow text-slate-800':'text-gray-400'}`}>Activas</button>
+                 {canManage && <button onClick={()=>setFilter('scheduled')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='scheduled'?'bg-white shadow text-orange-600':'text-gray-400'}`}>Próximas</button>}
+                 <button onClick={()=>setFilter('completed')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='completed'?'bg-white shadow text-green-600':'text-gray-400'}`}>Listas</button>
+             </div>
+             <button onClick={openNew} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg hover:scale-110 transition-all"><Plus size={20}/></button>
           </div>
-          <button onClick={() => setShowModal(true)} className="relative z-10 bg-purple-600 text-white px-5 py-3 rounded-2xl font-black shadow-lg hover:bg-purple-700 transition flex items-center gap-2 uppercase text-xs tracking-widest">
-              <Plus size={18}/> Nuevo Pedido
-          </button>
-          <div className="absolute right-0 top-0 h-full w-32 bg-gradient-to-l from-purple-100 to-transparent opacity-50"></div>
       </div>
+      
+      <div className="grid gap-3 px-2">
+          {filteredTasks.length === 0 ? ( <div className="text-center py-10 opacity-40"><CheckCircle size={40} className="mx-auto mb-2 text-gray-400"/><p className="font-bold text-gray-500">Sin tareas en esta vista.</p></div> ) : filteredTasks.map(t => {
+            // LÓGICA DE SUPERVISIÓN
+            const isAssignedToMe = (t.targetUserIds && t.targetUserIds.includes(user.id)) || (t.targetUserId === user.id) || (t.targetRoles && t.targetRoles.includes(user.role));
+            const isCreatedByMe = t.createdById === user.id;
+            // Es "Supervisión" si NO es para mí Y NO la creé yo (pero la veo porque soy admin)
+            const isSupervision = !isAssignedToMe && !isCreatedByMe;
 
-      {/* FILTROS RÁPIDOS */}
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
-          <button onClick={() => setFilter('all')} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${filter === 'all' ? 'bg-purple-600 text-white shadow-md' : 'bg-white text-gray-500'}`}>Todas</button>
-          <button onClick={() => setFilter('mine')} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${filter === 'mine' ? 'bg-purple-600 text-white shadow-md' : 'bg-white text-gray-500'}`}>Enviadas por Mí</button>
-          {isSuperAdmin && <div className="ml-auto bg-gray-200 px-3 py-1 rounded-lg text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1"><Eye size={12}/> Vista Supervisión</div>}
-      </div>
+            return (
+                <div key={t.id} className={`p-5 rounded-[30px] shadow-sm flex flex-col gap-3 transition-all relative ${getPriorityStyle(t.priority)} ${isSupervision ? 'opacity-80 bg-gray-50 grayscale-[0.3]' : 'bg-white'}`}>
+                    
+                    {/* ETIQUETA SUPERVISIÓN */}
+                    {isSupervision && <div className="absolute top-2 right-10 bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-[9px] font-black uppercase flex items-center gap-1 border border-gray-300"><Eye size={10}/> Supervisión</div>}
 
-      {/* LISTA DE TAREAS */}
-      <div className="space-y-3">
-          {tasksToRender.length === 0 && <div className="text-center py-10 opacity-50 font-bold text-gray-400">No hay tareas visibles.</div>}
-          
-          {tasksToRender.map(t => {
-              // Lógica de Visualización: ¿Es para mí?
-              const isAssignedToMe = (t.targetUserIds?.includes(user.id)) || (t.targetUserId === user.id) || (t.targetRoles?.includes(user.role));
-              const isCreatedByMe = t.createdById === user.id;
-              
-              // Si NO es para mí y NO la creé yo, es una tarea de "Terceros" (Supervisión)
-              const isThirdParty = !isAssignedToMe && !isCreatedByMe;
-
-              return (
-                  <div key={t.id} onClick={() => handleToggleTask(t)} className={`p-4 rounded-2xl border shadow-sm relative transition group cursor-pointer ${
-                      t.status === 'completed' ? 'bg-gray-100 border-gray-200 opacity-60' : 
-                      isThirdParty ? 'bg-gray-50 border-gray-200' : // Diseño "Gris" para tareas ajenas
-                      'bg-white border-purple-100 hover:border-purple-300' // Diseño "Brillante" para mis tareas
-                  }`}>
-                      <div className="flex items-start gap-3">
-                          {/* CHECKBOX */}
-                          <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition ${t.status === 'completed' ? 'bg-green-500 border-green-500' : 'border-gray-300'}`}>
-                              {t.status === 'completed' && <Check size={14} className="text-white"/>}
-                          </div>
-                          
-                          <div className="flex-1">
-                              {/* ETIQUETAS SUPERIORES */}
-                              <div className="flex gap-2 mb-1">
-                                  {/* Etiqueta de Prioridad */}
-                                  {t.priority === 'high' && <span className="bg-red-100 text-red-700 text-[9px] font-black px-1.5 py-0.5 rounded uppercase">Urgente</span>}
-                                  
-                                  {/* Etiqueta de "Para quién es" */}
-                                  <span className="bg-blue-50 text-blue-700 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
-                                      To: {t.targetType === 'roles' 
-                                          ? (t.targetRoles?.join(', ') || 'Rol') 
-                                          : (t.targetUserIds?.length > 1 ? `${t.targetUserIds.length} Personas` : 'Persona')
-                                      }
-                                  </span>
-
-                                  {/* Etiqueta de Supervisión (Solo si es ajena) */}
-                                  {isThirdParty && <span className="bg-gray-200 text-gray-600 text-[9px] font-black px-1.5 py-0.5 rounded uppercase flex items-center gap-1 border border-gray-300"><Eye size={10}/> Supervisión</span>}
-                              </div>
-
-                              <h4 className={`font-bold text-sm ${t.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{t.title}</h4>
-                              <p className="text-xs text-gray-500 mt-1 line-clamp-2">{t.description}</p>
-                              
-                              <div className="mt-2 flex justify-between items-end">
-                                  <div className="text-[10px] text-gray-400 font-bold uppercase">
-                                      De: {t.createdBy} • {new Date(t.showDate).toLocaleDateString()}
-                                  </div>
-                                  {t.status === 'completed' && <div className="text-[10px] text-green-600 font-black uppercase bg-green-50 px-2 py-1 rounded">Hecho por: {t.completedBy}</div>}
-                              </div>
-                          </div>
-                      </div>
-
-                      {(isSuperAdmin || isCreatedByMe) && (
-                          <button onClick={(e) => handleDelete(e, t.id)} className="absolute top-2 right-2 p-2 text-gray-300 hover:text-red-500 transition">
-                              <Trash2 size={16}/>
-                          </button>
-                      )}
-                  </div>
-              );
+                    <div className="flex justify-between items-start">
+                        <div className="flex-1 pr-6">
+                            <p className="text-[9px] font-black text-violet-600 uppercase tracking-widest italic mb-1">Para: {t.assignedToName}</p>
+                            <h3 className={`font-bold text-gray-800 text-sm uppercase italic tracking-tighter leading-none ${t.status==='completed'?'line-through opacity-50':''}`}>{t.title}</h3>
+                            <p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName}</p>
+                            {new Date(`${t.showDate}T${t.showTime}`) > new Date() && (<div className="mt-2 inline-flex items-center gap-1 bg-yellow-100 text-yellow-800 text-[9px] font-bold px-2 py-1 rounded-md border border-yellow-200"><Clock size={10}/> Programada: {new Date(t.showDate).toLocaleDateString()} {t.showTime}hs</div>)}
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                            <div className="flex gap-1">{(t.createdById === user.id || isSuperAdmin) && <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm"><Trash2 size={14}/></button>}</div>
+                        </div>
+                    </div>
+                    
+                    {openCommentsId === t.id && ( <div className="bg-white/60 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in"><div className="max-h-32 overflow-y-auto space-y-2 mb-2">{(t.comments || []).map((c, idx) => ( <p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p> ))}</div><div className="flex gap-2"><input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribe..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" /><button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button></div></div> )}
+                    
+                    <div className="pt-2 border-t border-black/5 flex justify-between items-center">
+                        <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className={`flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 rounded-xl transition ${t.comments?.length > 0 ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500 hover:bg-violet-50 hover:text-violet-600'}`}><MessageSquare size={14}/> {t.comments?.length > 0 ? `${t.comments.length} Msjs` : 'Comentar'}</button>
+                        <div className="flex bg-white/60 rounded-lg p-0.5 shadow-sm">
+                            <button onClick={() => changeStatus(t, 'pending')} className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition ${t.status === 'pending' ? 'bg-white shadow text-gray-700' : 'text-gray-400'}`}>Pend.</button>
+                            <button onClick={() => changeStatus(t, 'in_process')} className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition ${t.status === 'in_process' ? 'bg-orange-100 text-orange-600 shadow' : 'text-gray-400'}`}>Proc.</button>
+                            <button onClick={() => changeStatus(t, 'completed')} className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition ${t.status === 'completed' ? 'bg-green-100 text-green-700 shadow' : 'text-gray-400'}`}>Lista</button>
+                        </div>
+                    </div>
+                </div>
+            );
           })}
       </div>
 
-      {/* MODAL NUEVA TAREA (ASIGNACIÓN MÚLTIPLE) */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-            <div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
-                <h3 className="text-xl font-black text-purple-800 uppercase italic mb-4">Nueva Tarea / Pedido</h3>
-                <form onSubmit={handleCreate} className="space-y-4">
-                    <input name="title" required placeholder="Título (ej: Arreglar Luz)" className="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 text-sm font-bold outline-none focus:border-purple-500"/>
-                    <textarea name="description" placeholder="Detalles..." className="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 text-sm outline-none focus:border-purple-500 h-24 resize-none"/>
+        <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
+          <form onSubmit={handleSaveTask} className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-black text-violet-900 uppercase italic">{editingTask ? 'Editar Tarea' : 'Nueva Tarea'}</h3>
+            <input name="title" defaultValue={editingTask?.title} placeholder="Título de la tarea" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm shadow-inner" />
+            <div className="flex gap-2 bg-gray-100 p-1 rounded-xl"><button type="button" onClick={() => setAssignType('user')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'user' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Persona(s)</button><button type="button" onClick={() => setAssignType('roles')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'roles' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Roles</button></div>
+            
+            {assignType === 'user' ? ( 
+                <div className="space-y-2">
+                    {/* LISTA DE SELECCIONADOS */}
+                    <div className="flex flex-wrap gap-2 mb-2">
+                        {selectedUsersObj.map(u => (
+                            <div key={u.id} className="flex items-center gap-1 bg-violet-100 text-violet-800 px-2 py-1 rounded-lg text-xs font-bold">
+                                {u.firstName} 
+                                <button type="button" onClick={() => toggleUserSelection(u)}><X size={12}/></button>
+                            </div>
+                        ))}
+                    </div>
                     
-                    <div className="grid grid-cols-2 gap-3">
-                        <select name="priority" className="p-3 bg-gray-50 rounded-xl text-xs font-bold outline-none"><option value="normal">Normal</option><option value="high">🔥 Urgente</option></select>
-                        <input type="date" name="date" required defaultValue={new Date().toISOString().split('T')[0]} className="p-3 bg-gray-50 rounded-xl text-xs font-bold outline-none"/>
-                        <input type="time" name="time" required defaultValue="08:00" className="p-3 bg-gray-50 rounded-xl text-xs font-bold outline-none col-span-2"/>
-                    </div>
-
-                    {/* SELECCIÓN DE DESTINATARIOS */}
-                    <div className="bg-purple-50 p-4 rounded-2xl border border-purple-100">
-                        <label className="text-[10px] font-black text-purple-400 uppercase mb-2 block">¿Para quién es?</label>
-                        <div className="flex bg-white p-1 rounded-lg mb-3 shadow-sm">
-                            <button type="button" onClick={() => setTargetType('roles')} className={`flex-1 py-2 text-xs font-bold rounded-md transition ${targetType==='roles' ? 'bg-purple-600 text-white' : 'text-gray-500'}`}>Por Roles</button>
-                            <button type="button" onClick={() => setTargetType('users')} className={`flex-1 py-2 text-xs font-bold rounded-md transition ${targetType==='users' ? 'bg-purple-600 text-white' : 'text-gray-500'}`}>Por Personas</button>
-                        </div>
-
-                        <div className="max-h-40 overflow-y-auto pr-1 space-y-1">
-                            {targetType === 'roles' ? (
-                                STAFF_ROLES.map(role => (
-                                    <label key={role} className="flex items-center gap-2 p-2 hover:bg-white rounded-lg cursor-pointer transition">
-                                        <input type="checkbox" checked={selectedRoles.includes(role)} onChange={(e) => {
-                                            if (e.target.checked) setSelectedRoles([...selectedRoles, role]);
-                                            else setSelectedRoles(selectedRoles.filter(r => r !== role));
-                                        }} className="accent-purple-600"/>
-                                        <span className="text-xs font-bold text-gray-700">{role}</span>
-                                    </label>
-                                ))
-                            ) : (
-                                usersList.map(u => (
-                                    <label key={u.id} className="flex items-center gap-2 p-2 hover:bg-white rounded-lg cursor-pointer transition">
-                                        <input type="checkbox" checked={selectedUsers.includes(u.id)} onChange={(e) => {
-                                            if (e.target.checked) setSelectedUsers([...selectedUsers, u.id]);
-                                            else setSelectedUsers(selectedUsers.filter(id => id !== u.id));
-                                        }} className="accent-purple-600"/>
-                                        <span className="text-xs font-bold text-gray-700">{u.lastName}, {u.firstName} <span className="text-gray-400 text-[9px] uppercase">({u.role})</span></span>
-                                    </label>
-                                ))
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="flex gap-2 pt-2">
-                        <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-gray-400 font-bold uppercase text-xs">Cancelar</button>
-                        <button type="submit" disabled={isSubmitting} className="flex-1 py-3 bg-purple-600 text-white rounded-xl font-black uppercase text-xs shadow-lg hover:bg-purple-700 transition">
-                            {isSubmitting ? 'Enviando...' : 'Crear Tarea'}
-                        </button>
-                    </div>
-                </form>
+                    {/* BUSCADOR */}
+                    <div className="relative">
+                        <input placeholder="🔍 Buscar para agregar..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} autoComplete="off" className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none focus:border-violet-500 rounded-t-xl" />
+                        {userSearch.length > 0 && (
+                            <div className="max-h-40 overflow-y-auto border-x border-b border-gray-200 rounded-b-xl bg-white shadow-xl absolute w-full z-50">
+                                {searchResults.length > 0 ? searchResults.map(u => (
+                                    <div key={u.id} onClick={() => toggleUserSelection(u)} className={`p-3 hover:bg-violet-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0 ${selectedUsersObj.some(s=>s.id===u.id) ? 'bg-violet-50' : ''}`}>
+                                        <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">{u.firstName[0]}</div>
+                                        <p className="text-xs font-bold text-gray-700">{u.fullName}</p>
+                                        {selectedUsersObj.some(s=>s.id===u.id) && <Check size={14} className="ml-auto text-violet-600"/>}
+                                    </div>
+                                )) : <p className="p-3 text-xs text-gray-400 italic text-center">No encontrado</p>}
+                            </div>
+                        )}
+                    </div> 
+                </div> 
+            ) : ( 
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 max-h-32 overflow-y-auto">
+                    {ROLES_OPTIONS.map(role => ( <label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={selectedRoles.includes(role)} onChange={(e) => { if(e.target.checked) setSelectedRoles([...selectedRoles, role]); else setSelectedRoles(selectedRoles.filter(r => r !== role)); }} className="accent-violet-600"/> {role}</label> ))}
+                </div> 
+            )}
+            
+            <div className="grid grid-cols-2 gap-4">
+                <div><label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Vencimiento</label><input name="dueDate" type="date" defaultValue={editingTask?.dueDate} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs text-gray-600 border border-gray-200" /></div>
+                <select name="priority" defaultValue={editingTask?.priority} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs uppercase text-orange-600 italic border border-gray-200 h-[66px] mt-auto"><option value="baja">🟢 Baja</option><option value="media">🟠 Media</option><option value="alta">🔴 Alta</option></select>
             </div>
+            {canManage && (<div className="bg-orange-50 p-3 rounded-xl border border-orange-100"><label className="text-[10px] font-bold text-orange-700 uppercase mb-1 block flex items-center gap-1"><Clock size={10}/> Programar Aparición</label><div className="flex gap-2"><input name="showDate" type="date" defaultValue={editingTask?.showDate} className="w-full p-2 bg-white rounded-lg outline-none font-bold text-xs text-orange-800 border border-orange-200" /><input name="showTime" type="time" defaultValue={editingTask?.showTime || "08:00"} className="w-24 p-2 bg-white rounded-lg outline-none font-bold text-xs text-orange-800 border border-orange-200" /></div><p className="text-[9px] text-orange-600 mt-1">Si pones una fecha/hora futura, la tarea quedará en "Próximas".</p></div>)}
+            <div className="flex gap-2 pt-2"><button type="button" onClick={() => setShowModal(false)} className="flex-1 font-bold text-gray-400 text-xs uppercase">Cancelar</button><button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">GUARDAR</button></div>
+          </form>
         </div>
       )}
     </div>
@@ -2667,6 +2696,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
