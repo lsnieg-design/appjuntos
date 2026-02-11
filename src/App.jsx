@@ -2117,7 +2117,7 @@ function ActivityLogView() {
     </div>
   );
 }
-// --- APP PRINCIPAL (NOTIFICACIONES + MANTENIMIENTO AMIGABLE) ---
+// --- APP PRINCIPAL (FINAL: CON ADMIN INTEGRADO + MANTENIMIENTO + NOTIFS) ---
 function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -2141,7 +2141,12 @@ function MainApp({ user, onLogout }) {
   const prevNotifCount = useRef(0);
   const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin'; 
   const canManageContent = user.rol === 'admin' || isSuperAdmin || user.role === 'Equipo Directivo';
-  const isWideTab = ['groups', 'calendar', 'matricula', 'resources', 'users'].includes(activeTab);
+  
+  // PERMISO ADMIN (PARA EL BOTÓN)
+  const isAdminRole = ['admin', 'super-admin', 'Administración', 'Equipo Directivo'].includes(user.role) || user.rol === 'admin';
+
+  // TABS ANCHOS
+  const isWideTab = ['groups', 'calendar', 'matricula', 'resources', 'users', 'admin'].includes(activeTab);
 
   useEffect(() => {
     if (user?.id) updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { lastLogin: serverTimestamp() }).catch(()=>{});
@@ -2251,21 +2256,56 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'groups' && <GroupsView user={user} />}
         {activeTab === 'users' && isSuperAdmin && <UsersAdminView />}
         {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={isSuperAdmin} user={user} />}
+        
+        {/* --- NUEVO: VISTA ADMIN (SOLO RENDERIZA SI EL TAB ES 'ADMIN') --- */}
+        {activeTab === 'admin' && <AdministracionView user={user} />}
+        {/* ----------------------------------------------------------------- */}
       </main>
 
       <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-16 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] pb-safe shrink-0">
-        <div className="grid grid-cols-5 md:grid-cols-7 h-full max-w-5xl mx-auto px-2 relative">
+        <div className="grid grid-cols-5 md:grid-cols-8 h-full max-w-5xl mx-auto px-2 relative">
           <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Inicio" />
           <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={20} />} label="Tareas" />
           <div className="hidden md:block"><NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={20} />} label="Agenda" /></div>
+          
           <div className="relative -top-5 flex justify-center"><button onClick={() => setActiveTab('groups')} className={`w-14 h-14 rounded-full flex flex-col items-center justify-center shadow-xl border-4 border-gray-50 transition-all transform active:scale-95 ${activeTab === 'groups' ? 'bg-orange-500 text-white scale-110' : 'bg-violet-600 text-white'}`}><Grid size={24} /></button><span className="absolute -bottom-4 text-[9px] font-black text-violet-900 uppercase tracking-wide whitespace-nowrap">Mi Aula</span></div>
+          
           <div className="block md:hidden"><NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={20} />} label="Agenda" /></div>
           <div className="hidden md:block"><NavButton active={activeTab === 'matricula'} onClick={() => setActiveTab('matricula')} icon={<GraduationCap size={20} />} label="Legajos" /></div>
           <div className="hidden md:block"><NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<LinkIcon size={20} />} label="Recursos" /></div>
           <div className="hidden md:block"><NavButton active={activeTab === 'proyecto'} onClick={() => setActiveTab('proyecto')} icon={<PieChart size={20} />} label="P.I." /></div>
-          <div className="relative block md:hidden"><NavButton active={['matricula', 'resources', 'proyecto'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={20} />} label="Más" />{showMoreMenu && (<div className="absolute bottom-16 right-0 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 w-48 animate-in slide-in-from-bottom-5 zoom-in-95 origin-bottom-right z-50"><button onClick={() => { setActiveTab('matricula'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><GraduationCap size={18} className="text-violet-500"/> Legajos</button><button onClick={() => { setActiveTab('resources'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><LinkIcon size={18} className="text-green-500"/> Recursos</button><button onClick={() => { setActiveTab('proyecto'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><PieChart size={18} className="text-orange-500"/> Proyecto Inst.</button></div>)}</div>
+
+          {/* --- NUEVO: BOTÓN ADMIN (VERSIÓN PC) --- */}
+          {isAdminRole && (
+              <div className="hidden md:block">
+                  <button onClick={() => setActiveTab('admin')} className={`flex flex-col items-center gap-1 transition h-full justify-center w-full ${activeTab === 'admin' ? 'text-blue-500 scale-110' : 'text-gray-400'}`}>
+                      <FileText size={20} />
+                      <span className="text-[9px] font-bold uppercase">Admin</span>
+                  </button>
+              </div>
+          )}
+          {/* ----------------------------------------- */}
+
+          <div className="relative block md:hidden"><NavButton active={['matricula', 'resources', 'proyecto', 'admin'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={20} />} label="Más" />
+              {showMoreMenu && (
+                  <div className="absolute bottom-16 right-0 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 w-48 animate-in slide-in-from-bottom-5 zoom-in-95 origin-bottom-right z-50">
+                      <button onClick={() => { setActiveTab('matricula'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><GraduationCap size={18} className="text-violet-500"/> Legajos</button>
+                      <button onClick={() => { setActiveTab('resources'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><LinkIcon size={18} className="text-green-500"/> Recursos</button>
+                      <button onClick={() => { setActiveTab('proyecto'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><PieChart size={18} className="text-orange-500"/> Proyecto Inst.</button>
+                      
+                      {/* --- NUEVO: BOTÓN ADMIN (VERSIÓN MÓVIL) --- */}
+                      {isAdminRole && (
+                          <button onClick={() => { setActiveTab('admin'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-blue-600 border-t border-gray-100 mt-1">
+                              <FileText size={18} className="text-blue-500"/> Administración
+                          </button>
+                      )}
+                      {/* ----------------------------------------- */}
+                  </div>
+              )}
+          </div>
         </div>
       </nav>
+
       {showSearch && ( <div className="fixed inset-0 bg-violet-900/90 z-[300] flex flex-col p-4 backdrop-blur-md animate-in fade-in"><div className="flex justify-between items-center text-white mb-4"><h3 className="font-black italic uppercase">Buscador Rápido</h3><button onClick={() => {setShowSearch(false); setSearchQuery(''); setSearchResults([]);}} className="p-2 bg-white/20 rounded-full"><X/></button></div><input autoFocus value={searchQuery} onChange={(e) => handleGlobalSearch(e.target.value)} placeholder="Escribí un nombre o apellido..." className="w-full p-4 rounded-2xl bg-white text-lg font-bold text-gray-800 outline-none shadow-xl mb-4"/><div className="flex-1 overflow-y-auto space-y-2">{searchResults.map(s => (<div key={s.id} onClick={() => setGlobalViewingStudent(s)} className="bg-white p-3 rounded-xl flex items-center gap-3 active:scale-95 transition cursor-pointer"><div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center font-bold text-gray-400">{s.firstName[0]}</div>}</div><div><p className="font-bold text-gray-800 text-sm">{s.lastName}, {s.firstName}</p><p className="text-[10px] text-gray-500">{s.level} • {s.groupMorning || s.groupAfternoon || 'Sin Grupo'}</p></div></div>))}{searchQuery.length > 2 && searchResults.length === 0 && <p className="text-white/50 text-center mt-4">No se encontraron resultados.</p>}</div></div> )}
       {globalViewingStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[350] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95"><div className="bg-violet-600 p-4 text-white flex justify-between items-center"><h3 className="font-bold text-lg">{globalViewingStudent.lastName}, {globalViewingStudent.firstName}</h3><button onClick={() => setGlobalViewingStudent(null)}><X/></button></div><div className="p-6"><div className="flex gap-4 items-center mb-4"><div className="w-20 h-20 bg-gray-200 rounded-2xl overflow-hidden">{globalViewingStudent.photoUrl && <img src={globalViewingStudent.photoUrl} className="w-full h-full object-cover"/>}</div><div><p className="text-sm font-bold text-gray-600">Edad: {calculateAge(globalViewingStudent.birthDate)} años</p><p className="text-sm font-bold text-gray-600">DNI: {globalViewingStudent.dni}</p><p className="text-xs text-orange-500 font-bold mt-1 uppercase">{globalViewingStudent.dx}</p></div></div><button onClick={() => { setActiveTab('matricula'); setShowSearch(false); setGlobalViewingStudent(null); alert("Te llevamos a la sección Legajos. Buscalo ahí para editar."); }} className="w-full bg-violet-100 text-violet-700 py-3 rounded-xl font-bold text-xs uppercase hover:bg-violet-200 transition">Ir a Legajo Completo</button></div></div></div>)}
     </div>
@@ -2601,6 +2641,220 @@ function GroupsView({ user }) {
     </div>
   );
 }
+// --- VISTA ADMINISTRACIÓN (GENERADOR DE DOCUMENTOS MASIVOS) ---
+function AdministracionView({ user }) {
+  const [students, setStudents] = useState([]);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [filterText, setFilterText] = useState('');
+  const [filters, setFilters] = useState({ os: 'all', level: 'all', modality: 'all' });
+  const [template, setTemplate] = useState('constancia_regular');
+  const [generating, setGenerating] = useState(false);
+
+  // ROLES PERMITIDOS
+  const canAccess = ['admin', 'super-admin', 'Administración', 'Equipo Directivo'].includes(user.role) || user.rol === 'admin';
+
+  // CARGA DE DATOS
+  useEffect(() => {
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), orderBy('lastName', 'asc'));
+    const unsub = onSnapshot(q, (snap) => {
+        setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, []);
+
+  // FILTROS
+  const filteredStudents = students.filter(s => {
+      if (s.isActive === false) return false;
+      const txt = filterText.toLowerCase();
+      if (txt && !((s.firstName||'').toLowerCase().includes(txt) || (s.lastName||'').toLowerCase().includes(txt) || (s.dni||'').includes(txt))) return false;
+      
+      if (filters.os !== 'all') {
+          // Filtro inteligente de Obra Social (busca texto parcial)
+          if (filters.os === 'con_os' && (!s.healthInsurance || s.healthInsurance.length < 2)) return false;
+          if (filters.os === 'sin_os' && (s.healthInsurance && s.healthInsurance.length > 2)) return false;
+          if (filters.os !== 'con_os' && filters.os !== 'sin_os' && !(s.healthInsurance||'').toLowerCase().includes(filters.os.toLowerCase())) return false;
+      }
+      if (filters.level !== 'all' && s.level !== filters.level) return false;
+      if (filters.modality !== 'all' && (s.modality || 'Sede') !== filters.modality) return false;
+      return true;
+  });
+
+  // SELECCIÓN
+  const toggleSelectAll = () => {
+      if (selectedIds.length === filteredStudents.length) setSelectedIds([]);
+      else setSelectedIds(filteredStudents.map(s => s.id));
+  };
+
+  const toggleSelect = (id) => {
+      if (selectedIds.includes(id)) setSelectedIds(selectedIds.filter(x => x !== id));
+      else setSelectedIds([...selectedIds, id]);
+  };
+
+  // --- PLANTILLAS DE DOCUMENTOS ---
+  const generateDocument = () => {
+      if (selectedIds.length === 0) return alert("Selecciona al menos un estudiante.");
+      setGenerating(true);
+      
+      const targets = students.filter(s => selectedIds.includes(s.id));
+      const today = new Date().toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' });
+
+      let htmlContent = `<html><head><title>Documentos Masivos</title><style>
+          body { font-family: 'Times New Roman', serif; padding: 40px; color: #000; line-height: 1.6; }
+          .page { position: relative; height: 100vh; padding: 40px; page-break-after: always; box-sizing: border-box; }
+          .header { text-align: center; margin-bottom: 40px; text-transform: uppercase; font-weight: bold; border-bottom: 2px solid #000; padding-bottom: 10px; }
+          .title { text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 30px; text-decoration: underline; text-transform: uppercase; }
+          .content { font-size: 14px; text-align: justify; }
+          .signature { margin-top: 100px; text-align: right; }
+          .signature-line { display: inline-block; width: 200px; border-top: 1px solid #000; text-align: center; padding-top: 5px; font-size: 12px; }
+          .logo { position: absolute; top: 20px; left: 40px; width: 60px; height: 60px; opacity: 0.8; }
+          @media print { body { padding: 0; } .page { height: auto; min-height: 90vh; margin: 0; } }
+      </style></head><body>`;
+
+      targets.forEach(s => {
+          let bodyText = "";
+          let docTitle = "";
+
+          // LÓGICA DE PLANTILLAS
+          if (template === 'constancia_regular') {
+              docTitle = "CONSTANCIA DE ALUMNO REGULAR";
+              bodyText = `
+                  <p>La Dirección de la Institución <b>"Juntos a la Par"</b> hace constar que el/la alumno/a <b>${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</b>, DNI Nº <b>${s.dni || '....................'}</b>, es alumno regular de este establecimiento en el ciclo lectivo 2026.</p>
+                  <p>Asiste al nivel <b>${s.level || '....................'}</b>, en la modalidad <b>${s.modality || 'Sede'}</b>.</p>
+                  <p>Se extiende la presente a pedido de la parte interesada para ser presentada ante <b>${s.healthInsurance || 'quien corresponda'}</b>.</p>
+              `;
+          } 
+          else if (template === 'solicitud_transporte') {
+              docTitle = "SOLICITUD DE TRANSPORTE";
+              bodyText = `
+                  <p>Por la presente se solicita la cobertura de TRANSPORTE ESCOLAR para el/la alumno/a <b>${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</b>, DNI <b>${s.dni}</b>, afiliado a la Obra Social <b>${s.healthInsurance || '_____________'}</b>.</p>
+                  <p>El estudiante asiste a nuestra institución ubicada en Villa Udaondo, con una jornada ${s.journey || 'simple'}, siendo fundamental el transporte para garantizar su continuidad pedagógica.</p>
+                  <p><b>Domicilio del alumno:</b> ${s.address || '____________________________________'}</p>
+                  <p><b>Diagnóstico:</b> ${s.dx || '____________________'}</p>
+              `;
+          }
+          else if (template === 'autorizacion_retiro') {
+              docTitle = "AUTORIZACIÓN DE RETIRO";
+              bodyText = `
+                  <p>Yo, <b>__________________________________</b> (Padre/Madre/Tutor), DNI: __________________, autorizo a la institución a permitir el retiro del alumno/a <b>${s.lastName}, ${s.firstName}</b> (DNI: ${s.dni}) con las siguientes personas:</p>
+                  <div style="margin: 20px 0; border: 1px solid #000; padding: 15px;">
+                     <p>Actualmente figura en sistema: <b>${s.pickupInfo || 'Sin datos cargados'}</b></p>
+                     <p>Nuevas autorizaciones:</p>
+                     <br>1. Nombre: ____________________ DNI: _______________
+                     <br>2. Nombre: ____________________ DNI: _______________
+                     <br>3. Nombre: ____________________ DNI: _______________
+                  </div>
+                  <p>Me comprometo a notificar cualquier cambio por escrito.</p>
+              `;
+          }
+
+          htmlContent += `
+          <div class="page">
+              <div class="header">
+                  JUNTOS A LA PAR - INSTITUCIÓN EDUCATIVA
+              </div>
+              <h2 class="title">${docTitle}</h2>
+              <div class="content">
+                  <p style="text-align: right;">Villa Udaondo, ${today}</p>
+                  <br>
+                  ${bodyText}
+                  <br><br>
+              </div>
+              <div class="signature">
+                  <div class="signature-line">Firma y Sello Dirección</div>
+              </div>
+          </div>`;
+      });
+
+      htmlContent += '</body></html>';
+
+      // IMPRESIÓN IFRAME
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
+      document.body.appendChild(iframe);
+      const doc = iframe.contentWindow.document; doc.open(); doc.write(htmlContent); doc.close();
+      setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); setGenerating(false); }, 5000); }, 500);
+  };
+
+  if (!canAccess) return <div className="p-10 text-center text-gray-400">⛔ Acceso restringido al área administrativa.</div>;
+
+  return (
+    <div className="animate-in fade-in pb-20">
+      <div className="bg-slate-800 text-white p-6 rounded-3xl shadow-lg mb-6">
+          <h2 className="text-2xl font-black uppercase italic flex items-center gap-2"><FileText size={24} className="text-blue-400"/> Administración</h2>
+          <p className="text-sm opacity-70 mb-4">Generación masiva de documentos</p>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+              <select onChange={e=>setFilters({...filters, os: e.target.value})} className="bg-slate-700 p-2 rounded-lg text-xs font-bold border border-slate-600 outline-none">
+                  <option value="all">Obra Social: Todas</option>
+                  <option value="con_os">Con O.Social (Cualquiera)</option>
+                  <option value="IOMA">Solo IOMA</option>
+                  <option value="OSECAC">Solo OSECAC</option>
+                  <option value="PROFE">Solo PROFE/IOMA</option>
+                  <option value="sin_os">Sin O.Social</option>
+              </select>
+              <select onChange={e=>setFilters({...filters, level: e.target.value})} className="bg-slate-700 p-2 rounded-lg text-xs font-bold border border-slate-600 outline-none">
+                  <option value="all">Nivel: Todos</option>
+                  <option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option>
+              </select>
+              <select onChange={e=>setFilters({...filters, modality: e.target.value})} className="bg-slate-700 p-2 rounded-lg text-xs font-bold border border-slate-600 outline-none">
+                  <option value="all">Modalidad: Todas</option>
+                  <option value="Sede">Sede</option><option value="Inclusión">Inclusión</option>
+              </select>
+              <div className="flex bg-slate-700 rounded-lg items-center px-2 border border-slate-600">
+                  <Search size={14} className="opacity-50"/>
+                  <input placeholder="Buscar..." onChange={e=>setFilterText(e.target.value)} className="bg-transparent p-2 text-xs font-bold outline-none w-full"/>
+              </div>
+          </div>
+
+          <div className="bg-slate-900/50 p-3 rounded-xl flex flex-col md:flex-row justify-between items-center gap-3">
+              <div className="flex items-center gap-3 w-full md:w-auto">
+                  <button onClick={toggleSelectAll} className="text-xs font-bold uppercase tracking-widest hover:text-blue-300 transition">
+                      {selectedIds.length === filteredStudents.length ? 'Deseleccionar' : 'Seleccionar'} Visibles ({selectedIds.length})
+                  </button>
+              </div>
+              <div className="flex gap-2 w-full md:w-auto">
+                  <select value={template} onChange={e=>setTemplate(e.target.value)} className="bg-white text-slate-900 p-2 rounded-lg text-xs font-bold flex-1 md:w-64 outline-none">
+                      <option value="constancia_regular">📄 Constancia Alumno Regular</option>
+                      <option value="solicitud_transporte">🚌 Solicitud Transporte</option>
+                      <option value="autorizacion_retiro">👋 Autorización de Retiro</option>
+                  </select>
+                  <button onClick={generateDocument} disabled={generating} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-black uppercase shadow-lg flex items-center gap-2">
+                      {generating ? <RefreshCw className="animate-spin"/> : <><Printer size={16}/> Generar PDF</>}
+                  </button>
+              </div>
+          </div>
+      </div>
+
+      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-3 bg-gray-50 border-b border-gray-100 grid grid-cols-12 gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              <div className="col-span-1 text-center">Sel</div>
+              <div className="col-span-4">Alumno</div>
+              <div className="col-span-2">DNI</div>
+              <div className="col-span-3">Obra Social</div>
+              <div className="col-span-2 text-center">Estado</div>
+          </div>
+          <div className="divide-y divide-gray-100">
+              {filteredStudents.length === 0 ? <div className="p-10 text-center text-gray-400 font-bold text-xs">No hay alumnos con estos filtros.</div> : 
+               filteredStudents.map(s => (
+                  <div key={s.id} onClick={() => toggleSelect(s.id)} className={`grid grid-cols-12 gap-2 p-3 items-center cursor-pointer transition hover:bg-blue-50 ${selectedIds.includes(s.id) ? 'bg-blue-50/50' : ''}`}>
+                      <div className="col-span-1 flex justify-center">
+                          <div className={`w-5 h-5 rounded border flex items-center justify-center transition ${selectedIds.includes(s.id) ? 'bg-blue-500 border-blue-500' : 'border-gray-300 bg-white'}`}>
+                              {selectedIds.includes(s.id) && <Check size={12} className="text-white"/>}
+                          </div>
+                      </div>
+                      <div className="col-span-4 font-bold text-xs text-gray-700 truncate">{s.lastName}, {s.firstName}</div>
+                      <div className="col-span-2 text-xs text-gray-500 font-mono">{s.dni}</div>
+                      <div className="col-span-3 text-xs text-blue-600 font-bold truncate">{s.healthInsurance || '-'}</div>
+                      <div className="col-span-2 flex justify-center">
+                          <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${s.modality==='Inclusión'?'bg-indigo-100 text-indigo-700':'bg-orange-100 text-orange-700'}`}>{s.modality||'Sede'}</span>
+                      </div>
+                  </div>
+              ))}
+          </div>
+      </div>
+    </div>
+  );
+}
 // ===============================================================
 // PEGAR ESTO AL FINAL DEL ARCHIVO (FUERA DE CUALQUIER OTRA FUNCIÓN)
 // ===============================================================
@@ -2619,6 +2873,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
