@@ -1639,43 +1639,25 @@ function MatriculaView({ user }) {
     setProcessing(false);
   };
   
-  // --- PARCHE IMPRESIÓN MATRÍCULA (CON BOTÓN "VOLVER" PARA MÓVIL) ---
+  // --- PARCHE IMPRESIÓN MATRÍCULA (MÉTODO IFRAME - SIN SALIR DE LA APP) ---
   const imprimirListado = (list) => { 
-      const w = window.open('', '_blank'); 
-      if(!w) return alert("Permitir Pop-ups"); 
-      
       let h = `<html><head><title>Fichas de Estudiantes</title>
       <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
-        body { font-family: 'Roboto', sans-serif; padding: 0; background: #f0f0f0; margin: 0; }
-        
-        /* BOTÓN DE CIERRE SOLO PANTALLA */
-        @media print { .no-print { display: none !important; } }
-        .btn-volver { display: block; width: 100%; background: #ef4444; color: white; padding: 20px; text-align: center; font-weight: bold; font-size: 18px; border: none; cursor: pointer; text-transform: uppercase; position: fixed; top: 0; left: 0; z-index: 9999; }
-        .content-spacer { height: 70px; display: block; } /* Espacio para que el botón no tape */
-        
-        .page { background: white; padding: 40px; margin: 20px auto; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); page-break-after: always; max-width: 800px; border-top: 10px solid #7c3aed; }
+        body { font-family: 'Roboto', sans-serif; padding: 20px; }
+        .page { border: 1px solid #eee; padding: 30px; margin-bottom: 20px; border-radius: 8px; page-break-after: always; max-width: 800px; margin: 0 auto 20px auto; border-top: 10px solid #7c3aed; }
         .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ddd; padding-bottom: 20px; margin-bottom: 20px; }
-        .header-text h1 { color: #4c1d95; font-size: 28px; margin: 0; text-transform: uppercase; }
+        .header-text h1 { color: #4c1d95; font-size: 24px; margin: 0; text-transform: uppercase; }
         .header-text p { color: #666; font-size: 14px; margin: 5px 0 0 0; }
         .photo-box { width: 80px; height: 80px; background: #eee; border-radius: 50%; overflow: hidden; border: 3px solid #7c3aed; }
         .photo-box img { width: 100%; height: 100%; object-fit: cover; }
         .section-title { background: #f3f4f6; color: #4c1d95; padding: 8px 15px; font-weight: 900; text-transform: uppercase; font-size: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 5px solid #7c3aed; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
         .field { margin-bottom: 5px; }
-        .label { display: block; font-size: 10px; color: #888; text-transform: uppercase; font-weight: bold; }
-        .value { font-size: 14px; font-weight: bold; color: #333; }
-        .footer { text-align: center; font-size: 10px; color: #aaa; margin-top: 30px; border-top: 1px solid #eee; padding-top: 10px; }
-        
-        @media print { 
-            body { background: white; padding: 0; margin: 0; } 
-            .page { box-shadow: none; margin: 0; border-radius: 0; max-width: none; border-top: none; padding: 20px; }
-            .content-spacer { display: none; }
-        }
-      </style></head><body>
-      
-      <button class="no-print btn-volver" onclick="window.close()">🔙 CERRAR Y VOLVER A LA APP</button>
-      <div class="no-print content-spacer"></div>`;
+        .label { display: block; font-size: 9px; color: #888; text-transform: uppercase; font-weight: bold; }
+        .value { font-size: 12px; font-weight: bold; color: #333; }
+        .footer { text-align: center; font-size: 9px; color: #aaa; margin-top: 30px; border-top: 1px solid #eee; padding-top: 10px; }
+      </style></head><body>`;
       
       list.forEach(s => { 
           h += `
@@ -1712,17 +1694,37 @@ function MatriculaView({ user }) {
               <div class="section-title">Familia y Contacto</div>
               <div class="field" style="margin-bottom:10px;"><span class="label">Dirección</span><span class="value">${s.address || '-'}</span></div>
               <div class="grid">
-                  <div class="field"><span class="label">Madre / Tutor 1</span><span class="value">${s.motherName || '-'}</span><br><span style="font-size:12px;color:#666">${s.motherContact || '-'}</span></div>
-                  <div class="field"><span class="label">Padre / Tutor 2</span><span class="value">${s.fatherName || '-'}</span><br><span style="font-size:12px;color:#666">${s.fatherContact || '-'}</span></div>
+                  <div class="field"><span class="label">Madre / Tutor 1</span><span class="value">${s.motherName || '-'}</span><br><span style="font-size:11px;color:#666">${s.motherContact || '-'}</span></div>
+                  <div class="field"><span class="label">Padre / Tutor 2</span><span class="value">${s.fatherName || '-'}</span><br><span style="font-size:11px;color:#666">${s.fatherContact || '-'}</span></div>
               </div>
 
               <div class="footer">Juntos a la Par - Legajo Digital generado el ${new Date().toLocaleDateString()}</div>
           </div>`; 
       }); 
       h += '</body></html>'; 
-      w.document.write(h); w.document.close(); 
-      setTimeout(()=>w.print(), 800); 
-  };  const imprimirFichasMasivas = () => { if (filteredStudents.length > 50 && !confirm(`¿Imprimir ${filteredStudents.length} fichas? Es mucho.`)) return; imprimirListado(filteredStudents); };
+
+      // IMPRESIÓN IFRAME
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      document.body.appendChild(iframe);
+
+      const doc = iframe.contentWindow.document;
+      doc.open();
+      doc.write(h);
+      doc.close();
+
+      setTimeout(() => {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+          setTimeout(() => { document.body.removeChild(iframe); }, 5000);
+      }, 500);
+  };
+  const imprimirFichasMasivas = () => { if (filteredStudents.length > 50 && !confirm(`¿Imprimir ${filteredStudents.length} fichas? Es mucho.`)) return; imprimirListado(filteredStudents); };
   const exportFiltered = () => { if (filteredStudents.length === 0) return alert("Sin datos"); const headers = ["Apellido", "Nombre", "DNI", "Nivel", "Modalidad"]; const csv = [headers.join(';'), ...filteredStudents.map(s => [`"${s.lastName}"`, `"${s.firstName}"`, `"${s.dni}"`, `"${s.level}"`, `"${s.modality||'Sede'}"`].join(';'))].join('\n'); const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = "Matricula.csv"; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
   const statsResults = students.filter(s => { if (s.isActive === false) return false; if (statFilters.modality.length > 0 && !statFilters.modality.includes(s.modality || 'Sede')) return false; if (statFilters.level.length > 0 && !statFilters.level.includes(s.level)) return false; if (statFilters.dx !== 'all' && s.dx !== statFilters.dx) return false; if (statFilters.gender !== 'all' && s.gender !== statFilters.gender) return false; return true; });
   const toggleStatFilter = (category, value) => { setStatFilters(prev => { const currentList = prev[category]; if (currentList.includes(value)) return { ...prev, [category]: currentList.filter(item => item !== value) }; else return { ...prev, [category]: [...currentList, value] }; }); };
@@ -2433,55 +2435,35 @@ const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scr
   };
 
   const handlePrintSingleGroup = (g) => generatePrintHTML([g], `Lista: ${g.name}`);
- // --- PARCHE IMPRESIÓN GROUPS (CON BOTÓN "VOLVER" PARA MÓVIL) ---
+// --- PARCHE IMPRESIÓN MASIVA (MÉTODO IFRAME - SIN SALIR DE LA APP) ---
   const handlePrintAll = () => {
-    const w = window.open('', '_blank'); 
-    if (!w) return alert("Por favor, permite los Pop-ups para imprimir.");
-    
+    // 1. Definimos el contenido HTML (Diseño Violeta)
     let fullHtml = `<html><head><title>Listado Institucional</title><style>
       @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
-      body{font-family:'Roboto', sans-serif; padding:20px; color:#333; margin:0;}
+      body{font-family:'Roboto', sans-serif; padding:20px; color:#333;}
       
-      /* CLASE PARA OCULTAR EL BOTÓN AL IMPRIMIR */
-      @media print { 
-          .no-print { display: none !important; } 
-          body { padding: 40px; }
-      }
-
-      .btn-volver {
-          display: block; width: 100%; background: #ef4444; color: white; 
-          padding: 15px; text-align: center; font-weight: bold; font-size: 16px; 
-          border: none; cursor: pointer; text-transform: uppercase; margin-bottom: 20px;
-      }
-
-      .main-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 5px solid #7c3aed; padding-bottom: 20px; margin-bottom: 30px; }
+      .main-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 5px solid #7c3aed; padding-bottom: 10px; margin-bottom: 20px; }
       .main-title { font-size: 24px; font-weight: 900; color: #4c1d95; text-transform: uppercase; margin: 0; }
-      .main-subtitle { font-size: 12px; font-weight: bold; color: #666; margin-top: 5px; text-transform: uppercase; letter-spacing: 2px; }
+      .main-subtitle { font-size: 12px; font-weight: bold; color: #666; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; }
       
-      .group-section { margin-bottom: 40px; page-break-inside: avoid; }
+      .group-section { margin-bottom: 30px; page-break-inside: avoid; }
       .group-header { background-color: #f3f4f6; border-left: 6px solid #7c3aed; padding: 10px 15px; margin-bottom: 10px; border-radius: 0 8px 8px 0; }
       .group-name { font-size: 18px; font-weight: 900; color: #5b21b6; margin: 0; }
       .group-staff { font-size: 10px; font-weight: bold; color: #555; margin-top: 4px; text-transform: uppercase; }
 
       table { width: 100%; border-collapse: collapse; font-size: 10px; }
       thead tr { background-color: #7c3aed !important; color: white !important; }
-      th { padding: 8px 5px; text-align: left; text-transform: uppercase; font-weight: bold; font-size: 9px; border: 1px solid #ddd; }
-      td { border: 1px solid #e5e7eb; padding: 6px 5px; color: #374151; }
+      th { padding: 5px; text-align: left; text-transform: uppercase; font-weight: bold; border: 1px solid #ddd; }
+      td { border: 1px solid #e5e7eb; padding: 5px; color: #374151; }
       tr:nth-child(even) { background-color: #f9fafb !important; }
       
-      .footer { margin-top: 50px; border-top: 1px solid #ddd; padding-top: 10px; text-align: right; font-size: 10px; color: #9ca3af; font-style: italic; }
+      .footer { margin-top: 30px; border-top: 1px solid #ddd; padding-top: 10px; text-align: right; font-size: 9px; color: #9ca3af; font-style: italic; }
     </style></head><body>
     
-    <button class="no-print btn-volver" onclick="window.close()">🔙 CERRAR Y VOLVER A LA APP</button>
-    
-    <div style="padding: 0 20px;">
-        <div class="main-header">
-            <div>
-                <h1 class="main-title">Listado Institucional</h1>
-                <p class="main-subtitle">Ciclo 2026 - Turno ${turn === 'morning' ? 'Mañana' : 'Tarde'}</p>
-            </div>
-            <img src="${LOGO_URL}" style="height: 60px; opacity: 0.9;" />
-        </div>`;
+    <div class="main-header">
+        <div><h1 class="main-title">Listado Institucional</h1><p class="main-subtitle">Ciclo 2026 - Turno ${turn === 'morning' ? 'Mañana' : 'Tarde'}</p></div>
+        <img src="${LOGO_URL}" style="height: 50px; opacity: 0.9;" />
+    </div>`;
 
     groups.forEach(g => {
         const sorted = [...g.students].sort((a,b) => a.lastName.localeCompare(b.lastName));
@@ -2494,9 +2476,7 @@ const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scr
                 <h2 class="group-name">${g.name}</h2>
                 <div class="group-staff">DOC: ${g.teacher || 'VACANTE'} | AUX: ${g.aux || '-'} | SUP: ${supText} ${aulaText}</div>
             </div>
-            <table>
-                <thead><tr><th width="5%">#</th><th width="30%">Apellido y Nombre</th><th width="15%">DNI</th><th width="15%">Nacimiento</th><th>Familia / Obs</th></tr></thead>
-                <tbody>`;
+            <table><thead><tr><th width="5%">#</th><th width="30%">Apellido y Nombre</th><th width="15%">DNI</th><th width="15%">Nacimiento</th><th>Familia / Obs</th></tr></thead><tbody>`;
         
         sorted.forEach((s, i) => {
              const flia = g.isInclusionGroup ? `Esc. Origen: ${s.originSchool} (${s.originGrade})` : `M: ${s.motherName||'-'} / P: ${s.fatherName||'-'}`;
@@ -2505,10 +2485,31 @@ const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scr
         fullHtml += `</tbody></table></div>`;
     });
     
-    fullHtml += `<div class="footer">Generado el ${new Date().toLocaleDateString()}</div></div></body></html>`;
-    w.document.write(fullHtml); w.document.close(); 
-    // Retraso un poco la impresión automática en móvil para que dé tiempo a ver el botón
-    setTimeout(() => w.print(), 800);
+    fullHtml += `<div class="footer">Generado el ${new Date().toLocaleDateString()}</div></body></html>`;
+
+    // 2. CREAMOS UN IFRAME INVISIBLE
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    // 3. ESCRIBIMOS Y MANDAMOS A IMPRIMIR
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(fullHtml);
+    doc.close();
+
+    // Esperamos un instante a que cargue el contenido (especialmente logo si está en cache)
+    setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        // Borramos el iframe después de un tiempo prudente para limpiar memoria
+        setTimeout(() => { document.body.removeChild(iframe); }, 5000);
+    }, 500);
   };
   const addIncident = async (type, text = "") => {
       if (!showBitacoraModal) return;
@@ -2660,6 +2661,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
