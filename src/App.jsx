@@ -2622,26 +2622,7 @@ function GroupsView({ user }) {
                     <select name="special1" defaultValue={editingGroup.special1} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 1...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select>
                     <select name="special2" defaultValue={editingGroup.special2} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 2...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select>
                     <select name="special3" defaultValue={editingGroup.special3} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 3...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-xs font-bold text-gray-500 ml-1">Sup. 1</label><select name="sup1" defaultValue={editingGroup.sup1} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
-                <div><label className="text-xs font-bold text-gray-500 ml-1">Sup. 2</label><select name="sup2" defaultValue={editingGroup.sup2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
-            </div>
-        </>)}
-        
-        {/* NUEVO: INPUT DRIVE */}
-        <div><label className="text-xs font-bold text-green-600 ml-1">Enlace a Carpeta Drive</label><input name="driveLink" defaultValue={editingGroup.driveLink} className="w-full p-3 bg-green-50 border border-green-100 rounded-xl outline-none font-bold text-xs text-green-700" placeholder="https://drive.google.com/..."/></div>
-        
-        <button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition flex justify-center items-center gap-2">{updatingGroup ? <RefreshCw className="animate-spin"/> : 'Aplicar Cambios'}</button></div></form></div>)}
-      
-      {groupStats && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[250] flex items-center justify-center p-4" onClick={() => setGroupStats(null)}><div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-6"><div><h3 className="text-xl font-black text-violet-900 uppercase italic">Análisis del Grupo</h3><p className="text-xs text-gray-500 font-bold">{groupStats.name} ({groupStats.students.length} alumnos)</p></div><button onClick={() => setGroupStats(null)}><X/></button></div>{(() => { const allIncidents = groupStats.students.flatMap(s => s.incidents || []); if (allIncidents.length === 0) return <p className="text-center text-gray-400 italic">No hay registros en la bitácora aún.</p>; const dimensions = { 'Pedagógico/Social': 0, 'Salud y Bienestar': 0, 'Conducta': 0, 'Rutina': 0 }; const tagsCount = {}; allIncidents.forEach(inc => { const type = inc.type; tagsCount[type] = (tagsCount[type] || 0) + 1; if (['Trabajó Muy Bien', 'Ayudó a un amigo', 'Logro de Aprendizaje', 'Buena Conducta'].includes(type)) dimensions['Pedagógico/Social']++; else if (['Convulsión / Salud', 'Higiene / Esfínter', 'Vómito', 'No comió'].includes(type)) dimensions['Salud y Bienestar']++; else if (['Agresión / Violencia', 'Brote / Gritos', 'Fuga / Intento', 'Crisis Llanto'].includes(type)) dimensions['Conducta']++; else dimensions['Rutina']++; }); const total = allIncidents.length; const topTags = Object.entries(tagsCount).sort((a, b) => b[1] - a[1]).slice(0, 4); return (<div className="space-y-6"><div><h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Dimensiones Registradas</h4><div className="space-y-3">{Object.entries(dimensions).map(([dim, count]) => { if (count === 0) return null; const pct = Math.round((count / total) * 100); const color = dim === 'Pedagógico/Social' ? 'bg-emerald-500' : dim === 'Salud y Bienestar' ? 'bg-blue-500' : dim === 'Conducta' ? 'bg-red-500' : 'bg-yellow-400'; return (<div key={dim}><div className="flex justify-between text-xs font-bold text-gray-600 mb-1"><span>{dim}</span><span>{count} ({pct}%)</span></div><div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div style={{width: `${pct}%`}} className={`h-full ${color}`}></div></div></div>); })}</div></div><div className="bg-gray-50 p-4 rounded-2xl border border-gray-100"><h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Lo que más sucede (Top 4)</h4><div className="space-y-2">{topTags.map(([tag, count]) => (<div key={tag} className="flex justify-between items-center bg-white p-2 rounded-lg border border-gray-200 shadow-sm"><span className="text-xs font-bold text-gray-700">{tag}</span><span className="text-xs font-black bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md">{count} veces</span></div>))}</div></div></div>); })()}</div></div>)}
-      {selectedStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"><div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0"><button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition"><X size={20}/></button><div className="flex items-center gap-4"><div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">{selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}</div><div><h2 className="text-2xl font-bold">{selectedStudent.lastName}, {selectedStudent.firstName}</h2><p className="opacity-90 flex gap-2 text-sm mt-1"><span className="bg-white/20 px-2 py-0.5 rounded">{calculateAge(selectedStudent.birthDate)} años</span></p></div></div><div className="flex gap-2 mt-6"><button onClick={() => setActiveTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'info' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Datos</button><button onClick={() => setActiveTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'history' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto space-y-6">{activeTab === 'info' ? (<div className="space-y-4"><div className="bg-orange-50 p-4 rounded-xl border border-orange-100"><h3 className="font-bold text-orange-800 text-xs uppercase mb-2">Contacto</h3><p className="text-sm">Madre: <b>{selectedStudent.motherName}</b> ({selectedStudent.motherContact})</p><p className="text-sm">Padre: <b>{selectedStudent.fatherName}</b> ({selectedStudent.fatherContact})</p></div><div className="bg-gray-50 p-4 rounded-xl border border-gray-100"><h3 className="font-bold text-gray-500 text-xs uppercase mb-2">Ubicación</h3><p className="text-sm">TM: <b>{selectedStudent.groupMorning}</b></p><p className="text-sm">TT: <b>{selectedStudent.groupAfternoon}</b></p></div></div>) : (<div className="space-y-2">{selectedStudent.incidents?.map((inc, i) => (<div key={i} className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="font-bold text-sm">{inc.text || inc.type}</p><p className="text-xs text-gray-500">{new Date(inc.date).toLocaleDateString()} - {inc.author}</p></div>))}</div>)}</div></div></div>)}
-    </div>
-  );
-}
-// --- VISTA ADMINISTRACIÓN (FINAL: MEDIA CARILLA A4 + DISEÑO COMPACTO) ---
+// --- VISTA ADMINISTRACIÓN (DISEÑO MEDIA CARILLA A4 PERFECTO) ---
 function AdministracionView({ user }) {
   const [students, setStudents] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -2653,6 +2634,7 @@ function AdministracionView({ user }) {
   // ESTADO PARA "PRESENTAR ANTE"
   const [customTarget, setCustomTarget] = useState(""); 
   
+  // ASEGURATE QUE ESTÉN EN LA CARPETA PUBLIC
   const LOGO_URL = "/icon-192.png";
   const FIRMA_URL = "/firma.png"; 
   const SELLO_URL = "/sello.png";
@@ -2695,79 +2677,102 @@ function AdministracionView({ user }) {
       const year = today.getFullYear();
       const fullDate = `Villa Udaondo, ${day} de ${month} de ${year}`;
 
-      let htmlContent = `<html><head><title>Documentos</title><style>
+      let htmlContent = `<html><head><title>Constancias</title><style>
           @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
-          body { font-family: 'Times New Roman', Times, serif; margin: 0; padding: 15px; color: #000; }
-          .page-break { page-break-after: always; }
-
-          /* CONTENEDOR MEDIA CARILLA (Aprox 14cm de alto) */
+          body { font-family: 'Times New Roman', Times, serif; margin: 0; padding: 0; color: #000; }
+          
+          /* CONTENEDOR MEDIA CARILLA EXACTO (148mm es mitad A4, usamos 140mm para margen) */
           .cert-container { 
               border: 2px solid #65a30d; 
-              border-radius: 20px; 
-              padding: 20px 30px; 
-              margin: 0 auto;
+              border-radius: 25px; 
+              padding: 25px 40px; 
+              margin: 10px auto;
               position: relative; 
-              height: 135mm; /* MEDIA CARILLA EXACTA */
+              height: 140mm; 
               box-sizing: border-box; 
-              max-width: 900px;
+              width: 100%;
+              max-width: 210mm; /* Ancho A4 */
               display: flex;
               flex-direction: column;
-              overflow: hidden; /* Evita que se salga si es muy largo */
+              page-break-inside: avoid;
           }
 
-          /* HEADER COMPACTO */
+          /* HEADER */
           .cert-header { display: flex; align-items: center; margin-bottom: 15px; }
-          .cert-logo { width: 90px; height: auto; margin-right: 15px; }
+          .cert-logo { width: 100px; height: auto; margin-right: 20px; }
           .cert-title { 
               font-size: 16px; 
               font-weight: bold; 
               text-decoration: underline; 
               text-transform: uppercase; 
-              text-align: center;
-              flex-grow: 1;
-              padding-top: 10px;
+              text-align: left;
+              padding-top: 15px;
           }
 
-          /* CUERPO TEXTO PEQUEÑO */
-          .cert-body { font-size: 13px; line-height: 1.8; flex-grow: 1; margin-top: 10px; }
+          /* CUERPO */
+          .cert-body { font-size: 13px; line-height: 1.6; flex-grow: 1; }
           
-          .dotted { 
-              border-bottom: 1px dotted #000; 
-              display: inline-block; 
-              padding: 0 5px; 
+          .line-group { margin-bottom: 12px; }
+          
+          .data-field { 
+              text-align: center; 
               font-weight: bold; 
-              text-align: center;
+              font-size: 14px;
+              border-bottom: 1px dotted #000;
+              display: block;
+              margin: 2px 0;
+              padding-bottom: 2px;
           }
-          
-          /* FIRMAS COMPACTAS */
+
+          .inline-field {
+              font-weight: bold;
+              border-bottom: 1px dotted #000;
+              padding: 0 10px;
+          }
+
+          /* FECHA */
+          .date-section {
+              margin-top: 15px;
+              margin-bottom: 15px;
+              text-align: center;
+              font-weight: bold;
+          }
+
+          /* FIRMAS (LAYOUT FLEXIBLE) */
           .signatures-section { 
-              margin-top: auto; 
               display: flex; 
               justify-content: space-between; 
               align-items: flex-end;
-              padding: 0 20px;
+              padding: 0 10px;
+              height: 80px; /* Espacio fijo para firmas */
           }
+          
           .sig-box { 
               text-align: center; 
-              width: 200px; 
+              width: 220px; 
               position: relative;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: flex-end;
-              height: 80px; 
           }
+          
+          /* IMAGEN FLOTANTE */
           .sig-img {
-              max-width: 120px;
-              max-height: 60px;
-              margin-bottom: -5px; 
-              z-index: 1;
+              height: 60px; /* Tamaño controlado */
+              width: auto;
+              display: block;
+              margin: 0 auto -10px auto; /* Margen negativo para que 'pise' la línea */
+              position: relative;
+              z-index: 10;
           }
-          .sig-text { font-size: 11px; margin-top: 2px; z-index: 2; border-top: 1px solid #000; width: 100%; }
+          
+          .sig-line { 
+              border-top: 1px solid #000; 
+              margin-top: 0; 
+              padding-top: 4px; 
+              font-size: 11px; 
+          }
 
           @media print { 
-              body { padding: 0; margin: 0; } 
-              .cert-container { margin: 10mm auto; border: 2px solid #65a30d; height: 135mm; border-radius: 20px; page-break-inside: avoid; } 
+              body { margin: 0; padding: 0; } 
+              .cert-container { margin: 5mm auto; page-break-after: always; }
           }
       </style></head><body>`;
 
@@ -2784,38 +2789,46 @@ function AdministracionView({ user }) {
                   </div>
                   
                   <div class="cert-body">
-                      Escuela Especial Juntos a la Par hace constar que:
-                      <br>
-                      <span class="dotted" style="width: 100%; text-align: left;">${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</span>
-                      <br>
-                      con DNI N.° <span class="dotted" style="width: 100px;">${s.dni}</span> es alumno/a regular del Nivel:
-                      <br>
-                      <span class="dotted" style="width: 100%; text-align: left;">${s.level || '................'} (${s.modality || 'Sede'})</span>
-                      <br>
-                      en esta institución, con &nbsp; CUE 0623214-00.
-                      <br><br>
-                      A pedido del interesado y al efecto de ser presentado ante:
-                      <br>
-                      <span class="dotted" style="width: 100%; text-align: left;">${presentadoAnte.toUpperCase()}</span>
-                      <br><br>
-                      Lugar y fecha: <span class="dotted" style="width: 60%; text-align: left;">${fullDate}</span>
+                      Escuela Especial Juntos a la Par se hace constar que
+                      
+                      <div class="line-group" style="margin-top:10px;">
+                          <span class="data-field">${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</span>
+                      </div>
+                      
+                      <div class="line-group">
+                          con DNI N.° <span class="inline-field">${s.dni}</span> es alumno/a regular de...
+                      </div>
+
+                      <div class="line-group">
+                          en esta institución, con &nbsp;&nbsp; CUE 0623214-00.
+                      </div>
+
+                      <div class="line-group" style="margin-top:15px;">
+                          A pedido del interesado y al efecto de ser presentado...
+                          <span class="data-field">${presentadoAnte.toUpperCase()}</span>
+                      </div>
+                      
+                      <div class="date-section">
+                          ${fullDate}
+                          <div style="border-bottom: 1px dotted #000; width: 60%; margin: 0 auto;"></div>
+                          <div style="font-weight: normal; font-size: 11px;">Lugar y fecha</div>
+                      </div>
                   </div>
 
                   <div class="signatures-section">
                       <div class="sig-box">
-                          <img src="${FIRMA_URL}" class="sig-img" onerror="this.style.display='none'"/> 
-                          <div class="sig-text">Firma director o vicedirector</div>
+                          <img src="${FIRMA_URL}" class="sig-img" alt="Firma"/> 
+                          <div class="sig-line">Firma director o vicedirector</div>
                       </div>
                       <div class="sig-box">
-                          <img src="${SELLO_URL}" class="sig-img" onerror="this.style.display='none'"/> 
-                          <div class="sig-text">Sello institución</div>
+                          <img src="${SELLO_URL}" class="sig-img" alt="Sello"/> 
+                          <div class="sig-line">Sello institución</div>
                       </div>
                   </div>
-              </div>
-              <div class="page-break"></div>`;
+              </div>`;
           } 
           else {
-             content = `<div style="padding:20px">Plantilla en construcción...</div><div class="page-break"></div>`; 
+             content = `<div style="padding:20px">Plantilla en construcción...</div>`; 
           }
 
           htmlContent += content;
@@ -2826,8 +2839,18 @@ function AdministracionView({ user }) {
       const iframe = document.createElement('iframe');
       iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
       document.body.appendChild(iframe);
-      const doc = iframe.contentWindow.document; doc.open(); doc.write(htmlContent); doc.close();
-      setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); setGenerating(false); }, 5000); }, 500);
+      
+      const doc = iframe.contentWindow.document; 
+      doc.open(); 
+      doc.write(htmlContent); 
+      doc.close();
+
+      // ESPERAR UN POCO MÁS PARA QUE CARGUEN LAS IMÁGENES
+      setTimeout(() => { 
+          iframe.contentWindow.focus(); 
+          iframe.contentWindow.print(); 
+          setTimeout(() => { document.body.removeChild(iframe); setGenerating(false); }, 5000); 
+      }, 1000); // 1 segundo de espera para carga de imágenes
   };
 
   if (!canAccess) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido.</div>;
@@ -2854,7 +2877,7 @@ function AdministracionView({ user }) {
           <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto items-center">
               <div className="flex flex-col w-full md:w-auto">
                   <input placeholder="Presentar ante..." value={customTarget} onChange={e => setCustomTarget(e.target.value)} className="w-full md:w-64 p-2 rounded-xl text-xs font-bold border border-blue-200 outline-none focus:border-blue-500 placeholder-blue-300 text-blue-900"/>
-                  <span className="text-[9px] text-blue-600 font-bold ml-1 mt-0.5">* Si se deja vacío, usa la O.S. del alumno.</span>
+                  <span className="text-[9px] text-blue-600 font-bold ml-1 mt-0.5">* Vacío = Usa la O.S. del alumno.</span>
               </div>
               <select value={template} onChange={e=>setTemplate(e.target.value)} className="bg-white text-gray-700 pl-4 pr-8 py-2 rounded-xl text-xs font-bold w-full md:w-auto outline-none border border-blue-200 shadow-sm"><option value="constancia_regular">📄 Constancia Alumno Regular</option></select>
               <button onClick={generateDocument} disabled={generating || selectedIds.length === 0} className={`bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-2 rounded-xl text-xs font-black uppercase shadow-md flex items-center gap-2 ${generating || selectedIds.length === 0 ? 'opacity-50' : 'hover:scale-105'}`}>{generating ? <RefreshCw className="animate-spin"/> : <><Printer size={16}/> Imprimir</>}</button>
@@ -2897,6 +2920,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
