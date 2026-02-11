@@ -2641,7 +2641,7 @@ function GroupsView({ user }) {
     </div>
   );
 }
-// --- VISTA ADMINISTRACIÓN (GENERADOR DE DOCUMENTOS MASIVOS) ---
+// --- VISTA ADMINISTRACIÓN (CENTRO DE DOCUMENTACIÓN - DISEÑO MEJORADO) ---
 function AdministracionView({ user }) {
   const [students, setStudents] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -2649,6 +2649,8 @@ function AdministracionView({ user }) {
   const [filters, setFilters] = useState({ os: 'all', level: 'all', modality: 'all' });
   const [template, setTemplate] = useState('constancia_regular');
   const [generating, setGenerating] = useState(false);
+  
+  const LOGO_URL = "/icon-192.png";
 
   // ROLES PERMITIDOS
   const canAccess = ['admin', 'super-admin', 'Administración', 'Equipo Directivo'].includes(user.role) || user.rol === 'admin';
@@ -2669,7 +2671,6 @@ function AdministracionView({ user }) {
       if (txt && !((s.firstName||'').toLowerCase().includes(txt) || (s.lastName||'').toLowerCase().includes(txt) || (s.dni||'').includes(txt))) return false;
       
       if (filters.os !== 'all') {
-          // Filtro inteligente de Obra Social (busca texto parcial)
           if (filters.os === 'con_os' && (!s.healthInsurance || s.healthInsurance.length < 2)) return false;
           if (filters.os === 'sin_os' && (s.healthInsurance && s.healthInsurance.length > 2)) return false;
           if (filters.os !== 'con_os' && filters.os !== 'sin_os' && !(s.healthInsurance||'').toLowerCase().includes(filters.os.toLowerCase())) return false;
@@ -2690,7 +2691,7 @@ function AdministracionView({ user }) {
       else setSelectedIds([...selectedIds, id]);
   };
 
-  // --- PLANTILLAS DE DOCUMENTOS ---
+  // --- PLANTILLAS DE DOCUMENTOS (PASA EL PDF GENERATOR) ---
   const generateDocument = () => {
       if (selectedIds.length === 0) return alert("Selecciona al menos un estudiante.");
       setGenerating(true);
@@ -2706,7 +2707,7 @@ function AdministracionView({ user }) {
           .content { font-size: 14px; text-align: justify; }
           .signature { margin-top: 100px; text-align: right; }
           .signature-line { display: inline-block; width: 200px; border-top: 1px solid #000; text-align: center; padding-top: 5px; font-size: 12px; }
-          .logo { position: absolute; top: 20px; left: 40px; width: 60px; height: 60px; opacity: 0.8; }
+          .logo { position: absolute; top: 20px; left: 40px; width: 80px; height: auto; opacity: 0.9; }
           @media print { body { padding: 0; } .page { height: auto; min-height: 90vh; margin: 0; } }
       </style></head><body>`;
 
@@ -2749,6 +2750,7 @@ function AdministracionView({ user }) {
 
           htmlContent += `
           <div class="page">
+              <img src="${LOGO_URL}" class="logo"/>
               <div class="header">
                   JUNTOS A LA PAR - INSTITUCIÓN EDUCATIVA
               </div>
@@ -2775,86 +2777,95 @@ function AdministracionView({ user }) {
       setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); setGenerating(false); }, 5000); }, 500);
   };
 
-  if (!canAccess) return <div className="p-10 text-center text-gray-400">⛔ Acceso restringido al área administrativa.</div>;
+  if (!canAccess) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido al área administrativa.</div>;
 
   return (
     <div className="animate-in fade-in pb-20">
-      <div className="bg-slate-800 text-white p-6 rounded-3xl shadow-lg mb-6">
-          <h2 className="text-2xl font-black uppercase italic flex items-center gap-2"><FileText size={24} className="text-blue-400"/> Administración</h2>
-          <p className="text-sm opacity-70 mb-4">Generación masiva de documentos</p>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
-              <select onChange={e=>setFilters({...filters, os: e.target.value})} className="bg-slate-700 p-2 rounded-lg text-xs font-bold border border-slate-600 outline-none">
-                  <option value="all">Obra Social: Todas</option>
-                  <option value="con_os">Con O.Social (Cualquiera)</option>
-                  <option value="IOMA">Solo IOMA</option>
-                  <option value="OSECAC">Solo OSECAC</option>
-                  <option value="PROFE">Solo PROFE/IOMA</option>
-                  <option value="sin_os">Sin O.Social</option>
-              </select>
-              <select onChange={e=>setFilters({...filters, level: e.target.value})} className="bg-slate-700 p-2 rounded-lg text-xs font-bold border border-slate-600 outline-none">
-                  <option value="all">Nivel: Todos</option>
-                  <option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option>
-              </select>
-              <select onChange={e=>setFilters({...filters, modality: e.target.value})} className="bg-slate-700 p-2 rounded-lg text-xs font-bold border border-slate-600 outline-none">
-                  <option value="all">Modalidad: Todas</option>
-                  <option value="Sede">Sede</option><option value="Inclusión">Inclusión</option>
-              </select>
-              <div className="flex bg-slate-700 rounded-lg items-center px-2 border border-slate-600">
-                  <Search size={14} className="opacity-50"/>
-                  <input placeholder="Buscar..." onChange={e=>setFilterText(e.target.value)} className="bg-transparent p-2 text-xs font-bold outline-none w-full"/>
+      {/* CABECERA CON LOGO Y DISEÑO */}
+      <div className="bg-white rounded-t-[30px] shadow-sm border-b border-gray-200 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-600 to-violet-600"></div>
+          <div className="p-6 pt-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+              <div className="flex items-center gap-4">
+                  <img src={LOGO_URL} alt="Logo Institucional" className="w-16 h-auto object-contain drop-shadow-sm" />
+                  <div>
+                      <h2 className="text-2xl font-black text-gray-800 uppercase italic flex items-center gap-2">
+                          Administración
+                      </h2>
+                      <p className="text-sm text-blue-600 font-bold uppercase tracking-wider">Centro de Documentación</p>
+                  </div>
               </div>
-          </div>
 
-          <div className="bg-slate-900/50 p-3 rounded-xl flex flex-col md:flex-row justify-between items-center gap-3">
-              <div className="flex items-center gap-3 w-full md:w-auto">
-                  <button onClick={toggleSelectAll} className="text-xs font-bold uppercase tracking-widest hover:text-blue-300 transition">
-                      {selectedIds.length === filteredStudents.length ? 'Deseleccionar' : 'Seleccionar'} Visibles ({selectedIds.length})
-                  </button>
-              </div>
-              <div className="flex gap-2 w-full md:w-auto">
-                  <select value={template} onChange={e=>setTemplate(e.target.value)} className="bg-white text-slate-900 p-2 rounded-lg text-xs font-bold flex-1 md:w-64 outline-none">
-                      <option value="constancia_regular">📄 Constancia Alumno Regular</option>
-                      <option value="solicitud_transporte">🚌 Solicitud Transporte</option>
-                      <option value="autorizacion_retiro">👋 Autorización de Retiro</option>
+              {/* FILTROS COMPACTOS */}
+              <div className="grid grid-cols-2 gap-2 w-full md:w-auto md:flex">
+                  <select onChange={e=>setFilters({...filters, os: e.target.value})} className="bg-gray-100 p-2 rounded-lg text-xs font-bold border border-gray-200 outline-none focus:border-blue-500 text-gray-700">
+                      <option value="all">OS: Todas</option>
+                      <option value="con_os">Con OS (Cualquiera)</option>
+                      <option value="IOMA">Solo IOMA</option>
+                      <option value="OSECAC">Solo OSECAC</option>
+                      <option value="PROFE">Solo PROFE/IOMA</option>
+                      <option value="sin_os">Sin OS</option>
                   </select>
-                  <button onClick={generateDocument} disabled={generating} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-black uppercase shadow-lg flex items-center gap-2">
-                      {generating ? <RefreshCw className="animate-spin"/> : <><Printer size={16}/> Generar PDF</>}
-                  </button>
+                  <select onChange={e=>setFilters({...filters, level: e.target.value})} className="bg-gray-100 p-2 rounded-lg text-xs font-bold border border-gray-200 outline-none focus:border-blue-500 text-gray-700">
+                      <option value="all">Nivel: Todos</option>
+                      <option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option>
+                  </select>
+                  <select onChange={e=>setFilters({...filters, modality: e.target.value})} className="bg-gray-100 p-2 rounded-lg text-xs font-bold border border-gray-200 outline-none focus:border-blue-500 text-gray-700">
+                      <option value="all">Mod: Todas</option>
+                      <option value="Sede">Sede</option><option value="Inclusión">Inclusión</option>
+                  </select>
+                  <div className="flex bg-gray-100 rounded-lg items-center px-2 border border-gray-200 focus-within:border-blue-500">
+                      <Search size={14} className="text-gray-400"/>
+                      <input placeholder="Buscar alumno..." onChange={e=>setFilterText(e.target.value)} className="bg-transparent p-2 text-xs font-bold outline-none w-full text-gray-700"/>
+                  </div>
               </div>
           </div>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-3 bg-gray-50 border-b border-gray-100 grid grid-cols-12 gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+      {/* BARRA DE ACCIÓN Y PLANTILLAS */}
+      <div className="bg-blue-50/80 p-4 backdrop-blur-sm border-b border-blue-100 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-3 w-full md:w-auto">
+              <button onClick={toggleSelectAll} className="text-xs font-black uppercase tracking-widest text-blue-700 hover:text-blue-900 transition bg-blue-100/50 px-3 py-1 rounded-full">
+                  {selectedIds.length === filteredStudents.length ? 'Deseleccionar' : 'Seleccionar'} Visibles ({selectedIds.length})
+              </button>
+              {selectedIds.length > 0 && <span className="text-xs font-bold text-blue-600">{selectedIds.length} alumnos seleccionados</span>}
+          </div>
+          <div className="flex gap-2 w-full md:w-auto">
+              <div className="relative flex-1 md:w-72">
+                 <FileText size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"/>
+                 <select value={template} onChange={e=>setTemplate(e.target.value)} className="bg-white text-gray-700 pl-10 pr-4 py-2 rounded-xl text-xs font-bold w-full outline-none border border-blue-200 focus:border-blue-500 shadow-sm appearance-none">
+                      <option value="constancia_regular">📄 Constancia Alumno Regular</option>
+                      <option value="solicitud_transporte">🚌 Solicitud Transporte</option>
+                      <option value="autorizacion_retiro">👋 Autorización de Retiro</option>
+                 </select>
+              </div>
+              <button onClick={generateDocument} disabled={generating || selectedIds.length === 0} className={`bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-2 rounded-xl text-xs font-black uppercase shadow-md flex items-center gap-2 transition transform active:scale-95 ${generating || selectedIds.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg hover:brightness-110'}`}>
+                  {generating ? <RefreshCw className="animate-spin"/> : <><Printer size={16}/> Generar PDF</>}
+              </button>
+          </div>
+      </div>
+
+      {/* LISTA DE ALUMNOS */}
+      <div className="bg-white shadow-sm border-x border-b border-gray-200 overflow-hidden rounded-b-[30px]">
+          <div className="p-3 bg-gray-50 border-b border-gray-200 grid grid-cols-12 gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest">
               <div className="col-span-1 text-center">Sel</div>
               <div className="col-span-4">Alumno</div>
               <div className="col-span-2">DNI</div>
               <div className="col-span-3">Obra Social</div>
-              <div className="col-span-2 text-center">Estado</div>
+              <div className="col-span-2 text-center">Mod.</div>
           </div>
-          <div className="divide-y divide-gray-100">
-              {filteredStudents.length === 0 ? <div className="p-10 text-center text-gray-400 font-bold text-xs">No hay alumnos con estos filtros.</div> : 
+          <div className="divide-y divide-gray-100 max-h-[60vh] overflow-y-auto">
+              {filteredStudents.length === 0 ? <div className="p-10 text-center text-gray-400 font-bold text-xs italic">No hay alumnos que coincidan con los filtros.</div> : 
                filteredStudents.map(s => (
-                  <div key={s.id} onClick={() => toggleSelect(s.id)} className={`grid grid-cols-12 gap-2 p-3 items-center cursor-pointer transition hover:bg-blue-50 ${selectedIds.includes(s.id) ? 'bg-blue-50/50' : ''}`}>
+                  <div key={s.id} onClick={() => toggleSelect(s.id)} className={`grid grid-cols-12 gap-2 p-3 items-center cursor-pointer transition duration-150 hover:bg-blue-50 ${selectedIds.includes(s.id) ? 'bg-blue-50/80' : ''}`}>
                       <div className="col-span-1 flex justify-center">
-                          <div className={`w-5 h-5 rounded border flex items-center justify-center transition ${selectedIds.includes(s.id) ? 'bg-blue-500 border-blue-500' : 'border-gray-300 bg-white'}`}>
+                          <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${selectedIds.includes(s.id) ? 'bg-blue-500 border-blue-500 scale-110 shadow-sm' : 'border-gray-300 bg-white group-hover:border-blue-300'}`}>
                               {selectedIds.includes(s.id) && <Check size={12} className="text-white"/>}
                           </div>
                       </div>
-                      <div className="col-span-4 font-bold text-xs text-gray-700 truncate">{s.lastName}, {s.firstName}</div>
-                      <div className="col-span-2 text-xs text-gray-500 font-mono">{s.dni}</div>
+                      <div className="col-span-4 font-bold text-sm text-gray-700 truncate">{s.lastName}, {s.firstName}</div>
+                      <div className="col-span-2 text-xs text-gray-500 font-mono font-bold">{s.dni}</div>
                       <div className="col-span-3 text-xs text-blue-600 font-bold truncate">{s.healthInsurance || '-'}</div>
-                      <div className="col-span-2 flex justify-center">
-                          <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${s.modality==='Inclusión'?'bg-indigo-100 text-indigo-700':'bg-orange-100 text-orange-700'}`}>{s.modality||'Sede'}</span>
-                      </div>
-                  </div>
-              ))}
-          </div>
-      </div>
-    </div>
-  );
-}
+                      <div className="col-
 // ===============================================================
 // PEGAR ESTO AL FINAL DEL ARCHIVO (FUERA DE CUALQUIER OTRA FUNCIÓN)
 // ===============================================================
@@ -2873,6 +2884,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
