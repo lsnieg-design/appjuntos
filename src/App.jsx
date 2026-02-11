@@ -2641,7 +2641,7 @@ function GroupsView({ user }) {
     </div>
   );
 }
-// --- VISTA ADMINISTRACIÓN (DISEÑO COMPACTO + FIRMA/SELLO) ---
+// --- VISTA ADMINISTRACIÓN (DISEÑO REPLICA EXACTA AL ORIGINAL) ---
 function AdministracionView({ user }) {
   const [students, setStudents] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -2650,7 +2650,7 @@ function AdministracionView({ user }) {
   const [template, setTemplate] = useState('constancia_regular');
   const [generating, setGenerating] = useState(false);
   
-  // ASEGÚRATE DE QUE ESTAS IMÁGENES EXISTAN EN TU CARPETA PUBLIC
+  // IMÁGENES (Deben estar en carpeta public)
   const LOGO_URL = "/icon-192.png";
   const FIRMA_URL = "/firma.png"; 
   const SELLO_URL = "/sello.png";
@@ -2667,7 +2667,6 @@ function AdministracionView({ user }) {
       if (s.isActive === false) return false;
       const txt = filterText.toLowerCase();
       if (txt && !((s.firstName||'').toLowerCase().includes(txt) || (s.lastName||'').toLowerCase().includes(txt) || (s.dni||'').includes(txt))) return false;
-      
       if (filters.os !== 'all') {
           if (filters.os === 'con_os' && (!s.healthInsurance || s.healthInsurance.length < 2)) return false;
           if (filters.os === 'sin_os' && (s.healthInsurance && s.healthInsurance.length > 2)) return false;
@@ -2687,78 +2686,87 @@ function AdministracionView({ user }) {
       setGenerating(true);
       
       const targets = students.filter(s => selectedIds.includes(s.id));
-      const today = new Date().toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' });
+      const today = new Date();
+      const day = today.getDate();
+      const month = today.toLocaleString('es-AR', { month: 'long' });
+      const year = today.getFullYear();
+      const fullDate = `Villa Udaondo, ${day} de ${month} de ${year}`;
 
-      let htmlContent = `<html><head><title>Documentos Institucionales</title><style>
+      let htmlContent = `<html><head><title>Documentos</title><style>
           @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+          /* FUENTE TIMES NEW ROMAN COMO LA ORIGINAL */
           body { font-family: 'Times New Roman', Times, serif; margin: 0; padding: 20px; color: #000; }
           
-          /* CONTENEDOR TIPO TARJETA COMPACTO */
+          .page-break { page-break-after: always; }
+
           .cert-container { 
-              border: 3px solid #65a30d; 
-              border-radius: 25px; 
-              padding: 30px; 
-              margin: 0 auto 30px auto;
+              border: 3px solid #65a30d; /* Verde Juntos a la Par */
+              border-radius: 35px; 
+              padding: 40px 50px; 
+              margin: 0 auto;
               position: relative; 
-              min-height: auto;
+              height: 90vh; /* Altura fija para centrar contenido verticalmente si se quiere, o auto */
               box-sizing: border-box; 
-              page-break-after: always; 
-              max-width: 800px;
+              max-width: 950px;
+              display: flex;
+              flex-direction: column;
           }
 
-          /* HEADER MÁS PEQUEÑO */
-          .cert-header { display: flex; align-items: center; margin-bottom: 30px; }
-          .cert-logo { width: 100px; height: auto; margin-right: 20px; }
+          /* HEADER */
+          .cert-header { display: flex; align-items: center; margin-bottom: 40px; }
+          .cert-logo { width: 140px; height: auto; margin-right: 20px; }
           .cert-title { 
-              font-size: 18px; 
+              font-size: 20px; 
               font-weight: bold; 
               text-decoration: underline; 
               text-transform: uppercase; 
               text-align: center;
               flex-grow: 1;
-              margin-top: 10px;
+              padding-top: 20px;
           }
 
-          /* CUERPO DEL TEXTO MÁS COMPACTO */
-          .cert-body { font-size: 16px; line-height: 1.8; margin-top: 20px; }
+          /* CUERPO */
+          .cert-body { font-size: 18px; line-height: 2.5; flex-grow: 1; }
           
+          /* LÍNEAS PUNTEADAS */
           .dotted { 
               border-bottom: 1px dotted #000; 
               display: inline-block; 
-              padding: 0 5px; 
+              padding: 0 10px; 
               font-weight: bold; 
-              min-width: 80px;
               text-align: center;
           }
           
-          /* SECCIÓN DE FIRMAS COMPACTA */
+          /* FOOTER FIRMAS */
           .signatures-section { 
-              margin-top: 80px; 
+              margin-top: auto; /* Empuja al fondo */
+              margin-bottom: 20px;
               display: flex; 
               justify-content: space-between; 
               align-items: flex-end;
-              padding: 0 30px;
+              padding: 0 40px;
           }
           .sig-box { 
               text-align: center; 
-              width: 200px; 
+              width: 250px; 
               position: relative;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: flex-end;
+              height: 150px; /* Altura para que entre la firma */
           }
-          .sig-text { margin-top: 5px; font-size: 14px; }
-          
-          /* IMÁGENES FIRMA/SELLO SUPERPUESTAS */
-          .img-firma {
-              position: absolute;
-              bottom: 15px; 
-              left: 50%;
-              transform: translateX(-50%);
-              height: 80px; 
-              z-index: -1;
+          .sig-img {
+              max-width: 180px;
+              max-height: 100px;
+              margin-bottom: -10px; /* Para que pise un poco el texto si es necesario */
+              z-index: 1;
           }
+          .sig-text { font-size: 16px; margin-top: 5px; z-index: 2; }
 
           @media print { 
-              body { padding: 0; } 
-              .cert-container { margin: 0; border: 3px solid #65a30d; height: auto; border-radius: 25px; page-break-after: always; } 
+              body { padding: 0; margin: 0; } 
+              .cert-container { margin: 0; border: 3px solid #65a30d; height: 98vh; border-radius: 35px; } 
           }
       </style></head><body>`;
 
@@ -2775,32 +2783,33 @@ function AdministracionView({ user }) {
                   
                   <div class="cert-body">
                       Escuela Especial Juntos a la Par se hace constar que
-                      <br><br>
-                      <span class="dotted" style="width: 100%; text-align: left;">${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</span>
-                      <br><br>
-                      con DNI N.° <span class="dotted" style="width: 150px;">${s.dni}</span> es alumno/a regular de...
-                      <br><br>
+                      <br>
+                      <span class="dotted" style="width: 100%; text-align: center;">${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</span>
+                      <br>
+                      con DNI N.° <span class="dotted" style="width: 180px;">${s.dni}</span> es alumno/a regular de...
+                      <br>
                       en esta institución, con &nbsp;&nbsp;&nbsp; CUE 0623214-00.
                       <br><br>
-                      A pedido del interesado y al efecto de ser presentado...<span class="dotted" style="width: 100%;">${s.healthInsurance || 'ante quien corresponda'}</span>
+                      A pedido del interesado y al efecto de ser presentado <span class="dotted" style="min-width: 300px;">${s.healthInsurance || 'ante quien corresponda'}</span>
                       <br><br>
-                      Lugar &nbsp;&nbsp;&nbsp; y &nbsp;&nbsp;&nbsp; fecha <span class="dotted" style="width: 250px;">Villa Udaondo, ${today}</span>....................
+                      Lugar &nbsp;&nbsp;&nbsp; y &nbsp;&nbsp;&nbsp; fecha <span class="dotted" style="min-width: 450px;">${fullDate}</span>
                   </div>
 
                   <div class="signatures-section">
                       <div class="sig-box">
-                          <img src="${FIRMA_URL}" class="img-firma" onerror="this.style.display='none'"/> 
+                          <img src="${FIRMA_URL}" class="sig-img" onerror="this.style.display='none'"/> 
                           <div class="sig-text">Firma director o vicedirector</div>
                       </div>
                       <div class="sig-box">
-                          <img src="${SELLO_URL}" class="img-firma" onerror="this.style.display='none'"/>
+                          <img src="${SELLO_URL}" class="sig-img" onerror="this.style.display='none'"/>
                           <div class="sig-text">Sello institución</div>
                       </div>
                   </div>
-              </div>`;
+              </div>
+              <div class="page-break"></div>`;
           } 
           else {
-             content = `<div style="padding:50px">Plantilla en construcción...</div>`; 
+             content = `<div style="padding:50px">Plantilla en construcción...</div><div class="page-break"></div>`; 
           }
 
           htmlContent += content;
@@ -2877,4 +2886,5 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
