@@ -2622,7 +2622,7 @@ function GroupsView({ user }) {
                     <select name="special1" defaultValue={editingGroup.special1} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 1...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select>
                     <select name="special2" defaultValue={editingGroup.special2} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 2...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select>
                     <select name="special3" defaultValue={editingGroup.special3} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 3...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select>
-// --- VISTA ADMINISTRACIÓN (DISEÑO MEDIA CARILLA A4 PERFECTO) ---
+// --- VISTA ADMINISTRACIÓN (FINAL: JORNADA DETALLADA + DISEÑO A4) ---
 function AdministracionView({ user }) {
   const [students, setStudents] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -2634,7 +2634,6 @@ function AdministracionView({ user }) {
   // ESTADO PARA "PRESENTAR ANTE"
   const [customTarget, setCustomTarget] = useState(""); 
   
-  // ASEGURATE QUE ESTÉN EN LA CARPETA PUBLIC
   const LOGO_URL = "/icon-192.png";
   const FIRMA_URL = "/firma.png"; 
   const SELLO_URL = "/sello.png";
@@ -2681,7 +2680,7 @@ function AdministracionView({ user }) {
           @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
           body { font-family: 'Times New Roman', Times, serif; margin: 0; padding: 0; color: #000; }
           
-          /* CONTENEDOR MEDIA CARILLA EXACTO (148mm es mitad A4, usamos 140mm para margen) */
+          /* CONTENEDOR MEDIA CARILLA EXACTO (140mm) */
           .cert-container { 
               border: 2px solid #65a30d; 
               border-radius: 25px; 
@@ -2691,7 +2690,7 @@ function AdministracionView({ user }) {
               height: 140mm; 
               box-sizing: border-box; 
               width: 100%;
-              max-width: 210mm; /* Ancho A4 */
+              max-width: 210mm; 
               display: flex;
               flex-direction: column;
               page-break-inside: avoid;
@@ -2738,13 +2737,13 @@ function AdministracionView({ user }) {
               font-weight: bold;
           }
 
-          /* FIRMAS (LAYOUT FLEXIBLE) */
+          /* FIRMAS */
           .signatures-section { 
               display: flex; 
               justify-content: space-between; 
               align-items: flex-end;
               padding: 0 10px;
-              height: 80px; /* Espacio fijo para firmas */
+              height: 80px; 
           }
           
           .sig-box { 
@@ -2753,12 +2752,11 @@ function AdministracionView({ user }) {
               position: relative;
           }
           
-          /* IMAGEN FLOTANTE */
           .sig-img {
-              height: 60px; /* Tamaño controlado */
+              height: 60px; 
               width: auto;
               display: block;
-              margin: 0 auto -10px auto; /* Margen negativo para que 'pise' la línea */
+              margin: 0 auto -10px auto; 
               position: relative;
               z-index: 10;
           }
@@ -2778,6 +2776,15 @@ function AdministracionView({ user }) {
 
       targets.forEach(s => {
           let content = '';
+          
+          // LÓGICA DE JORNADA
+          let jornadaTexto = "....................";
+          if (s.journey === 'Simple Mañana') jornadaTexto = "jornada simple durante el turno mañana";
+          else if (s.journey === 'Simple Tarde') jornadaTexto = "jornada simple durante el turno tarde";
+          else if (s.journey === 'Doble') jornadaTexto = "jornada doble";
+          else if (s.journey) jornadaTexto = `jornada ${s.journey}`;
+
+          // LÓGICA DE PRESENTADO ANTE
           let presentadoAnte = customTarget.trim() !== "" ? customTarget : (s.healthInsurance && s.healthInsurance.length > 2 ? s.healthInsurance : 'quien corresponda');
 
           if (template === 'constancia_regular') {
@@ -2789,14 +2796,19 @@ function AdministracionView({ user }) {
                   </div>
                   
                   <div class="cert-body">
-                      Escuela Especial Juntos a la Par se hace constar que
+                      Escuela Especial Juntos a la Par hace constar que
                       
                       <div class="line-group" style="margin-top:10px;">
                           <span class="data-field">${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</span>
                       </div>
                       
                       <div class="line-group">
-                          con DNI N.° <span class="inline-field">${s.dni}</span> es alumno/a regular de...
+                          con DNI N.° <span class="inline-field">${s.dni}</span> es alumno/a regular del Nivel:
+                          <span class="inline-field" style="width: 100%; display:block; margin-top:5px;">${s.level || '................'} (${s.modality || 'Sede'})</span>
+                      </div>
+
+                      <div class="line-group">
+                          cumpliendo <span class="inline-field">${jornadaTexto}</span>
                       </div>
 
                       <div class="line-group">
@@ -2845,12 +2857,11 @@ function AdministracionView({ user }) {
       doc.write(htmlContent); 
       doc.close();
 
-      // ESPERAR UN POCO MÁS PARA QUE CARGUEN LAS IMÁGENES
       setTimeout(() => { 
           iframe.contentWindow.focus(); 
           iframe.contentWindow.print(); 
           setTimeout(() => { document.body.removeChild(iframe); setGenerating(false); }, 5000); 
-      }, 1000); // 1 segundo de espera para carga de imágenes
+      }, 1000);
   };
 
   if (!canAccess) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido.</div>;
@@ -2873,7 +2884,6 @@ function AdministracionView({ user }) {
       {/* BARRA DE ACCIÓN */}
       <div className="bg-blue-50/80 p-4 backdrop-blur-sm border-b border-blue-100 flex flex-col md:flex-row justify-between items-center gap-4">
           <button onClick={toggleSelectAll} className="text-xs font-black uppercase tracking-widest text-blue-700 bg-blue-100/50 px-3 py-1 rounded-full">{selectedIds.length === filteredStudents.length ? 'Deseleccionar' : 'Seleccionar'} Visibles ({selectedIds.length})</button>
-          
           <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto items-center">
               <div className="flex flex-col w-full md:w-auto">
                   <input placeholder="Presentar ante..." value={customTarget} onChange={e => setCustomTarget(e.target.value)} className="w-full md:w-64 p-2 rounded-xl text-xs font-bold border border-blue-200 outline-none focus:border-blue-500 placeholder-blue-300 text-blue-900"/>
@@ -2920,6 +2930,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
