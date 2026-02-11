@@ -1508,27 +1508,26 @@ function ProyectoView({ user }) {
     </div>
   );
 }
-// --- VISTA MATRÍCULA (FINAL: SIN DUPLICADOS + DISEÑO PREMIUM + CAMPOS COMPLETOS) ---
+// --- VISTA MATRÍCULA (MASTER: + CAMPO RETIRO + PRIVACIDAD DRIVE) ---
 function MatriculaView({ user }) {
-  // 1. ESTADOS DE DATOS
+  // 1. ESTADOS
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
   const [viewingStudent, setViewingStudent] = useState(null);
   const [editingStudent, setEditingStudent] = useState(null);
   const [activeModalTab, setActiveModalTab] = useState('info');
-  
-  // 2. ESTADOS DE INTERFAZ Y FILTROS
   const [filterText, setFilterText] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [formModalidad, setFormModalidad] = useState('Sede');
+  
   const [filters, setFilters] = useState({ modality: 'all', level: 'all', group: 'all', turn: 'all', teacher: 'all', dx: 'all', gender: 'all', journey: 'all', os: 'all' });
   const [statFilters, setStatFilters] = useState({ modality: [], level: [], gender: 'all', dx: 'all' });
 
-  // 3. ESTADOS DE BITÁCORA
+  // BITÁCORA
   const [newNote, setNewNote] = useState("");
   const [isWriting, setIsWriting] = useState(false);
 
-  // 4. ESTADOS DE MODALES Y GESTIÓN
+  // MODALES
   const [showStats, setShowStats] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showDataManagement, setShowDataManagement] = useState(false);
@@ -1541,10 +1540,12 @@ function MatriculaView({ user }) {
   const [processing, setProcessing] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  // ROLES Y PERMISOS
   const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin' || user.role === 'Equipo Directivo' || user.role === 'Dirección Inclusión';
+  const canSearchDrive = isSuperAdmin || user.role === 'Administración'; // NUEVO PERMISO
   const LOGO_URL = "/icon-192.png"; 
 
-  // CONSTANTES DE BITÁCORA
+  // CONSTANTES BITÁCORA
   const INCIDENT_TYPES = [
       { label: "Trabajó Muy Bien", emoji: "🌟", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
       { label: "Ayudó a un amigo", emoji: "🤝", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
@@ -1583,7 +1584,6 @@ function MatriculaView({ user }) {
     const txt = filterText.toLowerCase();
     if (txt && !((s.firstName||'').toLowerCase().includes(txt) || (s.lastName||'').toLowerCase().includes(txt) || (s.dni||'').toString().includes(txt))) return false;
     
-    // FILTROS
     if (filters.modality !== 'all' && (s.modality || 'Sede') !== filters.modality) return false;
     if (filters.level !== 'all' && s.level !== filters.level) return false;
     if (filters.group !== 'all' && (s.groupMorning !== filters.group && s.groupAfternoon !== filters.group)) return false;
@@ -1614,7 +1614,7 @@ function MatriculaView({ user }) {
   const addIncident = async (type, text = "") => { if (!viewingStudent) return; const newInc = { date: new Date().toISOString(), type: text ? "Nota" : type, severity: type, text: text || type, author: user.firstName }; try { const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', viewingStudent.id); await updateDoc(studentRef, { incidents: arrayUnion(newInc) }); setViewingStudent(prev => ({...prev, incidents: [...(prev.incidents || []), newInc]})); setNewNote(""); setIsWriting(false); } catch (e) { alert("Error: " + e.message); } };
   const abrirLegajoDigital = (student) => { const clean = (str) => (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9 ]/g, ""); const query = `name contains '${clean(student.lastName).split(' ')[0]}' and name contains '${clean(student.firstName).split(' ')[0]}' and trashed = false`; window.open(`https://drive.google.com/drive/search?q=${encodeURIComponent(query)}`, '_blank'); };
   
-  // FUNCIONES DE GESTIÓN (ÚNICAS)
+  // FUNCIONES DE GESTIÓN
   const checkUnassigned = () => { const found = students.filter(s => (s.isActive === undefined || s.isActive === true) && !s.groupMorning && !s.groupAfternoon && !s.daiMorning && !s.daiAfternoon); setUnassignedList(found); setShowDataManagement(false); setShowUnassigned(true); };
   const findDuplicates = () => alert("Función en mantenimiento.");
   const descargarBackup = () => { if(!confirm("¿Descargar Backup?")) return; const blob = new Blob([JSON.stringify(students, null, 2)], { type: "application/json" }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = "BACKUP_MATRICULA.json"; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
@@ -1622,7 +1622,6 @@ function MatriculaView({ user }) {
   const handleDeleteAll = () => alert("Función protegida.");
   const handleResetCycle = () => alert("Protegido.");
 
-  // AUTO-ASIGNAR GÉNERO
   const handleAutoAssignGenders = async () => {
     if(!confirm("🤖 ¿Asignar género automáticamente basado en el nombre?\n(Nombres terminados en 'a' serán F, resto M)")) return;
     setProcessing(true);
@@ -1639,7 +1638,7 @@ function MatriculaView({ user }) {
     setProcessing(false);
   };
   
-  // --- PARCHE IMPRESIÓN MATRÍCULA (MÉTODO IFRAME - SIN SALIR DE LA APP) ---
+  // IMPRESIÓN PRO CON RETIRO Y BOTÓN VOLVER INVISIBLE
   const imprimirListado = (list) => { 
       let h = `<html><head><title>Fichas de Estudiantes</title>
       <style>
@@ -1697,36 +1696,25 @@ function MatriculaView({ user }) {
                   <div class="field"><span class="label">Madre / Tutor 1</span><span class="value">${s.motherName || '-'}</span><br><span style="font-size:11px;color:#666">${s.motherContact || '-'}</span></div>
                   <div class="field"><span class="label">Padre / Tutor 2</span><span class="value">${s.fatherName || '-'}</span><br><span style="font-size:11px;color:#666">${s.fatherContact || '-'}</span></div>
               </div>
+              
+              <div class="field" style="margin-top:10px; background:#f9fafb; padding:10px; border-radius:5px;">
+                  <span class="label">PERSONAS AUTORIZADAS A RETIRAR</span>
+                  <span class="value">${s.pickupInfo || 'Sin datos cargados.'}</span>
+              </div>
 
               <div class="footer">Juntos a la Par - Legajo Digital generado el ${new Date().toLocaleDateString()}</div>
           </div>`; 
       }); 
       h += '</body></html>'; 
 
-      // IMPRESIÓN IFRAME
       const iframe = document.createElement('iframe');
-      iframe.style.position = 'fixed';
-      iframe.style.right = '0';
-      iframe.style.bottom = '0';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = '0';
+      iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
       document.body.appendChild(iframe);
-
-      const doc = iframe.contentWindow.document;
-      doc.open();
-      doc.write(h);
-      doc.close();
-
-      setTimeout(() => {
-          iframe.contentWindow.focus();
-          iframe.contentWindow.print();
-          setTimeout(() => { document.body.removeChild(iframe); }, 5000);
-      }, 500);
+      const doc = iframe.contentWindow.document; doc.open(); doc.write(h); doc.close();
+      setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
   };
-  const imprimirFichasMasivas = () => { if (filteredStudents.length > 50 && !confirm(`¿Imprimir ${filteredStudents.length} fichas? Es mucho.`)) return; imprimirListado(filteredStudents); };
+
   const exportFiltered = () => { if (filteredStudents.length === 0) return alert("Sin datos"); const headers = ["Apellido", "Nombre", "DNI", "Nivel", "Modalidad"]; const csv = [headers.join(';'), ...filteredStudents.map(s => [`"${s.lastName}"`, `"${s.firstName}"`, `"${s.dni}"`, `"${s.level}"`, `"${s.modality||'Sede'}"`].join(';'))].join('\n'); const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = "Matricula.csv"; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
-  const statsResults = students.filter(s => { if (s.isActive === false) return false; if (statFilters.modality.length > 0 && !statFilters.modality.includes(s.modality || 'Sede')) return false; if (statFilters.level.length > 0 && !statFilters.level.includes(s.level)) return false; if (statFilters.dx !== 'all' && s.dx !== statFilters.dx) return false; if (statFilters.gender !== 'all' && s.gender !== statFilters.gender) return false; return true; });
   const toggleStatFilter = (category, value) => { setStatFilters(prev => { const currentList = prev[category]; if (currentList.includes(value)) return { ...prev, [category]: currentList.filter(item => item !== value) }; else return { ...prev, [category]: [...currentList, value] }; }); };
 
   return (
@@ -1746,7 +1734,6 @@ function MatriculaView({ user }) {
          {!showArchived && (
             <div className="mt-4 space-y-2">
                 <div className="bg-white/20 p-2 rounded-xl flex items-center"><Search className="ml-2 opacity-70"/><input value={filterText} onChange={e=>setFilterText(e.target.value)} placeholder="Buscar alumno..." className="bg-transparent border-none outline-none text-white w-full font-bold placeholder-white/60 ml-2"/>{filterText && <button onClick={()=>setFilterText('')}><X/></button>}</div>
-                {/* FILTROS COMPLETOS RESTAURADOS */}
                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                     <select value={filters.modality} onChange={e=>setFilters({...filters, modality:e.target.value})} className="bg-orange-100 text-orange-800 text-xs p-2 rounded-lg font-bold min-w-[100px] border border-orange-200"><option value="all">Modalidad: Todas</option><option value="Sede">Sede</option><option value="Inclusión">Inclusión</option></select>
                     <select value={filters.group} onChange={e=>setFilters({...filters, group:e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[100px]"><option value="all">Grupo: Todos</option>{uniqueGroups.map(g=><option key={g} value={g}>{g}</option>)}</select>
@@ -1787,11 +1774,10 @@ function MatriculaView({ user }) {
           ); 
       })}</div>
       
-      {/* MODAL FICHA COMPLETA (DISEÑO PREMIUM DE LA IMAGEN) */}
+      {/* MODAL FICHA COMPLETA */}
       {viewingStudent && !showForm && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
             <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                {/* Header Oscuro */}
                 <div className="bg-slate-700 p-6 text-white relative">
                     <button onClick={()=>setViewingStudent(null)} className="absolute top-4 right-4 bg-white/20 p-1.5 rounded-full hover:bg-white/40 transition"><X size={20}/></button>
                     <div className="flex gap-5 items-center">
@@ -1806,7 +1792,6 @@ function MatriculaView({ user }) {
                             </div>
                         </div>
                     </div>
-                    {/* Tabs */}
                     <div className="flex gap-2 mt-6 bg-slate-800/50 p-1 rounded-xl">
                         <button onClick={()=>setActiveModalTab('info')} className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeModalTab==='info'?'bg-white text-slate-800 shadow-md':'text-white/50 hover:text-white hover:bg-white/10'}`}>Datos Personales</button>
                         <button onClick={()=>setActiveModalTab('history')} className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeModalTab==='history'?'bg-white text-slate-800 shadow-md':'text-white/50 hover:text-white hover:bg-white/10'}`}>Bitácora</button>
@@ -1816,9 +1801,10 @@ function MatriculaView({ user }) {
                 <div className="p-6 overflow-y-auto bg-gray-50 flex-1 relative">
                     {activeModalTab==='info' ? (
                       <div className="space-y-4 text-sm">
-                        <button onClick={() => abrirLegajoDigital(viewingStudent)} className="w-full bg-green-100 text-green-800 py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-green-200 transition border border-green-300 mb-4 shadow-sm transform hover:scale-[1.02]"><Folder size={18}/> {viewingStudent.modality === 'Inclusión' ? 'IR A CARPETA DRIVE (DIRECTO)' : 'BUSCAR EN DRIVE (DETECTIVE)'}</button>
+                        {canSearchDrive && (
+                            <button onClick={() => abrirLegajoDigital(viewingStudent)} className="w-full bg-green-100 text-green-800 py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-green-200 transition border border-green-300 mb-4 shadow-sm transform hover:scale-[1.02]"><Folder size={18}/> {viewingStudent.modality === 'Inclusión' ? 'IR A CARPETA DRIVE' : 'BUSCAR EN DRIVE'}</button>
+                        )}
                         
-                        {/* GRILLA DE DATOS PRINCIPALES */}
                         <div className="grid grid-cols-4 gap-3">
                              <div className="bg-white p-3 rounded-2xl border border-gray-200 text-center shadow-sm">
                                  <p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Nivel</p>
@@ -1838,7 +1824,6 @@ function MatriculaView({ user }) {
                              </div>
                         </div>
 
-                        {/* SECCIÓN ESCOLARIDAD */}
                         <div className="space-y-2">
                              <div className="bg-gray-200 p-2 rounded-lg text-[10px] font-bold text-gray-600 uppercase text-center tracking-widest">Modalidad {viewingStudent.modality || 'Sede'}</div>
                              {viewingStudent.modality === 'Inclusión' ? (
@@ -1872,7 +1857,6 @@ function MatriculaView({ user }) {
                              )}
                         </div>
 
-                        {/* SECCIÓN SALUD Y FAMILIA */}
                         <div className="grid grid-cols-1 gap-3">
                             <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
                                 <h4 className="font-bold text-green-600 text-xs uppercase flex items-center gap-1 mb-3"><Activity size={14}/> Salud y Obra Social</h4>
@@ -1893,9 +1877,15 @@ function MatriculaView({ user }) {
                                         <div className="text-right"><span className="text-[9px] text-gray-400 font-bold block uppercase">Contacto</span><span className="font-bold text-blue-600 text-xs">{viewingStudent.fatherContact || '-'}</span></div>
                                     </div>
                                 </div>
-                                <div className="mt-3 pt-2 border-t border-gray-100">
-                                    <span className="text-[9px] text-gray-400 font-bold block uppercase">Dirección</span>
-                                    <p className="font-bold text-xs text-gray-700">{viewingStudent.address || 'No registrada'}</p>
+                                <div className="mt-3 pt-2 border-t border-gray-100 space-y-2">
+                                    <div>
+                                        <span className="text-[9px] text-gray-400 font-bold block uppercase">Dirección</span>
+                                        <p className="font-bold text-xs text-gray-700">{viewingStudent.address || 'No registrada'}</p>
+                                    </div>
+                                    <div className="bg-orange-50 p-2 rounded-lg border border-orange-100">
+                                        <span className="text-[9px] text-orange-700 font-bold block uppercase mb-1">Autorizados a Retirar</span>
+                                        <p className="font-bold text-xs text-gray-800">{viewingStudent.pickupInfo || 'Sin datos cargados.'}</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1931,14 +1921,11 @@ function MatriculaView({ user }) {
         </div>
       )}
 
-      {/* FORMULARIO DE EDICIÓN (DISEÑO IMAGEN 2 - COMPLETO) */}
+      {/* FORMULARIO DE EDICIÓN CON CAMPO "QUIÉN RETIRA" */}
       {showForm && (<div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm"><div className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto"><h3 className="text-xl font-bold mb-4">{editingStudent?'Editar':'Nuevo'} Legajo</h3>
-      
-      {/* SECCIÓN FOTO */}
+      {/* FOTO */}
       <div className="flex justify-center mb-6"><div className="relative group w-24 h-24"><div className="w-24 h-24 rounded-full overflow-hidden border-4 border-violet-100 bg-gray-100 shadow-inner">{photoPreview || editingStudent?.photoUrl ? <img src={photoPreview || editingStudent?.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-gray-300 m-auto mt-6"/>}</div><label className="absolute bottom-0 right-0 bg-violet-600 text-white p-2 rounded-full cursor-pointer hover:bg-violet-700 shadow-md"><input type="file" className="hidden" accept="image/*" onChange={handlePhotoChange} />{uploading ? <RefreshCw className="animate-spin" size={14}/> : <Edit3 size={14}/>}</label></div></div>
-
       <form onSubmit={handleSave} className="space-y-4">
-        {/* TABS MODALIDAD */}
         <div className="flex gap-2 mb-4 bg-gray-100 p-1 rounded-xl"><button type="button" onClick={() => setFormModalidad('Sede')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${formModalidad === 'Sede' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>SEDE</button><button type="button" onClick={() => setFormModalidad('Inclusión')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${formModalidad === 'Inclusión' ? 'bg-white shadow text-indigo-700' : 'text-gray-400'}`}>INCLUSIÓN</button></div>
         
         {/* ESTADO */}
@@ -1958,7 +1945,6 @@ function MatriculaView({ user }) {
                  <select name="level" defaultValue={editingStudent?.level} className="p-2 rounded-lg border text-xs font-bold w-full"><option value="">Nivel...</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option><option value="SECUNDARIA">SECUNDARIA</option></select>
                  <select name="dx" defaultValue={editingStudent?.dx} className="p-2 rounded-lg border text-xs font-bold w-full"><option value="">DX...</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select>
              </div>
-             
              {formModalidad === 'Sede' ? (
                  <>
                     <div className="grid grid-cols-2 gap-2"><input name="groupMorning" defaultValue={editingStudent?.groupMorning} placeholder="Grupo TM" className="p-2 rounded-lg border text-xs w-full"/><input name="groupAfternoon" defaultValue={editingStudent?.groupAfternoon} placeholder="Grupo TT" className="p-2 rounded-lg border text-xs w-full"/></div>
@@ -1974,18 +1960,24 @@ function MatriculaView({ user }) {
              )}
         </div>
 
-        {/* CAJA VERDE: SALUD Y FAMILIA (RECUPERADA) */}
+        {/* CAJA VERDE: SALUD Y FAMILIA */}
         <div className="p-4 bg-green-50 rounded-2xl border border-green-100 space-y-3">
             <h4 className="font-bold text-green-800 text-xs uppercase">Salud y Familia</h4>
             <div className="grid grid-cols-2 gap-2"><input name="healthInsurance" defaultValue={editingStudent?.healthInsurance} placeholder="Obra Social" className="w-full p-2 rounded-lg border text-xs"/><input name="cudExpiration" type="date" defaultValue={getSafeDate(editingStudent?.cudExpiration)} className="w-full p-2 rounded-lg border text-xs text-gray-500"/></div>
             <input name="address" defaultValue={editingStudent?.address} className="w-full p-2 rounded-lg border text-xs" placeholder="Dirección"/>
             <div className="grid grid-cols-2 gap-2"><input name="motherName" defaultValue={editingStudent?.motherName} placeholder="Madre" className="w-full p-2 rounded-lg border text-xs"/><input name="motherContact" defaultValue={editingStudent?.motherContact} placeholder="Contacto Madre" className="w-full p-2 rounded-lg border text-xs"/></div>
             <div className="grid grid-cols-2 gap-2"><input name="fatherName" defaultValue={editingStudent?.fatherName} placeholder="Padre" className="w-full p-2 rounded-lg border text-xs"/><input name="fatherContact" defaultValue={editingStudent?.fatherContact} placeholder="Contacto Padre" className="w-full p-2 rounded-lg border text-xs"/></div>
+            
+            {/* NUEVO CAMPO: QUIEN RETIRA */}
+            <div className="border-t border-green-200 pt-2">
+                <label className="text-[10px] font-bold text-green-700 uppercase block mb-1">Personas autorizadas a retirar</label>
+                <textarea name="pickupInfo" defaultValue={editingStudent?.pickupInfo} className="w-full p-2 rounded-lg border text-xs h-16 resize-none" placeholder="Abuela Marta, Tía Juana..."/>
+            </div>
         </div>
         
         <div className="flex gap-2 pt-4 border-t"><button type="button" onClick={()=>setShowForm(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs">Cancelar</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg">Guardar</button>{editingStudent && <button type="button" onClick={() => handleDelete(editingStudent.id)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition border border-red-100"><Trash2 size={20}/></button>}</div></form></div></div>)}
       
-      {/* MODAL GESTIÓN (NUBE + AUTO-GÉNERO) */}
+      {/* MODAL GESTIÓN (NUBE) */}
       {showDataManagement && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[9999]">
             <div className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl animate-in zoom-in-95">
@@ -2661,6 +2653,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
