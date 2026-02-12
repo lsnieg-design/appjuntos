@@ -548,14 +548,13 @@ function ResourcesView({ resources, canEdit }) {
   );
 }
 
-// --- VISTA TAREAS (FINAL: SWITCH ADMIN + ALERTA ROJA AUSENTISMO) ---
+// --- VISTA TAREAS (FINAL: ORDEN POR FECHA + GLOBAL SIN MÍAS) ---
 function TasksView({ tasks, user, canEdit }) {
-  // 1. ESTADOS
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
   
-  // ESTADO NUEVO: CONTROL DE VISTA (Solo Admin)
-  const [viewMode, setViewMode] = useState('mine'); // 'mine' = Mis cosas, 'all' = Supervisión global
+  // ESTADO: MODO DE VISTA (Solo Admin)
+  const [viewMode, setViewMode] = useState('mine'); // 'mine' = Mías, 'all' = Otros (Supervisión)
 
   const [assignType, setAssignType] = useState('user'); 
   const [selectedRoles, setSelectedRoles] = useState([]);
@@ -571,17 +570,14 @@ function TasksView({ tasks, user, canEdit }) {
 
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor', 'DAI', 'Dirección Inclusión', 'Equipo Técnico Inclusión'];
   
-  // PERMISOS
   const isSuperAdmin = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo'; 
-  const canManage = isSuperAdmin || user.role === 'Dirección Inclusión';
+  const canManage = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo' || user.role === 'Dirección Inclusión';
 
-  // 2. EFECTOS (CARGA DE USUARIOS)
   useEffect(() => {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
     const unsub = onSnapshot(q, (snap) => {
         const users = snap.docs.map(d => ({id: d.id, ...d.data()}));
         setUsersList(users);
-        // Recuperar datos al editar
         if (editingTask) {
             if (editingTask.targetUserIds && editingTask.targetUserIds.length > 0) {
                 const foundUsers = users.filter(u => editingTask.targetUserIds.includes(u.id));
@@ -595,14 +591,10 @@ function TasksView({ tasks, user, canEdit }) {
     return () => unsub();
   }, [editingTask]);
 
-  // 3. HANDLERS (GUARDAR, BORRAR, ETC)
   const handleSaveTask = async (e) => {
     e.preventDefault(); 
     const fd = new FormData(e.target);
-    
-    let finalTargetIds = []; 
-    let finalAssignedName = "Todos"; 
-    let finalRoles = [];
+    let finalTargetIds = []; let finalAssignedName = "Todos"; let finalRoles = [];
 
     if (assignType === 'user') { 
         if (selectedUsersObj.length === 0) return alert("⚠️ Selecciona al menos un usuario."); 
@@ -633,11 +625,8 @@ function TasksView({ tasks, user, canEdit }) {
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData); 
         } else { 
              const newTaskRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { ...taskData, createdByName: user.fullName || user.firstName, createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: [] });
-             
-             // NOTIFICACIONES
              const scheduledTime = new Date(`${taskData.showDate}T${taskData.showTime}`);
              const now = new Date();
-             
              if (scheduledTime <= now) {
                  const notifData = { title: `Tarea Nueva`, message: `${user.firstName}: "${fd.get('title')}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks', relatedId: newTaskRef.id, type: 'task_assigned' };
                  if (assignType === 'user') {
@@ -660,61 +649,61 @@ function TasksView({ tasks, user, canEdit }) {
       setUserSearch(""); 
   };
 
-  // --- FILTRADO INTELIGENTE (AQUÍ ESTÁ LA MAGIA DEL SWITCH) ---
-  const filteredTasks = tasks.filter(t => {
-      const now = new Date();
-      const scheduledTime = new Date(`${t.showDate || '2000-01-01'}T${t.showTime || '00:00'}`);
-      
-      // 1. Filtro Temporal
-      if (filter === 'completed') {
-          if (t.status !== 'completed') return false;
-      } else if (filter === 'scheduled') {
-          if (t.status === 'completed') return false;
-          if (scheduledTime <= now) return false; 
-      } else { // 'pending'
-          if (t.status === 'completed') return false;
-          if (scheduledTime > now) return false; 
-      }
-      
-      // 2. Definir si es "Mía"
-      const isMine = (
-          t.createdById === user.id || 
-          (t.targetUserIds && t.targetUserIds.includes(user.id)) || 
-          (t.targetUserId === user.id) ||
-          (t.targetRoles && user.role && t.targetRoles.some(r => r.toLowerCase() === user.role.toLowerCase()))
-      );
+  // --- FILTRADO Y ORDENAMIENTO ---
+  const processTasks = () => {
+      // 1. FILTRADO
+      const filtered = tasks.filter(t => {
+          const now = new Date();
+          const scheduledTime = new Date(`${t.showDate || '2000-01-01'}T${t.showTime || '00:00'}`);
+          
+          // Filtro por Estado/Tiempo
+          if (filter === 'completed') {
+              if (t.status !== 'completed') return false;
+          } else if (filter === 'scheduled') {
+              if (t.status === 'completed') return false;
+              if (scheduledTime <= now) return false; 
+          } else { // 'pending'
+              if (t.status === 'completed') return false;
+              if (scheduledTime > now) return false; 
+          }
+          
+          // Lógica de Propiedad
+          const isMine = (
+              t.createdById === user.id || 
+              (t.targetUserIds && t.targetUserIds.includes(user.id)) || 
+              (t.targetUserId === user.id) ||
+              (t.targetRoles && user.role && t.targetRoles.includes(user.role))
+          );
 
-      // 3. Lógica Admin
-      if (isSuperAdmin) {
-          // Si el botón está en "Mías", solo muestro lo mío.
-          if (viewMode === 'mine') return isMine;
-          // Si está en "Global", muestro todo.
-          return true;
-      }
-      
-      return isMine; 
-  });
+          // Lógica Admin + Switch
+          if (isSuperAdmin) {
+              if (viewMode === 'mine') return isMine; // Solo mías
+              if (viewMode === 'all') return !isMine; // Solo las de OTROS (Supervisión)
+          }
+          
+          return isMine; 
+      });
+
+      // 2. ORDENAMIENTO (De más próximo/viejo a más lejano/futuro)
+      return filtered.sort((a, b) => {
+          // Construir fechas comparables
+          const dateA = new Date(`${a.showDate || '9999-12-31'}T${a.showTime || '23:59'}`);
+          const dateB = new Date(`${b.showDate || '9999-12-31'}T${b.showTime || '23:59'}`);
+          return dateA - dateB; // Ascendente: Vencidas primero, Futuras después
+      });
+  };
+
+  const visibleTasks = processTasks();
 
   const addComment = async (task) => { if (!newComment.trim()) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion({ text: newComment, author: user.firstName, date: new Date().toISOString() }) }); setNewComment(""); };
   const handleDelete = async (id) => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
   const changeStatus = async (task, newStatus) => { if (newStatus === 'completed' && !confirm("¿Lista?")) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
-  
   const openNew = () => { setEditingTask(null); setAssignType('user'); setSelectedRoles([]); setChecklist([]); setNewItem(""); setUserSearch(""); setSelectedUsersObj([]); setShowModal(true); };
-  const openEdit = (t) => { setEditingTask(t); setAssignType(t.targetType || 'user'); setSelectedRoles(t.targetRoles || []); setChecklist(t.checklist || []); setShowModal(true); };
-  
   const searchResults = userSearch.length > 0 ? (usersList || []).filter(u => u.fullName.toLowerCase().includes(userSearch.toLowerCase())) : [];
   
-  // --- ESTILOS DE PRIORIDAD Y ALERTAS ---
   const getPriorityStyle = (t, isSupervision) => { 
-      // CASO ESPECIAL: AUSENTISMO (ROJO FUERTE)
-      if (t.type === 'absenteeism' || t.title.startsWith('⚠️')) {
-          return 'bg-red-50 border-l-8 border-red-500 shadow-md ring-1 ring-red-200';
-      }
-      
-      // CASO SUPERVISIÓN (GRIS OSCURO)
+      if (t.type === 'absenteeism' || t.title.startsWith('⚠️')) return 'bg-red-50 border-l-8 border-red-600 shadow-md transform scale-[1.01] ring-2 ring-red-100';
       if (isSupervision) return 'opacity-80 bg-gray-50 grayscale-[0.2] border-gray-200';
-      
-      // PRIORIDADES NORMALES
       if (t.priority === 'alta') return 'border-l-4 border-l-red-500 bg-red-50/50'; 
       if (t.priority === 'media') return 'border-l-4 border-l-orange-400 bg-orange-50/50'; 
       return 'border-l-4 border-l-green-400 bg-green-50/50'; 
@@ -722,41 +711,35 @@ function TasksView({ tasks, user, canEdit }) {
 
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-20">
-      {/* HEADER CON SWITCH */}
-      <div className="flex justify-between items-center mb-2 bg-white p-4 sticky top-0 z-10 shadow-sm rounded-b-3xl">
-          <div><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2><p className="text-xs text-gray-400 font-bold">{filteredTasks.length} visibles</p></div>
-          
-          <div className="flex items-center gap-2">
-             {/* SWITCH ADMIN */}
-             {isSuperAdmin && (
-                 <div className="flex bg-gray-100 p-1 rounded-xl mr-1">
-                     <button onClick={() => setViewMode('mine')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition ${viewMode === 'mine' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>👤 Mías</button>
-                     <button onClick={() => setViewMode('all')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition ${viewMode === 'all' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>👁️ Global</button>
-                 </div>
-             )}
-
-             <div className="flex bg-gray-100 rounded-xl p-1">
-                 <button onClick={()=>setFilter('pending')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='pending'?'bg-white shadow text-slate-800':'text-gray-400'}`}>Activas</button>
-                 {canManage && <button onClick={()=>setFilter('scheduled')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='scheduled'?'bg-white shadow text-orange-600':'text-gray-400'}`}>Próximas</button>}
-                 <button onClick={()=>setFilter('completed')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='completed'?'bg-white shadow text-green-600':'text-gray-400'}`}>Listas</button>
+      <div className="bg-white p-4 sticky top-0 z-10 shadow-sm rounded-b-3xl">
+          <div className="flex justify-between items-center mb-2">
+              <div><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2><p className="text-xs text-gray-400 font-bold">{visibleTasks.length} visibles</p></div>
+              {isSuperAdmin && (
+                  <div className="flex bg-gray-100 p-1 rounded-xl mr-2">
+                      <button onClick={() => setViewMode('mine')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition ${viewMode === 'mine' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>👤 Mías</button>
+                      <button onClick={() => setViewMode('all')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition ${viewMode === 'all' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>👁️ Global</button>
+                  </div>
+              )}
+          </div>
+          <div className="flex justify-between gap-2">
+             <div className="flex bg-gray-100 rounded-xl p-1 flex-1">
+                 <button onClick={()=>setFilter('pending')} className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='pending'?'bg-white shadow text-slate-800':'text-gray-400'}`}>Activas</button>
+                 {canManage && <button onClick={()=>setFilter('scheduled')} className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='scheduled'?'bg-white shadow text-orange-600':'text-gray-400'}`}>Próximas</button>}
+                 <button onClick={()=>setFilter('completed')} className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='completed'?'bg-white shadow text-green-600':'text-gray-400'}`}>Listas</button>
              </div>
-             <button onClick={openNew} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg hover:scale-110 transition-all"><Plus size={20}/></button>
+             <button onClick={openNew} className="bg-orange-500 text-white px-4 rounded-xl shadow-lg hover:scale-105 transition-all"><Plus size={20}/></button>
           </div>
       </div>
       
       <div className="grid gap-3 px-2">
-          {filteredTasks.length === 0 ? ( <div className="text-center py-10 opacity-40"><CheckCircle size={40} className="mx-auto mb-2 text-gray-400"/><p className="font-bold text-gray-500">Sin tareas en esta vista.</p></div> ) : filteredTasks.map(t => {
-            const isMine = (t.createdById === user.id || (t.targetUserIds && t.targetUserIds.includes(user.id)) || (t.targetUserId === user.id) || (t.targetRoles && user.role && t.targetRoles.some(r => r.toLowerCase() === user.role.toLowerCase())));
+          {visibleTasks.length === 0 ? ( <div className="text-center py-10 opacity-40"><CheckCircle size={40} className="mx-auto mb-2 text-gray-400"/><p className="font-bold text-gray-500">Todo al día.</p></div> ) : visibleTasks.map(t => {
+            const isMine = (t.createdById === user.id || (t.targetUserIds && t.targetUserIds.includes(user.id)) || (t.targetUserId === user.id) || (t.targetRoles && user.role && t.targetRoles.includes(user.role)));
             const isSupervision = !isMine && isSuperAdmin && viewMode === 'all';
             const isAbsenteeism = t.type === 'absenteeism' || t.title.startsWith('⚠️');
 
             return (
                 <div key={t.id} className={`p-5 rounded-[30px] shadow-sm flex flex-col gap-3 transition-all relative ${getPriorityStyle(t, isSupervision)}`}>
-                    
-                    {/* ETIQUETAS FLOTANTES */}
                     {isSupervision && !isAbsenteeism && <div className="absolute top-2 right-10 bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-[9px] font-black uppercase flex items-center gap-1 border border-gray-300"><Eye size={10}/> Supervisión</div>}
-                    
-                    {/* ALERTA ROJA PARA AUSENTISMO */}
                     {isAbsenteeism && <div className="absolute top-0 right-0 bg-red-600 text-white px-3 py-1 rounded-bl-xl rounded-tr-[20px] text-[10px] font-black uppercase tracking-wider animate-pulse flex items-center gap-1 shadow-sm"><AlertTriangle size={12}/> ALERTA SOCIAL</div>}
 
                     <div className="flex justify-between items-start">
@@ -770,9 +753,7 @@ function TasksView({ tasks, user, canEdit }) {
                             <div className="flex gap-1">{(t.createdById === user.id || isSuperAdmin) && <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm"><Trash2 size={14}/></button>}</div>
                         </div>
                     </div>
-                    
                     {openCommentsId === t.id && ( <div className="bg-white/60 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in"><div className="max-h-32 overflow-y-auto space-y-2 mb-2">{(t.comments || []).map((c, idx) => ( <p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p> ))}</div><div className="flex gap-2"><input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribe..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" /><button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button></div></div> )}
-                    
                     <div className="pt-2 border-t border-black/5 flex justify-between items-center">
                         <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className={`flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 rounded-xl transition ${t.comments?.length > 0 ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500 hover:bg-violet-50 hover:text-violet-600'}`}><MessageSquare size={14}/> {t.comments?.length > 0 ? `${t.comments.length} Msjs` : 'Comentar'}</button>
                         <div className="flex bg-white/60 rounded-lg p-0.5 shadow-sm">
@@ -2903,6 +2884,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
