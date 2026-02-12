@@ -548,7 +548,7 @@ function ResourcesView({ resources, canEdit }) {
   );
 }
 
-// --- VISTA TAREAS (FINAL: ORDEN POR FECHA + GLOBAL SIN MÍAS) ---
+// --- VISTA TAREAS (FINAL: RESPONSIVE MÓVIL + ORDENAMIENTO + FILTROS) ---
 function TasksView({ tasks, user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
@@ -656,7 +656,6 @@ function TasksView({ tasks, user, canEdit }) {
           const now = new Date();
           const scheduledTime = new Date(`${t.showDate || '2000-01-01'}T${t.showTime || '00:00'}`);
           
-          // Filtro por Estado/Tiempo
           if (filter === 'completed') {
               if (t.status !== 'completed') return false;
           } else if (filter === 'scheduled') {
@@ -667,7 +666,6 @@ function TasksView({ tasks, user, canEdit }) {
               if (scheduledTime > now) return false; 
           }
           
-          // Lógica de Propiedad
           const isMine = (
               t.createdById === user.id || 
               (t.targetUserIds && t.targetUserIds.includes(user.id)) || 
@@ -675,21 +673,19 @@ function TasksView({ tasks, user, canEdit }) {
               (t.targetRoles && user.role && t.targetRoles.includes(user.role))
           );
 
-          // Lógica Admin + Switch
           if (isSuperAdmin) {
-              if (viewMode === 'mine') return isMine; // Solo mías
-              if (viewMode === 'all') return !isMine; // Solo las de OTROS (Supervisión)
+              if (viewMode === 'mine') return isMine;
+              if (viewMode === 'all') return !isMine; 
           }
           
           return isMine; 
       });
 
-      // 2. ORDENAMIENTO (De más próximo/viejo a más lejano/futuro)
+      // 2. ORDENAMIENTO
       return filtered.sort((a, b) => {
-          // Construir fechas comparables
           const dateA = new Date(`${a.showDate || '9999-12-31'}T${a.showTime || '23:59'}`);
           const dateB = new Date(`${b.showDate || '9999-12-31'}T${b.showTime || '23:59'}`);
-          return dateA - dateB; // Ascendente: Vencidas primero, Futuras después
+          return dateA - dateB; 
       });
   };
 
@@ -711,23 +707,36 @@ function TasksView({ tasks, user, canEdit }) {
 
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-20">
-      <div className="bg-white p-4 sticky top-0 z-10 shadow-sm rounded-b-3xl">
-          <div className="flex justify-between items-center mb-2">
-              <div><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2><p className="text-xs text-gray-400 font-bold">{visibleTasks.length} visibles</p></div>
+      
+      {/* HEADER RESPONSIVE: FLEX-COL EN MÓVIL, FLEX-ROW EN PC */}
+      <div className="bg-white p-4 sticky top-0 z-10 shadow-sm rounded-b-3xl flex flex-col gap-3">
+          
+          <div className="flex flex-col md:flex-row justify-between md:items-center gap-2">
+              <div>
+                  <h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2>
+                  <p className="text-xs text-gray-400 font-bold">{visibleTasks.length} visibles</p>
+              </div>
+              
+              {/* SWITCH ADMIN (AHORA SE ACOMODA ABAJO EN MÓVIL) */}
               {isSuperAdmin && (
-                  <div className="flex bg-gray-100 p-1 rounded-xl mr-2">
-                      <button onClick={() => setViewMode('mine')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition ${viewMode === 'mine' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>👤 Mías</button>
-                      <button onClick={() => setViewMode('all')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition ${viewMode === 'all' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>👁️ Global</button>
+                  <div className="flex bg-gray-100 p-1 rounded-xl self-start md:self-auto">
+                      <button onClick={() => setViewMode('mine')} className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition ${viewMode === 'mine' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>👤 Mías</button>
+                      <button onClick={() => setViewMode('all')} className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition ${viewMode === 'all' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>👁️ Global</button>
                   </div>
               )}
           </div>
-          <div className="flex justify-between gap-2">
-             <div className="flex bg-gray-100 rounded-xl p-1 flex-1">
-                 <button onClick={()=>setFilter('pending')} className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='pending'?'bg-white shadow text-slate-800':'text-gray-400'}`}>Activas</button>
-                 {canManage && <button onClick={()=>setFilter('scheduled')} className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='scheduled'?'bg-white shadow text-orange-600':'text-gray-400'}`}>Próximas</button>}
-                 <button onClick={()=>setFilter('completed')} className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='completed'?'bg-white shadow text-green-600':'text-gray-400'}`}>Listas</button>
+
+          <div className="flex gap-2">
+             {/* FILTROS CON SCROLL HORIZONTAL SI ES NECESARIO */}
+             <div className="flex bg-gray-100 rounded-xl p-1 flex-1 overflow-x-auto no-scrollbar whitespace-nowrap">
+                 <button onClick={()=>setFilter('pending')} className={`flex-1 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='pending'?'bg-white shadow text-slate-800':'text-gray-400'}`}>Activas</button>
+                 {canManage && <button onClick={()=>setFilter('scheduled')} className={`flex-1 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='scheduled'?'bg-white shadow text-orange-600':'text-gray-400'}`}>Próximas</button>}
+                 <button onClick={()=>setFilter('completed')} className={`flex-1 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='completed'?'bg-white shadow text-green-600':'text-gray-400'}`}>Listas</button>
              </div>
-             <button onClick={openNew} className="bg-orange-500 text-white px-4 rounded-xl shadow-lg hover:scale-105 transition-all"><Plus size={20}/></button>
+             
+             <button onClick={openNew} className="bg-orange-500 text-white px-4 py-1.5 rounded-xl shadow-lg hover:scale-105 transition-all shrink-0 flex items-center justify-center">
+                 <Plus size={20}/>
+             </button>
           </div>
       </div>
       
@@ -2884,6 +2893,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
