@@ -548,7 +548,7 @@ function ResourcesView({ resources, canEdit }) {
   );
 }
 
-// --- VISTA TAREAS (FINAL: MULTI-USUARIO + SUPERVISIÓN + TODAS LAS FUNCIONES) ---
+// --- VISTA TAREAS (FINAL: MULTI-USUARIO + ALERTAS SOCIALES + SWITCH ADMIN) ---
 function TasksView({ tasks, user, canEdit }) {
   // ESTADOS PRINCIPALES
   const [showModal, setShowModal] = useState(false);
@@ -561,8 +561,6 @@ function TasksView({ tasks, user, canEdit }) {
   // ESTADOS DE FORMULARIO
   const [assignType, setAssignType] = useState('user'); 
   const [selectedRoles, setSelectedRoles] = useState([]);
-  
-  // CAMBIO: Ahora esto es un array para soportar múltiples
   const [selectedUsersObj, setSelectedUsersObj] = useState([]); 
   
   const [checklist, setChecklist] = useState([]); 
@@ -574,7 +572,8 @@ function TasksView({ tasks, user, canEdit }) {
   const [filter, setFilter] = useState('pending'); 
 
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor', 'DAI', 'Dirección Inclusión', 'Equipo Técnico Inclusión'];
-  const isSuperAdmin = user.rol === 'admin' || user.rol === 'super-admin'; 
+  
+  const isSuperAdmin = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo'; 
   const canManage = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo' || user.role === 'Dirección Inclusión';
 
   // CARGA DE USUARIOS Y EDICIÓN
@@ -583,16 +582,11 @@ function TasksView({ tasks, user, canEdit }) {
     const unsub = onSnapshot(q, (snap) => {
         const users = snap.docs.map(d => ({id: d.id, ...d.data()}));
         setUsersList(users);
-        
-        // Lógica para recuperar datos al editar (Compatible con versión vieja y nueva)
         if (editingTask) {
-            // Si tiene array de IDs (Nueva versión)
             if (editingTask.targetUserIds && editingTask.targetUserIds.length > 0) {
                 const foundUsers = users.filter(u => editingTask.targetUserIds.includes(u.id));
                 setSelectedUsersObj(foundUsers);
-            } 
-            // Si tiene ID único (Versión vieja - Compatibilidad)
-            else if (editingTask.targetUserId) {
+            } else if (editingTask.targetUserId) {
                 const found = users.find(u => u.id === editingTask.targetUserId);
                 if (found) setSelectedUsersObj([found]);
             }
@@ -601,7 +595,7 @@ function TasksView({ tasks, user, canEdit }) {
     return () => unsub();
   }, [editingTask]);
 
-  // GUARDAR TAREA (CON SOPORTE MULTI-USUARIO)
+  // GUARDAR TAREA
   const handleSaveTask = async (e) => {
     e.preventDefault(); 
     const fd = new FormData(e.target);
@@ -613,7 +607,6 @@ function TasksView({ tasks, user, canEdit }) {
     if (assignType === 'user') { 
         if (selectedUsersObj.length === 0) return alert("⚠️ Selecciona al menos un usuario."); 
         finalTargetIds = selectedUsersObj.map(u => u.id);
-        // Crear un string bonito para mostrar (ej: "Juan, Maria...")
         finalAssignedName = selectedUsersObj.map(u => u.firstName).join(", ");
     } else { 
         if (selectedRoles.length === 0) return alert("⚠️ Elige roles."); 
@@ -628,12 +621,8 @@ function TasksView({ tasks, user, canEdit }) {
         showTime: fd.get('showTime') || "08:00",
         priority: fd.get('priority'), 
         targetType: assignType, 
-        
-        // NUEVO: Array de IDs
         targetUserIds: finalTargetIds, 
-        // MANTENEMOS COMPATIBILIDAD (Ponemos el primero como principal si hay)
         targetUserId: finalTargetIds.length > 0 ? finalTargetIds[0] : null, 
-        
         targetRoles: finalRoles, 
         assignedToName: finalAssignedName, 
         checklist: checklist 
@@ -651,9 +640,7 @@ function TasksView({ tasks, user, canEdit }) {
              
              if (scheduledTime <= now) {
                  const notifData = { title: `Tarea Nueva`, message: `${user.firstName}: "${fd.get('title')}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks', relatedId: newTaskRef.id, type: 'task_assigned' };
-                 
                  if (assignType === 'user') {
-                     // Enviar a TODOS los seleccionados
                      const promises = finalTargetIds.map(uid => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: uid }));
                      await Promise.all(promises);
                  } else if (assignType === 'roles') {
@@ -667,24 +654,18 @@ function TasksView({ tasks, user, canEdit }) {
     } catch (err) { alert("Error: " + err.message); }
   };
 
-  // FUNCIONES AUXILIARES (SELECCIÓN MÚLTIPLE)
   const toggleUserSelection = (u) => {
-      if (selectedUsersObj.some(sel => sel.id === u.id)) {
-          // Si ya está, lo sacamos
-          setSelectedUsersObj(prev => prev.filter(sel => sel.id !== u.id));
-      } else {
-          // Si no está, lo agregamos
-          setSelectedUsersObj(prev => [...prev, u]);
-      }
-      setUserSearch(""); // Limpiar búsqueda al seleccionar
+      if (selectedUsersObj.some(sel => sel.id === u.id)) setSelectedUsersObj(prev => prev.filter(sel => sel.id !== u.id));
+      else setSelectedUsersObj(prev => [...prev, u]);
+      setUserSearch(""); 
   };
 
-  // FILTRADO DE TAREAS (MODIFICADO PARA SOPORTAR SWITCH)
+  // --- FILTRADO DE TAREAS (MODIFICADO PARA SOPORTAR SWITCH ADMIN) ---
   const filteredTasks = tasks.filter(t => {
       const now = new Date();
       const scheduledTime = new Date(`${t.showDate || '2000-01-01'}T${t.showTime || '00:00'}`);
       
-      // LOGICA DE ESTADOS
+      // 1. FILTRO DE TIEMPO/ESTADO
       if (filter === 'completed') {
           if (t.status !== 'completed') return false;
       } else if (filter === 'scheduled') {
@@ -696,14 +677,12 @@ function TasksView({ tasks, user, canEdit }) {
       }
       
       // 2. LÓGICA DE "ES TAREA MÍA"
-      // Chequeo de asignación (Compatible con array y single)
-      let isMine = false;
-      if (t.createdById === user.id) isMine = true;
-      if (t.targetType === 'user') {
-          if (t.targetUserIds && t.targetUserIds.includes(user.id)) isMine = true; // Nuevo
-          if (t.targetUserId === user.id) isMine = true; // Viejo
-      }
-      if (t.targetType === 'roles' && t.targetRoles && user.role && t.targetRoles.some(r => r.toLowerCase() === user.role.toLowerCase())) isMine = true;
+      const isMine = (
+          t.createdById === user.id || 
+          (t.targetUserIds && t.targetUserIds.includes(user.id)) || 
+          (t.targetUserId === user.id) ||
+          (t.targetRoles && user.role && t.targetRoles.includes(user.role))
+      );
 
       // 3. LÓGICA DE PRIVACIDAD + SWITCH ADMIN
       if (isSuperAdmin) {
@@ -725,50 +704,61 @@ function TasksView({ tasks, user, canEdit }) {
   const openEdit = (t) => { setEditingTask(t); setAssignType(t.targetType || 'user'); setSelectedRoles(t.targetRoles || []); setChecklist(t.checklist || []); setShowModal(true); };
   
   const searchResults = userSearch.length > 0 ? (usersList || []).filter(u => u.fullName.toLowerCase().includes(userSearch.toLowerCase())) : [];
-  const getPriorityStyle = (p) => { if (p === 'alta') return 'border-l-4 border-l-red-500 bg-red-50/50'; if (p === 'media') return 'border-l-4 border-l-orange-400 bg-orange-50/50'; return 'border-l-4 border-l-green-400 bg-green-50/50'; };
+  
+  // --- ESTILOS DINÁMICOS (ALERTA ROJA + SUPERVISIÓN) ---
+  const getPriorityStyle = (t, isSupervision) => { 
+      // SI ES AUSENTISMO (TIPO 'ABSENTEEISM' O TÍTULO '⚠️') SE VE ROJO FUERTE
+      if (t.type === 'absenteeism' || t.title.startsWith('⚠️')) {
+          return 'bg-red-50 border-l-8 border-red-600 shadow-md transform scale-[1.01] ring-2 ring-red-100';
+      }
+      if (isSupervision) return 'opacity-75 bg-gray-50 grayscale-[0.2] border-gray-200';
+      
+      if (t.priority === 'alta') return 'border-l-4 border-l-red-500 bg-red-50/50'; 
+      if (t.priority === 'media') return 'border-l-4 border-l-orange-400 bg-orange-50/50'; 
+      return 'border-l-4 border-l-green-400 bg-green-50/50'; 
+  };
 
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-20">
-      <div className="flex justify-between items-center mb-2 bg-white p-4 sticky top-0 z-10 shadow-sm rounded-b-3xl">
-          <div><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2><p className="text-xs text-gray-400 font-bold">{filteredTasks.length} visibles</p></div>
-          
-          <div className="flex gap-2 items-center">
-             {/* --- SWITCH DE VISTA (SOLO SUPER ADMIN) --- */}
-             {isSuperAdmin && (
+      <div className="bg-white p-4 sticky top-0 z-10 shadow-sm rounded-b-3xl">
+          <div className="flex justify-between items-center mb-2">
+              <div><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2><p className="text-xs text-gray-400 font-bold">{filteredTasks.length} visibles</p></div>
+              
+              {/* --- SWITCH DE VISTA (SOLO SUPER ADMIN) --- */}
+              {isSuperAdmin && (
                   <div className="flex bg-gray-100 p-1 rounded-xl mr-2">
                       <button onClick={() => setViewMode('mine')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition ${viewMode === 'mine' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>👤 Mías</button>
                       <button onClick={() => setViewMode('all')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition ${viewMode === 'all' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>👁️ Global</button>
                   </div>
-             )}
-             {/* ----------------------------------------- */}
+              )}
+              {/* ----------------------------------------- */}
+          </div>
 
-             <div className="flex bg-gray-100 rounded-xl p-1">
-                 <button onClick={()=>setFilter('pending')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='pending'?'bg-white shadow text-slate-800':'text-gray-400'}`}>Activas</button>
-                 {canManage && <button onClick={()=>setFilter('scheduled')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='scheduled'?'bg-white shadow text-orange-600':'text-gray-400'}`}>Próximas</button>}
-                 <button onClick={()=>setFilter('completed')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='completed'?'bg-white shadow text-green-600':'text-gray-400'}`}>Listas</button>
+          <div className="flex justify-between gap-2">
+             <div className="flex bg-gray-100 rounded-xl p-1 flex-1">
+                 <button onClick={()=>setFilter('pending')} className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='pending'?'bg-white shadow text-slate-800':'text-gray-400'}`}>Activas</button>
+                 {canManage && <button onClick={()=>setFilter('scheduled')} className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='scheduled'?'bg-white shadow text-orange-600':'text-gray-400'}`}>Próximas</button>}
+                 <button onClick={()=>setFilter('completed')} className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='completed'?'bg-white shadow text-green-600':'text-gray-400'}`}>Listas</button>
              </div>
-             <button onClick={openNew} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg hover:scale-110 transition-all"><Plus size={20}/></button>
+             <button onClick={openNew} className="bg-orange-500 text-white px-4 rounded-xl shadow-lg hover:scale-105 transition-all"><Plus size={20}/></button>
           </div>
       </div>
       
       <div className="grid gap-3 px-2">
-          {filteredTasks.length === 0 ? ( <div className="text-center py-10 opacity-40"><CheckCircle size={40} className="mx-auto mb-2 text-gray-400"/><p className="font-bold text-gray-500">Sin tareas en esta vista.</p></div> ) : filteredTasks.map(t => {
+          {filteredTasks.length === 0 ? ( <div className="text-center py-10 opacity-40"><CheckCircle size={40} className="mx-auto mb-2 text-gray-400"/><p className="font-bold text-gray-500">Todo al día.</p></div> ) : filteredTasks.map(t => {
             // LÓGICA DE SUPERVISIÓN (Para estilo visual)
-            let isMine = false;
-            if (t.createdById === user.id) isMine = true;
-            if (t.targetType === 'user') {
-                if (t.targetUserIds && t.targetUserIds.includes(user.id)) isMine = true; 
-                if (t.targetUserId === user.id) isMine = true;
-            }
-            if (t.targetType === 'roles' && t.targetRoles && user.role && t.targetRoles.some(r => r.toLowerCase() === user.role.toLowerCase())) isMine = true;
-            
+            const isMine = (t.createdById === user.id || (t.targetUserIds && t.targetUserIds.includes(user.id)) || (t.targetUserId === user.id) || (t.targetRoles && user.role && t.targetRoles.includes(user.role)));
             const isSupervision = !isMine && isSuperAdmin && viewMode === 'all';
+            const isAbsenteeism = t.type === 'absenteeism' || t.title.startsWith('⚠️');
 
             return (
-                <div key={t.id} className={`p-5 rounded-[30px] shadow-sm flex flex-col gap-3 transition-all relative ${getPriorityStyle(t.priority)} ${isSupervision ? 'opacity-75 bg-gray-50 grayscale-[0.3]' : 'bg-white'}`}>
+                <div key={t.id} className={`p-5 rounded-[30px] shadow-sm flex flex-col gap-3 transition-all relative ${getPriorityStyle(t, isSupervision)} ${isSupervision && !isAbsenteeism ? 'opacity-75' : ''}`}>
                     
                     {/* ETIQUETA SUPERVISIÓN */}
-                    {isSupervision && <div className="absolute top-2 right-10 bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-[9px] font-black uppercase flex items-center gap-1 border border-gray-300"><Eye size={10}/> Supervisión</div>}
+                    {isSupervision && !isAbsenteeism && <div className="absolute top-2 right-12 bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-[9px] font-black uppercase flex items-center gap-1 border border-gray-300"><Eye size={10}/> Supervisión</div>}
+                    
+                    {/* ETIQUETA ALERTA ROJA (AUSENTISMO) */}
+                    {isAbsenteeism && <div className="absolute top-0 right-0 bg-red-600 text-white px-3 py-1 rounded-bl-xl rounded-tr-[20px] text-[10px] font-black uppercase tracking-wider animate-pulse flex items-center gap-1"><AlertTriangle size={10}/> ALERTA SOCIAL</div>}
 
                     <div className="flex justify-between items-start">
                         <div className="flex-1 pr-6">
@@ -806,42 +796,276 @@ function TasksView({ tasks, user, canEdit }) {
             
             {assignType === 'user' ? ( 
                 <div className="space-y-2">
-                    {/* LISTA DE SELECCIONADOS */}
-                    <div className="flex flex-wrap gap-2 mb-2">
-                        {selectedUsersObj.map(u => (
-                            <div key={u.id} className="flex items-center gap-1 bg-violet-100 text-violet-800 px-2 py-1 rounded-lg text-xs font-bold">
-                                {u.firstName} 
-                                <button type="button" onClick={() => toggleUserSelection(u)}><X size={12}/></button>
-                            </div>
-                        ))}
-                    </div>
-                    
-                    {/* BUSCADOR */}
-                    <div className="relative">
-                        <input placeholder="🔍 Buscar para agregar..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} autoComplete="off" className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none focus:border-violet-500 rounded-t-xl" />
-                        {userSearch.length > 0 && (
-                            <div className="max-h-40 overflow-y-auto border-x border-b border-gray-200 rounded-b-xl bg-white shadow-xl absolute w-full z-50">
-                                {searchResults.length > 0 ? searchResults.map(u => (
-                                    <div key={u.id} onClick={() => toggleUserSelection(u)} className={`p-3 hover:bg-violet-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0 ${selectedUsersObj.some(s=>s.id===u.id) ? 'bg-violet-50' : ''}`}>
-                                        <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">{u.firstName[0]}</div>
-                                        <p className="text-xs font-bold text-gray-700">{u.fullName}</p>
-                                        {selectedUsersObj.some(s=>s.id===u.id) && <Check size={14} className="ml-auto text-violet-600"/>}
-                                    </div>
-                                )) : <p className="p-3 text-xs text-gray-400 italic text-center">No encontrado</p>}
-                            </div>
-                        )}
-                    </div> 
+                    <div className="flex flex-wrap gap-2 mb-2">{selectedUsersObj.map(u => (<div key={u.id} className="flex items-center gap-1 bg-violet-100 text-violet-800 px-2 py-1 rounded-lg text-xs font-bold">{u.firstName} <button type="button" onClick={() => toggleUserSelection(u)}><X size={12}/></button></div>))}</div>
+                    <div className="relative"><input placeholder="🔍 Buscar para agregar..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} autoComplete="off" className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none focus:border-violet-500 rounded-t-xl" />{userSearch.length > 0 && (<div className="max-h-40 overflow-y-auto border-x border-b border-gray-200 rounded-b-xl bg-white shadow-xl absolute w-full z-50">{searchResults.length > 0 ? searchResults.map(u => (<div key={u.id} onClick={() => toggleUserSelection(u)} className={`p-3 hover:bg-violet-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0 ${selectedUsersObj.some(s=>s.id===u.id) ? 'bg-violet-50' : ''}`}><div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">{u.firstName[0]}</div><p className="text-xs font-bold text-gray-700">{u.fullName}</p>{selectedUsersObj.some(s=>s.id===u.id) && <Check size={14} className="ml-auto text-violet-600"/>}</div>)) : <p className="p-3 text-xs text-gray-400 italic text-center">No encontrado</p>}</div>)}</div> 
                 </div> 
             ) : ( 
-                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 max-h-32 overflow-y-auto">
-                    {ROLES_OPTIONS.map(role => ( <label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={selectedRoles.includes(role)} onChange={(e) => { if(e.target.checked) setSelectedRoles([...selectedRoles, role]); else setSelectedRoles(selectedRoles.filter(r => r !== role)); }} className="accent-violet-600"/> {role}</label> ))}
-                </div> 
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 max-h-32 overflow-y-auto">{ROLES_OPTIONS.map(role => ( <label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={selectedRoles.includes(role)} onChange={(e) => { if(e.target.checked) setSelectedRoles([...selectedRoles, role]); else setSelectedRoles(selectedRoles.filter(r => r !== role)); }} className="accent-violet-600"/> {role}</label> ))}</div> 
             )}
             
-            <div className="grid grid-cols-2 gap-4">
-                <div><label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Vencimiento</label><input name="dueDate" type="date" defaultValue={editingTask?.dueDate} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs text-gray-600 border border-gray-200" /></div>
-                <select name="priority" defaultValue={editingTask?.priority} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs uppercase text-orange-600 italic border border-gray-200 h-[66px] mt-auto"><option value="baja">🟢 Baja</option><option value="media">🟠 Media</option><option value="alta">🔴 Alta</option></select>
-            </div>
+            <div className="grid grid-cols-2 gap-4"><div><label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Vencimiento</label><input name="dueDate" type="date" defaultValue={editingTask?.dueDate} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs text-gray-600 border border-gray-200" /></div><select name="priority" defaultValue={editingTask?.priority} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs uppercase text-orange-600 italic border border-gray-200 h-[66px] mt-auto"><option value="baja">🟢 Baja</option><option value="media">🟠 Media</option><option value="alta">🔴 Alta</option></select></div>
+            {canManage && (<div className="bg-orange-50 p-3 rounded-xl border border-orange-100"><label className="text-[10px] font-bold text-orange-700 uppercase mb-1 block flex items-center gap-1"><Clock size={10}/> Programar Aparición</label><div className="flex gap-2"><input name="showDate" type="date" defaultValue={editingTask?.showDate} className="w-full p-2 bg-white rounded-lg outline-none font-bold text-xs text-orange-800 border border-orange-200" /><input name="showTime" type="time" defaultValue={editingTask?.showTime || "08:00"} className="w-24 p-2 bg-white rounded-lg outline-none font-bold text-xs text-orange-800 border border-orange-200" /></div><p className="text-[9px] text-orange-600 mt-1">Si pones una fecha/hora futura, la tarea quedará en "Próximas".</p></div>)}
+            <div className="flex gap-2 pt-2"><button type="button" onClick={() => setShowModal(false)} className="flex-1 font-bold text-gray-400 text-xs uppercase">Cancelar</button><button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">GUARDAR</button></div>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}// --- VISTA TAREAS (FINAL: SWITCH ADMIN + ALERTA ROJA AUSENTISMO) ---
+function TasksView({ tasks, user, canEdit }) {
+  // 1. ESTADOS
+  const [showModal, setShowModal] = useState(false);
+  const [usersList, setUsersList] = useState([]);
+  
+  // ESTADO NUEVO: CONTROL DE VISTA (Solo Admin)
+  const [viewMode, setViewMode] = useState('mine'); // 'mine' = Mis cosas, 'all' = Supervisión global
+
+  const [assignType, setAssignType] = useState('user'); 
+  const [selectedRoles, setSelectedRoles] = useState([]);
+  const [selectedUsersObj, setSelectedUsersObj] = useState([]); 
+  
+  const [checklist, setChecklist] = useState([]); 
+  const [newItem, setNewItem] = useState(""); 
+  const [userSearch, setUserSearch] = useState("");
+  const [openCommentsId, setOpenCommentsId] = useState(null); 
+  const [newComment, setNewComment] = useState("");
+  const [editingTask, setEditingTask] = useState(null); 
+  const [filter, setFilter] = useState('pending'); 
+
+  const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor', 'DAI', 'Dirección Inclusión', 'Equipo Técnico Inclusión'];
+  
+  // PERMISOS
+  const isSuperAdmin = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo'; 
+  const canManage = isSuperAdmin || user.role === 'Dirección Inclusión';
+
+  // 2. EFECTOS (CARGA DE USUARIOS)
+  useEffect(() => {
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
+    const unsub = onSnapshot(q, (snap) => {
+        const users = snap.docs.map(d => ({id: d.id, ...d.data()}));
+        setUsersList(users);
+        // Recuperar datos al editar
+        if (editingTask) {
+            if (editingTask.targetUserIds && editingTask.targetUserIds.length > 0) {
+                const foundUsers = users.filter(u => editingTask.targetUserIds.includes(u.id));
+                setSelectedUsersObj(foundUsers);
+            } else if (editingTask.targetUserId) {
+                const found = users.find(u => u.id === editingTask.targetUserId);
+                if (found) setSelectedUsersObj([found]);
+            }
+        }
+    });
+    return () => unsub();
+  }, [editingTask]);
+
+  // 3. HANDLERS (GUARDAR, BORRAR, ETC)
+  const handleSaveTask = async (e) => {
+    e.preventDefault(); 
+    const fd = new FormData(e.target);
+    
+    let finalTargetIds = []; 
+    let finalAssignedName = "Todos"; 
+    let finalRoles = [];
+
+    if (assignType === 'user') { 
+        if (selectedUsersObj.length === 0) return alert("⚠️ Selecciona al menos un usuario."); 
+        finalTargetIds = selectedUsersObj.map(u => u.id);
+        finalAssignedName = selectedUsersObj.map(u => u.firstName).join(", ");
+    } else { 
+        if (selectedRoles.length === 0) return alert("⚠️ Elige roles."); 
+        finalRoles = selectedRoles; 
+        finalAssignedName = selectedRoles.join(", "); 
+    }
+
+    const taskData = { 
+        title: fd.get('title'), 
+        dueDate: fd.get('dueDate') || null, 
+        showDate: fd.get('showDate') || new Date().toISOString().split('T')[0],
+        showTime: fd.get('showTime') || "08:00",
+        priority: fd.get('priority'), 
+        targetType: assignType, 
+        targetUserIds: finalTargetIds, 
+        targetUserId: finalTargetIds.length > 0 ? finalTargetIds[0] : null, 
+        targetRoles: finalRoles, 
+        assignedToName: finalAssignedName, 
+        checklist: checklist 
+    };
+
+    try {
+        if (editingTask) { 
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData); 
+        } else { 
+             const newTaskRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { ...taskData, createdByName: user.fullName || user.firstName, createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: [] });
+             
+             // NOTIFICACIONES
+             const scheduledTime = new Date(`${taskData.showDate}T${taskData.showTime}`);
+             const now = new Date();
+             
+             if (scheduledTime <= now) {
+                 const notifData = { title: `Tarea Nueva`, message: `${user.firstName}: "${fd.get('title')}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks', relatedId: newTaskRef.id, type: 'task_assigned' };
+                 if (assignType === 'user') {
+                     const promises = finalTargetIds.map(uid => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: uid }));
+                     await Promise.all(promises);
+                 } else if (assignType === 'roles') {
+                    const targets = usersList.filter(u => u.role && finalRoles.some(r => r.toLowerCase() === u.role.toLowerCase()));
+                    const promises = targets.map(t => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: t.id }));
+                    await Promise.all(promises);
+                 }
+             }
+        }
+        setShowModal(false);
+    } catch (err) { alert("Error: " + err.message); }
+  };
+
+  const toggleUserSelection = (u) => {
+      if (selectedUsersObj.some(sel => sel.id === u.id)) setSelectedUsersObj(prev => prev.filter(sel => sel.id !== u.id));
+      else setSelectedUsersObj(prev => [...prev, u]);
+      setUserSearch(""); 
+  };
+
+  // --- FILTRADO INTELIGENTE (AQUÍ ESTÁ LA MAGIA DEL SWITCH) ---
+  const filteredTasks = tasks.filter(t => {
+      const now = new Date();
+      const scheduledTime = new Date(`${t.showDate || '2000-01-01'}T${t.showTime || '00:00'}`);
+      
+      // 1. Filtro Temporal
+      if (filter === 'completed') {
+          if (t.status !== 'completed') return false;
+      } else if (filter === 'scheduled') {
+          if (t.status === 'completed') return false;
+          if (scheduledTime <= now) return false; 
+      } else { // 'pending'
+          if (t.status === 'completed') return false;
+          if (scheduledTime > now) return false; 
+      }
+      
+      // 2. Definir si es "Mía"
+      const isMine = (
+          t.createdById === user.id || 
+          (t.targetUserIds && t.targetUserIds.includes(user.id)) || 
+          (t.targetUserId === user.id) ||
+          (t.targetRoles && user.role && t.targetRoles.some(r => r.toLowerCase() === user.role.toLowerCase()))
+      );
+
+      // 3. Lógica Admin
+      if (isSuperAdmin) {
+          // Si el botón está en "Mías", solo muestro lo mío.
+          if (viewMode === 'mine') return isMine;
+          // Si está en "Global", muestro todo.
+          return true;
+      }
+      
+      return isMine; 
+  });
+
+  const addComment = async (task) => { if (!newComment.trim()) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion({ text: newComment, author: user.firstName, date: new Date().toISOString() }) }); setNewComment(""); };
+  const handleDelete = async (id) => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
+  const changeStatus = async (task, newStatus) => { if (newStatus === 'completed' && !confirm("¿Lista?")) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
+  
+  const openNew = () => { setEditingTask(null); setAssignType('user'); setSelectedRoles([]); setChecklist([]); setNewItem(""); setUserSearch(""); setSelectedUsersObj([]); setShowModal(true); };
+  const openEdit = (t) => { setEditingTask(t); setAssignType(t.targetType || 'user'); setSelectedRoles(t.targetRoles || []); setChecklist(t.checklist || []); setShowModal(true); };
+  
+  const searchResults = userSearch.length > 0 ? (usersList || []).filter(u => u.fullName.toLowerCase().includes(userSearch.toLowerCase())) : [];
+  
+  // --- ESTILOS DE PRIORIDAD Y ALERTAS ---
+  const getPriorityStyle = (t, isSupervision) => { 
+      // CASO ESPECIAL: AUSENTISMO (ROJO FUERTE)
+      if (t.type === 'absenteeism' || t.title.startsWith('⚠️')) {
+          return 'bg-red-50 border-l-8 border-red-500 shadow-md ring-1 ring-red-200';
+      }
+      
+      // CASO SUPERVISIÓN (GRIS OSCURO)
+      if (isSupervision) return 'opacity-80 bg-gray-50 grayscale-[0.2] border-gray-200';
+      
+      // PRIORIDADES NORMALES
+      if (t.priority === 'alta') return 'border-l-4 border-l-red-500 bg-red-50/50'; 
+      if (t.priority === 'media') return 'border-l-4 border-l-orange-400 bg-orange-50/50'; 
+      return 'border-l-4 border-l-green-400 bg-green-50/50'; 
+  };
+
+  return (
+    <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-20">
+      {/* HEADER CON SWITCH */}
+      <div className="flex justify-between items-center mb-2 bg-white p-4 sticky top-0 z-10 shadow-sm rounded-b-3xl">
+          <div><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2><p className="text-xs text-gray-400 font-bold">{filteredTasks.length} visibles</p></div>
+          
+          <div className="flex items-center gap-2">
+             {/* SWITCH ADMIN */}
+             {isSuperAdmin && (
+                 <div className="flex bg-gray-100 p-1 rounded-xl mr-1">
+                     <button onClick={() => setViewMode('mine')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition ${viewMode === 'mine' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>👤 Mías</button>
+                     <button onClick={() => setViewMode('all')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition ${viewMode === 'all' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>👁️ Global</button>
+                 </div>
+             )}
+
+             <div className="flex bg-gray-100 rounded-xl p-1">
+                 <button onClick={()=>setFilter('pending')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='pending'?'bg-white shadow text-slate-800':'text-gray-400'}`}>Activas</button>
+                 {canManage && <button onClick={()=>setFilter('scheduled')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='scheduled'?'bg-white shadow text-orange-600':'text-gray-400'}`}>Próximas</button>}
+                 <button onClick={()=>setFilter('completed')} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='completed'?'bg-white shadow text-green-600':'text-gray-400'}`}>Listas</button>
+             </div>
+             <button onClick={openNew} className="bg-orange-500 text-white p-3 rounded-xl shadow-lg hover:scale-110 transition-all"><Plus size={20}/></button>
+          </div>
+      </div>
+      
+      <div className="grid gap-3 px-2">
+          {filteredTasks.length === 0 ? ( <div className="text-center py-10 opacity-40"><CheckCircle size={40} className="mx-auto mb-2 text-gray-400"/><p className="font-bold text-gray-500">Sin tareas en esta vista.</p></div> ) : filteredTasks.map(t => {
+            const isMine = (t.createdById === user.id || (t.targetUserIds && t.targetUserIds.includes(user.id)) || (t.targetUserId === user.id) || (t.targetRoles && user.role && t.targetRoles.some(r => r.toLowerCase() === user.role.toLowerCase())));
+            const isSupervision = !isMine && isSuperAdmin && viewMode === 'all';
+            const isAbsenteeism = t.type === 'absenteeism' || t.title.startsWith('⚠️');
+
+            return (
+                <div key={t.id} className={`p-5 rounded-[30px] shadow-sm flex flex-col gap-3 transition-all relative ${getPriorityStyle(t, isSupervision)}`}>
+                    
+                    {/* ETIQUETAS FLOTANTES */}
+                    {isSupervision && !isAbsenteeism && <div className="absolute top-2 right-10 bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-[9px] font-black uppercase flex items-center gap-1 border border-gray-300"><Eye size={10}/> Supervisión</div>}
+                    
+                    {/* ALERTA ROJA PARA AUSENTISMO */}
+                    {isAbsenteeism && <div className="absolute top-0 right-0 bg-red-600 text-white px-3 py-1 rounded-bl-xl rounded-tr-[20px] text-[10px] font-black uppercase tracking-wider animate-pulse flex items-center gap-1 shadow-sm"><AlertTriangle size={12}/> ALERTA SOCIAL</div>}
+
+                    <div className="flex justify-between items-start">
+                        <div className="flex-1 pr-6">
+                            <p className="text-[9px] font-black text-violet-600 uppercase tracking-widest italic mb-1">Para: {t.assignedToName}</p>
+                            <h3 className={`font-bold text-gray-800 text-sm uppercase italic tracking-tighter leading-none ${t.status==='completed'?'line-through opacity-50':''}`}>{t.title}</h3>
+                            <p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName}</p>
+                            {new Date(`${t.showDate}T${t.showTime}`) > new Date() && (<div className="mt-2 inline-flex items-center gap-1 bg-yellow-100 text-yellow-800 text-[9px] font-bold px-2 py-1 rounded-md border border-yellow-200"><Clock size={10}/> Programada: {new Date(t.showDate).toLocaleDateString()} {t.showTime}hs</div>)}
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                            <div className="flex gap-1">{(t.createdById === user.id || isSuperAdmin) && <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm"><Trash2 size={14}/></button>}</div>
+                        </div>
+                    </div>
+                    
+                    {openCommentsId === t.id && ( <div className="bg-white/60 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in"><div className="max-h-32 overflow-y-auto space-y-2 mb-2">{(t.comments || []).map((c, idx) => ( <p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p> ))}</div><div className="flex gap-2"><input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribe..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" /><button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button></div></div> )}
+                    
+                    <div className="pt-2 border-t border-black/5 flex justify-between items-center">
+                        <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className={`flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 rounded-xl transition ${t.comments?.length > 0 ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500 hover:bg-violet-50 hover:text-violet-600'}`}><MessageSquare size={14}/> {t.comments?.length > 0 ? `${t.comments.length} Msjs` : 'Comentar'}</button>
+                        <div className="flex bg-white/60 rounded-lg p-0.5 shadow-sm">
+                            <button onClick={() => changeStatus(t, 'pending')} className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition ${t.status === 'pending' ? 'bg-white shadow text-gray-700' : 'text-gray-400'}`}>Pend.</button>
+                            <button onClick={() => changeStatus(t, 'in_process')} className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition ${t.status === 'in_process' ? 'bg-orange-100 text-orange-600 shadow' : 'text-gray-400'}`}>Proc.</button>
+                            <button onClick={() => changeStatus(t, 'completed')} className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition ${t.status === 'completed' ? 'bg-green-100 text-green-700 shadow' : 'text-gray-400'}`}>Lista</button>
+                        </div>
+                    </div>
+                </div>
+            );
+          })}
+      </div>
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
+          <form onSubmit={handleSaveTask} className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-black text-violet-900 uppercase italic">{editingTask ? 'Editar Tarea' : 'Nueva Tarea'}</h3>
+            <input name="title" defaultValue={editingTask?.title} placeholder="Título de la tarea" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm shadow-inner" />
+            <div className="flex gap-2 bg-gray-100 p-1 rounded-xl"><button type="button" onClick={() => setAssignType('user')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'user' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Persona(s)</button><button type="button" onClick={() => setAssignType('roles')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'roles' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Roles</button></div>
+            
+            {assignType === 'user' ? ( 
+                <div className="space-y-2">
+                    <div className="flex flex-wrap gap-2 mb-2">{selectedUsersObj.map(u => (<div key={u.id} className="flex items-center gap-1 bg-violet-100 text-violet-800 px-2 py-1 rounded-lg text-xs font-bold">{u.firstName} <button type="button" onClick={() => toggleUserSelection(u)}><X size={12}/></button></div>))}</div>
+                    <div className="relative"><input placeholder="🔍 Buscar para agregar..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} autoComplete="off" className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none focus:border-violet-500 rounded-t-xl" />{userSearch.length > 0 && (<div className="max-h-40 overflow-y-auto border-x border-b border-gray-200 rounded-b-xl bg-white shadow-xl absolute w-full z-50">{searchResults.length > 0 ? searchResults.map(u => (<div key={u.id} onClick={() => toggleUserSelection(u)} className={`p-3 hover:bg-violet-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0 ${selectedUsersObj.some(s=>s.id===u.id) ? 'bg-violet-50' : ''}`}><div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">{u.firstName[0]}</div><p className="text-xs font-bold text-gray-700">{u.fullName}</p>{selectedUsersObj.some(s=>s.id===u.id) && <Check size={14} className="ml-auto text-violet-600"/>}</div>)) : <p className="p-3 text-xs text-gray-400 italic text-center">No encontrado</p>}</div>)}</div> 
+                </div> 
+            ) : ( 
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 max-h-32 overflow-y-auto">{ROLES_OPTIONS.map(role => ( <label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={selectedRoles.includes(role)} onChange={(e) => { if(e.target.checked) setSelectedRoles([...selectedRoles, role]); else setSelectedRoles(selectedRoles.filter(r => r !== role)); }} className="accent-violet-600"/> {role}</label> ))}</div> 
+            )}
+            
+            <div className="grid grid-cols-2 gap-4"><div><label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Vencimiento</label><input name="dueDate" type="date" defaultValue={editingTask?.dueDate} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs text-gray-600 border border-gray-200" /></div><select name="priority" defaultValue={editingTask?.priority} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs uppercase text-orange-600 italic border border-gray-200 h-[66px] mt-auto"><option value="baja">🟢 Baja</option><option value="media">🟠 Media</option><option value="alta">🔴 Alta</option></select></div>
             {canManage && (<div className="bg-orange-50 p-3 rounded-xl border border-orange-100"><label className="text-[10px] font-bold text-orange-700 uppercase mb-1 block flex items-center gap-1"><Clock size={10}/> Programar Aparición</label><div className="flex gap-2"><input name="showDate" type="date" defaultValue={editingTask?.showDate} className="w-full p-2 bg-white rounded-lg outline-none font-bold text-xs text-orange-800 border border-orange-200" /><input name="showTime" type="time" defaultValue={editingTask?.showTime || "08:00"} className="w-24 p-2 bg-white rounded-lg outline-none font-bold text-xs text-orange-800 border border-orange-200" /></div><p className="text-[9px] text-orange-600 mt-1">Si pones una fecha/hora futura, la tarea quedará en "Próximas".</p></div>)}
             <div className="flex gap-2 pt-2"><button type="button" onClick={() => setShowModal(false)} className="flex-1 font-bold text-gray-400 text-xs uppercase">Cancelar</button><button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">GUARDAR</button></div>
           </form>
@@ -2339,7 +2563,7 @@ function MainApp({ user, onLogout }) {
   );
 }
 
-// --- VISTA AULA (FINAL: EQUIPO COMPLETO + DRIVE + TODO LO ANTERIOR) ---
+// --- VISTA AULA (FINAL: CON REPORTE DE AUSENTISMO + TODO LO ANTERIOR) ---
 function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
@@ -2356,6 +2580,11 @@ function GroupsView({ user }) {
   const [groupStats, setGroupStats] = useState(null);
   const [updatingGroup, setUpdatingGroup] = useState(false);
   const [savingIncident, setSavingIncident] = useState(false);
+
+  // --- CONFIGURACIÓN DE TRABAJO SOCIAL ---
+  // Si tienes los IDs fijos, ponlos aquí: ['id1', 'id2']. 
+  // Si lo dejas vacío [], el sistema buscará por rol "Equipo Técnico" o "Social".
+  const SOCIAL_WORKERS_IDS = []; 
 
   // REF PARA EL SCROLL (FLECHAS)
   const scrollRef = useRef(null); 
@@ -2389,20 +2618,20 @@ function GroupsView({ user }) {
     return () => { unsubS(); unsubU(); };
   }, []);
 
-  // --- AGRUPAMIENTO DE DATOS (CON NUEVOS CAMPOS) ---
+  // --- AGRUPAMIENTO DE DATOS ---
   const groupedData = students.reduce((acc, s) => {
       let groupKey = ""; let myTeacher = "";
       const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
       
       const sAux = s[`aux${suf}`];
-      const sTeacher2 = s[`teacher2${suf}`]; // NUEVO: Docente 2
-      const sSpecial1 = s[`special1${suf}`]; // NUEVO: Especial 1
-      const sSpecial2 = s[`special2${suf}`]; // NUEVO: Especial 2
-      const sSpecial3 = s[`special3${suf}`]; // NUEVO: Especial 3
+      const sTeacher2 = s[`teacher2${suf}`]; 
+      const sSpecial1 = s[`special1${suf}`]; 
+      const sSpecial2 = s[`special2${suf}`]; 
+      const sSpecial3 = s[`special3${suf}`]; 
       const sSup1 = s[`sup1${suf}`];
       const sSup2 = s[`sup2${suf}`];
       const sClass = s.classroom;
-      const sDrive = s[`driveLink${suf}`];   // NUEVO: Link Drive
+      const sDrive = s[`driveLink${suf}`];
 
       if (s.modality === 'Inclusión') { 
           const daiName = s[`dai${suf}`]; 
@@ -2417,23 +2646,8 @@ function GroupsView({ user }) {
       }
       
       if (!acc[groupKey]) {
-          acc[groupKey] = { 
-              name: groupKey, 
-              students: [], 
-              teacher: myTeacher, 
-              teacher2: sTeacher2,
-              aux: sAux, 
-              special1: sSpecial1,
-              special2: sSpecial2,
-              special3: sSpecial3,
-              sup1: sSup1, 
-              sup2: sSup2, 
-              classroom: sClass, 
-              driveLink: sDrive, 
-              isInclusionGroup: s.modality === 'Inclusión' 
-          }; 
+          acc[groupKey] = { name: groupKey, students: [], teacher: myTeacher, teacher2: sTeacher2, aux: sAux, special1: sSpecial1, special2: sSpecial2, special3: sSpecial3, sup1: sSup1, sup2: sSup2, classroom: sClass, driveLink: sDrive, isInclusionGroup: s.modality === 'Inclusión' }; 
       } else {
-          // Rellenar datos si faltan en el primero que procesamos
           if (!acc[groupKey].aux && sAux) acc[groupKey].aux = sAux;
           if (!acc[groupKey].teacher2 && sTeacher2) acc[groupKey].teacher2 = sTeacher2;
           if (!acc[groupKey].special1 && sSpecial1) acc[groupKey].special1 = sSpecial1;
@@ -2451,17 +2665,10 @@ function GroupsView({ user }) {
 
   let groups = Object.values(groupedData).sort((a, b) => a.name.localeCompare(b.name));
 
-  // FILTRADO (AHORA INCLUYE A LOS PROFES ESPECIALES)
+  // FILTRADO
   if (!isManagement) {
       const myName = (user.fullName || "").toLowerCase();
-      groups = groups.filter(g => 
-          (g.teacher || "").toLowerCase().includes(myName) || 
-          (g.teacher2 || "").toLowerCase().includes(myName) || 
-          (g.aux || "").toLowerCase().includes(myName) ||
-          (g.special1 || "").toLowerCase().includes(myName) ||
-          (g.special2 || "").toLowerCase().includes(myName) ||
-          (g.special3 || "").toLowerCase().includes(myName)
-      );
+      groups = groups.filter(g => (g.teacher || "").toLowerCase().includes(myName) || (g.teacher2 || "").toLowerCase().includes(myName) || (g.aux || "").toLowerCase().includes(myName) || (g.special1 || "").toLowerCase().includes(myName) || (g.special2 || "").toLowerCase().includes(myName) || (g.special3 || "").toLowerCase().includes(myName));
   }
   
   if (viewFilter !== 'all') {
@@ -2470,14 +2677,12 @@ function GroupsView({ user }) {
 
   const getSafeDate = (d) => { if(!d) return '-'; try { return new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('es-AR'); } catch(e) { return d; } };
 
-  // --- IMPRESIÓN (MÉTODO IFRAME / INVISIBLE) ---
+  // --- IMPRESIÓN ---
   const handlePrintAll = () => {
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
     document.body.appendChild(iframe);
-
     let fullHtml = `<html><head><title>Listado Institucional</title><style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap'); body{font-family:'Roboto', sans-serif; padding:20px; color:#333;} .main-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 5px solid #7c3aed; padding-bottom: 10px; margin-bottom: 20px; } .main-title { font-size: 24px; font-weight: 900; color: #4c1d95; text-transform: uppercase; margin: 0; } .group-section { margin-bottom: 30px; page-break-inside: avoid; } .group-header { background-color: #f3f4f6; border-left: 6px solid #7c3aed; padding: 10px 15px; margin-bottom: 10px; border-radius: 0 8px 8px 0; } .group-name { font-size: 18px; font-weight: 900; color: #5b21b6; margin: 0; } .group-staff { font-size: 10px; font-weight: bold; color: #555; margin-top: 4px; text-transform: uppercase; } table { width: 100%; border-collapse: collapse; font-size: 10px; } thead tr { background-color: #7c3aed !important; color: white !important; } th { padding: 5px; text-align: left; text-transform: uppercase; font-weight: bold; border: 1px solid #ddd; } td { border: 1px solid #e5e7eb; padding: 5px; color: #374151; } tr:nth-child(even) { background-color: #f9fafb !important; } .footer { margin-top: 30px; border-top: 1px solid #ddd; padding-top: 10px; text-align: right; font-size: 9px; color: #9ca3af; font-style: italic; }</style></head><body><div class="main-header"><div><h1 class="main-title">Listado Institucional</h1><p class="main-subtitle">Ciclo 2026 - Turno ${turn === 'morning' ? 'Mañana' : 'Tarde'}</p></div><img src="${LOGO_URL}" style="height: 50px; opacity: 0.9;" /></div>`;
-
     groups.forEach(g => {
         const sorted = [...g.students].sort((a,b) => a.lastName.localeCompare(b.lastName));
         let supText = g.sup1 || '-'; if (g.sup2) supText += ` / ${g.sup2}`;
@@ -2487,87 +2692,92 @@ function GroupsView({ user }) {
         fullHtml += `</tbody></table></div>`;
     });
     fullHtml += `<div class="footer">Generado el ${new Date().toLocaleDateString()}</div></body></html>`;
-
     const doc = iframe.contentWindow.document; doc.open(); doc.write(fullHtml); doc.close();
     setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
   };
   
   const handlePrintSingleGroup = (g) => { handlePrintAll(); };
 
+  // --- LÓGICA DE REPORTE DE AUSENTISMO (NUEVA) ---
+  const handleReportAbsenteeism = async () => {
+      if(!selectedStudent) return;
+      const details = prompt(`¿Desde cuándo falta ${selectedStudent.firstName} y qué observaste?`);
+      if(!details) return;
+
+      // 1. Identificar destinatarios (TS)
+      let targetIds = SOCIAL_WORKERS_IDS;
+      
+      // Si no hay IDs fijos, buscamos por rol 'Equipo Técnico', 'Social', etc.
+      if (targetIds.length === 0) {
+          const socialWorkers = usersList.filter(u => 
+              (u.role === 'Equipo Técnico' || u.role === 'Trabajadora Social' || u.role === 'Social')
+          );
+          targetIds = socialWorkers.map(u => u.id);
+      }
+      
+      // Fallback si no encuentra a nadie: asignar a los administradores
+      if (targetIds.length === 0) {
+          const admins = usersList.filter(u => u.rol === 'admin' || u.rol === 'super-admin');
+          targetIds = admins.map(u => u.id);
+          alert("⚠️ No encontré Trabajadoras Sociales. Se notificará a la Administración.");
+      }
+
+      try {
+          // 2. Crear Tarea Especial (ROJA)
+          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), {
+              title: `⚠️ AUSENTISMO: ${selectedStudent.lastName}, ${selectedStudent.firstName}`,
+              description: `Reporte de ausentismo (+3 días). Detalles: ${details}`,
+              priority: 'high',
+              status: 'pending',
+              targetType: 'user',
+              targetUserIds: targetIds, // Array de IDs
+              targetUserId: targetIds[0] || null, // Compatibilidad
+              assignedToName: "Trabajo Social / Eq. Técnico",
+              createdById: user.id,
+              createdBy: user.firstName,
+              createdAt: serverTimestamp(),
+              showDate: new Date().toISOString().split('T')[0],
+              showTime: "08:00",
+              type: 'absenteeism' // MARCA ESPECIAL PARA QUE SALGA ROJA
+          });
+
+          // 3. Escribir en Bitácora Automáticamente
+          const newInc = { 
+              date: new Date().toISOString(), 
+              type: "Ausentismo", 
+              severity: "high", 
+              text: `Protocolo Ausentismo iniciado: ${details}`, 
+              author: user.firstName 
+          };
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', selectedStudent.id), { 
+              incidents: arrayUnion(newInc) 
+          });
+
+          alert("✅ Reporte enviado a Trabajo Social y registrado en bitácora.");
+      } catch (e) {
+          alert("Error al reportar: " + e.message);
+      }
+  };
+
   // --- BITÁCORA ---
   const addIncident = async (type, text = "") => { if (!showBitacoraModal) return; const newInc = { date: new Date().toISOString(), type: text ? "Nota" : type, severity: type, text: text || type, author: user.firstName }; try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id), { incidents: arrayUnion(newInc) }); setStudents(prev => prev.map(s => s.id === showBitacoraModal.id ? {...s, incidents: [...(s.incidents||[]), newInc]} : s)); setNewNote(""); setIsWriting(false); setShowBitacoraModal(null); alert("✅ Guardado."); } catch (e) { alert(e.message); } };
   const handleSaveIncident = async (type, severity) => { if (!showBitacoraModal) return; setSavingIncident(true); try { const incidentData = { type, severity, date: new Date().toISOString(), author: user.fullName || user.firstName, authorId: user.id }; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id), { incidents: arrayUnion(incidentData) }); alert("✅ Registro guardado"); setShowBitacoraModal(null); } catch (e) { console.error(e); } finally { setSavingIncident(false); } };
   const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
   
-  // --- ACTUALIZACIÓN DE GRUPO (CON CAMPOS NUEVOS) ---
-  const handleUpdateGroup = async (e) => { 
-      e.preventDefault(); if (!editingGroup) return; 
-      if (editingGroup.isInclusionGroup && !confirm("⚠️ Estás editando un grupo de INCLUSIÓN.")) return; 
-      setUpdatingGroup(true); 
-      const fd = new FormData(e.target); 
-      const updates = {}; 
-      const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-
-      if (editingGroup.isInclusionGroup) { 
-          updates[`dai${suf}`] = fd.get('teacher'); 
-      } else { 
-          updates[`teacher${suf}`] = fd.get('teacher'); 
-          updates[`teacher2${suf}`] = fd.get('teacher2'); // NUEVO
-          updates[`aux${suf}`] = fd.get('aux'); 
-          updates[`special1${suf}`] = fd.get('special1'); // NUEVO
-          updates[`special2${suf}`] = fd.get('special2'); // NUEVO
-          updates[`special3${suf}`] = fd.get('special3'); // NUEVO
-          updates[`sup1${suf}`] = fd.get('sup1'); 
-          updates[`sup2${suf}`] = fd.get('sup2'); 
-          updates[`group${suf}`] = fd.get('groupName'); 
-          updates.classroom = fd.get('classroom'); 
-      } 
-      updates[`driveLink${suf}`] = fd.get('driveLink'); // NUEVO
-      
-      try { 
-          const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)); 
-          await Promise.all(promises); alert("✅ Actualizado."); setEditingGroup(null); 
-      } catch (err) { alert(err.message); } finally { setUpdatingGroup(false); } 
-  };
+  // --- ACTUALIZACIÓN GRUPO ---
+  const handleUpdateGroup = async (e) => { e.preventDefault(); if (!editingGroup) return; if (editingGroup.isInclusionGroup && !confirm("⚠️ Estás editando un grupo de INCLUSIÓN.")) return; setUpdatingGroup(true); const fd = new FormData(e.target); const updates = {}; const suf = turn === 'morning' ? 'Morning' : 'Afternoon'; if (editingGroup.isInclusionGroup) { updates[`dai${suf}`] = fd.get('teacher'); } else { updates[`teacher${suf}`] = fd.get('teacher'); updates[`teacher2${suf}`] = fd.get('teacher2'); updates[`aux${suf}`] = fd.get('aux'); updates[`special1${suf}`] = fd.get('special1'); updates[`special2${suf}`] = fd.get('special2'); updates[`special3${suf}`] = fd.get('special3'); updates[`sup1${suf}`] = fd.get('sup1'); updates[`sup2${suf}`] = fd.get('sup2'); updates[`group${suf}`] = fd.get('groupName'); updates.classroom = fd.get('classroom'); } updates[`driveLink${suf}`] = fd.get('driveLink'); try { const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)); await Promise.all(promises); alert("✅ Actualizado."); setEditingGroup(null); } catch (err) { alert(err.message); } finally { setUpdatingGroup(false); } };
   
-  // Listas de opciones
   const staffOptions = usersList.filter(u => ['Docente', 'Auxiliar/Preceptor', 'Equipo Técnico', 'Profes Especiales', 'DAI', 'Inclusión'].includes(u.role));
-  const techOptions = usersList.filter(u => u.role === 'Equipo Técnico' || u.role === 'Equipo Técnico Inclusión');
+  const techOptions = usersList.filter(u => u.role === 'Equipo Técnico' || u.role === 'Equipo Técnico Inclusión' || u.role === 'Trabajadora Social');
   const specialOptions = usersList.filter(u => u.role === 'Profes Especiales' || u.role === 'Docente');
 
   return (
     <div className="flex flex-col h-full bg-slate-100 animate-in fade-in relative">
-      {/* HEADER SUPERIOR */}
       <div className="bg-white p-4 shadow-sm z-10 sticky top-0 flex flex-col gap-3">
-          <div className="flex justify-between items-center">
-              <div>
-                  <h2 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2">
-                      <Grid size={24} className="text-orange-500"/> Mis Grupos
-                  </h2>
-                  <p className="text-xs text-gray-400 font-bold uppercase">{isManagement ? "Vista Institucional" : `Espacio Docente`}</p>
-              </div>
-              {isManagement && (
-                  <button onClick={handlePrintAll} className="bg-violet-100 text-violet-700 p-2 rounded-xl shadow-sm hover:bg-violet-200 transition" title="Imprimir Todo">
-                      <FileText size={24}/>
-                  </button>
-              )}
-          </div>
-          <div className="flex gap-2">
-              <div className="flex bg-gray-100 p-1 rounded-xl flex-1">
-                  <button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-400'}`}>☀️ Mañana</button>
-                  <button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 Tarde</button>
-              </div>
-              {isManagement && (
-                  <div className="flex bg-gray-100 p-1 rounded-xl">
-                      <button onClick={() => setViewFilter('all')} className={`px-3 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'all' ? 'bg-white shadow text-gray-800' : 'text-gray-400'}`}>Todos</button>
-                      <button onClick={() => setViewFilter('sede')} className={`px-3 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'sede' ? 'bg-white shadow text-blue-600' : 'text-gray-400'}`}>Sede</button>
-                      <button onClick={() => setViewFilter('inclusion')} className={`px-3 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'inclusion' ? 'bg-white shadow text-indigo-600' : 'text-gray-400'}`}>Inclusión</button>
-                  </div>
-              )}
-          </div>
+          <div className="flex justify-between items-center"><div><h2 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2"><Grid size={24} className="text-orange-500"/> Mis Grupos</h2><p className="text-xs text-gray-400 font-bold uppercase">{isManagement ? "Vista Institucional" : `Espacio Docente`}</p></div>{isManagement && <button onClick={handlePrintAll} className="bg-violet-100 text-violet-700 p-2 rounded-xl shadow-sm hover:bg-violet-200 transition" title="Imprimir Todo"><FileText size={24}/></button>}</div>
+          <div className="flex gap-2"><div className="flex bg-gray-100 p-1 rounded-xl flex-1"><button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-400'}`}>☀️ Mañana</button><button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 Tarde</button></div>{isManagement && (<div className="flex bg-gray-100 p-1 rounded-xl"><button onClick={() => setViewFilter('all')} className={`px-3 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'all' ? 'bg-white shadow text-gray-800' : 'text-gray-400'}`}>Todos</button><button onClick={() => setViewFilter('sede')} className={`px-3 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'sede' ? 'bg-white shadow text-blue-600' : 'text-gray-400'}`}>Sede</button><button onClick={() => setViewFilter('inclusion')} className={`px-3 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'inclusion' ? 'bg-white shadow text-indigo-600' : 'text-gray-400'}`}>Inclusión</button></div>)}</div>
       </div>
       
-      {/* CONTENEDOR DE GRUPOS CON FLECHAS */}
       <div className="relative flex-1 overflow-hidden">
           <button onClick={() => scroll('left')} className="hidden md:flex absolute left-2 top-1/2 z-20 bg-white/90 text-violet-600 p-3 rounded-full shadow-xl border border-gray-100 hover:scale-110 transition -translate-y-1/2"><ChevronLeft size={24}/></button>
           <button onClick={() => scroll('right')} className="hidden md:flex absolute right-2 top-1/2 z-20 bg-white/90 text-violet-600 p-3 rounded-full shadow-xl border border-gray-100 hover:scale-110 transition -translate-y-1/2"><ChevronRight size={24}/></button>
@@ -2576,28 +2786,19 @@ function GroupsView({ user }) {
                 {groups.length === 0 && (<div className="m-auto text-center opacity-50"><p className="font-bold text-gray-400">No hay grupos visibles.</p></div>)} 
                 {groups.map((g) => (
                     <div key={g.name} className={`min-w-[280px] w-[300px] flex flex-col h-[calc(100vh-220px)] md:h-fit bg-white rounded-[30px] border shadow-sm relative overflow-hidden group-hover:shadow-md transition shrink-0 ${g.isInclusionGroup ? 'border-indigo-200' : 'border-gray-200'}`}>
-                      {/* TARJETA DE GRUPO */}
                       <div className={`p-4 border-b-4 relative ${g.isInclusionGroup ? 'bg-indigo-50 border-indigo-400' : (turn==='morning'?'border-orange-400 bg-orange-50':'border-indigo-400 bg-indigo-50')}`}>
                           <div className="absolute top-2 right-2 flex gap-1">
-                              {/* NUEVO: BOTÓN DRIVE */}
                               {g.driveLink && (<button onClick={() => window.open(g.driveLink, '_blank')} className="p-2 bg-green-100 hover:bg-green-200 rounded-full text-green-700 shadow-sm transition" title="Carpeta Drive"><Folder size={14}/></button>)}
-                              
                               {isStrategic && (<button onClick={()=>setGroupStats(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><PieChart size={14}/></button>)}
                               <button onClick={()=>handlePrintSingleGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>
                               {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"><Edit3 size={14}/></button>}
                           </div>
                           <h3 className="font-black text-gray-800 text-lg">{g.name}</h3>
                           <div className="mt-2 text-xs text-gray-500 font-medium space-y-1">
-                              {/* NUEVO: MUESTRA PAREJA PEDAGÓGICA */}
                               <p>DOC: <span className="font-bold text-violet-700 uppercase">{g.teacher || 'Sin asignar'}</span> {g.teacher2 && <span className="text-violet-500 font-bold">/ {g.teacher2}</span>}</p>
-                              
                               {g.aux && <p>AUX: <span className="font-bold uppercase">{g.aux}</span></p>}
-                              
-                              {/* NUEVO: MUESTRA PROFES ESPECIALES */}
                               {(g.special1 || g.special2 || g.special3) && <p className="text-gray-400 text-[9px] uppercase font-bold">ESPECIALES: {[g.special1, g.special2, g.special3].filter(Boolean).join(', ')}</p>}
-                              
                               {(g.sup1 || g.sup2) && <p className="text-violet-600 font-bold truncate">SUP: {g.sup1 || ''} {g.sup2 ? `& ${g.sup2}` : ''}</p>}
-                              
                               {g.classroom && (<p className="text-orange-600 font-black bg-white/80 px-2 py-0.5 rounded-md inline-block shadow-sm mt-1 border border-orange-100">🏫 Aula {g.classroom}</p>)}
                           </div>
                       </div>
@@ -2630,41 +2831,25 @@ function GroupsView({ user }) {
         )}
       </div></div>)}
 
-      {/* FORMULARIO DE EDICIÓN CON CAMPO PARA DRIVE Y EQUIPO COMPLETO */}
       {editingGroup && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><form onSubmit={handleUpdateGroup} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto"><div className="flex justify-between items-center mb-6"><h3 className="text-xl font-black text-violet-900 uppercase italic">Editar Grupo</h3><button type="button" onClick={()=>setEditingGroup(null)}><X/></button></div><div className="space-y-4"><div className="bg-violet-50 p-3 rounded-xl border border-violet-100 text-center"><p className="text-xs text-violet-500 font-bold uppercase mb-1">{editingGroup.isInclusionGroup ? 'Editando Cartera DAI' : 'Editando Grupo Sede'}</p>{!editingGroup.isInclusionGroup && <input name="groupName" defaultValue={editingGroup.name} className="font-black text-2xl text-violet-900 bg-transparent text-center w-full outline-none border-b border-violet-200 focus:border-violet-500" placeholder="Nombre Grupo"/>}</div>
-        
         <div><label className="text-xs font-bold text-gray-500 ml-1">{editingGroup.isInclusionGroup ? 'DAI Responsable' : 'Docente a Cargo'}</label><select name="teacher" defaultValue={editingGroup.teacher} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Sin asignar</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
-        
-        {!editingGroup.isInclusionGroup && (<>
-            {/* NUEVO: PAREJA PEDAGÓGICA */}
-            <div><label className="text-xs font-bold text-gray-500 ml-1">Docente 2 (Pareja)</label><select name="teacher2" defaultValue={editingGroup.teacher2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
-            
-            <div><label className="text-xs font-bold text-gray-500 ml-1">Auxiliar</label><select name="aux" defaultValue={editingGroup.aux} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Sin asignar</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
-            <div><label className="text-xs font-bold text-gray-500 ml-1">Aula Física</label><input name="classroom" defaultValue={editingGroup.classroom} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" placeholder="Ej: 5"/></div>
-            
-            {/* NUEVO: PROFES ESPECIALES */}
-            <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                <p className="text-[10px] font-black text-gray-400 uppercase mb-2">Profes Especiales (Opcional)</p>
-                <div className="space-y-2">
-                    <select name="special1" defaultValue={editingGroup.special1} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 1...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select>
-                    <select name="special2" defaultValue={editingGroup.special2} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 2...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select>
-                    <select name="special3" defaultValue={editingGroup.special3} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 3...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-xs font-bold text-gray-500 ml-1">Sup. 1</label><select name="sup1" defaultValue={editingGroup.sup1} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
-                <div><label className="text-xs font-bold text-gray-500 ml-1">Sup. 2</label><select name="sup2" defaultValue={editingGroup.sup2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
-            </div>
-        </>)}
-        
-        {/* NUEVO: INPUT DRIVE */}
-        <div><label className="text-xs font-bold text-green-600 ml-1">Enlace a Carpeta Drive</label><input name="driveLink" defaultValue={editingGroup.driveLink} className="w-full p-3 bg-green-50 border border-green-100 rounded-xl outline-none font-bold text-xs text-green-700" placeholder="https://drive.google.com/..."/></div>
-        
-        <button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition flex justify-center items-center gap-2">{updatingGroup ? <RefreshCw className="animate-spin"/> : 'Aplicar Cambios'}</button></div></form></div>)}
+        {!editingGroup.isInclusionGroup && (<><div><label className="text-xs font-bold text-gray-500 ml-1">Docente 2 (Pareja)</label><select name="teacher2" defaultValue={editingGroup.teacher2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div><label className="text-xs font-bold text-gray-500 ml-1">Auxiliar</label><select name="aux" defaultValue={editingGroup.aux} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Sin asignar</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div><label className="text-xs font-bold text-gray-500 ml-1">Aula Física</label><input name="classroom" defaultValue={editingGroup.classroom} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" placeholder="Ej: 5"/></div><div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-[10px] font-black text-gray-400 uppercase mb-2">Profes Especiales (Opcional)</p><div className="space-y-2"><select name="special1" defaultValue={editingGroup.special1} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 1...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="special2" defaultValue={editingGroup.special2} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 2...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="special3" defaultValue={editingGroup.special3} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 3...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div></div><div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-gray-500 ml-1">Sup. 1</label><select name="sup1" defaultValue={editingGroup.sup1} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div><label className="text-xs font-bold text-gray-500 ml-1">Sup. 2</label><select name="sup2" defaultValue={editingGroup.sup2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div></div></>)}<div><label className="text-xs font-bold text-green-600 ml-1">Enlace a Carpeta Drive</label><input name="driveLink" defaultValue={editingGroup.driveLink} className="w-full p-3 bg-green-50 border border-green-100 rounded-xl outline-none font-bold text-xs text-green-700" placeholder="https://drive.google.com/..."/></div><button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition flex justify-center items-center gap-2">{updatingGroup ? <RefreshCw className="animate-spin"/> : 'Aplicar Cambios'}</button></div></form></div>)}
       
       {groupStats && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[250] flex items-center justify-center p-4" onClick={() => setGroupStats(null)}><div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-6"><div><h3 className="text-xl font-black text-violet-900 uppercase italic">Análisis del Grupo</h3><p className="text-xs text-gray-500 font-bold">{groupStats.name} ({groupStats.students.length} alumnos)</p></div><button onClick={() => setGroupStats(null)}><X/></button></div>{(() => { const allIncidents = groupStats.students.flatMap(s => s.incidents || []); if (allIncidents.length === 0) return <p className="text-center text-gray-400 italic">No hay registros en la bitácora aún.</p>; const dimensions = { 'Pedagógico/Social': 0, 'Salud y Bienestar': 0, 'Conducta': 0, 'Rutina': 0 }; const tagsCount = {}; allIncidents.forEach(inc => { const type = inc.type; tagsCount[type] = (tagsCount[type] || 0) + 1; if (['Trabajó Muy Bien', 'Ayudó a un amigo', 'Logro de Aprendizaje', 'Buena Conducta'].includes(type)) dimensions['Pedagógico/Social']++; else if (['Convulsión / Salud', 'Higiene / Esfínter', 'Vómito', 'No comió'].includes(type)) dimensions['Salud y Bienestar']++; else if (['Agresión / Violencia', 'Brote / Gritos', 'Fuga / Intento', 'Crisis Llanto'].includes(type)) dimensions['Conducta']++; else dimensions['Rutina']++; }); const total = allIncidents.length; const topTags = Object.entries(tagsCount).sort((a, b) => b[1] - a[1]).slice(0, 4); return (<div className="space-y-6"><div><h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Dimensiones Registradas</h4><div className="space-y-3">{Object.entries(dimensions).map(([dim, count]) => { if (count === 0) return null; const pct = Math.round((count / total) * 100); const color = dim === 'Pedagógico/Social' ? 'bg-emerald-500' : dim === 'Salud y Bienestar' ? 'bg-blue-500' : dim === 'Conducta' ? 'bg-red-500' : 'bg-yellow-400'; return (<div key={dim}><div className="flex justify-between text-xs font-bold text-gray-600 mb-1"><span>{dim}</span><span>{count} ({pct}%)</span></div><div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div style={{width: `${pct}%`}} className={`h-full ${color}`}></div></div></div>); })}</div></div><div className="bg-gray-50 p-4 rounded-2xl border border-gray-100"><h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Lo que más sucede (Top 4)</h4><div className="space-y-2">{topTags.map(([tag, count]) => (<div key={tag} className="flex justify-between items-center bg-white p-2 rounded-lg border border-gray-200 shadow-sm"><span className="text-xs font-bold text-gray-700">{tag}</span><span className="text-xs font-black bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md">{count} veces</span></div>))}</div></div></div>); })()}</div></div>)}
-      {selectedStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"><div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0"><button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition"><X size={20}/></button><div className="flex items-center gap-4"><div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">{selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}</div><div><h2 className="text-2xl font-bold">{selectedStudent.lastName}, {selectedStudent.firstName}</h2><p className="opacity-90 flex gap-2 text-sm mt-1"><span className="bg-white/20 px-2 py-0.5 rounded">{calculateAge(selectedStudent.birthDate)} años</span></p></div></div><div className="flex gap-2 mt-6"><button onClick={() => setActiveTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'info' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Datos</button><button onClick={() => setActiveTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'history' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto space-y-6">{activeTab === 'info' ? (<div className="space-y-4"><div className="bg-orange-50 p-4 rounded-xl border border-orange-100"><h3 className="font-bold text-orange-800 text-xs uppercase mb-2">Contacto</h3><p className="text-sm">Madre: <b>{selectedStudent.motherName}</b> ({selectedStudent.motherContact})</p><p className="text-sm">Padre: <b>{selectedStudent.fatherName}</b> ({selectedStudent.fatherContact})</p></div><div className="bg-gray-50 p-4 rounded-xl border border-gray-100"><h3 className="font-bold text-gray-500 text-xs uppercase mb-2">Ubicación</h3><p className="text-sm">TM: <b>{selectedStudent.groupMorning}</b></p><p className="text-sm">TT: <b>{selectedStudent.groupAfternoon}</b></p></div></div>) : (<div className="space-y-2">{selectedStudent.incidents?.map((inc, i) => (<div key={i} className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="font-bold text-sm">{inc.text || inc.type}</p><p className="text-xs text-gray-500">{new Date(inc.date).toLocaleDateString()} - {inc.author}</p></div>))}</div>)}</div></div></div>)}
+      
+      {/* DETALLE ALUMNO + BOTÓN AUSENTISMO */}
+      {selectedStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"><div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0"><button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition"><X size={20}/></button><div className="flex items-center gap-4"><div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">{selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}</div><div><h2 className="text-2xl font-bold">{selectedStudent.lastName}, {selectedStudent.firstName}</h2><p className="opacity-90 flex gap-2 text-sm mt-1"><span className="bg-white/20 px-2 py-0.5 rounded">{calculateAge(selectedStudent.birthDate)} años</span></p></div></div><div className="flex gap-2 mt-6"><button onClick={() => setActiveTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'info' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Datos</button><button onClick={() => setActiveTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'history' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto space-y-6">
+      {activeTab === 'info' ? (
+          <div className="space-y-4">
+              <div className="bg-orange-50 p-4 rounded-xl border border-orange-100"><h3 className="font-bold text-orange-800 text-xs uppercase mb-2">Contacto</h3><p className="text-sm">Madre: <b>{selectedStudent.motherName}</b> ({selectedStudent.motherContact})</p><p className="text-sm">Padre: <b>{selectedStudent.fatherName}</b> ({selectedStudent.fatherContact})</p></div>
+              {/* BOTÓN ALERTA AUSENTISMO */}
+              <button onClick={handleReportAbsenteeism} className="w-full bg-red-50 text-red-700 font-bold py-4 rounded-xl border border-red-200 flex items-center justify-center gap-2 hover:bg-red-100 transition animate-in zoom-in shadow-sm"><AlertTriangle size={20}/> REPORTAR AUSENTISMO (+3 días)</button>
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-100"><h3 className="font-bold text-gray-500 text-xs uppercase mb-2">Ubicación</h3><p className="text-sm">TM: <b>{selectedStudent.groupMorning}</b></p><p className="text-sm">TT: <b>{selectedStudent.groupAfternoon}</b></p></div>
+          </div>
+      ) : (
+          <div className="space-y-2">{selectedStudent.incidents?.map((inc, i) => (<div key={i} className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="font-bold text-sm">{inc.text || inc.type}</p><p className="text-xs text-gray-500">{new Date(inc.date).toLocaleDateString()} - {inc.author}</p></div>))}</div>
+      )}
+      </div></div></div>)}
     </div>
   );
 }
@@ -2976,6 +3161,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
