@@ -2355,7 +2355,7 @@ function MainApp({ user, onLogout }) {
   );
 }
 
-// --- VISTA AULA (FINAL: CON REPORTE DE AUSENTISMO + TODO LO ANTERIOR) ---
+// --- VISTA AULA (FINAL: IMPRESIÓN INDIVIDUAL ARREGLADA) ---
 function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
@@ -2374,10 +2374,8 @@ function GroupsView({ user }) {
   const [savingIncident, setSavingIncident] = useState(false);
 
   // --- CONFIGURACIÓN DE TRABAJO SOCIAL ---
-  // Si tienes los IDs fijos, ponlos aquí: ['id1', 'id2']. 
-  // Si lo dejas vacío [], el sistema buscará por rol "Equipo Técnico" o "Social".
-  const SOCIAL_WORKERS_IDS = []; 
-
+  const SOCIAL_TARGETS = ['mchancalay', 'Myrian Chancalay'];
+  
   // REF PARA EL SCROLL (FLECHAS)
   const scrollRef = useRef(null); 
   const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scrollRef.current.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' }); } };
@@ -2414,68 +2412,34 @@ function GroupsView({ user }) {
   const groupedData = students.reduce((acc, s) => {
       let groupKey = ""; let myTeacher = "";
       const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-      
-      const sAux = s[`aux${suf}`];
-      const sTeacher2 = s[`teacher2${suf}`]; 
-      const sSpecial1 = s[`special1${suf}`]; 
-      const sSpecial2 = s[`special2${suf}`]; 
-      const sSpecial3 = s[`special3${suf}`]; 
-      const sSup1 = s[`sup1${suf}`];
-      const sSup2 = s[`sup2${suf}`];
-      const sClass = s.classroom;
-      const sDrive = s[`driveLink${suf}`];
-
-      if (s.modality === 'Inclusión') { 
-          const daiName = s[`dai${suf}`]; 
-          if (!daiName) return acc; 
-          groupKey = `DAI: ${daiName}`; 
-          myTeacher = daiName; 
-      } else { 
-          const groupName = s[`group${suf}`]; 
-          if (!groupName) return acc; 
-          groupKey = groupName.trim(); 
-          myTeacher = s[`teacher${suf}`]; 
-      }
-      
-      if (!acc[groupKey]) {
-          acc[groupKey] = { name: groupKey, students: [], teacher: myTeacher, teacher2: sTeacher2, aux: sAux, special1: sSpecial1, special2: sSpecial2, special3: sSpecial3, sup1: sSup1, sup2: sSup2, classroom: sClass, driveLink: sDrive, isInclusionGroup: s.modality === 'Inclusión' }; 
-      } else {
-          if (!acc[groupKey].aux && sAux) acc[groupKey].aux = sAux;
-          if (!acc[groupKey].teacher2 && sTeacher2) acc[groupKey].teacher2 = sTeacher2;
-          if (!acc[groupKey].special1 && sSpecial1) acc[groupKey].special1 = sSpecial1;
-          if (!acc[groupKey].special2 && sSpecial2) acc[groupKey].special2 = sSpecial2;
-          if (!acc[groupKey].special3 && sSpecial3) acc[groupKey].special3 = sSpecial3;
-          if (!acc[groupKey].sup1 && sSup1) acc[groupKey].sup1 = sSup1;
-          if (!acc[groupKey].sup2 && sSup2) acc[groupKey].sup2 = sSup2;
-          if (!acc[groupKey].classroom && sClass) acc[groupKey].classroom = sClass;
-          if (!acc[groupKey].driveLink && sDrive) acc[groupKey].driveLink = sDrive;
-          if (!acc[groupKey].teacher && myTeacher) acc[groupKey].teacher = myTeacher;
-      }
-      acc[groupKey].students.push(s); 
-      return acc;
+      const sAux = s[`aux${suf}`]; const sTeacher2 = s[`teacher2${suf}`]; const sSpecial1 = s[`special1${suf}`]; const sSpecial2 = s[`special2${suf}`]; const sSpecial3 = s[`special3${suf}`]; const sSup1 = s[`sup1${suf}`]; const sSup2 = s[`sup2${suf}`]; const sClass = s.classroom; const sDrive = s[`driveLink${suf}`];
+      if (s.modality === 'Inclusión') { const daiName = s[`dai${suf}`]; if (!daiName) return acc; groupKey = `DAI: ${daiName}`; myTeacher = daiName; } else { const groupName = s[`group${suf}`]; if (!groupName) return acc; groupKey = groupName.trim(); myTeacher = s[`teacher${suf}`]; }
+      if (!acc[groupKey]) { acc[groupKey] = { name: groupKey, students: [], teacher: myTeacher, teacher2: sTeacher2, aux: sAux, special1: sSpecial1, special2: sSpecial2, special3: sSpecial3, sup1: sSup1, sup2: sSup2, classroom: sClass, driveLink: sDrive, isInclusionGroup: s.modality === 'Inclusión' }; } 
+      else { if (!acc[groupKey].aux && sAux) acc[groupKey].aux = sAux; if (!acc[groupKey].teacher2 && sTeacher2) acc[groupKey].teacher2 = sTeacher2; if (!acc[groupKey].special1 && sSpecial1) acc[groupKey].special1 = sSpecial1; if (!acc[groupKey].special2 && sSpecial2) acc[groupKey].special2 = sSpecial2; if (!acc[groupKey].special3 && sSpecial3) acc[groupKey].special3 = sSpecial3; if (!acc[groupKey].sup1 && sSup1) acc[groupKey].sup1 = sSup1; if (!acc[groupKey].sup2 && sSup2) acc[groupKey].sup2 = sSup2; if (!acc[groupKey].classroom && sClass) acc[groupKey].classroom = sClass; if (!acc[groupKey].driveLink && sDrive) acc[groupKey].driveLink = sDrive; if (!acc[groupKey].teacher && myTeacher) acc[groupKey].teacher = myTeacher; }
+      acc[groupKey].students.push(s); return acc;
   }, {});
 
   let groups = Object.values(groupedData).sort((a, b) => a.name.localeCompare(b.name));
 
-  // FILTRADO
   if (!isManagement) {
       const myName = (user.fullName || "").toLowerCase();
       groups = groups.filter(g => (g.teacher || "").toLowerCase().includes(myName) || (g.teacher2 || "").toLowerCase().includes(myName) || (g.aux || "").toLowerCase().includes(myName) || (g.special1 || "").toLowerCase().includes(myName) || (g.special2 || "").toLowerCase().includes(myName) || (g.special3 || "").toLowerCase().includes(myName));
   }
-  
-  if (viewFilter !== 'all') {
-      groups = groups.filter(g => viewFilter === 'inclusion' ? g.isInclusionGroup : !g.isInclusionGroup);
-  }
+  if (viewFilter !== 'all') { groups = groups.filter(g => viewFilter === 'inclusion' ? g.isInclusionGroup : !g.isInclusionGroup); }
 
   const getSafeDate = (d) => { if(!d) return '-'; try { return new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('es-AR'); } catch(e) { return d; } };
 
-  // --- IMPRESIÓN ---
-  const handlePrintAll = () => {
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
+  // --- FUNCIÓN CENTRALIZADA DE IMPRESIÓN ---
+  // Esta función recibe "qué grupos imprimir" (uno o todos) y genera el PDF
+  const printGroups = (groupsToPrint) => {
+    const iframe = document.createElement('iframe'); 
+    iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0'; 
     document.body.appendChild(iframe);
+    
     let fullHtml = `<html><head><title>Listado Institucional</title><style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap'); body{font-family:'Roboto', sans-serif; padding:20px; color:#333;} .main-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 5px solid #7c3aed; padding-bottom: 10px; margin-bottom: 20px; } .main-title { font-size: 24px; font-weight: 900; color: #4c1d95; text-transform: uppercase; margin: 0; } .group-section { margin-bottom: 30px; page-break-inside: avoid; } .group-header { background-color: #f3f4f6; border-left: 6px solid #7c3aed; padding: 10px 15px; margin-bottom: 10px; border-radius: 0 8px 8px 0; } .group-name { font-size: 18px; font-weight: 900; color: #5b21b6; margin: 0; } .group-staff { font-size: 10px; font-weight: bold; color: #555; margin-top: 4px; text-transform: uppercase; } table { width: 100%; border-collapse: collapse; font-size: 10px; } thead tr { background-color: #7c3aed !important; color: white !important; } th { padding: 5px; text-align: left; text-transform: uppercase; font-weight: bold; border: 1px solid #ddd; } td { border: 1px solid #e5e7eb; padding: 5px; color: #374151; } tr:nth-child(even) { background-color: #f9fafb !important; } .footer { margin-top: 30px; border-top: 1px solid #ddd; padding-top: 10px; text-align: right; font-size: 9px; color: #9ca3af; font-style: italic; }</style></head><body><div class="main-header"><div><h1 class="main-title">Listado Institucional</h1><p class="main-subtitle">Ciclo 2026 - Turno ${turn === 'morning' ? 'Mañana' : 'Tarde'}</p></div><img src="${LOGO_URL}" style="height: 50px; opacity: 0.9;" /></div>`;
-    groups.forEach(g => {
+    
+    // Aquí iteramos sobre la lista que recibimos como parámetro (groupsToPrint)
+    groupsToPrint.forEach(g => {
         const sorted = [...g.students].sort((a,b) => a.lastName.localeCompare(b.lastName));
         let supText = g.sup1 || '-'; if (g.sup2) supText += ` / ${g.sup2}`;
         const aulaText = g.classroom ? ` | 🏫 AULA: ${g.classroom}` : '';
@@ -2483,72 +2447,62 @@ function GroupsView({ user }) {
         sorted.forEach((s, i) => { const flia = g.isInclusionGroup ? `Esc. Origen: ${s.originSchool} (${s.originGrade})` : `M: ${s.motherName||'-'} / P: ${s.fatherName||'-'}`; fullHtml += `<tr><td style="text-align:center;font-weight:bold;color:#7c3aed;">${i+1}</td><td style="font-weight:bold;text-transform:uppercase;">${s.lastName}, ${s.firstName}</td><td>${s.dni||'-'}</td><td>${getSafeDate(s.birthDate)}</td><td>${flia}</td></tr>`; });
         fullHtml += `</tbody></table></div>`;
     });
+    
     fullHtml += `<div class="footer">Generado el ${new Date().toLocaleDateString()}</div></body></html>`;
     const doc = iframe.contentWindow.document; doc.open(); doc.write(fullHtml); doc.close();
     setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
   };
-  
-  const handlePrintSingleGroup = (g) => { handlePrintAll(); };
 
-  // --- LÓGICA DE REPORTE DE AUSENTISMO (NUEVA) ---
+  // --- MANEJADOR: IMPRIMIR TODO ---
+  const handlePrintAll = () => {
+      printGroups(groups); // Le pasamos TODOS los grupos
+  };
+  
+  // --- MANEJADOR: IMPRIMIR UNO SOLO ---
+  const handlePrintSingleGroup = (g) => { 
+      printGroups([g]); // Le pasamos SOLO este grupo (dentro de un array)
+  };
+
+  // --- LÓGICA DE REPORTE DE AUSENTISMO ---
   const handleReportAbsenteeism = async () => {
       if(!selectedStudent) return;
       const details = prompt(`¿Desde cuándo falta ${selectedStudent.firstName} y qué observaste?`);
       if(!details) return;
 
-      // 1. Identificar destinatarios (TS)
-      let targetIds = SOCIAL_WORKERS_IDS;
+      const matchingUsers = usersList.filter(u => 
+          SOCIAL_TARGETS.includes(u.username) || 
+          SOCIAL_TARGETS.includes(u.email?.split('@')[0]) || 
+          SOCIAL_TARGETS.includes(`${u.firstName} ${u.lastName}`) || 
+          SOCIAL_TARGETS.includes(u.fullName)
+      );
       
-      // Si no hay IDs fijos, buscamos por rol 'Equipo Técnico', 'Social', etc.
+      let targetIds = matchingUsers.map(u => u.id);
+
       if (targetIds.length === 0) {
-          const socialWorkers = usersList.filter(u => 
-              (u.role === 'Equipo Técnico' || u.role === 'Trabajadora Social' || u.role === 'Social')
-          );
+          const socialWorkers = usersList.filter(u => (u.role === 'Equipo Técnico' || u.role === 'Trabajadora Social' || u.role === 'Social'));
           targetIds = socialWorkers.map(u => u.id);
       }
       
-      // Fallback si no encuentra a nadie: asignar a los administradores
       if (targetIds.length === 0) {
           const admins = usersList.filter(u => u.rol === 'admin' || u.rol === 'super-admin');
           targetIds = admins.map(u => u.id);
-          alert("⚠️ No encontré Trabajadoras Sociales. Se notificará a la Administración.");
+          alert("⚠️ No encontré a 'mchancalay' ni a nadie del Equipo Técnico. Se enviará a Dirección.");
       }
 
       try {
-          // 2. Crear Tarea Especial (ROJA)
           await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), {
               title: `⚠️ AUSENTISMO: ${selectedStudent.lastName}, ${selectedStudent.firstName}`,
               description: `Reporte de ausentismo (+3 días). Detalles: ${details}`,
-              priority: 'high',
-              status: 'pending',
-              targetType: 'user',
-              targetUserIds: targetIds, // Array de IDs
-              targetUserId: targetIds[0] || null, // Compatibilidad
-              assignedToName: "Trabajo Social / Eq. Técnico",
-              createdById: user.id,
-              createdBy: user.firstName,
-              createdAt: serverTimestamp(),
-              showDate: new Date().toISOString().split('T')[0],
-              showTime: "08:00",
-              type: 'absenteeism' // MARCA ESPECIAL PARA QUE SALGA ROJA
+              priority: 'high', status: 'pending', targetType: 'user', targetUserIds: targetIds, targetUserId: targetIds[0] || null, assignedToName: "Trabajo Social / Eq. Técnico",
+              createdById: user.id, createdBy: user.firstName, createdAt: serverTimestamp(), showDate: new Date().toISOString().split('T')[0], showTime: "08:00",
+              type: 'absenteeism' 
           });
 
-          // 3. Escribir en Bitácora Automáticamente
-          const newInc = { 
-              date: new Date().toISOString(), 
-              type: "Ausentismo", 
-              severity: "high", 
-              text: `Protocolo Ausentismo iniciado: ${details}`, 
-              author: user.firstName 
-          };
-          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', selectedStudent.id), { 
-              incidents: arrayUnion(newInc) 
-          });
+          const newInc = { date: new Date().toISOString(), type: "Ausentismo", severity: "high", text: `Protocolo Ausentismo iniciado: ${details}`, author: user.firstName };
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', selectedStudent.id), { incidents: arrayUnion(newInc) });
 
-          alert("✅ Reporte enviado a Trabajo Social y registrado en bitácora.");
-      } catch (e) {
-          alert("Error al reportar: " + e.message);
-      }
+          alert("✅ Reporte enviado a Trabajo Social.");
+      } catch (e) { alert("Error al reportar: " + e.message); }
   };
 
   // --- BITÁCORA ---
@@ -2556,7 +2510,6 @@ function GroupsView({ user }) {
   const handleSaveIncident = async (type, severity) => { if (!showBitacoraModal) return; setSavingIncident(true); try { const incidentData = { type, severity, date: new Date().toISOString(), author: user.fullName || user.firstName, authorId: user.id }; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id), { incidents: arrayUnion(incidentData) }); alert("✅ Registro guardado"); setShowBitacoraModal(null); } catch (e) { console.error(e); } finally { setSavingIncident(false); } };
   const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
   
-  // --- ACTUALIZACIÓN GRUPO ---
   const handleUpdateGroup = async (e) => { e.preventDefault(); if (!editingGroup) return; if (editingGroup.isInclusionGroup && !confirm("⚠️ Estás editando un grupo de INCLUSIÓN.")) return; setUpdatingGroup(true); const fd = new FormData(e.target); const updates = {}; const suf = turn === 'morning' ? 'Morning' : 'Afternoon'; if (editingGroup.isInclusionGroup) { updates[`dai${suf}`] = fd.get('teacher'); } else { updates[`teacher${suf}`] = fd.get('teacher'); updates[`teacher2${suf}`] = fd.get('teacher2'); updates[`aux${suf}`] = fd.get('aux'); updates[`special1${suf}`] = fd.get('special1'); updates[`special2${suf}`] = fd.get('special2'); updates[`special3${suf}`] = fd.get('special3'); updates[`sup1${suf}`] = fd.get('sup1'); updates[`sup2${suf}`] = fd.get('sup2'); updates[`group${suf}`] = fd.get('groupName'); updates.classroom = fd.get('classroom'); } updates[`driveLink${suf}`] = fd.get('driveLink'); try { const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)); await Promise.all(promises); alert("✅ Actualizado."); setEditingGroup(null); } catch (err) { alert(err.message); } finally { setUpdatingGroup(false); } };
   
   const staffOptions = usersList.filter(u => ['Docente', 'Auxiliar/Preceptor', 'Equipo Técnico', 'Profes Especiales', 'DAI', 'Inclusión'].includes(u.role));
@@ -2628,13 +2581,10 @@ function GroupsView({ user }) {
         {!editingGroup.isInclusionGroup && (<><div><label className="text-xs font-bold text-gray-500 ml-1">Docente 2 (Pareja)</label><select name="teacher2" defaultValue={editingGroup.teacher2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div><label className="text-xs font-bold text-gray-500 ml-1">Auxiliar</label><select name="aux" defaultValue={editingGroup.aux} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Sin asignar</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div><label className="text-xs font-bold text-gray-500 ml-1">Aula Física</label><input name="classroom" defaultValue={editingGroup.classroom} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" placeholder="Ej: 5"/></div><div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-[10px] font-black text-gray-400 uppercase mb-2">Profes Especiales (Opcional)</p><div className="space-y-2"><select name="special1" defaultValue={editingGroup.special1} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 1...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="special2" defaultValue={editingGroup.special2} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 2...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="special3" defaultValue={editingGroup.special3} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 3...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div></div><div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-gray-500 ml-1">Sup. 1</label><select name="sup1" defaultValue={editingGroup.sup1} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div><label className="text-xs font-bold text-gray-500 ml-1">Sup. 2</label><select name="sup2" defaultValue={editingGroup.sup2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div></div></>)}<div><label className="text-xs font-bold text-green-600 ml-1">Enlace a Carpeta Drive</label><input name="driveLink" defaultValue={editingGroup.driveLink} className="w-full p-3 bg-green-50 border border-green-100 rounded-xl outline-none font-bold text-xs text-green-700" placeholder="https://drive.google.com/..."/></div><button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition flex justify-center items-center gap-2">{updatingGroup ? <RefreshCw className="animate-spin"/> : 'Aplicar Cambios'}</button></div></form></div>)}
       
       {groupStats && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[250] flex items-center justify-center p-4" onClick={() => setGroupStats(null)}><div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-6"><div><h3 className="text-xl font-black text-violet-900 uppercase italic">Análisis del Grupo</h3><p className="text-xs text-gray-500 font-bold">{groupStats.name} ({groupStats.students.length} alumnos)</p></div><button onClick={() => setGroupStats(null)}><X/></button></div>{(() => { const allIncidents = groupStats.students.flatMap(s => s.incidents || []); if (allIncidents.length === 0) return <p className="text-center text-gray-400 italic">No hay registros en la bitácora aún.</p>; const dimensions = { 'Pedagógico/Social': 0, 'Salud y Bienestar': 0, 'Conducta': 0, 'Rutina': 0 }; const tagsCount = {}; allIncidents.forEach(inc => { const type = inc.type; tagsCount[type] = (tagsCount[type] || 0) + 1; if (['Trabajó Muy Bien', 'Ayudó a un amigo', 'Logro de Aprendizaje', 'Buena Conducta'].includes(type)) dimensions['Pedagógico/Social']++; else if (['Convulsión / Salud', 'Higiene / Esfínter', 'Vómito', 'No comió'].includes(type)) dimensions['Salud y Bienestar']++; else if (['Agresión / Violencia', 'Brote / Gritos', 'Fuga / Intento', 'Crisis Llanto'].includes(type)) dimensions['Conducta']++; else dimensions['Rutina']++; }); const total = allIncidents.length; const topTags = Object.entries(tagsCount).sort((a, b) => b[1] - a[1]).slice(0, 4); return (<div className="space-y-6"><div><h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Dimensiones Registradas</h4><div className="space-y-3">{Object.entries(dimensions).map(([dim, count]) => { if (count === 0) return null; const pct = Math.round((count / total) * 100); const color = dim === 'Pedagógico/Social' ? 'bg-emerald-500' : dim === 'Salud y Bienestar' ? 'bg-blue-500' : dim === 'Conducta' ? 'bg-red-500' : 'bg-yellow-400'; return (<div key={dim}><div className="flex justify-between text-xs font-bold text-gray-600 mb-1"><span>{dim}</span><span>{count} ({pct}%)</span></div><div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div style={{width: `${pct}%`}} className={`h-full ${color}`}></div></div></div>); })}</div></div><div className="bg-gray-50 p-4 rounded-2xl border border-gray-100"><h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Lo que más sucede (Top 4)</h4><div className="space-y-2">{topTags.map(([tag, count]) => (<div key={tag} className="flex justify-between items-center bg-white p-2 rounded-lg border border-gray-200 shadow-sm"><span className="text-xs font-bold text-gray-700">{tag}</span><span className="text-xs font-black bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md">{count} veces</span></div>))}</div></div></div>); })()}</div></div>)}
-      
-      {/* DETALLE ALUMNO + BOTÓN AUSENTISMO */}
       {selectedStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"><div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0"><button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition"><X size={20}/></button><div className="flex items-center gap-4"><div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">{selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}</div><div><h2 className="text-2xl font-bold">{selectedStudent.lastName}, {selectedStudent.firstName}</h2><p className="opacity-90 flex gap-2 text-sm mt-1"><span className="bg-white/20 px-2 py-0.5 rounded">{calculateAge(selectedStudent.birthDate)} años</span></p></div></div><div className="flex gap-2 mt-6"><button onClick={() => setActiveTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'info' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Datos</button><button onClick={() => setActiveTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'history' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto space-y-6">
       {activeTab === 'info' ? (
           <div className="space-y-4">
               <div className="bg-orange-50 p-4 rounded-xl border border-orange-100"><h3 className="font-bold text-orange-800 text-xs uppercase mb-2">Contacto</h3><p className="text-sm">Madre: <b>{selectedStudent.motherName}</b> ({selectedStudent.motherContact})</p><p className="text-sm">Padre: <b>{selectedStudent.fatherName}</b> ({selectedStudent.fatherContact})</p></div>
-              {/* BOTÓN ALERTA AUSENTISMO */}
               <button onClick={handleReportAbsenteeism} className="w-full bg-red-50 text-red-700 font-bold py-4 rounded-xl border border-red-200 flex items-center justify-center gap-2 hover:bg-red-100 transition animate-in zoom-in shadow-sm"><AlertTriangle size={20}/> REPORTAR AUSENTISMO (+3 días)</button>
               <div className="bg-gray-50 p-4 rounded-xl border border-gray-100"><h3 className="font-bold text-gray-500 text-xs uppercase mb-2">Ubicación</h3><p className="text-sm">TM: <b>{selectedStudent.groupMorning}</b></p><p className="text-sm">TT: <b>{selectedStudent.groupAfternoon}</b></p></div>
           </div>
@@ -2953,6 +2903,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
