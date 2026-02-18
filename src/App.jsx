@@ -2604,7 +2604,7 @@ function GroupsView({ user }) {
     </div>
   );
 }
-// --- VISTA ADMINISTRACIÓN (FINAL: PLANILLAS MENSUALES + CONSTANCIAS + FECHA) ---
+// --- VISTA ADMINISTRACIÓN (FINAL: PASE ARREGLADO + FIRMAS SOLO EN CONSTANCIA) ---
 function AdministracionView({ user }) {
   const [students, setStudents] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -2612,12 +2612,11 @@ function AdministracionView({ user }) {
   const [filters, setFilters] = useState({ os: 'all', level: 'all', modality: 'all' });
   
   // ESTADOS DOCUMENTOS
-  const [template, setTemplate] = useState('constancia_regular'); // 'constancia_regular' | 'planilla_asistencia'
+  const [template, setTemplate] = useState('constancia_regular'); 
   const [generating, setGenerating] = useState(false);
   
-  // ESTADO PARA "PRESENTAR ANTE"
+  // ESTADOS VARIABLES
   const [customTarget, setCustomTarget] = useState(""); 
-  // ESTADO PARA FECHA (NUEVO)
   const [customDate, setCustomDate] = useState(new Date().toISOString().split('T')[0]);
   const [paseAction, setPaseAction] = useState('CONCEDE'); // 'SOLICITA' o 'CONCEDE'
   
@@ -2656,37 +2655,23 @@ function AdministracionView({ user }) {
       setGenerating(true);
       
       const targets = students.filter(s => selectedIds.includes(s.id));
-      
-      // Usamos la fecha elegida manualmente
       const dateObj = new Date(customDate + 'T12:00:00'); 
+      const day = dateObj.getDate();
+      const month = dateObj.toLocaleString('es-AR', { month: 'long' });
       const year = dateObj.getFullYear();
+      const fullDate = `Villa Udaondo, ${day} de ${month} de ${year}`;
       
-      // ESTILOS COMUNES (CSS)
       let htmlContent = `<html><head><title>Documentos</title><style>
           @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
           body { font-family: 'Times New Roman', Times, serif; margin: 0; padding: 0; color: #000; }
-          
-          /* CLASE PARA SALTO DE PÁGINA */
           .page-break { page-break-after: always; }
 
-          /* --- ESTILOS CONSTANCIA REGULAR --- */
-          .cert-container { 
-              border: 2px solid #65a30d; 
-              border-radius: 25px; 
-              padding: 25px 40px; 
-              margin: 10px auto; 
-              position: relative; 
-              height: 140mm; 
-              box-sizing: border-box; 
-              width: 100%; 
-              max-width: 210mm; 
-              display: flex; 
-              flex-direction: column; 
-              page-break-inside: avoid; 
-          }
+          /* --- ESTILOS GENERALES --- */
+          .cert-container { border: 2px solid #65a30d; border-radius: 25px; padding: 25px 40px; margin: 10px auto; position: relative; height: 140mm; box-sizing: border-box; width: 100%; max-width: 210mm; display: flex; flex-direction: column; page-break-inside: avoid; }
           .cert-header { display: flex; align-items: center; margin-bottom: 15px; }
           .cert-logo { width: 100px; height: auto; margin-right: 20px; }
           .cert-title { font-size: 16px; font-weight: bold; text-decoration: underline; text-transform: uppercase; padding-top: 15px; }
+          .cert-subtitle { font-size: 12px; font-weight: bold; margin-top: 5px; }
           .cert-body { font-size: 13px; line-height: 1.6; flex-grow: 1; }
           .line-group { margin-bottom: 12px; }
           .data-field { text-align: center; font-weight: bold; font-size: 14px; border-bottom: 1px dotted #000; display: block; margin: 2px 0; padding-bottom: 2px; }
@@ -2697,28 +2682,17 @@ function AdministracionView({ user }) {
           .sig-img { height: 60px; width: auto; display: block; margin: 0 auto -10px auto; position: relative; z-index: 10; }
           .sig-line { border-top: 1px solid #000; margin-top: 0; padding-top: 4px; font-size: 11px; }
 
-          /* --- ESTILOS PLANILLA MENSUAL (NUEVO) --- */
-          .planilla-page { 
-              width: 100%; 
-              max-width: 210mm; 
-              padding: 15px 30px; 
-              box-sizing: border-box; 
-              margin: 0 auto; 
-              height: 297mm; /* A4 Completa */
-              position: relative; 
-          }
+          /* --- ESTILOS PLANILLA --- */
+          .planilla-page { width: 100%; max-width: 210mm; padding: 15px 30px; box-sizing: border-box; margin: 0 auto; height: 297mm; position: relative; }
           .planilla-header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 10px; }
           .planilla-title { font-size: 18px; font-weight: bold; text-transform: uppercase; margin: 0; padding-top: 10px; }
           .planilla-grid { display: grid; grid-template-columns: 180px 1fr; gap: 5px; margin-bottom: 20px; font-size: 12px; }
           .p-label { font-weight: bold; text-transform: uppercase; padding: 4px 0; }
           .p-value { border-bottom: 1px dotted #000; padding: 4px 5px; font-weight: bold; text-transform: uppercase; }
-          
           .asistencia-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
           .asistencia-table th, .asistencia-table td { border: 1px solid #000; padding: 4px; text-align: center; height: 25px; }
           .asistencia-table th { background-color: #f0f0f0; font-weight: bold; }
-          
           .mes-box { text-align: right; font-size: 14px; font-weight: bold; margin: 15px 0; text-transform: uppercase; padding-right: 10px; }
-          
           .firmas-planilla { display: flex; justify-content: space-between; margin-top: 40px; padding: 0 20px; }
           .firma-col { text-align: center; width: 40%; }
           .linea-firma { border-top: 1px solid #000; margin-top: 10px; padding-top: 5px; font-size: 11px; font-weight: bold; }
@@ -2732,18 +2706,18 @@ function AdministracionView({ user }) {
 
       targets.forEach(s => {
           
-          // === OPCIÓN 1: CONSTANCIA REGULAR (TU ORIGINAL) ===
+          let presentadoAnte = customTarget.trim() !== "" ? customTarget : '................................................';
+
+          // === OPCIÓN 1: CONSTANCIA REGULAR (LLEVA FIRMA Y SELLO) ===
           if (template === 'constancia_regular') {
               let jornadaTexto = "....................";
               if (s.journey === 'Simple Mañana') jornadaTexto = "jornada simple durante el turno mañana";
               else if (s.journey === 'Simple Tarde') jornadaTexto = "jornada simple durante el turno tarde";
               else if (s.journey === 'Doble') jornadaTexto = "jornada doble";
               else if (s.journey) jornadaTexto = `jornada ${s.journey}`;
-
-              let presentadoAnte = customTarget.trim() !== "" ? customTarget : (s.healthInsurance && s.healthInsurance.length > 2 ? s.healthInsurance : 'quien corresponda');
-              const day = dateObj.getDate();
-              const month = dateObj.toLocaleString('es-AR', { month: 'long' });
-              const fullDate = `Villa Udaondo, ${day} de ${month} de ${year}`;
+              
+              if (!customTarget && s.healthInsurance && s.healthInsurance.length > 2) presentadoAnte = s.healthInsurance;
+              else if (!customTarget) presentadoAnte = 'quien corresponda';
 
               htmlContent += `
               <div class="cert-container">
@@ -2766,9 +2740,8 @@ function AdministracionView({ user }) {
                   </div>
               </div>`;
           }
-            // ... aquí termina el bloque de 'constancia_regular'
 
-          // === OPCIÓN 2: CONCESIÓN DE PASE (NUEVO) ===
+          // === OPCIÓN 2: CONCESIÓN DE PASE (SIN FIRMA NI SELLO DIGITAL) ===
           else if (template === 'concesion_pase') {
               htmlContent += `
               <div class="cert-container">
@@ -2808,28 +2781,21 @@ function AdministracionView({ user }) {
                       </div>
                   </div>
                   <div class="signatures-section">
-                      <div class="sig-box"><img src="${FIRMA_URL}" class="sig-img"/><div class="sig-line">Firma director o vicedirector</div></div>
-                      <div class="sig-box"><img src="${SELLO_URL}" class="sig-img"/><div class="sig-line">Sello institución</div></div>
+                      <div class="sig-box"><br/><br/><div class="sig-line">Firma director o vicedirector</div></div>
+                      <div class="sig-box"><br/><br/><div class="sig-line">Sello institución</div></div>
                   </div>
               </div>`;
           }
-          
-          // ... aquí sigue el else if de 'planilla_asistencia' o el cierre del loop
 
-          // === OPCIÓN 2: PLANILLA DE ASISTENCIA (NUEVO - MARZO A DICIEMBRE) ===
+          // === OPCIÓN 3: PLANILLA MENSUAL (SIN FIRMA NI SELLO DIGITAL) ===
           else if (template === 'planilla_asistencia') {
               const months = ['MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
-              
-              // Definir Horario y Prestación
-              let horario = "";
-              let prestacion = "";
-              
+              let horario = ""; let prestacion = "";
               if (s.journey === 'Simple Mañana') { horario = "08:30 a 12:30"; prestacion = "Jornada Simple"; }
               else if (s.journey === 'Simple Tarde') { horario = "12:30 a 16:30"; prestacion = "Jornada Simple"; }
               else if (s.journey === 'Doble') { horario = "08:30 a 16:30"; prestacion = "Jornada Doble"; }
               else { horario = "A DEFINIR"; prestacion = s.journey || "-"; }
 
-              // Generar 10 páginas (una por mes)
               months.forEach(mes => {
                   htmlContent += `
                   <div class="planilla-page">
@@ -2886,8 +2852,7 @@ function AdministracionView({ user }) {
                               <div class="linea-firma">FIRMA FAMILIAR / RESPONSABLE<br/>ACLARACIÓN Y DNI</div>
                           </div>
                           <div class="firma-col">
-                              <img src="${FIRMA_URL}" style="height: 60px; display:block; margin:0 auto -10px auto;"/>
-                              <img src="${SELLO_URL}" style="height: 60px; display:block; margin:0 auto -10px auto; opacity:0.8;"/>
+                              <br/><br/><br/><br/>
                               <div class="linea-firma">FIRMA Y SELLO DIRECTIVO</div>
                           </div>
                       </div>
@@ -2922,7 +2887,7 @@ function AdministracionView({ user }) {
           </div>
       </div>
 
-     {/* BARRA DE ACCIÓN */}
+      {/* BARRA DE ACCIÓN */}
       <div className="bg-blue-50/80 p-4 backdrop-blur-sm border-b border-blue-100 flex flex-col md:flex-row justify-between items-center gap-4">
           <button onClick={toggleSelectAll} className="text-xs font-black uppercase tracking-widest text-blue-700 bg-blue-100/50 px-3 py-1 rounded-full">{selectedIds.length === filteredStudents.length ? 'Deseleccionar' : 'Seleccionar'} Visibles ({selectedIds.length})</button>
           
@@ -2995,6 +2960,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
