@@ -550,11 +550,11 @@ function ResourcesView({ resources, canEdit }) {
   );
 }
 
-// --- VISTA TAREAS (FINAL: BLINDADA + EDICIÓN + HUMOR) ---
+// --- VISTA TAREAS (VERSIÓN DE EMERGENCIA: SOLO EMOJIS - SIN LIBRERÍAS DE ICONOS) ---
 function TasksView({ tasks = [], user, canEdit }) {
-  // ESTADOS
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
+  
   const [viewMode, setViewMode] = useState('mine'); 
   const [filter, setFilter] = useState('pending'); 
   const [editingTask, setEditingTask] = useState(null); 
@@ -563,45 +563,32 @@ function TasksView({ tasks = [], user, canEdit }) {
   const [selectedUsersObj, setSelectedUsersObj] = useState([]); 
   const [userSearch, setUserSearch] = useState("");
   const [checklist, setChecklist] = useState([]); 
+  const [newItem, setNewItem] = useState("");
   const [openCommentsId, setOpenCommentsId] = useState(null); 
   const [newComment, setNewComment] = useState("");
-  const [newItem, setNewItem] = useState("");
 
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor', 'DAI', 'Dirección Inclusión', 'Equipo Técnico Inclusión'];
 
-  // --- 1. PROTECCIÓN DE SEGURIDAD (Evita Pantalla Blanca) ---
-  if (!user) return <div className="p-10 text-center text-gray-400 font-bold animate-pulse">Cargando perfil de usuario...</div>;
-  
-  // VERIFICACIÓN CRÍTICA DE FIREBASE
-  if (typeof db === 'undefined' || typeof appId === 'undefined') {
-      console.error("ERROR CRÍTICO: 'db' o 'appId' no están definidos en TasksView.");
-      return (
-          <div className="p-6 bg-red-50 text-red-700 border border-red-200 rounded-xl m-4 text-center">
-              <h3 className="font-bold text-lg mb-2">⚠️ Error de Conexión</h3>
-              <p className="text-sm">No se encontró la variable <code>db</code> o <code>appId</code>.</p>
-              <p className="text-xs mt-2">Asegúrate de que estén importadas o definidas al principio del archivo (App.js o similar).</p>
-          </div>
-      );
-  }
+  // 1. SEGURIDAD USUARIO
+  if (!user) return <div className="p-10 text-center opacity-50 font-bold">Cargando usuario...</div>;
 
   const userRole = user.role || user.rol || "";
   const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(userRole) || userRole === 'admin';
   const canManage = isSuperAdmin || ['Dirección Inclusión', 'Equipo Técnico'].includes(userRole);
 
-  // --- 2. CARGA DE USUARIOS ---
+  // 2. CARGA DE USUARIOS
   useEffect(() => {
-    let unsub;
     try {
         const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
-        unsub = onSnapshot(q, (snap) => {
+        const unsub = onSnapshot(q, (snap) => {
             const data = snap.docs.map(d => ({id: d.id, ...d.data()}));
             setUsersList(data);
-        }, (err) => console.error("Error cargando usuarios:", err));
-    } catch (e) { console.error("Crash en useEffect Users:", e); }
-    return () => unsub && unsub();
+        });
+        return () => unsub();
+    } catch (e) { console.error("Error users", e); }
   }, []);
 
-  // --- 3. RECUPERAR DATOS AL EDITAR ---
+  // 3. RECUPERAR AL EDITAR
   useEffect(() => {
     if (editingTask && editingTask.targetType === 'user' && usersList.length > 0) {
         const ids = editingTask.targetUserIds || (editingTask.targetUserId ? [editingTask.targetUserId] : []);
@@ -610,7 +597,7 @@ function TasksView({ tasks = [], user, canEdit }) {
     }
   }, [editingTask, usersList]);
 
-  // --- HELPERS ---
+  // HELPERS
   const formatDateSafe = (dateStr) => {
       if (!dateStr) return "";
       try {
@@ -622,14 +609,13 @@ function TasksView({ tasks = [], user, canEdit }) {
   const getUserName = (u) => u.firstName || u.fullName || u.username || "Usuario";
   const getInitials = (u) => (getUserName(u) || "U").charAt(0).toUpperCase();
 
-  // --- GUARDAR / EDITAR ---
   const handleSaveTask = async (e) => {
     e.preventDefault(); 
     const fd = new FormData(e.target);
     let finalTargetIds = []; let finalAssignedName = "Todos"; let finalRoles = [];
 
     if (assignType === 'user') { 
-        if (selectedUsersObj.length === 0) return alert("⚠️ Selecciona al menos un usuario."); 
+        if (selectedUsersObj.length === 0) return alert("⚠️ Selecciona un usuario."); 
         finalTargetIds = selectedUsersObj.map(u => u.id);
         finalAssignedName = selectedUsersObj.map(u => getUserName(u)).join(", ");
     } else { 
@@ -657,26 +643,15 @@ function TasksView({ tasks = [], user, canEdit }) {
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData); 
         } else { 
              const newTaskRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
-                 ...taskData, 
-                 createdByName: getUserName(user), 
-                 createdById: user.id, 
-                 status: 'pending', 
-                 createdAt: serverTimestamp(), 
-                 comments: [] 
+                 ...taskData, createdByName: getUserName(user), createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: [] 
              });
              
              // Notificaciones
              const scheduledTime = new Date(`${taskData.showDate}T${taskData.showTime}`);
              if (scheduledTime <= new Date()) {
                  const notifData = { title: `Nueva Tarea`, message: `${getUserName(user)}: "${taskData.title}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks', relatedId: newTaskRef.id, type: 'task_assigned' };
-                 if (assignType === 'user') {
-                     finalTargetIds.forEach(uid => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: uid }));
-                 } else {
-                     usersList.filter(u => {
-                         const r = u.role || u.rol || "";
-                         return finalRoles.some(fr => fr.toLowerCase() === r.toLowerCase());
-                     }).forEach(t => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: t.id }));
-                 }
+                 if (assignType === 'user') finalTargetIds.forEach(uid => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: uid }));
+                 else usersList.filter(u => finalRoles.some(fr => fr.toLowerCase() === (u.role||"").toLowerCase())).forEach(t => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: t.id }));
              }
         }
         setShowModal(false);
@@ -690,32 +665,22 @@ function TasksView({ tasks = [], user, canEdit }) {
       setUserSearch(""); 
   };
 
-  // --- PROCESAMIENTO DE TAREAS ---
   const processTasks = () => {
       if (!Array.isArray(tasks)) return [];
-      
       const filtered = tasks.filter(t => {
           if (!t) return false;
           const now = new Date();
           const scheduledTime = new Date(`${t.showDate || '2000-01-01'}T${t.showTime || '00:00'}`);
-          
           if (filter === 'completed') { if (t.status !== 'completed') return false; } 
           else if (filter === 'scheduled') { if (t.status === 'completed') return false; if (scheduledTime <= now) return false; } 
           else { if (t.status === 'completed') return false; if (scheduledTime > now) return false; }
-          
           const creatorId = t.createdById || "";
           const targetIds = t.targetUserIds || [];
           const targetRoles = t.targetRoles || [];
-          
           const isMine = (creatorId === user.id || targetIds.includes(user.id) || (t.targetUserId === user.id) || (userRole && targetRoles.includes(userRole)));
-          
-          if (isSuperAdmin) { 
-              if (viewMode === 'mine') return isMine; 
-              if (viewMode === 'all') return !isMine; 
-          }
+          if (isSuperAdmin) { if (viewMode === 'mine') return isMine; if (viewMode === 'all') return !isMine; }
           return isMine; 
       });
-
       return filtered.sort((a, b) => {
           const dateA = new Date(`${a.showDate || '9999-12-31'}T${a.showTime || '23:59'}`);
           const dateB = new Date(`${b.showDate || '9999-12-31'}T${b.showTime || '23:59'}`);
@@ -726,28 +691,11 @@ function TasksView({ tasks = [], user, canEdit }) {
   const visibleTasks = processTasks();
 
   const addComment = async (task) => { if (!newComment.trim()) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion({ text: newComment, author: getUserName(user), date: new Date().toISOString() }) }); setNewComment(""); };
-  const handleDelete = async (id) => { if(confirm("¿Eliminar tarea?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
-  const changeStatus = async (task, newStatus) => { if (newStatus === 'completed' && !confirm("¿Marcar como lista?")) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
+  const handleDelete = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
+  const changeStatus = async (task, newStatus) => { if (newStatus === 'completed' && !confirm("¿Lista?")) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
   
-  const openNew = () => { 
-      setEditingTask(null); 
-      setAssignType('user'); 
-      setSelectedRoles([]); 
-      setChecklist([]); 
-      setNewItem("");
-      setUserSearch(""); 
-      setSelectedUsersObj([]); 
-      setShowModal(true); 
-  };
-
-  const openEdit = (t) => { 
-      setEditingTask(t); 
-      setAssignType(t.targetType || 'user'); 
-      setSelectedRoles(t.targetRoles || []); 
-      setChecklist(t.checklist || []); 
-      setShowModal(true); 
-  };
-
+  const openNew = () => { setEditingTask(null); setAssignType('user'); setSelectedRoles([]); setChecklist([]); setNewItem(""); setUserSearch(""); setSelectedUsersObj([]); setShowModal(true); };
+  const openEdit = (t) => { setEditingTask(t); setAssignType(t.targetType || 'user'); setSelectedRoles(t.targetRoles || []); setChecklist(t.checklist || []); setShowModal(true); };
   const searchResults = userSearch.length > 0 ? usersList.filter(u => getUserName(u).toLowerCase().includes(userSearch.toLowerCase())) : [];
   
   const getPriorityStyle = (t, isSupervision) => { 
@@ -765,14 +713,12 @@ function TasksView({ tasks = [], user, canEdit }) {
           const due = new Date(dateStr); due.setHours(0,0,0,0);
           const diffTime = due - today;
           const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
           if (isNaN(days)) return null; 
-          if (days < 0) return { text: `💀 Vencida hace ${Math.abs(days)} días (QEPD)`, color: 'bg-red-100 text-red-800 border-red-200' };
-          if (days === 0) return { text: `🔥 ¡ES HOY! ¡CORRÉ!`, color: 'bg-red-500 text-white border-red-600 animate-pulse' };
-          if (days === 1) return { text: `😰 Mañana... activá`, color: 'bg-orange-100 text-orange-800 border-orange-200' };
-          if (days <= 3) return { text: `😬 Te quedan ${days} días, ponele onda`, color: 'bg-yellow-100 text-yellow-800 border-yellow-200' };
-          if (days <= 7) return { text: `👀 Ojo, faltan ${days} días`, color: 'bg-blue-50 text-blue-700 border-blue-200' };
-          return { text: `😎 Relax, faltan ${days} días`, color: 'bg-green-50 text-green-700 border-green-200' };
+          if (days < 0) return { text: `💀 Vencida (${Math.abs(days)}d)`, color: 'bg-red-100 text-red-800' };
+          if (days === 0) return { text: `🔥 ¡ES HOY!`, color: 'bg-red-500 text-white animate-pulse' };
+          if (days === 1) return { text: `😰 Mañana...`, color: 'bg-orange-100 text-orange-800' };
+          if (days <= 3) return { text: `😬 Faltan ${days} días`, color: 'bg-yellow-100 text-yellow-800' };
+          return { text: `😎 Faltan ${days} días`, color: 'bg-green-50 text-green-700' };
       } catch (e) { return null; }
   };
 
@@ -787,13 +733,13 @@ function TasksView({ tasks = [], user, canEdit }) {
           </div>
           <div className="flex gap-2">
              <div className="flex bg-gray-100 rounded-xl p-1 flex-1 overflow-x-auto no-scrollbar whitespace-nowrap"><button onClick={()=>setFilter('pending')} className={`flex-1 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='pending'?'bg-white shadow text-slate-800':'text-gray-400'}`}>Activas</button>{canManage && <button onClick={()=>setFilter('scheduled')} className={`flex-1 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='scheduled'?'bg-white shadow text-orange-600':'text-gray-400'}`}>Próximas</button>}<button onClick={()=>setFilter('completed')} className={`flex-1 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition ${filter==='completed'?'bg-white shadow text-green-600':'text-gray-400'}`}>Listas</button></div>
-             <button onClick={openNew} className="bg-orange-500 text-white px-4 py-1.5 rounded-xl shadow-lg hover:scale-105 transition-all shrink-0 flex items-center justify-center"><Plus size={20}/></button>
+             <button onClick={openNew} className="bg-orange-500 text-white px-4 py-1.5 rounded-xl shadow-lg hover:scale-105 transition-all shrink-0 flex items-center justify-center text-xl font-bold">+</button>
           </div>
       </div>
       
       {/* GRID */}
       <div className="grid gap-3 px-2">
-          {visibleTasks.length === 0 ? ( <div className="text-center py-10 opacity-40"><CheckCircle size={40} className="mx-auto mb-2 text-gray-400"/><p className="font-bold text-gray-500">Todo al día.</p></div> ) : visibleTasks.map(t => {
+          {visibleTasks.length === 0 ? ( <div className="text-center py-10 opacity-40"><p className="text-3xl mb-2">✅</p><p className="font-bold text-gray-500">Todo al día.</p></div> ) : visibleTasks.map(t => {
             const creatorId = t.createdById || "";
             const targetIds = t.targetUserIds || [];
             const targetRoles = t.targetRoles || [];
@@ -804,8 +750,8 @@ function TasksView({ tasks = [], user, canEdit }) {
 
             return (
                 <div key={t.id} className={`p-5 rounded-[30px] shadow-sm flex flex-col gap-3 transition-all relative ${getPriorityStyle(t, isSupervision)}`}>
-                    {isSupervision && !isAbsenteeism && <div className="absolute top-2 right-10 bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-[9px] font-black uppercase flex items-center gap-1 border border-gray-300"><Eye size={10}/> Supervisión</div>}
-                    {isAbsenteeism && <div className="absolute top-0 right-0 bg-red-600 text-white px-3 py-1 rounded-bl-xl rounded-tr-[20px] text-[10px] font-black uppercase tracking-wider animate-pulse flex items-center gap-1 shadow-sm"><AlertTriangle size={12}/> ALERTA SOCIAL</div>}
+                    {isSupervision && !isAbsenteeism && <div className="absolute top-2 right-10 bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-[9px] font-black uppercase flex items-center gap-1 border border-gray-300">👁️ Supervisión</div>}
+                    {isAbsenteeism && <div className="absolute top-0 right-0 bg-red-600 text-white px-3 py-1 rounded-bl-xl rounded-tr-[20px] text-[10px] font-black uppercase tracking-wider animate-pulse flex items-center gap-1 shadow-sm">⚠️ ALERTA SOCIAL</div>}
 
                     <div className="flex justify-between items-start">
                         <div className="flex-1 pr-6">
@@ -814,8 +760,8 @@ function TasksView({ tasks = [], user, canEdit }) {
                             <p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName || "Anónimo"}</p>
                             
                             <div className="flex flex-wrap gap-2 mt-2">
-                                {new Date(`${t.showDate}T${t.showTime}`) > new Date() && (<div className="inline-flex items-center gap-1 bg-yellow-100 text-yellow-800 text-[9px] font-bold px-2 py-1 rounded-md border border-yellow-200"><Clock size={10}/> Programada: {formatDateSafe(t.showDate)} {t.showTime}hs</div>)}
-                                {countdown && (<div className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-md border ${countdown.color}`}><Calendar size={10}/> {countdown.text}</div>)}
+                                {new Date(`${t.showDate}T${t.showTime}`) > new Date() && (<div className="inline-flex items-center gap-1 bg-yellow-100 text-yellow-800 text-[9px] font-bold px-2 py-1 rounded-md border border-yellow-200">🕒 Programada: {formatDateSafe(t.showDate)} {t.showTime}hs</div>)}
+                                {countdown && (<div className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-md border ${countdown.color}`}>📅 {countdown.text}</div>)}
                             </div>
                         </div>
                         
@@ -823,16 +769,16 @@ function TasksView({ tasks = [], user, canEdit }) {
                             <div className="flex gap-1">
                                 {(creatorId === user.id || isSuperAdmin) && (
                                     <>
-                                        <button onClick={() => openEdit(t)} className="text-gray-400 hover:text-blue-600 p-1 bg-white rounded-full shadow-sm transition hover:scale-110"><Edit3 size={14}/></button>
-                                        <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm transition hover:scale-110"><Trash2 size={14}/></button>
+                                        <button onClick={() => openEdit(t)} className="text-gray-400 hover:text-blue-600 p-1 bg-white rounded-full shadow-sm transition hover:scale-110">✏️</button>
+                                        <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm transition hover:scale-110">🗑️</button>
                                     </>
                                 )}
                             </div>
                         </div>
                     </div>
-                    {openCommentsId === t.id && ( <div className="bg-white/60 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in"><div className="max-h-32 overflow-y-auto space-y-2 mb-2">{(t.comments || []).map((c, idx) => ( <p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p> ))}</div><div className="flex gap-2"><input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribe..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" /><button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button></div></div> )}
+                    {openCommentsId === t.id && ( <div className="bg-white/60 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in"><div className="max-h-32 overflow-y-auto space-y-2 mb-2">{(t.comments || []).map((c, idx) => ( <p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p> ))}</div><div className="flex gap-2"><input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribe..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" /><button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg">➡️</button></div></div> )}
                     <div className="pt-2 border-t border-black/5 flex justify-between items-center">
-                        <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className={`flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 rounded-xl transition ${t.comments?.length > 0 ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500 hover:bg-violet-50 hover:text-violet-600'}`}><MessageSquare size={14}/> {t.comments?.length > 0 ? `${t.comments.length} Msjs` : 'Comentar'}</button>
+                        <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className={`flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 rounded-xl transition ${t.comments?.length > 0 ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500 hover:bg-violet-50 hover:text-violet-600'}`}>💬 {t.comments?.length > 0 ? `${t.comments.length} Msjs` : 'Comentar'}</button>
                         <div className="flex bg-white/60 rounded-lg p-0.5 shadow-sm">
                             <button onClick={() => changeStatus(t, 'pending')} className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition ${t.status === 'pending' ? 'bg-white shadow text-gray-700' : 'text-gray-400'}`}>Pend.</button>
                             <button onClick={() => changeStatus(t, 'in_process')} className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition ${t.status === 'in_process' ? 'bg-orange-100 text-orange-600 shadow' : 'text-gray-400'}`}>Proc.</button>
@@ -853,15 +799,15 @@ function TasksView({ tasks = [], user, canEdit }) {
             
             {assignType === 'user' ? ( 
                 <div className="space-y-2">
-                    <div className="flex flex-wrap gap-2 mb-2">{(selectedUsersObj || []).map(u => (<div key={u.id} className="flex items-center gap-1 bg-violet-100 text-violet-800 px-2 py-1 rounded-lg text-xs font-bold">{getInitials(u)} <button type="button" onClick={() => toggleUserSelection(u)}><X size={12}/></button></div>))}</div>
-                    <div className="relative"><input placeholder="🔍 Buscar para agregar..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} autoComplete="off" className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none focus:border-violet-500 rounded-t-xl" />{userSearch.length > 0 && (<div className="max-h-40 overflow-y-auto border-x border-b border-gray-200 rounded-b-xl bg-white shadow-xl absolute w-full z-50">{searchResults.map(u => (<div key={u.id} onClick={() => toggleUserSelection(u)} className={`p-3 hover:bg-violet-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0 ${selectedUsersObj.some(s=>s.id===u.id) ? 'bg-violet-50' : ''}`}><div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">{getInitials(u)}</div><p className="text-xs font-bold text-gray-700">{getUserName(u)}</p>{selectedUsersObj.some(s=>s.id===u.id) && <Check size={14} className="ml-auto text-violet-600"/>}</div>))}</div>)}</div> 
+                    <div className="flex flex-wrap gap-2 mb-2">{(selectedUsersObj || []).map(u => (<div key={u.id} className="flex items-center gap-1 bg-violet-100 text-violet-800 px-2 py-1 rounded-lg text-xs font-bold">{getInitials(u)} <button type="button" onClick={() => toggleUserSelection(u)}>✖️</button></div>))}</div>
+                    <div className="relative"><input placeholder="🔍 Buscar..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} autoComplete="off" className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none focus:border-violet-500 rounded-t-xl" />{userSearch.length > 0 && (<div className="max-h-40 overflow-y-auto border-x border-b border-gray-200 rounded-b-xl bg-white shadow-xl absolute w-full z-50">{searchResults.map(u => (<div key={u.id} onClick={() => toggleUserSelection(u)} className={`p-3 hover:bg-violet-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0 ${selectedUsersObj.some(s=>s.id===u.id) ? 'bg-violet-50' : ''}`}><div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">{getInitials(u)}</div><p className="text-xs font-bold text-gray-700">{getUserName(u)}</p>{selectedUsersObj.some(s=>s.id===u.id) && <span className="ml-auto text-violet-600">✔️</span>}</div>))}</div>)}</div> 
                 </div> 
             ) : ( 
                 <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 max-h-32 overflow-y-auto">{ROLES_OPTIONS.map(role => ( <label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={(selectedRoles || []).includes(role)} onChange={(e) => { if(e.target.checked) setSelectedRoles([...selectedRoles, role]); else setSelectedRoles(selectedRoles.filter(r => r !== role)); }} className="accent-violet-600"/> {role}</label> ))}</div> 
             )}
             
             <div className="grid grid-cols-2 gap-4"><div><label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Vencimiento</label><input name="dueDate" type="date" defaultValue={editingTask?.dueDate || ""} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs text-gray-600 border border-gray-200" /></div><select name="priority" defaultValue={editingTask?.priority || "baja"} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs uppercase text-orange-600 italic border border-gray-200 h-[66px] mt-auto"><option value="baja">🟢 Baja</option><option value="media">🟠 Media</option><option value="alta">🔴 Alta</option></select></div>
-            {canManage && (<div className="bg-orange-50 p-3 rounded-xl border border-orange-100"><label className="text-[10px] font-bold text-orange-700 uppercase mb-1 block flex items-center gap-1"><Clock size={10}/> Programar Aparición</label><div className="flex gap-2"><input name="showDate" type="date" defaultValue={editingTask?.showDate || ""} className="w-full p-2 bg-white rounded-lg outline-none font-bold text-xs text-orange-800 border border-orange-200" /><input name="showTime" type="time" defaultValue={editingTask?.showTime || "08:00"} className="w-24 p-2 bg-white rounded-lg outline-none font-bold text-xs text-orange-800 border border-orange-200" /></div><p className="text-[9px] text-orange-600 mt-1">Si pones una fecha/hora futura, la tarea quedará en "Próximas".</p></div>)}
+            {canManage && (<div className="bg-orange-50 p-3 rounded-xl border border-orange-100"><label className="text-[10px] font-bold text-orange-700 uppercase mb-1 block flex items-center gap-1">🕒 Programar Aparición</label><div className="flex gap-2"><input name="showDate" type="date" defaultValue={editingTask?.showDate || ""} className="w-full p-2 bg-white rounded-lg outline-none font-bold text-xs text-orange-800 border border-orange-200" /><input name="showTime" type="time" defaultValue={editingTask?.showTime || "08:00"} className="w-24 p-2 bg-white rounded-lg outline-none font-bold text-xs text-orange-800 border border-orange-200" /></div><p className="text-[9px] text-orange-600 mt-1">Si pones una fecha/hora futura, la tarea quedará en "Próximas".</p></div>)}
             <div className="flex gap-2 pt-2"><button type="button" onClick={() => setShowModal(false)} className="flex-1 font-bold text-gray-400 text-xs uppercase">Cancelar</button><button type="submit" className="flex-1 py-4 bg-violet-800 text-white rounded-2xl font-black shadow-lg uppercase tracking-widest text-xs">GUARDAR</button></div>
           </form>
         </div>
@@ -2978,6 +2924,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
