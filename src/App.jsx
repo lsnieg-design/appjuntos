@@ -734,7 +734,7 @@ function TasksView({ tasks = [], user, canEdit }) {
           const diffTime = due - today;
           const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-          if (isNaN(days)) return null; // Si la fecha es inválida
+          if (isNaN(days)) return null; 
           if (days < 0) return { text: `💀 Vencida hace ${Math.abs(days)} días (QEPD)`, color: 'bg-red-100 text-red-800 border-red-200' };
           if (days === 0) return { text: `🔥 ¡ES HOY! ¡CORRÉ!`, color: 'bg-red-500 text-white border-red-600 animate-pulse' };
           if (days === 1) return { text: `😰 Mañana... activá`, color: 'bg-orange-100 text-orange-800 border-orange-200' };
@@ -801,6 +801,7 @@ function TasksView({ tasks = [], user, canEdit }) {
         <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
           <form onSubmit={handleSaveTask} className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-black text-violet-900 uppercase italic">{editingTask ? 'Editar Tarea' : 'Nueva Tarea'}</h3>
+            {/* SE AÑADIÓ || "" PARA EVITAR VALOR NULL */}
             <input name="title" defaultValue={editingTask?.title || ""} placeholder="Título de la tarea" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm shadow-inner" />
             <div className="flex gap-2 bg-gray-100 p-1 rounded-xl"><button type="button" onClick={() => setAssignType('user')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'user' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Persona(s)</button><button type="button" onClick={() => setAssignType('roles')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'roles' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Roles</button></div>
             
@@ -2981,6 +2982,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
