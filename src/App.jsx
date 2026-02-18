@@ -1782,7 +1782,63 @@ function MatriculaView({ user }) {
     } catch(e) { alert(e.message); }
     setProcessing(false);
   };
+// --- FUNCIÓN IMPORTACIÓN MASIVA DOCENTES ---
+  const handleImportStaff = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
 
+      if (!confirm("⚠️ ¿Estás seguro de importar este archivo? Asegúrate de que el formato sea: Apellido;Nombre;DNI;Email;CargoTM;CargoTT")) {
+          e.target.value = null; // Limpiar input
+          return;
+      }
+
+      setProcessing(true);
+      const reader = new FileReader();
+      
+      reader.onload = async (evt) => {
+          try {
+              const text = evt.target.result;
+              // Separamos por líneas y quitamos la primera (encabezados)
+              const rows = text.split('\n').slice(1).filter(r => r.trim() !== '');
+              
+              const batchPromises = rows.map(row => {
+                  // Separamos por punto y coma (Excel guarda CSV así en español)
+                  const cols = row.split(';');
+                  
+                  // Mapeamos las columnas a tus datos
+                  // 0:Apellido, 1:Nombre, 2:DNI, 3:Email, 4:CargoTM, 5:CargoTT, 6:Inicio
+                  const staffData = {
+                      lastName: cols[0]?.trim() || '',
+                      firstName: cols[1]?.trim() || '',
+                      dni: cols[2]?.trim() || '',
+                      email: cols[3]?.trim() || '',
+                      cargoTM: cols[4]?.trim() || '',
+                      cargoTT: cols[5]?.trim() || '',
+                      startDate: cols[6]?.trim() || new Date().toISOString().split('T')[0],
+                      isSubsidized: 'no', // Default
+                      studyStatus: 'recibida', // Default
+                      createdAt: serverTimestamp()
+                  };
+
+                  if (!staffData.lastName || !staffData.dni) return null; // Saltar si no hay datos básicos
+
+                  return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), staffData);
+              });
+
+              const validPromises = batchPromises.filter(p => p !== null);
+              await Promise.all(validPromises);
+              
+              alert(`✅ Se importaron ${validPromises.length} legajos correctamente.`);
+          } catch (err) {
+              alert("❌ Error al procesar el archivo: " + err.message);
+          } finally {
+              setProcessing(false);
+              e.target.value = null; // Limpiar para poder subir el mismo archivo si es necesario
+          }
+      };
+      
+      reader.readAsText(file); // Leer como texto plano
+  };
   // ==========================================
   // 7. IMPRESIÓN CON MÉTODO IFRAME
   // ==========================================
@@ -1892,13 +1948,29 @@ return (
         </>
       )}
 
-      {/* ================= SECCIÓN DOCENTES (NUEVO) ================= */}
+    {/* ================= SECCIÓN DOCENTES (CON BOTÓN IMPORTAR) ================= */}
       {mainTab === 'staff' && (
           <>
             <div className="p-6 rounded-3xl shadow-lg bg-gradient-to-r from-violet-600 to-purple-500 text-white mb-6">
                 <div className="flex justify-between items-center mb-4">
-                    <div><h2 className="text-3xl font-bold flex gap-2 items-center"><Users/> Legajos Docentes</h2><p className="opacity-80 text-sm mt-1">{filteredStaff.length} legajos</p></div>
-                    <button onClick={() => {setEditingStaff(null); setPhotoPreview(null); setShowStaffForm(true);}} className="px-4 py-2 bg-white text-violet-600 rounded-xl shadow hover:bg-violet-50 font-bold"><Plus size={20}/></button>
+                    <div>
+                        <h2 className="text-3xl font-bold flex gap-2 items-center"><Users/> Legajos Docentes</h2>
+                        <p className="opacity-80 text-sm mt-1">{filteredStaff.length} legajos</p>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                        {/* --- BOTÓN IMPORTAR CSV --- */}
+                        <label className="px-4 py-2 bg-white/20 border border-white/30 text-white rounded-xl shadow hover:bg-white/30 font-bold cursor-pointer flex items-center gap-2 transition">
+                            {processing ? <RefreshCw className="animate-spin" size={20}/> : <UploadCloud size={20}/>}
+                            <span className="text-xs uppercase hidden md:inline">Importar CSV</span>
+                            <input type="file" accept=".csv" className="hidden" onChange={handleImportStaff} disabled={processing}/>
+                        </label>
+
+                        {/* --- BOTÓN NUEVO --- */}
+                        <button onClick={() => {setEditingStaff(null); setPhotoPreview(null); setShowStaffForm(true);}} className="px-4 py-2 bg-white text-violet-600 rounded-xl shadow hover:bg-violet-50 font-bold">
+                            <Plus size={20}/>
+                        </button>
+                    </div>
                 </div>
                 <div className="bg-white/20 p-2 rounded-xl flex items-center"><Search className="ml-2 opacity-70"/><input value={staffFilter} onChange={e=>setStaffFilter(e.target.value)} placeholder="Buscar docente por nombre o DNI..." className="bg-transparent border-none outline-none text-white w-full font-bold placeholder-white/60 ml-2"/></div>
             </div>
@@ -2532,7 +2604,7 @@ function GroupsView({ user }) {
     </div>
   );
 }
-// --- VISTA ADMINISTRACIÓN (FINAL: JORNADA DETALLADA + DISEÑO A4) ---
+// --- VISTA ADMINISTRACIÓN (FINAL: FECHA MANUAL + DISEÑO A4) ---
 function AdministracionView({ user }) {
   const [students, setStudents] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -2541,8 +2613,10 @@ function AdministracionView({ user }) {
   const [template, setTemplate] = useState('constancia_regular');
   const [generating, setGenerating] = useState(false);
   
-  // ESTADO PARA "PRESENTAR ANTE"
+  // ESTADOS PARA DOCUMENTO
   const [customTarget, setCustomTarget] = useState(""); 
+  // ESTADO NUEVO: FECHA MANUAL (Por defecto HOY)
+  const [customDate, setCustomDate] = useState(new Date().toISOString().split('T')[0]);
   
   const LOGO_URL = "/icon-192.png";
   const FIRMA_URL = "/firma.png"; 
@@ -2580,11 +2654,14 @@ function AdministracionView({ user }) {
       
       const targets = students.filter(s => selectedIds.includes(s.id));
       
-      const today = new Date();
-      const day = today.getDate();
-      const month = today.toLocaleString('es-AR', { month: 'long' });
-      const year = today.getFullYear();
+      // --- MODIFICACIÓN: USAR LA FECHA ELEGIDA ---
+      // Agregamos "T12:00:00" para evitar problemas de zona horaria que cambien el día
+      const dateObj = new Date(customDate + 'T12:00:00'); 
+      const day = dateObj.getDate();
+      const month = dateObj.toLocaleString('es-AR', { month: 'long' });
+      const year = dateObj.getFullYear();
       const fullDate = `Villa Udaondo, ${day} de ${month} de ${year}`;
+      // -------------------------------------------
 
       let htmlContent = `<html><head><title>Constancias</title><style>
           @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
@@ -2794,12 +2871,19 @@ function AdministracionView({ user }) {
       {/* BARRA DE ACCIÓN */}
       <div className="bg-blue-50/80 p-4 backdrop-blur-sm border-b border-blue-100 flex flex-col md:flex-row justify-between items-center gap-4">
           <button onClick={toggleSelectAll} className="text-xs font-black uppercase tracking-widest text-blue-700 bg-blue-100/50 px-3 py-1 rounded-full">{selectedIds.length === filteredStudents.length ? 'Deseleccionar' : 'Seleccionar'} Visibles ({selectedIds.length})</button>
+          
           <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto items-center">
+              {/* CAMPO: PRESENTAR ANTE */}
               <div className="flex flex-col w-full md:w-auto">
-                  <input placeholder="Presentar ante..." value={customTarget} onChange={e => setCustomTarget(e.target.value)} className="w-full md:w-64 p-2 rounded-xl text-xs font-bold border border-blue-200 outline-none focus:border-blue-500 placeholder-blue-300 text-blue-900"/>
-                  <span className="text-[9px] text-blue-600 font-bold ml-1 mt-0.5">* Vacío = Usa la O.S. del alumno.</span>
+                  <input placeholder="Presentar ante..." value={customTarget} onChange={e => setCustomTarget(e.target.value)} className="w-full md:w-48 p-2 rounded-xl text-xs font-bold border border-blue-200 outline-none focus:border-blue-500 placeholder-blue-300 text-blue-900"/>
               </div>
-              <select value={template} onChange={e=>setTemplate(e.target.value)} className="bg-white text-gray-700 pl-4 pr-8 py-2 rounded-xl text-xs font-bold w-full md:w-auto outline-none border border-blue-200 shadow-sm"><option value="constancia_regular">📄 Constancia Alumno Regular</option></select>
+              
+              {/* CAMPO NUEVO: FECHA MANUAL */}
+              <div className="flex flex-col w-full md:w-auto" title="Fecha de emisión">
+                  <input type="date" value={customDate} onChange={e => setCustomDate(e.target.value)} className="w-full md:w-auto p-2 rounded-xl text-xs font-bold border border-blue-200 outline-none focus:border-blue-500 text-blue-900"/>
+              </div>
+
+              <select value={template} onChange={e=>setTemplate(e.target.value)} className="bg-white text-gray-700 pl-4 pr-8 py-2 rounded-xl text-xs font-bold w-full md:w-auto outline-none border border-blue-200 shadow-sm"><option value="constancia_regular">📄 Constancia Regular</option></select>
               <button onClick={generateDocument} disabled={generating || selectedIds.length === 0} className={`bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-2 rounded-xl text-xs font-black uppercase shadow-md flex items-center gap-2 ${generating || selectedIds.length === 0 ? 'opacity-50' : 'hover:scale-105'}`}>{generating ? <RefreshCw className="animate-spin"/> : <><Printer size={16}/> Imprimir</>}</button>
           </div>
       </div>
@@ -2840,6 +2924,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
