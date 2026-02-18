@@ -2604,19 +2604,22 @@ function GroupsView({ user }) {
     </div>
   );
 }
-// --- VISTA ADMINISTRACIÓN (FINAL: FECHA MANUAL + DISEÑO A4) ---
+// --- VISTA ADMINISTRACIÓN (FINAL: PLANILLAS MENSUALES + CONSTANCIAS + FECHA) ---
 function AdministracionView({ user }) {
   const [students, setStudents] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [filterText, setFilterText] = useState('');
   const [filters, setFilters] = useState({ os: 'all', level: 'all', modality: 'all' });
-  const [template, setTemplate] = useState('constancia_regular');
+  
+  // ESTADOS DOCUMENTOS
+  const [template, setTemplate] = useState('constancia_regular'); // 'constancia_regular' | 'planilla_asistencia'
   const [generating, setGenerating] = useState(false);
   
-  // ESTADOS PARA DOCUMENTO
+  // ESTADO PARA "PRESENTAR ANTE"
   const [customTarget, setCustomTarget] = useState(""); 
-  // ESTADO NUEVO: FECHA MANUAL (Por defecto HOY)
+  // ESTADO PARA FECHA (NUEVO)
   const [customDate, setCustomDate] = useState(new Date().toISOString().split('T')[0]);
+  const [paseAction, setPaseAction] = useState('CONCEDE'); // 'SOLICITA' o 'CONCEDE'
   
   const LOGO_URL = "/icon-192.png";
   const FIRMA_URL = "/firma.png"; 
@@ -2654,183 +2657,243 @@ function AdministracionView({ user }) {
       
       const targets = students.filter(s => selectedIds.includes(s.id));
       
-      // --- MODIFICACIÓN: USAR LA FECHA ELEGIDA ---
-      // Agregamos "T12:00:00" para evitar problemas de zona horaria que cambien el día
+      // Usamos la fecha elegida manualmente
       const dateObj = new Date(customDate + 'T12:00:00'); 
-      const day = dateObj.getDate();
-      const month = dateObj.toLocaleString('es-AR', { month: 'long' });
       const year = dateObj.getFullYear();
-      const fullDate = `Villa Udaondo, ${day} de ${month} de ${year}`;
-      // -------------------------------------------
-
-      let htmlContent = `<html><head><title>Constancias</title><style>
+      
+      // ESTILOS COMUNES (CSS)
+      let htmlContent = `<html><head><title>Documentos</title><style>
           @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
           body { font-family: 'Times New Roman', Times, serif; margin: 0; padding: 0; color: #000; }
           
-          /* CONTENEDOR MEDIA CARILLA EXACTO (140mm) */
+          /* CLASE PARA SALTO DE PÁGINA */
+          .page-break { page-break-after: always; }
+
+          /* --- ESTILOS CONSTANCIA REGULAR --- */
           .cert-container { 
               border: 2px solid #65a30d; 
               border-radius: 25px; 
               padding: 25px 40px; 
-              margin: 10px auto;
+              margin: 10px auto; 
               position: relative; 
               height: 140mm; 
               box-sizing: border-box; 
-              width: 100%;
+              width: 100%; 
               max-width: 210mm; 
-              display: flex;
-              flex-direction: column;
-              page-break-inside: avoid;
+              display: flex; 
+              flex-direction: column; 
+              page-break-inside: avoid; 
           }
-
-          /* HEADER */
           .cert-header { display: flex; align-items: center; margin-bottom: 15px; }
           .cert-logo { width: 100px; height: auto; margin-right: 20px; }
-          .cert-title { 
-              font-size: 16px; 
-              font-weight: bold; 
-              text-decoration: underline; 
-              text-transform: uppercase; 
-              text-align: left;
-              padding-top: 15px;
-          }
-
-          /* CUERPO */
+          .cert-title { font-size: 16px; font-weight: bold; text-decoration: underline; text-transform: uppercase; padding-top: 15px; }
           .cert-body { font-size: 13px; line-height: 1.6; flex-grow: 1; }
-          
           .line-group { margin-bottom: 12px; }
-          
-          .data-field { 
-              text-align: center; 
-              font-weight: bold; 
-              font-size: 14px;
-              border-bottom: 1px dotted #000;
-              display: block;
-              margin: 2px 0;
-              padding-bottom: 2px;
-          }
+          .data-field { text-align: center; font-weight: bold; font-size: 14px; border-bottom: 1px dotted #000; display: block; margin: 2px 0; padding-bottom: 2px; }
+          .inline-field { font-weight: bold; border-bottom: 1px dotted #000; padding: 0 10px; }
+          .date-section { margin: 15px 0; text-align: center; font-weight: bold; }
+          .signatures-section { display: flex; justify-content: space-between; align-items: flex-end; padding: 0 10px; height: 80px; }
+          .sig-box { text-align: center; width: 220px; position: relative; }
+          .sig-img { height: 60px; width: auto; display: block; margin: 0 auto -10px auto; position: relative; z-index: 10; }
+          .sig-line { border-top: 1px solid #000; margin-top: 0; padding-top: 4px; font-size: 11px; }
 
-          .inline-field {
-              font-weight: bold;
-              border-bottom: 1px dotted #000;
-              padding: 0 10px;
+          /* --- ESTILOS PLANILLA MENSUAL (NUEVO) --- */
+          .planilla-page { 
+              width: 100%; 
+              max-width: 210mm; 
+              padding: 15px 30px; 
+              box-sizing: border-box; 
+              margin: 0 auto; 
+              height: 297mm; /* A4 Completa */
+              position: relative; 
           }
-
-          /* FECHA */
-          .date-section {
-              margin-top: 15px;
-              margin-bottom: 15px;
-              text-align: center;
-              font-weight: bold;
-          }
-
-          /* FIRMAS */
-          .signatures-section { 
-              display: flex; 
-              justify-content: space-between; 
-              align-items: flex-end;
-              padding: 0 10px;
-              height: 80px; 
-          }
+          .planilla-header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+          .planilla-title { font-size: 18px; font-weight: bold; text-transform: uppercase; margin: 0; padding-top: 10px; }
+          .planilla-grid { display: grid; grid-template-columns: 180px 1fr; gap: 5px; margin-bottom: 20px; font-size: 12px; }
+          .p-label { font-weight: bold; text-transform: uppercase; padding: 4px 0; }
+          .p-value { border-bottom: 1px dotted #000; padding: 4px 5px; font-weight: bold; text-transform: uppercase; }
           
-          .sig-box { 
-              text-align: center; 
-              width: 220px; 
-              position: relative;
-          }
+          .asistencia-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
+          .asistencia-table th, .asistencia-table td { border: 1px solid #000; padding: 4px; text-align: center; height: 25px; }
+          .asistencia-table th { background-color: #f0f0f0; font-weight: bold; }
           
-          .sig-img {
-              height: 60px; 
-              width: auto;
-              display: block;
-              margin: 0 auto -10px auto; 
-              position: relative;
-              z-index: 10;
-          }
+          .mes-box { text-align: right; font-size: 14px; font-weight: bold; margin: 15px 0; text-transform: uppercase; padding-right: 10px; }
           
-          .sig-line { 
-              border-top: 1px solid #000; 
-              margin-top: 0; 
-              padding-top: 4px; 
-              font-size: 11px; 
-          }
+          .firmas-planilla { display: flex; justify-content: space-between; margin-top: 40px; padding: 0 20px; }
+          .firma-col { text-align: center; width: 40%; }
+          .linea-firma { border-top: 1px solid #000; margin-top: 10px; padding-top: 5px; font-size: 11px; font-weight: bold; }
 
           @media print { 
               body { margin: 0; padding: 0; } 
               .cert-container { margin: 5mm auto; page-break-after: always; }
+              .planilla-page { page-break-after: always; }
           }
       </style></head><body>`;
 
       targets.forEach(s => {
-          let content = '';
           
-          // LÓGICA DE JORNADA
-          let jornadaTexto = "....................";
-          if (s.journey === 'Simple Mañana') jornadaTexto = "jornada simple durante el turno mañana";
-          else if (s.journey === 'Simple Tarde') jornadaTexto = "jornada simple durante el turno tarde";
-          else if (s.journey === 'Doble') jornadaTexto = "jornada doble";
-          else if (s.journey) jornadaTexto = `jornada ${s.journey}`;
-
-          // LÓGICA DE PRESENTADO ANTE
-          let presentadoAnte = customTarget.trim() !== "" ? customTarget : (s.healthInsurance && s.healthInsurance.length > 2 ? s.healthInsurance : 'quien corresponda');
-
+          // === OPCIÓN 1: CONSTANCIA REGULAR (TU ORIGINAL) ===
           if (template === 'constancia_regular') {
-              content = `
+              let jornadaTexto = "....................";
+              if (s.journey === 'Simple Mañana') jornadaTexto = "jornada simple durante el turno mañana";
+              else if (s.journey === 'Simple Tarde') jornadaTexto = "jornada simple durante el turno tarde";
+              else if (s.journey === 'Doble') jornadaTexto = "jornada doble";
+              else if (s.journey) jornadaTexto = `jornada ${s.journey}`;
+
+              let presentadoAnte = customTarget.trim() !== "" ? customTarget : (s.healthInsurance && s.healthInsurance.length > 2 ? s.healthInsurance : 'quien corresponda');
+              const day = dateObj.getDate();
+              const month = dateObj.toLocaleString('es-AR', { month: 'long' });
+              const fullDate = `Villa Udaondo, ${day} de ${month} de ${year}`;
+
+              htmlContent += `
               <div class="cert-container">
                   <div class="cert-header">
                       <img src="${LOGO_URL}" class="cert-logo"/>
                       <div class="cert-title">CONSTANCIA DE ALUMNO REGULAR</div>
                   </div>
-                  
                   <div class="cert-body">
                       Escuela Especial Juntos a la Par hace constar que
+                      <div class="line-group" style="margin-top:10px;"><span class="data-field">${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</span></div>
+                      <div class="line-group">con DNI N.° <span class="inline-field">${s.dni}</span> es alumno/a regular del Nivel: <span class="inline-field" style="width: 100%; display:block; margin-top:5px;">${s.level || '................'} (${s.modality || 'Sede'})</span></div>
+                      <div class="line-group">cumpliendo <span class="inline-field">${jornadaTexto}</span></div>
+                      <div class="line-group">en esta institución, con &nbsp;&nbsp; CUE 0623214-00.</div>
+                      <div class="line-group" style="margin-top:15px;">A pedido del interesado y al efecto de ser presentado... <span class="data-field">${presentadoAnte.toUpperCase()}</span></div>
+                      <div class="date-section">${fullDate}<div style="border-bottom: 1px dotted #000; width: 60%; margin: 0 auto;"></div><div style="font-weight: normal; font-size: 11px;">Lugar y fecha</div></div>
+                  </div>
+                  <div class="signatures-section">
+                      <div class="sig-box"><img src="${FIRMA_URL}" class="sig-img"/><div class="sig-line">Firma director o vicedirector</div></div>
+                      <div class="sig-box"><img src="${SELLO_URL}" class="sig-img"/><div class="sig-line">Sello institución</div></div>
+                  </div>
+              </div>`;
+          }
+            // ... aquí termina el bloque de 'constancia_regular'
+
+          // === OPCIÓN 2: CONCESIÓN DE PASE (NUEVO) ===
+          else if (template === 'concesion_pase') {
+              htmlContent += `
+              <div class="cert-container">
+                  <div class="cert-header">
+                      <img src="${LOGO_URL}" class="cert-logo"/>
+                      <div>
+                          <div class="cert-title">PASE - SOLICITUD CONCESIÓN</div>
+                          <div class="cert-subtitle" style="font-size: 11px; font-weight: bold; margin-top: 5px;">Escuela Especial Juntos a la Par con CUE 0623214-00 y DIEGEP N°8298.</div>
+                      </div>
+                  </div>
+                  <div class="cert-body">
+                      <div class="line-group" style="margin-top:30px;">
+                          La dirección del establecimiento <span style="font-weight:bold; text-decoration:underline;">${paseAction}</span> el pase del alumno:
+                      </div>
                       
-                      <div class="line-group" style="margin-top:10px;">
+                      <div class="line-group" style="margin-top:15px;">
                           <span class="data-field">${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</span>
                       </div>
                       
-                      <div class="line-group">
-                          con DNI N.° <span class="inline-field">${s.dni}</span> es alumno/a regular del Nivel:
-                          <span class="inline-field" style="width: 100%; display:block; margin-top:5px;">${s.level || '................'} (${s.modality || 'Sede'})</span>
+                      <div class="line-group" style="margin-top:20px;">
+                          que actualmente cursa <span class="inline-field">${s.level || '................'} (${s.modality || 'Sede'})</span>
                       </div>
 
-                      <div class="line-group">
-                          cumpliendo <span class="inline-field">${jornadaTexto}</span>
+                      <div class="line-group" style="margin-top:10px;">
+                          en la institución <b>Juntos a la Par</b>.
                       </div>
 
-                      <div class="line-group">
-                          en esta institución, con &nbsp;&nbsp; CUE 0623214-00.
-                      </div>
-
-                      <div class="line-group" style="margin-top:15px;">
-                          A pedido del interesado y al efecto de ser presentado...
-                          <span class="data-field">${presentadoAnte.toUpperCase()}</span>
+                      <div class="line-group" style="margin-top:30px;">
+                          Para ser presentado ante las autoridades de la institución:
+                          <span class="data-field" style="margin-top:5px;">${presentadoAnte.toUpperCase()}</span>
                       </div>
                       
-                      <div class="date-section">
+                      <div class="date-section" style="margin-top: 60px;">
                           ${fullDate}
                           <div style="border-bottom: 1px dotted #000; width: 60%; margin: 0 auto;"></div>
                           <div style="font-weight: normal; font-size: 11px;">Lugar y fecha</div>
                       </div>
                   </div>
-
                   <div class="signatures-section">
-                      <div class="sig-box">
-                          <img src="${FIRMA_URL}" class="sig-img" alt="Firma"/> 
-                          <div class="sig-line">Firma director o vicedirector</div>
-                      </div>
-                      <div class="sig-box">
-                          <img src="${SELLO_URL}" class="sig-img" alt="Sello"/> 
-                          <div class="sig-line">Sello institución</div>
-                      </div>
+                      <div class="sig-box"><img src="${FIRMA_URL}" class="sig-img"/><div class="sig-line">Firma director o vicedirector</div></div>
+                      <div class="sig-box"><img src="${SELLO_URL}" class="sig-img"/><div class="sig-line">Sello institución</div></div>
                   </div>
               </div>`;
-          } 
-          else {
-             content = `<div style="padding:20px">Plantilla en construcción...</div>`; 
           }
+          
+          // ... aquí sigue el else if de 'planilla_asistencia' o el cierre del loop
 
-          htmlContent += content;
+          // === OPCIÓN 2: PLANILLA DE ASISTENCIA (NUEVO - MARZO A DICIEMBRE) ===
+          else if (template === 'planilla_asistencia') {
+              const months = ['MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+              
+              // Definir Horario y Prestación
+              let horario = "";
+              let prestacion = "";
+              
+              if (s.journey === 'Simple Mañana') { horario = "08:30 a 12:30"; prestacion = "Jornada Simple"; }
+              else if (s.journey === 'Simple Tarde') { horario = "12:30 a 16:30"; prestacion = "Jornada Simple"; }
+              else if (s.journey === 'Doble') { horario = "08:30 a 16:30"; prestacion = "Jornada Doble"; }
+              else { horario = "A DEFINIR"; prestacion = s.journey || "-"; }
+
+              // Generar 10 páginas (una por mes)
+              months.forEach(mes => {
+                  htmlContent += `
+                  <div class="planilla-page">
+                      <div class="planilla-header">
+                          <img src="${LOGO_URL}" style="height: 40px; float: left;" />
+                          <h1 class="planilla-title">PLANILLA DE ASISTENCIA MENSUAL</h1>
+                          <div style="clear:both;"></div>
+                      </div>
+
+                      <div class="planilla-grid">
+                          <div class="p-label">OBRA SOCIAL:</div>
+                          <div class="p-value">${s.healthInsurance || 'NO DECLARA'}</div>
+
+                          <div class="p-label">APELLIDO Y NOMBRE:</div>
+                          <div class="p-value">${s.lastName}, ${s.firstName}</div>
+
+                          <div class="p-label">DNI:</div>
+                          <div class="p-value">${s.dni || '-'}</div>
+
+                          <div class="p-label">PRESTACIÓN:</div>
+                          <div class="p-value">${prestacion.toUpperCase()}</div>
+
+                          <div class="p-label">HORARIO:</div>
+                          <div class="p-value">${horario}</div>
+
+                          <div class="p-label">LUGAR DE PRESTACIÓN:</div>
+                          <div class="p-value">Escuela Especial Juntos a la Par - De las Boleadoras 2974, Ituzaingó</div>
+                      </div>
+
+                      <div class="mes-box">MES Y AÑO: <span style="border-bottom: 1px solid #000; padding: 0 10px;">${mes} ${year}</span></div>
+
+                      <p style="font-size: 11px; font-weight: bold; margin-bottom: 5px;">ACUERDO AL SIGUIENTE DETALLE (*):</p>
+
+                      <table class="asistencia-table">
+                          <tr>${Array.from({length:10},(_,i)=>`<th>${i+1}</th>`).join('')}</tr>
+                          <tr>${Array.from({length:10},()=>`<td></td>`).join('')}</tr>
+                      </table>
+                      <table class="asistencia-table">
+                          <tr>${Array.from({length:10},(_,i)=>`<th>${i+11}</th>`).join('')}</tr>
+                          <tr>${Array.from({length:10},()=>`<td></td>`).join('')}</tr>
+                      </table>
+                      <table class="asistencia-table">
+                          <tr>${Array.from({length:10},(_,i)=>`<th>${i+21}</th>`).join('')}</tr>
+                          <tr>${Array.from({length:10},()=>`<td></td>`).join('')}</tr>
+                      </table>
+                      <table class="asistencia-table" style="width: 10%;">
+                          <tr><th>31</th></tr>
+                          <tr><td></td></tr>
+                      </table>
+
+                      <div class="firmas-planilla">
+                          <div class="firma-col">
+                              <br/><br/><br/><br/>
+                              <div class="linea-firma">FIRMA FAMILIAR / RESPONSABLE<br/>ACLARACIÓN Y DNI</div>
+                          </div>
+                          <div class="firma-col">
+                              <img src="${FIRMA_URL}" style="height: 60px; display:block; margin:0 auto -10px auto;"/>
+                              <img src="${SELLO_URL}" style="height: 60px; display:block; margin:0 auto -10px auto; opacity:0.8;"/>
+                              <div class="linea-firma">FIRMA Y SELLO DIRECTIVO</div>
+                          </div>
+                      </div>
+                  </div>`;
+              });
+          }
       });
 
       htmlContent += '</body></html>';
@@ -2838,17 +2901,8 @@ function AdministracionView({ user }) {
       const iframe = document.createElement('iframe');
       iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
       document.body.appendChild(iframe);
-      
-      const doc = iframe.contentWindow.document; 
-      doc.open(); 
-      doc.write(htmlContent); 
-      doc.close();
-
-      setTimeout(() => { 
-          iframe.contentWindow.focus(); 
-          iframe.contentWindow.print(); 
-          setTimeout(() => { document.body.removeChild(iframe); setGenerating(false); }, 5000); 
-      }, 1000);
+      const doc = iframe.contentWindow.document; doc.open(); doc.write(htmlContent); doc.close();
+      setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); setGenerating(false); }, 5000); }, 1000);
   };
 
   if (!canAccess) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido.</div>;
@@ -2868,22 +2922,39 @@ function AdministracionView({ user }) {
           </div>
       </div>
 
-      {/* BARRA DE ACCIÓN */}
+     {/* BARRA DE ACCIÓN */}
       <div className="bg-blue-50/80 p-4 backdrop-blur-sm border-b border-blue-100 flex flex-col md:flex-row justify-between items-center gap-4">
           <button onClick={toggleSelectAll} className="text-xs font-black uppercase tracking-widest text-blue-700 bg-blue-100/50 px-3 py-1 rounded-full">{selectedIds.length === filteredStudents.length ? 'Deseleccionar' : 'Seleccionar'} Visibles ({selectedIds.length})</button>
           
           <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto items-center">
-              {/* CAMPO: PRESENTAR ANTE */}
+              
               <div className="flex flex-col w-full md:w-auto">
-                  <input placeholder="Presentar ante..." value={customTarget} onChange={e => setCustomTarget(e.target.value)} className="w-full md:w-48 p-2 rounded-xl text-xs font-bold border border-blue-200 outline-none focus:border-blue-500 placeholder-blue-300 text-blue-900"/>
+                  <input 
+                    placeholder={template === 'concesion_pase' ? "Institución Destino..." : "Presentar ante..."} 
+                    value={customTarget} 
+                    onChange={e => setCustomTarget(e.target.value)} 
+                    className="w-full md:w-48 p-2 rounded-xl text-xs font-bold border border-blue-200 outline-none focus:border-blue-500 placeholder-blue-300 text-blue-900"
+                  />
               </div>
               
-              {/* CAMPO NUEVO: FECHA MANUAL */}
               <div className="flex flex-col w-full md:w-auto" title="Fecha de emisión">
                   <input type="date" value={customDate} onChange={e => setCustomDate(e.target.value)} className="w-full md:w-auto p-2 rounded-xl text-xs font-bold border border-blue-200 outline-none focus:border-blue-500 text-blue-900"/>
               </div>
 
-              <select value={template} onChange={e=>setTemplate(e.target.value)} className="bg-white text-gray-700 pl-4 pr-8 py-2 rounded-xl text-xs font-bold w-full md:w-auto outline-none border border-blue-200 shadow-sm"><option value="constancia_regular">📄 Constancia Regular</option></select>
+              <select value={template} onChange={e=>setTemplate(e.target.value)} className="bg-white text-gray-700 pl-4 pr-8 py-2 rounded-xl text-xs font-bold w-full md:w-auto outline-none border border-blue-200 shadow-sm">
+                  <option value="constancia_regular">📄 Constancia Regular</option>
+                  <option value="planilla_asistencia">🗓️ Planilla Asistencia (Mar-Dic)</option>
+                  <option value="concesion_pase">✈️ Concesión de Pase</option>
+              </select>
+
+              {/* BOTONES NUEVOS: SOLICITA O CONCEDE */}
+              {template === 'concesion_pase' && (
+                  <div className="flex bg-white rounded-lg border border-blue-200 overflow-hidden shadow-sm">
+                      <button onClick={() => setPaseAction('SOLICITA')} className={`px-3 py-2 text-[10px] font-bold transition ${paseAction === 'SOLICITA' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>SOLICITA</button>
+                      <button onClick={() => setPaseAction('CONCEDE')} className={`px-3 py-2 text-[10px] font-bold transition ${paseAction === 'CONCEDE' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>CONCEDE</button>
+                  </div>
+              )}
+              
               <button onClick={generateDocument} disabled={generating || selectedIds.length === 0} className={`bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-2 rounded-xl text-xs font-black uppercase shadow-md flex items-center gap-2 ${generating || selectedIds.length === 0 ? 'opacity-50' : 'hover:scale-105'}`}>{generating ? <RefreshCw className="animate-spin"/> : <><Printer size={16}/> Imprimir</>}</button>
           </div>
       </div>
@@ -2924,6 +2995,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
