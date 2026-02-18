@@ -1581,6 +1581,7 @@ function MatriculaView({ user }) {
   // Constantes y Roles
   const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin' || user.role === 'Equipo Directivo' || user.role === 'Dirección Inclusión';
   const canSearchDrive = isSuperAdmin || user.role === 'Administración'; 
+  const canViewStaff = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión', 'Administración'].includes(user.rol) || ['Equipo Directivo', 'Dirección Inclusión', 'Administración'].includes(user.role);
   const LOGO_URL = "/icon-192.png"; 
 
   const INCIDENT_TYPES = [
@@ -1831,7 +1832,9 @@ return (
       {/* HEADER DE PESTAÑAS (NUEVO) */}
       <div className="mb-6 flex gap-4 bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
           <button onClick={() => setMainTab('students')} className={`flex-1 py-3 rounded-xl font-black uppercase text-xs transition ${mainTab === 'students' ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}>🎓 Alumnos / Matrícula</button>
-          <button onClick={() => setMainTab('staff')} className={`flex-1 py-3 rounded-xl font-black uppercase text-xs transition ${mainTab === 'staff' ? 'bg-gradient-to-r from-violet-600 to-purple-500 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}>👩‍🏫 Docentes / Legajos</button>
+          {canViewStaff && (
+             <button onClick={() => setMainTab('staff')} className={`flex-1 py-3 rounded-xl font-black uppercase text-xs transition ${mainTab === 'staff' ? 'bg-gradient-to-r from-violet-600 to-purple-500 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}>👩‍🏫 Docentes / Legajos</button>
+          )}
       </div>
 
       {/* ================= SECCIÓN ALUMNOS (TU CÓDIGO ORIGINAL) ================= */}
@@ -2837,6 +2840,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
