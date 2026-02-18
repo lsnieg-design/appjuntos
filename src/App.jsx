@@ -548,42 +548,45 @@ function ResourcesView({ resources, canEdit }) {
   );
 }
 
-// --- VISTA TAREAS (FINAL: FIX PANTALLA BLANCA + CUENTA REGRESIVA + RESPONSIVE) ---
-function TasksView({ tasks, user, canEdit }) {
+// --- VISTA TAREAS (FINAL: BLINDADA CONTRA ERRORES + CUENTA REGRESIVA) ---
+function TasksView({ tasks = [], user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
   
-  // ESTADO: MODO DE VISTA (Solo Admin)
+  // ESTADOS DE VISTA
   const [viewMode, setViewMode] = useState('mine'); 
+  const [filter, setFilter] = useState('pending'); 
 
+  // ESTADOS DEL FORMULARIO
+  const [editingTask, setEditingTask] = useState(null); 
   const [assignType, setAssignType] = useState('user'); 
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [selectedUsersObj, setSelectedUsersObj] = useState([]); 
-  
-  const [checklist, setChecklist] = useState([]); 
-  const [newItem, setNewItem] = useState(""); 
   const [userSearch, setUserSearch] = useState("");
+  const [checklist, setChecklist] = useState([]); 
+  
+  // ESTADOS INTERNOS
   const [openCommentsId, setOpenCommentsId] = useState(null); 
   const [newComment, setNewComment] = useState("");
-  const [editingTask, setEditingTask] = useState(null); 
-  const [filter, setFilter] = useState('pending'); 
 
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor', 'DAI', 'Dirección Inclusión', 'Equipo Técnico Inclusión'];
   
-  const isSuperAdmin = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo'; 
-  const canManage = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo' || user.role === 'Dirección Inclusión';
+  // SEGURIDAD: Evitar crash si user es null
+  if (!user) return <div className="p-4 text-center opacity-50">Cargando usuario...</div>;
 
-  // 1. CARGA DE USUARIOS (SEPARADA PARA NO RECARGAR SIEMPRE)
+  const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.role) || user.rol === 'admin' || user.rol === 'super-admin';
+  const canManage = isSuperAdmin || ['Dirección Inclusión', 'Equipo Técnico'].includes(user.role);
+
+  // 1. CARGAR USUARIOS
   useEffect(() => {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
     const unsub = onSnapshot(q, (snap) => {
-        const users = snap.docs.map(d => ({id: d.id, ...d.data()}));
-        setUsersList(users);
+        setUsersList(snap.docs.map(d => ({id: d.id, ...d.data()})));
     });
     return () => unsub();
   }, []);
 
-  // 2. EFECTO AL EDITAR TAREA (SOLO CORRE CUANDO CAMBIA LA TAREA A EDITAR)
+  // 2. RECUPERAR USUARIOS AL EDITAR
   useEffect(() => {
     if (editingTask && editingTask.targetType === 'user' && usersList.length > 0) {
         const ids = editingTask.targetUserIds || (editingTask.targetUserId ? [editingTask.targetUserId] : []);
@@ -592,6 +595,7 @@ function TasksView({ tasks, user, canEdit }) {
     }
   }, [editingTask, usersList]);
 
+  // --- LÓGICA DE GUARDADO ---
   const handleSaveTask = async (e) => {
     e.preventDefault(); 
     const fd = new FormData(e.target);
@@ -629,9 +633,10 @@ function TasksView({ tasks, user, canEdit }) {
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData); 
         } else { 
              const newTaskRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { ...taskData, createdByName: user.fullName || user.firstName, createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: [] });
+             
+             // Notificaciones (Solo si es para hoy o anterior)
              const scheduledTime = new Date(`${taskData.showDate}T${taskData.showTime}`);
-             const now = new Date();
-             if (scheduledTime <= now) {
+             if (scheduledTime <= new Date()) {
                  const notifData = { title: `Tarea Nueva`, message: `${user.firstName}: "${fd.get('title')}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks', relatedId: newTaskRef.id, type: 'task_assigned' };
                  if (assignType === 'user') {
                      const promises = finalTargetIds.map(uid => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: uid }));
@@ -654,7 +659,10 @@ function TasksView({ tasks, user, canEdit }) {
   };
 
   const processTasks = () => {
-      const filtered = tasks.filter(t => {
+      // Asegurar que tasks sea un array
+      const safeTasks = Array.isArray(tasks) ? tasks : [];
+      
+      const filtered = safeTasks.filter(t => {
           const now = new Date();
           const scheduledTime = new Date(`${t.showDate || '2000-01-01'}T${t.showTime || '00:00'}`);
           
@@ -663,9 +671,14 @@ function TasksView({ tasks, user, canEdit }) {
           else { if (t.status === 'completed') return false; if (scheduledTime > now) return false; }
           
           const isMine = (t.createdById === user.id || (t.targetUserIds && t.targetUserIds.includes(user.id)) || (t.targetUserId === user.id) || (t.targetRoles && user.role && t.targetRoles.includes(user.role)));
-          if (isSuperAdmin) { if (viewMode === 'mine') return isMine; if (viewMode === 'all') return !isMine; }
+          
+          if (isSuperAdmin) { 
+              if (viewMode === 'mine') return isMine; 
+              if (viewMode === 'all') return !isMine; 
+          }
           return isMine; 
       });
+
       return filtered.sort((a, b) => {
           const dateA = new Date(`${a.showDate || '9999-12-31'}T${a.showTime || '23:59'}`);
           const dateB = new Date(`${b.showDate || '9999-12-31'}T${b.showTime || '23:59'}`);
@@ -675,17 +688,17 @@ function TasksView({ tasks, user, canEdit }) {
 
   const visibleTasks = processTasks();
 
+  // ACCIONES
   const addComment = async (task) => { if (!newComment.trim()) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion({ text: newComment, author: user.firstName, date: new Date().toISOString() }) }); setNewComment(""); };
-  const handleDelete = async (id) => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
-  const changeStatus = async (task, newStatus) => { if (newStatus === 'completed' && !confirm("¿Lista?")) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
+  const handleDelete = async (id) => { if(confirm("¿Eliminar tarea?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
+  const changeStatus = async (task, newStatus) => { if (newStatus === 'completed' && !confirm("¿Marcar como lista?")) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
   
-  // FUNCIONES DE APERTURA MODAL (RESETEO SEGURO)
+  // APERTURA DE MODALES
   const openNew = () => { 
       setEditingTask(null); 
       setAssignType('user'); 
       setSelectedRoles([]); 
       setChecklist([]); 
-      setNewItem(""); 
       setUserSearch(""); 
       setSelectedUsersObj([]); 
       setShowModal(true); 
@@ -709,11 +722,10 @@ function TasksView({ tasks, user, canEdit }) {
       return 'border-l-4 border-l-green-400 bg-green-50/50'; 
   };
 
-  // --- CUENTA REGRESIVA GRACIOSA ---
   const getFunnyCountdown = (dateStr) => {
       if (!dateStr) return null;
       const today = new Date(); today.setHours(0,0,0,0);
-      const due = new Date(dateStr); due.setHours(0,0,0,0);
+      const due = new Date(dateStr); due.setHours(0,0,0,0); // Normalizamos horas para que sea exacto por día
       const diffTime = due - today;
       const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
@@ -727,7 +739,6 @@ function TasksView({ tasks, user, canEdit }) {
 
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-20">
-      
       <div className="bg-white p-4 sticky top-0 z-10 shadow-sm rounded-b-3xl flex flex-col gap-3">
           <div className="flex flex-col md:flex-row justify-between md:items-center gap-2">
               <div><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2><p className="text-xs text-gray-400 font-bold">{visibleTasks.length} visibles</p></div>
@@ -789,7 +800,7 @@ function TasksView({ tasks, user, canEdit }) {
             {assignType === 'user' ? ( 
                 <div className="space-y-2">
                     <div className="flex flex-wrap gap-2 mb-2">{(selectedUsersObj || []).map(u => (<div key={u.id} className="flex items-center gap-1 bg-violet-100 text-violet-800 px-2 py-1 rounded-lg text-xs font-bold">{u.firstName} <button type="button" onClick={() => toggleUserSelection(u)}><X size={12}/></button></div>))}</div>
-                    <div className="relative"><input placeholder="🔍 Buscar para agregar..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} autoComplete="off" className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none focus:border-violet-500 rounded-t-xl" />{userSearch.length > 0 && (<div className="max-h-40 overflow-y-auto border-x border-b border-gray-200 rounded-b-xl bg-white shadow-xl absolute w-full z-50">{searchResults.length > 0 ? searchResults.map(u => (<div key={u.id} onClick={() => toggleUserSelection(u)} className={`p-3 hover:bg-violet-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0 ${selectedUsersObj.some(s=>s.id===u.id) ? 'bg-violet-50' : ''}`}><div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">{u.firstName[0]}</div><p className="text-xs font-bold text-gray-700">{u.fullName}</p>{selectedUsersObj.some(s=>s.id===u.id) && <Check size={14} className="ml-auto text-violet-600"/>}</div>)) : <p className="p-3 text-xs text-gray-400 italic text-center">No encontrado</p>}</div>)}</div> 
+                    <div className="relative"><input placeholder="🔍 Buscar para agregar..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} autoComplete="off" className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none focus:border-violet-500 rounded-t-xl" />{userSearch.length > 0 && (<div className="max-h-40 overflow-y-auto border-x border-b border-gray-200 rounded-b-xl bg-white shadow-xl absolute w-full z-50">{searchResults.map(u => (<div key={u.id} onClick={() => toggleUserSelection(u)} className={`p-3 hover:bg-violet-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0 ${selectedUsersObj.some(s=>s.id===u.id) ? 'bg-violet-50' : ''}`}><div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">{u.firstName[0]}</div><p className="text-xs font-bold text-gray-700">{u.fullName}</p>{selectedUsersObj.some(s=>s.id===u.id) && <Check size={14} className="ml-auto text-violet-600"/>}</div>))}</div>)}</div> 
                 </div> 
             ) : ( 
                 <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 max-h-32 overflow-y-auto">{ROLES_OPTIONS.map(role => ( <label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={(selectedRoles || []).includes(role)} onChange={(e) => { if(e.target.checked) setSelectedRoles([...selectedRoles, role]); else setSelectedRoles(selectedRoles.filter(r => r !== role)); }} className="accent-violet-600"/> {role}</label> ))}</div> 
@@ -2963,6 +2974,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
