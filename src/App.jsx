@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Calendar as CalendarIcon, CheckSquare, Settings, User, FileText, CheckCircle, Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, Lock, List, Grid, ChevronLeft, ChevronRight, Bell, Check, HelpCircle, Mail, Send, Key, Filter, LayoutDashboard, Link as LinkIcon, ExternalLink, AlertTriangle, Clock, Shield, Crown, Activity, Share, PlusSquare, Smartphone, GraduationCap, Search, X, UploadCloud, PieChart, Eye, Edit3, Folder, MessageSquare, Globe, BookOpen, Lightbulb, Printer 
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, where, getDocs, serverTimestamp, arrayUnion, arrayRemove } from 'firebase/firestore';
-import { getMessaging, getToken, onMessage } from "firebase/messaging";
+import { getAuth } from 'firebase/auth';
+import { 
+  getFirestore, collection, addDoc, query, orderBy, onSnapshot, 
+  doc, updateDoc, deleteDoc, serverTimestamp, arrayUnion 
+} from 'firebase/firestore';
 
 // --- CONSTANTES GLOBALES ---
 const LOGO_URL = "/icon-192.png";
@@ -548,6 +550,7 @@ function ResourcesView({ resources, canEdit }) {
   );
 }
 
+// --- VISTA TAREAS (FINAL: BLINDADA + EDICIÓN + HUMOR) ---
 function TasksView({ tasks = [], user, canEdit }) {
   // ESTADOS
   const [showModal, setShowModal] = useState(false);
@@ -562,51 +565,62 @@ function TasksView({ tasks = [], user, canEdit }) {
   const [checklist, setChecklist] = useState([]); 
   const [openCommentsId, setOpenCommentsId] = useState(null); 
   const [newComment, setNewComment] = useState("");
+  const [newItem, setNewItem] = useState("");
 
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor', 'DAI', 'Dirección Inclusión', 'Equipo Técnico Inclusión'];
 
-  // --- 1. PROTECCIÓN INICIAL (SI NO HAY USER, NO RENDERIZA NADA) ---
-  if (!user || !user.id) return <div className="p-10 text-center opacity-50 font-bold">Cargando perfil...</div>;
+  // --- 1. PROTECCIÓN DE SEGURIDAD (Evita Pantalla Blanca) ---
+  if (!user) return <div className="p-10 text-center text-gray-400 font-bold animate-pulse">Cargando perfil de usuario...</div>;
+  
+  // VERIFICACIÓN CRÍTICA DE FIREBASE
+  if (typeof db === 'undefined' || typeof appId === 'undefined') {
+      console.error("ERROR CRÍTICO: 'db' o 'appId' no están definidos en TasksView.");
+      return (
+          <div className="p-6 bg-red-50 text-red-700 border border-red-200 rounded-xl m-4 text-center">
+              <h3 className="font-bold text-lg mb-2">⚠️ Error de Conexión</h3>
+              <p className="text-sm">No se encontró la variable <code>db</code> o <code>appId</code>.</p>
+              <p className="text-xs mt-2">Asegúrate de que estén importadas o definidas al principio del archivo (App.js o similar).</p>
+          </div>
+      );
+  }
 
   const userRole = user.role || user.rol || "";
   const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(userRole) || userRole === 'admin';
   const canManage = isSuperAdmin || ['Dirección Inclusión', 'Equipo Técnico'].includes(userRole);
 
-  // --- 2. CARGA SEGURA DE USUARIOS ---
+  // --- 2. CARGA DE USUARIOS ---
   useEffect(() => {
+    let unsub;
     try {
         const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
-        const unsub = onSnapshot(q, (snap) => {
+        unsub = onSnapshot(q, (snap) => {
             const data = snap.docs.map(d => ({id: d.id, ...d.data()}));
             setUsersList(data);
-        }, (error) => console.error("Error users:", error));
-        return () => unsub();
-    } catch (e) { console.error("Crash users:", e); }
+        }, (err) => console.error("Error cargando usuarios:", err));
+    } catch (e) { console.error("Crash en useEffect Users:", e); }
+    return () => unsub && unsub();
   }, []);
 
   // --- 3. RECUPERAR DATOS AL EDITAR ---
   useEffect(() => {
     if (editingTask && editingTask.targetType === 'user' && usersList.length > 0) {
-        // Protección: asegurar que targetUserIds sea array
         const ids = editingTask.targetUserIds || (editingTask.targetUserId ? [editingTask.targetUserId] : []);
         const found = usersList.filter(u => ids.includes(u.id));
         setSelectedUsersObj(found);
     }
   }, [editingTask, usersList]);
 
-  // --- HELPER FECHAS ---
+  // --- HELPERS ---
   const formatDateSafe = (dateStr) => {
       if (!dateStr) return "";
-      const d = new Date(dateStr);
-      return isNaN(d.getTime()) ? "" : d.toLocaleDateString();
+      try {
+          const d = new Date(dateStr);
+          return isNaN(d.getTime()) ? "" : d.toLocaleDateString();
+      } catch (e) { return ""; }
   };
 
-  // --- HELPER NOMBRES (EVITA BLANCOS) ---
   const getUserName = (u) => u.firstName || u.fullName || u.username || "Usuario";
-  const getInitials = (u) => {
-      const name = getUserName(u);
-      return name.charAt(0).toUpperCase();
-  };
+  const getInitials = (u) => (getUserName(u) || "U").charAt(0).toUpperCase();
 
   // --- GUARDAR / EDITAR ---
   const handleSaveTask = async (e) => {
@@ -676,12 +690,12 @@ function TasksView({ tasks = [], user, canEdit }) {
       setUserSearch(""); 
   };
 
-  // --- PROCESAMIENTO SEGURO DE TAREAS ---
+  // --- PROCESAMIENTO DE TAREAS ---
   const processTasks = () => {
-      if (!Array.isArray(tasks)) return []; // Si tasks no es array, devuelve vacío
+      if (!Array.isArray(tasks)) return [];
       
       const filtered = tasks.filter(t => {
-          if (!t) return false; // Si la tarea es null, fuera
+          if (!t) return false;
           const now = new Date();
           const scheduledTime = new Date(`${t.showDate || '2000-01-01'}T${t.showTime || '00:00'}`);
           
@@ -711,7 +725,6 @@ function TasksView({ tasks = [], user, canEdit }) {
 
   const visibleTasks = processTasks();
 
-  // ACCIONES
   const addComment = async (task) => { if (!newComment.trim()) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion({ text: newComment, author: getUserName(user), date: new Date().toISOString() }) }); setNewComment(""); };
   const handleDelete = async (id) => { if(confirm("¿Eliminar tarea?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
   const changeStatus = async (task, newStatus) => { if (newStatus === 'completed' && !confirm("¿Marcar como lista?")) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
@@ -765,6 +778,7 @@ function TasksView({ tasks = [], user, canEdit }) {
 
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-20">
+      
       {/* HEADER */}
       <div className="bg-white p-4 sticky top-0 z-10 shadow-sm rounded-b-3xl flex flex-col gap-3">
           <div className="flex flex-col md:flex-row justify-between md:items-center gap-2">
@@ -804,6 +818,7 @@ function TasksView({ tasks = [], user, canEdit }) {
                                 {countdown && (<div className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-md border ${countdown.color}`}><Calendar size={10}/> {countdown.text}</div>)}
                             </div>
                         </div>
+                        
                         <div className="flex flex-col items-end gap-2">
                             <div className="flex gap-1">
                                 {(creatorId === user.id || isSuperAdmin) && (
@@ -2963,6 +2978,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
