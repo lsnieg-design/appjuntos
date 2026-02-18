@@ -548,39 +548,35 @@ function ResourcesView({ resources, canEdit }) {
   );
 }
 
-// --- VISTA TAREAS (FINAL: SIN CRASH + CUENTA REGRESIVA + EDICIÓN) ---
+// --- VISTA TAREAS (FINAL: SIN CRASHES POR FECHAS + EDICIÓN OK) ---
 function TasksView({ tasks = [], user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
   
-  // ESTADOS DE VISTA
   const [viewMode, setViewMode] = useState('mine'); 
   const [filter, setFilter] = useState('pending'); 
 
-  // ESTADOS DEL FORMULARIO
   const [editingTask, setEditingTask] = useState(null); 
   const [assignType, setAssignType] = useState('user'); 
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [selectedUsersObj, setSelectedUsersObj] = useState([]); 
   const [userSearch, setUserSearch] = useState("");
   const [checklist, setChecklist] = useState([]); 
-  const [newItem, setNewItem] = useState("");
+  const [newItem, setNewItem] = useState(""); // Estado recuperado por si acaso
   
-  // ESTADOS INTERNOS
   const [openCommentsId, setOpenCommentsId] = useState(null); 
   const [newComment, setNewComment] = useState("");
 
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor', 'DAI', 'Dirección Inclusión', 'Equipo Técnico Inclusión'];
   
-  // --- SEGURIDAD ANTI-CRASH ---
+  // SEGURIDAD: Si no hay usuario, esperar
   if (!user) return <div className="p-10 text-center opacity-50">Cargando usuario...</div>;
 
-  // Normalizamos el rol para evitar errores si viene como 'rol' o 'role' o undefined
   const userRole = user.role || user.rol || "";
   const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(userRole) || userRole === 'admin';
   const canManage = isSuperAdmin || ['Dirección Inclusión', 'Equipo Técnico'].includes(userRole);
 
-  // 1. CARGAR USUARIOS
+  // 1. CARGA DE USUARIOS
   useEffect(() => {
     try {
         const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
@@ -589,7 +585,7 @@ function TasksView({ tasks = [], user, canEdit }) {
             setUsersList(data);
         });
         return () => unsub();
-    } catch (e) { console.error("Error cargando usuarios:", e); }
+    } catch (e) { console.error(e); }
   }, []);
 
   // 2. RECUPERAR USUARIOS AL EDITAR
@@ -601,7 +597,16 @@ function TasksView({ tasks = [], user, canEdit }) {
     }
   }, [editingTask, usersList]);
 
-  // --- LÓGICA DE GUARDADO ---
+  // --- HELPER PARA FECHAS (EVITA CRASH) ---
+  const formatDateSafe = (dateStr) => {
+      try {
+          if (!dateStr) return "";
+          const d = new Date(dateStr);
+          if (isNaN(d.getTime())) return ""; // Si es fecha inválida, devuelve vacío
+          return d.toLocaleDateString();
+      } catch (e) { return ""; }
+  };
+
   const handleSaveTask = async (e) => {
     e.preventDefault(); 
     const fd = new FormData(e.target);
@@ -610,7 +615,7 @@ function TasksView({ tasks = [], user, canEdit }) {
     if (assignType === 'user') { 
         if (selectedUsersObj.length === 0) return alert("⚠️ Selecciona al menos un usuario."); 
         finalTargetIds = selectedUsersObj.map(u => u.id);
-        finalAssignedName = selectedUsersObj.map(u => u.firstName || u.username || "Usuario").join(", ");
+        finalAssignedName = selectedUsersObj.map(u => u.firstName || u.username).join(", ");
     } else { 
         if (selectedRoles.length === 0) return alert("⚠️ Elige roles."); 
         finalRoles = selectedRoles; 
@@ -702,7 +707,6 @@ function TasksView({ tasks = [], user, canEdit }) {
   const handleDelete = async (id) => { if(confirm("¿Eliminar tarea?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
   const changeStatus = async (task, newStatus) => { if (newStatus === 'completed' && !confirm("¿Marcar como lista?")) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
   
-  // FUNCIONES SEGURAS DE APERTURA
   const openNew = () => { 
       setEditingTask(null); 
       setAssignType('user'); 
@@ -721,11 +725,10 @@ function TasksView({ tasks = [], user, canEdit }) {
       setShowModal(true); 
   };
 
-  // BUSCADOR SEGURO
   const searchResults = userSearch.length > 0 ? usersList.filter(u => (u.fullName || u.firstName || "").toLowerCase().includes(userSearch.toLowerCase())) : [];
   
   const getPriorityStyle = (t, isSupervision) => { 
-      if (t.type === 'absenteeism' || t.title.startsWith('⚠️')) return 'bg-red-50 border-l-8 border-red-600 shadow-md transform scale-[1.01] ring-2 ring-red-100';
+      if (t.type === 'absenteeism' || (t.title && t.title.startsWith('⚠️'))) return 'bg-red-50 border-l-8 border-red-600 shadow-md transform scale-[1.01] ring-2 ring-red-100';
       if (isSupervision) return 'opacity-80 bg-gray-50 grayscale-[0.2] border-gray-200';
       if (t.priority === 'alta') return 'border-l-4 border-l-red-500 bg-red-50/50'; 
       if (t.priority === 'media') return 'border-l-4 border-l-orange-400 bg-orange-50/50'; 
@@ -737,10 +740,12 @@ function TasksView({ tasks = [], user, canEdit }) {
       try {
           const today = new Date(); today.setHours(0,0,0,0);
           const due = new Date(dateStr); due.setHours(0,0,0,0);
+          
+          if (isNaN(due.getTime())) return null;
+
           const diffTime = due - today;
           const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-          if (isNaN(days)) return null; 
           if (days < 0) return { text: `💀 Vencida hace ${Math.abs(days)} días (QEPD)`, color: 'bg-red-100 text-red-800 border-red-200' };
           if (days === 0) return { text: `🔥 ¡ES HOY! ¡CORRÉ!`, color: 'bg-red-500 text-white border-red-600 animate-pulse' };
           if (days === 1) return { text: `😰 Mañana... activá`, color: 'bg-orange-100 text-orange-800 border-orange-200' };
@@ -768,7 +773,7 @@ function TasksView({ tasks = [], user, canEdit }) {
           {visibleTasks.length === 0 ? ( <div className="text-center py-10 opacity-40"><CheckCircle size={40} className="mx-auto mb-2 text-gray-400"/><p className="font-bold text-gray-500">Todo al día.</p></div> ) : visibleTasks.map(t => {
             const isMine = (t.createdById === user.id || (t.targetUserIds && t.targetUserIds.includes(user.id)) || (t.targetUserId === user.id) || (t.targetRoles && userRole && t.targetRoles.includes(userRole)));
             const isSupervision = !isMine && isSuperAdmin && viewMode === 'all';
-            const isAbsenteeism = t.type === 'absenteeism' || t.title.startsWith('⚠️');
+            const isAbsenteeism = t.type === 'absenteeism' || (t.title && t.title.startsWith('⚠️'));
             const countdown = getFunnyCountdown(t.dueDate);
 
             return (
@@ -782,23 +787,13 @@ function TasksView({ tasks = [], user, canEdit }) {
                             <h3 className={`font-bold text-gray-800 text-sm uppercase italic tracking-tighter leading-none ${t.status==='completed'?'line-through opacity-50':''}`}>{t.title}</h3>
                             <p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName}</p>
                             
-                            {/* --- AQUÍ ESTÁ LA FECHA Y CUENTA REGRESIVA --- */}
                             <div className="flex flex-wrap gap-2 mt-2">
-                                {new Date(`${t.showDate}T${t.showTime}`) > new Date() && (<div className="inline-flex items-center gap-1 bg-yellow-100 text-yellow-800 text-[9px] font-bold px-2 py-1 rounded-md border border-yellow-200"><Clock size={10}/> Programada: {new Date(t.showDate).toLocaleDateString()} {t.showTime}hs</div>)}
+                                {new Date(`${t.showDate}T${t.showTime}`) > new Date() && (<div className="inline-flex items-center gap-1 bg-yellow-100 text-yellow-800 text-[9px] font-bold px-2 py-1 rounded-md border border-yellow-200"><Clock size={10}/> Programada: {formatDateSafe(t.showDate)} {t.showTime}hs</div>)}
                                 {countdown && (<div className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-md border ${countdown.color}`}><Calendar size={10}/> {countdown.text}</div>)}
                             </div>
                         </div>
-                        
-                        {/* --- BOTONES DE EDICIÓN / BORRADO --- */}
                         <div className="flex flex-col items-end gap-2">
-                            <div className="flex gap-1">
-                                {(t.createdById === user.id || isSuperAdmin) && (
-                                    <>
-                                        <button onClick={() => openEdit(t)} className="text-gray-400 hover:text-blue-600 p-1 bg-white rounded-full shadow-sm transition hover:scale-110"><Edit3 size={14}/></button>
-                                        <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm transition hover:scale-110"><Trash2 size={14}/></button>
-                                    </>
-                                )}
-                            </div>
+                            <div className="flex gap-1">{(t.createdById === user.id || isSuperAdmin) && (<><button onClick={() => openEdit(t)} className="text-gray-400 hover:text-blue-600 p-1 bg-white rounded-full shadow-sm transition hover:scale-110"><Edit3 size={14}/></button><button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm transition hover:scale-110"><Trash2 size={14}/></button></>)}</div>
                         </div>
                     </div>
                     {openCommentsId === t.id && ( <div className="bg-white/60 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in"><div className="max-h-32 overflow-y-auto space-y-2 mb-2">{(t.comments || []).map((c, idx) => ( <p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p> ))}</div><div className="flex gap-2"><input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribe..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" /><button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button></div></div> )}
@@ -819,7 +814,6 @@ function TasksView({ tasks = [], user, canEdit }) {
         <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
           <form onSubmit={handleSaveTask} className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-black text-violet-900 uppercase italic">{editingTask ? 'Editar Tarea' : 'Nueva Tarea'}</h3>
-            {/* SE AÑADIÓ || "" PARA EVITAR VALOR NULL */}
             <input name="title" defaultValue={editingTask?.title || ""} placeholder="Título de la tarea" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm shadow-inner" />
             <div className="flex gap-2 bg-gray-100 p-1 rounded-xl"><button type="button" onClick={() => setAssignType('user')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'user' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Persona(s)</button><button type="button" onClick={() => setAssignType('roles')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'roles' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Roles</button></div>
             
@@ -3000,6 +2994,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
