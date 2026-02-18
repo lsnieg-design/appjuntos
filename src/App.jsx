@@ -548,7 +548,7 @@ function ResourcesView({ resources, canEdit }) {
   );
 }
 
-// --- VISTA TAREAS (FINAL: SIN ERRORES DE SINTAXIS + ANTI-CRASH) ---
+// --- VISTA TAREAS (FINAL: SIN CRASH + CUENTA REGRESIVA + EDICIÓN) ---
 function TasksView({ tasks = [], user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
@@ -564,6 +564,7 @@ function TasksView({ tasks = [], user, canEdit }) {
   const [selectedUsersObj, setSelectedUsersObj] = useState([]); 
   const [userSearch, setUserSearch] = useState("");
   const [checklist, setChecklist] = useState([]); 
+  const [newItem, setNewItem] = useState("");
   
   // ESTADOS INTERNOS
   const [openCommentsId, setOpenCommentsId] = useState(null); 
@@ -571,11 +572,13 @@ function TasksView({ tasks = [], user, canEdit }) {
 
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor', 'DAI', 'Dirección Inclusión', 'Equipo Técnico Inclusión'];
   
-  // SEGURIDAD: Evitar crash si user es null
+  // --- SEGURIDAD ANTI-CRASH ---
   if (!user) return <div className="p-10 text-center opacity-50">Cargando usuario...</div>;
 
-  const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.role) || user.rol === 'admin' || user.rol === 'super-admin';
-  const canManage = isSuperAdmin || ['Dirección Inclusión', 'Equipo Técnico'].includes(user.role);
+  // Normalizamos el rol para evitar errores si viene como 'rol' o 'role' o undefined
+  const userRole = user.role || user.rol || "";
+  const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(userRole) || userRole === 'admin';
+  const canManage = isSuperAdmin || ['Dirección Inclusión', 'Equipo Técnico'].includes(userRole);
 
   // 1. CARGAR USUARIOS
   useEffect(() => {
@@ -645,7 +648,10 @@ function TasksView({ tasks = [], user, canEdit }) {
                      const promises = finalTargetIds.map(uid => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: uid }));
                      await Promise.all(promises);
                  } else if (assignType === 'roles') {
-                    const targets = usersList.filter(u => u.role && finalRoles.some(r => r.toLowerCase() === u.role.toLowerCase()));
+                    const targets = usersList.filter(u => {
+                        const r = u.role || u.rol || "";
+                        return finalRoles.some(fr => fr.toLowerCase() === r.toLowerCase());
+                    });
                     const promises = targets.map(t => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: t.id }));
                     await Promise.all(promises);
                  }
@@ -674,7 +680,7 @@ function TasksView({ tasks = [], user, canEdit }) {
           else if (filter === 'scheduled') { if (t.status === 'completed') return false; if (scheduledTime <= now) return false; } 
           else { if (t.status === 'completed') return false; if (scheduledTime > now) return false; }
           
-          const isMine = (t.createdById === user.id || (t.targetUserIds && t.targetUserIds.includes(user.id)) || (t.targetUserId === user.id) || (t.targetRoles && user.role && t.targetRoles.includes(user.role)));
+          const isMine = (t.createdById === user.id || (t.targetUserIds && t.targetUserIds.includes(user.id)) || (t.targetUserId === user.id) || (t.targetRoles && userRole && t.targetRoles.includes(userRole)));
           
           if (isSuperAdmin) { 
               if (viewMode === 'mine') return isMine; 
@@ -692,7 +698,6 @@ function TasksView({ tasks = [], user, canEdit }) {
 
   const visibleTasks = processTasks();
 
-  // ACCIONES
   const addComment = async (task) => { if (!newComment.trim()) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion({ text: newComment, author: user.firstName, date: new Date().toISOString() }) }); setNewComment(""); };
   const handleDelete = async (id) => { if(confirm("¿Eliminar tarea?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
   const changeStatus = async (task, newStatus) => { if (newStatus === 'completed' && !confirm("¿Marcar como lista?")) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
@@ -761,7 +766,7 @@ function TasksView({ tasks = [], user, canEdit }) {
       
       <div className="grid gap-3 px-2">
           {visibleTasks.length === 0 ? ( <div className="text-center py-10 opacity-40"><CheckCircle size={40} className="mx-auto mb-2 text-gray-400"/><p className="font-bold text-gray-500">Todo al día.</p></div> ) : visibleTasks.map(t => {
-            const isMine = (t.createdById === user.id || (t.targetUserIds && t.targetUserIds.includes(user.id)) || (t.targetUserId === user.id) || (t.targetRoles && user.role && t.targetRoles.includes(user.role)));
+            const isMine = (t.createdById === user.id || (t.targetUserIds && t.targetUserIds.includes(user.id)) || (t.targetUserId === user.id) || (t.targetRoles && userRole && t.targetRoles.includes(userRole)));
             const isSupervision = !isMine && isSuperAdmin && viewMode === 'all';
             const isAbsenteeism = t.type === 'absenteeism' || t.title.startsWith('⚠️');
             const countdown = getFunnyCountdown(t.dueDate);
@@ -777,13 +782,23 @@ function TasksView({ tasks = [], user, canEdit }) {
                             <h3 className={`font-bold text-gray-800 text-sm uppercase italic tracking-tighter leading-none ${t.status==='completed'?'line-through opacity-50':''}`}>{t.title}</h3>
                             <p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName}</p>
                             
+                            {/* --- AQUÍ ESTÁ LA FECHA Y CUENTA REGRESIVA --- */}
                             <div className="flex flex-wrap gap-2 mt-2">
                                 {new Date(`${t.showDate}T${t.showTime}`) > new Date() && (<div className="inline-flex items-center gap-1 bg-yellow-100 text-yellow-800 text-[9px] font-bold px-2 py-1 rounded-md border border-yellow-200"><Clock size={10}/> Programada: {new Date(t.showDate).toLocaleDateString()} {t.showTime}hs</div>)}
                                 {countdown && (<div className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-md border ${countdown.color}`}><Calendar size={10}/> {countdown.text}</div>)}
                             </div>
                         </div>
+                        
+                        {/* --- BOTONES DE EDICIÓN / BORRADO --- */}
                         <div className="flex flex-col items-end gap-2">
-                            <div className="flex gap-1">{(t.createdById === user.id || isSuperAdmin) && (<><button onClick={() => openEdit(t)} className="text-gray-400 hover:text-blue-600 p-1 bg-white rounded-full shadow-sm transition hover:scale-110"><Edit3 size={14}/></button><button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm transition hover:scale-110"><Trash2 size={14}/></button></>)}</div>
+                            <div className="flex gap-1">
+                                {(t.createdById === user.id || isSuperAdmin) && (
+                                    <>
+                                        <button onClick={() => openEdit(t)} className="text-gray-400 hover:text-blue-600 p-1 bg-white rounded-full shadow-sm transition hover:scale-110"><Edit3 size={14}/></button>
+                                        <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm transition hover:scale-110"><Trash2 size={14}/></button>
+                                    </>
+                                )}
+                            </div>
                         </div>
                     </div>
                     {openCommentsId === t.id && ( <div className="bg-white/60 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in"><div className="max-h-32 overflow-y-auto space-y-2 mb-2">{(t.comments || []).map((c, idx) => ( <p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p> ))}</div><div className="flex gap-2"><input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribe..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" /><button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button></div></div> )}
@@ -804,13 +819,14 @@ function TasksView({ tasks = [], user, canEdit }) {
         <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
           <form onSubmit={handleSaveTask} className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-black text-violet-900 uppercase italic">{editingTask ? 'Editar Tarea' : 'Nueva Tarea'}</h3>
+            {/* SE AÑADIÓ || "" PARA EVITAR VALOR NULL */}
             <input name="title" defaultValue={editingTask?.title || ""} placeholder="Título de la tarea" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm shadow-inner" />
             <div className="flex gap-2 bg-gray-100 p-1 rounded-xl"><button type="button" onClick={() => setAssignType('user')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'user' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Persona(s)</button><button type="button" onClick={() => setAssignType('roles')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'roles' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Roles</button></div>
             
             {assignType === 'user' ? ( 
                 <div className="space-y-2">
                     <div className="flex flex-wrap gap-2 mb-2">{(selectedUsersObj || []).map(u => (<div key={u.id} className="flex items-center gap-1 bg-violet-100 text-violet-800 px-2 py-1 rounded-lg text-xs font-bold">{u.firstName || u.username} <button type="button" onClick={() => toggleUserSelection(u)}><X size={12}/></button></div>))}</div>
-                    <div className="relative"><input placeholder="🔍 Buscar para agregar..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} autoComplete="off" className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none focus:border-violet-500 rounded-t-xl" />{userSearch.length > 0 && (<div className="max-h-40 overflow-y-auto border-x border-b border-gray-200 rounded-b-xl bg-white shadow-xl absolute w-full z-50">{searchResults.length > 0 ? searchResults.map(u => (<div key={u.id} onClick={() => toggleUserSelection(u)} className={`p-3 hover:bg-violet-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0 ${selectedUsersObj.some(s=>s.id===u.id) ? 'bg-violet-50' : ''}`}><div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">{u.firstName ? u.firstName[0] : 'U'}</div><p className="text-xs font-bold text-gray-700">{u.fullName || u.username || "Sin Nombre"}</p>{selectedUsersObj.some(s=>s.id===u.id) && <Check size={14} className="ml-auto text-violet-600"/>}</div>)) : <p className="p-3 text-xs text-gray-400 italic text-center">No encontrado</p>}</div>)}</div> 
+                    <div className="relative"><input placeholder="🔍 Buscar para agregar..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} autoComplete="off" className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none focus:border-violet-500 rounded-t-xl" />{userSearch.length > 0 && (<div className="max-h-40 overflow-y-auto border-x border-b border-gray-200 rounded-b-xl bg-white shadow-xl absolute w-full z-50">{searchResults.map(u => (<div key={u.id} onClick={() => toggleUserSelection(u)} className={`p-3 hover:bg-violet-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0 ${selectedUsersObj.some(s=>s.id===u.id) ? 'bg-violet-50' : ''}`}><div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">{u.firstName ? u.firstName[0] : 'U'}</div><p className="text-xs font-bold text-gray-700">{u.fullName || u.username || "Sin Nombre"}</p>{selectedUsersObj.some(s=>s.id===u.id) && <Check size={14} className="ml-auto text-violet-600"/>}</div>))}</div>)}</div> 
                 </div> 
             ) : ( 
                 <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 max-h-32 overflow-y-auto">{ROLES_OPTIONS.map(role => ( <label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={(selectedRoles || []).includes(role)} onChange={(e) => { if(e.target.checked) setSelectedRoles([...selectedRoles, role]); else setSelectedRoles(selectedRoles.filter(r => r !== role)); }} className="accent-violet-600"/> {role}</label> ))}</div> 
@@ -2984,6 +3000,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
