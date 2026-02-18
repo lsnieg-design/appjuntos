@@ -548,46 +548,57 @@ function ResourcesView({ resources, canEdit }) {
   );
 }
 
-// --- VISTA TAREAS (FINAL: CUENTA REGRESIVA GRACIOSA + EDICIÓN FUNCIONAL) ---
-function TasksView({ tasks, user, canEdit }) {
+// --- VISTA TAREAS (FINAL: SIN ERRORES DE SINTAXIS + ANTI-CRASH) ---
+function TasksView({ tasks = [], user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
   
-  // ESTADO: MODO DE VISTA (Solo Admin)
+  // ESTADOS DE VISTA
   const [viewMode, setViewMode] = useState('mine'); 
+  const [filter, setFilter] = useState('pending'); 
 
+  // ESTADOS DEL FORMULARIO
+  const [editingTask, setEditingTask] = useState(null); 
   const [assignType, setAssignType] = useState('user'); 
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [selectedUsersObj, setSelectedUsersObj] = useState([]); 
-  
-  const [checklist, setChecklist] = useState([]); 
-  const [newItem, setNewItem] = useState(""); 
   const [userSearch, setUserSearch] = useState("");
+  const [checklist, setChecklist] = useState([]); 
+  
+  // ESTADOS INTERNOS
   const [openCommentsId, setOpenCommentsId] = useState(null); 
   const [newComment, setNewComment] = useState("");
-  const [editingTask, setEditingTask] = useState(null); 
-  const [filter, setFilter] = useState('pending'); 
 
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor', 'DAI', 'Dirección Inclusión', 'Equipo Técnico Inclusión'];
   
-  const isSuperAdmin = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo'; 
-  const canManage = user.rol === 'admin' || user.rol === 'super-admin' || user.role === 'Equipo Directivo' || user.role === 'Dirección Inclusión';
+  // SEGURIDAD: Evitar crash si user es null
+  if (!user) return <div className="p-10 text-center opacity-50">Cargando usuario...</div>;
 
+  const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.role) || user.rol === 'admin' || user.rol === 'super-admin';
+  const canManage = isSuperAdmin || ['Dirección Inclusión', 'Equipo Técnico'].includes(user.role);
+
+  // 1. CARGAR USUARIOS
   useEffect(() => {
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
-    const unsub = onSnapshot(q, (snap) => {
-        const users = snap.docs.map(d => ({id: d.id, ...d.data()}));
-        setUsersList(users);
-        // RECUPERAR USUARIOS AL EDITAR
-        if (editingTask && editingTask.targetType === 'user') {
-            const ids = editingTask.targetUserIds || (editingTask.targetUserId ? [editingTask.targetUserId] : []);
-            const found = users.filter(u => ids.includes(u.id));
-            setSelectedUsersObj(found);
-        }
-    });
-    return () => unsub();
-  }, [editingTask]);
+    try {
+        const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
+        const unsub = onSnapshot(q, (snap) => {
+            const data = snap.docs.map(d => ({id: d.id, ...d.data()}));
+            setUsersList(data);
+        });
+        return () => unsub();
+    } catch (e) { console.error("Error cargando usuarios:", e); }
+  }, []);
 
+  // 2. RECUPERAR USUARIOS AL EDITAR
+  useEffect(() => {
+    if (editingTask && editingTask.targetType === 'user' && usersList.length > 0) {
+        const ids = editingTask.targetUserIds || (editingTask.targetUserId ? [editingTask.targetUserId] : []);
+        const found = usersList.filter(u => ids.includes(u.id));
+        setSelectedUsersObj(found);
+    }
+  }, [editingTask, usersList]);
+
+  // --- LÓGICA DE GUARDADO ---
   const handleSaveTask = async (e) => {
     e.preventDefault(); 
     const fd = new FormData(e.target);
@@ -596,17 +607,20 @@ function TasksView({ tasks, user, canEdit }) {
     if (assignType === 'user') { 
         if (selectedUsersObj.length === 0) return alert("⚠️ Selecciona al menos un usuario."); 
         finalTargetIds = selectedUsersObj.map(u => u.id);
-        finalAssignedName = selectedUsersObj.map(u => u.firstName).join(", ");
+        finalAssignedName = selectedUsersObj.map(u => u.firstName || u.username || "Usuario").join(", ");
     } else { 
         if (selectedRoles.length === 0) return alert("⚠️ Elige roles."); 
         finalRoles = selectedRoles; 
         finalAssignedName = selectedRoles.join(", "); 
     }
 
+    const dueDateVal = fd.get('dueDate');
+    const showDateVal = fd.get('showDate') || new Date().toISOString().split('T')[0];
+
     const taskData = { 
         title: fd.get('title'), 
-        dueDate: fd.get('dueDate') || null, 
-        showDate: fd.get('showDate') || new Date().toISOString().split('T')[0],
+        dueDate: dueDateVal || null, 
+        showDate: showDateVal,
         showTime: fd.get('showTime') || "08:00",
         priority: fd.get('priority'), 
         targetType: assignType, 
@@ -622,9 +636,10 @@ function TasksView({ tasks, user, canEdit }) {
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData); 
         } else { 
              const newTaskRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { ...taskData, createdByName: user.fullName || user.firstName, createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: [] });
+             
+             // Notificaciones
              const scheduledTime = new Date(`${taskData.showDate}T${taskData.showTime}`);
-             const now = new Date();
-             if (scheduledTime <= now) {
+             if (scheduledTime <= new Date()) {
                  const notifData = { title: `Tarea Nueva`, message: `${user.firstName}: "${fd.get('title')}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks', relatedId: newTaskRef.id, type: 'task_assigned' };
                  if (assignType === 'user') {
                      const promises = finalTargetIds.map(uid => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: uid }));
@@ -641,13 +656,17 @@ function TasksView({ tasks, user, canEdit }) {
   };
 
   const toggleUserSelection = (u) => {
+      if (!u) return;
       if (selectedUsersObj.some(sel => sel.id === u.id)) setSelectedUsersObj(prev => prev.filter(sel => sel.id !== u.id));
       else setSelectedUsersObj(prev => [...prev, u]);
       setUserSearch(""); 
   };
 
   const processTasks = () => {
-      const filtered = tasks.filter(t => {
+      const safeTasks = Array.isArray(tasks) ? tasks : [];
+      
+      const filtered = safeTasks.filter(t => {
+          if (!t) return false;
           const now = new Date();
           const scheduledTime = new Date(`${t.showDate || '2000-01-01'}T${t.showTime || '00:00'}`);
           
@@ -673,17 +692,17 @@ function TasksView({ tasks, user, canEdit }) {
 
   const visibleTasks = processTasks();
 
+  // ACCIONES
   const addComment = async (task) => { if (!newComment.trim()) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion({ text: newComment, author: user.firstName, date: new Date().toISOString() }) }); setNewComment(""); };
-  const handleDelete = async (id) => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
-  const changeStatus = async (task, newStatus) => { if (newStatus === 'completed' && !confirm("¿Lista?")) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
+  const handleDelete = async (id) => { if(confirm("¿Eliminar tarea?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
+  const changeStatus = async (task, newStatus) => { if (newStatus === 'completed' && !confirm("¿Marcar como lista?")) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
   
-  // FUNCIONES DE MODAL (AGREGADA OPENEDIT)
+  // FUNCIONES SEGURAS DE APERTURA
   const openNew = () => { 
       setEditingTask(null); 
       setAssignType('user'); 
       setSelectedRoles([]); 
       setChecklist([]); 
-      setNewItem(""); 
       setUserSearch(""); 
       setSelectedUsersObj([]); 
       setShowModal(true); 
@@ -697,7 +716,8 @@ function TasksView({ tasks, user, canEdit }) {
       setShowModal(true); 
   };
 
-  const searchResults = userSearch.length > 0 ? (usersList || []).filter(u => u.fullName.toLowerCase().includes(userSearch.toLowerCase())) : [];
+  // BUSCADOR SEGURO
+  const searchResults = userSearch.length > 0 ? usersList.filter(u => (u.fullName || u.firstName || "").toLowerCase().includes(userSearch.toLowerCase())) : [];
   
   const getPriorityStyle = (t, isSupervision) => { 
       if (t.type === 'absenteeism' || t.title.startsWith('⚠️')) return 'bg-red-50 border-l-8 border-red-600 shadow-md transform scale-[1.01] ring-2 ring-red-100';
@@ -707,20 +727,22 @@ function TasksView({ tasks, user, canEdit }) {
       return 'border-l-4 border-l-green-400 bg-green-50/50'; 
   };
 
-  // --- CUENTA REGRESIVA GRACIOSA ---
   const getFunnyCountdown = (dateStr) => {
       if (!dateStr) return null;
-      const today = new Date(); today.setHours(0,0,0,0);
-      const due = new Date(dateStr); due.setHours(0,0,0,0);
-      const diffTime = due - today;
-      const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      try {
+          const today = new Date(); today.setHours(0,0,0,0);
+          const due = new Date(dateStr); due.setHours(0,0,0,0);
+          const diffTime = due - today;
+          const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      if (days < 0) return { text: `💀 Vencida hace ${Math.abs(days)} días (QEPD)`, color: 'bg-red-100 text-red-800 border-red-200' };
-      if (days === 0) return { text: `🔥 ¡ES HOY! ¡CORRÉ!`, color: 'bg-red-500 text-white border-red-600 animate-pulse' };
-      if (days === 1) return { text: `😰 Mañana... activá`, color: 'bg-orange-100 text-orange-800 border-orange-200' };
-      if (days <= 3) return { text: `😬 Te quedan ${days} días, ponele onda`, color: 'bg-yellow-100 text-yellow-800 border-yellow-200' };
-      if (days <= 7) return { text: `👀 Ojo, faltan ${days} días`, color: 'bg-blue-50 text-blue-700 border-blue-200' };
-      return { text: `😎 Relax, faltan ${days} días`, color: 'bg-green-50 text-green-700 border-green-200' };
+          if (isNaN(days)) return null; 
+          if (days < 0) return { text: `💀 Vencida hace ${Math.abs(days)} días (QEPD)`, color: 'bg-red-100 text-red-800 border-red-200' };
+          if (days === 0) return { text: `🔥 ¡ES HOY! ¡CORRÉ!`, color: 'bg-red-500 text-white border-red-600 animate-pulse' };
+          if (days === 1) return { text: `😰 Mañana... activá`, color: 'bg-orange-100 text-orange-800 border-orange-200' };
+          if (days <= 3) return { text: `😬 Te quedan ${days} días, ponele onda`, color: 'bg-yellow-100 text-yellow-800 border-yellow-200' };
+          if (days <= 7) return { text: `👀 Ojo, faltan ${days} días`, color: 'bg-blue-50 text-blue-700 border-blue-200' };
+          return { text: `😎 Relax, faltan ${days} días`, color: 'bg-green-50 text-green-700 border-green-200' };
+      } catch (e) { return null; }
   };
 
   return (
@@ -755,23 +777,13 @@ function TasksView({ tasks, user, canEdit }) {
                             <h3 className={`font-bold text-gray-800 text-sm uppercase italic tracking-tighter leading-none ${t.status==='completed'?'line-through opacity-50':''}`}>{t.title}</h3>
                             <p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName}</p>
                             
-                            {/* --- AQUÍ ESTÁ LA FECHA Y CUENTA REGRESIVA --- */}
                             <div className="flex flex-wrap gap-2 mt-2">
                                 {new Date(`${t.showDate}T${t.showTime}`) > new Date() && (<div className="inline-flex items-center gap-1 bg-yellow-100 text-yellow-800 text-[9px] font-bold px-2 py-1 rounded-md border border-yellow-200"><Clock size={10}/> Programada: {new Date(t.showDate).toLocaleDateString()} {t.showTime}hs</div>)}
                                 {countdown && (<div className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-md border ${countdown.color}`}><Calendar size={10}/> {countdown.text}</div>)}
                             </div>
                         </div>
-                        
-                        {/* --- BOTONES DE EDICIÓN / BORRADO --- */}
                         <div className="flex flex-col items-end gap-2">
-                            <div className="flex gap-1">
-                                {(t.createdById === user.id || isSuperAdmin) && (
-                                    <>
-                                        <button onClick={() => openEdit(t)} className="text-gray-400 hover:text-blue-600 p-1 bg-white rounded-full shadow-sm transition hover:scale-110"><Edit3 size={14}/></button>
-                                        <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm transition hover:scale-110"><Trash2 size={14}/></button>
-                                    </>
-                                )}
-                            </div>
+                            <div className="flex gap-1">{(t.createdById === user.id || isSuperAdmin) && (<><button onClick={() => openEdit(t)} className="text-gray-400 hover:text-blue-600 p-1 bg-white rounded-full shadow-sm transition hover:scale-110"><Edit3 size={14}/></button><button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm transition hover:scale-110"><Trash2 size={14}/></button></>)}</div>
                         </div>
                     </div>
                     {openCommentsId === t.id && ( <div className="bg-white/60 p-3 rounded-xl border border-gray-100 mt-2 animate-in fade-in"><div className="max-h-32 overflow-y-auto space-y-2 mb-2">{(t.comments || []).map((c, idx) => ( <p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p> ))}</div><div className="flex gap-2"><input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribe..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" /><button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg"><Send size={12}/></button></div></div> )}
@@ -797,11 +809,11 @@ function TasksView({ tasks, user, canEdit }) {
             
             {assignType === 'user' ? ( 
                 <div className="space-y-2">
-                    <div className="flex flex-wrap gap-2 mb-2">{selectedUsersObj.map(u => (<div key={u.id} className="flex items-center gap-1 bg-violet-100 text-violet-800 px-2 py-1 rounded-lg text-xs font-bold">{u.firstName} <button type="button" onClick={() => toggleUserSelection(u)}><X size={12}/></button></div>))}</div>
-                    <div className="relative"><input placeholder="🔍 Buscar para agregar..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} autoComplete="off" className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none focus:border-violet-500 rounded-t-xl" />{userSearch.length > 0 && (<div className="max-h-40 overflow-y-auto border-x border-b border-gray-200 rounded-b-xl bg-white shadow-xl absolute w-full z-50">{searchResults.map(u => (<div key={u.id} onClick={() => toggleUserSelection(u)} className={`p-3 hover:bg-violet-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0 ${selectedUsersObj.some(s=>s.id===u.id) ? 'bg-violet-50' : ''}`}><div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">{u.firstName[0]}</div><p className="text-xs font-bold text-gray-700">{u.fullName}</p>{selectedUsersObj.some(s=>s.id===u.id) && <Check size={14} className="ml-auto text-violet-600"/>}</div>)) : <p className="p-3 text-xs text-gray-400 italic text-center">No encontrado</p>}</div>)}</div> 
+                    <div className="flex flex-wrap gap-2 mb-2">{(selectedUsersObj || []).map(u => (<div key={u.id} className="flex items-center gap-1 bg-violet-100 text-violet-800 px-2 py-1 rounded-lg text-xs font-bold">{u.firstName || u.username} <button type="button" onClick={() => toggleUserSelection(u)}><X size={12}/></button></div>))}</div>
+                    <div className="relative"><input placeholder="🔍 Buscar para agregar..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} autoComplete="off" className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none focus:border-violet-500 rounded-t-xl" />{userSearch.length > 0 && (<div className="max-h-40 overflow-y-auto border-x border-b border-gray-200 rounded-b-xl bg-white shadow-xl absolute w-full z-50">{searchResults.length > 0 ? searchResults.map(u => (<div key={u.id} onClick={() => toggleUserSelection(u)} className={`p-3 hover:bg-violet-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0 ${selectedUsersObj.some(s=>s.id===u.id) ? 'bg-violet-50' : ''}`}><div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">{u.firstName ? u.firstName[0] : 'U'}</div><p className="text-xs font-bold text-gray-700">{u.fullName || u.username || "Sin Nombre"}</p>{selectedUsersObj.some(s=>s.id===u.id) && <Check size={14} className="ml-auto text-violet-600"/>}</div>)) : <p className="p-3 text-xs text-gray-400 italic text-center">No encontrado</p>}</div>)}</div> 
                 </div> 
             ) : ( 
-                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 max-h-32 overflow-y-auto">{ROLES_OPTIONS.map(role => ( <label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={selectedRoles.includes(role)} onChange={(e) => { if(e.target.checked) setSelectedRoles([...selectedRoles, role]); else setSelectedRoles(selectedRoles.filter(r => r !== role)); }} className="accent-violet-600"/> {role}</label> ))}</div> 
+                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 max-h-32 overflow-y-auto">{ROLES_OPTIONS.map(role => ( <label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={(selectedRoles || []).includes(role)} onChange={(e) => { if(e.target.checked) setSelectedRoles([...selectedRoles, role]); else setSelectedRoles(selectedRoles.filter(r => r !== role)); }} className="accent-violet-600"/> {role}</label> ))}</div> 
             )}
             
             <div className="grid grid-cols-2 gap-4"><div><label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Vencimiento</label><input name="dueDate" type="date" defaultValue={editingTask?.dueDate || ""} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs text-gray-600 border border-gray-200" /></div><select name="priority" defaultValue={editingTask?.priority || "baja"} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs uppercase text-orange-600 italic border border-gray-200 h-[66px] mt-auto"><option value="baja">🟢 Baja</option><option value="media">🟠 Media</option><option value="alta">🔴 Alta</option></select></div>
@@ -2972,6 +2984,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
