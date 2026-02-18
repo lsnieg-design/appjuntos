@@ -548,7 +548,7 @@ function ResourcesView({ resources, canEdit }) {
   );
 }
 
-// --- VISTA TAREAS (FINAL: ANTI-CRASH + CUENTA REGRESIVA) ---
+// --- VISTA TAREAS (FINAL: CUENTA REGRESIVA GRACIOSA + ANTI-CRASH) ---
 function TasksView({ tasks = [], user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
@@ -564,6 +564,7 @@ function TasksView({ tasks = [], user, canEdit }) {
   const [selectedUsersObj, setSelectedUsersObj] = useState([]); 
   const [userSearch, setUserSearch] = useState("");
   const [checklist, setChecklist] = useState([]); 
+  const [newItem, setNewItem] = useState("");
   
   // ESTADOS INTERNOS
   const [openCommentsId, setOpenCommentsId] = useState(null); 
@@ -715,7 +716,7 @@ function TasksView({ tasks = [], user, canEdit }) {
       setShowModal(true); 
   };
 
-  // BUSCADOR SEGURO (Filtra usuarios sin nombre para evitar crash)
+  // BUSCADOR SEGURO
   const searchResults = userSearch.length > 0 ? usersList.filter(u => (u.fullName || u.firstName || "").toLowerCase().includes(userSearch.toLowerCase())) : [];
   
   const getPriorityStyle = (t, isSupervision) => { 
@@ -726,6 +727,7 @@ function TasksView({ tasks = [], user, canEdit }) {
       return 'border-l-4 border-l-green-400 bg-green-50/50'; 
   };
 
+  // --- CUENTA REGRESIVA GRACIOSA ---
   const getFunnyCountdown = (dateStr) => {
       if (!dateStr) return null;
       try {
@@ -746,6 +748,7 @@ function TasksView({ tasks = [], user, canEdit }) {
 
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-20">
+      
       <div className="bg-white p-4 sticky top-0 z-10 shadow-sm rounded-b-3xl flex flex-col gap-3">
           <div className="flex flex-col md:flex-row justify-between md:items-center gap-2">
               <div><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2><p className="text-xs text-gray-400 font-bold">{visibleTasks.length} visibles</p></div>
@@ -774,6 +777,7 @@ function TasksView({ tasks = [], user, canEdit }) {
                             <p className="text-[9px] font-black text-violet-600 uppercase tracking-widest italic mb-1">Para: {t.assignedToName}</p>
                             <h3 className={`font-bold text-gray-800 text-sm uppercase italic tracking-tighter leading-none ${t.status==='completed'?'line-through opacity-50':''}`}>{t.title}</h3>
                             <p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName}</p>
+                            
                             <div className="flex flex-wrap gap-2 mt-2">
                                 {new Date(`${t.showDate}T${t.showTime}`) > new Date() && (<div className="inline-flex items-center gap-1 bg-yellow-100 text-yellow-800 text-[9px] font-bold px-2 py-1 rounded-md border border-yellow-200"><Clock size={10}/> Programada: {new Date(t.showDate).toLocaleDateString()} {t.showTime}hs</div>)}
                                 {countdown && (<div className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-md border ${countdown.color}`}><Calendar size={10}/> {countdown.text}</div>)}
@@ -801,7 +805,6 @@ function TasksView({ tasks = [], user, canEdit }) {
         <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4">
           <form onSubmit={handleSaveTask} className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-black text-violet-900 uppercase italic">{editingTask ? 'Editar Tarea' : 'Nueva Tarea'}</h3>
-            {/* SE AÑADIÓ || "" PARA EVITAR VALOR NULL */}
             <input name="title" defaultValue={editingTask?.title || ""} placeholder="Título de la tarea" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm shadow-inner" />
             <div className="flex gap-2 bg-gray-100 p-1 rounded-xl"><button type="button" onClick={() => setAssignType('user')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'user' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Persona(s)</button><button type="button" onClick={() => setAssignType('roles')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'roles' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Roles</button></div>
             
@@ -2982,6 +2985,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
