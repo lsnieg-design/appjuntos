@@ -548,75 +548,67 @@ function ResourcesView({ resources, canEdit }) {
   );
 }
 
-// --- VISTA TAREAS (FINAL: BLINDADA + CUENTA REGRESIVA + EDICIÓN) ---
 function TasksView({ tasks = [], user, canEdit }) {
+  // ESTADOS
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
-  
-  // ESTADOS DE VISTA
   const [viewMode, setViewMode] = useState('mine'); 
   const [filter, setFilter] = useState('pending'); 
-
-  // ESTADOS DEL FORMULARIO
   const [editingTask, setEditingTask] = useState(null); 
   const [assignType, setAssignType] = useState('user'); 
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [selectedUsersObj, setSelectedUsersObj] = useState([]); 
   const [userSearch, setUserSearch] = useState("");
   const [checklist, setChecklist] = useState([]); 
-  const [newItem, setNewItem] = useState("");
-  
-  // ESTADOS INTERNOS
   const [openCommentsId, setOpenCommentsId] = useState(null); 
   const [newComment, setNewComment] = useState("");
 
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor', 'DAI', 'Dirección Inclusión', 'Equipo Técnico Inclusión'];
-  
-  // --- SEGURIDAD: Evitar crash si user es null ---
-  if (!user) return <div className="p-10 text-center opacity-50 font-bold">Cargando usuario...</div>;
+
+  // --- 1. PROTECCIÓN INICIAL (SI NO HAY USER, NO RENDERIZA NADA) ---
+  if (!user || !user.id) return <div className="p-10 text-center opacity-50 font-bold">Cargando perfil...</div>;
 
   const userRole = user.role || user.rol || "";
   const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(userRole) || userRole === 'admin';
   const canManage = isSuperAdmin || ['Dirección Inclusión', 'Equipo Técnico'].includes(userRole);
 
-  // 1. CARGAR USUARIOS
+  // --- 2. CARGA SEGURA DE USUARIOS ---
   useEffect(() => {
     try {
         const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
         const unsub = onSnapshot(q, (snap) => {
             const data = snap.docs.map(d => ({id: d.id, ...d.data()}));
             setUsersList(data);
-        });
+        }, (error) => console.error("Error users:", error));
         return () => unsub();
-    } catch (e) { console.error("Error cargando usuarios:", e); }
+    } catch (e) { console.error("Crash users:", e); }
   }, []);
 
-  // 2. RECUPERAR USUARIOS AL EDITAR
+  // --- 3. RECUPERAR DATOS AL EDITAR ---
   useEffect(() => {
     if (editingTask && editingTask.targetType === 'user' && usersList.length > 0) {
+        // Protección: asegurar que targetUserIds sea array
         const ids = editingTask.targetUserIds || (editingTask.targetUserId ? [editingTask.targetUserId] : []);
         const found = usersList.filter(u => ids.includes(u.id));
         setSelectedUsersObj(found);
     }
   }, [editingTask, usersList]);
 
-  // --- HELPER SEGURO PARA FECHAS ---
+  // --- HELPER FECHAS ---
   const formatDateSafe = (dateStr) => {
       if (!dateStr) return "";
-      try {
-          const d = new Date(dateStr);
-          return isNaN(d.getTime()) ? "" : d.toLocaleDateString();
-      } catch (e) { return ""; }
+      const d = new Date(dateStr);
+      return isNaN(d.getTime()) ? "" : d.toLocaleDateString();
   };
 
-  // --- HELPER PARA INICIALES (Evita pantalla blanca si no hay nombre) ---
+  // --- HELPER NOMBRES (EVITA BLANCOS) ---
+  const getUserName = (u) => u.firstName || u.fullName || u.username || "Usuario";
   const getInitials = (u) => {
-      if (u.firstName && u.firstName.length > 0) return u.firstName[0];
-      if (u.username && u.username.length > 0) return u.username[0];
-      return "U";
+      const name = getUserName(u);
+      return name.charAt(0).toUpperCase();
   };
 
-  // --- LÓGICA DE GUARDADO ---
+  // --- GUARDAR / EDITAR ---
   const handleSaveTask = async (e) => {
     e.preventDefault(); 
     const fd = new FormData(e.target);
@@ -625,25 +617,22 @@ function TasksView({ tasks = [], user, canEdit }) {
     if (assignType === 'user') { 
         if (selectedUsersObj.length === 0) return alert("⚠️ Selecciona al menos un usuario."); 
         finalTargetIds = selectedUsersObj.map(u => u.id);
-        finalAssignedName = selectedUsersObj.map(u => u.firstName || u.username || "Usuario").join(", ");
+        finalAssignedName = selectedUsersObj.map(u => getUserName(u)).join(", ");
     } else { 
         if (selectedRoles.length === 0) return alert("⚠️ Elige roles."); 
         finalRoles = selectedRoles; 
         finalAssignedName = selectedRoles.join(", "); 
     }
 
-    const dueDateVal = fd.get('dueDate');
-    const showDateVal = fd.get('showDate') || new Date().toISOString().split('T')[0];
-
     const taskData = { 
-        title: fd.get('title'), 
-        dueDate: dueDateVal || null, 
-        showDate: showDateVal,
+        title: fd.get('title') || "Sin título", 
+        dueDate: fd.get('dueDate') || null, 
+        showDate: fd.get('showDate') || new Date().toISOString().split('T')[0],
         showTime: fd.get('showTime') || "08:00",
-        priority: fd.get('priority'), 
+        priority: fd.get('priority') || "media", 
         targetType: assignType, 
         targetUserIds: finalTargetIds, 
-        targetUserId: finalTargetIds.length > 0 ? finalTargetIds[0] : null, 
+        targetUserId: finalTargetIds[0] || null, 
         targetRoles: finalRoles, 
         assignedToName: finalAssignedName, 
         checklist: checklist 
@@ -653,22 +642,26 @@ function TasksView({ tasks = [], user, canEdit }) {
         if (editingTask) { 
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData); 
         } else { 
-             const newTaskRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { ...taskData, createdByName: user.fullName || user.firstName || "Usuario", createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: [] });
+             const newTaskRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { 
+                 ...taskData, 
+                 createdByName: getUserName(user), 
+                 createdById: user.id, 
+                 status: 'pending', 
+                 createdAt: serverTimestamp(), 
+                 comments: [] 
+             });
              
+             // Notificaciones
              const scheduledTime = new Date(`${taskData.showDate}T${taskData.showTime}`);
-             const now = new Date();
-             if (scheduledTime <= now) {
-                 const notifData = { title: `Tarea Nueva`, message: `${user.firstName || 'Admin'}: "${fd.get('title')}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks', relatedId: newTaskRef.id, type: 'task_assigned' };
+             if (scheduledTime <= new Date()) {
+                 const notifData = { title: `Nueva Tarea`, message: `${getUserName(user)}: "${taskData.title}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks', relatedId: newTaskRef.id, type: 'task_assigned' };
                  if (assignType === 'user') {
-                     const promises = finalTargetIds.map(uid => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: uid }));
-                     await Promise.all(promises);
-                 } else if (assignType === 'roles') {
-                    const targets = usersList.filter(u => {
-                        const r = u.role || u.rol || "";
-                        return finalRoles.some(fr => fr.toLowerCase() === r.toLowerCase());
-                    });
-                    const promises = targets.map(t => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: t.id }));
-                    await Promise.all(promises);
+                     finalTargetIds.forEach(uid => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: uid }));
+                 } else {
+                     usersList.filter(u => {
+                         const r = u.role || u.rol || "";
+                         return finalRoles.some(fr => fr.toLowerCase() === r.toLowerCase());
+                     }).forEach(t => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: t.id }));
                  }
              }
         }
@@ -683,11 +676,12 @@ function TasksView({ tasks = [], user, canEdit }) {
       setUserSearch(""); 
   };
 
+  // --- PROCESAMIENTO SEGURO DE TAREAS ---
   const processTasks = () => {
-      const safeTasks = Array.isArray(tasks) ? tasks : [];
+      if (!Array.isArray(tasks)) return []; // Si tasks no es array, devuelve vacío
       
-      const filtered = safeTasks.filter(t => {
-          if (!t) return false;
+      const filtered = tasks.filter(t => {
+          if (!t) return false; // Si la tarea es null, fuera
           const now = new Date();
           const scheduledTime = new Date(`${t.showDate || '2000-01-01'}T${t.showTime || '00:00'}`);
           
@@ -695,7 +689,11 @@ function TasksView({ tasks = [], user, canEdit }) {
           else if (filter === 'scheduled') { if (t.status === 'completed') return false; if (scheduledTime <= now) return false; } 
           else { if (t.status === 'completed') return false; if (scheduledTime > now) return false; }
           
-          const isMine = (t.createdById === user.id || (t.targetUserIds && t.targetUserIds.includes(user.id)) || (t.targetUserId === user.id) || (t.targetRoles && userRole && t.targetRoles.includes(userRole)));
+          const creatorId = t.createdById || "";
+          const targetIds = t.targetUserIds || [];
+          const targetRoles = t.targetRoles || [];
+          
+          const isMine = (creatorId === user.id || targetIds.includes(user.id) || (t.targetUserId === user.id) || (userRole && targetRoles.includes(userRole)));
           
           if (isSuperAdmin) { 
               if (viewMode === 'mine') return isMine; 
@@ -713,7 +711,8 @@ function TasksView({ tasks = [], user, canEdit }) {
 
   const visibleTasks = processTasks();
 
-  const addComment = async (task) => { if (!newComment.trim()) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion({ text: newComment, author: user.firstName || "Usuario", date: new Date().toISOString() }) }); setNewComment(""); };
+  // ACCIONES
+  const addComment = async (task) => { if (!newComment.trim()) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion({ text: newComment, author: getUserName(user), date: new Date().toISOString() }) }); setNewComment(""); };
   const handleDelete = async (id) => { if(confirm("¿Eliminar tarea?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
   const changeStatus = async (task, newStatus) => { if (newStatus === 'completed' && !confirm("¿Marcar como lista?")) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
   
@@ -722,7 +721,7 @@ function TasksView({ tasks = [], user, canEdit }) {
       setAssignType('user'); 
       setSelectedRoles([]); 
       setChecklist([]); 
-      setNewItem(""); 
+      setNewItem("");
       setUserSearch(""); 
       setSelectedUsersObj([]); 
       setShowModal(true); 
@@ -736,8 +735,7 @@ function TasksView({ tasks = [], user, canEdit }) {
       setShowModal(true); 
   };
 
-  // BUSCADOR SEGURO
-  const searchResults = userSearch.length > 0 ? usersList.filter(u => (u.fullName || u.firstName || "").toLowerCase().includes(userSearch.toLowerCase())) : [];
+  const searchResults = userSearch.length > 0 ? usersList.filter(u => getUserName(u).toLowerCase().includes(userSearch.toLowerCase())) : [];
   
   const getPriorityStyle = (t, isSupervision) => { 
       if (t.type === 'absenteeism' || (t.title && t.title.startsWith('⚠️'))) return 'bg-red-50 border-l-8 border-red-600 shadow-md transform scale-[1.01] ring-2 ring-red-100';
@@ -752,12 +750,10 @@ function TasksView({ tasks = [], user, canEdit }) {
       try {
           const today = new Date(); today.setHours(0,0,0,0);
           const due = new Date(dateStr); due.setHours(0,0,0,0);
-          
-          if (isNaN(due.getTime())) return null;
-
           const diffTime = due - today;
           const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
+          if (isNaN(days)) return null; 
           if (days < 0) return { text: `💀 Vencida hace ${Math.abs(days)} días (QEPD)`, color: 'bg-red-100 text-red-800 border-red-200' };
           if (days === 0) return { text: `🔥 ¡ES HOY! ¡CORRÉ!`, color: 'bg-red-500 text-white border-red-600 animate-pulse' };
           if (days === 1) return { text: `😰 Mañana... activá`, color: 'bg-orange-100 text-orange-800 border-orange-200' };
@@ -769,7 +765,7 @@ function TasksView({ tasks = [], user, canEdit }) {
 
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-20">
-      
+      {/* HEADER */}
       <div className="bg-white p-4 sticky top-0 z-10 shadow-sm rounded-b-3xl flex flex-col gap-3">
           <div className="flex flex-col md:flex-row justify-between md:items-center gap-2">
               <div><h2 className="text-2xl font-black text-violet-900 uppercase italic tracking-tighter">Tareas</h2><p className="text-xs text-gray-400 font-bold">{visibleTasks.length} visibles</p></div>
@@ -781,9 +777,13 @@ function TasksView({ tasks = [], user, canEdit }) {
           </div>
       </div>
       
+      {/* GRID */}
       <div className="grid gap-3 px-2">
           {visibleTasks.length === 0 ? ( <div className="text-center py-10 opacity-40"><CheckCircle size={40} className="mx-auto mb-2 text-gray-400"/><p className="font-bold text-gray-500">Todo al día.</p></div> ) : visibleTasks.map(t => {
-            const isMine = (t.createdById === user.id || (t.targetUserIds && t.targetUserIds.includes(user.id)) || (t.targetUserId === user.id) || (t.targetRoles && userRole && t.targetRoles.includes(userRole)));
+            const creatorId = t.createdById || "";
+            const targetIds = t.targetUserIds || [];
+            const targetRoles = t.targetRoles || [];
+            const isMine = (creatorId === user.id || targetIds.includes(user.id) || (t.targetUserId === user.id) || (userRole && targetRoles.includes(userRole)));
             const isSupervision = !isMine && isSuperAdmin && viewMode === 'all';
             const isAbsenteeism = t.type === 'absenteeism' || (t.title && t.title.startsWith('⚠️'));
             const countdown = getFunnyCountdown(t.dueDate);
@@ -796,18 +796,17 @@ function TasksView({ tasks = [], user, canEdit }) {
                     <div className="flex justify-between items-start">
                         <div className="flex-1 pr-6">
                             <p className="text-[9px] font-black text-violet-600 uppercase tracking-widest italic mb-1">Para: {t.assignedToName || "Todos"}</p>
-                            <h3 className={`font-bold text-gray-800 text-sm uppercase italic tracking-tighter leading-none ${t.status==='completed'?'line-through opacity-50':''}`}>{t.title}</h3>
-                            <p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName || "Anon"}</p>
+                            <h3 className={`font-bold text-gray-800 text-sm uppercase italic tracking-tighter leading-none ${t.status==='completed'?'line-through opacity-50':''}`}>{t.title || "Tarea sin título"}</h3>
+                            <p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName || "Anónimo"}</p>
                             
                             <div className="flex flex-wrap gap-2 mt-2">
                                 {new Date(`${t.showDate}T${t.showTime}`) > new Date() && (<div className="inline-flex items-center gap-1 bg-yellow-100 text-yellow-800 text-[9px] font-bold px-2 py-1 rounded-md border border-yellow-200"><Clock size={10}/> Programada: {formatDateSafe(t.showDate)} {t.showTime}hs</div>)}
                                 {countdown && (<div className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-md border ${countdown.color}`}><Calendar size={10}/> {countdown.text}</div>)}
                             </div>
                         </div>
-                        
                         <div className="flex flex-col items-end gap-2">
                             <div className="flex gap-1">
-                                {(t.createdById === user.id || isSuperAdmin) && (
+                                {(creatorId === user.id || isSuperAdmin) && (
                                     <>
                                         <button onClick={() => openEdit(t)} className="text-gray-400 hover:text-blue-600 p-1 bg-white rounded-full shadow-sm transition hover:scale-110"><Edit3 size={14}/></button>
                                         <button onClick={() => handleDelete(t.id)} className="text-red-300 hover:text-red-600 p-1 bg-white rounded-full shadow-sm transition hover:scale-110"><Trash2 size={14}/></button>
@@ -840,7 +839,7 @@ function TasksView({ tasks = [], user, canEdit }) {
             {assignType === 'user' ? ( 
                 <div className="space-y-2">
                     <div className="flex flex-wrap gap-2 mb-2">{(selectedUsersObj || []).map(u => (<div key={u.id} className="flex items-center gap-1 bg-violet-100 text-violet-800 px-2 py-1 rounded-lg text-xs font-bold">{getInitials(u)} <button type="button" onClick={() => toggleUserSelection(u)}><X size={12}/></button></div>))}</div>
-                    <div className="relative"><input placeholder="🔍 Buscar para agregar..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} autoComplete="off" className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none focus:border-violet-500 rounded-t-xl" />{userSearch.length > 0 && (<div className="max-h-40 overflow-y-auto border-x border-b border-gray-200 rounded-b-xl bg-white shadow-xl absolute w-full z-50">{searchResults.map(u => (<div key={u.id} onClick={() => toggleUserSelection(u)} className={`p-3 hover:bg-violet-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0 ${selectedUsersObj.some(s=>s.id===u.id) ? 'bg-violet-50' : ''}`}><div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">{getInitials(u)}</div><p className="text-xs font-bold text-gray-700">{u.fullName || u.username || "Sin Nombre"}</p>{selectedUsersObj.some(s=>s.id===u.id) && <Check size={14} className="ml-auto text-violet-600"/>}</div>))}</div>)}</div> 
+                    <div className="relative"><input placeholder="🔍 Buscar para agregar..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} autoComplete="off" className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none focus:border-violet-500 rounded-t-xl" />{userSearch.length > 0 && (<div className="max-h-40 overflow-y-auto border-x border-b border-gray-200 rounded-b-xl bg-white shadow-xl absolute w-full z-50">{searchResults.map(u => (<div key={u.id} onClick={() => toggleUserSelection(u)} className={`p-3 hover:bg-violet-50 cursor-pointer flex items-center gap-2 border-b border-gray-50 last:border-0 ${selectedUsersObj.some(s=>s.id===u.id) ? 'bg-violet-50' : ''}`}><div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px]">{getInitials(u)}</div><p className="text-xs font-bold text-gray-700">{getUserName(u)}</p>{selectedUsersObj.some(s=>s.id===u.id) && <Check size={14} className="ml-auto text-violet-600"/>}</div>))}</div>)}</div> 
                 </div> 
             ) : ( 
                 <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 max-h-32 overflow-y-auto">{ROLES_OPTIONS.map(role => ( <label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={(selectedRoles || []).includes(role)} onChange={(e) => { if(e.target.checked) setSelectedRoles([...selectedRoles, role]); else setSelectedRoles(selectedRoles.filter(r => r !== role)); }} className="accent-violet-600"/> {role}</label> ))}</div> 
@@ -855,56 +854,6 @@ function TasksView({ tasks = [], user, canEdit }) {
     </div>
   );
 }
-// --- VISTA NOTIFICACIONES (PANTALLA COMPLETA CON REDIRECCIÓN) ---
-function NotificationsView({ notifications, canEdit, user }) {
-  const sortedNotifs = [...notifications].sort((a, b) => {
-    const dateA = a.createdAt ? a.createdAt.seconds : 0;
-    const dateB = b.createdAt ? b.createdAt.seconds : 0;
-    return dateB - dateA;
-  });
-  const visibleNotifs = sortedNotifs.filter(n => !n.read);
-
-  const markAsRead = async (id) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', id), { read: true });
-  const deleteRequest = async (id) => { if(confirm('¿Has resuelto esta solicitud?')) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'requests', id)); };
-  const formatTime = (t) => t ? new Date(t.seconds * 1000).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + 'hs' : '';
-
-  // Esta función redirige refrescando la página en la tab correcta (es un truco para no pasar setActiveTab por todos lados)
-  // O mejor, simplemente mostramos la información. Si querés que redirija desde aquí, avisame y pasamos setActiveTab como prop.
-  
-  return (
-    <div className="animate-in fade-in duration-500 pb-20">
-      <h2 className="text-2xl font-bold text-violet-900 mb-6 flex items-center gap-2"><Bell className="text-orange-500"/> Avisos Pendientes</h2>
-      <div className="space-y-3">
-        {visibleNotifs.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200">
-            <CheckCircle size={48} className="mx-auto mb-4 text-green-100" />
-            <p className="text-gray-500 font-medium">¡Estás al día! No hay notificaciones nuevas.</p>
-          </div>
-        ) : (
-          visibleNotifs.map(notif => (
-            <div key={notif.id} className={`p-4 rounded-2xl border-l-4 shadow-sm bg-white relative transition-all hover:shadow-md ${notif.type === 'admin_alert' ? 'border-red-600 bg-red-50' : 'border-violet-500'}`}>
-               <div className="flex justify-between items-start mb-1">
-                 <div className="flex gap-2 items-center">
-                    <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded ${notif.type === 'admin_alert' ? 'bg-red-600 text-white animate-pulse' : 'bg-violet-100 text-violet-600'}`}>
-                      {notif.type === 'admin_alert' ? 'URGENTE' : 'AVISO'}
-                    </span>
-                    <span className="text-[10px] text-gray-400 font-medium flex items-center gap-1"><Clock size={10}/> {formatTime(notif.createdAt)}</span>
-                 </div>
-                 <button onClick={() => markAsRead(notif.id)} className="text-gray-300 hover:text-green-500 transition" title="Marcar como leída"><CheckSquare size={20} /></button>
-               </div>
-               <h3 className="font-bold text-gray-800 text-sm">{notif.title}</h3>
-               <p className="text-xs text-gray-600 mt-1 leading-relaxed">{notif.message}</p>
-               {notif.isRequest && canEdit && (<div className="mt-3 flex justify-end"><button onClick={() => deleteRequest(notif.id)} className="flex items-center gap-1 text-xs font-bold text-red-500 bg-white border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition shadow-sm"><Check size={14} /> Finalizar Solicitud</button></div>)}
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
-
-
 // --- VISTA CALENDARIO (FINAL: ACCESO UNIVERSAL + AGENDA TÉCNICA PRIVADA) ---
 function CalendarView({ events, canEdit, user }) {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -3014,6 +2963,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
