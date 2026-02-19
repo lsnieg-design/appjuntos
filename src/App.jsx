@@ -616,75 +616,53 @@ function TasksView({ tasks, user, canEdit }) {
     return () => unsub();
   }, [editingTask]);
 
-  const handleSaveTask = async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  const taskData = {
-    title: fd.get('title') || "Sin título",
-    dueDate: fd.get('dueDate') || null,
-    showDate: fd.get('showDate') || new Date().toISOString().split('T')[0],
-    showTime: fd.get('showTime') || "08:00",
-    priority: fd.get('priority') || "media",
-    targetType: assignType,
-    targetUserIds: selectedUsersObj.map(u => u.id),
-    targetUserId: selectedUsersObj.length > 0 ? selectedUsersObj[0].id : null,
-    targetRoles: selectedRoles,
-    assignedToName: assignType === 'user' ? selectedUsersObj.map(u => u.firstName).join(", ") : selectedRoles.join(", "),
-  };
+const handleSaveTask = async (e) => {
+    e.preventDefault();
+    // Verificación de seguridad para evitar que el build detecte posibles nulos
+    if (!db || !appId) return alert("Error: Conexión de base de datos no lista.");
 
-  try {
-    if (editingTask) {
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData);
-    } else {
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), {
-        ...taskData,
-        createdByName: user.firstName,
-        createdById: user.id,
-        status: 'pending',
-        createdAt: serverTimestamp(),
-        comments: []
-      });
-    }
-    setShowModal(false);
-    setEditingTask(null);
-  } catch (err) { alert("Error: " + err.message); }
-};
-    const taskData = { 
-        title: fd.get('title'), 
-        dueDate: fd.get('dueDate') || null, 
-        showDate: fd.get('showDate') || new Date().toISOString().split('T')[0],
-        showTime: fd.get('showTime') || "08:00",
-        priority: fd.get('priority'), 
-        targetType: assignType, 
-        targetUserIds: finalTargetIds, 
-        targetUserId: finalTargetIds.length > 0 ? finalTargetIds[0] : null, 
-        targetRoles: finalRoles, 
-        assignedToName: finalAssignedName, 
-        checklist: checklist 
+    const fd = new FormData(e.target);
+    
+    const taskData = {
+      title: fd.get('title') || "Sin título",
+      dueDate: fd.get('dueDate') || null,
+      showDate: fd.get('showDate') || new Date().toISOString().split('T')[0],
+      showTime: fd.get('showTime') || "08:00",
+      priority: fd.get('priority') || "media",
+      targetType: assignType,
+      targetUserIds: (selectedUsersObj || []).map(u => u.id),
+      targetUserId: selectedUsersObj && selectedUsersObj.length > 0 ? selectedUsersObj[0].id : null,
+      targetRoles: selectedRoles || [],
+      assignedToName: assignType === 'user' 
+        ? (selectedUsersObj || []).map(u => u.firstName || u.fullName).join(", ") 
+        : (selectedRoles || []).join(", "),
+      checklist: checklist || []
     };
 
     try {
-        if (editingTask) { 
-            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData); 
-        } else { 
-             const newTaskRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { ...taskData, createdByName: user.fullName || user.firstName, createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: [] });
-             const scheduledTime = new Date(`${taskData.showDate}T${taskData.showTime}`);
-             const now = new Date();
-             if (scheduledTime <= now) {
-                 const notifData = { title: `Tarea Nueva`, message: `${user.firstName}: "${fd.get('title')}"`, read: false, createdAt: serverTimestamp(), targetTab: 'tasks', relatedId: newTaskRef.id, type: 'task_assigned' };
-                 if (assignType === 'user') {
-                     const promises = finalTargetIds.map(uid => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: uid }));
-                     await Promise.all(promises);
-                 } else if (assignType === 'roles') {
-                    const targets = usersList.filter(u => u.role && finalRoles.some(r => r.toLowerCase() === u.role.toLowerCase()));
-                    const promises = targets.map(t => addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), { ...notifData, toUserId: t.id }));
-                    await Promise.all(promises);
-                 }
-             }
-        }
-        setShowModal(false);
-    } catch (err) { alert("Error: " + err.message); }
-  };
+      if (editingTask && editingTask.id) {
+        // --- PARCHE DE COMPILACIÓN: Referencia explícita ---
+        const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id);
+        await updateDoc(taskRef, taskData);
+        // --------------------------------------------------
+      } else {
+        const tasksCollection = collection(db, 'artifacts', appId, 'public', 'data', 'tasks');
+        await addDoc(tasksCollection, {
+          ...taskData,
+          createdByName: user.fullName || user.firstName || "Usuario",
+          createdById: user.id,
+          status: 'pending',
+          createdAt: serverTimestamp(),
+          comments: []
+        });
+      }
+      setShowModal(false);
+      setEditingTask(null);
+    } catch (err) {
+      console.error("Error Firebase:", err);
+      alert("No se pudo guardar: " + err.message);
+    }
+  };;
 
   const toggleUserSelection = (u) => {
       if (selectedUsersObj.some(sel => sel.id === u.id)) setSelectedUsersObj(prev => prev.filter(sel => sel.id !== u.id));
@@ -2919,6 +2897,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
