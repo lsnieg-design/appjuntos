@@ -2751,7 +2751,7 @@ const handleImportStaff = async (e) => {
     <option value="all">🔍 TODAS LAS OBRAS SOCIALES</option>
     <option value="con_os">✅ TIENEN COBERTURA</option>
     <option value="sin_os">❌ SIN COBERTURA / NO DECLARA</option>
-    <optgroup label="Prepagas / Obras Sociales">
+    <optgroup label="Prepagas Comunes">
         <option value="IOMA">IOMA</option>
         <option value="OSDE">OSDE</option>
         <option value="SWISS">SWISS MEDICAL</option>
@@ -2759,8 +2759,6 @@ const handleImportStaff = async (e) => {
         <option value="PAMI">PAMI</option>
         <option value="UNION">U. PERSONAL</option>
         <option value="SANCOR">SANCOR SALUD</option>
-        <option value="MEDIFE">MEDIFÉ</option>
-        <option value="OMINT">OMINT</option>
     </optgroup>
 </select>
         <select onChange={e=>setFilters({...filters, level: e.target.value})} className="bg-gray-100 p-2 rounded-lg text-xs font-bold outline-none border-none"><option value="all">Nivel: Todos</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option></select>
@@ -2892,6 +2890,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
