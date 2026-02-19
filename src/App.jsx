@@ -1662,11 +1662,21 @@ function MatriculaView({ user }) {
   // ==========================================
   // 6. FUNCIONES DE GESTIÓN Y NUBE (RECUPERADAS)
   // ==========================================
-  const checkUnassigned = () => { 
-      const found = students.filter(s => (s.isActive === undefined || s.isActive === true) && !s.groupMorning && !s.groupAfternoon && !s.daiMorning && !s.daiAfternoon); 
-      setUnassignedList(found); 
-      setShowDataManagement(false); 
-      setShowUnassigned(true); 
+const checkUnassigned = () => {
+    const found = students.filter(s => {
+      if (s.isActive === false) return false; // Ignorar inactivos
+      
+      if (s.modality === 'Inclusión') {
+        // En Inclusión, es "huérfano" si no tiene DAI
+        return !s.daiMorning && !s.daiAfternoon;
+      } else {
+        // En Sede, es "huérfano" si no tiene Grupo
+        return !s.groupMorning && !s.groupAfternoon;
+      }
+    });
+    setUnassignedList(found);
+    setShowDataManagement(false);
+    setShowUnassigned(true);
   };
   
   
@@ -1799,6 +1809,13 @@ const findDuplicates = () => {
       setShowDataManagement(false); // Cierra el modal de la Nube para mostrar los duplicados
     }
   };
+  // Lógica para mostrar la etiqueta correcta (Grupo o DAI)
+  const getGroupLabel = (s) => {
+      if (s.modality === 'Inclusión') {
+          return s.daiMorning || s.daiAfternoon ? `DAI: ${s.daiMorning || s.daiAfternoon}` : '⚠️ Sin DAI asignada';
+      }
+      return s.groupMorning || s.groupAfternoon ? `Grupo: ${s.groupMorning || s.groupAfternoon}` : '⚠️ Sin grupo';
+  };
   // ==========================================
   // 8. RENDERIZADO (JSX)
   // ==========================================
@@ -1851,8 +1868,15 @@ const findDuplicates = () => {
                         </div>
                         <div className="flex gap-2 mt-1">
                             <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200 font-bold">{calculateAge(s.birthDate)} años</span>
-                            <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold">{s.groupMorning || s.groupAfternoon || 'Sin grupo'}</span>
-                        </div>
+                            <span className={`text-[10px] px-2 py-1 rounded-lg font-bold uppercase truncate max-w-[120px] ${
+    (s.modality === 'Inclusión' && !s.daiMorning && !s.daiAfternoon) || (s.modality !== 'Inclusión' && !s.groupMorning && !s.groupAfternoon)
+    ? 'bg-red-100 text-red-700 border border-red-200' 
+    : 'bg-gray-100 text-gray-500'
+}`}>
+    {s.modality === 'Inclusión' 
+        ? (s.daiMorning || s.daiAfternoon ? `DAI: ${s.daiMorning || s.daiAfternoon}` : '⚠️ Sin DAI') 
+        : (s.groupMorning || s.groupAfternoon ? `Grupo: ${s.groupMorning || s.groupAfternoon}` : '⚠️ Sin grupo')}
+</span> </div>
                     </div>
                 </div>
                 <Eye className="text-gray-300"/>
@@ -2922,7 +2946,21 @@ const handleImportStaff = async (e) => {
                               <div className="flex-1 min-w-0">
                                   <div className="flex justify-between items-start">
                                       <p className="font-black text-slate-800 uppercase text-sm truncate">{s.lastName}, {s.firstName}</p>
-                                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full uppercase shrink-0">{s.level}</span>
+                                      
+                                      {/* PARCHE: ETIQUETA GRUPO/DAI AGREGADA JUNTO AL NIVEL */}
+                                      <div className="flex items-center gap-2">
+                                          <span className={`text-[9px] px-2 py-0.5 rounded-lg font-bold uppercase truncate max-w-[120px] ${
+                                              (s.modality === 'Inclusión' && !s.daiMorning && !s.daiAfternoon) || (s.modality !== 'Inclusión' && !s.groupMorning && !s.groupAfternoon)
+                                              ? 'bg-red-100 text-red-700 border border-red-200' 
+                                              : 'bg-gray-100 text-gray-500'
+                                          }`}>
+                                              {s.modality === 'Inclusión' 
+                                                  ? (s.daiMorning || s.daiAfternoon ? `DAI: ${s.daiMorning || s.daiAfternoon}` : '⚠️ Sin DAI') 
+                                                  : (s.groupMorning || s.groupAfternoon ? `Grupo: ${s.groupMorning || s.groupAfternoon}` : '⚠️ Sin grupo')}
+                                          </span>
+                                          <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full uppercase shrink-0">{s.level}</span>
+                                      </div>
+
                                   </div>
                                   <div className="flex gap-3 mt-1">
                                       <p className="text-[10px] font-bold text-gray-400 uppercase">DNI: <span className="text-gray-600">{s.dni || '-'}</span></p>
@@ -2934,8 +2972,6 @@ const handleImportStaff = async (e) => {
                   ))}
               </div>
           </div>
-        </div>
-      ) : (
         <div className="space-y-4 animate-in slide-in-from-right px-4">
             {/* SECCIÓN LEGAJOS DOCENTES */}
             <div className="flex justify-between items-center bg-white p-4 rounded-3xl border border-violet-100 shadow-sm">
@@ -3016,6 +3052,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
