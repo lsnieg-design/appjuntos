@@ -1599,22 +1599,33 @@ function MatriculaView({ user }) {
       } catch(e){ setUploading(false); } 
   };
 
-  const handleSave = async (e) => { 
-      e.preventDefault(); 
-      const fd = new FormData(e.target); 
-      const d = Object.fromEntries(fd.entries()); 
-      d.isActive = d.isActive === 'true'; 
-      d.photoUrl = photoPreview || editingStudent?.photoUrl || ''; 
-      d.modality = formModalidad; 
-      try { 
-          if (editingStudent) { 
-              await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', editingStudent.id), d); 
-          } else { 
-              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...d, isActive: true, createdAt: serverTimestamp(), incidents: [] }); 
-          } 
-          setShowForm(false); setEditingStudent(null); setPhotoPreview(null); 
-      } catch (err) { alert("Error: " + err.message); } 
-  };
+ const handleSave = async (e) => { 
+    e.preventDefault(); 
+    const fd = new FormData(e.target); 
+    const d = Object.fromEntries(fd.entries()); 
+    d.isActive = d.isActive === 'true'; 
+    d.photoUrl = photoPreview || editingStudent?.photoUrl || ''; 
+    d.modality = formModalidad; 
+    
+    try { 
+        if (editingStudent) { 
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', editingStudent.id), d);
+            
+            // --- ESTA ES LA LÍNEA CLAVE DEL PARCHE ---
+            // Actualiza la ficha abierta para que veas los cambios al instante
+            if (viewingStudent?.id === editingStudent.id) {
+                setViewingStudent({ ...editingStudent, ...d });
+            }
+            // -----------------------------------------
+            
+        } else { 
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...d, isActive: true, createdAt: serverTimestamp(), incidents: [] }); 
+        } 
+        setShowForm(false); 
+        setEditingStudent(null); 
+        setPhotoPreview(null); 
+    } catch (err) { alert("Error: " + err.message); } 
+};
 
   const handleDelete = async (id) => { if(confirm("⚠️ ¿Eliminar definitivamente?")) { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id)); setShowForm(false); setEditingStudent(null); } };
   
@@ -1773,7 +1784,14 @@ function MatriculaView({ user }) {
                         <div>
                             <h2 className="text-2xl font-black uppercase tracking-tight">{viewingStudent.lastName}, {viewingStudent.firstName}</h2>
                             <div className="flex gap-2 mt-2">
-                                <span className="bg-white/20 px-3 py-1 rounded-lg text-xs font-bold">{calculateAge(viewingStudent.birthDate)} años</span>
+                               <div className="flex flex-wrap gap-2 mt-3">
+  <div className="bg-orange-500 text-white px-3 py-1 rounded-xl text-[10px] font-black uppercase shadow-sm">
+    Edad: {calculateAge(viewingStudent.birthDate)} años
+  </div>
+  <div className="bg-white/10 text-white px-3 py-1 rounded-xl text-[10px] font-bold">
+    Nac: {getSafeDate(viewingStudent.birthDate)}
+  </div>
+</div>
                                 <span className="bg-white/20 px-3 py-1 rounded-lg text-xs font-bold">{viewingStudent.dni}</span>
                             </div>
                         </div>
@@ -2792,6 +2810,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
