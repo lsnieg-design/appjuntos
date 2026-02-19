@@ -1697,7 +1697,6 @@ function MatriculaView({ user }) {
   };
   
   const handleBulkImport = async () => {
-    // 1. Pedimos el JSON mediante un prompt si no usamos un modal de texto
     const rawJson = prompt("Pega aquí el contenido JSON del backup de estudiantes:");
     if (!rawJson) return;
 
@@ -1706,23 +1705,47 @@ function MatriculaView({ user }) {
       const data = JSON.parse(rawJson);
       if (!Array.isArray(data)) throw new Error("El formato no es un array válido.");
 
-      // 2. Mapeamos y guardamos cada registro
-      const promises = data.map(item => {
-        // Quitamos el ID viejo para que Firebase genere uno nuevo y no haya choques
-        const { id, ...cleanData } = item; 
-        return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), {
-          ...cleanData,
-          isActive: true,
-          createdAt: serverTimestamp(),
-          incidents: cleanData.incidents || []
-        });
+      // 1. Traer todos los alumnos actuales de la base de datos para comparar
+      const snapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'students'));
+      const alumnosActuales = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      let agregados = 0;
+      let actualizados = 0;
+
+      // 2. Procesar cada alumno del JSON
+      const promises = data.map(async (item) => {
+        const { id, ...cleanData } = item;
+        
+        // 3. Buscar si el alumno ya existe (por DNI o por Nombre+Apellido exacto)
+        const existe = alumnosActuales.find(s => 
+           (cleanData.dni && s.dni === cleanData.dni) || 
+           (s.firstName === cleanData.firstName && s.lastName === cleanData.lastName)
+        );
+
+        if (existe) {
+          // Si existe, lo ACTUALIZAMOS (pisamos los datos viejos con los nuevos)
+          actualizados++;
+          return updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', existe.id), {
+            ...cleanData,
+            updatedAt: serverTimestamp()
+          });
+        } else {
+          // Si no existe, lo CREAMOS como nuevo
+          agregados++;
+          return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), {
+            ...cleanData,
+            isActive: true,
+            createdAt: serverTimestamp(),
+            incidents: cleanData.incidents || []
+          });
+        }
       });
 
       await Promise.all(promises);
-      alert(`✅ ¡Éxito! Se importaron ${promises.length} estudiantes correctamente.`);
+      alert(`✅ ¡Importación lista!\n\nSe agregaron: ${agregados} alumnos nuevos.\nSe actualizaron: ${actualizados} alumnos existentes.`);
       setShowDataManagement(false);
     } catch (e) {
-      alert("❌ Error en el formato del JSON: " + e.message);
+      alert("❌ Error al procesar: " + e.message);
     } finally {
       setProcessing(false);
     }
@@ -2930,6 +2953,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
