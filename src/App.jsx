@@ -2429,16 +2429,18 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
   }, []);
 
  const filteredStudents = students.filter(s => {
+      // 1. Solo mostramos alumnos activos (puedes comentar esta línea para ver a TODOS)
       if (s.isActive === false) return false;
+      
       const txt = filterText.toLowerCase();
       
-      // BUSCADOR UNIVERSAL: Busca en Nombre, Apellido, DNI y Obra Social
+      // 2. BUSCADOR UNIVERSAL (Nombre, Apellido, DNI, OS y Nivel)
       const matchesText = !txt || 
-          `${s.lastName} ${s.firstName} ${s.dni} ${s.healthInsurance || ''}`.toLowerCase().includes(txt);
+          `${s.lastName} ${s.firstName} ${s.dni} ${s.healthInsurance || ''} ${s.level || ''}`.toLowerCase().includes(txt);
       
       if (!matchesText) return false;
 
-      // FILTRO POR SELECTOR DE OS
+      // 3. FILTRO DE OBRA SOCIAL (Recuperado y robusto)
       if (filters.os !== 'all') {
           const sOS = (s.healthInsurance || '').toLowerCase();
           if (filters.os === 'con_os' && sOS.length < 2) return false;
@@ -2446,7 +2448,9 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
           if (filters.os !== 'con_os' && filters.os !== 'sin_os' && !sOS.includes(filters.os.toLowerCase())) return false;
       }
       
+      // 4. FILTRO DE NIVEL
       if (filters.level !== 'all' && s.level !== filters.level) return false;
+      
       return true;
   });
 
@@ -2888,6 +2892,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
