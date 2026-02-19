@@ -2729,7 +2729,20 @@ const handleImportStaff = async (e) => {
                 <button onClick={() => setShowStats(true)} className="p-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-violet-100 hover:text-violet-600 transition" title="Estadísticas"><PieChart size={18}/></button>
             </div>
         )}
-        <select onChange={e=>setFilters({...filters, os: e.target.value})} className="bg-gray-100 p-2 rounded-lg text-xs font-bold outline-none border-none"><option value="all">OS: Todas</option><option value="con_os">Con OS</option><option value="sin_os">Sin OS</option></select>
+       <select 
+  value={filters.os} 
+  onChange={e => setFilters({...filters, os: e.target.value})} 
+  className="bg-gray-100 p-2 rounded-lg text-xs font-bold outline-none border-none"
+>
+  <option value="all">OS: Todas</option>
+  <option value="con_os">Con OS (Cualquiera)</option>
+  <option value="sin_os">Sin OS / No declara</option>
+  <option value="IOMA">IOMA</option>
+  <option value="OSDE">OSDE</option>
+  <option value="SWISS">Swiss Medical</option>
+  <option value="GALENO">Galeno</option>
+  <option value="PAMI">PAMI</option>
+</select>
         <select onChange={e=>setFilters({...filters, level: e.target.value})} className="bg-gray-100 p-2 rounded-lg text-xs font-bold outline-none border-none"><option value="all">Nivel: Todos</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option></select>
         <div className="flex bg-gray-100 rounded-lg items-center px-2 border-none"><Search size={14} className="text-gray-400"/><input placeholder="Buscar..." onChange={e=>setFilterText(e.target.value)} className="bg-transparent p-2 text-xs font-bold outline-none w-full"/></div>
     </div>
@@ -2849,6 +2862,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
