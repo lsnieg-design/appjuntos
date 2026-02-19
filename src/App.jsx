@@ -1545,44 +1545,28 @@ function MatriculaView({ user }) {
   // ==========================================
   // 3. LÓGICA DE FILTRADO
   // ==========================================
-  const filteredStudents = students.filter(s => {
-    const isStudentActive = s.isActive === undefined || s.isActive === true;
-    
-    // Filtro Archivo/Activos
-    if (showArchived && isStudentActive) return false; 
-    if (!showArchived && !isStudentActive) return false;
+ const filteredStudents = students.filter(s => {
+      // 1. TEXTO: Búsqueda segura (si no tiene nombre o DNI, no se rompe)
+      const textToSearch = `${s.lastName || ''} ${s.firstName || ''} ${s.dni || ''}`.toLowerCase();
+      const searchTxt = (searchTerm || '').toLowerCase(); // Si usas filterText, cambia searchTerm por filterText
+      
+      const matchesText = !searchTxt || textToSearch.includes(searchTxt);
+      if (!matchesText) return false;
 
-    // Filtro Texto (Buscador)
-    const txt = filterText.toLowerCase();
-    if (txt && !((s.firstName||'').toLowerCase().includes(txt) || (s.lastName||'').toLowerCase().includes(txt) || (s.dni||'').toString().includes(txt))) return false;
-    
-    // Filtros Selectores
-    if (filters.modality !== 'all' && (s.modality || 'Sede') !== filters.modality) return false;
-    if (filters.level !== 'all' && s.level !== filters.level) return false;
-    if (filters.group !== 'all' && (s.groupMorning !== filters.group && s.groupAfternoon !== filters.group)) return false;
-    if (filters.teacher !== 'all') { 
-        const search = filters.teacher.toLowerCase(); 
-        const tM = (s.teacherMorning || s.daiMorning || '').toLowerCase(); 
-        const tT = (s.teacherAfternoon || s.daiAfternoon || '').toLowerCase(); 
-        if (!tM.includes(search) && !tT.includes(search)) return false; 
-    }
-    if (filters.dx !== 'all' && s.dx !== filters.dx) return false;
-    if (filters.gender !== 'all' && s.gender !== filters.gender) return false;
-    if (filters.journey !== 'all' && s.journey !== filters.journey) return false;
-    if (filters.turn === 'Mañana' && !s.groupMorning && !s.daiMorning) return false;
-    if (filters.turn === 'Tarde' && !s.groupAfternoon && !s.daiAfternoon) return false;
-    
-    return true;
-  });
+      // 2. ESTADO: Por si tienes filtro de Activos/Inactivos
+      if (filterStatus === 'active' && s.isActive === false) return false;
+      if (filterStatus === 'inactive' && s.isActive !== false) return false;
 
-  // Lógica de Estadísticas
-  const statsResults = students.filter(s => { 
-      if (s.isActive === false) return false; 
-      if (statFilters.modality.length > 0 && !statFilters.modality.includes(s.modality || 'Sede')) return false; 
-      if (statFilters.level.length > 0 && !statFilters.level.includes(s.level)) return false; 
-      if (statFilters.dx !== 'all' && s.dx !== statFilters.dx) return false; 
-      if (statFilters.gender !== 'all' && s.gender !== statFilters.gender) return false; 
-      return true; 
+      // 3. MODALIDAD: Aseguramos que busque en Inclusión también
+      if (filterModality && filterModality !== 'all') {
+          const mod = s.modality || 'Sede';
+          if (mod !== filterModality) return false;
+      }
+
+      // 4. NIVEL: Por si tienes filtro de niveles
+      if (filterLevel && filterLevel !== 'all' && s.level !== filterLevel) return false;
+
+      return true;
   });
   const toggleStatFilter = (category, value) => { setStatFilters(prev => { const currentList = prev[category]; if (currentList.includes(value)) return { ...prev, [category]: currentList.filter(item => item !== value) }; else return { ...prev, [category]: [...currentList, value] }; }); };
 
@@ -3033,6 +3017,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
