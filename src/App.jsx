@@ -2429,18 +2429,24 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
   }, []);
 
   const filteredStudents = students.filter(s => {
-      if (s.isActive === false) return false;
-      const txt = filterText.toLowerCase();
-      if (txt && !((s.firstName||'').toLowerCase().includes(txt) || (s.lastName||'').toLowerCase().includes(txt) || (s.dni||'').includes(txt))) return false;
-      if (filters.os !== 'all') {
-          if (filters.os === 'con_os' && (!s.healthInsurance || s.healthInsurance.length < 2)) return false;
-          if (filters.os === 'sin_os' && (s.healthInsurance && s.healthInsurance.length > 2)) return false;
-          if (filters.os !== 'con_os' && filters.os !== 'sin_os' && !(s.healthInsurance||'').toLowerCase().includes(filters.os.toLowerCase())) return false;
-      }
-      if (filters.level !== 'all' && s.level !== filters.level) return false;
-      if (filters.modality !== 'all' && (s.modality || 'Sede') !== filters.modality) return false;
-      return true;
-  });
+    if (s.isActive === false) return false;
+    const txt = filterText.toLowerCase();
+    
+    // Filtro por texto (Nombre, Apellido o DNI)
+    if (txt && !(`${s.lastName} ${s.firstName} ${s.dni}`.toLowerCase().includes(txt))) return false;
+    
+    // Filtro por Obra Social (Lógica completa recuperada)
+    if (filters.os !== 'all') {
+        const sOS = (s.healthInsurance || '').toLowerCase();
+        if (filters.os === 'con_os' && sOS.length < 2) return false;
+        if (filters.os === 'sin_os' && sOS.length >= 2) return false;
+        if (filters.os !== 'con_os' && filters.os !== 'sin_os' && !sOS.includes(filters.os.toLowerCase())) return false;
+    }
+    
+    if (filters.level !== 'all' && s.level !== filters.level) return false;
+    if (filters.modality !== 'all' && (s.modality || 'Sede') !== filters.modality) return false;
+    return true;
+});
 
   const toggleSelectAll = () => { if (selectedIds.length === filteredStudents.length) setSelectedIds([]); else setSelectedIds(filteredStudents.map(s => s.id)); };
   const toggleSelect = (id) => { if (selectedIds.includes(id)) setSelectedIds(selectedIds.filter(x => x !== id)); else setSelectedIds([...selectedIds, id]); };
@@ -2732,18 +2738,21 @@ const handleImportStaff = async (e) => {
             </div>
         )}
        <select 
-  value={filters.os} 
-  onChange={e => setFilters({...filters, os: e.target.value})} 
-  className="bg-gray-100 p-2 rounded-lg text-xs font-bold outline-none border-none"
+    value={filters.os} 
+    onChange={e => setFilters({...filters, os: e.target.value})} 
+    className="bg-gray-100 p-2 rounded-lg text-xs font-bold outline-none border-none text-blue-800"
 >
-  <option value="all">OS: Todas</option>
-  <option value="con_os">Con OS (Cualquiera)</option>
-  <option value="sin_os">Sin OS / No declara</option>
-  <option value="IOMA">IOMA</option>
-  <option value="OSDE">OSDE</option>
-  <option value="SWISS">Swiss Medical</option>
-  <option value="GALENO">Galeno</option>
-  <option value="PAMI">PAMI</option>
+    <option value="all">🔍 TODAS LAS OBRAS SOCIALES</option>
+    <option value="con_os">✅ TIENEN COBERTURA</option>
+    <option value="sin_os">❌ SIN COBERTURA / NO DECLARA</option>
+    <optgroup label="Específicas">
+        <option value="IOMA">IOMA</option>
+        <option value="OSDE">OSDE</option>
+        <option value="SWISS">SWISS MEDICAL</option>
+        <option value="GALENO">GALENO</option>
+        <option value="PAMI">PAMI</option>
+        <option value="UNION">U. PERSONAL</option>
+    </optgroup>
 </select>
         <select onChange={e=>setFilters({...filters, level: e.target.value})} className="bg-gray-100 p-2 rounded-lg text-xs font-bold outline-none border-none"><option value="all">Nivel: Todos</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option></select>
         <div className="flex bg-gray-100 rounded-lg items-center px-2 border-none"><Search size={14} className="text-gray-400"/><input placeholder="Buscar..." onChange={e=>setFilterText(e.target.value)} className="bg-transparent p-2 text-xs font-bold outline-none w-full"/></div>
@@ -2771,16 +2780,25 @@ const handleImportStaff = async (e) => {
               </div>
           </div>
 
-          <div className="bg-white shadow-sm border-x border-b border-gray-200 overflow-hidden rounded-b-[30px]">
-              <div className="p-3 bg-gray-50 border-b border-gray-200 grid grid-cols-12 gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest"><div className="col-span-1 text-center">Sel</div><div className="col-span-11">Alumno</div></div>
-              <div className="divide-y divide-gray-100 max-h-[60vh] overflow-y-auto">
-                  {filteredStudents.map(s => (
-                      <div key={s.id} onClick={() => toggleSelect(s.id)} className={`grid grid-cols-12 gap-2 p-3 items-center cursor-pointer hover:bg-blue-50 ${selectedIds.includes(s.id) ? 'bg-blue-50/80' : ''}`}>
-                          <div className="col-span-1 flex justify-center">{selectedIds.includes(s.id) ? '🟦' : '⬜'}</div>
-                          <div className="col-span-11 font-bold text-sm text-gray-700 truncate uppercase">{s.lastName}, {s.firstName}</div>
-                      </div>
-                  ))}
-              </div>
+       <div className="divide-y divide-gray-100 max-h-[60vh] overflow-y-auto">
+    {filteredStudents.map(s => (
+        <div key={s.id} onClick={() => toggleSelect(s.id)} className={`p-4 cursor-pointer hover:bg-blue-50 transition-colors ${selectedIds.includes(s.id) ? 'bg-blue-50/80' : ''}`}>
+            <div className="flex items-center gap-3">
+                <div className="text-xl shrink-0">{selectedIds.includes(s.id) ? '☑️' : '⬜'}</div>
+                <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start">
+                        <p className="font-black text-slate-800 uppercase text-sm truncate">{s.lastName}, {s.firstName}</p>
+                        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full uppercase shrink-0">{s.level}</span>
+                    </div>
+                    <div className="flex gap-3 mt-1">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase">DNI: <span className="text-gray-600">{s.dni || '-'}</span></p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase truncate">OS: <span className="text-gray-600">{s.healthInsurance || 'NO DECLARA'}</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    ))}
+</div>
           </div>
         </div>
       ) : (
@@ -2864,6 +2882,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
