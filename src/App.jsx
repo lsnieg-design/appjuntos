@@ -1546,24 +1546,24 @@ function MatriculaView({ user }) {
   // 3. LÓGICA DE FILTRADO
   // ==========================================
  const filteredStudents = students.filter(s => {
-      // 1. TEXTO: Búsqueda segura (si no tiene nombre o DNI, no se rompe)
+      // 1. BUSCADOR UNIVERSAL (Nombre, Apellido, DNI)
       const textToSearch = `${s.lastName || ''} ${s.firstName || ''} ${s.dni || ''}`.toLowerCase();
-      const searchTxt = (filterText || '').toLowerCase();
-      const matchesText = !searchTxt || textToSearch.includes(searchTxt);
-      if (!matchesText) return false;
+      const searchTxt = (filterText || '').toLowerCase(); // Usamos filterText
+      
+      if (searchTxt && !textToSearch.includes(searchTxt)) return false;
 
-      // 2. ESTADO: Por si tienes filtro de Activos/Inactivos
-      if (filterStatus === 'active' && s.isActive === false) return false;
-      if (filterStatus === 'inactive' && s.isActive !== false) return false;
-
-      // 3. MODALIDAD: Aseguramos que busque en Inclusión también
-      if (filterModality && filterModality !== 'all') {
-          const mod = s.modality || 'Sede';
-          if (mod !== filterModality) return false;
+      // 2. FILTROS DE SELECTORES (Modalidad y Nivel)
+      // Validamos que 'filters' exista antes de leerlo para que no se rompa
+      if (filters) {
+          if (filters.modality && filters.modality !== 'all') {
+              const mod = s.modality || 'Sede';
+              if (mod !== filters.modality) return false;
+          }
+          if (filters.level && filters.level !== 'all' && s.level !== filters.level) return false;
       }
 
-      // 4. NIVEL: Por si tienes filtro de niveles
-      if (filterLevel && filterLevel !== 'all' && s.level !== filterLevel) return false;
+      // 3. OCULTAR INACTIVOS (Por defecto)
+      if (s.isActive === false) return false;
 
       return true;
   });
@@ -3016,6 +3016,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
