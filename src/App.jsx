@@ -1696,7 +1696,37 @@ function MatriculaView({ user }) {
       document.body.appendChild(link); link.click(); document.body.removeChild(link); 
   };
   
-  const handleBulkImport = () => alert("Importación en mantenimiento.");
+  const handleBulkImport = async () => {
+    // 1. Pedimos el JSON mediante un prompt si no usamos un modal de texto
+    const rawJson = prompt("Pega aquí el contenido JSON del backup de estudiantes:");
+    if (!rawJson) return;
+
+    setProcessing(true);
+    try {
+      const data = JSON.parse(rawJson);
+      if (!Array.isArray(data)) throw new Error("El formato no es un array válido.");
+
+      // 2. Mapeamos y guardamos cada registro
+      const promises = data.map(item => {
+        // Quitamos el ID viejo para que Firebase genere uno nuevo y no haya choques
+        const { id, ...cleanData } = item; 
+        return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), {
+          ...cleanData,
+          isActive: true,
+          createdAt: serverTimestamp(),
+          incidents: cleanData.incidents || []
+        });
+      });
+
+      await Promise.all(promises);
+      alert(`✅ ¡Éxito! Se importaron ${promises.length} estudiantes correctamente.`);
+      setShowDataManagement(false);
+    } catch (e) {
+      alert("❌ Error en el formato del JSON: " + e.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
   const handleDeleteAll = () => alert("Función protegida.");
   const handleResetCycle = () => alert("Protegido.");
 
@@ -1892,7 +1922,17 @@ function MatriculaView({ user }) {
         <div className="flex gap-2 pt-4 border-t"><button type="button" onClick={()=>setShowForm(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs">Cancelar</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg">Guardar</button>{editingStudent && <button type="button" onClick={() => handleDelete(editingStudent.id)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition border border-red-100"><Trash2 size={20}/></button>}</div></form></div></div>)}
       
       {/* 3. MODAL GESTIÓN (NUBE) */}
-      {showDataManagement && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[9999]"><div className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl animate-in zoom-in-95"><div className="flex justify-between items-center mb-6"><h3 className="font-bold text-xl text-gray-800 flex items-center gap-2"><UploadCloud className="text-blue-500"/> Gestión de Datos</h3><button onClick={()=>setShowDataManagement(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button></div><div className="space-y-4"><div className="grid grid-cols-2 gap-3"><button onClick={findDuplicates} className="p-3 bg-yellow-50 text-yellow-700 rounded-xl font-bold text-xs hover:bg-yellow-100 border border-yellow-200 flex flex-col items-center gap-1"><Search size={16}/> Buscar Duplicados</button><button onClick={checkUnassigned} className="p-3 bg-red-50 text-red-700 rounded-xl font-bold text-xs hover:bg-red-100 border border-red-200 flex flex-col items-center gap-1"><AlertTriangle size={16}/> Ver Sin Grupo</button></div><div className="bg-gray-50 p-4 rounded-xl border border-gray-100"><h4 className="font-bold text-gray-600 text-xs mb-2 uppercase">Copia de Seguridad</h4><div className="flex gap-2"><button onClick={descargarBackup} className="flex-1 py-3 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50 shadow-sm flex items-center justify-center gap-2"><Download size={14}/> Descargar JSON</button><button onClick={handleBulkImport} className="flex-1 py-3 bg-blue-50 border border-blue-100 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-100 shadow-sm flex items-center justify-center gap-2"><UploadCloud size={14}/> Importar</button></div></div><button onClick={handleAutoAssignGenders} disabled={processing} className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl text-xs shadow-lg hover:bg-indigo-700 flex items-center justify-center gap-2">{processing ? <RefreshCw className="animate-spin" size={16}/> : <><User size={16}/> Asignar Género Automático</>}</button></div></div></div>)}
+      {showDataManagement && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[9999]"><div className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl animate-in zoom-in-95"><div className="flex justify-between items-center mb-6"><h3 className="font-bold text-xl text-gray-800 flex items-center gap-2"><UploadCloud className="text-blue-500"/> Gestión de Datos</h3><button onClick={()=>setShowDataManagement(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button></div><div className="space-y-4"><div className="grid grid-cols-2 gap-3"><button onClick={findDuplicates} className="p-3 bg-yellow-50 text-yellow-700 rounded-xl font-bold text-xs hover:bg-yellow-100 border border-yellow-200 flex flex-col items-center gap-1"><Search size={16}/> Buscar Duplicados</button><button onClick={checkUnassigned} className="p-3 bg-red-50 text-red-700 rounded-xl font-bold text-xs hover:bg-red-100 border border-red-200 flex flex-col items-center gap-1"><AlertTriangle size={16}/> Ver Sin Grupo</button></div><div className="bg-gray-50 p-4 rounded-xl border border-gray-100"><h4 className="font-bold text-gray-600 text-xs mb-2 uppercase">Copia de Seguridad</h4><div className="flex gap-2"><button onClick={descargarBackup} className="flex-1 py-3 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50 shadow-sm flex items-center justify-center gap-2"><Download size={14}/> Descargar JSON</button><button 
+  onClick={handleBulkImport} 
+  disabled={processing}
+  className="flex-1 py-3 bg-blue-50 border border-blue-100 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-100 shadow-sm flex items-center justify-center gap-2"
+>
+  {processing ? (
+    <RefreshCw className="animate-spin" size={14}/>
+  ) : (
+    <><UploadCloud size={14}/> Importar JSON</>
+  )}
+</button></div></div><button onClick={handleAutoAssignGenders} disabled={processing} className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl text-xs shadow-lg hover:bg-indigo-700 flex items-center justify-center gap-2">{processing ? <RefreshCw className="animate-spin" size={16}/> : <><User size={16}/> Asignar Género Automático</>}</button></div></div></div>)}
       
       {/* 4. MODAL ESTADÍSTICAS */}
       {showStats && (<div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4"><div className="bg-white rounded-[40px] w-full max-w-lg p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600"><div className="flex justify-between items-center mb-6"><div><h3 className="text-2xl font-black text-violet-900 uppercase italic">Estadísticas</h3><p className="text-xs text-gray-500">Filtrado Acumulativo</p></div><button onClick={() => setShowStats(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button></div><div className="bg-violet-50 p-6 rounded-3xl text-center mb-6 border border-violet-100 shadow-inner"><span className="text-5xl font-black text-violet-600 block mb-2">{statsResults.length}</span><span className="text-xs font-bold text-violet-400 uppercase tracking-[4px]">Coincidencias</span></div><div className="space-y-4"><div><p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Niveles</p><div className="flex flex-wrap gap-2">{['INICIAL', '1° Ciclo', '2° Ciclo', 'CFI', 'SECUNDARIA'].map(lvl => (<button key={lvl} onClick={() => toggleStatFilter('level', lvl)} className={`px-3 py-2 rounded-lg text-xs font-bold border transition ${statFilters.level.includes(lvl) ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-500 border-gray-200'}`}>{lvl}</button>))}</div></div><div><p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Modalidad</p><div className="flex flex-wrap gap-2">{['Sede', 'Inclusión'].map(mod => (<button key={mod} onClick={() => toggleStatFilter('modality', mod)} className={`px-3 py-2 rounded-lg text-xs font-bold border transition ${statFilters.modality.includes(mod) ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-500 border-gray-200'}`}>{mod}</button>))}</div></div><div className="grid grid-cols-2 gap-2"><select value={statFilters.dx} onChange={e => setStatFilters({...statFilters, dx: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">DX: Todos</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select><select value={statFilters.gender} onChange={e => setStatFilters({...statFilters, gender: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Género: Todos</option><option value="M">Varón</option><option value="F">Mujer</option></select></div></div><button onClick={() => setStatFilters({ modality: [], level: [], dx: 'all', gender: 'all' })} className="w-full py-3 text-red-400 font-bold text-xs hover:bg-red-50 rounded-xl transition mt-4">Limpiar Filtros</button></div></div>)}
@@ -2890,6 +2930,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
