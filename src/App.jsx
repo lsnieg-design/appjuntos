@@ -1511,77 +1511,175 @@ function MatriculaView({ user }) {
         ))}
       </div>
 
-      {/* MODAL DE FICHA COMPLETA (RECUPERADA) */}
+      {/* MODAL DE FICHA COMPLETA (VERSIÓN TOTAL RECUPERADA) */}
       {viewingStudent && (
         <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
             <div className="bg-white rounded-[40px] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                <div className="bg-slate-800 p-6 text-white relative shrink-0">
+                
+                {/* CABECERA DINÁMICA */}
+                <div className={`p-6 text-white relative shrink-0 transition-colors ${viewingStudent.modality === 'Inclusión' ? 'bg-indigo-900' : 'bg-slate-800'}`}>
                     <button onClick={() => setViewingStudent(null)} className="absolute top-4 right-4 bg-white/10 p-2 rounded-full hover:bg-white/20 transition"><X size={20}/></button>
                     <div className="flex gap-6 items-center">
-                        <div className="w-24 h-24 rounded-3xl bg-white/10 border-4 border-white/5 overflow-hidden shadow-2xl">
-                          {viewingStudent.photoUrl ? <img src={viewingStudent.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-3xl font-black opacity-20">{viewingStudent.firstName?.[0]}</div>}
+                        <div className="w-24 h-24 rounded-3xl bg-white/10 border-4 border-white/5 overflow-hidden shadow-2xl flex items-center justify-center">
+                          {viewingStudent.photoUrl ? (
+                            <img src={viewingStudent.photoUrl} className="w-full h-full object-cover"/>
+                          ) : (
+                            <div className="text-3xl font-black opacity-20">{viewingStudent.firstName?.[0]}</div>
+                          )}
                         </div>
-                        <div>
-                          <h2 className="text-2xl font-black uppercase italic tracking-tighter leading-tight">{viewingStudent.lastName},<br/>{viewingStudent.firstName}</h2>
+                        <div className="flex-1">
+                          <h2 className="text-2xl font-black uppercase italic tracking-tighter leading-tight">
+                            {viewingStudent.lastName},<br/>{viewingStudent.firstName}
+                          </h2>
                           <div className="flex flex-wrap gap-2 mt-3">
-                            <div className="bg-orange-500 text-white px-3 py-1 rounded-xl text-[10px] font-black uppercase shadow-sm">Edad: {calculateAge(viewingStudent.birthDate)} años</div>
-                            <div className="bg-white/10 text-white px-3 py-1 rounded-xl text-[10px] font-bold">Nac: {getSafeDate(viewingStudent.birthDate)}</div>
+                            <div className="bg-orange-500 text-white px-3 py-1 rounded-xl text-[10px] font-black uppercase shadow-sm">
+                              Edad: {calculateAge(viewingStudent.birthDate)} años
+                            </div>
+                            <div className="bg-white/10 text-white px-3 py-1 rounded-xl text-[10px] font-bold">
+                              Nac: {getSafeDate(viewingStudent.birthDate)}
+                            </div>
                           </div>
                         </div>
                     </div>
                 </div>
 
+                {/* CUERPO DE LA FICHA */}
                 <div className="p-6 overflow-y-auto bg-gray-50 flex-1 space-y-4">
+                    
+                    {/* ACCESO RÁPIDO DRIVE */}
+                    {canSearchDrive && (
+                      <button 
+                        onClick={() => viewingStudent.driveLink ? window.open(viewingStudent.driveLink, '_blank') : abrirLegajoDigital(viewingStudent)} 
+                        className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black text-xs uppercase shadow-xl flex items-center justify-center gap-3 hover:bg-emerald-700 transition-all active:scale-95"
+                      >
+                        <Folder size={20}/> {viewingStudent.driveLink ? 'ABRIR LEGAJO DRIVE' : 'BUSCAR EN DRIVE'}
+                      </button>
+                    )}
+
+                    {/* DATOS DE IDENTIDAD Y DX */}
                     <div className="grid grid-cols-2 gap-3">
                         <div className="bg-white p-4 rounded-3xl border border-gray-100 text-center shadow-sm">
-                            <p className="text-[9px] text-gray-400 font-black uppercase mb-1">DNI del Alumno</p>
-                            <p className="font-bold text-gray-700 text-sm">{viewingStudent.dni || '-'}</p>
+                            <p className="text-[9px] text-gray-400 font-black uppercase mb-1 tracking-widest">Documento</p>
+                            <p className="font-bold text-gray-700 text-sm">DNI {viewingStudent.dni || '-'}</p>
                         </div>
                         <div className="bg-white p-4 rounded-3xl border border-gray-100 text-center shadow-sm">
-                            <p className="text-[9px] text-gray-400 font-black uppercase mb-1">Diagnóstico (DX)</p>
+                            <p className="text-[9px] text-gray-400 font-black uppercase mb-1 tracking-widest">Diagnóstico</p>
                             <p className="font-black text-violet-600 text-xs uppercase">{viewingStudent.dx || '-'}</p>
                         </div>
                     </div>
 
-                    {/* SECCIÓN DOCENTES Y TURNOS (RECUPERADA) */}
+                    {/* BLOQUE ACADÉMICO (DINÁMICO SEGÚN MODALIDAD) */}
                     <div className="bg-white p-5 rounded-[30px] border border-gray-200 shadow-sm space-y-4">
-                        <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-[3px] flex items-center gap-2 border-b pb-2"><Users size={14}/> Equipo Institucional</h4>
-                        <div className="grid grid-cols-1 gap-3">
+                        <div className="flex justify-between items-center border-b pb-2">
+                          <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-[3px] flex items-center gap-2">
+                            <Users size={14}/> Equipo Institucional
+                          </h4>
+                          <span className={`text-[9px] font-black px-2 py-0.5 rounded-md ${viewingStudent.modality === 'Inclusión' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}`}>
+                            {viewingStudent.modality || 'SEDE'}
+                          </span>
+                        </div>
+
+                        {viewingStudent.modality === 'Inclusión' ? (
+                          /* VISTA INCLUSIÓN */
+                          <div className="space-y-3">
+                            <div className="bg-indigo-50/50 p-3 rounded-2xl border border-indigo-100">
+                                <p className="text-[9px] font-black text-indigo-400 uppercase mb-1">Escuela de Origen</p>
+                                <p className="text-xs font-bold text-indigo-900 uppercase">
+                                  {viewingStudent.originSchool || 'No especificada'} 
+                                  <span className="ml-2 bg-indigo-200 text-indigo-700 px-1.5 py-0.5 rounded">{viewingStudent.originGrade || '-'}</span>
+                                </p>
+                            </div>
+                            <div className="grid grid-cols-1 gap-2">
+                                <div className="flex justify-between items-center text-xs">
+                                    <span className="text-gray-400 font-bold uppercase text-[10px]">DAI Mañana:</span>
+                                    <span className="font-bold text-gray-800 uppercase">{viewingStudent.daiMorning || 'VACANTE'}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-xs">
+                                    <span className="text-gray-400 font-bold uppercase text-[10px]">DAI Tarde:</span>
+                                    <span className="font-bold text-gray-800 uppercase">{viewingStudent.daiAfternoon || 'VACANTE'}</span>
+                                </div>
+                            </div>
+                          </div>
+                        ) : (
+                          /* VISTA SEDE */
+                          <div className="grid grid-cols-1 gap-3">
                             <div className="flex justify-between items-center">
-                                <span className="text-[10px] font-black text-gray-400 uppercase">Turno Mañana:</span>
-                                <span className="text-xs font-bold text-gray-800 uppercase">{viewingStudent.teacherMorning || viewingStudent.daiMorning || 'VACANTE'}</span>
+                                <span className="text-[10px] font-black text-gray-400 uppercase">Mañana: <b className="text-blue-500">{viewingStudent.groupMorning || '-'}</b></span>
+                                <span className="text-xs font-bold text-gray-800 uppercase">{viewingStudent.teacherMorning || 'VACANTE'}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-[10px] font-black text-gray-400 uppercase">Turno Tarde:</span>
-                                <span className="text-xs font-bold text-gray-800 uppercase">{viewingStudent.teacherAfternoon || viewingStudent.daiAfternoon || 'VACANTE'}</span>
+                                <span className="text-[10px] font-black text-gray-400 uppercase">Tarde: <b className="text-blue-500">{viewingStudent.groupAfternoon || '-'}</b></span>
+                                <span className="text-xs font-bold text-gray-800 uppercase">{viewingStudent.teacherAfternoon || 'VACANTE'}</span>
                             </div>
                             <div className="flex justify-between items-center bg-gray-50 p-2 rounded-xl">
                                 <span className="text-[10px] font-black text-gray-400 uppercase">Auxiliar:</span>
                                 <span className="text-xs font-bold text-gray-700 uppercase">{viewingStudent.auxMorning || viewingStudent.auxAfternoon || '-'}</span>
                             </div>
+                          </div>
+                        )}
+                    </div>
+
+                    {/* SALUD Y OBRA SOCIAL */}
+                    <div className="bg-white p-5 rounded-[30px] border border-gray-100 shadow-sm space-y-3">
+                        <h4 className="text-[10px] font-black text-green-600 uppercase tracking-[3px] border-b pb-2 flex items-center gap-2">
+                          <Activity size={14}/> Salud y Cobertura
+                        </h4>
+                        <div className="grid grid-cols-2 gap-4 text-xs">
+                            <div>
+                                <span className="text-[9px] text-gray-400 font-bold block uppercase mb-1">Obra Social</span>
+                                <span className="font-bold text-slate-800 uppercase">{viewingStudent.healthInsurance || 'NO DECLARA'}</span>
+                            </div>
+                            <div className="text-right">
+                                <span className="text-[9px] text-gray-400 font-bold block uppercase mb-1">Vencimiento CUD</span>
+                                <span className={`font-bold ${calculateDaysLeft(viewingStudent.cudExpiration) < 30 ? 'text-red-500 animate-pulse' : 'text-slate-800'}`}>
+                                    {getSafeDate(viewingStudent.cudExpiration)}
+                                </span>
+                            </div>
                         </div>
                     </div>
 
-                    {/* CONTACTO FAMILIAR */}
-                    <div className="bg-orange-50 p-5 rounded-[30px] border border-orange-100">
-                        <h4 className="text-[10px] font-black text-orange-700 uppercase tracking-[3px] mb-3 flex items-center gap-2"><Mail size={14}/> Familia y Contacto</h4>
-                        <div className="space-y-2 text-xs">
-                          <p className="flex justify-between"><span>Madre: <b>{viewingStudent.motherName || '-'}</b></span> <span className="text-blue-600 font-bold">{viewingStudent.motherContact || ''}</span></p>
-                          <p className="flex justify-between border-t border-orange-100 pt-2"><span>Padre: <b>{viewingStudent.fatherName || '-'}</b></span> <span className="text-blue-600 font-bold">{viewingStudent.fatherContact || ''}</span></p>
+                    {/* CONTACTO FAMILIAR Y RETIRO */}
+                    <div className="bg-orange-50 p-5 rounded-[30px] border border-orange-100 space-y-4">
+                        <h4 className="text-[10px] font-black text-orange-700 uppercase tracking-[3px] flex items-center gap-2 border-b border-orange-200 pb-2">
+                          <Mail size={14}/> Familia y Contacto
+                        </h4>
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-start">
+                            <div className="text-xs">
+                              <span className="text-[9px] text-orange-400 font-black uppercase block">Madre / Tutor 1</span>
+                              <b className="text-gray-800 uppercase">{viewingStudent.motherName || '-'}</b>
+                            </div>
+                            <span className="text-blue-600 font-black text-sm">{viewingStudent.motherContact || ''}</span>
+                          </div>
+                          <div className="flex justify-between items-start pt-2 border-t border-orange-200/50">
+                            <div className="text-xs">
+                              <span className="text-[9px] text-orange-400 font-black uppercase block">Padre / Tutor 2</span>
+                              <b className="text-gray-800 uppercase">{viewingStudent.fatherName || '-'}</b>
+                            </div>
+                            <span className="text-blue-600 font-black text-sm">{viewingStudent.fatherContact || ''}</span>
+                          </div>
+                          <div className="bg-white/60 p-3 rounded-2xl border border-orange-200 mt-2">
+                              <span className="text-[9px] text-orange-700 font-black block uppercase mb-1 tracking-widest">Autorizados a Retirar</span>
+                              <p className="font-bold text-xs text-gray-800 italic leading-relaxed">
+                                {viewingStudent.pickupInfo || 'Sin personas autorizadas registradas.'}
+                              </p>
+                          </div>
                         </div>
                     </div>
-
-                    {canSearchDrive && viewingStudent.driveLink && (
-                      <button onClick={() => window.open(viewingStudent.driveLink, '_blank')} className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black text-xs uppercase shadow-xl flex items-center justify-center gap-3 hover:bg-emerald-700 transition-all active:scale-95"><Folder size={20}/> Acceder al Legajo Digital</button>
-                    )}
                     
-                    <button onClick={() => { setEditingStudent(viewingStudent); setViewingStudent(null); setShowForm(true); }} className="w-full bg-white border-2 border-gray-100 text-gray-400 py-3 rounded-2xl font-bold text-xs uppercase hover:bg-gray-50 transition">Editar Información</button>
+                    {/* BOTÓN EDITAR */}
+                    <button 
+                      onClick={() => { setEditingStudent(viewingStudent); setViewingStudent(null); setShowForm(true); }} 
+                      className="w-full bg-white border-2 border-gray-200 text-gray-400 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[2px] hover:bg-gray-50 transition-all active:scale-95"
+                    >
+                      Editar Información del Legajo
+                    </button>
                 </div>
             </div>
         </div>
       )}
 
-      {/* NOTA: El Modal de Formulario (showForm) se mantiene igual que tu versión previa */}
+      {/* NOTA: El Modal de Formulario (showForm) se mantiene igual */}
     </div>
   );
 }
@@ -2469,6 +2567,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
