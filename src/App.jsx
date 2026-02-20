@@ -2506,7 +2506,7 @@ function GroupsView({ user }) {
   const [newNote, setNewNote] = useState("");
   const [isWriting, setIsWriting] = useState(false);
   const [editingGroup, setEditingGroup] = useState(null);
-  const [viewFilter, setViewFilter] = useState('all'); 
+  const [viewFilter, setViewFilter] = useState('sede'); // Cambiado de 'all' a 'sede' 
   const [groupStats, setGroupStats] = useState(null);
   const [updatingGroup, setUpdatingGroup] = useState(false);
   const [savingIncident, setSavingIncident] = useState(false);
@@ -2658,7 +2658,19 @@ function GroupsView({ user }) {
     <div className="flex flex-col h-full bg-slate-100 animate-in fade-in relative">
       <div className="bg-white p-4 shadow-sm z-10 sticky top-0 flex flex-col gap-3">
           <div className="flex justify-between items-center"><div><h2 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2"><Grid size={24} className="text-orange-500"/> Mis Grupos</h2><p className="text-xs text-gray-400 font-bold uppercase">{isManagement ? "Vista Institucional" : `Espacio Docente`}</p></div>{isManagement && <button onClick={handlePrintAll} className="bg-violet-100 text-violet-700 p-2 rounded-xl shadow-sm hover:bg-violet-200 transition" title="Imprimir Todo"><FileText size={24}/></button>}</div>
-          <div className="flex gap-2"><div className="flex bg-gray-100 p-1 rounded-xl flex-1"><button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-400'}`}>☀️ Mañana</button><button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 Tarde</button></div>{isManagement && (<div className="flex bg-gray-100 p-1 rounded-xl"><button onClick={() => setViewFilter('all')} className={`px-3 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'all' ? 'bg-white shadow text-gray-800' : 'text-gray-400'}`}>Todos</button><button onClick={() => setViewFilter('sede')} className={`px-3 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'sede' ? 'bg-white shadow text-blue-600' : 'text-gray-400'}`}>Sede</button><button onClick={() => setViewFilter('inclusion')} className={`px-3 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'inclusion' ? 'bg-white shadow text-indigo-600' : 'text-gray-400'}`}>Inclusión</button></div>)}</div>
+          <div className="flex gap-2">
+              <div className="flex bg-gray-100 p-1 rounded-xl flex-1">
+                  <button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-400'}`}>☀️ Mañana</button>
+                  <button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 Tarde</button>
+              </div>
+              
+              {isManagement && (
+                  <div className="flex bg-gray-100 p-1 rounded-xl">
+                      <button onClick={() => setViewFilter('sede')} className={`px-4 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'sede' ? 'bg-white shadow text-blue-600' : 'text-gray-400'}`}>Sede</button>
+                      <button onClick={() => setViewFilter('inclusion')} className={`px-4 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'inclusion' ? 'bg-white shadow text-indigo-600' : 'text-gray-400'}`}>Inclusión</button>
+                  </div>
+              )}
+          </div>
       </div>
       
       <div className="relative flex-1 overflow-hidden">
@@ -2676,7 +2688,12 @@ function GroupsView({ user }) {
                               <button onClick={()=>handlePrintSingleGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>
                               {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"><Edit3 size={14}/></button>}
                           </div>
-                          <h3 className="font-black text-gray-800 text-lg">{g.name}</h3>
+                          <div className="flex items-center gap-2">
+    <h3 className="font-black text-gray-800 text-lg">{g.name}</h3>
+    <span className="bg-white/60 text-gray-500 px-2 py-0.5 rounded-full text-[10px] font-black shadow-sm border border-gray-100">
+        {g.students.length} ALUMNOS
+    </span>
+</div>
                           <div className="mt-2 text-xs text-gray-500 font-medium space-y-1">
                               <p>DOC: <span className="font-bold text-violet-700 uppercase">{g.teacher || 'Sin asignar'}</span> {g.teacher2 && <span className="text-violet-500 font-bold">/ {g.teacher2}</span>}</p>
                               {g.aux && <p>AUX: <span className="font-bold uppercase">{g.aux}</span></p>}
@@ -3248,6 +3265,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
