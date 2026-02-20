@@ -3162,7 +3162,7 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
   if (!canAccess) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido.</div>;
 const handleImportStaff = async (e) => {
       const file = e.target.files[0];
-      if (!file || !confirm("⚠️ ¿Importar archivo CSV? (Apellido;Nombre;DNI;Email;CargoTM;CargoTT)")) return;
+      if (!file || !confirm("⚠️ ¿Importar archivo CSV estructurado?")) return;
       setProcessing(true);
       const reader = new FileReader();
       reader.onload = async (evt) => {
@@ -3170,10 +3170,23 @@ const handleImportStaff = async (e) => {
               const rows = evt.target.result.split('\n').slice(1).filter(r => r.trim() !== '');
               const promises = rows.map(row => {
                   const cols = row.split(';');
+                  
+                  // Formatear fecha de nac (viene como DD/MM/YYYY)
+                  let bDate = "";
+                  const rawDate = cols[12]?.trim();
+                  if (rawDate) {
+                      const parts = rawDate.split('/');
+                      if (parts.length === 3) bDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                  }
+
                   return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), {
                       lastName: cols[0]?.trim() || '', firstName: cols[1]?.trim() || '', dni: cols[2]?.trim() || '',
-                      email: cols[3]?.trim() || '', cargoTM: cols[4]?.trim() || '', cargoTT: cols[5]?.trim() || '',
-                      startDate: new Date().toISOString().split('T')[0], isSubsidized: 'no', studyStatus: 'recibida', createdAt: serverTimestamp()
+                      isSubsidized: cols[3]?.trim() === 'SI' ? 'true' : 'false',
+                      cargo1_name: cols[4]?.trim() || '', cargo1_type: cols[5]?.trim() || '', cargo1_turn: cols[6]?.trim() || '', cargo1_revista: cols[7]?.trim() || '',
+                      cargo2_name: cols[8]?.trim() || '', cargo2_type: cols[9]?.trim() || '', cargo2_turn: cols[10]?.trim() || '', cargo2_revista: cols[11]?.trim() || '',
+                      birthDate: bDate, address: cols[13]?.trim() || '', phone: cols[14]?.trim() || '', email: cols[15]?.trim() || '',
+                      studyStatus: cols[16]?.trim() || '', role: cols[17]?.trim() || 'Docente', modality: cols[18]?.trim() || 'Sede',
+                      createdAt: serverTimestamp()
                   });
               });
               await Promise.all(promises);
@@ -3342,7 +3355,10 @@ const handleImportStaff = async (e) => {
                                 {s.dni && <span>DNI: {s.dni}</span>}
                                 {s.phone && <span>Tel: {s.phone}</span>}
                             </div>
-                            <p className="text-[10px] font-black text-violet-500 uppercase mt-1 truncate">TM: {s.cargoTM || '-'} | TT: {s.cargoTT || '-'}</p>
+                            <p className="text-[10px] font-black text-violet-500 uppercase mt-1 truncate">
+                                {s.cargo1_name ? `${s.cargo1_name} (${s.cargo1_type})` : 'Sin Cargo 1'} 
+                                {s.cargo2_name ? ` | ${s.cargo2_name} (${s.cargo2_type})` : ''}
+                            </p>
                         </div>
                         <ChevronRight size={18} className="text-gray-300"/>
                     </div>
@@ -3392,25 +3408,43 @@ const handleImportStaff = async (e) => {
                           <input name="address" defaultValue={editingStaff?.address} placeholder="Dirección" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
                       </div>
 
-                      {/* DATOS ESCOLARES */}
-                      <div className="bg-violet-50 p-4 rounded-2xl border border-violet-100 space-y-3">
-                          <h4 className="text-[10px] font-black text-violet-400 uppercase tracking-widest">Contratación</h4>
-                          <div className="grid grid-cols-2 gap-3">
-                              <select name="modality" defaultValue={editingStaff?.modality || 'Sede'} className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900">
-                                  <option value="Sede">Sede</option>
-                                  <option value="Inclusión">Inclusión</option>
-                              </select>
-                              <select name="isSubsidized" defaultValue={editingStaff?.isSubsidized ? 'true' : 'false'} className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900">
-                                  <option value="false">Sin Subvención</option>
-                                  <option value="true">Subvencionado</option>
-                              </select>
+                      {/* CONTRATACIÓN Y CARGOS */}
+                      <div className="bg-violet-50 p-4 rounded-2xl border border-violet-100 space-y-4">
+                          <div className="flex justify-between items-center border-b border-violet-200 pb-2">
+                              <h4 className="text-[10px] font-black text-violet-500 uppercase tracking-widest">Contratación</h4>
+                              <div className="flex gap-2">
+                                  <select name="modality" defaultValue={editingStaff?.modality || 'Sede'} className="p-1 bg-white rounded-lg border border-violet-200 outline-none font-bold text-[10px] text-violet-900"><option value="Sede">Sede</option><option value="Inclusión">Inclusión</option></select>
+                                  <select name="isSubsidized" defaultValue={editingStaff?.isSubsidized ? 'true' : 'false'} className="p-1 bg-white rounded-lg border border-violet-200 outline-none font-bold text-[10px] text-violet-900"><option value="false">Sin Subvención</option><option value="true">Subvencionada</option></select>
+                              </div>
                           </div>
-                          <input name="role" defaultValue={editingStaff?.role} placeholder="Rol (Ej: Docente, DAI, Auxiliar)" className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-sm text-violet-900"/>
-                          <div className="grid grid-cols-2 gap-3">
-                              <input name="cargoTM" defaultValue={editingStaff?.cargoTM} placeholder="Cargo TM (Ej: MG meca)" className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-sm text-violet-900"/>
-                              <input name="cargoTT" defaultValue={editingStaff?.cargoTT} placeholder="Cargo TT (Ej: IM deno)" className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-sm text-violet-900"/>
+
+                          {/* CARGO 1 */}
+                          <div className="space-y-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm">
+                              <h5 className="text-[10px] font-black text-gray-400 uppercase">Cargo 1</h5>
+                              <div className="grid grid-cols-2 gap-2">
+                                  <input name="cargo1_name" defaultValue={editingStaff?.cargo1_name} placeholder="Nombre (Ej: MG, PR)" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"/>
+                                  <select name="cargo1_type" defaultValue={editingStaff?.cargo1_type} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Tipo...</option><option value="meca">Mecanizada</option><option value="deno">Deno</option></select>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                  <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Turno...</option><option value="mañana">Mañana</option><option value="tarde">Tarde</option><option value="doble">Doble</option><option value="simple">Simple</option></select>
+                                  <select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Revista...</option><option value="Titular">Titular</option><option value="Provicional">Provisional</option><option value="Suplente">Suplente</option></select>
+                              </div>
                           </div>
-                          <input name="studyStatus" defaultValue={editingStaff?.studyStatus} placeholder="Estado Estudios (Ej: Finalizado, En curso)" className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-sm text-violet-900"/>
+
+                          {/* CARGO 2 */}
+                          <div className="space-y-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm">
+                              <h5 className="text-[10px] font-black text-gray-400 uppercase">Cargo 2 (Opcional)</h5>
+                              <div className="grid grid-cols-2 gap-2">
+                                  <input name="cargo2_name" defaultValue={editingStaff?.cargo2_name} placeholder="Nombre (Ej: AUX)" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"/>
+                                  <select name="cargo2_type" defaultValue={editingStaff?.cargo2_type} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Tipo...</option><option value="meca">Mecanizada</option><option value="deno">Deno</option></select>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                  <select name="cargo2_turn" defaultValue={editingStaff?.cargo2_turn} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Turno...</option><option value="mañana">Mañana</option><option value="tarde">Tarde</option><option value="doble">Doble</option><option value="simple">Simple</option></select>
+                                  <select name="cargo2_revista" defaultValue={editingStaff?.cargo2_revista} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Revista...</option><option value="Titular">Titular</option><option value="Provicional">Provisional</option><option value="Suplente">Suplente</option></select>
+                              </div>
+                          </div>
+                          
+                          <input name="studyStatus" defaultValue={editingStaff?.studyStatus} placeholder="Estado de Estudios (Ej: Finalizado, En curso)" className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900"/>
                       </div>
 
                       <button type="submit" className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-violet-700 transition">Guardar Legajo</button>
@@ -3441,6 +3475,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
