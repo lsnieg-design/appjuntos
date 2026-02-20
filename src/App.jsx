@@ -2843,13 +2843,15 @@ function AdministracionView({ user }) {
   const [template, setTemplate] = useState('constancia_regular'); 
   const [generating, setGenerating] = useState(false);
   const [mainTab, setMainTab] = useState('docs'); // 'docs' o 'staff'
-  const [staffList, setStaffList] = useState([]);
-  const [staffFilter, setStaffFilter] = useState('');
-  const [showStaffForm, setShowStaffForm] = useState(false);
-  const [editingStaff, setEditingStaff] = useState(null);
-  const [processing, setProcessing] = useState(false);
-  const [photoPreview, setPhotoPreview] = useState(null);
-  const [uploading, setUploading] = useState(false);
+  const [mainTab, setMainTab] = useState('docs'); // 'docs' o 'staff'
+  const [staffList, setStaffList] = useState([]);
+  const [staffFilterText, setStaffFilterText] = useState('');
+  const [staffModalityFilter, setStaffModalityFilter] = useState('all');
+  const [showStaffForm, setShowStaffForm] = useState(false);
+  const [editingStaff, setEditingStaff] = useState(null);
+  const [processing, setProcessing] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
   
   // ESTADOS VARIABLES
   const [customTarget, setCustomTarget] = useState(""); 
@@ -2899,7 +2901,39 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
       
       return true;
   });
+// LÓGICA DE FILTRADO STAFF
+  const filteredStaff = staffList.filter(s => {
+      // 1. Buscador (Nombre, Apellido, DNI)
+      const txt = staffFilterText.toLowerCase();
+      const matchesText = !txt || `${s.lastName} ${s.firstName} ${s.dni}`.toLowerCase().includes(txt);
+      if (!matchesText) return false;
 
+      // 2. Filtro Modalidad
+      if (staffModalityFilter !== 'all') {
+          const mod = s.modality || 'Sede';
+          if (mod !== staffModalityFilter) return false;
+      }
+      return true;
+  });
+
+  // Manejador de foto
+  const handlePhotoChange = (e) => {
+      const f = e.target.files[0]; if(!f) return;
+      setUploading(true);
+      const reader = new FileReader();
+      reader.onload=(ev)=>{
+          const img=new Image();
+          img.onload=()=>{
+              const c=document.createElement('canvas');
+              const s=300/img.width; c.width=300; c.height=img.height*s;
+              const ctx=c.getContext('2d'); ctx.drawImage(img,0,0,c.width,c.height);
+              setPhotoPreview(c.toDataURL('image/jpeg',0.7));
+              setUploading(false);
+          };
+          img.src=ev.target.result;
+      };
+      reader.readAsDataURL(f);
+  };
   const toggleSelectAll = () => { if (selectedIds.length === filteredStudents.length) setSelectedIds([]); else setSelectedIds(filteredStudents.map(s => s.id)); };
   const toggleSelect = (id) => { if (selectedIds.includes(id)) setSelectedIds(selectedIds.filter(x => x !== id)); else setSelectedIds([...selectedIds, id]); };
 
@@ -3269,58 +3303,117 @@ const handleImportStaff = async (e) => {
         <div className="space-y-4 animate-in slide-in-from-right px-4">
             {/* SECCIÓN LEGAJOS DOCENTES */}
             <div className="flex justify-between items-center bg-white p-4 rounded-3xl border border-violet-100 shadow-sm">
-                <div><h3 className="font-black text-violet-900 uppercase italic">Personal de la Casa</h3><p className="text-[10px] text-gray-400 font-bold uppercase">{staffList.length} Legajos</p></div>
+                <div><h3 className="font-black text-violet-900 uppercase italic">Personal de la Casa</h3><p className="text-[10px] text-gray-400 font-bold uppercase">{filteredStaff.length} Legajos</p></div>
                 <div className="flex gap-2">
                     <label className="p-3 bg-emerald-100 text-emerald-700 rounded-2xl cursor-pointer hover:bg-emerald-200 transition">
                         {processing ? <RefreshCw className="animate-spin" size={20}/> : <UploadCloud size={20}/>}
                         <input type="file" accept=".csv" className="hidden" onChange={handleImportStaff} />
                     </label>
-                    <button onClick={()=>{setEditingStaff(null); setShowStaffForm(true);}} className="bg-violet-600 text-white p-3 rounded-2xl shadow-lg"><Plus size={20}/></button>
+                    <button onClick={()=>{setEditingStaff(null); setPhotoPreview(null); setShowStaffForm(true);}} className="bg-violet-600 text-white p-3 rounded-2xl shadow-lg"><Plus size={20}/></button>
                 </div>
             </div>
 
-            <div className="bg-white p-2 rounded-2xl border border-gray-100 flex items-center gap-2 shadow-sm">
-                <Search size={18} className="ml-2 text-gray-300"/><input value={staffFilter} onChange={e=>setStaffFilter(e.target.value)} placeholder="Buscar docente..." className="w-full p-2 outline-none text-sm font-bold text-gray-700 bg-transparent"/>
+            {/* FILTROS DOCENTES */}
+            <div className="flex gap-2">
+                <div className="bg-white flex-1 p-2 rounded-2xl border border-gray-100 flex items-center gap-2 shadow-sm">
+                    <Search size={18} className="ml-2 text-gray-300"/><input value={staffFilterText} onChange={e=>setStaffFilterText(e.target.value)} placeholder="Buscar docente (Nombre, Apellido, DNI)..." className="w-full p-2 outline-none text-sm font-bold text-gray-700 bg-transparent"/>
+                </div>
+                <select value={staffModalityFilter} onChange={e=>setStaffModalityFilter(e.target.value)} className="bg-white text-gray-700 text-xs p-3 rounded-2xl font-bold border border-gray-100 shadow-sm outline-none">
+                    <option value="all">Todas</option>
+                    <option value="Sede">Sede</option>
+                    <option value="Inclusión">Inclusión</option>
+                </select>
             </div>
 
-            <div className="grid gap-3">
-                {staffList.filter(s => (s.lastName+s.firstName).toLowerCase().includes(staffFilter.toLowerCase())).map(s => (
-                    <div key={s.id} onClick={()=>{setEditingStaff(s); setShowStaffForm(true);}} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 cursor-pointer hover:border-violet-300 transition-all">
-                        <div className="w-12 h-12 bg-violet-50 rounded-full flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName?.[0]}</div>
+            {/* LISTA DOCENTES */}
+            <div className="grid gap-3 max-h-[65vh] overflow-y-auto pb-10">
+                {filteredStaff.map(s => (
+                    <div key={s.id} onClick={()=>{setEditingStaff(s); setPhotoPreview(s.photoUrl); setShowStaffForm(true);}} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 cursor-pointer hover:border-violet-300 transition-all">
+                        <div className="w-14 h-14 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100">
+                            {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName?.[0]}
+                        </div>
                         <div className="flex-1">
-                            <h4 className="font-bold text-gray-800 text-sm uppercase">{s.lastName}, {s.firstName}</h4>
-                            <p className="text-[10px] font-black text-violet-500 uppercase">{s.cargoTM || s.cargoTT || 'Docente'}</p>
+                            <div className="flex gap-2 items-center">
+                                <h4 className="font-bold text-gray-800 text-sm uppercase">{s.lastName}, {s.firstName}</h4>
+                                <span className={`text-[8px] px-2 py-0.5 rounded-md font-black uppercase ${s.modality === 'Inclusión' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}`}>{s.modality || 'Sede'}</span>
+                            </div>
+                            <div className="flex gap-2 text-[10px] mt-1 text-gray-500 font-bold">
+                                {s.dni && <span>DNI: {s.dni}</span>}
+                                {s.phone && <span>Tel: {s.phone}</span>}
+                            </div>
+                            <p className="text-[10px] font-black text-violet-500 uppercase mt-1 truncate">TM: {s.cargoTM || '-'} | TT: {s.cargoTT || '-'}</p>
                         </div>
                         <ChevronRight size={18} className="text-gray-300"/>
                     </div>
                 ))}
+                {filteredStaff.length === 0 && <p className="text-center text-gray-400 font-bold text-sm py-10">No se encontraron docentes.</p>}
             </div>
         </div>
       )}
-
-      {/* MODAL FORMULARIO DOCENTE */}
+    {/* MODAL FORMULARIO DOCENTE */}
       {showStaffForm && (
           <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4 backdrop-blur-sm animate-in zoom-in-95">
-              <div className="bg-white rounded-[40px] w-full max-w-lg p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+              <div className="bg-white rounded-[40px] w-full max-w-lg p-8 shadow-2xl max-h-[90vh] overflow-y-auto border-t-8 border-violet-600">
                   <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-xl font-black text-violet-900 uppercase italic">Legajo Docente</h3>
+                      <h3 className="text-xl font-black text-violet-900 uppercase italic">{editingStaff ? 'Editar Legajo' : 'Nuevo Legajo'}</h3>
                       <button onClick={()=>setShowStaffForm(false)}><X size={24} className="text-gray-300"/></button>
                   </div>
+                  
+                  {/* FOTO */}
+                  <div className="flex justify-center mb-6">
+                      <div className="relative group w-24 h-24">
+                          <div className="w-24 h-24 rounded-3xl overflow-hidden border-4 border-violet-100 bg-gray-50 shadow-inner flex items-center justify-center">
+                              {photoPreview || editingStaff?.photoUrl ? <img src={photoPreview || editingStaff?.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-gray-300"/>}
+                          </div>
+                          <label className="absolute -bottom-2 -right-2 bg-violet-600 text-white p-2 rounded-full cursor-pointer hover:bg-violet-700 shadow-lg border-2 border-white transition-transform hover:scale-110">
+                              <input type="file" className="hidden" accept="image/*" onChange={handlePhotoChange} />
+                              {uploading ? <RefreshCw className="animate-spin" size={14}/> : <Edit3 size={14}/>}
+                          </label>
+                      </div>
+                  </div>
+
                   <form onSubmit={handleSaveStaff} className="space-y-4">
-                      <div className="grid grid-cols-2 gap-3">
-                          <input name="firstName" defaultValue={editingStaff?.firstName} placeholder="Nombre" required className="p-3 bg-gray-50 rounded-xl w-full border-none outline-none font-bold text-sm"/>
-                          <input name="lastName" defaultValue={editingStaff?.lastName} placeholder="Apellido" required className="p-3 bg-gray-50 rounded-xl w-full border-none outline-none font-bold text-sm"/>
+                      {/* DATOS PERSONALES */}
+                      <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-3">
+                          <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Datos Personales</h4>
+                          <div className="grid grid-cols-2 gap-3">
+                              <input name="firstName" defaultValue={editingStaff?.firstName} placeholder="Nombre" required className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
+                              <input name="lastName" defaultValue={editingStaff?.lastName} placeholder="Apellido" required className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                              <input name="dni" defaultValue={editingStaff?.dni} placeholder="DNI" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
+                              <input name="birthDate" type="date" defaultValue={editingStaff?.birthDate} className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-xs text-gray-500"/>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                              <input name="phone" defaultValue={editingStaff?.phone} placeholder="Celular" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
+                              <input name="email" defaultValue={editingStaff?.email} placeholder="Email" type="email" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
+                          </div>
+                          <input name="address" defaultValue={editingStaff?.address} placeholder="Dirección" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
-                          <input name="dni" defaultValue={editingStaff?.dni} placeholder="DNI" className="p-3 bg-gray-50 rounded-xl w-full border-none outline-none font-bold text-sm"/>
-                          <input name="cargoTM" defaultValue={editingStaff?.cargoTM} placeholder="Cargo Mañana" className="p-3 bg-gray-50 rounded-xl w-full border-none outline-none font-bold text-sm"/>
+
+                      {/* DATOS ESCOLARES */}
+                      <div className="bg-violet-50 p-4 rounded-2xl border border-violet-100 space-y-3">
+                          <h4 className="text-[10px] font-black text-violet-400 uppercase tracking-widest">Contratación</h4>
+                          <div className="grid grid-cols-2 gap-3">
+                              <select name="modality" defaultValue={editingStaff?.modality || 'Sede'} className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900">
+                                  <option value="Sede">Sede</option>
+                                  <option value="Inclusión">Inclusión</option>
+                              </select>
+                              <select name="isSubsidized" defaultValue={editingStaff?.isSubsidized ? 'true' : 'false'} className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900">
+                                  <option value="false">Sin Subvención</option>
+                                  <option value="true">Subvencionado</option>
+                              </select>
+                          </div>
+                          <input name="role" defaultValue={editingStaff?.role} placeholder="Rol (Ej: Docente, DAI, Auxiliar)" className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-sm text-violet-900"/>
+                          <div className="grid grid-cols-2 gap-3">
+                              <input name="cargoTM" defaultValue={editingStaff?.cargoTM} placeholder="Cargo TM (Ej: MG meca)" className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-sm text-violet-900"/>
+                              <input name="cargoTT" defaultValue={editingStaff?.cargoTT} placeholder="Cargo TT (Ej: IM deno)" className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-sm text-violet-900"/>
+                          </div>
+                          <input name="studyStatus" defaultValue={editingStaff?.studyStatus} placeholder="Estado Estudios (Ej: Finalizado, En curso)" className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-sm text-violet-900"/>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
-                          <input name="cargoTT" defaultValue={editingStaff?.cargoTT} placeholder="Cargo Tarde" className="p-3 bg-gray-50 rounded-xl w-full border-none outline-none font-bold text-sm"/>
-                          <input name="startDate" type="date" defaultValue={editingStaff?.startDate} className="p-3 bg-gray-50 rounded-xl w-full border-none outline-none font-bold text-xs text-gray-400"/>
-                      </div>
-                      <button type="submit" className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg hover:bg-violet-700 transition">Guardar Legajo</button>
-                      {editingStaff && <button type="button" onClick={async () => {if(confirm("¿Borrar?")) {await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); setShowStaffForm(false);}}} className="w-full py-2 text-red-400 font-bold text-xs hover:text-red-500">Eliminar definitivamente</button>}
+
+                      <button type="submit" className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-violet-700 transition">Guardar Legajo</button>
+                      {editingStaff && <button type="button" onClick={async () => {if(confirm("¿Eliminar definitivamente?")) {await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); setShowStaffForm(false);}}} className="w-full py-2 text-red-400 font-bold text-xs hover:text-red-500">Eliminar definitivamente</button>}
                   </form>
               </div>
           </div>
@@ -3347,6 +3440,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
