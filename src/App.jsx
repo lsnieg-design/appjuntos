@@ -655,9 +655,17 @@ function TasksView({ tasks = [], user, canEdit }) {
   const visibleTasks = tasks.filter(t => {
     if (!t) return false;
     const isMine = (t.createdById === user.id || t.targetUserIds?.includes(user.id) || (user.role && t.targetRoles?.includes(user.role)));
-    if (filter === 'completed') return t.status === 'completed' && (isSuperAdmin ? true : isMine);
+    
+    // Modo Gran Hermano (isSuperAdmin viendo "all")
+    if (isSuperAdmin && viewMode === 'all') {
+      if (filter === 'completed') return t.status === 'completed';
+      return t.status !== 'completed'; // Ve todas las pendientes, suyas o de otros
+    }
+
+    // Modo Normal (Viendo solo "mine")
+    if (filter === 'completed') return t.status === 'completed' && isMine;
     if (t.status === 'completed') return false;
-    return isSuperAdmin && viewMode === 'all' ? !isMine : isMine;
+    return isMine;
   }).sort((a,b) => (a.dueDate || '9999') > (b.dueDate || '9999') ? 1 : -1);
 
   const addComment = async (task) => { if (!newComment.trim()) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion({ text: newComment, author: user.firstName, date: new Date().toISOString() }) }); setNewComment(""); };
@@ -673,7 +681,14 @@ function TasksView({ tasks = [], user, canEdit }) {
           <div className="flex gap-2 mt-1">
             <button onClick={() => setFilter('pending')} className={`text-[10px] px-2 py-1 rounded-lg font-bold ${filter==='pending'?'bg-violet-100 text-violet-700':'text-gray-400'}`}>Activas</button>
             <button onClick={() => setFilter('completed')} className={`text-[10px] px-2 py-1 rounded-lg font-bold ${filter==='completed'?'bg-green-100 text-green-700':'text-gray-400'}`}>Listas</button>
-            {isSuperAdmin && <button onClick={() => setViewMode(viewMode === 'mine' ? 'all' : 'mine')} className="text-[10px] px-2 py-1 rounded-lg font-bold bg-gray-100 text-gray-500">{viewMode === 'mine' ? '👤 Mías' : '🌍 Todas'}</button>}
+           {isSuperAdmin && (
+              <button 
+                onClick={() => setViewMode(viewMode === 'mine' ? 'all' : 'mine')} 
+                className={`text-[10px] px-2 py-1 rounded-lg font-bold border transition-colors ${viewMode === 'all' ? 'bg-orange-100 text-orange-700 border-orange-200 shadow-inner' : 'bg-gray-100 text-gray-500 border-gray-200'}`}
+              >
+                {viewMode === 'mine' ? '👤 Mis Tareas' : '👁️ Auditoría General'}
+              </button>
+            )}
           </div>
         </div>
         <button onClick={() => { setEditingTask(null); setSelectedUsersObj([]); setShowModal(true); }} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:scale-105 transition-all"><Plus size={20}/></button>
@@ -719,7 +734,7 @@ function TasksView({ tasks = [], user, canEdit }) {
                 </div>
                 <div className="flex gap-2">
                   <input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribe..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" />
-                  <button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg">➡️</button>
+                  <button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg shadow-md hover:bg-violet-700 transition active:scale-95"><Send size={16}/></button>
                 </div>
               </div>
             )}
@@ -1812,9 +1827,9 @@ const findDuplicates = () => {
   // Lógica para mostrar la etiqueta correcta (Grupo o DAI)
   const getGroupLabel = (s) => {
       if (s.modality === 'Inclusión') {
-          return s.daiMorning || s.daiAfternoon ? `DAI: ${s.daiMorning || s.daiAfternoon}` : '⚠️ Sin DAI asignada';
+          return s.daiMorning || s.daiAfternoon ? `DAI: ${s.daiMorning || s.daiAfternoon}` : <><AlertTriangle size={10} className="inline mr-1 mb-0.5"/> Sin DAI</>';
       }
-      return s.groupMorning || s.groupAfternoon ? `Grupo: ${s.groupMorning || s.groupAfternoon}` : '⚠️ Sin grupo';
+      return s.groupMorning || s.groupAfternoon ? `Grupo: ${s.groupMorning || s.groupAfternoon}` : '<><AlertTriangle size={10} className="inline mr-1 mb-0.5"/> Sin grupo</>';
   };
   // ==========================================
   // 8. RENDERIZADO (JSX)
@@ -1875,8 +1890,8 @@ const findDuplicates = () => {
                               : 'bg-gray-100 text-gray-500'
                             }`}>
                                 {s.modality === 'Inclusión' 
-                                    ? (s.daiMorning || s.daiAfternoon ? `DAI: ${s.daiMorning || s.daiAfternoon}` : '⚠️ Sin DAI') 
-                                    : (s.groupMorning || s.groupAfternoon ? `Grupo: ${s.groupMorning || s.groupAfternoon}` : '⚠️ Sin grupo')}
+                                    ? (s.daiMorning || s.daiAfternoon ? `DAI: ${s.daiMorning || s.daiAfternoon}` : '<><AlertTriangle size={10} className="inline mr-1 mb-0.5"/> Sin DAI</>') 
+                                    : (s.groupMorning || s.groupAfternoon ? `Grupo: ${s.groupMorning || s.groupAfternoon}` : '<><AlertTriangle size={10} className="inline mr-1 mb-0.5"/> Sin grupo</>')}
                             </span>
                         </div>
                     </div>
@@ -1996,7 +2011,13 @@ const findDuplicates = () => {
                     <div className={`p-3 rounded-xl border mb-2 flex justify-between items-center ${editingStudent?.isActive === false ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
                         <div>
                             <label className="text-xs font-bold text-gray-700 uppercase">Estado Actual</label>
-                            <p className="text-[10px] text-gray-500 font-bold">{editingStudent?.isActive === false ? '🛑 BAJA / INACTIVO' : '✅ ACTIVO (CURSANDO)'}</p>
+                            <p className="text-[10px] text-gray-500 font-bold flex items-center gap-1">
+  {editingStudent?.isActive === false ? (
+    <><AlertCircle size={12} className="text-red-500"/> BAJA / INACTIVO</>
+  ) : (
+    <><CheckCircle size={12} className="text-green-500"/> ACTIVO (CURSANDO)</>
+  )}
+</p>
                         </div>
                         <select name="isActive" defaultValue={editingStudent?.isActive === false ? 'false' : 'true'} className="p-2 rounded-lg border text-xs font-bold bg-white outline-none">
                             <option value="true">Activo</option>
@@ -3129,8 +3150,8 @@ const handleImportStaff = async (e) => {
                                               : 'bg-gray-100 text-gray-500'
                                           }`}>
                                               {s.modality === 'Inclusión' 
-                                                  ? (s.daiMorning || s.daiAfternoon ? `DAI: ${s.daiMorning || s.daiAfternoon}` : '⚠️ Sin DAI') 
-                                                  : (s.groupMorning || s.groupAfternoon ? `Grupo: ${s.groupMorning || s.groupAfternoon}` : '⚠️ Sin grupo')}
+                                                  ? (s.daiMorning || s.daiAfternoon ? `DAI: ${s.daiMorning || s.daiAfternoon}` : '<><AlertTriangle size={10} className="inline mr-1 mb-0.5"/> Sin DAI</>I') 
+                                                  : (s.groupMorning || s.groupAfternoon ? `Grupo: ${s.groupMorning || s.groupAfternoon}` : '<><AlertTriangle size={10} className="inline mr-1 mb-0.5"/> Sin grupo</>')}
                                           </span>
                                           <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full uppercase shrink-0">{s.level}</span>
                                       </div>
@@ -3229,6 +3250,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
