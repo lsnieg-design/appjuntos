@@ -2547,14 +2547,53 @@ function GroupsView({ user }) {
   }, []);
 
   // --- AGRUPAMIENTO DE DATOS ---
+ // --- AGRUPAMIENTO DE DATOS ---
   const groupedData = students.reduce((acc, s) => {
-      let groupKey = ""; let myTeacher = "";
       const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-      const sAux = s[`aux${suf}`]; const sTeacher2 = s[`teacher2${suf}`]; const sSpecial1 = s[`special1${suf}`]; const sSpecial2 = s[`special2${suf}`]; const sSpecial3 = s[`special3${suf}`]; const sSup1 = s[`sup1${suf}`]; const sSup2 = s[`sup2${suf}`]; const sClass = s.classroom; const sDrive = s[`driveLink${suf}`];
-      if (s.modality === 'Inclusión') { const daiName = s[`dai${suf}`]; if (!daiName) return acc; groupKey = `DAI: ${daiName}`; myTeacher = daiName; } else { const groupName = s[`group${suf}`]; if (!groupName) return acc; groupKey = groupName.trim(); myTeacher = s[`teacher${suf}`]; }
-      if (!acc[groupKey]) { acc[groupKey] = { name: groupKey, students: [], teacher: myTeacher, teacher2: sTeacher2, aux: sAux, special1: sSpecial1, special2: sSpecial2, special3: sSpecial3, sup1: sSup1, sup2: sSup2, classroom: sClass, driveLink: sDrive, isInclusionGroup: s.modality === 'Inclusión' }; } 
-      else { if (!acc[groupKey].aux && sAux) acc[groupKey].aux = sAux; if (!acc[groupKey].teacher2 && sTeacher2) acc[groupKey].teacher2 = sTeacher2; if (!acc[groupKey].special1 && sSpecial1) acc[groupKey].special1 = sSpecial1; if (!acc[groupKey].special2 && sSpecial2) acc[groupKey].special2 = sSpecial2; if (!acc[groupKey].special3 && sSpecial3) acc[groupKey].special3 = sSpecial3; if (!acc[groupKey].sup1 && sSup1) acc[groupKey].sup1 = sSup1; if (!acc[groupKey].sup2 && sSup2) acc[groupKey].sup2 = sSup2; if (!acc[groupKey].classroom && sClass) acc[groupKey].classroom = sClass; if (!acc[groupKey].driveLink && sDrive) acc[groupKey].driveLink = sDrive; if (!acc[groupKey].teacher && myTeacher) acc[groupKey].teacher = myTeacher; }
-      acc[groupKey].students.push(s); return acc;
+      
+      if (s.modality === 'Inclusión') {
+          // Para Inclusión ignoramos el turno. Juntamos daiMorning y daiAfternoon en la misma lista.
+          const dais = [...new Set([s.daiMorning, s.daiAfternoon].filter(Boolean))];
+          dais.forEach(daiName => {
+              const groupKey = `DAI: ${daiName}`;
+              if (!acc[groupKey]) {
+                  acc[groupKey] = { name: groupKey, students: [], teacher: daiName, isInclusionGroup: true };
+              }
+              // Evitar agregarlo dos veces si tiene la misma DAI en ambos turnos
+              if (!acc[groupKey].students.find(x => x.id === s.id)) {
+                  acc[groupKey].students.push(s);
+              }
+          });
+      } else {
+          // Para Sede, mantenemos la separación estricta por turno
+          const groupName = s[`group${suf}`];
+          if (!groupName) return acc;
+          const groupKey = groupName.trim();
+          const myTeacher = s[`teacher${suf}`];
+          
+          if (!acc[groupKey]) { 
+              acc[groupKey] = { 
+                  name: groupKey, students: [], teacher: myTeacher, 
+                  teacher2: s[`teacher2${suf}`], aux: s[`aux${suf}`], 
+                  special1: s[`special1${suf}`], special2: s[`special2${suf}`], special3: s[`special3${suf}`], 
+                  sup1: s[`sup1${suf}`], sup2: s[`sup2${suf}`], 
+                  classroom: s.classroom, driveLink: s[`driveLink${suf}`], isInclusionGroup: false 
+              }; 
+          } else { 
+              if (!acc[groupKey].aux && s[`aux${suf}`]) acc[groupKey].aux = s[`aux${suf}`]; 
+              if (!acc[groupKey].teacher2 && s[`teacher2${suf}`]) acc[groupKey].teacher2 = s[`teacher2${suf}`]; 
+              if (!acc[groupKey].special1 && s[`special1${suf}`]) acc[groupKey].special1 = s[`special1${suf}`]; 
+              if (!acc[groupKey].special2 && s[`special2${suf}`]) acc[groupKey].special2 = s[`special2${suf}`]; 
+              if (!acc[groupKey].special3 && s[`special3${suf}`]) acc[groupKey].special3 = s[`special3${suf}`]; 
+              if (!acc[groupKey].sup1 && s[`sup1${suf}`]) acc[groupKey].sup1 = s[`sup1${suf}`]; 
+              if (!acc[groupKey].sup2 && s[`sup2${suf}`]) acc[groupKey].sup2 = s[`sup2${suf}`]; 
+              if (!acc[groupKey].classroom && s.classroom) acc[groupKey].classroom = s.classroom; 
+              if (!acc[groupKey].driveLink && s[`driveLink${suf}`]) acc[groupKey].driveLink = s[`driveLink${suf}`]; 
+              if (!acc[groupKey].teacher && myTeacher) acc[groupKey].teacher = myTeacher; 
+          }
+          acc[groupKey].students.push(s); 
+      }
+      return acc;
   }, {});
 
   let groups = Object.values(groupedData).sort((a, b) => a.name.localeCompare(b.name));
@@ -2648,8 +2687,41 @@ function GroupsView({ user }) {
   const handleSaveIncident = async (type, severity) => { if (!showBitacoraModal) return; setSavingIncident(true); try { const incidentData = { type, severity, date: new Date().toISOString(), author: user.fullName || user.firstName, authorId: user.id }; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id), { incidents: arrayUnion(incidentData) }); alert("✅ Registro guardado"); setShowBitacoraModal(null); } catch (e) { console.error(e); } finally { setSavingIncident(false); } };
   const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
   
-  const handleUpdateGroup = async (e) => { e.preventDefault(); if (!editingGroup) return; if (editingGroup.isInclusionGroup && !confirm("⚠️ Estás editando un grupo de INCLUSIÓN.")) return; setUpdatingGroup(true); const fd = new FormData(e.target); const updates = {}; const suf = turn === 'morning' ? 'Morning' : 'Afternoon'; if (editingGroup.isInclusionGroup) { updates[`dai${suf}`] = fd.get('teacher'); } else { updates[`teacher${suf}`] = fd.get('teacher'); updates[`teacher2${suf}`] = fd.get('teacher2'); updates[`aux${suf}`] = fd.get('aux'); updates[`special1${suf}`] = fd.get('special1'); updates[`special2${suf}`] = fd.get('special2'); updates[`special3${suf}`] = fd.get('special3'); updates[`sup1${suf}`] = fd.get('sup1'); updates[`sup2${suf}`] = fd.get('sup2'); updates[`group${suf}`] = fd.get('groupName'); updates.classroom = fd.get('classroom'); } updates[`driveLink${suf}`] = fd.get('driveLink'); try { const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)); await Promise.all(promises); alert("✅ Actualizado."); setEditingGroup(null); } catch (err) { alert(err.message); } finally { setUpdatingGroup(false); } };
-  
+  const handleUpdateGroup = async (e) => { 
+      e.preventDefault(); 
+      if (!editingGroup) return; 
+      if (editingGroup.isInclusionGroup && !confirm("⚠️ Estás editando un grupo de INCLUSIÓN. Esto cambiará la DAI para todos los alumnos de la lista.")) return; 
+      
+      setUpdatingGroup(true); 
+      const fd = new FormData(e.target); 
+      const updates = {}; 
+      const suf = turn === 'morning' ? 'Morning' : 'Afternoon'; 
+      
+      if (editingGroup.isInclusionGroup) { 
+          // Para Inclusión, actualizamos en ambos turnos porque ahora están unificados
+          updates['daiMorning'] = fd.get('teacher'); 
+          updates['daiAfternoon'] = fd.get('teacher'); 
+      } else { 
+          updates[`teacher${suf}`] = fd.get('teacher'); 
+          updates[`teacher2${suf}`] = fd.get('teacher2'); 
+          updates[`aux${suf}`] = fd.get('aux'); 
+          updates[`special1${suf}`] = fd.get('special1'); 
+          updates[`special2${suf}`] = fd.get('special2'); 
+          updates[`special3${suf}`] = fd.get('special3'); 
+          updates[`sup1${suf}`] = fd.get('sup1'); 
+          updates[`sup2${suf}`] = fd.get('sup2'); 
+          updates[`group${suf}`] = fd.get('groupName'); 
+          updates.classroom = fd.get('classroom'); 
+      } 
+      updates[`driveLink${suf}`] = fd.get('driveLink'); 
+      
+      try { 
+          const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)); 
+          await Promise.all(promises); 
+          alert("✅ Actualizado."); 
+          setEditingGroup(null); 
+      } catch (err) { alert(err.message); } finally { setUpdatingGroup(false); } 
+  };
   const staffOptions = usersList.filter(u => ['Docente', 'Auxiliar/Preceptor', 'Equipo Técnico', 'Profes Especiales', 'DAI', 'Inclusión'].includes(u.role));
   const techOptions = usersList.filter(u => u.role === 'Equipo Técnico' || u.role === 'Equipo Técnico Inclusión' || u.role === 'Trabajadora Social');
   const specialOptions = usersList.filter(u => u.role === 'Profes Especiales' || u.role === 'Docente');
@@ -3265,6 +3337,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
