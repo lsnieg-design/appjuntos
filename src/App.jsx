@@ -2688,10 +2688,10 @@ function GroupsView({ user }) {
                               <button onClick={()=>handlePrintSingleGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>
                               {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"><Edit3 size={14}/></button>}
                           </div>
-                          <div className="flex items-center gap-2">
-    <h3 className="font-black text-gray-800 text-lg">{g.name}</h3>
-    <span className="bg-white/60 text-gray-500 px-2 py-0.5 rounded-full text-[10px] font-black shadow-sm border border-gray-100">
-        {g.students.length} ALUMNOS
+                          <div className="flex items-center gap-2 pr-24 flex-wrap">
+    <h3 className="font-black text-gray-800 text-lg leading-tight">{g.name}</h3>
+    <span className="bg-white/80 text-violet-700 px-2 py-0.5 rounded-md text-[9px] font-black shadow-sm border border-violet-100 shrink-0">
+        {g.students.length} ALUMNXS
     </span>
 </div>
                           <div className="mt-2 text-xs text-gray-500 font-medium space-y-1">
@@ -3265,6 +3265,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
