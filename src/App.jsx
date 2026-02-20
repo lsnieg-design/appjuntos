@@ -3162,7 +3162,7 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
   if (!canAccess) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido.</div>;
 const handleImportStaff = async (e) => {
       const file = e.target.files[0];
-      if (!file || !confirm("⚠️ ¿Importar archivo CSV estructurado?")) return;
+      if (!file || !confirm("⚠️ ¿Importar archivo CSV completo?")) return;
       setProcessing(true);
       const reader = new FileReader();
       reader.onload = async (evt) => {
@@ -3170,10 +3170,14 @@ const handleImportStaff = async (e) => {
               const rows = evt.target.result.split('\n').slice(1).filter(r => r.trim() !== '');
               const promises = rows.map(row => {
                   const cols = row.split(';');
+                  // 0:Apellido, 1:Nombre, 2:DNI, 3:FechaNac, 4:Direccion, 5:Celular, 6:TelEmergencia
+                  // 7:Email, 8:EstadoEstudios, 9:Titulo, 10:Rol, 11:Modalidad, 12:Subvencion
+                  // 13:C1_Cargo, 14:C1_Tipo, 15:C1_Turno, 16:C1_Revista
+                  // 17:C2_Cargo, 18:C2_Tipo, 19:C2_Turno, 20:C2_Revista
                   
-                  // Formatear fecha de nac (viene como DD/MM/YYYY)
+                  // Formatear fecha de nac
                   let bDate = "";
-                  const rawDate = cols[12]?.trim();
+                  const rawDate = cols[3]?.trim();
                   if (rawDate) {
                       const parts = rawDate.split('/');
                       if (parts.length === 3) bDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
@@ -3181,11 +3185,13 @@ const handleImportStaff = async (e) => {
 
                   return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), {
                       lastName: cols[0]?.trim() || '', firstName: cols[1]?.trim() || '', dni: cols[2]?.trim() || '',
-                      isSubsidized: cols[3]?.trim() === 'SI' ? 'true' : 'false',
-                      cargo1_name: cols[4]?.trim() || '', cargo1_type: cols[5]?.trim() || '', cargo1_turn: cols[6]?.trim() || '', cargo1_revista: cols[7]?.trim() || '',
-                      cargo2_name: cols[8]?.trim() || '', cargo2_type: cols[9]?.trim() || '', cargo2_turn: cols[10]?.trim() || '', cargo2_revista: cols[11]?.trim() || '',
-                      birthDate: bDate, address: cols[13]?.trim() || '', phone: cols[14]?.trim() || '', email: cols[15]?.trim() || '',
-                      studyStatus: cols[16]?.trim() || '', role: cols[17]?.trim() || 'Docente', modality: cols[18]?.trim() || 'Sede',
+                      birthDate: bDate, address: cols[4]?.trim() || '', phone: cols[5]?.trim() || '',
+                      emergencyContact: cols[6]?.trim() || '', email: cols[7]?.trim() || '',
+                      studyStatus: cols[8]?.trim() || '', degree: cols[9]?.trim() || '',
+                      role: cols[10]?.trim() || 'Docente', modality: cols[11]?.trim() || 'Sede',
+                      isSubsidized: cols[12]?.trim() === 'SI' ? 'true' : 'false',
+                      cargo1_name: cols[13]?.trim() || '', cargo1_type: cols[14]?.trim() || '', cargo1_turn: cols[15]?.trim() || '', cargo1_revista: cols[16]?.trim() || '',
+                      cargo2_name: cols[17]?.trim() || '', cargo2_type: cols[18]?.trim() || '', cargo2_turn: cols[19]?.trim() || '', cargo2_revista: cols[20]?.trim() || '',
                       createdAt: serverTimestamp()
                   });
               });
@@ -3391,6 +3397,7 @@ const handleImportStaff = async (e) => {
 
                   <form onSubmit={handleSaveStaff} className="space-y-4">
                       {/* DATOS PERSONALES */}
+                     {/* DATOS PERSONALES */}
                       <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-3">
                           <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Datos Personales</h4>
                           <div className="grid grid-cols-2 gap-3">
@@ -3406,6 +3413,7 @@ const handleImportStaff = async (e) => {
                               <input name="email" defaultValue={editingStaff?.email} placeholder="Email" type="email" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
                           </div>
                           <input name="address" defaultValue={editingStaff?.address} placeholder="Dirección" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
+                          <input name="emergencyContact" defaultValue={editingStaff?.emergencyContact} placeholder="Teléfono/Contacto de Emergencia" className="p-3 bg-red-50 text-red-800 rounded-xl w-full border border-red-100 outline-none font-bold text-xs"/>
                       </div>
 
                       {/* CONTRATACIÓN Y CARGOS */}
@@ -3413,7 +3421,7 @@ const handleImportStaff = async (e) => {
                           <div className="flex justify-between items-center border-b border-violet-200 pb-2">
                               <h4 className="text-[10px] font-black text-violet-500 uppercase tracking-widest">Contratación</h4>
                               <div className="flex gap-2">
-                                  <select name="modality" defaultValue={editingStaff?.modality || 'Sede'} className="p-1 bg-white rounded-lg border border-violet-200 outline-none font-bold text-[10px] text-violet-900"><option value="Sede">Sede</option><option value="Inclusión">Inclusión</option></select>
+                                  <select name="modality" defaultValue={editingStaff?.modality || 'Sede'} className="p-1 bg-white rounded-lg border border-violet-200 outline-none font-bold text-[10px] text-violet-900"><option value="Sede">Sede</option><option value="Inclusión">Inclusión</option><option value="Ambos">Ambos</option></select>
                                   <select name="isSubsidized" defaultValue={editingStaff?.isSubsidized ? 'true' : 'false'} className="p-1 bg-white rounded-lg border border-violet-200 outline-none font-bold text-[10px] text-violet-900"><option value="false">Sin Subvención</option><option value="true">Subvencionada</option></select>
                               </div>
                           </div>
@@ -3426,7 +3434,7 @@ const handleImportStaff = async (e) => {
                                   <select name="cargo1_type" defaultValue={editingStaff?.cargo1_type} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Tipo...</option><option value="meca">Mecanizada</option><option value="deno">Deno</option></select>
                               </div>
                               <div className="grid grid-cols-2 gap-2">
-                                  <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Turno...</option><option value="mañana">Mañana</option><option value="tarde">Tarde</option><option value="doble">Doble</option><option value="simple">Simple</option></select>
+                                  <input name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn} placeholder="Turno (Ej: mañana, 12hs)" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"/>
                                   <select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Revista...</option><option value="Titular">Titular</option><option value="Provicional">Provisional</option><option value="Suplente">Suplente</option></select>
                               </div>
                           </div>
@@ -3439,13 +3447,20 @@ const handleImportStaff = async (e) => {
                                   <select name="cargo2_type" defaultValue={editingStaff?.cargo2_type} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Tipo...</option><option value="meca">Mecanizada</option><option value="deno">Deno</option></select>
                               </div>
                               <div className="grid grid-cols-2 gap-2">
-                                  <select name="cargo2_turn" defaultValue={editingStaff?.cargo2_turn} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Turno...</option><option value="mañana">Mañana</option><option value="tarde">Tarde</option><option value="doble">Doble</option><option value="simple">Simple</option></select>
+                                  <input name="cargo2_turn" defaultValue={editingStaff?.cargo2_turn} placeholder="Turno (Ej: tarde, 4hs)" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"/>
                                   <select name="cargo2_revista" defaultValue={editingStaff?.cargo2_revista} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Revista...</option><option value="Titular">Titular</option><option value="Provicional">Provisional</option><option value="Suplente">Suplente</option></select>
                               </div>
                           </div>
                           
-                          <input name="studyStatus" defaultValue={editingStaff?.studyStatus} placeholder="Estado de Estudios (Ej: Finalizado, En curso)" className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900"/>
+                          <div className="grid grid-cols-2 gap-2">
+                              <select name="studyStatus" defaultValue={editingStaff?.studyStatus} className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900"><option value="">Estado Estudios...</option><option value="Finalizado">Finalizado</option><option value="En curso 0% - 30%">En curso 0% - 30%</option><option value="En curso 30% - 50%">En curso 30% - 50%</option><option value="En curso 50% - 70%">En curso 50% - 70%</option><option value="En curso 70% - 99%">En curso 70% - 99%</option></select>
+                              <input name="role" defaultValue={editingStaff?.role} placeholder="Rol Principal (Ej: Docente, DAI)" className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900"/>
+                          </div>
+                          <input name="degree" defaultValue={editingStaff?.degree} placeholder="Título Alcanzado / En curso" className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900"/>
                       </div>
+
+                      <button type="submit" className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-violet-700 transition">Guardar Legajo</button>
+                      {editingStaff && <button type="button" onClick={async () => {if(confirm("¿Eliminar definitivamente?")) {await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); setShowStaffForm(false);}}} className="w-full py-2 text-red-400 font-bold text-xs hover:text-red-500">Eliminar definitivamente</button>}
 
                       <button type="submit" className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-violet-700 transition">Guardar Legajo</button>
                       {editingStaff && <button type="button" onClick={async () => {if(confirm("¿Eliminar definitivamente?")) {await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); setShowStaffForm(false);}}} className="w-full py-2 text-red-400 font-bold text-xs hover:text-red-500">Eliminar definitivamente</button>}
@@ -3475,6 +3490,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
