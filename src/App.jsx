@@ -2839,19 +2839,20 @@ function AdministracionView({ user }) {
   const [filterText, setFilterText] = useState('');
   const [filters, setFilters] = useState({ os: 'all', level: 'all', modality: 'all' });
   
-  // ESTADOS DOCUMENTOS
+  /// ESTADOS DOCUMENTOS
   const [template, setTemplate] = useState('constancia_regular'); 
   const [generating, setGenerating] = useState(false);
+
+  // ESTADOS STAFF
   const [mainTab, setMainTab] = useState('docs'); // 'docs' o 'staff'
-  const [mainTab, setMainTab] = useState('docs'); // 'docs' o 'staff'
-  const [staffList, setStaffList] = useState([]);
-  const [staffFilterText, setStaffFilterText] = useState('');
-  const [staffModalityFilter, setStaffModalityFilter] = useState('all');
-  const [showStaffForm, setShowStaffForm] = useState(false);
-  const [editingStaff, setEditingStaff] = useState(null);
-  const [processing, setProcessing] = useState(false);
-  const [photoPreview, setPhotoPreview] = useState(null);
-  const [uploading, setUploading] = useState(false);
+  const [staffList, setStaffList] = useState([]);
+  const [staffFilterText, setStaffFilterText] = useState('');
+  const [staffModalityFilter, setStaffModalityFilter] = useState('all');
+  const [showStaffForm, setShowStaffForm] = useState(false);
+  const [editingStaff, setEditingStaff] = useState(null);
+  const [processing, setProcessing] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
   
   // ESTADOS VARIABLES
   const [customTarget, setCustomTarget] = useState(""); 
@@ -3440,6 +3441,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
