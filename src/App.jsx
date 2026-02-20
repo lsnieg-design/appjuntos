@@ -1825,11 +1825,15 @@ const findDuplicates = () => {
     }
   };
   // Lógica para mostrar la etiqueta correcta (Grupo o DAI)
-  const getGroupLabel = (s) => {
+ const getGroupLabel = (s) => {
       if (s.modality === 'Inclusión') {
-          return s.daiMorning || s.daiAfternoon ? `DAI: ${s.daiMorning || s.daiAfternoon}` : <><AlertTriangle size={10} className="inline mr-1 mb-0.5"/> Sin DAI</>';
+          return s.daiMorning || s.daiAfternoon 
+            ? `DAI: ${s.daiMorning || s.daiAfternoon}` 
+            : <><AlertTriangle size={10} className="inline mr-1 mb-0.5"/> Sin DAI</>;
       }
-      return s.groupMorning || s.groupAfternoon ? `Grupo: ${s.groupMorning || s.groupAfternoon}` : '<><AlertTriangle size={10} className="inline mr-1 mb-0.5"/> Sin grupo</>';
+      return s.groupMorning || s.groupAfternoon 
+        ? `Grupo: ${s.groupMorning || s.groupAfternoon}` 
+        : <><AlertTriangle size={10} className="inline mr-1 mb-0.5"/> Sin grupo</>;
   };
   // ==========================================
   // 8. RENDERIZADO (JSX)
@@ -3250,6 +3254,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
