@@ -2861,7 +2861,7 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
 
       targets.forEach(s => {
           
-          let presentadoAnte = customTarget.trim() !== "" ? customTarget : '................................................';
+         let presentadoAnte = customTarget.trim() !== "" ? customTarget : (s.healthInsurance && s.healthInsurance.trim().length > 2 ? s.healthInsurance : '................................................');
 
           // === OPCIÓN 1: CONSTANCIA REGULAR (LLEVA FIRMA Y SELLO) ===
           if (template === 'constancia_regular') {
@@ -3083,13 +3083,7 @@ const handleImportStaff = async (e) => {
         </div>
     </div>
     <div className="flex flex-wrap gap-2 w-full md:w-auto">
-        {/* RECUPERADO: BOTONES DE GESTIÓN SUPER ADMIN */}
-        {isSuperAdmin && (
-            <div className="flex gap-2 mr-2 pr-2 border-r border-gray-200">
-                <button onClick={() => setShowDataManagement(true)} className="p-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-violet-100 hover:text-violet-600 transition" title="Gestión (Nube)"><UploadCloud size={18}/></button>
-                <button onClick={() => setShowStats(true)} className="p-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-violet-100 hover:text-violet-600 transition" title="Estadísticas"><PieChart size={18}/></button>
-            </div>
-        )}
+        
        <select 
     value={filters.os} 
     onChange={e => setFilters({...filters, os: e.target.value})} 
@@ -3254,6 +3248,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
