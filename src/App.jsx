@@ -3171,7 +3171,60 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
   };
 
   if (!canAccess) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido.</div>;
-const handleImportStaff = async (e) => {
+// --- IMPRIMIR FICHAS DOCENTES ---
+  const imprimirFichasDocentes = (lista) => {
+      if (!lista || lista.length === 0) return alert("No hay docentes para imprimir.");
+      
+      let html = `<html><head><title>Fichas Docentes</title>
+      <style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');body{font-family:'Roboto',sans-serif;padding:20px;}.page{border:1px solid #eee;padding:30px;margin-bottom:20px;border-radius:8px;page-break-after:always;max-width:800px;margin:0 auto 20px auto;border-top:10px solid #8b5cf6;}.header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #ddd;padding-bottom:20px;margin-bottom:20px;}.header-text h1{color:#5b21b6;font-size:24px;margin:0;text-transform:uppercase;}.header-text p{color:#666;font-size:14px;margin:5px 0 0 0;}.photo-box{width:80px;height:80px;background:#eee;border-radius:50%;overflow:hidden;border:3px solid #8b5cf6;display:flex;align-items:center;justify-content:center;font-size:30px;color:#aaa;}.photo-box img{width:100%;height:100%;object-fit:cover;}.section-title{background:#f3f4f6;color:#5b21b6;padding:8px 15px;font-weight:900;text-transform:uppercase;font-size:12px;border-radius:6px;margin-bottom:10px;border-left:5px solid #8b5cf6;}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px;}.field{margin-bottom:5px;}.label{display:block;font-size:9px;color:#888;text-transform:uppercase;font-weight:bold;}.value{font-size:12px;font-weight:bold;color:#333;}.footer{text-align:center;font-size:9px;color:#aaa;margin-top:30px;border-top:1px solid #eee;padding-top:10px;}</style></head><body>`;
+      
+      lista.forEach(s => {
+          let c1 = s.cargo1_name ? `${s.cargo1_name} (${s.cargo1_type}) - ${s.cargo1_turn} - ${s.cargo1_revista}` : '-';
+          let c2 = s.cargo2_name ? `${s.cargo2_name} (${s.cargo2_type}) - ${s.cargo2_turn} - ${s.cargo2_revista}` : '-';
+          
+          html += `<div class="page">
+              <div class="header">
+                  <div class="header-text">
+                      <h1>${s.lastName}, ${s.firstName}</h1>
+                      <p>DNI: ${s.dni || '-'} | Rol: ${s.role || 'Docente'}</p>
+                  </div>
+                  <div class="photo-box">${s.photoUrl ? `<img src="${s.photoUrl}"/>` : s.firstName?.[0] || 'U'}</div>
+              </div>
+              
+              <div class="section-title">Datos Personales y Contacto</div>
+              <div class="grid">
+                  <div class="field"><span class="label">Fecha Nacimiento</span><span class="value">${s.birthDate ? new Date(s.birthDate + 'T00:00:00').toLocaleDateString('es-AR') : '-'}</span></div>
+                  <div class="field"><span class="label">Teléfono / Celular</span><span class="value">${s.phone || '-'}</span></div>
+                  <div class="field"><span class="label">Email</span><span class="value">${s.email || '-'}</span></div>
+                  <div class="field"><span class="label">Contacto de Emergencia</span><span class="value" style="color:#dc2626">${s.emergencyContact || '-'}</span></div>
+              </div>
+              <div class="field" style="margin-bottom:15px;"><span class="label">Dirección</span><span class="value">${s.address || '-'}</span></div>
+              
+              <div class="section-title">Formación Académica</div>
+              <div class="grid">
+                  <div class="field"><span class="label">Estado de Estudios</span><span class="value">${s.studyStatus || '-'}</span></div>
+                  <div class="field"><span class="label">Título</span><span class="value">${s.degree || '-'}</span></div>
+              </div>
+
+              <div class="section-title">Datos de Contratación (${s.modality || 'Sede'})</div>
+              <div class="grid">
+                  <div class="field"><span class="label">Subvención</span><span class="value">${s.isSubsidized === 'true' || s.isSubsidized === true ? 'Sí, Subvencionada' : 'No Subvencionada'}</span></div>
+              </div>
+              <div class="field" style="margin-bottom:10px;"><span class="label">Cargo 1</span><span class="value">${c1}</span></div>
+              <div class="field"><span class="label">Cargo 2</span><span class="value">${c2}</span></div>
+              
+              <div class="footer">Juntos a la Par - Legajo Docente generado el ${new Date().toLocaleDateString('es-AR')}</div>
+          </div>`;
+      });
+      html += '</body></html>';
+
+      const iframe = document.createElement('iframe'); 
+      iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0'; 
+      document.body.appendChild(iframe); 
+      const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close(); 
+      setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
+  };
+  const handleImportStaff = async (e) => {
       const file = e.target.files[0];
       if (!file || !confirm("⚠️ ¿Importar archivo CSV completo?")) return;
       setProcessing(true);
@@ -3332,15 +3385,16 @@ const handleImportStaff = async (e) => {
         </div>
       ) : (
         <div className="space-y-4 animate-in slide-in-from-right px-4">
-            {/* SECCIÓN LEGAJOS DOCENTES */}
+       {/* SECCIÓN LEGAJOS DOCENTES */}
             <div className="flex justify-between items-center bg-white p-4 rounded-3xl border border-violet-100 shadow-sm">
                 <div><h3 className="font-black text-violet-900 uppercase italic">Personal de la Casa</h3><p className="text-[10px] text-gray-400 font-bold uppercase">{filteredStaff.length} Legajos</p></div>
                 <div className="flex gap-2">
-                    <label className="p-3 bg-emerald-100 text-emerald-700 rounded-2xl cursor-pointer hover:bg-emerald-200 transition">
+                    <button onClick={() => imprimirFichasDocentes(filteredStaff)} className="bg-white text-violet-600 border border-violet-200 p-3 rounded-2xl shadow-sm hover:bg-violet-50 transition flex items-center justify-center" title="Imprimir Lista Actual"><Printer size={20}/></button>
+                    <label className="p-3 bg-emerald-100 text-emerald-700 rounded-2xl cursor-pointer hover:bg-emerald-200 transition flex items-center justify-center">
                         {processing ? <RefreshCw className="animate-spin" size={20}/> : <UploadCloud size={20}/>}
                         <input type="file" accept=".csv" className="hidden" onChange={handleImportStaff} />
                     </label>
-                    <button onClick={()=>{setEditingStaff(null); setPhotoPreview(null); setShowStaffForm(true);}} className="bg-violet-600 text-white p-3 rounded-2xl shadow-lg"><Plus size={20}/></button>
+                    <button onClick={()=>{setEditingStaff(null); setPhotoPreview(null); setShowStaffForm(true);}} className="bg-violet-600 text-white p-3 rounded-2xl shadow-lg flex items-center justify-center"><Plus size={20}/></button>
                 </div>
             </div>
 
@@ -3359,11 +3413,11 @@ const handleImportStaff = async (e) => {
             {/* LISTA DOCENTES */}
             <div className="grid gap-3 max-h-[65vh] overflow-y-auto pb-10">
                 {filteredStaff.map(s => (
-                    <div key={s.id} onClick={()=>{setEditingStaff(s); setPhotoPreview(s.photoUrl); setShowStaffForm(true);}} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 cursor-pointer hover:border-violet-300 transition-all">
-                        <div className="w-14 h-14 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100">
+                    <div key={s.id} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all">
+                        <div onClick={()=>{setEditingStaff(s); setPhotoPreview(s.photoUrl); setShowStaffForm(true);}} className="w-14 h-14 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100 cursor-pointer">
                             {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName?.[0]}
                         </div>
-                        <div className="flex-1">
+                        <div onClick={()=>{setEditingStaff(s); setPhotoPreview(s.photoUrl); setShowStaffForm(true);}} className="flex-1 cursor-pointer">
                             <div className="flex gap-2 items-center">
                                 <h4 className="font-bold text-gray-800 text-sm uppercase">{s.lastName}, {s.firstName}</h4>
                                 <span className={`text-[8px] px-2 py-0.5 rounded-md font-black uppercase ${s.modality === 'Inclusión' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}`}>{s.modality || 'Sede'}</span>
@@ -3377,13 +3431,9 @@ const handleImportStaff = async (e) => {
                                 {s.cargo2_name ? ` | ${s.cargo2_name} (${s.cargo2_type})` : ''}
                             </p>
                         </div>
-                        <ChevronRight size={18} className="text-gray-300"/>
+                        <button onClick={(e) => { e.stopPropagation(); imprimirFichasDocentes([s]); }} className="p-3 bg-gray-50 text-violet-600 rounded-xl hover:bg-violet-100 hover:scale-105 transition" title="Imprimir Ficha"><Printer size={18}/></button>
                     </div>
                 ))}
-                {filteredStaff.length === 0 && <p className="text-center text-gray-400 font-bold text-sm py-10">No se encontraron docentes.</p>}
-            </div>
-        </div>
-      )}
     {/* MODAL FORMULARIO DOCENTE */}
       {showStaffForm && (
           <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4 backdrop-blur-sm animate-in zoom-in-95">
@@ -3499,6 +3549,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
