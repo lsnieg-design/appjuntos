@@ -3410,7 +3410,7 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
                 </select>
             </div>
 
-            {/* LISTA DOCENTES */}
+           {/* LISTA DOCENTES */}
             <div className="grid gap-3 max-h-[65vh] overflow-y-auto pb-10">
                 {filteredStaff.map(s => (
                     <div key={s.id} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all">
@@ -3434,6 +3434,10 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
                         <button onClick={(e) => { e.stopPropagation(); imprimirFichasDocentes([s]); }} className="p-3 bg-gray-50 text-violet-600 rounded-xl hover:bg-violet-100 hover:scale-105 transition" title="Imprimir Ficha"><Printer size={18}/></button>
                     </div>
                 ))}
+                {filteredStaff.length === 0 && <p className="text-center text-gray-400 font-bold text-sm py-10">No se encontraron docentes.</p>}
+            </div>
+        </div>
+      )}
     {/* MODAL FORMULARIO DOCENTE */}
       {showStaffForm && (
           <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4 backdrop-blur-sm animate-in zoom-in-95">
@@ -3549,6 +3553,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
