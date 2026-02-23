@@ -652,22 +652,33 @@ function TasksView({ tasks = [], user, canEdit }) {
     setUserSearch(""); 
   };
 
-  const visibleTasks = tasks.filter(t => {
+ const visibleTasks = tasks.filter(t => {
     if (!t) return false;
-    const isMine = (t.createdById === user.id || t.targetUserIds?.includes(user.id) || (user.role && t.targetRoles?.includes(user.role)));
     
-    // Modo Gran Hermano (isSuperAdmin viendo "all")
+    // Determinar si la tarea me pertenece (la creé yo, me la asignaron, o asignaron a mi rol)
+    const isMine = (
+      t.createdById === user.id || 
+      (t.targetUserIds && t.targetUserIds.includes(user.id)) || 
+      (user.role && t.targetRoles && t.targetRoles.includes(user.role))
+    );
+    
+    // MODO AUDITORÍA (SuperAdmin viendo "all")
     if (isSuperAdmin && viewMode === 'all') {
+      // Si el filtro es "completadas", mostrar TODAS las completadas
       if (filter === 'completed') return t.status === 'completed';
-      return t.status !== 'completed'; // Ve todas las pendientes, suyas o de otros
+      // Si el filtro es "pendientes", mostrar TODAS las pendientes
+      return t.status !== 'completed'; 
     }
 
-    // Modo Normal (Viendo solo "mine")
-    if (filter === 'completed') return t.status === 'completed' && isMine;
-    if (t.status === 'completed') return false;
-    return isMine;
+    // MODO NORMAL / "MIS TAREAS" (viewMode === 'mine')
+    // Mostrar SOLO mis tareas, aplicando el filtro de estado
+    if (filter === 'completed') {
+      return t.status === 'completed' && isMine;
+    } else {
+      return t.status !== 'completed' && isMine;
+    }
+    
   }).sort((a,b) => (a.dueDate || '9999') > (b.dueDate || '9999') ? 1 : -1);
-
   const addComment = async (task) => { if (!newComment.trim()) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion({ text: newComment, author: user.firstName, date: new Date().toISOString() }) }); setNewComment(""); };
   const handleDelete = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
   const changeStatus = async (task, newStatus) => { if (newStatus === 'completed' && !confirm("¿Lista?")) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
@@ -3488,6 +3499,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
