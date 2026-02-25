@@ -1185,7 +1185,7 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
   );
 }
 
-// --- VISTA ADMINISTRACIÓN DE USUARIOS (FINAL: PRO CON CARGA MASIVA) ---
+// --- VISTA ADMINISTRACIÓN DE USUARIOS (FINAL: PRO CON SINCRONIZACIÓN BIDIRECCIONAL) ---
 function UsersAdminView() {
   const [users, setUsers] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -1195,6 +1195,11 @@ function UsersAdminView() {
   const [searchTerm, setSearchTerm] = useState('');
   const [csvContent, setCsvContent] = useState('');
   const [processing, setProcessing] = useState(false);
+  
+  // ESTADOS PARA AUDITORÍA BIDIRECCIONAL
+  const [showMissingUsers, setShowMissingUsers] = useState(false);
+  const [missingUsersList, setMissingUsersList] = useState([]); // Tienen legajo, falta cuenta
+  const [missingLegajosList, setMissingLegajosList] = useState([]); // Tienen cuenta, falta legajo
 
   useEffect(() => {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
@@ -1223,7 +1228,6 @@ function UsersAdminView() {
     } catch(e) { alert("Error: " + e.message); }
   };
 
-  // --- CARGA MASIVA REAL (Texto CSV) ---
   const processBulkImport = async () => {
       if(!csvContent.trim()) return;
       setProcessing(true);
@@ -1246,6 +1250,87 @@ function UsersAdminView() {
       setProcessing(false); setShowImport(false); setCsvContent("");
   };
 
+  // --- 1. DETECTAR QUIÉN FALTA (BIDIRECCIONAL) ---
+  const checkMissingData = async () => {
+      setProcessing(true);
+      try {
+          const legajosSnap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'));
+          const legajos = legajosSnap.docs.map(d => ({id: d.id, ...d.data()}));
+          
+          const faltanCuentas = [];
+          const faltanLegajos = [];
+
+          // 1A. Buscar Legajos que NO tienen cuenta en Users
+          legajos.forEach(legajo => {
+              const existe = users.find(u => 
+                  (u.firstName?.toLowerCase().trim() === legajo.firstName?.toLowerCase().trim() && 
+                   u.lastName?.toLowerCase().trim() === legajo.lastName?.toLowerCase().trim()) ||
+                  (legajo.dni && u.password === legajo.dni)
+              );
+              if (!existe && legajo.firstName && legajo.lastName) faltanCuentas.push(legajo);
+          });
+
+          // 1B. Buscar Cuentas en Users que NO tienen Legajo
+          users.forEach(u => {
+              if (u.username === 'admin') return; // Ignoramos al admin genérico
+              
+              const existe = legajos.find(legajo => 
+                  (u.firstName?.toLowerCase().trim() === legajo.firstName?.toLowerCase().trim() && 
+                   u.lastName?.toLowerCase().trim() === legajo.lastName?.toLowerCase().trim()) ||
+                  (legajo.dni && u.password === legajo.dni)
+              );
+              if (!existe && u.firstName && u.lastName) faltanLegajos.push(u);
+          });
+
+          if (faltanCuentas.length === 0 && faltanLegajos.length === 0) {
+              alert("✅ ¡Todo en orden! Base de datos 100% sincronizada en ambas direcciones.");
+          } else {
+              setMissingUsersList(faltanCuentas);
+              setMissingLegajosList(faltanLegajos);
+              setShowMissingUsers(true);
+          }
+      } catch(e) { alert("Error: " + e.message); }
+      setProcessing(false);
+  };
+
+  // --- 2. RESOLVER CONFLICTOS (CREAR CUENTAS Y/O LEGAJOS) ---
+  const handleMasterSync = async () => {
+      if(!confirm(`⚠️ ¿Realizar Sincronización Automática?\n\nSe crearán:\n- ${missingUsersList.length} cuentas de usuario.\n- ${missingLegajosList.length} legajos en blanco.`)) return;
+      setProcessing(true);
+      try {
+          const cleanName = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, '');
+          const promises = [];
+
+          // Crear cuentas faltantes
+          missingUsersList.forEach(legajo => {
+              const newUsername = `${cleanName(legajo.firstName)}.${cleanName(legajo.lastName)}`;
+              const newPassword = legajo.dni || '123456';
+              promises.push(addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), {
+                  firstName: legajo.firstName, lastName: legajo.lastName, fullName: `${legajo.firstName} ${legajo.lastName}`,
+                  username: newUsername, password: newPassword, role: legajo.role || 'Docente', rol: 'user', createdAt: serverTimestamp()
+              }));
+          });
+
+          // Crear legajos faltantes
+          missingLegajosList.forEach(user => {
+              promises.push(addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), {
+                  firstName: user.firstName, lastName: user.lastName, 
+                  dni: user.password !== '123456' ? user.password : '', // Asumimos que la pass es el DNI si no es la genérica
+                  role: user.role || 'Docente', modality: 'Sede', isSubsidized: 'false', createdAt: serverTimestamp()
+              }));
+          });
+
+          await Promise.all(promises);
+          alert(`✅ ¡Sincronización Perfecta!\n\nSe resolvieron todos los conflictos.`);
+          setShowMissingUsers(false);
+          setMissingUsersList([]);
+          setMissingLegajosList([]);
+      } catch (e) {
+          alert("Error: " + e.message);
+      }
+      setProcessing(false);
+  };
+
   const deleteUser = async (id) => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id)); };
   const openEdit = (u) => { setEditingUser(u); setShowModal(true); };
   const analizarConflictos = () => alert("Función Detective: Próximamente buscará duplicados.");
@@ -1258,6 +1343,10 @@ function UsersAdminView() {
         <div className="flex justify-between items-center">
             <h3 className="text-violet-900 font-black text-lg uppercase tracking-tighter italic">Gestión de Personal</h3>
             <div className="flex gap-2">
+               {/* BOTÓN AUDITOR BIDIRECCIONAL */}
+               <button onClick={checkMissingData} disabled={processing} className="p-2 bg-blue-500 text-white rounded-xl shadow hover:bg-blue-600 transition flex items-center justify-center" title="Sincronizar Legajos y Usuarios">
+                   {processing ? <RefreshCw className="animate-spin" size={20}/> : <Users size={20}/>}
+               </button>
                <button onClick={()=>setShowImport(true)} className="p-2 bg-emerald-500 text-white rounded-xl shadow hover:bg-emerald-600 transition" title="Carga Masiva"><UploadCloud size={20}/></button>
                <button onClick={()=>{setEditingUser(null); setShowModal(true);}} className="p-2 bg-orange-500 text-white rounded-xl shadow hover:bg-orange-600 transition" title="Nuevo Usuario"><Plus size={20}/></button>
             </div>
@@ -1281,6 +1370,7 @@ function UsersAdminView() {
                 <span className="text-[9px] text-white bg-violet-400 px-1.5 py-0.5 rounded font-bold uppercase">{u.role}</span>
                 <span className="text-[9px] text-gray-400 flex items-center gap-1"><Clock size={8}/> {formatLastLogin(u.lastLogin)}</span>
             </div>
+            <p className="text-[9px] font-bold text-gray-400 mt-1">Usuario: <span className="text-blue-500">{u.username}</span> | Clave: <span className="text-blue-500">{u.password}</span></p>
         </div>
        </div>
        <div className="flex gap-2 shrink-0">
@@ -1291,6 +1381,62 @@ function UsersAdminView() {
       ))}
     </div>
 
+    {/* MODAL AUDITORÍA BIDIRECCIONAL */}
+    {showMissingUsers && (
+        <div className="fixed inset-0 bg-black/80 z-[400] flex items-center justify-center p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-[40px] w-full max-w-2xl p-6 md:p-8 shadow-2xl flex flex-col max-h-[90vh] border-t-8 border-blue-500">
+                <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                    <div>
+                        <h3 className="text-2xl font-black text-blue-600 uppercase italic flex items-center gap-2"><RefreshCw size={28}/> Auditoría Bidireccional</h3>
+                        <p className="text-xs text-gray-500 font-bold mt-1">Resultados del cruce entre Usuarios y Legajos</p>
+                    </div>
+                    <button onClick={() => setShowMissingUsers(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-6 pr-2 mb-6">
+                    
+                    {/* COLUMNA 1: FALTA CUENTA DE APP */}
+                    <div>
+                        <h4 className="font-black text-orange-600 uppercase text-xs tracking-widest mb-3 flex items-center gap-1"><Smartphone size={16}/> Falta Usuario ({missingUsersList.length})</h4>
+                        {missingUsersList.length === 0 ? <p className="text-xs text-gray-400 italic">Todos tienen cuenta.</p> : (
+                            <div className="space-y-2">
+                                {missingUsersList.map((m, i) => (
+                                    <div key={i} className="bg-orange-50 p-3 rounded-xl border border-orange-100 flex justify-between items-center">
+                                        <div>
+                                            <p className="font-bold text-sm text-gray-800">{m.lastName}, {m.firstName}</p>
+                                            <p className="text-[10px] text-orange-600 font-bold uppercase">{m.role || 'Docente'}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* COLUMNA 2: FALTA LEGAJO */}
+                    <div>
+                        <h4 className="font-black text-violet-600 uppercase text-xs tracking-widest mb-3 flex items-center gap-1"><FileText size={16}/> Falta Legajo ({missingLegajosList.length})</h4>
+                        {missingLegajosList.length === 0 ? <p className="text-xs text-gray-400 italic">Todos tienen legajo oficial.</p> : (
+                            <div className="space-y-2">
+                                {missingLegajosList.map((m, i) => (
+                                    <div key={i} className="bg-violet-50 p-3 rounded-xl border border-violet-100 flex justify-between items-center">
+                                        <div>
+                                            <p className="font-bold text-sm text-gray-800">{m.lastName}, {m.firstName}</p>
+                                            <p className="text-[10px] text-violet-600 font-bold uppercase">{m.role || 'Usuario'}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <button onClick={handleMasterSync} disabled={processing} className="w-full bg-gradient-to-r from-blue-600 to-violet-600 text-white font-black py-4 rounded-2xl shadow-xl hover:from-blue-700 hover:to-violet-700 uppercase tracking-widest text-sm flex justify-center items-center gap-2 transition active:scale-95">
+                    {processing ? <RefreshCw className="animate-spin" size={20}/> : <><CheckSquare size={20}/> Sincronizar Todo Automáticamente</>}
+                </button>
+            </div>
+        </div>
+    )}
+
     {showModal && (
       <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4">
        <form onSubmit={handleSubmit} className="bg-white rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl animate-in zoom-in-95">
@@ -1298,7 +1444,9 @@ function UsersAdminView() {
         <div className="grid grid-cols-2 gap-2"><input name="firstName" defaultValue={editingUser?.firstName} placeholder="Nombre" className="p-3 bg-gray-50 rounded-xl text-sm border outline-none focus:border-violet-500" required/><input name="lastName" defaultValue={editingUser?.lastName} placeholder="Apellido" className="p-3 bg-gray-50 rounded-xl text-sm border outline-none focus:border-violet-500" required/></div>
         <input name="username" defaultValue={editingUser?.username} placeholder="Usuario" className="w-full p-3 bg-gray-50 rounded-xl text-sm border outline-none focus:border-violet-500" required/>
         <input name="password" defaultValue={editingUser?.password} placeholder="Contraseña" className="w-full p-3 bg-gray-50 rounded-xl text-sm border outline-none focus:border-violet-500" required/>
-        <select name="role" defaultValue={editingUser?.role || 'Docente'} className="w-full p-3 bg-gray-50 rounded-xl text-sm border outline-none focus:border-violet-500 font-bold text-gray-600">{ROLES.map(r => <option key={r} value={r}>{r}</option>)}</select>
+        <select name="role" defaultValue={editingUser?.role || 'Docente'} className="w-full p-3 bg-gray-50 rounded-xl text-sm border outline-none focus:border-violet-500 font-bold text-gray-600">
+            {['Docente', 'Equipo Directivo', 'Equipo Técnico', 'Auxiliar/Preceptor', 'Inclusión', 'Profes Especiales', 'Administración', 'Dirección Inclusión', 'Equipo Técnico Inclusión', 'DAI'].map(r => <option key={r} value={r}>{r}</option>)}
+        </select>
         <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200"><input type="checkbox" name="isAdmin" defaultChecked={editingUser?.rol === 'admin'} className="w-5 h-5 accent-violet-600"/><div><span className="text-sm font-bold text-gray-700 block">Permisos de Administrador</span><span className="text-[10px] text-gray-400 block">Puede editar tareas y eventos globales</span></div></div>
         <div className="flex gap-2 pt-2"><button type="button" onClick={()=>setShowModal(false)} className="flex-1 py-3 text-gray-400 text-xs font-bold uppercase hover:bg-gray-100 rounded-xl">Cancelar</button><button type="submit" className="flex-1 py-3 bg-violet-600 text-white rounded-xl text-xs font-bold uppercase shadow-lg hover:bg-violet-700">Guardar</button></div>
        </form>
@@ -3703,6 +3851,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
