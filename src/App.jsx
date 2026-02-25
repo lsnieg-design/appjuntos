@@ -582,8 +582,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
     </div>
   );
 }
-// --- VISTA RECURSOS (CON GENERADOR DE NOTAS OFICIALES) ---
-// --- VISTA RECURSOS (CON GENERADOR DE NOTAS OFICIALES RESPONSIVE) ---
+// --- VISTA RECURSOS (CON GENERADOR DE NOTAS OFICIALES DISEÑO PREMIUM) ---
 function ResourcesView({ resources, canEdit }) {
   const [folder, setFolder] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -687,7 +686,7 @@ function ResourcesView({ resources, canEdit }) {
           </div>
       )}
 
-      {/* MODAL NUEVO: GENERADOR DE NOTAS OFICIALES */}
+      {/* MODAL NUEVO: GENERADOR DE NOTAS OFICIALES (PREMIUM & RESPONSIVE) */}
       {showNotaModal && (
           <div className="fixed inset-0 bg-black/80 z-[300] flex items-end md:items-center justify-center p-0 md:p-4 backdrop-blur-sm animate-in fade-in" onClick={() => setShowNotaModal(false)}>
               <div className="bg-white rounded-t-[30px] md:rounded-[40px] w-full max-w-5xl p-5 md:p-8 shadow-2xl flex flex-col h-[90vh] md:max-h-[95vh] mt-auto md:mt-0" onClick={e => e.stopPropagation()}>
@@ -718,44 +717,36 @@ function ResourcesView({ resources, canEdit }) {
                           </div>
                       </div>
 
-                      {/* LADO DERECHO: VISTA PREVIA RESPONSIVE */}
-                      <div className="flex-1 flex flex-col items-center justify-center bg-gray-100 p-4 md:p-6 rounded-2xl md:rounded-3xl border-2 border-dashed border-gray-300 overflow-hidden">
+                      {/* LADO DERECHO: VISTA PREVIA RESPONSIVE PREMIUM */}
+                      <div className="flex-1 flex flex-col items-center justify-center bg-gray-100 p-4 md:p-6 rounded-2xl md:rounded-3xl border-2 border-dashed border-gray-300 overflow-hidden shrink-0">
                           <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 md:mb-3">Vista Previa</p>
                           
                           {/* EL LIENZO OFICIAL (ADAPTABLE) */}
-                          <div id="nota-canvas" className="w-full max-w-[420px] min-h-[450px] md:min-h-[550px] bg-white relative shadow-md border border-gray-200 flex flex-col overflow-hidden mx-auto" style={{backgroundColor: '#ffffff'}}>
+                          <div id="nota-canvas" className="w-full max-w-[360px] md:max-w-[420px] min-h-[450px] md:min-h-[550px] relative shadow-xl border-4 border-orange-200/80 rounded-[20px] flex flex-col overflow-hidden mx-auto" style={{backgroundColor: '#fefce8'}}>
                               
-                              {/* Barra superior de color */}
-                              <div className="absolute top-0 left-0 right-0 h-2 md:h-3 bg-gradient-to-r from-violet-600 to-orange-400"></div>
+                              {/* Patrón de fondo sutil (Puntitos) */}
+                              <div className="absolute inset-0 opacity-[0.03]" style={{backgroundImage: 'radial-gradient(#f97316 2px, transparent 2px)', backgroundSize: '15px 15px'}}></div>
                               
-                              <div className="flex flex-col h-full px-6 py-6 md:px-8 md:pt-8 md:pb-6 z-10">
+                              <div className="relative z-10 flex flex-col h-full px-6 py-6 md:px-8 md:pt-8 md:pb-6">
                                   
                                   {/* Header Institucional */}
-                                  <div className="flex justify-between items-center border-b-2 border-gray-100 pb-3 md:pb-4 mb-4 md:mb-6">
-                                      <div className="flex items-center gap-2 md:gap-3">
-                                          {/* Logo con mix-blend-multiply para quitar el fondo blanco */}
-                                          <img src={LOGO_URL} className="w-10 md:w-12 h-auto mix-blend-multiply opacity-90" crossOrigin="anonymous"/>
-                                          <div className="leading-tight">
-                                              <h2 className="font-black text-[10px] md:text-[12px] text-violet-900 uppercase tracking-widest">Juntos a la Par</h2>
-                                              <p className="text-[7px] md:text-[8px] font-bold text-gray-500 uppercase tracking-widest">Escuela Especial</p>
-                                          </div>
-                                      </div>
-                                      <p className="text-[9px] md:text-[10px] text-gray-500 font-medium text-right w-24 md:w-32 leading-tight">{notaData.date}</p>
+                                  <div className="flex justify-between items-start mb-6 md:mb-8">
+                                      <img src={LOGO_URL} className="w-12 md:w-16 h-auto mix-blend-multiply opacity-90" crossOrigin="anonymous"/>
+                                      <p className="text-[9px] md:text-[10px] text-orange-800 font-bold uppercase tracking-widest text-right mt-1 w-24 md:w-32 leading-tight">{notaData.date}</p>
                                   </div>
                                   
                                   {/* Título */}
-                                  <h1 className="text-lg md:text-xl font-black text-gray-800 uppercase leading-tight mb-4 md:mb-6 text-center tracking-wide">{notaData.title || 'TÍTULO'}</h1>
+                                  <h1 className="text-xl md:text-2xl font-black text-violet-900 uppercase leading-tight mb-4 md:mb-6 text-center tracking-wide">{notaData.title || 'TÍTULO'}</h1>
                                   
                                   {/* Cuerpo del Texto */}
-                                  <div className="text-[11px] md:text-[13px] text-gray-700 font-medium whitespace-pre-wrap flex-1 leading-relaxed text-justify">
+                                  <div className="text-[11px] md:text-[13px] text-slate-800 font-medium whitespace-pre-wrap flex-1 leading-relaxed text-justify">
                                       {notaData.body || 'Escribe el cuerpo de la nota a la izquierda para visualizarlo aquí. Este diseño formal está pensado para verse excelente en pantallas y papel.'}
                                   </div>
                                   
                                   {/* Bloque de Firma */}
-                                  <div className="mt-8 md:mt-12 flex flex-col items-center shrink-0">
-                                      <div className="w-24 md:w-32 border-t border-gray-400 mb-2"></div>
-                                      <p className="text-[10px] md:text-[12px] font-black text-violet-900 uppercase tracking-widest text-center">{notaData.signature || 'Firma'}</p>
-                                      <p className="text-[8px] md:text-[9px] text-gray-500 font-bold mt-0.5 uppercase tracking-wider text-center">Escuela Juntos a la Par</p>
+                                  <div className="mt-8 md:mt-12 flex flex-col items-center shrink-0 pt-4 border-t-2 border-orange-200/50">
+                                      <p className="text-[10px] md:text-[12px] font-black text-violet-900 uppercase tracking-widest text-center italic">{notaData.signature || 'Firma'}</p>
+                                      <p className="text-[8px] md:text-[9px] text-orange-600 font-bold mt-0.5 uppercase tracking-wider text-center">Escuela Juntos a la Par</p>
                                   </div>
 
                               </div>
@@ -778,7 +769,7 @@ function ResourcesView({ resources, canEdit }) {
                               const canvas = await html2canvas(element, { 
                                   scale: 3, 
                                   useCORS: true, 
-                                  backgroundColor: '#ffffff' 
+                                  backgroundColor: '#fefce8' // Fondo papel oficial
                               }); 
                               
                               const link = document.createElement('a');
@@ -4006,6 +3997,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
