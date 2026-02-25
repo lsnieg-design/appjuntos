@@ -2517,7 +2517,10 @@ function GroupsView({ user }) {
   const [newNote, setNewNote] = useState("");
   const [isWriting, setIsWriting] = useState(false);
   const [editingGroup, setEditingGroup] = useState(null);
-  const [viewFilter, setViewFilter] = useState(['DAI', 'Inclusión', 'Dirección Inclusión', 'Equipo Técnico Inclusión'].includes(user?.role) ? 'inclusion' : 'sede');
+  // Detecta si es inclusión leyendo cualquier parte de su rol (ej: "Docente de apoyo a la inclusión")
+  const userRoleStr = (user?.role || '').toLowerCase();
+  const isDAIRole = userRoleStr.includes('inclusión') || userRoleStr.includes('inclusion') || userRoleStr.includes('dai');
+  const [viewFilter, setViewFilter] = useState(isDAIRole ? 'inclusion' : 'sede');
   const [groupStats, setGroupStats] = useState(null);
   const [updatingGroup, setUpdatingGroup] = useState(false);
   const [savingIncident, setSavingIncident] = useState(false);
@@ -2609,11 +2612,24 @@ function GroupsView({ user }) {
 
   let groups = Object.values(groupedData).sort((a, b) => a.name.localeCompare(b.name));
 if (!isManagement) {
-      // Si es docente o DAI, ve SÓLO los grupos donde aparece su nombre (sin importar Sede o Inclusión)
-      const myName = (user.fullName || "").toLowerCase();
-      groups = groups.filter(g => (g.teacher || "").toLowerCase().includes(myName) || (g.teacher2 || "").toLowerCase().includes(myName) || (g.aux || "").toLowerCase().includes(myName) || (g.special1 || "").toLowerCase().includes(myName) || (g.special2 || "").toLowerCase().includes(myName) || (g.special3 || "").toLowerCase().includes(myName));
+      // LÓGICA SÚPER TOLERANTE: Busca por nombre completo, o solo apellido, o solo nombre
+      const myLast = (user.lastName || "").toLowerCase().trim();
+      const myFirst = (user.firstName || "").toLowerCase().trim();
+      const myFullName = (user.fullName || "").toLowerCase().trim();
+      
+      groups = groups.filter(g => {
+          // Juntamos todos los docentes/auxiliares de ese grupo en un solo texto
+          const staffStr = [g.teacher, g.teacher2, g.aux, g.special1, g.special2, g.special3].filter(Boolean).join(" ").toLowerCase();
+          
+          // Si coincide el nombre completo, el apellido, o el primer nombre, se lo mostramos
+          if (myFullName && staffStr.includes(myFullName)) return true;
+          if (myLast && myLast.length > 2 && staffStr.includes(myLast)) return true;
+          if (myFirst && myFirst.length > 3 && staffStr.includes(myFirst)) return true;
+          
+          return false;
+      });
   } else {
-      // Si es Gestión (Directivos), aplicamos el filtro de los botones superiores
+      // Si es Directivo (Gestión), aplicamos el filtro estricto de los botones de arriba
       if (viewFilter !== 'all') { 
           groups = groups.filter(g => viewFilter === 'inclusion' ? g.isInclusionGroup : !g.isInclusionGroup); 
       }
@@ -3557,6 +3573,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
