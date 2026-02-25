@@ -582,13 +582,12 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
     </div>
   );
 }
-// --- VISTA RECURSOS (CON GENERADOR DE NOTAS HORIZONTAL Y TEXTO AUTO-AJUSTABLE) ---
+// --- VISTA RECURSOS (CON GENERADOR DE NOTAS ESTABLE Y RESPONSIVE) ---
 function ResourcesView({ resources, canEdit }) {
   const [folder, setFolder] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingRes, setEditingRes] = useState(null); 
   
-  // ESTADOS: GENERADOR DE NOTAS
   const [showNotaModal, setShowNotaModal] = useState(false);
   const [notaData, setNotaData] = useState({ date: '', title: '', body: '', signature: 'EQUIPO DIRECTIVO' });
   const LOGO_SIN_FONDO = "/logosinfondo.png";
@@ -604,7 +603,6 @@ function ResourcesView({ resources, canEdit }) {
   };
 
   const deleteResource = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', id)); };
-  
   const openNew = () => { setEditingRes(null); setShowModal(true); };
   const openEdit = (r) => { setEditingRes(r); setShowModal(true); };
 
@@ -624,14 +622,13 @@ function ResourcesView({ resources, canEdit }) {
                   <div className="bg-white/20 p-3 rounded-2xl group-hover:rotate-12 transition-transform"><Edit3 size={32}/></div>
                   <div className="text-left">
                       <h3 className="font-black text-xl tracking-widest uppercase italic drop-shadow-md">Generador de Notas</h3>
-                      <p className="text-xs font-bold opacity-90 mt-1">Crear comunicados horizontales</p>
+                      <p className="text-xs font-bold opacity-90 mt-1">Crear comunicados institucionales</p>
                   </div>
               </div>
               <ChevronRight size={24} className="opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all"/>
           </button>
       )}
 
-      {/* CARPETAS DE RECURSOS */}
       {!folder ? (
         <div className="grid grid-cols-2 gap-4 pb-10">
           {Object.keys(folders).map(name => (
@@ -658,85 +655,85 @@ function ResourcesView({ resources, canEdit }) {
         </div>
       )}
 
-      {/* MODAL GENERADOR DE NOTAS (FORMATO HORIZONTAL MEJORADO) */}
+      {/* MODAL GENERADOR DE NOTAS OFICIAL */}
       {showNotaModal && (
-          <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-0 md:p-4 backdrop-blur-md animate-in fade-in" onClick={() => setShowNotaModal(false)}>
-              <div className="bg-white rounded-t-[40px] md:rounded-[40px] w-full max-w-6xl p-6 md:p-10 shadow-2xl flex flex-col h-[95vh] md:h-auto overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="fixed inset-0 bg-black/90 z-[300] flex items-center justify-center p-0 md:p-4 backdrop-blur-md animate-in fade-in" onClick={() => setShowNotaModal(false)}>
+              <div className="bg-white rounded-t-[40px] md:rounded-[40px] w-full max-w-6xl p-6 md:p-8 shadow-2xl flex flex-col h-[98vh] md:h-auto overflow-hidden" onClick={e => e.stopPropagation()}>
                   
-                  <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4 shrink-0">
-                      <h3 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2"><Edit3 size={28} className="text-pink-500"/> GENERADOR INSTITUCIONAL</h3>
+                  <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2 shrink-0">
+                      <h3 className="text-xl font-black text-violet-900 uppercase italic">GENERADOR INSTITUCIONAL</h3>
                       <button onClick={() => setShowNotaModal(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20}/></button>
                   </div>
 
-                  <div className="flex flex-col lg:flex-row gap-6 md:gap-10 overflow-y-auto pr-2 pb-6">
+                  <div className="flex flex-col lg:flex-row gap-6 overflow-y-auto pr-2 pb-6">
                       
                       {/* FORMULARIO */}
-                      <div className="flex-1 space-y-4">
+                      <div className="flex-1 space-y-4 shrink-0">
                           <div>
-                              <label className="text-[10px] font-black text-gray-400 uppercase ml-1">FECHA</label>
-                              <input type="text" placeholder="25/5/26" value={notaData.date} onChange={e => setNotaData({...notaData, date: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-gray-700 border-2 border-transparent focus:border-pink-200 shadow-inner"/>
+                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">FECHA</label>
+                              <input type="text" placeholder="25/5/26" value={notaData.date} onChange={e => setNotaData({...notaData, date: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-gray-700 border-2 border-transparent focus:border-pink-200 shadow-inner text-sm"/>
                           </div>
                           <div>
-                              <label className="text-[10px] font-black text-gray-400 uppercase ml-1">TÍTULO</label>
-                              <input type="text" placeholder="COMUNICADO IMPORTANTE" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-black uppercase text-gray-700 border-2 border-transparent focus:border-pink-200 shadow-inner"/>
+                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">TÍTULO</label>
+                              <input type="text" placeholder="COMUNICADO IMPORTANTE" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-black uppercase text-gray-700 border-2 border-transparent focus:border-pink-200 shadow-inner text-sm"/>
                           </div>
                           <div>
-                              <label className="text-[10px] font-black text-gray-400 uppercase ml-1">FIRMA / REMITENTE</label>
-                              <input type="text" placeholder="Equipo Directivo" value={notaData.signature} onChange={e => setNotaData({...notaData, signature: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-black text-violet-700 border-2 border-transparent focus:border-pink-200 shadow-inner"/>
+                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">FIRMA / REMITENTE</label>
+                              <input type="text" placeholder="Equipo Directivo" value={notaData.signature} onChange={e => setNotaData({...notaData, signature: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-black text-violet-700 border-2 border-transparent focus:border-pink-200 shadow-inner text-sm"/>
                           </div>
                           <div>
-                              <label className="text-[10px] font-black text-gray-400 uppercase ml-1">MENSAJE</label>
-                              <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Estimadas familias..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-sm border-2 border-transparent focus:border-pink-200 h-[150px] resize-none whitespace-pre-wrap shadow-inner font-medium text-gray-600"/>
+                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">MENSAJE</label>
+                              <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Escribe aquí tu mensaje..." className="w-full p-3 bg-gray-50 rounded-xl outline-none text-sm border-2 border-transparent focus:border-pink-200 h-[120px] md:h-[180px] resize-none whitespace-pre-wrap shadow-inner font-medium text-gray-600"/>
                           </div>
                       </div>
 
-                      {/* VISTA PREVIA (LIENZO HORIZONTAL) */}
-                      <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 p-4 md:p-6 rounded-[40px] border-2 border-dashed border-gray-200 overflow-hidden shrink-0">
-                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[4px] mb-4">VISTA PREVIA</p>
+                      {/* VISTA PREVIA AJUSTADA PARA CELULAR */}
+                      <div className="flex-1 flex flex-col items-center bg-slate-100 p-4 md:p-6 rounded-[30px] border-2 border-dashed border-gray-300 overflow-x-auto min-h-[400px]">
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[4px] mb-4 shrink-0">VISTA PREVIA (DESLIZÁ PARA VER)</p>
                           
-                          <div className="scale-[0.45] sm:scale-[0.6] md:scale-[0.8] lg:scale-100 origin-top transition-transform">
-                              <div id="nota-canvas" className="w-[600px] h-[400px] bg-white relative shadow-2xl border-[10px] border-white rounded-[15px] flex flex-col overflow-hidden mx-auto" style={{backgroundColor: '#fefce8'}}>
-                                  
-                                  <div className="absolute inset-0 opacity-[0.04]" style={{backgroundImage: 'radial-gradient(#f97316 2px, transparent 2px)', backgroundSize: '18px 18px'}}></div>
-                                  <div className="absolute top-0 left-0 right-0 h-3 bg-gradient-to-r from-violet-600 via-pink-500 to-orange-400 opacity-80"></div>
-                                  
-                                  <div className="flex flex-col h-full px-12 pt-8 pb-6 z-10">
-                                      {/* Header */}
-                                      <div className="flex justify-between items-start mb-4 shrink-0">
-                                          <div className="flex items-center gap-4">
-                                              <img src={LOGO_SIN_FONDO} className="w-14 h-auto" crossOrigin="anonymous"/>
-                                              <div className="leading-tight pt-1">
-                                                  <h2 className="font-black text-[15px] text-violet-900 uppercase tracking-[2px]">JUNTOS A LA PAR</h2>
-                                                  <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">ESCUELA ESPECIAL</p>
-                                              </div>
-                                          </div>
-                                          <p className="text-[11px] text-orange-600 font-black uppercase tracking-widest pt-2">{notaData.date}</p>
-                                      </div>
-                                      
-                                      {/* Título - Ajustado para no comerse el espacio */}
-                                      <h1 className="text-xl font-black text-gray-800 uppercase leading-tight mb-3 text-center tracking-tight shrink-0">{notaData.title || 'TÍTULO'}</h1>
-                                      
-                                      {/* Cuerpo con AUTO-AJUSTE: usamos flex-grow y una fuente un poco más chica por defecto */}
-                                      <div className="flex flex-col justify-center flex-1 min-h-0 overflow-hidden">
-                                          <div className={`text-slate-700 font-semibold whitespace-pre-wrap leading-relaxed text-center px-6 overflow-hidden ${notaData.body.length > 300 ? 'text-[11px]' : notaData.body.length > 150 ? 'text-[13px]' : 'text-[15px]'}`}>
-                                              {notaData.body || 'Escribí el contenido a la izquierda...'}
+                          {/* Contenedor de la nota con tamaño fijo para asegurar descarga correcta */}
+                          <div id="nota-canvas" className="w-[550px] min-h-[380px] bg-[#fefce8] relative shadow-2xl border-[8px] border-white rounded-[10px] flex flex-col overflow-hidden shrink-0" style={{backgroundColor: '#fefce8'}}>
+                              
+                              {/* Trama y Borde */}
+                              <div className="absolute inset-0 opacity-[0.04]" style={{backgroundImage: 'radial-gradient(#f97316 2px, transparent 2px)', backgroundSize: '18px 18px'}}></div>
+                              <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-violet-600 via-pink-500 to-orange-400"></div>
+                              
+                              <div className="flex flex-col h-full px-10 pt-8 pb-6 z-10">
+                                  {/* Header */}
+                                  <div className="flex justify-between items-start mb-6 shrink-0">
+                                      <div className="flex items-center gap-3">
+                                          <img src={LOGO_SIN_FONDO} className="w-14 h-auto" crossOrigin="anonymous" onError={(e) => e.target.src = LOGO_URL}/>
+                                          <div className="leading-tight pt-1">
+                                              <h2 className="font-black text-[14px] text-violet-900 uppercase tracking-[1px]">JUNTOS A LA PAR</h2>
+                                              <p className="text-[8px] font-bold text-gray-500 uppercase tracking-widest">ESCUELA ESPECIAL</p>
                                           </div>
                                       </div>
-                                      
-                                      {/* Bloque Firma */}
-                                      <div className="mt-4 flex flex-col items-center shrink-0">
-                                          <div className="w-48 h-[1px] bg-orange-200 mb-3 opacity-50"></div>
-                                          <p className="text-[15px] font-black text-violet-800 uppercase tracking-[1px] text-center leading-none mb-1 italic">{notaData.signature || 'EQUIPO DIRECTIVO'}</p>
-                                          <p className="text-[8px] text-orange-500 font-black uppercase tracking-[3px] text-center opacity-70">ESCUELA JUNTOS A LA PAR</p>
+                                      <p className="text-[10px] text-orange-600 font-black uppercase tracking-widest pt-2">{notaData.date}</p>
+                                  </div>
+                                  
+                                  {/* Título */}
+                                  <h1 className="text-lg font-black text-gray-800 uppercase leading-tight mb-4 text-center tracking-tight shrink-0">{notaData.title || 'TÍTULO'}</h1>
+                                  
+                                  {/* Cuerpo: Texto Auto-ajustable real */}
+                                  <div className="flex flex-col justify-center flex-1 min-h-0">
+                                      <div className={`text-slate-700 font-bold whitespace-pre-wrap leading-relaxed text-center px-4 ${notaData.body.length > 400 ? 'text-[10px]' : notaData.body.length > 250 ? 'text-[12px]' : 'text-[14px]'}`}>
+                                          {notaData.body || 'Contenido de la nota...'}
                                       </div>
+                                  </div>
+                                  
+                                  {/* Bloque Firma */}
+                                  <div className="mt-6 flex flex-col items-center shrink-0">
+                                      <div className="w-32 h-[1px] bg-orange-200 mb-3 opacity-50"></div>
+                                      <p className="text-[14px] font-black text-violet-800 uppercase tracking-[1px] text-center leading-none mb-1 italic">{notaData.signature || 'EQUIPO DIRECTIVO'}</p>
+                                      <p className="text-[8px] text-orange-500 font-black uppercase tracking-[2px] text-center opacity-70">ESCUELA JUNTOS A LA PAR</p>
                                   </div>
                               </div>
                           </div>
                       </div>
                   </div>
 
-                  <div className="border-t pt-6 mt-2 flex gap-4 shrink-0 bg-white">
-                      <button onClick={() => setShowNotaModal(false)} className="flex-1 text-gray-500 font-black text-xs uppercase hover:bg-gray-100 rounded-2xl py-5 transition tracking-widest">VOLVER</button>
+                  <div className="border-t pt-4 mt-2 flex gap-3 shrink-0 bg-white">
+                      <button onClick={() => setShowNotaModal(false)} className="flex-1 text-gray-500 font-black text-[10px] uppercase hover:bg-gray-100 rounded-2xl py-4 transition tracking-widest">VOLVER</button>
                       
                       <button onClick={async () => {
                           if(!notaData.title && !notaData.body) return alert("Escribí algo.");
@@ -746,22 +743,27 @@ function ResourcesView({ resources, canEdit }) {
                               const canvas = await html2canvas(element, { 
                                   scale: 3, 
                                   useCORS: true, 
-                                  backgroundColor: '#fefce8' 
+                                  allowTaint: true,
+                                  backgroundColor: '#fefce8',
+                                  logging: false
                               }); 
                               const link = document.createElement('a');
                               link.download = `Nota_${notaData.title.substring(0,10)}.jpg`;
-                              link.href = canvas.toDataURL('image/jpeg', 0.9);
+                              link.href = canvas.toDataURL('image/jpeg', 0.95);
                               link.click();
-                          } catch (error) { alert("Error al generar imagen."); }
-                      }} className="flex-[2] bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-sm uppercase tracking-[4px] rounded-2xl shadow-xl hover:scale-[1.02] transition active:scale-95 flex items-center justify-center gap-2">
-                          <Download size={20}/> DESCARGAR NOTA OFICIAL
+                          } catch (error) { 
+                              alert("Error al generar imagen. Intentá de nuevo."); 
+                              console.error(error);
+                          }
+                      }} className="flex-[2] bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-xs uppercase tracking-[3px] rounded-2xl shadow-xl hover:scale-[1.02] transition active:scale-95 flex items-center justify-center gap-2">
+                          <Download size={20}/> DESCARGAR NOTA HD
                       </button>
                   </div>
               </div>
           </div>
       )}
       
-      {/* MODAL CARGA RECURSOS (IGUAL) */}
+      {/* MODAL CARGA RECURSOS IGUAL */}
       {showModal && (
           <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4">
               <form onSubmit={handleSaveResource} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl space-y-4">
@@ -3983,6 +3985,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
