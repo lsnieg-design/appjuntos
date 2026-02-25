@@ -582,57 +582,75 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
     </div>
   );
 }
-// --- VISTA RECURSOS (CON CONTROLES DE FORMATO Y BOTÓN FIJO) ---
+// --- VISTA RECURSOS (SISTEMA DE CARPETAS + GENERADOR DE NOTAS INTEGRADO) ---
 function ResourcesView({ resources, canEdit }) {
   const [folder, setFolder] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingRes, setEditingRes] = useState(null); 
   
-  // ESTADOS: GENERADOR DE NOTAS
+  // ESTADOS DEL GENERADOR DE NOTAS (NUEVO)
   const [showNotaModal, setShowNotaModal] = useState(false);
   const [notaData, setNotaData] = useState({ 
     date: '', 
     title: '', 
     body: '', 
     signature: 'EQUIPO DIRECTIVO',
-    fontSize: 'text-[14px]', // Por defecto
-    textAlign: 'text-center'  // Por defecto
+    fontSize: 'text-[14px]', 
+    textAlign: 'text-center'  
   });
+  
   const LOGO_SIN_FONDO = "/logosinfondo.png";
 
-  const folders = (resources || []).reduce((acc, r) => { const cat = r.category || 'VARIOS'; if (!acc[cat]) acc[cat] = []; acc[cat].push(r); return acc; }, {});
+  // Agrupación por carpetas (Tu lógica original)
+  const folders = (resources || []).reduce((acc, r) => { 
+    const cat = r.category || 'VARIOS'; 
+    if (!acc[cat]) acc[cat] = []; 
+    acc[cat].push(r); 
+    return acc; 
+  }, {});
   
   const handleSaveResource = async (e) => { 
       e.preventDefault(); 
-      const data = { title: e.target.title.value, url: e.target.url.value, category: e.target.category.value };
-      if(editingRes) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', editingRes.id), data);
-      else await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), { ...data, createdAt: serverTimestamp() });
-      setShowModal(false); setEditingRes(null);
+      const data = { 
+        title: e.target.title.value, 
+        url: e.target.url.value, 
+        category: e.target.category.value 
+      };
+      try {
+        if(editingRes) {
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', editingRes.id), data);
+        } else {
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), { ...data, createdAt: serverTimestamp() });
+        }
+        setShowModal(false); 
+        setEditingRes(null);
+      } catch (err) { alert("Error al guardar: " + err.message); }
   };
 
-  const openNew = () => { setEditingRes(null); setShowModal(true); };
+  const deleteResource = async (id) => { if(confirm("¿Borrar recurso?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', id)); };
 
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10">
       <div className="flex justify-between items-center mb-6 px-2">
-        <h2 className="text-2xl font-black text-violet-900 italic tracking-tighter uppercase">Recursos</h2>
-        {canEdit && <button onClick={openNew} className="bg-orange-500 text-white p-2 rounded-xl shadow-lg"><Plus size={20}/></button>}
+        <h2 className="text-2xl font-black text-violet-900 italic tracking-tighter uppercase italic">Recursos</h2>
+        {canEdit && <button onClick={() => { setEditingRes(null); setShowModal(true); }} className="bg-orange-500 text-white p-2 rounded-xl shadow-lg hover:bg-orange-600 transition"><Plus size={20}/></button>}
       </div>
 
+      {/* BOTÓN DEL GENERADOR (Solo se ve en la raíz, no dentro de carpetas) */}
       {!folder && (
           <button onClick={() => setShowNotaModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-orange-400 p-6 rounded-3xl shadow-lg text-white flex items-center justify-between mb-6 group active:scale-95 transition-transform">
               <div className="flex items-center gap-4">
                   <div className="bg-white/20 p-3 rounded-2xl group-hover:rotate-12 transition-transform"><Edit3 size={32}/></div>
                   <div className="text-left">
                       <h3 className="font-black text-xl tracking-widest uppercase italic drop-shadow-md">Generador de Notas</h3>
-                      <p className="text-xs font-bold opacity-90 mt-1">Personalizá tamaño y alineación</p>
+                      <p className="text-xs font-bold opacity-90 mt-1">Comunicados Institucionales</p>
                   </div>
               </div>
               <ChevronRight size={24} className="opacity-50"/>
           </button>
       )}
 
-      {/* CARPETAS (IGUAL) */}
+      {/* VISTA DE CARPETAS (TU DISEÑO ORIGINAL) */}
       {!folder ? (
         <div className="grid grid-cols-2 gap-4 pb-10 px-2">
           {Object.keys(folders).map(name => (
@@ -642,10 +660,11 @@ function ResourcesView({ resources, canEdit }) {
               <p className="text-[8px] font-bold text-gray-300 mt-2 uppercase tracking-[4px]">{folders[name].length} Docs</p>
             </div>
           ))}
+          {Object.keys(folders).length === 0 && <p className="col-span-2 text-center text-gray-400 italic text-xs">No hay carpetas creadas aún.</p>}
         </div>
       ) : (
         <div className="px-2">
-            <button onClick={() => setFolder(null)} className="mb-4 text-xs font-black text-violet-600 uppercase flex items-center gap-1"><ChevronLeft size={16}/> VOLVER</button>
+            <button onClick={() => setFolder(null)} className="mb-4 text-xs font-black text-violet-600 uppercase flex items-center gap-1 bg-violet-50 p-2 px-4 rounded-xl transition-all shadow-sm"><ChevronLeft size={16}/> VOLVER</button>
             <div className="grid gap-3 pb-20">
             {folders[folder].map(r => (
                 <div key={r.id} className="bg-white p-4 rounded-[20px] border border-violet-50 flex justify-between items-center group shadow-sm">
@@ -653,36 +672,40 @@ function ResourcesView({ resources, canEdit }) {
                         <FileText size={18} className="text-violet-200 shrink-0" /> 
                         <span className="truncate">{r.title}</span>
                     </a>
+                    <div className="flex gap-2">
+                        <a href={r.url} target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:text-violet-600"><ExternalLink size={16}/></a>
+                        {canEdit && (
+                          <>
+                            <button onClick={() => { setEditingRes(r); setShowModal(true); }} className="p-2 text-blue-400 hover:text-blue-600"><Edit3 size={16}/></button>
+                            <button onClick={() => deleteResource(r.id)} className="p-2 text-red-400 hover:text-red-600"><Trash2 size={16}/></button>
+                          </>
+                        )}
+                    </div>
                 </div>
             ))}
             </div>
         </div>
       )}
 
-      {/* MODAL GENERADOR DE NOTAS OFICIAL CON BOTÓN FIJO */}
+      {/* MODAL GENERADOR DE NOTAS OFICIAL (NUEVO) */}
       {showNotaModal && (
           <div className="fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-0 md:p-4 backdrop-blur-md animate-in fade-in" onClick={() => setShowNotaModal(false)}>
               <div className="bg-white rounded-t-[40px] md:rounded-[40px] w-full max-w-6xl flex flex-col h-[98vh] md:h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
                   
-                  {/* HEADER DEL MODAL */}
                   <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center shrink-0">
                       <h3 className="text-xl font-black text-violet-900 uppercase italic">Editor Institucional</h3>
-                      <button onClick={() => setShowNotaModal(false)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button>
+                      <button onClick={() => setShowNotaModal(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20}/></button>
                   </div>
 
-                  {/* CUERPO DEL MODAL - SCROLLABLE */}
                   <div className="flex-1 overflow-y-auto px-6 py-6 md:px-10">
                       <div className="flex flex-col lg:flex-row gap-8">
-                          
-                          {/* FORMULARIO Y CONTROLES */}
                           <div className="flex-1 space-y-6">
                               <div className="grid grid-cols-2 gap-4">
-                                  <input type="text" placeholder="FECHA" value={notaData.date} onChange={e => setNotaData({...notaData, date: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-gray-700 text-xs shadow-inner"/>
-                                  <input type="text" placeholder="FIRMA" value={notaData.signature} onChange={e => setNotaData({...notaData, signature: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-violet-700 text-xs shadow-inner"/>
+                                  <input type="text" placeholder="FECHA" value={notaData.date} onChange={e => setNotaData({...notaData, date: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-gray-700 text-xs shadow-inner border border-gray-100"/>
+                                  <input type="text" placeholder="FIRMA" value={notaData.signature} onChange={e => setNotaData({...notaData, signature: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-violet-700 text-xs shadow-inner border border-gray-100"/>
                               </div>
                               <input type="text" placeholder="TÍTULO DEL COMUNICADO" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-4 bg-gray-50 rounded-xl outline-none font-black uppercase text-gray-700 border-2 border-transparent focus:border-orange-200 shadow-inner"/>
                               
-                              {/* PANEL DE FORMATO */}
                               <div className="bg-violet-50 p-4 rounded-2xl space-y-4">
                                   <div className="flex flex-col gap-2">
                                       <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest">Tamaño de Letra</p>
@@ -705,11 +728,10 @@ function ResourcesView({ resources, canEdit }) {
                               <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Escribe el mensaje aquí..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-sm border-2 border-transparent focus:border-pink-200 h-[200px] resize-none shadow-inner font-medium text-gray-600"/>
                           </div>
 
-                          {/* VISTA PREVIA (LIENZO) */}
                           <div className="flex-1 flex flex-col items-center justify-start pb-10">
                               <p className="text-[10px] font-black text-gray-400 uppercase tracking-[4px] mb-4">VISTA PREVIA</p>
                               <div className="overflow-x-auto w-full flex justify-center py-4 bg-slate-100 rounded-[30px] border-2 border-dashed border-gray-200">
-                                  <div id="nota-canvas" className="w-[550px] min-h-[380px] bg-[#fefce8] relative shadow-2xl border-[8px] border-white rounded-[10px] flex flex-col overflow-hidden shrink-0">
+                                  <div id="nota-canvas" className="w-[550px] min-h-[380px] bg-[#fefce8] relative shadow-2xl border-[8px] border-white rounded-[10px] flex flex-col overflow-hidden shrink-0" style={{backgroundColor: '#fefce8'}}>
                                       <div className="absolute inset-0 opacity-[0.04]" style={{backgroundImage: 'radial-gradient(#f97316 2px, transparent 2px)', backgroundSize: '18px 18px'}}></div>
                                       <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-violet-600 via-pink-500 to-orange-400"></div>
                                       <div className="flex flex-col h-full px-10 pt-8 pb-6 z-10">
@@ -741,7 +763,7 @@ function ResourcesView({ resources, canEdit }) {
                       </div>
                   </div>
 
-                  {/* FOOTER DEL MODAL - BOTÓN FIJO DE DESCARGA */}
+                  {/* BOTÓN DE DESCARGA FIJO */}
                   <div className="p-4 md:p-6 border-t bg-white shrink-0 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] z-20">
                       <div className="flex gap-4 max-w-4xl mx-auto">
                           <button onClick={() => setShowNotaModal(false)} className="flex-1 text-gray-400 font-black text-xs uppercase py-4">VOLVER</button>
@@ -765,14 +787,14 @@ function ResourcesView({ resources, canEdit }) {
           </div>
       )}
       
-      {/* MODAL CARGA RECURSOS (IGUAL) */}
+      {/* MODAL CARGA RECURSOS (EL ORIGINAL PARA TUS LINKS) */}
       {showModal && (
           <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4">
               <form onSubmit={handleSaveResource} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl space-y-4">
-                  <h3 className="text-xl font-bold text-violet-900 uppercase italic">Nuevo Recurso</h3>
-                  <input name="title" placeholder="Título" className="w-full p-3 bg-gray-50 rounded-xl outline-none border border-gray-100 font-bold text-xs" required />
-                  <input name="url" placeholder="URL" className="w-full p-3 bg-gray-50 rounded-xl outline-none border border-gray-100 font-bold text-xs" required />
-                  <input name="category" placeholder="Carpeta" className="w-full p-3 bg-gray-50 rounded-xl outline-none border border-gray-100 font-bold text-xs" required />
+                  <h3 className="text-xl font-bold text-violet-900 uppercase italic">{editingRes ? 'Editar Recurso' : 'Nuevo Recurso'}</h3>
+                  <input name="title" defaultValue={editingRes?.title} placeholder="Título" className="w-full p-3 bg-gray-50 rounded-xl outline-none border border-gray-100 font-bold text-xs" required />
+                  <input name="url" defaultValue={editingRes?.url} placeholder="URL" className="w-full p-3 bg-gray-50 rounded-xl outline-none border border-gray-100 font-bold text-xs" required />
+                  <input name="category" defaultValue={editingRes?.category} placeholder="Carpeta" className="w-full p-3 bg-gray-50 rounded-xl outline-none border border-gray-100 font-bold text-xs" required />
                   <div className="flex gap-2 pt-2"><button type="button" onClick={() => setShowModal(false)} className="flex-1 text-gray-400 font-bold text-xs uppercase tracking-widest">CANCELAR</button><button type="submit" className="flex-1 bg-violet-600 text-white py-3 rounded-xl font-bold text-xs uppercase shadow-lg">GUARDAR</button></div>
               </form>
           </div>
@@ -3987,6 +4009,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
