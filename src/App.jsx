@@ -582,7 +582,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
     </div>
   );
 }
-// --- VISTA RECURSOS (CON GENERADOR DE NOTAS ESTABLE Y RESPONSIVE) ---
+// --- VISTA RECURSOS (CON GENERADOR DE NOTAS - CORRECCIÓN DE BORDES Y TEXTO) ---
 function ResourcesView({ resources, canEdit }) {
   const [folder, setFolder] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -617,23 +617,24 @@ function ResourcesView({ resources, canEdit }) {
       </div>
 
       {!folder && (
-          <button onClick={() => setShowNotaModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-orange-400 p-6 rounded-3xl shadow-lg text-white flex items-center justify-between mb-6 group hover:scale-[1.02] transition-transform active:scale-95">
-              <div className="flex items-center gap-4">
-                  <div className="bg-white/20 p-3 rounded-2xl group-hover:rotate-12 transition-transform"><Edit3 size={32}/></div>
+          <button onClick={() => setShowNotaModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-orange-400 p-5 md:p-6 rounded-3xl shadow-lg text-white flex items-center justify-between mb-6 group hover:scale-[1.02] transition-transform active:scale-95">
+              <div className="flex items-center gap-3 md:gap-4">
+                  <div className="bg-white/20 p-2 md:p-3 rounded-2xl group-hover:rotate-12 transition-transform"><Edit3 size={28} className="md:w-8 md:h-8"/></div>
                   <div className="text-left">
-                      <h3 className="font-black text-xl tracking-widest uppercase italic drop-shadow-md">Generador de Notas</h3>
-                      <p className="text-xs font-bold opacity-90 mt-1">Crear comunicados institucionales</p>
+                      <h3 className="font-black text-lg md:text-xl tracking-widest uppercase italic drop-shadow-md">Generador de Notas</h3>
+                      <p className="text-[10px] md:text-xs font-bold opacity-90 mt-0.5 md:mt-1">Crear comunicados institucionales</p>
                   </div>
               </div>
               <ChevronRight size={24} className="opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all"/>
           </button>
       )}
 
+      {/* CARPETAS DE RECURSOS (SIN CAMBIOS) */}
       {!folder ? (
         <div className="grid grid-cols-2 gap-4 pb-10">
           {Object.keys(folders).map(name => (
-            <div key={name} onClick={() => setFolder(name)} className="bg-white p-6 rounded-[35px] border border-violet-50 text-center cursor-pointer shadow-sm hover:scale-105 transition-all group border-b-4 border-orange-500">
-              <div className="w-12 h-12 bg-violet-50 text-violet-200 rounded-2xl flex items-center justify-center mb-3 mx-auto group-hover:bg-violet-600 group-hover:text-white transition-all shadow-inner"><Folder size={28} /></div>
+            <div key={name} onClick={() => setFolder(name)} className="bg-white p-6 md:p-10 rounded-[35px] border border-violet-50 text-center cursor-pointer shadow-sm hover:scale-105 transition-all group border-b-4 border-orange-500">
+              <div className="w-12 h-12 md:w-16 md:h-16 bg-violet-50 text-violet-200 rounded-2xl flex items-center justify-center mb-3 mx-auto group-hover:bg-violet-600 group-hover:text-white transition-all shadow-inner"><Folder size={28} /></div>
               <h3 className="font-black text-[10px] uppercase tracking-widest text-gray-700 leading-tight italic">{name}</h3>
               <p className="text-[8px] font-bold text-gray-300 mt-2 uppercase tracking-[4px]">{folders[name].length} Docs</p>
             </div>
@@ -642,14 +643,11 @@ function ResourcesView({ resources, canEdit }) {
       ) : (
         <div className="grid gap-3 pb-20">
           {folders[folder].map(r => (
-            <div key={r.id} className="bg-white p-4 rounded-[20px] border border-violet-50 flex justify-between items-center group shadow-sm">
+            <div key={r.id} className="bg-white p-4 md:p-5 rounded-[20px] border border-violet-50 flex justify-between items-center group shadow-sm">
                 <a href={r.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 italic tracking-tight font-black text-xs text-gray-700 hover:text-violet-600 flex-1 min-w-0">
                     <FileText size={18} className="text-violet-200 shrink-0" /> 
                     <span className="truncate">{r.title}</span>
                 </a>
-                <div className="flex items-center gap-2">
-                    {canEdit && <button onClick={() => openEdit(r)} className="p-2 text-blue-300 hover:text-blue-500"><Edit3 size={16}/></button>}
-                </div>
             </div>
           ))}
         </div>
@@ -687,14 +685,13 @@ function ResourcesView({ resources, canEdit }) {
                           </div>
                       </div>
 
-                      {/* VISTA PREVIA AJUSTADA PARA CELULAR */}
+                      {/* VISTA PREVIA CORREGIDA */}
                       <div className="flex-1 flex flex-col items-center bg-slate-100 p-4 md:p-6 rounded-[30px] border-2 border-dashed border-gray-300 overflow-x-auto min-h-[400px]">
-                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[4px] mb-4 shrink-0">VISTA PREVIA (DESLIZÁ PARA VER)</p>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[4px] mb-4 shrink-0 text-center">VISTA PREVIA (DESLIZÁ EN CELULAR)</p>
                           
-                          {/* Contenedor de la nota con tamaño fijo para asegurar descarga correcta */}
+                          {/* EL LIENZO (CANVAS) */}
                           <div id="nota-canvas" className="w-[550px] min-h-[380px] bg-[#fefce8] relative shadow-2xl border-[8px] border-white rounded-[10px] flex flex-col overflow-hidden shrink-0" style={{backgroundColor: '#fefce8'}}>
                               
-                              {/* Trama y Borde */}
                               <div className="absolute inset-0 opacity-[0.04]" style={{backgroundImage: 'radial-gradient(#f97316 2px, transparent 2px)', backgroundSize: '18px 18px'}}></div>
                               <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-violet-600 via-pink-500 to-orange-400"></div>
                               
@@ -702,7 +699,7 @@ function ResourcesView({ resources, canEdit }) {
                                   {/* Header */}
                                   <div className="flex justify-between items-start mb-6 shrink-0">
                                       <div className="flex items-center gap-3">
-                                          <img src={LOGO_SIN_FONDO} className="w-14 h-auto" crossOrigin="anonymous" onError={(e) => e.target.src = LOGO_URL}/>
+                                          <img src={LOGO_SIN_FONDO} className="w-14 h-auto mix-blend-multiply" crossOrigin="anonymous" onError={(e) => e.target.src = LOGO_URL}/>
                                           <div className="leading-tight pt-1">
                                               <h2 className="font-black text-[14px] text-violet-900 uppercase tracking-[1px]">JUNTOS A LA PAR</h2>
                                               <p className="text-[8px] font-bold text-gray-500 uppercase tracking-widest">ESCUELA ESPECIAL</p>
@@ -714,9 +711,9 @@ function ResourcesView({ resources, canEdit }) {
                                   {/* Título */}
                                   <h1 className="text-lg font-black text-gray-800 uppercase leading-tight mb-4 text-center tracking-tight shrink-0">{notaData.title || 'TÍTULO'}</h1>
                                   
-                                  {/* Cuerpo: Texto Auto-ajustable real */}
-                                  <div className="flex flex-col justify-center flex-1 min-h-0">
-                                      <div className={`text-slate-700 font-bold whitespace-pre-wrap leading-relaxed text-center px-4 ${notaData.body.length > 400 ? 'text-[10px]' : notaData.body.length > 250 ? 'text-[12px]' : 'text-[14px]'}`}>
+                                  {/* CUERPO: Corrección de desborde y márgenes laterales */}
+                                  <div className="flex flex-col justify-center flex-1 min-h-0 w-full overflow-hidden px-4">
+                                      <div className={`text-slate-700 font-bold whitespace-pre-wrap leading-relaxed text-center break-words overflow-hidden w-full mx-auto ${notaData.body.length > 400 ? 'text-[10px]' : notaData.body.length > 250 ? 'text-[12px]' : 'text-[14px]'}`} style={{maxWidth: '450px'}}>
                                           {notaData.body || 'Contenido de la nota...'}
                                       </div>
                                   </div>
@@ -734,7 +731,6 @@ function ResourcesView({ resources, canEdit }) {
 
                   <div className="border-t pt-4 mt-2 flex gap-3 shrink-0 bg-white">
                       <button onClick={() => setShowNotaModal(false)} className="flex-1 text-gray-500 font-black text-[10px] uppercase hover:bg-gray-100 rounded-2xl py-4 transition tracking-widest">VOLVER</button>
-                      
                       <button onClick={async () => {
                           if(!notaData.title && !notaData.body) return alert("Escribí algo.");
                           const element = document.getElementById('nota-canvas');
@@ -743,18 +739,13 @@ function ResourcesView({ resources, canEdit }) {
                               const canvas = await html2canvas(element, { 
                                   scale: 3, 
                                   useCORS: true, 
-                                  allowTaint: true,
-                                  backgroundColor: '#fefce8',
-                                  logging: false
+                                  backgroundColor: '#fefce8'
                               }); 
                               const link = document.createElement('a');
                               link.download = `Nota_${notaData.title.substring(0,10)}.jpg`;
                               link.href = canvas.toDataURL('image/jpeg', 0.95);
                               link.click();
-                          } catch (error) { 
-                              alert("Error al generar imagen. Intentá de nuevo."); 
-                              console.error(error);
-                          }
+                          } catch (error) { alert("Error al generar imagen."); }
                       }} className="flex-[2] bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-xs uppercase tracking-[3px] rounded-2xl shadow-xl hover:scale-[1.02] transition active:scale-95 flex items-center justify-center gap-2">
                           <Download size={20}/> DESCARGAR NOTA HD
                       </button>
@@ -762,7 +753,7 @@ function ResourcesView({ resources, canEdit }) {
               </div>
           </div>
       )}
-      
+
       {/* MODAL CARGA RECURSOS IGUAL */}
       {showModal && (
           <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4">
@@ -3985,6 +3976,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
