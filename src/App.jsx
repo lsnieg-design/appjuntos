@@ -582,11 +582,16 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
     </div>
   );
 }
-// --- VISTA RECURSOS (LINKS CORREGIDOS) ---
+// --- VISTA RECURSOS (CON GENERADOR DE NOTAS OFICIALES) ---
 function ResourcesView({ resources, canEdit }) {
   const [folder, setFolder] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [editingRes, setEditingRes] = useState(null); // Estado para editar
+  const [editingRes, setEditingRes] = useState(null); 
+  
+  // NUEVOS ESTADOS: GENERADOR DE NOTAS
+  const [showNotaModal, setShowNotaModal] = useState(false);
+  const [notaData, setNotaData] = useState({ date: '', title: '', body: '' });
+  const LOGO_URL = "/icon-192.png"; 
 
   const folders = (resources || []).reduce((acc, r) => { const cat = r.category || 'VARIOS'; if (!acc[cat]) acc[cat] = []; acc[cat].push(r); return acc; }, {});
   
@@ -614,12 +619,27 @@ function ResourcesView({ resources, canEdit }) {
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-black text-violet-900 italic tracking-tighter uppercase italic">Recursos</h2>
+        <h2 className="text-2xl font-black text-violet-900 italic tracking-tighter uppercase">Recursos</h2>
         <div className="flex gap-2">
             {folder && <button onClick={() => setFolder(null)} className="bg-gray-100 p-2 rounded-xl text-xs font-black uppercase text-violet-700 shadow-sm border border-gray-100 flex items-center gap-1 hover:bg-violet-100 transition"><ChevronLeft size={16}/> Volver</button>}
             {canEdit && <button onClick={openNew} className="bg-orange-500 text-white p-2 rounded-xl shadow-lg"><Plus size={20}/></button>}
         </div>
       </div>
+
+      {/* BOTÓN GIGANTE: GENERADOR DE NOTAS */}
+      {!folder && (
+          <button onClick={() => setShowNotaModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-orange-400 p-6 rounded-3xl shadow-lg text-white flex items-center justify-between mb-6 group hover:scale-[1.02] transition-transform active:scale-95">
+              <div className="flex items-center gap-4">
+                  <div className="bg-white/20 p-3 rounded-2xl group-hover:rotate-12 transition-transform"><Edit3 size={32}/></div>
+                  <div className="text-left">
+                      <h3 className="font-black text-xl tracking-widest uppercase italic drop-shadow-md">Generador de Notas</h3>
+                      <p className="text-xs font-bold opacity-90 mt-1">Crear comunicados institucionales en imagen</p>
+                  </div>
+              </div>
+              <ChevronRight size={24} className="opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all"/>
+          </button>
+      )}
+
       {!folder ? (
         <div className="grid grid-cols-2 gap-4 pb-10">
           {Object.keys(folders).map(name => (
@@ -651,6 +671,8 @@ function ResourcesView({ resources, canEdit }) {
           ))}
         </div>
       )}
+
+      {/* MODAL CARGA RECURSOS (EL VIEJO) */}
       {showModal && (
           <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4">
               <form onSubmit={handleSaveResource} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl space-y-4">
@@ -662,10 +684,98 @@ function ResourcesView({ resources, canEdit }) {
               </form>
           </div>
       )}
+
+      {/* MODAL NUEVO: GENERADOR DE NOTAS OFICIALES */}
+      {showNotaModal && (
+          <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowNotaModal(false)}>
+              <div className="bg-white rounded-[40px] w-full max-w-4xl p-6 shadow-2xl animate-in zoom-in-95 max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                  <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-4 shrink-0">
+                      <h3 className="text-xl font-black text-pink-600 uppercase italic flex items-center gap-2"><Edit3 size={24}/> Generador de Notas</h3>
+                      <button onClick={() => setShowNotaModal(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button>
+                  </div>
+
+                  <div className="flex flex-col md:flex-row gap-6 overflow-y-auto pr-2 pb-4">
+                      
+                      {/* LADO IZQUIERDO: FORMULARIO */}
+                      <div className="flex-1 space-y-4">
+                          <div>
+                              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">Fecha de Emisión (Opcional)</label>
+                              <input type="text" placeholder="Ej: Marzo 2026, Ituzaingó..." value={notaData.date} onChange={e => setNotaData({...notaData, date: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-medium text-sm border focus:border-pink-300"/>
+                          </div>
+                          <div>
+                              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">Título de la Nota</label>
+                              <input type="text" placeholder="Ej: COMUNICADO IMPORTANTE" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-black uppercase text-sm border focus:border-pink-300"/>
+                          </div>
+                          <div>
+                              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">Cuerpo del Mensaje</label>
+                              <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Estimadas familias..." className="w-full p-3 bg-gray-50 rounded-xl outline-none text-sm border focus:border-pink-300 min-h-[200px] resize-none whitespace-pre-wrap"/>
+                          </div>
+                      </div>
+
+                      {/* LADO DERECHO: VISTA PREVIA (LIENZO A DESCARGAR) */}
+                      <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-4 rounded-3xl border-2 border-dashed border-gray-200">
+                          <p className="text-[10px] font-black text-gray-400 uppercase mb-2">Vista Previa</p>
+                          
+                          <div id="nota-canvas" className="w-[350px] min-h-[450px] bg-yellow-50 rounded-[20px] p-6 shadow-md border-[3px] border-orange-200 relative overflow-hidden flex flex-col" style={{backgroundColor: '#fefce8'}}>
+                              {/* Patrón de fondo sutil (Puntitos) */}
+                              <div className="absolute inset-0 opacity-[0.03]" style={{backgroundImage: 'radial-gradient(#f97316 2px, transparent 2px)', backgroundSize: '15px 15px'}}></div>
+                              
+                              <div className="relative z-10 flex flex-col h-full">
+                                  <div className="flex justify-between items-start mb-6">
+                                      <img src={LOGO_URL} className="w-12 h-auto opacity-90" crossOrigin="anonymous"/>
+                                      <p className="text-[9px] text-orange-800 font-bold uppercase tracking-widest text-right mt-1 w-32 leading-tight">{notaData.date}</p>
+                                  </div>
+                                  
+                                  <h1 className="text-lg font-black text-violet-900 uppercase leading-tight mb-4 text-center">{notaData.title || 'TÍTULO'}</h1>
+                                  
+                                  <div className="text-xs text-slate-800 font-medium whitespace-pre-wrap flex-1 leading-relaxed text-justify">
+                                      {notaData.body || 'Escribe el cuerpo de la nota para visualizarlo aquí...'}
+                                  </div>
+                                  
+                                  <div className="mt-8 pt-4 border-t-2 border-orange-200/50 text-center">
+                                      <p className="text-[10px] font-black text-violet-800 uppercase tracking-widest italic">Equipo Directivo</p>
+                                      <p className="text-[8px] text-orange-600 font-bold mt-1">Escuela Especial Juntos a la Par</p>
+                                  </div>
+                              </div>
+                          </div>
+
+                      </div>
+                  </div>
+
+                  <div className="border-t pt-4 mt-2 flex gap-2 shrink-0">
+                      <button onClick={() => setShowNotaModal(false)} className="flex-1 text-gray-500 font-bold text-xs uppercase hover:bg-gray-100 rounded-xl py-4 transition">Cerrar</button>
+                      
+                      {/* BOTÓN MAGIA: HTML A IMAGEN */}
+                      <button onClick={async () => {
+                          if(!notaData.title && !notaData.body) return alert("Escribe algo primero.");
+                          const element = document.getElementById('nota-canvas');
+                          
+                          try {
+                              const html2canvas = (await import('html2canvas')).default;
+                              const canvas = await html2canvas(element, { 
+                                  scale: 3, // Multiplica x3 la calidad para que se vea excelente en WhatsApp
+                                  useCORS: true, 
+                                  backgroundColor: '#fefce8' 
+                              }); 
+                              
+                              const link = document.createElement('a');
+                              link.download = `Nota_${notaData.title.substring(0,15) || 'Institucional'}.jpg`;
+                              link.href = canvas.toDataURL('image/jpeg', 0.9);
+                              link.click();
+                          } catch (error) {
+                              alert("Hubo un error al generar la imagen. Intentá de nuevo.");
+                              console.error(error);
+                          }
+                      }} className="flex-[2] bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-sm uppercase tracking-widest rounded-2xl shadow-xl hover:scale-[1.02] transition active:scale-95 flex items-center justify-center gap-2">
+                          <Download size={20}/> Descargar JPG
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
     </div>
   );
 }
-
 // --- VISTA TAREAS (VERSIÓN UNIFICADA: EDICIÓN + CUENTA REGRESIVA + CIERRES CORREGIDOS) ---
 function TasksView({ tasks = [], user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
@@ -3873,6 +3983,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
