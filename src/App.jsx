@@ -318,18 +318,22 @@ function LoginScreen({ onLogin }) {
   );
 }
 // --- VISTA DASHBOARD (MANUAL COMPLETO: AULA + RECURSOS + PROYECTO) ---
+// --- VISTA DASHBOARD (MANUAL COMPLETO + CUMPLES UNIFICADOS) ---
 function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEvents = events.filter(e => e.date === todayStr);
   
   const [showAnnounceModal, setShowAnnounceModal] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
-  const [birthdays, setBirthdays] = useState([]);
   const [showBirthdayModal, setShowBirthdayModal] = useState(false);
   const [notes, setNotes] = useState([]);
   const [newNote, setNewNote] = useState('');
   const [ungroupedCount, setUngroupedCount] = useState(0);
   
+  // NUEVOS ESTADOS DE CUMPLEAÑOS
+  const [studentBirthdays, setStudentBirthdays] = useState([]);
+  const [staffBirthdays, setStaffBirthdays] = useState([]);
+
   // ESTADO DEL MANUAL
   const [tutorialTab, setTutorialTab] = useState('inicio'); 
 
@@ -356,13 +360,47 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   useEffect(() => {
     const qNotes = query(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), where('userId', '==', user.id));
     const unsubNotes = onSnapshot(qNotes, (snap) => setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.done - b.done)));
+    
+    // LÓGICA DE CUMPLEAÑOS UNIFICADA
+    const today = new Date(); today.setHours(0,0,0,0);
+    const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7); nextWeek.setHours(23,59,59,999);
+
     const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
     const unsubStudents = onSnapshot(qStudents, (snap) => {
-        const today = new Date(); const nextWeek = new Date(); nextWeek.setDate(today.getDate() + 7); let noGroupCounter = 0;
-        const upcoming = snap.docs.map(d => { const data = d.data(); if (!data.groupMorning && !data.groupAfternoon && !data.daiMorning && !data.daiAfternoon) noGroupCounter++; if(!data.birthDate) return null; const dob = new Date(data.birthDate + 'T00:00:00'); const currentYearBirth = new Date(today.getFullYear(), dob.getMonth(), dob.getDate()); if (currentYearBirth < today.setHours(0,0,0,0)) currentYearBirth.setFullYear(today.getFullYear() + 1); return { ...data, id: d.id, nextBirthday: currentYearBirth }; }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday); setBirthdays(upcoming); setUngroupedCount(noGroupCounter);
+        let noGroupCounter = 0;
+        const upcoming = snap.docs.map(d => {
+            const data = d.data();
+            if (!data.groupMorning && !data.groupAfternoon && !data.daiMorning && !data.daiAfternoon) noGroupCounter++;
+            if(!data.birthDate) return null;
+            const dob = new Date(data.birthDate + 'T00:00:00');
+            const currentYearBirth = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
+            if (currentYearBirth < today) currentYearBirth.setFullYear(today.getFullYear() + 1);
+            return { ...data, id: d.id, nextBirthday: currentYearBirth };
+        }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday);
+        
+        setStudentBirthdays(upcoming);
+        setUngroupedCount(noGroupCounter);
     });
-    return () => { unsubNotes(); unsubStudents(); };
+
+    const qStaff = query(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'));
+    const unsubStaff = onSnapshot(qStaff, (snap) => {
+        const upcoming = snap.docs.map(d => {
+            const data = d.data();
+            if(!data.birthDate) return null;
+            // Para el staff la fecha puede venir con distinto formato (Y-M-D) o sin tiempo
+            const dob = new Date(data.birthDate.includes('T') ? data.birthDate : data.birthDate + 'T00:00:00');
+            const currentYearBirth = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
+            if (currentYearBirth < today) currentYearBirth.setFullYear(today.getFullYear() + 1);
+            return { ...data, id: d.id, nextBirthday: currentYearBirth };
+        }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday);
+        
+        setStaffBirthdays(upcoming);
+    });
+
+    return () => { unsubNotes(); unsubStudents(); unsubStaff(); };
   }, [user.id]);
+
+  const totalBirthdays = studentBirthdays.length + staffBirthdays.length;
 
   const handlePost = async (e) => { e.preventDefault(); const text = e.target.message.value; const channel = e.target.channel?.value || 'general'; if(!text.trim()) return; try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), { message: text, author: user.fullName || user.firstName, authorId: user.id, role: user.role, channel: channel, createdAt: serverTimestamp() }); setShowAnnounceModal(false); } catch(e) { alert("Error: " + e.message); } };
   const deleteAnnouncement = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'announcements', id)); };
@@ -375,8 +413,18 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   return (
     <div className="space-y-4 animate-in fade-in pb-10">
       <div className="flex justify-between items-center px-2"><div><h2 className="text-2xl font-black text-slate-800 tracking-tighter italic">¡Hola, {user.firstName}! 👋</h2><p className="text-slate-500 font-medium text-xs">Panel de Control</p></div><div className="flex gap-2"><button onClick={() => setShowTutorial(true)} className="bg-white text-violet-600 px-3 py-2 rounded-xl text-xs font-bold shadow-sm border border-violet-100 flex items-center gap-1 hover:bg-violet-50 transition"><HelpCircle size={16}/> Ayuda</button>{canPost && <button onClick={() => setShowAnnounceModal(true)} className="bg-orange-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-lg hover:scale-105 transition flex items-center gap-1"><Edit3 size={14}/> Aviso</button>}</div></div>
+      
       {isManagement && ungroupedCount > 0 && (<div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl flex items-center justify-between shadow-sm animate-pulse"><div className="flex items-center gap-3"><AlertTriangle className="text-red-500" size={24} /><div><h4 className="font-black text-red-700 text-xs uppercase tracking-widest">Atención Administrativa</h4><p className="text-xs text-red-600 font-bold">Hay {ungroupedCount} estudiantes activos sin grupo asignado.</p></div></div></div>)}
-      {birthdays.length > 0 && (<button onClick={() => setShowBirthdayModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-rose-500 p-3 rounded-2xl shadow-md text-white flex items-center justify-between active:scale-95 transition"><div className="flex items-center gap-3"><div className="bg-white/20 p-2 rounded-xl"><Crown size={20} className="text-white"/></div><div className="text-left"><h3 className="font-bold text-sm uppercase tracking-widest">¡Hay Cumpleaños!</h3><p className="text-xs opacity-90">{birthdays.length} festejos esta semana</p></div></div><ChevronRight size={20}/></button>)}
+      
+      {totalBirthdays > 0 && (
+          <button onClick={() => setShowBirthdayModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-rose-500 p-3 rounded-2xl shadow-md text-white flex items-center justify-between active:scale-95 transition">
+              <div className="flex items-center gap-3">
+                  <div className="bg-white/20 p-2 rounded-xl"><Crown size={20} className="text-white"/></div>
+                  <div className="text-left"><h3 className="font-bold text-sm uppercase tracking-widest">¡Hay Cumpleaños!</h3><p className="text-xs opacity-90">{totalBirthdays} festejos esta semana</p></div>
+              </div>
+              <ChevronRight size={20}/>
+          </button>
+      )}
       
       {visibleAnnouncements.length > 0 && (<div className="bg-yellow-100 p-5 rounded-[30px] border-2 border-yellow-200 shadow-sm relative"><h3 className="text-[10px] font-black text-yellow-700 uppercase tracking-widest flex items-center gap-1 mb-3"><Bell size={12}/> Cartelera Oficial</h3><div className="space-y-3">{visibleAnnouncements.map(a => (<div key={a.id} className="bg-white/80 p-3 rounded-2xl border border-yellow-200/50 text-sm text-gray-800 flex justify-between items-start"><div>{a.channel === 'inclusion' && <span className="bg-indigo-100 text-indigo-700 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-indigo-200">Canal Inclusión</span>}{a.channel === 'sede' && <span className="bg-orange-100 text-orange-700 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-orange-200">Canal Sede</span>}{(a.channel === 'general' || !a.channel) && <span className="bg-gray-100 text-gray-500 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-gray-200">General</span>}<p className="italic font-medium">"{a.message}"</p><p className="text-[9px] text-yellow-600 font-bold mt-1 uppercase tracking-wider">- {a.author}</p></div>{(canPost || a.authorId === user.id) && (<button onClick={() => deleteAnnouncement(a.id)} className="text-yellow-600 hover:text-red-500 p-1 bg-yellow-50 rounded-lg transition"><Trash2 size={14}/></button>)}</div>))}</div></div>)}
       <div className="grid grid-cols-2 gap-3"><div onClick={() => setActiveTab('tasks')} className="bg-white p-5 rounded-[30px] border border-orange-100 shadow-sm cursor-pointer hover:shadow-md transition"><h4 className="text-3xl font-black text-orange-500">{myPendingTasksCount}</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Tareas Pendientes</p></div><div onClick={() => setActiveTab('calendar')} className={`p-5 rounded-[30px] border shadow-sm relative overflow-hidden cursor-pointer hover:shadow-md transition ${todayEvents.length > 0 ? 'bg-violet-600 text-white border-violet-600' : 'bg-white border-violet-100'}`}>{todayEvents.length > 0 ? ( <><h4 className="text-lg font-black leading-tight mb-1">{todayEvents[0].title}</h4><p className="text-[9px] opacity-80 uppercase tracking-widest font-bold">Es Hoy</p></> ) : ( <><h4 className="text-3xl font-black text-violet-600">0</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Eventos Hoy</p></> )}</div></div>
@@ -472,7 +520,65 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
             </div>
         </div>
       )}
-      {showBirthdayModal && (<div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowBirthdayModal(false)}><div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-pink-500" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-4"><h3 className="text-xl font-black text-pink-500 uppercase italic">Cumpleaños</h3><button onClick={() => setShowBirthdayModal(false)}><X size={24}/></button></div><div className="space-y-3 max-h-[60vh] overflow-y-auto">{birthdays.map(b => (<div key={b.id} className="flex items-center gap-4 bg-pink-50 p-3 rounded-2xl border border-pink-100"><div className="w-12 h-12 rounded-full bg-white border-2 border-pink-200 overflow-hidden shrink-0 flex items-center justify-center font-bold text-pink-400">{b.photoUrl ? <img src={b.photoUrl} className="w-full h-full object-cover"/> : b.firstName[0]}</div><div><h4 className="font-bold text-gray-800">{b.firstName} {b.lastName}</h4><p className="text-xs text-pink-600 font-bold">{[b.groupMorning, b.groupAfternoon].filter(Boolean).join(' / ') || 'Sin Grupo'}</p><p className="text-[10px] text-gray-400 uppercase tracking-widest">{new Date(b.nextBirthday).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}</p></div></div>))}</div></div></div>)}
+
+      {/* --- MODAL CUMPLEAÑOS UNIFICADO (DOS COLUMNAS) --- */}
+      {showBirthdayModal && (
+          <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowBirthdayModal(false)}>
+              <div className="bg-white rounded-[40px] w-full max-w-3xl p-6 md:p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-pink-500 max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                  
+                  <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                      <h3 className="text-xl md:text-2xl font-black text-pink-500 uppercase italic flex items-center gap-2"><Crown size={28}/> Cumpleaños de la Semana</h3>
+                      <button onClick={() => setShowBirthdayModal(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20}/></button>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 pr-2">
+                      
+                      {/* --- COLUMNA ESTUDIANTES --- */}
+                      <div>
+                          <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><GraduationCap size={16}/> Estudiantes ({studentBirthdays.length})</h4>
+                          {studentBirthdays.length === 0 ? <p className="text-sm text-gray-400 italic text-center py-6">No hay alumnos cumpliendo años.</p> : (
+                              <div className="space-y-3">
+                                  {studentBirthdays.map(b => (
+                                      <div key={b.id} className="flex items-center gap-4 bg-pink-50 p-3 rounded-2xl border border-pink-100 hover:shadow-sm transition">
+                                          <div className="w-12 h-12 rounded-full bg-white border-2 border-pink-200 overflow-hidden shrink-0 flex items-center justify-center font-bold text-pink-400">
+                                              {b.photoUrl ? <img src={b.photoUrl} className="w-full h-full object-cover"/> : b.firstName[0]}
+                                          </div>
+                                          <div>
+                                              <h4 className="font-bold text-gray-800 leading-tight">{b.firstName} {b.lastName}</h4>
+                                              <p className="text-[10px] text-pink-600 font-bold uppercase mt-0.5">{b.modality === 'Inclusión' ? '📍 Inclusión' : `📍 ${[b.groupMorning, b.groupAfternoon].filter(Boolean).join(' / ') || 'Sin Grupo'}`}</p>
+                                              <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-0.5 flex items-center gap-1"><CalendarIcon size={10}/> {new Date(b.nextBirthday).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                                          </div>
+                                      </div>
+                                  ))}
+                              </div>
+                          )}
+                      </div>
+
+                      {/* --- COLUMNA PERSONAL --- */}
+                      <div>
+                          <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Users size={16}/> Personal de la Casa ({staffBirthdays.length})</h4>
+                          {staffBirthdays.length === 0 ? <p className="text-sm text-gray-400 italic text-center py-6">No hay docentes cumpliendo años.</p> : (
+                              <div className="space-y-3">
+                                  {staffBirthdays.map(b => (
+                                      <div key={b.id} className="flex items-center gap-4 bg-violet-50 p-3 rounded-2xl border border-violet-100 hover:shadow-sm transition">
+                                          <div className="w-12 h-12 rounded-full bg-white border-2 border-violet-200 overflow-hidden shrink-0 flex items-center justify-center font-bold text-violet-400">
+                                              {b.photoUrl ? <img src={b.photoUrl} className="w-full h-full object-cover"/> : b.firstName[0]}
+                                          </div>
+                                          <div>
+                                              <h4 className="font-bold text-gray-800 leading-tight">{b.firstName} {b.lastName}</h4>
+                                              <p className="text-[10px] text-violet-600 font-bold uppercase mt-0.5">💼 {b.role || 'Docente'}</p>
+                                              <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-0.5 flex items-center gap-1"><CalendarIcon size={10}/> {new Date(b.nextBirthday).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                                          </div>
+                                      </div>
+                                  ))}
+                              </div>
+                          )}
+                      </div>
+
+                  </div>
+              </div>
+          </div>
+      )}
     </div>
   );
 }
@@ -3588,6 +3694,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
