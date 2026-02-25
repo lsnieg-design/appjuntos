@@ -582,7 +582,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
     </div>
   );
 }
-// --- VISTA RECURSOS (CON GENERADOR DE NOTAS HORIZONTAL Y LOGO PNG) ---
+// --- VISTA RECURSOS (CON GENERADOR DE NOTAS HORIZONTAL Y TEXTO AUTO-AJUSTABLE) ---
 function ResourcesView({ resources, canEdit }) {
   const [folder, setFolder] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -591,7 +591,7 @@ function ResourcesView({ resources, canEdit }) {
   // ESTADOS: GENERADOR DE NOTAS
   const [showNotaModal, setShowNotaModal] = useState(false);
   const [notaData, setNotaData] = useState({ date: '', title: '', body: '', signature: 'EQUIPO DIRECTIVO' });
-  const LOGO_SIN_FONDO = "/logosinfondo.png"; // Usamos tu nuevo archivo
+  const LOGO_SIN_FONDO = "/logosinfondo.png";
 
   const folders = (resources || []).reduce((acc, r) => { const cat = r.category || 'VARIOS'; if (!acc[cat]) acc[cat] = []; acc[cat].push(r); return acc; }, {});
   
@@ -658,7 +658,7 @@ function ResourcesView({ resources, canEdit }) {
         </div>
       )}
 
-      {/* MODAL GENERADOR DE NOTAS (FORMATO HORIZONTAL) */}
+      {/* MODAL GENERADOR DE NOTAS (FORMATO HORIZONTAL MEJORADO) */}
       {showNotaModal && (
           <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-0 md:p-4 backdrop-blur-md animate-in fade-in" onClick={() => setShowNotaModal(false)}>
               <div className="bg-white rounded-t-[40px] md:rounded-[40px] w-full max-w-6xl p-6 md:p-10 shadow-2xl flex flex-col h-[95vh] md:h-auto overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -694,43 +694,40 @@ function ResourcesView({ resources, canEdit }) {
                       <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 p-4 md:p-6 rounded-[40px] border-2 border-dashed border-gray-200 overflow-hidden shrink-0">
                           <p className="text-[10px] font-black text-gray-400 uppercase tracking-[4px] mb-4">VISTA PREVIA</p>
                           
-                          {/* ESCALADO DINÁMICO PARA CELULAR */}
                           <div className="scale-[0.45] sm:scale-[0.6] md:scale-[0.8] lg:scale-100 origin-top transition-transform">
-                              <div id="nota-canvas" className="w-[600px] h-[400px] bg-white relative shadow-2xl border-[10px] border-white rounded-[15px] flex flex-col overflow-hidden" style={{backgroundColor: '#fefce8'}}>
+                              <div id="nota-canvas" className="w-[600px] h-[400px] bg-white relative shadow-2xl border-[10px] border-white rounded-[15px] flex flex-col overflow-hidden mx-auto" style={{backgroundColor: '#fefce8'}}>
                                   
-                                  {/* Trama de fondo */}
                                   <div className="absolute inset-0 opacity-[0.04]" style={{backgroundImage: 'radial-gradient(#f97316 2px, transparent 2px)', backgroundSize: '18px 18px'}}></div>
-                                  
-                                  {/* Borde superior decorativo */}
                                   <div className="absolute top-0 left-0 right-0 h-3 bg-gradient-to-r from-violet-600 via-pink-500 to-orange-400 opacity-80"></div>
                                   
-                                  <div className="flex flex-col h-full px-12 pt-10 pb-8 z-10">
+                                  <div className="flex flex-col h-full px-12 pt-8 pb-6 z-10">
                                       {/* Header */}
-                                      <div className="flex justify-between items-start mb-6">
+                                      <div className="flex justify-between items-start mb-4 shrink-0">
                                           <div className="flex items-center gap-4">
-                                              {/* LOGO SIN FONDO */}
-                                              <img src={LOGO_SIN_FONDO} className="w-16 h-auto" crossOrigin="anonymous"/>
+                                              <img src={LOGO_SIN_FONDO} className="w-14 h-auto" crossOrigin="anonymous"/>
                                               <div className="leading-tight pt-1">
-                                                  <h2 className="font-black text-[16px] text-violet-900 uppercase tracking-[2px]">JUNTOS A LA PAR</h2>
-                                                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">ESCUELA ESPECIAL</p>
+                                                  <h2 className="font-black text-[15px] text-violet-900 uppercase tracking-[2px]">JUNTOS A LA PAR</h2>
+                                                  <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">ESCUELA ESPECIAL</p>
                                               </div>
                                           </div>
-                                          <p className="text-[12px] text-orange-600 font-black uppercase tracking-widest pt-2">{notaData.date}</p>
+                                          <p className="text-[11px] text-orange-600 font-black uppercase tracking-widest pt-2">{notaData.date}</p>
                                       </div>
                                       
-                                      {/* Título */}
-                                      <h1 className="text-2xl font-black text-gray-800 uppercase leading-tight mb-4 text-center tracking-tight">{notaData.title || 'TÍTULO'}</h1>
+                                      {/* Título - Ajustado para no comerse el espacio */}
+                                      <h1 className="text-xl font-black text-gray-800 uppercase leading-tight mb-3 text-center tracking-tight shrink-0">{notaData.title || 'TÍTULO'}</h1>
                                       
-                                      {/* Cuerpo */}
-                                      <div className="text-[15px] text-slate-700 font-semibold whitespace-pre-wrap flex-1 leading-relaxed text-center px-6 overflow-hidden">
-                                          {notaData.body || 'Escribí el contenido a la izquierda...'}
+                                      {/* Cuerpo con AUTO-AJUSTE: usamos flex-grow y una fuente un poco más chica por defecto */}
+                                      <div className="flex flex-col justify-center flex-1 min-h-0 overflow-hidden">
+                                          <div className={`text-slate-700 font-semibold whitespace-pre-wrap leading-relaxed text-center px-6 overflow-hidden ${notaData.body.length > 300 ? 'text-[11px]' : notaData.body.length > 150 ? 'text-[13px]' : 'text-[15px]'}`}>
+                                              {notaData.body || 'Escribí el contenido a la izquierda...'}
+                                          </div>
                                       </div>
                                       
-                                      {/* Bloque Firma Achicado */}
-                                      <div className="mt-6 flex flex-col items-center shrink-0">
-                                          <div className="w-48 h-[1px] bg-orange-200 mb-4 opacity-50"></div>
-                                          <p className="text-[16px] font-black text-violet-800 uppercase tracking-[1px] text-center leading-none mb-1 italic">{notaData.signature || 'EQUIPO DIRECTIVO'}</p>
-                                          <p className="text-[9px] text-orange-500 font-black uppercase tracking-[3px] text-center opacity-70">ESCUELA JUNTOS A LA PAR</p>
+                                      {/* Bloque Firma */}
+                                      <div className="mt-4 flex flex-col items-center shrink-0">
+                                          <div className="w-48 h-[1px] bg-orange-200 mb-3 opacity-50"></div>
+                                          <p className="text-[15px] font-black text-violet-800 uppercase tracking-[1px] text-center leading-none mb-1 italic">{notaData.signature || 'EQUIPO DIRECTIVO'}</p>
+                                          <p className="text-[8px] text-orange-500 font-black uppercase tracking-[3px] text-center opacity-70">ESCUELA JUNTOS A LA PAR</p>
                                       </div>
                                   </div>
                               </div>
@@ -3986,6 +3983,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
