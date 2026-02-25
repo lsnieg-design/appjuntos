@@ -1185,7 +1185,7 @@ function ProfileView({ user, tasks, onLogout, isSuperAdmin }) {
   );
 }
 
-// --- VISTA ADMINISTRACIÓN DE USUARIOS (FINAL: PRO CON SINCRONIZACIÓN BIDIRECCIONAL) ---
+// --- VISTA ADMINISTRACIÓN DE USUARIOS (FINAL: PRO CON SINCRONIZACIÓN BIDIRECCIONAL A DEMANDA) ---
 function UsersAdminView() {
   const [users, setUsers] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -1251,6 +1251,7 @@ function UsersAdminView() {
   };
 
   // --- 1. DETECTAR QUIÉN FALTA (BIDIRECCIONAL) ---
+ // --- 1. DETECTAR QUIÉN FALTA (BIDIRECCIONAL Y SÚPER TOLERANTE) ---
   const checkMissingData = async () => {
       setProcessing(true);
       try {
@@ -1260,30 +1261,50 @@ function UsersAdminView() {
           const faltanCuentas = [];
           const faltanLegajos = [];
 
+          // Helper: Desarma un texto en un array de palabras en minúsculas y sin acentos
+          const getWords = (str) => {
+              if (!str) return [];
+              return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().match(/\w+/g) || [];
+          };
+
+          // Helper: Verifica si hay suficientes coincidencias cruzadas entre dos personas
+          const isSamePerson = (legajo, userAcc) => {
+              // Si coincide el DNI, es ella fijo (incluso si está como contraseña)
+              if (legajo.dni && legajo.dni.length > 5 && (userAcc.password === legajo.dni || userAcc.username.includes(legajo.dni))) return true;
+
+              // Analizamos las palabras
+              const l_names = getWords(legajo.firstName);
+              const l_lasts = getWords(legajo.lastName);
+              const u_names = getWords(userAcc.firstName);
+              const u_lasts = getWords(userAcc.lastName);
+
+              // Todas las palabras combinadas del usuario
+              const u_all = [...u_names, ...u_lasts];
+
+              // Si tiene DNI cargado en el nombre (a veces pasa), lo ignoramos de la cuenta de palabras
+              
+              // Criterio de Coincidencia: Tiene que coincidir AL MENOS un nombre de pila Y un apellido
+              const nameMatch = l_names.some(name => u_all.includes(name));
+              const lastMatch = l_lasts.some(last => u_all.includes(last));
+
+              return nameMatch && lastMatch;
+          };
+
           // 1A. Buscar Legajos que NO tienen cuenta en Users
           legajos.forEach(legajo => {
-              const existe = users.find(u => 
-                  (u.firstName?.toLowerCase().trim() === legajo.firstName?.toLowerCase().trim() && 
-                   u.lastName?.toLowerCase().trim() === legajo.lastName?.toLowerCase().trim()) ||
-                  (legajo.dni && u.password === legajo.dni)
-              );
+              const existe = users.find(u => isSamePerson(legajo, u));
               if (!existe && legajo.firstName && legajo.lastName) faltanCuentas.push(legajo);
           });
 
           // 1B. Buscar Cuentas en Users que NO tienen Legajo
           users.forEach(u => {
               if (u.username === 'admin') return; // Ignoramos al admin genérico
-              
-              const existe = legajos.find(legajo => 
-                  (u.firstName?.toLowerCase().trim() === legajo.firstName?.toLowerCase().trim() && 
-                   u.lastName?.toLowerCase().trim() === legajo.lastName?.toLowerCase().trim()) ||
-                  (legajo.dni && u.password === legajo.dni)
-              );
+              const existe = legajos.find(legajo => isSamePerson(legajo, u));
               if (!existe && u.firstName && u.lastName) faltanLegajos.push(u);
           });
 
           if (faltanCuentas.length === 0 && faltanLegajos.length === 0) {
-              alert("✅ ¡Todo en orden! Base de datos 100% sincronizada en ambas direcciones.");
+              alert("✅ ¡Todo en orden! Base de datos 100% sincronizada.");
           } else {
               setMissingUsersList(faltanCuentas);
               setMissingLegajosList(faltanLegajos);
@@ -1293,42 +1314,36 @@ function UsersAdminView() {
       setProcessing(false);
   };
 
-  // --- 2. RESOLVER CONFLICTOS (CREAR CUENTAS Y/O LEGAJOS) ---
-  const handleMasterSync = async () => {
-      if(!confirm(`⚠️ ¿Realizar Sincronización Automática?\n\nSe crearán:\n- ${missingUsersList.length} cuentas de usuario.\n- ${missingLegajosList.length} legajos en blanco.`)) return;
-      setProcessing(true);
+  // --- 2. CREACIÓN INDIVIDUAL (A DEMANDA) ---
+  const handleCreateSingleUser = async (legajo) => {
+      if(!confirm(`¿Crear usuario para ${legajo.firstName} ${legajo.lastName}?`)) return;
+      
+      const cleanName = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, '');
+      const newUsername = `${cleanName(legajo.firstName)}.${cleanName(legajo.lastName)}`;
+      const newPassword = legajo.dni || '123456';
+
       try {
-          const cleanName = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, '');
-          const promises = [];
-
-          // Crear cuentas faltantes
-          missingUsersList.forEach(legajo => {
-              const newUsername = `${cleanName(legajo.firstName)}.${cleanName(legajo.lastName)}`;
-              const newPassword = legajo.dni || '123456';
-              promises.push(addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), {
-                  firstName: legajo.firstName, lastName: legajo.lastName, fullName: `${legajo.firstName} ${legajo.lastName}`,
-                  username: newUsername, password: newPassword, role: legajo.role || 'Docente', rol: 'user', createdAt: serverTimestamp()
-              }));
+          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), {
+              firstName: legajo.firstName, lastName: legajo.lastName, fullName: `${legajo.firstName} ${legajo.lastName}`,
+              username: newUsername, password: newPassword, role: legajo.role || 'Docente', rol: 'user', createdAt: serverTimestamp()
           });
+          // Sacar al usuario de la lista de "faltantes" en pantalla
+          setMissingUsersList(prev => prev.filter(m => m.id !== legajo.id));
+      } catch (e) { alert("Error: " + e.message); }
+  };
 
-          // Crear legajos faltantes
-          missingLegajosList.forEach(user => {
-              promises.push(addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), {
-                  firstName: user.firstName, lastName: user.lastName, 
-                  dni: user.password !== '123456' ? user.password : '', // Asumimos que la pass es el DNI si no es la genérica
-                  role: user.role || 'Docente', modality: 'Sede', isSubsidized: 'false', createdAt: serverTimestamp()
-              }));
+  const handleCreateSingleLegajo = async (userAcc) => {
+      if(!confirm(`¿Crear legajo en blanco para ${userAcc.firstName} ${userAcc.lastName}?`)) return;
+      
+      try {
+          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), {
+              firstName: userAcc.firstName, lastName: userAcc.lastName, 
+              dni: userAcc.password !== '123456' ? userAcc.password : '', 
+              role: userAcc.role || 'Docente', modality: 'Sede', isSubsidized: 'false', createdAt: serverTimestamp()
           });
-
-          await Promise.all(promises);
-          alert(`✅ ¡Sincronización Perfecta!\n\nSe resolvieron todos los conflictos.`);
-          setShowMissingUsers(false);
-          setMissingUsersList([]);
-          setMissingLegajosList([]);
-      } catch (e) {
-          alert("Error: " + e.message);
-      }
-      setProcessing(false);
+          // Sacar al usuario de la lista de "faltantes" en pantalla
+          setMissingLegajosList(prev => prev.filter(m => m.id !== userAcc.id));
+      } catch (e) { alert("Error: " + e.message); }
   };
 
   const deleteUser = async (id) => { if(confirm("¿Eliminar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id)); };
@@ -1381,14 +1396,14 @@ function UsersAdminView() {
       ))}
     </div>
 
-    {/* MODAL AUDITORÍA BIDIRECCIONAL */}
+    {/* MODAL AUDITORÍA BIDIRECCIONAL A DEMANDA */}
     {showMissingUsers && (
         <div className="fixed inset-0 bg-black/80 z-[400] flex items-center justify-center p-4 backdrop-blur-sm">
             <div className="bg-white rounded-[40px] w-full max-w-2xl p-6 md:p-8 shadow-2xl flex flex-col max-h-[90vh] border-t-8 border-blue-500">
                 <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
                     <div>
-                        <h3 className="text-2xl font-black text-blue-600 uppercase italic flex items-center gap-2"><RefreshCw size={28}/> Auditoría Bidireccional</h3>
-                        <p className="text-xs text-gray-500 font-bold mt-1">Resultados del cruce entre Usuarios y Legajos</p>
+                        <h3 className="text-2xl font-black text-blue-600 uppercase italic flex items-center gap-2"><RefreshCw size={28}/> Auditoría de Personal</h3>
+                        <p className="text-xs text-gray-500 font-bold mt-1">Cuentas que necesitan tu atención.</p>
                     </div>
                     <button onClick={() => setShowMissingUsers(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button>
                 </div>
@@ -1397,15 +1412,18 @@ function UsersAdminView() {
                     
                     {/* COLUMNA 1: FALTA CUENTA DE APP */}
                     <div>
-                        <h4 className="font-black text-orange-600 uppercase text-xs tracking-widest mb-3 flex items-center gap-1"><Smartphone size={16}/> Falta Usuario ({missingUsersList.length})</h4>
+                        <h4 className="font-black text-orange-600 uppercase text-xs tracking-widest mb-3 flex items-center gap-1"><Smartphone size={16}/> Necesita Usuario ({missingUsersList.length})</h4>
                         {missingUsersList.length === 0 ? <p className="text-xs text-gray-400 italic">Todos tienen cuenta.</p> : (
                             <div className="space-y-2">
                                 {missingUsersList.map((m, i) => (
-                                    <div key={i} className="bg-orange-50 p-3 rounded-xl border border-orange-100 flex justify-between items-center">
+                                    <div key={i} className="bg-orange-50 p-3 rounded-xl border border-orange-100 flex justify-between items-center group hover:bg-orange-100 transition">
                                         <div>
-                                            <p className="font-bold text-sm text-gray-800">{m.lastName}, {m.firstName}</p>
-                                            <p className="text-[10px] text-orange-600 font-bold uppercase">{m.role || 'Docente'}</p>
+                                            <p className="font-bold text-sm text-gray-800 leading-tight">{m.lastName}, {m.firstName}</p>
+                                            <p className="text-[9px] text-orange-600 font-bold uppercase">{m.role || 'Docente'}</p>
                                         </div>
+                                        <button onClick={() => handleCreateSingleUser(m)} className="bg-white border border-orange-200 text-orange-600 p-2 rounded-lg font-bold text-[10px] uppercase shadow-sm hover:bg-orange-500 hover:text-white transition">
+                                            Crear App
+                                        </button>
                                     </div>
                                 ))}
                             </div>
@@ -1414,25 +1432,24 @@ function UsersAdminView() {
 
                     {/* COLUMNA 2: FALTA LEGAJO */}
                     <div>
-                        <h4 className="font-black text-violet-600 uppercase text-xs tracking-widest mb-3 flex items-center gap-1"><FileText size={16}/> Falta Legajo ({missingLegajosList.length})</h4>
+                        <h4 className="font-black text-violet-600 uppercase text-xs tracking-widest mb-3 flex items-center gap-1"><FileText size={16}/> Necesita Legajo ({missingLegajosList.length})</h4>
                         {missingLegajosList.length === 0 ? <p className="text-xs text-gray-400 italic">Todos tienen legajo oficial.</p> : (
                             <div className="space-y-2">
                                 {missingLegajosList.map((m, i) => (
-                                    <div key={i} className="bg-violet-50 p-3 rounded-xl border border-violet-100 flex justify-between items-center">
+                                    <div key={i} className="bg-violet-50 p-3 rounded-xl border border-violet-100 flex justify-between items-center group hover:bg-violet-100 transition">
                                         <div>
-                                            <p className="font-bold text-sm text-gray-800">{m.lastName}, {m.firstName}</p>
-                                            <p className="text-[10px] text-violet-600 font-bold uppercase">{m.role || 'Usuario'}</p>
+                                            <p className="font-bold text-sm text-gray-800 leading-tight">{m.lastName}, {m.firstName}</p>
+                                            <p className="text-[9px] text-violet-600 font-bold uppercase">{m.role || 'Usuario'}</p>
                                         </div>
+                                        <button onClick={() => handleCreateSingleLegajo(m)} className="bg-white border border-violet-200 text-violet-600 p-2 rounded-lg font-bold text-[10px] uppercase shadow-sm hover:bg-violet-600 hover:text-white transition">
+                                            Ficha
+                                        </button>
                                     </div>
                                 ))}
                             </div>
                         )}
                     </div>
                 </div>
-
-                <button onClick={handleMasterSync} disabled={processing} className="w-full bg-gradient-to-r from-blue-600 to-violet-600 text-white font-black py-4 rounded-2xl shadow-xl hover:from-blue-700 hover:to-violet-700 uppercase tracking-widest text-sm flex justify-center items-center gap-2 transition active:scale-95">
-                    {processing ? <RefreshCw className="animate-spin" size={20}/> : <><CheckSquare size={20}/> Sincronizar Todo Automáticamente</>}
-                </button>
             </div>
         </div>
     )}
@@ -3851,6 +3868,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
