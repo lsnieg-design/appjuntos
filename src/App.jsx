@@ -3433,22 +3433,59 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
           }
       </style></head><body>`;
 
-      targets.forEach(s => {
-          
-         let presentadoAnte = customTarget.trim() !== "" ? customTarget : (s.healthInsurance && s.healthInsurance.trim().length > 2 ? s.healthInsurance : '................................................');
-
-          // === OPCIÓN 1: CONSTANCIA REGULAR (REDACTADO DINÁMICO) ===
-if (template === 'constancia_regular') {
-    // 1. Armamos la frase de modalidad y jornada de forma fluida
-    const nivel = s.level || '................';
-    const modalidad = s.modality || 'Sede';
-    
-    // Si tiene jornada y no es "A DEFINIR", agregamos el texto de jornada
+     targets.forEach(s => {
+    // --- PARCHE DE REDACCIÓN DINÁMICA ---
+    const nivelDoc = s.level || '................';
+    const modalidadDoc = s.modality || 'Sede';
     let jornadaInfo = "";
-    if (s.journey && s.journey !== "A DEFINIR") {
+    if (s.journey && s.journey !== "A DEFINIR" && s.journey.trim() !== "") {
         jornadaInfo = ` con jornada ${s.journey.toLowerCase()}`;
     }
+    const fraseAlumno = `Es alumno/a regular del nivel ${nivelDoc}, modalidad ${modalidadDoc}${jornadaInfo}`;
+    // ------------------------------------
 
+    let presentadoAnte = customTarget.trim() !== "" ? customTarget : (s.healthInsurance && s.healthInsurance.trim().length > 2 ? s.healthInsurance : '................................................');
+          // === OPCIÓN 1: CONSTANCIA REGULAR (REDACTADO DINÁMICO) ===
+if (template === 'constancia_regular') {
+    if (!customTarget && s.healthInsurance && s.healthInsurance.length > 2) presentadoAnte = s.healthInsurance;
+    else if (!customTarget) presentadoAnte = 'quien corresponda';
+
+    htmlContent += `
+    <div class="cert-container">
+        <div class="cert-header">
+            <img src="${LOGO_URL}" class="cert-logo"/>
+            <div class="cert-title">CONSTANCIA DE ALUMNO REGULAR</div>
+        </div>
+        <div class="cert-body">
+            Escuela Especial Juntos a la Par hace constar que
+            <div class="line-group" style="margin-top:15px;">
+                <span class="data-field">${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</span>
+            </div>
+            
+            <div class="line-group" style="margin-top:20px;">
+                con DNI N.° <span class="inline-field">${s.dni}</span>.
+                <div style="margin-top:15px; font-size:14px;">${fraseAlumno}</div>
+            </div>
+
+            <div class="line-group" style="margin-top:10px;">en esta institución, con &nbsp;&nbsp; CUE 0623214-00.</div>
+            
+            <div class="line-group" style="margin-top:30px;">
+                A pedido del interesado y al efecto de ser presentado ante... 
+                <span class="data-field" style="margin-top:5px;">${presentadoAnte.toUpperCase()}</span>
+            </div>
+            
+            <div class="date-section" style="margin-top:50px;">
+                ${fullDate}
+                <div style="border-bottom: 1px dotted #000; width: 60%; margin: 0 auto;"></div>
+                <div style="font-weight: normal; font-size: 11px;">Lugar y fecha</div>
+            </div>
+        </div>
+        <div class="signatures-section">
+            <div class="sig-box"><img src="${FIRMA_URL}" class="sig-img"/><div class="sig-line">Firma director o vicedirector</div></div>
+            <div class="sig-box"><img src="${SELLO_URL}" class="sig-img"/><div class="sig-line">Sello institución</div></div>
+        </div>
+    </div>`;
+}
     const estadoAcademico = `Es alumno/a regular del Nivel ${nivel}, modalidad ${modalidad}${jornadaInfo}`;
 
     if (!customTarget && s.healthInsurance && s.healthInsurance.length > 2) presentadoAnte = s.healthInsurance;
@@ -4001,6 +4038,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
