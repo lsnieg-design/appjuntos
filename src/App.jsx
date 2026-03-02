@@ -831,6 +831,7 @@ const handleSaveTask = async (e) => {
     if (!db || !appId) return alert("Error: DB no lista");
     const fd = new FormData(e.target);
     
+    // OBJETO DE DATOS UNIFICADO
     const taskData = {
       title: fd.get('title') || "Sin título",
       dueDate: fd.get('dueDate') || null,
@@ -847,10 +848,11 @@ const handleSaveTask = async (e) => {
 
     try {
       if (editingTask && editingTask.id) {
-        // Corregido: Usamos editingTask.id para que Vercel no de error
+        // PARCHE CORRECTO: Usamos editingTask.id (Variable propia de esta vista)
         const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id);
         await updateDoc(taskRef, taskData);
       } else {
+        // CREACIÓN DE TAREA NUEVA
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), {
           ...taskData,
           createdByName: user.firstName || 'Directivo',
@@ -860,66 +862,15 @@ const handleSaveTask = async (e) => {
           comments: []
         });
       }
+      // LIMPIEZA DE ESTADOS
       setShowModal(false);
       setEditingTask(null);
       setSelectedUsersObj([]);
       setSelectedRoles([]);
     } catch (err) { 
-      alert("Error al guardar: " + err.message); 
+      console.error("Error al guardar tarea:", err);
+      alert("Error: " + err.message); 
     }
-  };
-    e.preventDefault();
-    if (!db || !appId) return alert("Error: DB no lista");
-    const fd = new FormData(e.target);
-    
-    // OBJETO DE DATOS ACTUALIZADO
-    const taskData = {
-      title: fd.get('title') || "Sin título",
-      dueDate: fd.get('dueDate') || null,
-      showDate: fd.get('showDate') || new Date().toISOString().split('T')[0],
-      showTime: fd.get('showTime') || "08:00",
-      priority: fd.get('priority') || "media",
-      targetType: assignType,
-      targetUserIds: selectedUsersObj.map(u => u.id),
-      targetRoles: selectedRoles,
-      assignedToName: assignType === 'user' ? selectedUsersObj.map(u => u.firstName || u.fullName).join(", ") : selectedRoles.join(", "),
-    };
-
-    try {
-      if (editingTask && editingTask.id) {
-        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingStaff.id), taskData);
-      } else {
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), {
-          ...taskData,
-          createdByName: user.firstName,
-          createdById: user.id,
-          status: 'pending',
-          createdAt: serverTimestamp(),
-          comments: []
-        });
-      }
-      setShowModal(false);
-      setEditingTask(null);
-    } catch (err) { alert(err.message); }
-  };
-
-    try {
-      if (editingTask && editingTask.id) {
-        const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id);
-        await updateDoc(taskRef, taskData);
-      } else {
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), {
-          ...taskData,
-          createdByName: user.firstName,
-          createdById: user.id,
-          status: 'pending',
-          createdAt: serverTimestamp(),
-          comments: []
-        });
-      }
-      setShowModal(false);
-      setEditingTask(null);
-    } catch (err) { alert(err.message); }
   };
 
   const toggleUserSelection = (u) => {
@@ -4073,6 +4024,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
