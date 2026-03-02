@@ -584,7 +584,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
     </div>
   );
 }
-// --- VISTA RECURSOS (GENERADOR CON VISTA PREVIA LATERAL EN PC) ---
+// --- VISTA RECURSOS (CORREGIDA) ---
 function ResourcesView({ resources, canEdit }) {
   const [folder, setFolder] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -608,12 +608,12 @@ function ResourcesView({ resources, canEdit }) {
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10">
       <div className="flex justify-between items-center mb-6 px-2">
-        <h2 className="text-2xl font-black text-violet-900 italic tracking-tighter uppercase italic">Recursos</h2>
+        <h2 className="text-2xl font-black text-violet-900 italic tracking-tighter uppercase">Recursos</h2>
         {canEdit && <button onClick={() => { setEditingRes(null); setShowModal(true); }} className="bg-orange-500 text-white p-2 rounded-xl shadow-lg hover:bg-orange-600 transition"><Plus size={20}/></button>}
       </div>
 
       {!folder && (
-          <button onClick={() => setShowNotaModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-orange-400 p-6 rounded-3xl shadow-lg text-white flex items-center justify-between mb-6 group active:scale-95 transition-transform">
+          <button onClick={() => setShowNotaModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-orange-400 p-6 rounded-3xl shadow-lg text-white flex items-center justify-between mb-6 group active:scale-95 transition-transform mx-2">
               <div className="flex items-center gap-4">
                   <div className="bg-white/20 p-3 rounded-2xl group-hover:rotate-12 transition-transform"><Edit3 size={32}/></div>
                   <div className="text-left">
@@ -625,7 +625,6 @@ function ResourcesView({ resources, canEdit }) {
           </button>
       )}
 
-      {/* VISTA DE CARPETAS (IGUAL) */}
       {!folder ? (
         <div className="grid grid-cols-2 gap-4 pb-10 px-2">
           {Object.keys(folders).map(name => (
@@ -652,134 +651,118 @@ function ResourcesView({ resources, canEdit }) {
         </div>
       )}
 
-      {/* MODAL GENERADOR DE NOTAS OFICIAL (VISTA DERECHA FIJA) */}
       {showNotaModal && (
-          <div className="fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-0 md:p-4 backdrop-blur-md animate-in fade-in" onClick={() => setShowNotaModal(false)}>
-              <div className="bg-white rounded-t-[40px] md:rounded-[40px] w-full max-w-7xl flex flex-col h-[98vh] md:h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
-                  
-                  <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center shrink-0">
-                      <h3 className="text-xl font-black text-violet-900 uppercase italic">Editor Institucional</h3>
-                      <button onClick={() => setShowNotaModal(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20}/></button>
+        <div className="fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-0 md:p-4 backdrop-blur-md animate-in fade-in" onClick={() => setShowNotaModal(false)}>
+          <div className="bg-white rounded-t-[40px] md:rounded-[40px] w-full max-w-7xl flex flex-col h-[98vh] md:h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center shrink-0">
+              <h3 className="text-xl font-black text-violet-900 uppercase italic">Editor Institucional</h3>
+              <button onClick={() => setShowNotaModal(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20}/></button>
+            </div>
+
+            <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+              {/* LADO IZQUIERDO: FORMULARIO */}
+              <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-6 border-r border-gray-50">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Fecha</label>
+                    <input type="text" placeholder="FECHA" value={notaData.date} onChange={e => setNotaData({...notaData, date: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-gray-700 text-xs shadow-inner border border-gray-100"/>
                   </div>
-
-                  {/* CONTENEDOR PRINCIPAL: Flex para separar formulario de nota */}
-                  <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-                      
-                      {/* LADO IZQUIERDO: FORMULARIO (SCROLLABLE) */}
-                      <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-6 border-r border-gray-50">
-                          <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Fecha</label>
-                                  <input type="text" placeholder="FECHA" value={notaData.date} onChange={e => setNotaData({...notaData, date: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-gray-700 text-xs shadow-inner border border-gray-100"/>
-                              </div>
-                              <div>
-                                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Firma</label>
-                                  <input type="text" placeholder="FIRMA" value={notaData.signature} onChange={e => setNotaData({...notaData, signature: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-violet-700 text-xs shadow-inner border border-gray-100"/>
-                              </div>
-                          </div>
-                          <div>
-                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Título</label>
-                              <input type="text" placeholder="TÍTULO DEL COMUNICADO" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-4 bg-gray-50 rounded-xl outline-none font-black uppercase text-gray-700 border-2 border-transparent focus:border-orange-200 shadow-inner"/>
-                          </div>
-                          
-                          {/* PANEL DE FORMATO */}
-                          <div className="bg-violet-50 p-4 rounded-2xl space-y-4">
-                              <div className="flex flex-col gap-2">
-                                  <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest">Tamaño de Letra</p>
-                                  <div className="flex gap-2">
-                                      {[ {l:'Chica', v:'text-[11px]'}, {l:'Media', v:'text-[14px]'}, {l:'Grande', v:'text-[18px]'} ].map(s => (
-                                          <button key={s.v} onClick={() => setNotaData({...notaData, fontSize: s.v})} className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${notaData.fontSize === s.v ? 'bg-violet-600 text-white shadow-md' : 'bg-white text-violet-400'}`}>{s.l}</button>
-                                      ))}
-                                  </div>
-                              </div>
-                              <div className="flex flex-col gap-2">
-                                  <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest">Alineación</p>
-                                  <div className="flex gap-2">
-                                      {[ {i:<AlignLeft size={16}/>, v:'text-left'}, {i:<AlignCenter size={16}/>, v:'text-center'}, {i:<AlignRight size={16}/>, v:'text-right'}, {i:<AlignJustify size={16}/>, v:'text-justify'} ].map(a => (
-                                          <button key={a.v} onClick={() => setNotaData({...notaData, textAlign: a.v})} className={`flex-1 py-2 flex justify-center rounded-lg transition-all ${notaData.textAlign === a.v ? 'bg-pink-500 text-white shadow-md' : 'bg-white text-pink-300'}`}>{a.i}</button>
-                                      ))}
-                                  </div>
-                              </div>
-                          </div>
-
-                          <div>
-                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Mensaje</label>
-                              <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Escribe el mensaje aquí..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-sm border-2 border-transparent focus:border-pink-200 h-[200px] resize-none shadow-inner font-medium text-gray-600"/>
-                          </div>
-                      </div>
-
-                      {/* LADO DERECHO: VISTA PREVIA (FIJA EN PC) */}
-                      <div className="flex-1 bg-slate-100 flex flex-col items-center justify-center p-6 md:p-10 relative overflow-hidden">
-                          <p className="absolute top-4 text-[10px] font-black text-gray-400 uppercase tracking-[4px]">VISTA PREVIA</p>
-                          
-                          {/* ESCALADO DINÁMICO */}
-                        {/* VISTA PREVIA CON ALTURA ADAPTABLE */}
-<div className="scale-[0.5] sm:scale-[0.6] md:scale-[0.8] xl:scale-[0.95] origin-top transition-all">
-    <div 
-        id="nota-canvas" 
-        className="w-[600px] min-h-[400px] bg-white relative shadow-2xl border-[10px] border-white rounded-[15px] flex flex-col overflow-hidden" 
-        style={{ backgroundColor: '#fefce8', height: 'auto' }}
-    >
-        <div className="absolute inset-0 opacity-[0.04]" style={{backgroundImage: 'radial-gradient(#f97316 2px, transparent 2px)', backgroundSize: '18px 18px'}}></div>
-        <div className="absolute top-0 left-0 right-0 h-3 bg-gradient-to-r from-violet-600 via-pink-500 to-orange-400 opacity-80"></div>
-        
-        <div className="flex flex-col h-full px-12 pt-10 pb-12 z-10">
-            <div className="flex justify-between items-start mb-6 shrink-0">
-                <div className="flex items-center gap-4">
-                    <img src={LOGO_SIN_FONDO} className="w-16 h-auto mix-blend-multiply" crossOrigin="anonymous"/>
-                    <div className="leading-tight pt-1">
-                        <h2 className="font-black text-[16px] text-violet-900 uppercase tracking-[2px]">JUNTOS A LA PAR</h2>
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">ESCUELA ESPECIAL</p>
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Firma</label>
+                    <input type="text" placeholder="FIRMA" value={notaData.signature} onChange={e => setNotaData({...notaData, signature: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-violet-700 text-xs shadow-inner border border-gray-100"/>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Título</label>
+                  <input type="text" placeholder="TÍTULO" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-4 bg-gray-50 rounded-xl outline-none font-black uppercase text-gray-700 border-2 border-transparent focus:border-orange-200 shadow-inner"/>
+                </div>
+                <div className="bg-violet-50 p-4 rounded-2xl space-y-4">
+                  <div className="flex flex-col gap-2">
+                    <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest">Tamaño de Letra</p>
+                    <div className="flex gap-2">
+                      {[ {l:'Chica', v:'text-[11px]'}, {l:'Media', v:'text-[14px]'}, {l:'Grande', v:'text-[18px]'} ].map(s => (
+                        <button key={s.v} onClick={() => setNotaData({...notaData, fontSize: s.v})} className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${notaData.fontSize === s.v ? 'bg-violet-600 text-white shadow-md' : 'bg-white text-violet-400'}`}>{s.l}</button>
+                      ))}
                     </div>
-                </div>
-                <p className="text-[12px] text-orange-600 font-black uppercase pt-2">{notaData.date || '00/00/00'}</p>
-            </div>
-            
-            <h1 className="text-2xl font-black text-gray-800 uppercase leading-tight mb-4 text-center shrink-0">{notaData.title || 'SIN TÍTULO'}</h1>
-            
-            {/* El contenedor de texto ahora no tiene límites de altura */}
-            <div className="flex-1 w-full mb-8">
-                <div className={`text-slate-700 font-bold whitespace-pre-wrap leading-relaxed break-words w-full px-6 ${notaData.fontSize} ${notaData.textAlign}`} style={{maxWidth: '500px', margin: '0 auto'}}>
-                    {notaData.body || 'Escribí algo para previsualizar...'}
-                </div>
-            </div>
-            
-            <div className="mt-auto flex flex-col items-center shrink-0">
-                <div className="w-48 h-[1px] bg-orange-200 mb-4 opacity-50"></div>
-                <p className="text-[16px] font-black text-violet-800 uppercase text-center leading-none mb-1 italic">{notaData.signature}</p>
-                <p className="text-[9px] text-orange-500 font-black uppercase tracking-[3px] opacity-70">ESCUELA JUNTOS A LA PAR</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-                  {/* FOOTER DEL MODAL (BOTÓN FIJO ABAJO) */}
-                  <div className="p-4 md:p-6 border-t bg-white shrink-0 shadow-2xl z-20">
-                      <div className="flex gap-4 max-w-4xl mx-auto">
-                          <button onClick={() => setShowNotaModal(false)} className="flex-1 text-gray-400 font-black text-xs uppercase py-4">VOLVER</button>
-                          <button onClick={async () => {
-                              if(!notaData.title && !notaData.body) return alert("Escribí algo.");
-                              const element = document.getElementById('nota-canvas');
-                              try {
-                                  const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
-                                  const canvas = await html2canvas(element, { scale: 3, useCORS: true, backgroundColor: '#fefce8' }); 
-                                  const link = document.createElement('a');
-                                  link.download = `Nota_${notaData.title.substring(0,10)}.jpg`;
-                                  link.href = canvas.toDataURL('image/jpeg', 0.95);
-                                  link.click();
-                              } catch (error) { alert("Error al generar imagen."); }
-                          }} className="flex-[3] bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-sm uppercase tracking-[4px] rounded-2xl shadow-xl hover:scale-[1.02] transition active:scale-95 flex items-center justify-center gap-2 py-4">
-                              <Download size={20}/> DESCARGAR NOTA OFICIAL
-                          </button>
-                      </div>
                   </div>
+                  <div className="flex flex-col gap-2">
+                    <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest">Alineación</p>
+                    <div className="flex gap-2">
+                      {[ {i:<AlignLeft size={16}/>, v:'text-left'}, {i:<AlignCenter size={16}/>, v:'text-center'}, {i:<AlignRight size={16}/>, v:'text-right'}, {i:<AlignJustify size={16}/>, v:'text-justify'} ].map(a => (
+                        <button key={a.v} onClick={() => setNotaData({...notaData, textAlign: a.v})} className={`flex-1 py-2 flex justify-center rounded-lg transition-all ${notaData.textAlign === a.v ? 'bg-pink-500 text-white shadow-md' : 'bg-white text-pink-300'}`}>{a.i}</button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Mensaje</label>
+                  <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Mensaje..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-sm border-2 border-transparent focus:border-pink-200 h-[200px] resize-none shadow-inner font-medium text-gray-600"/>
+                </div>
               </div>
-          </div>
+
+              {/* LADO DERECHO: VISTA PREVIA */}
+              <div className="flex-1 bg-slate-100 flex flex-col items-center justify-center p-6 md:p-10 relative overflow-hidden">
+                <p className="absolute top-4 text-[10px] font-black text-gray-400 uppercase tracking-[4px]">VISTA PREVIA</p>
+                <div className="scale-[0.5] sm:scale-[0.6] md:scale-[0.8] xl:scale-[0.95] origin-top transition-all">
+                  <div id="nota-canvas" className="w-[600px] min-h-[400px] bg-[#fefce8] relative shadow-2xl border-[10px] border-white rounded-[15px] flex flex-col overflow-hidden" style={{ height: 'auto' }}>
+                    <div className="absolute inset-0 opacity-[0.04]" style={{backgroundImage: 'radial-gradient(#f97316 2px, transparent 2px)', backgroundSize: '18px 18px'}}></div>
+                    <div className="absolute top-0 left-0 right-0 h-3 bg-gradient-to-r from-violet-600 via-pink-500 to-orange-400 opacity-80"></div>
+                    <div className="flex flex-col h-full px-12 pt-10 pb-12 z-10">
+                      <div className="flex justify-between items-start mb-6 shrink-0">
+                        <div className="flex items-center gap-4">
+                          <img src={LOGO_SIN_FONDO} className="w-16 h-auto mix-blend-multiply" crossOrigin="anonymous"/>
+                          <div className="leading-tight pt-1">
+                            <h2 className="font-black text-[16px] text-violet-900 uppercase tracking-[2px]">JUNTOS A LA PAR</h2>
+                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">ESCUELA ESPECIAL</p>
+                          </div>
+                        </div>
+                        <p className="text-[12px] text-orange-600 font-black uppercase pt-2">{notaData.date || '00/00/00'}</p>
+                      </div>
+                      <h1 className="text-2xl font-black text-gray-800 uppercase leading-tight mb-4 text-center shrink-0">{notaData.title || 'SIN TÍTULO'}</h1>
+                      <div className="flex-1 w-full mb-8">
+                        <div className={`text-slate-700 font-bold whitespace-pre-wrap leading-relaxed break-words w-full px-6 ${notaData.fontSize} ${notaData.textAlign}`} style={{maxWidth: '500px', margin: '0 auto'}}>
+                          {notaData.body || 'Escribí algo...'}
+                        </div>
+                      </div>
+                      <div className="mt-auto flex flex-col items-center shrink-0">
+                        <div className="w-48 h-[1px] bg-orange-200 mb-4 opacity-50"></div>
+                        <p className="text-[16px] font-black text-violet-800 uppercase text-center leading-none mb-1 italic">{notaData.signature}</p>
+                        <p className="text-[9px] text-orange-500 font-black uppercase tracking-[3px] opacity-70">ESCUELA JUNTOS A LA PAR</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* FOOTER DEL MODAL */}
+            <div className="p-4 md:p-6 border-t bg-white shrink-0 shadow-2xl z-20">
+              <div className="flex gap-4 max-w-4xl mx-auto">
+                <button onClick={() => setShowNotaModal(false)} className="flex-1 text-gray-400 font-black text-xs uppercase py-4">VOLVER</button>
+                <button onClick={async () => {
+                  if(!notaData.title && !notaData.body) return alert("Escribí algo.");
+                  const element = document.getElementById('nota-canvas');
+                  try {
+                    const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
+                    const canvas = await html2canvas(element, { scale: 3, useCORS: true, backgroundColor: '#fefce8' }); 
+                    const link = document.createElement('a');
+                    link.download = `Nota_${(notaData.title || 'Nota').substring(0,10)}.jpg`;
+                    link.href = canvas.toDataURL('image/jpeg', 0.95);
+                    link.click();
+                  } catch (error) { alert("Error al generar imagen."); }
+                }} className="flex-[3] bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-sm uppercase tracking-[4px] rounded-2xl shadow-xl hover:scale-[1.02] transition py-4">
+                  <Download size={20} className="inline mr-2"/> DESCARGAR NOTA OFICIAL
+                </button>
+              </div>
+            </div>
+          </div> 
+        </div>
       )}
     </div>
   );
 }
-// --- VISTA TAREAS (VERSIÓN UNIFICADA: EDICIÓN + CUENTA REGRESIVA + CIERRES CORREGIDOS) ---
+  
+// --- VISTA TAREAS (VERSIÓN UNIFICADA Y CORREGIDA) ---
 function TasksView({ tasks = [], user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [usersList, setUsersList] = useState([]);
@@ -792,21 +775,18 @@ function TasksView({ tasks = [], user, canEdit }) {
   const [userSearch, setUserSearch] = useState("");
   const [openCommentsId, setOpenCommentsId] = useState(null); 
   const [newComment, setNewComment] = useState("");
-  const [checklist, setChecklist] = useState([]);
 
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor', 'DAI', 'Dirección Inclusión', 'Equipo Técnico Inclusión'];
 
   if (!user) return <div className="p-10 text-center opacity-50">Cargando...</div>;
 
-  const isSuperAdmin = ['admin', 'super-admin'].includes(user.rol) || user.role === 'Equipo Directivo';
-  const canManage = isSuperAdmin || user.role === 'Dirección Inclusión';
+  const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.role || user.rol);
 
   useEffect(() => {
     if (!db) return;
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
     const unsub = onSnapshot(q, (snap) => {
-      const users = snap.docs.map(d => ({id: d.id, ...d.data()}));
-      setUsersList(users);
+      setUsersList(snap.docs.map(d => ({id: d.id, ...d.data()})));
     });
     return () => unsub();
   }, []);
@@ -824,10 +804,9 @@ function TasksView({ tasks = [], user, canEdit }) {
     const due = new Date(dateStr + 'T12:00:00'); due.setHours(0,0,0,0);
     const days = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
     if (isNaN(days)) return null;
-    if (days < 0) return { text: `💀 Vencida hace ${Math.abs(days)} días (QEPD)`, color: 'bg-red-100 text-red-700 border-red-200' };
-    if (days === 0) return { text: `🔥 ¡ES HOY! ¡ACTIVÁ!`, color: 'bg-red-500 text-white animate-pulse' };
-    if (days <= 3) return { text: `😬 Quedan ${days} días, ponele onda`, color: 'bg-yellow-100 text-yellow-700' };
-    return { text: `😎 Relax, faltan ${days} días`, color: 'bg-green-50 text-green-700' };
+    if (days < 0) return { text: "Vencida", color: "bg-red-100 text-red-700" };
+    if (days === 0) return { text: "¡HOY!", color: "bg-red-500 text-white animate-pulse" };
+    return { text: `Faltan ${days} días`, color: "bg-green-50 text-green-700" };
   };
 
   const handleSaveTask = async (e) => {
@@ -848,21 +827,14 @@ function TasksView({ tasks = [], user, canEdit }) {
 
     try {
       if (editingTask && editingTask.id) {
-        const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id);
-        await updateDoc(taskRef, taskData);
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData);
       } else {
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), {
-          ...taskData,
-          createdByName: user.firstName,
-          createdById: user.id,
-          status: 'pending',
-          createdAt: serverTimestamp(),
-          comments: []
+          ...taskData, createdByName: user.firstName || 'Directivo', createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: []
         });
       }
-      setShowModal(false);
-      setEditingTask(null);
-    } catch (err) { alert(err.message); }
+      setShowModal(false); setEditingTask(null); setSelectedUsersObj([]); setSelectedRoles([]);
+    } catch (err) { alert("Error al guardar: " + err.message); }
   };
 
   const toggleUserSelection = (u) => {
@@ -871,154 +843,118 @@ function TasksView({ tasks = [], user, canEdit }) {
     setUserSearch(""); 
   };
 
- const visibleTasks = tasks.filter(t => {
+  const visibleTasks = (tasks || []).filter(t => {
     if (!t) return false;
-    
-    // Determinar si la tarea me pertenece (la creé yo, me la asignaron, o asignaron a mi rol)
-    const isMine = (
-      t.createdById === user.id || 
-      (t.targetUserIds && t.targetUserIds.includes(user.id)) || 
-      (user.role && t.targetRoles && t.targetRoles.includes(user.role))
-    );
-    
-    // MODO AUDITORÍA (SuperAdmin viendo "all")
-    if (isSuperAdmin && viewMode === 'all') {
-      // Si el filtro es "completadas", mostrar TODAS las completadas
-      if (filter === 'completed') return t.status === 'completed';
-      // Si el filtro es "pendientes", mostrar TODAS las pendientes
-      return t.status !== 'completed'; 
-    }
-
-    // MODO NORMAL / "MIS TAREAS" (viewMode === 'mine')
-    // Mostrar SOLO mis tareas, aplicando el filtro de estado
-    if (filter === 'completed') {
-      return t.status === 'completed' && isMine;
-    } else {
-      return t.status !== 'completed' && isMine;
-    }
-    
+    const isMine = (t.createdById === user.id || (t.targetUserIds && t.targetUserIds.includes(user.id)) || (user.role && t.targetRoles && t.targetRoles.includes(user.role)));
+    const now = new Date();
+    const taskShowDate = t.showDate ? new Date(t.showDate + 'T' + (t.showTime || '00:00')) : null;
+    if (taskShowDate && taskShowDate > now && t.createdById !== user.id && !isSuperAdmin) return false;
+    if (isSuperAdmin && viewMode === 'all') return filter === 'completed' ? t.status === 'completed' : t.status !== 'completed';
+    return filter === 'completed' ? (t.status === 'completed' && isMine) : (t.status !== 'completed' && isMine);
   }).sort((a,b) => (a.dueDate || '9999') > (b.dueDate || '9999') ? 1 : -1);
-  const addComment = async (task) => { if (!newComment.trim()) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion({ text: newComment, author: user.firstName, date: new Date().toISOString() }) }); setNewComment(""); };
+
+  const changeStatus = async (task, newStatus) => {
+    if (newStatus === 'completed' && !confirm("¿Tarea terminada?")) return;
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus });
+  };
+
   const handleDelete = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
-  const changeStatus = async (task, newStatus) => { if (newStatus === 'completed' && !confirm("¿Lista?")) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus }); };
 
   return (
     <div className="space-y-4 pb-20 animate-in fade-in">
-      {/* HEADER */}
       <div className="bg-white p-4 sticky top-0 z-10 shadow-sm rounded-b-3xl flex justify-between items-center">
         <div>
           <h2 className="text-xl font-black text-violet-900 uppercase italic">Tareas</h2>
           <div className="flex gap-2 mt-1">
             <button onClick={() => setFilter('pending')} className={`text-[10px] px-2 py-1 rounded-lg font-bold ${filter==='pending'?'bg-violet-100 text-violet-700':'text-gray-400'}`}>Activas</button>
             <button onClick={() => setFilter('completed')} className={`text-[10px] px-2 py-1 rounded-lg font-bold ${filter==='completed'?'bg-green-100 text-green-700':'text-gray-400'}`}>Listas</button>
-           {isSuperAdmin && (
-              <button 
-                onClick={() => setViewMode(viewMode === 'mine' ? 'all' : 'mine')} 
-                className={`text-[10px] px-2 py-1 rounded-lg font-bold border transition-colors ${viewMode === 'all' ? 'bg-orange-100 text-orange-700 border-orange-200 shadow-inner' : 'bg-gray-100 text-gray-500 border-gray-200'}`}
-              >
-                {viewMode === 'mine' ? '👤 Mis Tareas' : '👁️ Auditoría General'}
+            {isSuperAdmin && (
+              <button onClick={() => setViewMode(viewMode === 'mine' ? 'all' : 'mine')} className={`text-[10px] px-2 py-1 rounded-lg font-bold border ${viewMode === 'all' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
+                {viewMode === 'mine' ? '👤 Mis Tareas' : '👁️ Auditoría'}
               </button>
             )}
           </div>
         </div>
-        <button onClick={() => { setEditingTask(null); setSelectedUsersObj([]); setShowModal(true); }} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg hover:scale-105 transition-all"><Plus size={20}/></button>
+        <button onClick={() => { setEditingTask(null); setSelectedUsersObj([]); setShowModal(true); }} className="bg-orange-500 text-white p-3 rounded-2xl shadow-lg transition-all active:scale-95"><Plus size={20}/></button>
       </div>
 
-      {/* LISTA */}
       <div className="grid gap-3 px-2">
         {visibleTasks.map(t => (
-          <div key={t.id} className={`p-5 rounded-[30px] bg-white border-l-8 shadow-sm relative ${t.priority === 'alta' ? 'border-red-500' : 'border-violet-500'}`}>
+          <div key={t.id} className={`p-5 rounded-[30px] bg-white border-l-8 shadow-sm ${t.priority === 'alta' ? 'border-red-500' : 'border-violet-500'}`}>
             <div className="flex justify-between items-start">
               <div className="flex-1 pr-6">
                 <p className="text-[9px] font-black text-violet-600 uppercase mb-1">Para: {t.assignedToName}</p>
+                {t.showDate && new Date(t.showDate + 'T' + (t.showTime || '08:00')) > new Date() && (
+                  <span className="text-[8px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-black uppercase mb-1 inline-block border border-blue-200">⏳ Programada</span>
+                )}
                 <h3 className={`font-bold text-gray-800 text-sm uppercase italic leading-tight ${t.status==='completed'?'line-through opacity-50':''}`}>{t.title}</h3>
-                <p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName || 'Sistema'}</p>
                 {t.dueDate && (
-                  <div className="mt-2 space-y-1">
-                    <p className="text-[10px] font-bold text-gray-400 flex items-center gap-1"><CalendarIcon size={12}/> Vence el {new Date(t.dueDate + 'T12:00:00').toLocaleDateString('es-AR', {day:'2-digit', month:'2-digit'})}</p>
-                    {getFunnyCountdown(t.dueDate) && <div className={`inline-block px-3 py-1 rounded-lg text-[10px] font-black border ${getFunnyCountdown(t.dueDate).color}`}>{getFunnyCountdown(t.dueDate).text}</div>}
+                  <div className="mt-2">
+                    <p className="text-[10px] font-bold text-gray-400 flex items-center gap-1"><CalendarIcon size={12}/> Vence {new Date(t.dueDate + 'T12:00:00').toLocaleDateString('es-AR')}</p>
+                    {getFunnyCountdown(t.dueDate) && <div className={`inline-block px-2 py-0.5 rounded text-[9px] font-black mt-1 ${getFunnyCountdown(t.dueDate).color}`}>{getFunnyCountdown(t.dueDate).text}</div>}
                   </div>
                 )}
               </div>
-              <div className="flex flex-col gap-2">
+              <div className="flex gap-1">
                 {(t.createdById === user.id || isSuperAdmin) && (
-                  <div className="flex gap-1">
-                    <button onClick={() => { setEditingTask(t); setAssignType(t.targetType || 'user'); setShowModal(true); }} className="p-2 bg-gray-50 rounded-full text-blue-500"><Edit3 size={14}/></button>
-                    <button onClick={() => handleDelete(t.id)} className="p-2 bg-gray-50 rounded-full text-red-400"><Trash2 size={14}/></button>
-                  </div>
+                  <>
+                    <button onClick={() => { setEditingTask(t); setAssignType(t.targetType || 'user'); setShowModal(true); }} className="p-2 bg-gray-50 rounded-full text-blue-500 hover:bg-blue-50"><Edit3 size={14}/></button>
+                    <button onClick={() => handleDelete(t.id)} className="p-2 bg-gray-50 rounded-full text-red-400 hover:bg-red-50"><Trash2 size={14}/></button>
+                  </>
                 )}
               </div>
             </div>
             <div className="mt-4 pt-3 border-t border-gray-50 flex justify-between items-center">
-              <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className="text-[10px] font-bold text-gray-400">💬 {t.comments?.length || 0} msjs</button>
+              <span className="text-[10px] font-bold text-gray-400">💬 {t.comments?.length || 0} msjs</span>
               <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
-                <button onClick={() => changeStatus(t, 'pending')} className={`px-2 py-1 rounded-lg text-[9px] font-bold ${t.status==='pending'?'bg-white shadow text-gray-700':'text-gray-400'}`}>Pend.</button>
-                <button onClick={() => changeStatus(t, 'in_process')} className={`px-2 py-1 rounded-lg text-[9px] font-bold ${t.status==='in_process'?'bg-orange-100 text-orange-600 shadow':'text-gray-400'}`}>Proc.</button>
-                <button onClick={() => changeStatus(t, 'completed')} className={`px-2 py-1 rounded-lg text-[9px] font-bold ${t.status==='completed'?'bg-green-500 text-white shadow':'text-gray-400'}`}>Listo</button>
+                {['pending', 'completed'].map(st => (
+                  <button key={st} onClick={() => changeStatus(t, st)} className={`px-2 py-1 rounded-lg text-[9px] font-bold transition-all ${t.status===st ? (st==='completed'?'bg-green-500 text-white shadow':'bg-white shadow text-gray-700') : 'text-gray-400'}`}>{st==='pending'?'Pend.':'Listo'}</button>
+                ))}
               </div>
             </div>
-            {openCommentsId === t.id && (
-              <div className="bg-white/60 p-3 rounded-xl border border-gray-100 mt-2">
-                <div className="max-h-32 overflow-y-auto space-y-2 mb-2">
-                  {(t.comments || []).map((c, idx) => (<p key={idx} className="text-xs text-gray-600 border-b border-gray-100 pb-1"><span className="font-bold text-violet-700 uppercase text-[9px]">{c.author}:</span> {c.text}</p>))}
-                </div>
-                <div className="flex gap-2">
-                  <input value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Escribe..." className="flex-1 text-xs p-2 rounded-lg border-none outline-none bg-white shadow-inner" />
-                  <button onClick={() => addComment(t)} className="bg-violet-600 text-white p-2 rounded-lg shadow-md hover:bg-violet-700 transition active:scale-95"><Send size={16}/></button>
-                </div>
-              </div>
-            )}
           </div>
         ))}
       </div>
 
-      {/* MODAL */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4 backdrop-blur-sm">
-          <form onSubmit={handleSaveTask} className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
+          <form onSubmit={handleSaveTask} className="bg-white rounded-[50px] w-full max-w-sm p-8 shadow-2xl space-y-4 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-black text-violet-900 uppercase italic">{editingTask ? 'Editar' : 'Nueva'} Tarea</h3>
             <input name="title" defaultValue={editingTask?.title || ""} placeholder="¿Qué hay que hacer?" required className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm" />
             <div className="flex gap-2 bg-gray-100 p-1 rounded-xl">
-              <button type="button" onClick={() => setAssignType('user')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'user' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Persona(s)</button>
-              <button type="button" onClick={() => setAssignType('roles')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${assignType === 'roles' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Roles</button>
+              <button type="button" onClick={() => setAssignType('user')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${assignType === 'user' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Persona</button>
+              <button type="button" onClick={() => setAssignType('roles')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${assignType === 'roles' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Roles</button>
             </div>
             {assignType === 'user' ? (
               <div className="space-y-2">
-                <div className="flex flex-wrap gap-2 mb-2">{selectedUsersObj.map(u => (<div key={u.id} className="flex items-center gap-1 bg-violet-100 text-violet-800 px-2 py-1 rounded-lg text-xs font-bold">{u.firstName} <button type="button" onClick={() => toggleUserSelection(u)}><X size={12}/></button></div>))}</div>
-                <div className="relative">
-                  <input placeholder="🔍 Buscar personas..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} autoComplete="off" className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none" />
-                  {userSearch && (
-                    <div className="absolute bg-white shadow-xl w-full max-h-40 overflow-y-auto z-50 rounded-b-2xl border">
-                      {usersList.filter(u => u.fullName?.toLowerCase().includes(userSearch.toLowerCase())).map(u => (
-                        <div key={u.id} onClick={() => toggleUserSelection(u)} className="p-3 hover:bg-violet-50 cursor-pointer flex items-center gap-2 border-b">
-                          <p className="text-xs font-bold text-gray-700">{u.fullName}</p>
-                          {selectedUsersObj.some(s => s.id === u.id) && <Check size={14} className="ml-auto text-violet-600"/>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <input placeholder="🔍 Buscar personas..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none" />
+                <div className="flex flex-wrap gap-2">{selectedUsersObj.map(u => (<div key={u.id} className="bg-violet-100 text-violet-800 px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1">{u.firstName} <button type="button" onClick={() => toggleUserSelection(u)}><X size={12}/></button></div>))}</div>
               </div>
             ) : (
               <div className="bg-gray-50 p-4 rounded-2xl border max-h-32 overflow-y-auto">
                 {ROLES_OPTIONS.map(role => (
-                  <label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600 cursor-pointer">
-                    <input type="checkbox" checked={selectedRoles.includes(role)} onChange={(e) => e.target.checked ? setSelectedRoles([...selectedRoles, role]) : setSelectedRoles(selectedRoles.filter(r => r !== role))} className="accent-violet-600"/> {role}
-                  </label>
+                  <label key={role} className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600"><input type="checkbox" checked={selectedRoles.includes(role)} onChange={(e) => e.target.checked ? setSelectedRoles([...selectedRoles, role]) : setSelectedRoles(selectedRoles.filter(r => r !== role))} className="accent-violet-600"/> {role}</label>
                 ))}
               </div>
             )}
+            <div className="bg-orange-50 p-4 rounded-3xl space-y-2 border border-orange-100">
+              <p className="text-[9px] font-black text-orange-400 uppercase tracking-widest ml-1">Programar Aparición</p>
+              <div className="grid grid-cols-2 gap-3">
+                <input name="showDate" type="date" defaultValue={editingTask?.showDate || new Date().toISOString().split('T')[0]} className="p-2 bg-white rounded-xl text-xs font-bold outline-none" />
+                <input name="showTime" type="time" defaultValue={editingTask?.showTime || "08:00"} className="p-2 bg-white rounded-xl text-xs font-bold outline-none" />
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-4">
-              <div><label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Vencimiento</label><input name="dueDate" type="date" defaultValue={editingTask?.dueDate} className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold" /></div>
+              <div><label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Vencimiento</label><input name="dueDate" type="date" defaultValue={editingTask?.dueDate} className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold outline-none" /></div>
               <div><label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Prioridad</label>
-                <select name="priority" defaultValue={editingTask?.priority || "media"} className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold uppercase text-orange-600 h-[46px]">
+                <select name="priority" defaultValue={editingTask?.priority || "media"} className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold text-orange-600 outline-none">
                   <option value="baja">🟢 Baja</option><option value="media">🟠 Media</option><option value="alta">🔴 Alta</option>
                 </select>
               </div>
             </div>
             <div className="flex gap-2 pt-4">
-              <button type="button" onClick={() => setShowModal(false)} className="flex-1 text-gray-400 font-bold text-xs uppercase hover:bg-gray-50 py-3 rounded-xl transition">Cerrar</button>
-              <button type="submit" className="flex-1 bg-violet-800 text-white py-4 rounded-2xl font-black text-xs uppercase shadow-lg hover:bg-violet-900">Guardar</button>
+              <button type="button" onClick={() => {setShowModal(false); setEditingTask(null);}} className="flex-1 text-gray-400 font-bold text-xs uppercase py-3">Cerrar</button>
+              <button type="submit" className="flex-1 bg-violet-800 text-white py-4 rounded-2xl font-black text-xs uppercase shadow-lg">Guardar</button>
             </div>
           </form>
         </div>
@@ -4006,6 +3942,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
