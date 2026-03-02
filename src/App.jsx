@@ -830,12 +830,10 @@ function TasksView({ tasks = [], user, canEdit }) {
     return { text: `😎 Relax, faltan ${days} días`, color: 'bg-green-50 text-green-700' };
   };
 
-const handleSaveTask = async (e) => {
+  const handleSaveTask = async (e) => {
     e.preventDefault();
     if (!db || !appId) return alert("Error: DB no lista");
     const fd = new FormData(e.target);
-    
-    // OBJETO DE DATOS UNIFICADO
     const taskData = {
       title: fd.get('title') || "Sin título",
       dueDate: fd.get('dueDate') || null,
@@ -845,36 +843,26 @@ const handleSaveTask = async (e) => {
       targetType: assignType,
       targetUserIds: selectedUsersObj.map(u => u.id),
       targetRoles: selectedRoles,
-      assignedToName: assignType === 'user' 
-        ? selectedUsersObj.map(u => u.firstName || u.fullName).join(", ") 
-        : selectedRoles.join(", "),
+      assignedToName: assignType === 'user' ? selectedUsersObj.map(u => u.firstName || u.fullName).join(", ") : selectedRoles.join(", "),
     };
 
     try {
       if (editingTask && editingTask.id) {
-        // PARCHE CORRECTO: Usamos editingTask.id (Variable propia de esta vista)
         const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id);
         await updateDoc(taskRef, taskData);
       } else {
-        // CREACIÓN DE TAREA NUEVA
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), {
           ...taskData,
-          createdByName: user.firstName || 'Directivo',
+          createdByName: user.firstName,
           createdById: user.id,
           status: 'pending',
           createdAt: serverTimestamp(),
           comments: []
         });
       }
-      // LIMPIEZA DE ESTADOS
       setShowModal(false);
       setEditingTask(null);
-      setSelectedUsersObj([]);
-      setSelectedRoles([]);
-    } catch (err) { 
-      console.error("Error al guardar tarea:", err);
-      alert("Error: " + err.message); 
-    }
+    } catch (err) { alert(err.message); }
   };
 
   const toggleUserSelection = (u) => {
@@ -883,29 +871,31 @@ const handleSaveTask = async (e) => {
     setUserSearch(""); 
   };
 
-const visibleTasks = tasks.filter(t => {
+ const visibleTasks = tasks.filter(t => {
     if (!t) return false;
     
-    // 1. ¿Me pertenece?
+    // Determinar si la tarea me pertenece (la creé yo, me la asignaron, o asignaron a mi rol)
     const isMine = (
       t.createdById === user.id || 
       (t.targetUserIds && t.targetUserIds.includes(user.id)) || 
       (user.role && t.targetRoles && t.targetRoles.includes(user.role))
     );
-
-    // 2. Lógica de Programación (Solo el creador o admin ven lo que es para el futuro)
-    const now = new Date();
-    const taskShowDate = t.showDate ? new Date(t.showDate + 'T' + (t.showTime || '00:00')) : null;
-    const isFutureTask = taskShowDate && taskShowDate > now;
-
-    if (isFutureTask && t.createdById !== user.id && !isSuperAdmin) return false;
-
-    // 3. Filtros de vista (Auditoría vs Mis Tareas)
+    
+    // MODO AUDITORÍA (SuperAdmin viendo "all")
     if (isSuperAdmin && viewMode === 'all') {
-      return filter === 'completed' ? t.status === 'completed' : t.status !== 'completed';
+      // Si el filtro es "completadas", mostrar TODAS las completadas
+      if (filter === 'completed') return t.status === 'completed';
+      // Si el filtro es "pendientes", mostrar TODAS las pendientes
+      return t.status !== 'completed'; 
     }
 
-    return filter === 'completed' ? (t.status === 'completed' && isMine) : (t.status !== 'completed' && isMine);
+    // MODO NORMAL / "MIS TAREAS" (viewMode === 'mine')
+    // Mostrar SOLO mis tareas, aplicando el filtro de estado
+    if (filter === 'completed') {
+      return t.status === 'completed' && isMine;
+    } else {
+      return t.status !== 'completed' && isMine;
+    }
     
   }).sort((a,b) => (a.dueDate || '9999') > (b.dueDate || '9999') ? 1 : -1);
   const addComment = async (task) => { if (!newComment.trim()) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion({ text: newComment, author: user.firstName, date: new Date().toISOString() }) }); setNewComment(""); };
@@ -941,13 +931,7 @@ const visibleTasks = tasks.filter(t => {
             <div className="flex justify-between items-start">
               <div className="flex-1 pr-6">
                 <p className="text-[9px] font-black text-violet-600 uppercase mb-1">Para: {t.assignedToName}</p>
-                {/* ETIQUETA DE PROGRAMADA */}
-{t.showDate && new Date(t.showDate + 'T' + (t.showTime || '08:00')) > new Date() && (
-  <span className="text-[8px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-black uppercase mb-1 inline-block border border-blue-200">
-    ⏳ Programada: {new Date(t.showDate + 'T12:00:00').toLocaleDateString()}
-  </span>
-)}
-<h3 className={`font-bold text-gray-800 text-sm uppercase italic leading-tight ${t.status==='completed'?'line-through opacity-50':''}`}>{t.title}</h3>
+                <h3 className={`font-bold text-gray-800 text-sm uppercase italic leading-tight ${t.status==='completed'?'line-through opacity-50':''}`}>{t.title}</h3>
                 <p className="text-[9px] text-gray-400 mt-1 italic">De: {t.createdByName || 'Sistema'}</p>
                 {t.dueDate && (
                   <div className="mt-2 space-y-1">
@@ -1025,13 +1009,6 @@ const visibleTasks = tasks.filter(t => {
               </div>
             )}
             <div className="grid grid-cols-2 gap-4">
-             <div className="bg-orange-50 p-4 rounded-3xl space-y-3 border border-orange-100 mb-2">
-  <p className="text-[9px] font-black text-orange-400 uppercase tracking-widest ml-1">Programar Aparición (Opcional)</p>
-  <div className="grid grid-cols-2 gap-3">
-    <input name="showDate" type="date" defaultValue={editingTask?.showDate || new Date().toISOString().split('T')[0]} className="p-3 bg-white rounded-xl text-xs font-bold border-none outline-none shadow-sm" />
-    <input name="showTime" type="time" defaultValue={editingTask?.showTime || "08:00"} className="p-3 bg-white rounded-xl text-xs font-bold border-none outline-none shadow-sm" />
-  </div>
-</div>
               <div><label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Vencimiento</label><input name="dueDate" type="date" defaultValue={editingTask?.dueDate} className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold" /></div>
               <div><label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Prioridad</label>
                 <select name="priority" defaultValue={editingTask?.priority || "media"} className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold uppercase text-orange-600 h-[46px]">
@@ -1049,6 +1026,7 @@ const visibleTasks = tasks.filter(t => {
     </div>
   );
 }
+      
 // --- VISTA CALENDARIO (FINAL: ACCESO UNIVERSAL + AGENDA TÉCNICA PRIVADA) ---
 function CalendarView({ events, canEdit, user }) {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -4028,6 +4006,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
