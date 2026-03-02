@@ -713,41 +713,45 @@ function ResourcesView({ resources, canEdit }) {
                           <p className="absolute top-4 text-[10px] font-black text-gray-400 uppercase tracking-[4px]">VISTA PREVIA</p>
                           
                           {/* ESCALADO DINÁMICO */}
-                          <div className="scale-[0.5] sm:scale-[0.6] md:scale-[0.8] xl:scale-[0.95] origin-center transition-transform">
-                              <div id="nota-canvas" className="w-[600px] h-[400px] bg-white relative shadow-2xl border-[10px] border-white rounded-[15px] flex flex-col overflow-hidden" style={{backgroundColor: '#fefce8'}}>
-                                  <div className="absolute inset-0 opacity-[0.04]" style={{backgroundImage: 'radial-gradient(#f97316 2px, transparent 2px)', backgroundSize: '18px 18px'}}></div>
-                                  <div className="absolute top-0 left-0 right-0 h-3 bg-gradient-to-r from-violet-600 via-pink-500 to-orange-400 opacity-80"></div>
-                                  
-                                  <div className="flex flex-col h-full px-12 pt-10 pb-8 z-10">
-                                      <div className="flex justify-between items-start mb-6 shrink-0">
-                                          <div className="flex items-center gap-4">
-                                              <img src={LOGO_SIN_FONDO} className="w-16 h-auto mix-blend-multiply" crossOrigin="anonymous"/>
-                                              <div className="leading-tight pt-1">
-                                                  <h2 className="font-black text-[16px] text-violet-900 uppercase tracking-[2px]">JUNTOS A LA PAR</h2>
-                                                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">ESCUELA ESPECIAL</p>
-                                              </div>
-                                          </div>
-                                          <p className="text-[12px] text-orange-600 font-black uppercase pt-2">{notaData.date || '00/00/00'}</p>
-                                      </div>
-                                      
-                                      <h1 className="text-2xl font-black text-gray-800 uppercase leading-tight mb-4 text-center shrink-0">{notaData.title || 'SIN TÍTULO'}</h1>
-                                      
-                                      <div className="flex flex-col justify-center flex-1 min-h-0 w-full overflow-hidden">
-                                          <div className={`text-slate-700 font-bold whitespace-pre-wrap leading-relaxed break-words w-full px-6 ${notaData.fontSize} ${notaData.textAlign}`} style={{maxWidth: '500px', margin: '0 auto'}}>
-                                              {notaData.body || 'Escribí algo para previsualizar...'}
-                                          </div>
-                                      </div>
-                                      
-                                      <div className="mt-6 flex flex-col items-center shrink-0">
-                                          <div className="w-48 h-[1px] bg-orange-200 mb-4 opacity-50"></div>
-                                          <p className="text-[16px] font-black text-violet-800 uppercase text-center leading-none mb-1 italic">{notaData.signature}</p>
-                                          <p className="text-[9px] text-orange-500 font-black uppercase tracking-[3px] opacity-70">ESCUELA JUNTOS A LA PAR</p>
-                                      </div>
-                                  </div>
-                              </div>
-                          </div>
-                      </div>
-                  </div>
+                        {/* VISTA PREVIA CON ALTURA ADAPTABLE */}
+<div className="scale-[0.5] sm:scale-[0.6] md:scale-[0.8] xl:scale-[0.95] origin-top transition-all">
+    <div 
+        id="nota-canvas" 
+        className="w-[600px] min-h-[400px] bg-white relative shadow-2xl border-[10px] border-white rounded-[15px] flex flex-col overflow-hidden" 
+        style={{ backgroundColor: '#fefce8', height: 'auto' }}
+    >
+        <div className="absolute inset-0 opacity-[0.04]" style={{backgroundImage: 'radial-gradient(#f97316 2px, transparent 2px)', backgroundSize: '18px 18px'}}></div>
+        <div className="absolute top-0 left-0 right-0 h-3 bg-gradient-to-r from-violet-600 via-pink-500 to-orange-400 opacity-80"></div>
+        
+        <div className="flex flex-col h-full px-12 pt-10 pb-12 z-10">
+            <div className="flex justify-between items-start mb-6 shrink-0">
+                <div className="flex items-center gap-4">
+                    <img src={LOGO_SIN_FONDO} className="w-16 h-auto mix-blend-multiply" crossOrigin="anonymous"/>
+                    <div className="leading-tight pt-1">
+                        <h2 className="font-black text-[16px] text-violet-900 uppercase tracking-[2px]">JUNTOS A LA PAR</h2>
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">ESCUELA ESPECIAL</p>
+                    </div>
+                </div>
+                <p className="text-[12px] text-orange-600 font-black uppercase pt-2">{notaData.date || '00/00/00'}</p>
+            </div>
+            
+            <h1 className="text-2xl font-black text-gray-800 uppercase leading-tight mb-4 text-center shrink-0">{notaData.title || 'SIN TÍTULO'}</h1>
+            
+            {/* El contenedor de texto ahora no tiene límites de altura */}
+            <div className="flex-1 w-full mb-8">
+                <div className={`text-slate-700 font-bold whitespace-pre-wrap leading-relaxed break-words w-full px-6 ${notaData.fontSize} ${notaData.textAlign}`} style={{maxWidth: '500px', margin: '0 auto'}}>
+                    {notaData.body || 'Escribí algo para previsualizar...'}
+                </div>
+            </div>
+            
+            <div className="mt-auto flex flex-col items-center shrink-0">
+                <div className="w-48 h-[1px] bg-orange-200 mb-4 opacity-50"></div>
+                <p className="text-[16px] font-black text-violet-800 uppercase text-center leading-none mb-1 italic">{notaData.signature}</p>
+                <p className="text-[9px] text-orange-500 font-black uppercase tracking-[3px] opacity-70">ESCUELA JUNTOS A LA PAR</p>
+            </div>
+        </div>
+    </div>
+</div>
 
                   {/* FOOTER DEL MODAL (BOTÓN FIJO ABAJO) */}
                   <div className="p-4 md:p-6 border-t bg-white shrink-0 shadow-2xl z-20">
@@ -4024,6 +4028,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
