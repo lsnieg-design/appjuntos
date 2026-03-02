@@ -826,7 +826,48 @@ function TasksView({ tasks = [], user, canEdit }) {
     return { text: `😎 Relax, faltan ${days} días`, color: 'bg-green-50 text-green-700' };
   };
 
- const handleSaveTask = async (e) => {
+const handleSaveTask = async (e) => {
+    e.preventDefault();
+    if (!db || !appId) return alert("Error: DB no lista");
+    const fd = new FormData(e.target);
+    
+    const taskData = {
+      title: fd.get('title') || "Sin título",
+      dueDate: fd.get('dueDate') || null,
+      showDate: fd.get('showDate') || new Date().toISOString().split('T')[0],
+      showTime: fd.get('showTime') || "08:00",
+      priority: fd.get('priority') || "media",
+      targetType: assignType,
+      targetUserIds: selectedUsersObj.map(u => u.id),
+      targetRoles: selectedRoles,
+      assignedToName: assignType === 'user' 
+        ? selectedUsersObj.map(u => u.firstName || u.fullName).join(", ") 
+        : selectedRoles.join(", "),
+    };
+
+    try {
+      if (editingTask && editingTask.id) {
+        // Corregido: Usamos editingTask.id para que Vercel no de error
+        const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id);
+        await updateDoc(taskRef, taskData);
+      } else {
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), {
+          ...taskData,
+          createdByName: user.firstName || 'Directivo',
+          createdById: user.id,
+          status: 'pending',
+          createdAt: serverTimestamp(),
+          comments: []
+        });
+      }
+      setShowModal(false);
+      setEditingTask(null);
+      setSelectedUsersObj([]);
+      setSelectedRoles([]);
+    } catch (err) { 
+      alert("Error al guardar: " + err.message); 
+    }
+  };
     e.preventDefault();
     if (!db || !appId) return alert("Error: DB no lista");
     const fd = new FormData(e.target);
@@ -887,7 +928,7 @@ function TasksView({ tasks = [], user, canEdit }) {
     setUserSearch(""); 
   };
 
- const visibleTasks = tasks.filter(t => {
+const visibleTasks = tasks.filter(t => {
     if (!t) return false;
     
     // 1. ¿Me pertenece?
@@ -897,25 +938,20 @@ function TasksView({ tasks = [], user, canEdit }) {
       (user.role && t.targetRoles && t.targetRoles.includes(user.role))
     );
 
-    // --- LÓGICA DE PROGRAMACIÓN (NUEVO) ---
+    // 2. Lógica de Programación (Solo el creador o admin ven lo que es para el futuro)
     const now = new Date();
     const taskShowDate = t.showDate ? new Date(t.showDate + 'T' + (t.showTime || '00:00')) : null;
     const isFutureTask = taskShowDate && taskShowDate > now;
 
-    // Si es futura y NO soy el creador ni superAdmin, se oculta
     if (isFutureTask && t.createdById !== user.id && !isSuperAdmin) return false;
-    // --------------------------------------
 
+    // 3. Filtros de vista (Auditoría vs Mis Tareas)
     if (isSuperAdmin && viewMode === 'all') {
-      if (filter === 'completed') return t.status === 'completed';
-      return t.status !== 'completed'; 
+      return filter === 'completed' ? t.status === 'completed' : t.status !== 'completed';
     }
 
-    if (filter === 'completed') {
-      return t.status === 'completed' && isMine;
-    } else {
-      return t.status !== 'completed' && isMine;
-    }
+    return filter === 'completed' ? (t.status === 'completed' && isMine) : (t.status !== 'completed' && isMine);
+    
   }).sort((a,b) => (a.dueDate || '9999') > (b.dueDate || '9999') ? 1 : -1);
   const addComment = async (task) => { if (!newComment.trim()) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { comments: arrayUnion({ text: newComment, author: user.firstName, date: new Date().toISOString() }) }); setNewComment(""); };
   const handleDelete = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
@@ -4037,6 +4073,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
