@@ -584,7 +584,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
     </div>
   );
 }
-// --- VISTA RECURSOS (VERSIÓN CORREGIDA: DISEÑO ORIGINAL + FIX ESPACIADO + MODO IMPRESIÓN) ---
+// --- VISTA RECURSOS (VERSIÓN RESTAURADA: NOTAS + SUBIDA DE ARCHIVOS) ---
 function ResourcesView({ resources, canEdit }) {
   const [folder, setFolder] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -598,7 +598,7 @@ function ResourcesView({ resources, canEdit }) {
     signature: 'EQUIPO DIRECTIVO',
     fontSize: 'text-[14px]', 
     textAlign: 'text-center',
-    wordSpacing: '0.12em', // Refuerzo base para evitar palabras pegadas
+    wordSpacing: '0.12em',
     isPrintMode: false 
   });
   
@@ -611,10 +611,32 @@ function ResourcesView({ resources, canEdit }) {
     return acc; 
   }, {});
 
+  // --- FUNCIÓN PARA GUARDAR RECURSOS (PDF/LINKS) ---
+  const handleSaveResource = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const data = {
+      title: fd.get('title'),
+      url: fd.get('url'),
+      category: fd.get('category').toUpperCase(),
+      updatedAt: serverTimestamp()
+    };
+    try {
+      if (editingRes) {
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', editingRes.id), data);
+      } else {
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), { ...data, createdAt: serverTimestamp() });
+      }
+      setShowModal(false);
+      setEditingRes(null);
+    } catch (err) { alert(err.message); }
+  };
+
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10">
       <div className="flex justify-between items-center mb-6 px-2">
         <h2 className="text-2xl font-black text-violet-900 italic tracking-tighter uppercase">Recursos</h2>
+        {/* Este es el botón que ahora sí abrirá el modal de carga */}
         {canEdit && <button onClick={() => { setEditingRes(null); setShowModal(true); }} className="bg-orange-500 text-white p-2 rounded-xl shadow-lg hover:bg-orange-600 transition"><Plus size={20}/></button>}
       </div>
 
@@ -652,12 +674,34 @@ function ResourcesView({ resources, canEdit }) {
                         <FileText size={18} className="text-violet-200 shrink-0" /> 
                         <span className="truncate">{r.title}</span>
                     </a>
+                    {canEdit && (
+                      <button onClick={() => { setEditingRes(r); setShowModal(true); }} className="p-2 text-gray-300 hover:text-orange-500 transition"><Edit3 size={16}/></button>
+                    )}
                 </div>
             ))}
             </div>
         </div>
       )}
 
+      {/* --- MODAL PARA AGREGAR NUEVO RECURSO (EL QUE FALTABA) --- */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[400] flex items-center justify-center p-4">
+          <form onSubmit={handleSaveResource} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95">
+            <h3 className="text-xl font-black text-violet-900 mb-6 uppercase italic">Nuevo Recurso</h3>
+            <div className="space-y-4">
+              <input name="title" defaultValue={editingRes?.title} placeholder="Nombre del documento" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm border border-gray-100" required />
+              <input name="url" defaultValue={editingRes?.url} placeholder="Link de Drive o Web" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm border border-gray-100" required />
+              <input name="category" defaultValue={editingRes?.category} placeholder="Categoría (Ej: PROYECTOS)" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm border border-gray-100" required />
+              <div className="flex gap-2 pt-4">
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-4 font-black text-xs text-gray-400 uppercase">Cancelar</button>
+                <button type="submit" className="flex-[2] py-4 bg-orange-500 text-white rounded-2xl font-black text-xs uppercase shadow-lg hover:bg-orange-600 transition">Guardar</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* MODAL GENERADOR DE NOTAS (Toda la lógica que ya teníamos) */}
       {showNotaModal && (
         <div className="fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-0 md:p-4 backdrop-blur-md" onClick={() => setShowNotaModal(false)}>
           <div className="bg-white rounded-t-[40px] md:rounded-[40px] w-full max-w-7xl flex flex-col h-[98vh] md:h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -685,7 +729,7 @@ function ResourcesView({ resources, canEdit }) {
                     <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-2">Tamaño de Letra</p>
                     <div className="flex gap-2">
                       {[ {l:'Chica', v:'text-[11px]'}, {l:'Media', v:'text-[14px]'}, {l:'Grande', v:'text-[18px]'} ].map(s => (
-                        <button key={s.v} onClick={() => setNotaData({...notaData, fontSize: s.v})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${notaData.fontSize === s.v ? 'bg-violet-600 text-white shadow-md' : 'bg-white text-violet-400'}`}>{s.l}</button>
+                        <button key={s.v} onClick={() => setNotaData({...notaData, fontSize: s.v})} className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${notaData.fontSize === s.v ? 'bg-violet-600 text-white shadow-md' : 'bg-white text-violet-400'}`}>{s.l}</button>
                       ))}
                     </div>
                   </div>
@@ -700,8 +744,8 @@ function ResourcesView({ resources, canEdit }) {
                   <div>
                     <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-2">Fondo de Nota</p>
                     <div className="flex gap-2">
-                        <button onClick={() => setNotaData({...notaData, isPrintMode: false})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${!notaData.isPrintMode ? 'bg-orange-500 text-white' : 'bg-white text-orange-400'}`}>🎨 COLOR</button>
-                        <button onClick={() => setNotaData({...notaData, isPrintMode: true})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${notaData.isPrintMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-400'}`}>🖨️ BLANCO</button>
+                        <button onClick={() => setNotaData({...notaData, isPrintMode: false})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${!notaData.isPrintMode ? 'bg-orange-500 text-white shadow-md' : 'bg-white text-orange-400'}`}>🎨 COLOR</button>
+                        <button onClick={() => setNotaData({...notaData, isPrintMode: true})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${notaData.isPrintMode ? 'bg-gray-800 text-white shadow-md' : 'bg-white text-gray-400'}`}>🖨️ BLANCO</button>
                     </div>
                   </div>
                 </div>
@@ -713,7 +757,7 @@ function ResourcesView({ resources, canEdit }) {
 
                 <div>
                   <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block tracking-widest">Mensaje</label>
-                  <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Escribe aquí..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-sm border-2 border-transparent focus:border-pink-200 h-[250px] resize-none font-medium text-gray-600 shadow-inner"/>
+                  <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Mensaje..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-sm border-2 border-transparent focus:border-pink-200 h-[250px] resize-none font-medium text-gray-600 shadow-inner"/>
                 </div>
               </div>
 
@@ -749,7 +793,7 @@ function ResourcesView({ resources, canEdit }) {
                           style={{ 
                             maxWidth: '540px', 
                             margin: '0 auto', 
-                            wordSpacing: '0.12em', // Asegura separación en la imagen
+                            wordSpacing: '0.12em',
                             letterSpacing: '0.01em'
                           }}
                         >
@@ -768,7 +812,7 @@ function ResourcesView({ resources, canEdit }) {
               </div>
             </div>
 
-            {/* FOOTER */}
+            {/* FOOTER NOTA */}
             <div className="p-4 md:p-6 border-t bg-white shrink-0 z-20 shadow-2xl">
               <div className="flex gap-4 max-w-4xl mx-auto">
                 <button onClick={() => setShowNotaModal(false)} className="flex-1 text-gray-400 font-black text-xs uppercase py-4">VOLVER</button>
@@ -783,7 +827,6 @@ function ResourcesView({ resources, canEdit }) {
                         backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
                         logging: false,
                         onclone: (clonedDoc) => {
-                            // Pequeño refuerzo visual al clon antes de la captura
                             const txt = clonedDoc.getElementById('nota-canvas').querySelector('.whitespace-pre-wrap');
                             if (txt) {
                                 txt.style.wordSpacing = '0.15em';
@@ -4020,6 +4063,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
