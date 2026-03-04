@@ -1004,9 +1004,47 @@ function TasksView({ tasks = [], user, canEdit }) {
               <button type="button" onClick={() => setAssignType('roles')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${assignType === 'roles' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>Roles</button>
             </div>
             {assignType === 'user' ? (
-              <div className="space-y-2">
-                <input placeholder="🔍 Buscar personas..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} className="w-full p-3 bg-gray-50 border-b-2 border-gray-200 text-sm outline-none" />
-                <div className="flex flex-wrap gap-2">{selectedUsersObj.map(u => (<div key={u.id} className="bg-violet-100 text-violet-800 px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1">{u.firstName} <button type="button" onClick={() => toggleUserSelection(u)}><X size={12}/></button></div>))}</div>
+              <div className="space-y-2 relative">
+                <input 
+                  placeholder="🔍 Buscar personas..." 
+                  value={userSearch} 
+                  onChange={(e) => setUserSearch(e.target.value)} 
+                  className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm border-2 border-transparent focus:border-violet-200 transition-all" 
+                />
+                
+                {/* LISTADO DE RESULTADOS (EL FIX) */}
+                {userSearch.length > 0 && (
+                  <div className="absolute z-[120] w-full bg-white border shadow-xl rounded-2xl max-h-48 overflow-y-auto p-2 top-full mt-1 animate-in slide-in-from-top-2">
+                    {usersList
+                      .filter(u => u.fullName.toLowerCase().includes(userSearch.toLowerCase()))
+                      .map(u => (
+                        <button
+                          key={u.id}
+                          type="button"
+                          onClick={() => toggleUserSelection(u)}
+                          className="w-full text-left p-3 hover:bg-violet-50 rounded-xl flex justify-between items-center transition-colors"
+                        >
+                          <span className="font-bold text-xs text-gray-700">{u.fullName}</span>
+                          <Plus size={14} className="text-violet-400" />
+                        </button>
+                      ))}
+                    {usersList.filter(u => u.fullName.toLowerCase().includes(userSearch.toLowerCase())).length === 0 && (
+                      <p className="p-3 text-[10px] font-bold text-gray-400 text-center uppercase italic">No se encontraron resultados</p>
+                    )}
+                  </div>
+                )}
+
+                {/* PERSONAS SELECCIONADAS */}
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {selectedUsersObj.map(u => (
+                    <div key={u.id} className="bg-violet-100 text-violet-800 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 border border-violet-200">
+                      {u.firstName || u.fullName.split(' ')[0]} 
+                      <button type="button" onClick={() => toggleUserSelection(u)} className="hover:text-red-500 transition-colors">
+                        <X size={14}/>
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : (
               <div className="bg-gray-50 p-4 rounded-2xl border max-h-32 overflow-y-auto">
@@ -4053,6 +4091,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
