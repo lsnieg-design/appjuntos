@@ -3496,10 +3496,31 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
           .data-field { text-align: center; font-weight: bold; font-size: 14px; border-bottom: 1px dotted #000; display: block; margin: 2px 0; padding-bottom: 2px; }
           .inline-field { font-weight: bold; border-bottom: 1px dotted #000; padding: 0 10px; }
           .date-section { margin: 15px 0; text-align: center; font-weight: bold; }
-          .signatures-section { display: flex; justify-content: space-between; align-items: flex-end; padding: 0 10px; height: 80px; }
-          .sig-box { text-align: center; width: 220px; position: relative; }
-          .sig-img { height: 60px; width: auto; display: block; margin: 0 auto -10px auto; position: relative; z-index: 10; }
-          .sig-line { border-top: 1px solid #000; margin-top: 0; padding-top: 4px; font-size: 11px; }
+         .signatures-section { 
+              display: flex; 
+              justify-content: space-between; 
+              align-items: flex-end; 
+              padding: 0 10px; 
+              height: 120px; /* Aumentado de 80px */
+              margin-top: 20px;
+          }
+          .sig-box { text-align: center; width: 250px; position: relative; }
+          .sig-img { 
+              height: 100px; /* Aumentado de 60px */
+              width: auto; 
+              display: block; 
+              margin: 0 auto -15px auto; 
+              position: relative; 
+              z-index: 10; 
+              filter: contrast(1.2); /* Para que el sello se vea más nítido */
+          }
+          .sig-line { 
+              border-top: 1.5px solid #000; 
+              margin-top: 0; 
+              padding-top: 6px; 
+              font-size: 12px; /* Un poco más legible */
+              font-weight: bold;
+          }
 
           /* --- ESTILOS PLANILLA --- */
           .planilla-page { width: 100%; max-width: 210mm; padding: 15px 30px; box-sizing: border-box; margin: 0 auto; height: 297mm; position: relative; }
@@ -4107,6 +4128,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
