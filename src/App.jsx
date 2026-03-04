@@ -598,7 +598,8 @@ function ResourcesView({ resources, canEdit }) {
     signature: 'EQUIPO DIRECTIVO',
     fontSize: 'text-[14px]', 
     textAlign: 'text-center',
-    wordSpacing: '0.05em' // Nuevo: Control de espaciado
+    wordSpacing: '0.05em',
+    isPrintMode: false // <--- NUEVO: Control de fondo
   });
   
   const LOGO_SIN_FONDO = "/logosinfondo.png";
@@ -697,12 +698,20 @@ function ResourcesView({ resources, canEdit }) {
                       ))}
                     </div>
                   </div>
-                  {/* ESPACIADO ENTRE PALABRAS (PARA ARREGLAR DESCARGA) */}
+                  {/* NUEVO: MODO IMPRESIÓN */}
+                  <div>
+                    <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-2">Estilo de Fondo</p>
+                    <div className="flex gap-2">
+                        <button onClick={() => setNotaData({...notaData, isPrintMode: false})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${!notaData.isPrintMode ? 'bg-orange-500 text-white' : 'bg-white text-orange-400'}`}>🎨 COLOR</button>
+                        <button onClick={() => setNotaData({...notaData, isPrintMode: true})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${notaData.isPrintMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-400'}`}>🖨️ IMPRESIÓN</button>
+                    </div>
+                  </div>
+                  {/* ESPACIADO ENTRE PALABRAS */}
                   <div>
                     <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-2">Espaciado (Fix descarga)</p>
                     <div className="flex gap-2">
                       {[ {l:'Normal', v:'0.02em'}, {l:'Medio', v:'0.12em'}, {l:'Ancho', v:'0.25em'} ].map(sp => (
-                        <button key={sp.v} onClick={() => setNotaData({...notaData, wordSpacing: sp.v})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${notaData.wordSpacing === sp.v ? 'bg-orange-500 text-white' : 'bg-white text-orange-300'}`}>{sp.l}</button>
+                        <button key={sp.v} onClick={() => setNotaData({...notaData, wordSpacing: sp.v})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${notaData.wordSpacing === sp.v ? 'bg-violet-600 text-white' : 'bg-white text-violet-300'}`}>{sp.l}</button>
                       ))}
                     </div>
                   </div>
@@ -722,11 +731,22 @@ function ResourcesView({ resources, canEdit }) {
               {/* DERECHA: VISTA PREVIA */}
               <div className="flex-1 bg-slate-100 flex flex-col items-center justify-center p-6 md:p-10 relative overflow-hidden">
                 <div className="scale-[0.5] sm:scale-[0.6] md:scale-[0.8] xl:scale-[0.95] origin-top transition-all">
-                  <div id="nota-canvas" className="w-[600px] min-h-[400px] bg-[#fefce8] relative shadow-2xl border-[10px] border-white rounded-[15px] flex flex-col" style={{ height: 'auto' }}>
-                    <div className="absolute inset-0 opacity-[0.04]" style={{backgroundImage: 'radial-gradient(#f97316 2px, transparent 2px)', backgroundSize: '18px 18px'}}></div>
-                    <div className="absolute top-0 left-0 right-0 h-3 bg-gradient-to-r from-violet-600 via-pink-500 to-orange-400 opacity-80"></div>
+                  {/* NOTA DINÁMICA: Cambia fondo y borde según el modo */}
+                  <div 
+                    id="nota-canvas" 
+                    className={`w-[600px] min-h-[400px] relative shadow-2xl rounded-[15px] flex flex-col overflow-hidden transition-all duration-300 ${notaData.isPrintMode ? 'bg-white border-[10px] border-gray-200' : 'bg-[#fefce8] border-[10px] border-white'}`} 
+                    style={{ height: 'auto' }}
+                  >
+                    {/* Ocultar puntitos en modo impresión */}
+                    {!notaData.isPrintMode && (
+                        <div className="absolute inset-0 opacity-[0.04]" style={{backgroundImage: 'radial-gradient(#f97316 2px, transparent 2px)', backgroundSize: '18px 18px'}}></div>
+                    )}
+                    
+                    {/* Línea superior reactiva */}
+                    <div className={`absolute top-0 left-0 right-0 h-3 opacity-80 ${notaData.isPrintMode ? 'bg-gray-300' : 'bg-gradient-to-r from-violet-600 via-pink-500 to-orange-400'}`}></div>
+                    
                     <div className="flex flex-col h-full px-12 pt-10 pb-12 z-10">
-                      <div className="flex justify-between items-start mb-6">
+                      <div className="flex justify-between items-start mb-6 shrink-0">
                         <div className="flex items-center gap-4">
                           <img src={LOGO_SIN_FONDO} className="w-16 h-auto mix-blend-multiply" crossOrigin="anonymous"/>
                           <div className="leading-tight pt-1">
@@ -734,7 +754,7 @@ function ResourcesView({ resources, canEdit }) {
                             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">ESCUELA ESPECIAL</p>
                           </div>
                         </div>
-                        <p className="text-[12px] text-orange-600 font-black uppercase pt-2">{notaData.date}</p>
+                        <p className={`text-[12px] font-black uppercase pt-2 ${notaData.isPrintMode ? 'text-gray-400' : 'text-orange-600'}`}>{notaData.date}</p>
                       </div>
                       <h1 className="text-2xl font-black text-gray-800 uppercase leading-tight mb-6 text-center">{notaData.title || 'COMUNICADO'}</h1>
                       <div className="flex-1 w-full mb-10">
@@ -745,10 +765,10 @@ function ResourcesView({ resources, canEdit }) {
                           {notaData.body || 'Vista previa del mensaje...'}
                         </div>
                       </div>
-                      <div className="mt-auto flex flex-col items-center">
+                      <div className="mt-auto flex flex-col items-center shrink-0">
                         <div className="w-48 h-[1px] bg-orange-200 mb-4 opacity-50"></div>
                         <p className="text-[16px] font-black text-violet-800 uppercase text-center italic">{notaData.signature}</p>
-                        <p className="text-[9px] text-orange-500 font-black uppercase tracking-[3px] opacity-70">ESCUELA JUNTOS A LA PAR</p>
+                        <p className={`text-[9px] font-black uppercase tracking-[3px] opacity-70 ${notaData.isPrintMode ? 'text-gray-400' : 'text-orange-500'}`}>ESCUELA JUNTOS A LA PAR</p>
                       </div>
                     </div>
                   </div>
@@ -765,7 +785,12 @@ function ResourcesView({ resources, canEdit }) {
                   const element = document.getElementById('nota-canvas');
                   try {
                     const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
-                    const canvas = await html2canvas(element, { scale: 3, useCORS: true, backgroundColor: '#fefce8', letterRendering: true }); 
+                    const canvas = await html2canvas(element, { 
+                        scale: 3, 
+                        useCORS: true, 
+                        backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
+                        letterRendering: true 
+                    }); 
                     const link = document.createElement('a');
                     link.download = `Nota_${(notaData.title || 'Nota').substring(0,10)}.jpg`;
                     link.href = canvas.toDataURL('image/jpeg', 0.95);
@@ -3980,6 +4005,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
