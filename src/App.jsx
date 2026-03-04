@@ -584,7 +584,6 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
     </div>
   );
 }
-// --- VISTA RECURSOS (VERSIÓN DEFINITIVA: FORMATO + ESPACIADO + COLOR RECUPERADO) ---
 function ResourcesView({ resources, canEdit }) {
   const [folder, setFolder] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -599,7 +598,7 @@ function ResourcesView({ resources, canEdit }) {
     fontSize: 'text-[14px]', 
     textAlign: 'text-center',
     wordSpacing: '0.05em',
-    isPrintMode: false // <--- NUEVO: Control de fondo
+    isPrintMode: false // <--- Control de fondo (Color vs Blanco)
   });
   
   const LOGO_SIN_FONDO = "/logosinfondo.png";
@@ -631,6 +630,7 @@ function ResourcesView({ resources, canEdit }) {
           </button>
       )}
 
+      {/* VISTA DE CARPETAS */}
       {!folder ? (
         <div className="grid grid-cols-2 gap-4 pb-10 px-2">
           {Object.keys(folders).map(name => (
@@ -680,16 +680,15 @@ function ResourcesView({ resources, canEdit }) {
                 </div>
 
                 <div className="bg-violet-50 p-4 rounded-3xl space-y-4">
-                  {/* TAMAÑO */}
+                  {/* CONTROLES DE FORMATO */}
                   <div>
                     <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-2">Tamaño de Letra</p>
                     <div className="flex gap-2">
                       {[ {l:'Chica', v:'text-[11px]'}, {l:'Media', v:'text-[14px]'}, {l:'Grande', v:'text-[18px]'} ].map(s => (
-                        <button key={s.v} onClick={() => setNotaData({...notaData, fontSize: s.v})} className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${notaData.fontSize === s.v ? 'bg-violet-600 text-white shadow-md' : 'bg-white text-violet-400'}`}>{s.l}</button>
+                        <button key={s.v} onClick={() => setNotaData({...notaData, fontSize: s.v})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${notaData.fontSize === s.v ? 'bg-violet-600 text-white shadow-md' : 'bg-white text-violet-400'}`}>{s.l}</button>
                       ))}
                     </div>
                   </div>
-                  {/* ALINEACIÓN */}
                   <div>
                     <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-2">Alineación</p>
                     <div className="flex gap-2">
@@ -698,21 +697,12 @@ function ResourcesView({ resources, canEdit }) {
                       ))}
                     </div>
                   </div>
-                  {/* NUEVO: MODO IMPRESIÓN */}
+                  {/* MODO IMPRESIÓN */}
                   <div>
                     <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-2">Estilo de Fondo</p>
                     <div className="flex gap-2">
                         <button onClick={() => setNotaData({...notaData, isPrintMode: false})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${!notaData.isPrintMode ? 'bg-orange-500 text-white' : 'bg-white text-orange-400'}`}>🎨 COLOR</button>
-                        <button onClick={() => setNotaData({...notaData, isPrintMode: true})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${notaData.isPrintMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-400'}`}>🖨️ IMPRESIÓN</button>
-                    </div>
-                  </div>
-                  {/* ESPACIADO ENTRE PALABRAS */}
-                  <div>
-                    <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-2">Espaciado (Fix descarga)</p>
-                    <div className="flex gap-2">
-                      {[ {l:'Normal', v:'0.02em'}, {l:'Medio', v:'0.12em'}, {l:'Ancho', v:'0.25em'} ].map(sp => (
-                        <button key={sp.v} onClick={() => setNotaData({...notaData, wordSpacing: sp.v})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${notaData.wordSpacing === sp.v ? 'bg-violet-600 text-white' : 'bg-white text-violet-300'}`}>{sp.l}</button>
-                      ))}
+                        <button onClick={() => setNotaData({...notaData, isPrintMode: true})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${notaData.isPrintMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-400'}`}>🖨️ BLANCO</button>
                     </div>
                   </div>
                 </div>
@@ -731,18 +721,14 @@ function ResourcesView({ resources, canEdit }) {
               {/* DERECHA: VISTA PREVIA */}
               <div className="flex-1 bg-slate-100 flex flex-col items-center justify-center p-6 md:p-10 relative overflow-hidden">
                 <div className="scale-[0.5] sm:scale-[0.6] md:scale-[0.8] xl:scale-[0.95] origin-top transition-all">
-                  {/* NOTA DINÁMICA: Cambia fondo y borde según el modo */}
                   <div 
                     id="nota-canvas" 
                     className={`w-[600px] min-h-[400px] relative shadow-2xl rounded-[15px] flex flex-col overflow-hidden transition-all duration-300 ${notaData.isPrintMode ? 'bg-white border-[10px] border-gray-200' : 'bg-[#fefce8] border-[10px] border-white'}`} 
                     style={{ height: 'auto' }}
                   >
-                    {/* Ocultar puntitos en modo impresión */}
                     {!notaData.isPrintMode && (
                         <div className="absolute inset-0 opacity-[0.04]" style={{backgroundImage: 'radial-gradient(#f97316 2px, transparent 2px)', backgroundSize: '18px 18px'}}></div>
                     )}
-                    
-                    {/* Línea superior reactiva */}
                     <div className={`absolute top-0 left-0 right-0 h-3 opacity-80 ${notaData.isPrintMode ? 'bg-gray-300' : 'bg-gradient-to-r from-violet-600 via-pink-500 to-orange-400'}`}></div>
                     
                     <div className="flex flex-col h-full px-12 pt-10 pb-12 z-10">
@@ -757,14 +743,19 @@ function ResourcesView({ resources, canEdit }) {
                         <p className={`text-[12px] font-black uppercase pt-2 ${notaData.isPrintMode ? 'text-gray-400' : 'text-orange-600'}`}>{notaData.date}</p>
                       </div>
                       <h1 className="text-2xl font-black text-gray-800 uppercase leading-tight mb-6 text-center">{notaData.title || 'COMUNICADO'}</h1>
+                      
+                      {/* FIX DEFINITIVO PARA PALABRAS PEGADAS */}
                       <div className="flex-1 w-full mb-10">
                         <div 
                           className={`text-slate-700 font-bold whitespace-pre-wrap leading-relaxed break-words w-full px-4 ${notaData.fontSize} ${notaData.textAlign}`} 
-                          style={{ maxWidth: '520px', margin: '0 auto', wordSpacing: notaData.wordSpacing }}
+                          style={{ maxWidth: '520px', margin: '0 auto' }}
                         >
-                          {notaData.body || 'Vista previa del mensaje...'}
+                          {notaData.body ? notaData.body.split(' ').map((word, i) => (
+                            <span key={i} style={{ display: 'inline-block', marginRight: '0.28em' }}>{word}</span>
+                          )) : 'Vista previa del mensaje...'}
                         </div>
                       </div>
+
                       <div className="mt-auto flex flex-col items-center shrink-0">
                         <div className="w-48 h-[1px] bg-orange-200 mb-4 opacity-50"></div>
                         <p className="text-[16px] font-black text-violet-800 uppercase text-center italic">{notaData.signature}</p>
@@ -789,7 +780,12 @@ function ResourcesView({ resources, canEdit }) {
                         scale: 3, 
                         useCORS: true, 
                         backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
-                        letterRendering: true 
+                        letterRendering: false,
+                        onclone: (clonedDoc) => {
+                            // Ajuste final de espaciado en el clon antes de disparar la foto
+                            const spans = clonedDoc.querySelectorAll('#nota-canvas span');
+                            spans.forEach(s => s.style.marginRight = '0.3em');
+                        }
                     }); 
                     const link = document.createElement('a');
                     link.download = `Nota_${(notaData.title || 'Nota').substring(0,10)}.jpg`;
@@ -4005,6 +4001,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
