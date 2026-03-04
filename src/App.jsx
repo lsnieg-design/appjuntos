@@ -831,38 +831,41 @@ const handleSaveResource = async (e) => {
             </div>
 
             {/* BOTÓN DESCARGA */}
-            <div className="p-4 md:p-6 border-t bg-white shrink-0 z-20 shadow-2xl">
+          <div className="p-4 md:p-6 border-t bg-white shrink-0 z-20 shadow-2xl">
               <div className="flex gap-4 max-w-4xl mx-auto">
                 <button onClick={() => setShowNotaModal(false)} className="flex-1 text-gray-400 font-black text-xs uppercase py-4">VOLVER</button>
-                <button onClick={async () => {
-                  if(!notaData.title && !notaData.body) return alert("Escribí algo.");
-                  const element = document.getElementById('nota-canvas');
-                  try {
-                    const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
-                    const canvas = await html2canvas(element, { 
+                <button 
+                  onClick={async () => {
+                    if(!notaData.title && !notaData.body) return alert("Escribí algo.");
+                    const element = document.getElementById('nota-canvas');
+                    try {
+                      const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
+                      const canvas = await html2canvas(element, { 
                         scale: 3, useCORS: true, backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
                         logging: false,
                         onclone: (clonedDoc) => {
-                            const txt = clonedDoc.getElementById('nota-canvas').querySelector('.whitespace-pre-wrap');
-                            if (txt) { txt.style.wordSpacing = '0.15em'; txt.style.textRendering = "optimizeLegibility"; }
+                          const txt = clonedDoc.getElementById('nota-canvas').querySelector('.whitespace-pre-wrap');
+                          if (txt) { txt.style.wordSpacing = '0.15em'; txt.style.textRendering = "optimizeLegibility"; }
                         }
-                    }); 
-                    const link = document.createElement('a');
-                    link.download = `Nota_${(notaData.title || 'Nota').substring(0,10)}.jpg`;
-                    link.href = canvas.toDataURL('image/jpeg', 0.95);
-                    link.click();
-                  } catch (error) { alert("Error al generar imagen."); }
-                }} className="flex-[3] bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-sm uppercase tracking-[4px] rounded-2xl shadow-xl hover:scale-[1.02] transition py-4 flex items-center justify-center gap-2">
+                      }); 
+                      const link = document.createElement('a');
+                      link.download = `Nota_${(notaData.title || 'Nota').substring(0,10)}.jpg`;
+                      link.href = canvas.toDataURL('image/jpeg', 0.95);
+                      link.click();
+                    } catch (error) { alert("Error al generar imagen."); }
+                  }} 
+                  className="flex-[3] bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-sm uppercase tracking-[4px] rounded-2xl shadow-xl hover:scale-[1.02] transition py-4 flex items-center justify-center gap-2"
+                >
                   <Download size={20}/> DESCARGAR NOTA OFICIAL
                 </button>
               </div>
             </div>
-          </div> 
-        </div>
+          </div> {/* Cierra contenedor blanco del modal */}
+        </div> {/* Cierra fondo negro/blur del modal */}
       )}
     </div>
   );
-}
+} //
 // --- VISTA TAREAS (VERSIÓN UNIFICADA Y CORREGIDA) ---
 function TasksView({ tasks = [], user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
@@ -4076,6 +4079,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
