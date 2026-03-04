@@ -2923,42 +2923,61 @@ function GroupsView({ user }) {
     return () => { unsubS(); unsubU(); };
   }, []);
 
-  // --- AGRUPAMIENTO DE DATOS ---
+ 
+ // --- AGRUPAMIENTO DE DATOS ---
  // --- AGRUPAMIENTO DE DATOS ---
   const groupedData = students.reduce((acc, s) => {
       const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
       
       if (s.modality === 'Inclusión') {
-          // Para Inclusión ignoramos el turno. Juntamos daiMorning y daiAfternoon en la misma lista.
           const dais = [...new Set([s.daiMorning, s.daiAfternoon].filter(Boolean))];
           dais.forEach(daiName => {
               const groupKey = `DAI: ${daiName}`;
               if (!acc[groupKey]) {
-                  acc[groupKey] = { name: groupKey, students: [], teacher: daiName, isInclusionGroup: true };
+                  acc[groupKey] = { 
+                    name: groupKey, 
+                    students: [], 
+                    teacher: daiName, 
+                    teacherId: s.daiId, // <--- GUARDAMOS EL ID EN EL GRUPO
+                    isInclusionGroup: true 
+                  };
               }
-              // Evitar agregarlo dos veces si tiene la misma DAI en ambos turnos
               if (!acc[groupKey].students.find(x => x.id === s.id)) {
                   acc[groupKey].students.push(s);
               }
           });
       } else {
-          // Para Sede, mantenemos la separación estricta por turno
           const groupName = s[`group${suf}`];
           if (!groupName) return acc;
           const groupKey = groupName.trim();
           const myTeacher = s[`teacher${suf}`];
+          const myTeacherId = s[`teacherId${suf}`]; // <--- LEEMOS EL ID DEL ALUMNO
           
           if (!acc[groupKey]) { 
               acc[groupKey] = { 
-                  name: groupKey, students: [], teacher: myTeacher, 
-                  teacher2: s[`teacher2${suf}`], aux: s[`aux${suf}`], 
-                  special1: s[`special1${suf}`], special2: s[`special2${suf}`], special3: s[`special3${suf}`], 
-                  sup1: s[`sup1${suf}`], sup2: s[`sup2${suf}`], 
-                  classroom: s.classroom, driveLink: s[`driveLink${suf}`], isInclusionGroup: false 
+                  name: groupKey, 
+                  students: [], 
+                  teacher: myTeacher, 
+                  teacherId: myTeacherId, // <--- ASIGNAMOS EL ID AL GRUPO
+                  teacher2: s[`teacher2${suf}`], 
+                  aux: s[`aux${suf}`], 
+                  special1: s[`special1${suf}`], 
+                  special2: s[`special2${suf}`], 
+                  special3: s[`special3${suf}`], 
+                  sup1: s[`sup1${suf}`], 
+                  sup2: s[`sup2${suf}`], 
+                  classroom: s.classroom, 
+                  driveLink: s[`driveLink${suf}`], 
+                  isInclusionGroup: false 
               }; 
           } else { 
               if (!acc[groupKey].aux && s[`aux${suf}`]) acc[groupKey].aux = s[`aux${suf}`]; 
               if (!acc[groupKey].teacher2 && s[`teacher2${suf}`]) acc[groupKey].teacher2 = s[`teacher2${suf}`]; 
+              if (!acc[groupKey].teacher && myTeacher) {
+                  acc[groupKey].teacher = myTeacher;
+                  acc[groupKey].teacherId = myTeacherId;
+              }
+              // ... el resto de tus verificaciones de especiales, sup, etc ...
               if (!acc[groupKey].special1 && s[`special1${suf}`]) acc[groupKey].special1 = s[`special1${suf}`]; 
               if (!acc[groupKey].special2 && s[`special2${suf}`]) acc[groupKey].special2 = s[`special2${suf}`]; 
               if (!acc[groupKey].special3 && s[`special3${suf}`]) acc[groupKey].special3 = s[`special3${suf}`]; 
@@ -2966,7 +2985,6 @@ function GroupsView({ user }) {
               if (!acc[groupKey].sup2 && s[`sup2${suf}`]) acc[groupKey].sup2 = s[`sup2${suf}`]; 
               if (!acc[groupKey].classroom && s.classroom) acc[groupKey].classroom = s.classroom; 
               if (!acc[groupKey].driveLink && s[`driveLink${suf}`]) acc[groupKey].driveLink = s[`driveLink${suf}`]; 
-              if (!acc[groupKey].teacher && myTeacher) acc[groupKey].teacher = myTeacher; 
           }
           acc[groupKey].students.push(s); 
       }
@@ -2974,25 +2992,18 @@ function GroupsView({ user }) {
   }, {});
 
   let groups = Object.values(groupedData).sort((a, b) => a.name.localeCompare(b.name));
-if (!isManagement) {
-      // LÓGICA SÚPER TOLERANTE: Busca por nombre completo, o solo apellido, o solo nombre
-      const myLast = (user.lastName || "").toLowerCase().trim();
-      const myFirst = (user.firstName || "").toLowerCase().trim();
-      const myFullName = (user.fullName || "").toLowerCase().trim();
-      
+
+  // --- FILTRADO FINAL POR ID (SOLUCIÓN YANINAS) ---
+  if (!isManagement) {
       groups = groups.filter(g => {
-          // Juntamos todos los docentes/auxiliares de ese grupo en un solo texto
-          const staffStr = [g.teacher, g.teacher2, g.aux, g.special1, g.special2, g.special3].filter(Boolean).join(" ").toLowerCase();
+          // Comprobamos si el ID del usuario logueado coincide con el ID del docente del grupo
+          // O si el usuario está entre los alumnos como DAI o Docente
+          const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
           
-          // Si coincide el nombre completo, el apellido, o el primer nombre, se lo mostramos
-          if (myFullName && staffStr.includes(myFullName)) return true;
-          if (myLast && myLast.length > 2 && staffStr.includes(myLast)) return true;
-          if (myFirst && myFirst.length > 3 && staffStr.includes(myFirst)) return true;
-          
-          return false;
+          return g.teacherId === user.id || 
+                 g.students.some(s => s[`teacherId${suf}`] === user.id || s.daiId === user.id);
       });
   } else {
-      // Si es Directivo (Gestión), aplicamos el filtro estricto de los botones de arriba
       if (viewFilter !== 'all') { 
           groups = groups.filter(g => viewFilter === 'inclusion' ? g.isInclusionGroup : !g.isInclusionGroup); 
       }
@@ -3081,7 +3092,7 @@ if (!isManagement) {
   const handleSaveIncident = async (type, severity) => { if (!showBitacoraModal) return; setSavingIncident(true); try { const incidentData = { type, severity, date: new Date().toISOString(), author: user.fullName || user.firstName, authorId: user.id }; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id), { incidents: arrayUnion(incidentData) }); alert("✅ Registro guardado"); setShowBitacoraModal(null); } catch (e) { console.error(e); } finally { setSavingIncident(false); } };
   const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
   
-  const handleUpdateGroup = async (e) => { 
+const handleUpdateGroup = async (e) => { 
       e.preventDefault(); 
       if (!editingGroup) return; 
       if (editingGroup.isInclusionGroup && !confirm("⚠️ Estás editando un grupo de INCLUSIÓN. Esto cambiará la DAI para todos los alumnos de la lista.")) return; 
@@ -3091,12 +3102,19 @@ if (!isManagement) {
       const updates = {}; 
       const suf = turn === 'morning' ? 'Morning' : 'Afternoon'; 
       
+      // Buscamos el ID del docente seleccionado para que sea infalible
+      const selectedTeacherName = fd.get('teacher');
+      const teacherObj = usersList.find(u => u.fullName === selectedTeacherName);
+      const teacherId = teacherObj ? teacherObj.id : null;
+
       if (editingGroup.isInclusionGroup) { 
           // Para Inclusión, actualizamos en ambos turnos porque ahora están unificados
-          updates['daiMorning'] = fd.get('teacher'); 
-          updates['daiAfternoon'] = fd.get('teacher'); 
+          updates['daiMorning'] = selectedTeacherName; 
+          updates['daiAfternoon'] = selectedTeacherName;
+          updates['daiId'] = teacherId; // <--- GUARDAMOS EL ID ÚNICO
       } else { 
-          updates[`teacher${suf}`] = fd.get('teacher'); 
+          updates[`teacher${suf}`] = selectedTeacherName; 
+          updates[`teacherId${suf}`] = teacherId; // <--- GUARDAMOS EL ID ÚNICO
           updates[`teacher2${suf}`] = fd.get('teacher2'); 
           updates[`aux${suf}`] = fd.get('aux'); 
           updates[`special1${suf}`] = fd.get('special1'); 
@@ -3112,7 +3130,7 @@ if (!isManagement) {
       try { 
           const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)); 
           await Promise.all(promises); 
-          alert("✅ Actualizado."); 
+          alert("✅ Actualizado correctamente con ID de seguridad."); 
           setEditingGroup(null); 
       } catch (err) { alert(err.message); } finally { setUpdatingGroup(false); } 
   };
@@ -3962,6 +3980,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
