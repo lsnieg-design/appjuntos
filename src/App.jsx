@@ -639,7 +639,38 @@ function ResourcesView({ resources, canEdit }) {
       await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', id));
     } catch (err) { alert("Error al eliminar: " + err.message); }
   };
+// --- ELIMINAR RECURSO CON FIX ANTIBLANCO ---
+  const handleDeleteResource = async (res) => {
+    if (!confirm(`¿Eliminar "${res.title}"?`)) return;
+    try {
+      // Si es el último archivo de la carpeta, volvemos atrás antes de borrar para que no se rompa la app
+      if (folders[folder]?.length === 1) { setFolder(null); }
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', res.id));
+    } catch (err) { alert(err.message); }
+  };
 
+  // --- BORRAR CARPETA ENTERA ---
+  const handleDeleteFolder = async (folderName) => {
+    if (!confirm(`⚠️ ¿Seguro querés borrar la carpeta "${folderName}" y TODOS sus documentos?`)) return;
+    try {
+      const docsToDelete = folders[folderName];
+      const promises = docsToDelete.map(d => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', d.id)));
+      await Promise.all(promises);
+      if (folder === folderName) setFolder(null); // Fix pantalla blanca
+    } catch (err) { alert(err.message); }
+  };
+
+  // --- EDITAR NOMBRE DE CARPETA ---
+  const handleEditFolderName = async (oldName) => {
+    const newName = prompt("Nuevo nombre para la carpeta:", oldName);
+    if (!newName || newName === oldName) return;
+    try {
+      const docsToUpdate = folders[oldName];
+      const promises = docsToUpdate.map(d => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', d.id), { category: newName.toUpperCase().trim() }));
+      await Promise.all(promises);
+      if (folder === oldName) setFolder(newName.toUpperCase().trim());
+    } catch (err) { alert(err.message); }
+  };
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10">
       {/* CABECERA */}
@@ -677,10 +708,19 @@ function ResourcesView({ resources, canEdit }) {
       {!folder ? (
         <div className="grid grid-cols-2 gap-4 pb-10 px-2">
           {Object.keys(folders).map(name => (
-            <div key={name} onClick={() => setFolder(name)} className="bg-white p-6 rounded-[35px] border border-violet-50 text-center cursor-pointer shadow-sm group border-b-4 border-orange-500 transition-all hover:scale-105">
-              <div className="w-12 h-12 bg-violet-50 text-violet-200 rounded-2xl flex items-center justify-center mb-3 mx-auto shadow-inner"><Folder size={28} /></div>
-              <h3 className="font-black text-[10px] uppercase tracking-widest text-gray-700 leading-tight italic">{name}</h3>
-              <p className="text-[8px] font-bold text-gray-300 mt-2 uppercase tracking-[4px]">{folders[name].length} Docs</p>
+            <div key={name} className="relative group">
+              <div onClick={() => setFolder(name)} className="bg-white p-6 rounded-[35px] border border-violet-50 text-center cursor-pointer shadow-sm border-b-4 border-orange-500 transition-all hover:scale-105 h-full">
+                <div className="w-12 h-12 bg-violet-50 text-violet-200 rounded-2xl flex items-center justify-center mb-3 mx-auto shadow-inner"><Folder size={28} /></div>
+                <h3 className="font-black text-[10px] uppercase tracking-widest text-gray-700 leading-tight italic">{name}</h3>
+                <p className="text-[8px] font-bold text-gray-300 mt-2 uppercase tracking-[4px]">{folders[name].length} Docs</p>
+              </div>
+              {/* BOTONES DE GESTIÓN DE CARPETA */}
+              {canEdit && (
+                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                   <button onClick={(e) => { e.stopPropagation(); handleEditFolderName(name); }} className="p-2 bg-white/90 rounded-full shadow-sm text-gray-400 hover:text-orange-500 transition-colors"><Edit3 size={12}/></button>
+                   <button onClick={(e) => { e.stopPropagation(); handleDeleteFolder(name); }} className="p-2 bg-white/90 rounded-full shadow-sm text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={12}/></button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -4063,6 +4103,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
