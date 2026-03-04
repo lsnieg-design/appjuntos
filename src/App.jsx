@@ -584,7 +584,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
     </div>
   );
 }
-// --- VISTA RECURSOS (CORREGIDA: ESPACIADO DE PALABRAS + CIERRE DE LLAVES) ---
+// --- VISTA RECURSOS (VERSIÓN FINAL: FIX ESPACIADO + CIERRE DE LLAVES) ---
 function ResourcesView({ resources, canEdit }) {
   const [folder, setFolder] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -652,7 +652,7 @@ function ResourcesView({ resources, canEdit }) {
       )}
 
       {showNotaModal && (
-        <div className="fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-0 md:p-4 backdrop-blur-md animate-in fade-in" onClick={() => setShowNotaModal(false)}>
+        <div className="fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-0 md:p-4 backdrop-blur-md" onClick={() => setShowNotaModal(false)}>
           <div className="bg-white rounded-t-[40px] md:rounded-[40px] w-full max-w-7xl flex flex-col h-[98vh] md:h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center shrink-0">
               <h3 className="text-xl font-black text-violet-900 uppercase italic">Editor Institucional</h3>
@@ -660,54 +660,36 @@ function ResourcesView({ resources, canEdit }) {
             </div>
 
             <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-              {/* LADO IZQUIERDO: FORMULARIO */}
+              {/* IZQUIERDA: FORMULARIO */}
               <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-6 border-r border-gray-50">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Fecha</label>
-                    <input type="text" placeholder="FECHA" value={notaData.date} onChange={e => setNotaData({...notaData, date: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-gray-700 text-xs border border-gray-100"/>
+                    <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">Fecha</label>
+                    <input type="text" value={notaData.date} onChange={e => setNotaData({...notaData, date: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs border border-gray-100"/>
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Firma</label>
-                    <input type="text" placeholder="FIRMA" value={notaData.signature} onChange={e => setNotaData({...notaData, signature: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-violet-700 text-xs border border-gray-100"/>
+                    <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">Firma</label>
+                    <input type="text" value={notaData.signature} onChange={e => setNotaData({...notaData, signature: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-violet-700 text-xs border border-gray-100"/>
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Título</label>
-                  <input type="text" placeholder="TÍTULO" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-4 bg-gray-50 rounded-xl outline-none font-black uppercase text-gray-700 border-2 border-transparent focus:border-orange-200 shadow-inner"/>
-                </div>
-                <div className="bg-violet-50 p-4 rounded-2xl space-y-4">
-                  <div className="flex flex-col gap-2">
-                    <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest">Tamaño de Letra</p>
-                    <div className="flex gap-2">
-                      {[ {l:'Chica', v:'text-[11px]'}, {l:'Media', v:'text-[14px]'}, {l:'Grande', v:'text-[18px]'} ].map(s => (
-                        <button key={s.v} onClick={() => setNotaData({...notaData, fontSize: s.v})} className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${notaData.fontSize === s.v ? 'bg-violet-600 text-white shadow-md' : 'bg-white text-violet-400'}`}>{s.l}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest">Alineación</p>
-                    <div className="flex gap-2">
-                      {[ {i:<AlignLeft size={16}/>, v:'text-left'}, {i:<AlignCenter size={16}/>, v:'text-center'}, {i:<AlignRight size={16}/>, v:'text-right'}, {i:<AlignJustify size={16}/>, v:'text-justify'} ].map(a => (
-                        <button key={a.v} onClick={() => setNotaData({...notaData, textAlign: a.v})} className={`flex-1 py-2 flex justify-center rounded-lg transition-all ${notaData.textAlign === a.v ? 'bg-pink-500 text-white shadow-md' : 'bg-white text-pink-300'}`}>{a.i}</button>
-                      ))}
-                    </div>
-                  </div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">Título</label>
+                  <input type="text" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-4 bg-gray-50 rounded-xl outline-none font-black uppercase text-gray-700 border-2 border-transparent focus:border-orange-200 shadow-inner"/>
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Mensaje</label>
-                  <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Mensaje..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-sm border-2 border-transparent focus:border-pink-200 h-[200px] resize-none shadow-inner font-medium text-gray-600"/>
+                  <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">Mensaje (Respetar espacios)</label>
+                  <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Escribe aquí..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-sm border-2 border-transparent focus:border-pink-200 h-[250px] resize-none font-medium text-gray-600"/>
                 </div>
               </div>
 
-              {/* LADO DERECHO: VISTA PREVIA */}
+              {/* DERECHA: VISTA PREVIA (DINÁMICA) */}
               <div className="flex-1 bg-slate-100 flex flex-col items-center justify-center p-6 md:p-10 relative overflow-hidden">
                 <div className="scale-[0.5] sm:scale-[0.6] md:scale-[0.8] xl:scale-[0.95] origin-top transition-all">
-                  <div id="nota-canvas" className="w-[600px] min-h-[400px] bg-[#fefce8] relative shadow-2xl border-[10px] border-white rounded-[15px] flex flex-col overflow-hidden" style={{ height: 'auto' }}>
+                  <div id="nota-canvas" className="w-[600px] min-h-[400px] bg-[#fefce8] relative shadow-2xl border-[10px] border-white rounded-[15px] flex flex-col" style={{ height: 'auto' }}>
                     <div className="absolute inset-0 opacity-[0.04]" style={{backgroundImage: 'radial-gradient(#f97316 2px, transparent 2px)', backgroundSize: '18px 18px'}}></div>
                     <div className="absolute top-0 left-0 right-0 h-3 bg-gradient-to-r from-violet-600 via-pink-500 to-orange-400 opacity-80"></div>
                     <div className="flex flex-col h-full px-12 pt-10 pb-12 z-10">
-                      <div className="flex justify-between items-start mb-6 shrink-0">
+                      <div className="flex justify-between items-start mb-6">
                         <div className="flex items-center gap-4">
                           <img src={LOGO_SIN_FONDO} className="w-16 h-auto mix-blend-multiply" crossOrigin="anonymous"/>
                           <div className="leading-tight pt-1">
@@ -717,21 +699,19 @@ function ResourcesView({ resources, canEdit }) {
                         </div>
                         <p className="text-[12px] text-orange-600 font-black uppercase pt-2">{notaData.date || '00/00/00'}</p>
                       </div>
-                      <h1 className="text-2xl font-black text-gray-800 uppercase leading-tight mb-6 text-center shrink-0">{notaData.title || 'SIN TÍTULO'}</h1>
-                      
-                      {/* SOLUCIÓN AL ESPACIADO: Agregamos word-spacing y un div de ancho controlado */}
+                      <h1 className="text-2xl font-black text-gray-800 uppercase leading-tight mb-6 text-center">{notaData.title || 'COMUNICADO'}</h1>
                       <div className="flex-1 w-full mb-10">
+                        {/* FIX DE ESPACIADO: Usamos wordSpacing y margin lateral para asegurar que html2canvas no pegue las palabras */}
                         <div 
-                          className={`text-slate-700 font-bold whitespace-pre-wrap leading-relaxed break-words w-full px-6 ${notaData.fontSize} ${notaData.textAlign}`} 
-                          style={{ maxWidth: '520px', margin: '0 auto', wordSpacing: '0.1em' }}
+                          className={`text-slate-700 font-bold whitespace-pre-wrap leading-relaxed break-words w-full px-4 ${notaData.fontSize} ${notaData.textAlign}`} 
+                          style={{ maxWidth: '520px', margin: '0 auto', wordSpacing: '0.12em', letterSpacing: '0.01em' }}
                         >
-                          {notaData.body || 'Escribí algo...'}
+                          {notaData.body || 'Vista previa del mensaje...'}
                         </div>
                       </div>
-                      
-                      <div className="mt-auto flex flex-col items-center shrink-0">
+                      <div className="mt-auto flex flex-col items-center">
                         <div className="w-48 h-[1px] bg-orange-200 mb-4 opacity-50"></div>
-                        <p className="text-[16px] font-black text-violet-800 uppercase text-center leading-none mb-1 italic">{notaData.signature}</p>
+                        <p className="text-[16px] font-black text-violet-800 uppercase text-center italic">{notaData.signature}</p>
                         <p className="text-[9px] text-orange-500 font-black uppercase tracking-[3px] opacity-70">ESCUELA JUNTOS A LA PAR</p>
                       </div>
                     </div>
@@ -740,8 +720,8 @@ function ResourcesView({ resources, canEdit }) {
               </div>
             </div>
 
-            {/* FOOTER DEL MODAL */}
-            <div className="p-4 md:p-6 border-t bg-white shrink-0 shadow-2xl z-20">
+            {/* FOOTER */}
+            <div className="p-4 md:p-6 border-t bg-white shrink-0 z-20">
               <div className="flex gap-4 max-w-4xl mx-auto">
                 <button onClick={() => setShowNotaModal(false)} className="flex-1 text-gray-400 font-black text-xs uppercase py-4">VOLVER</button>
                 <button onClick={async () => {
@@ -753,7 +733,8 @@ function ResourcesView({ resources, canEdit }) {
                         scale: 3, 
                         useCORS: true, 
                         backgroundColor: '#fefce8',
-                        letterRendering: true // Ayuda a que html2canvas no pegue las letras
+                        letterRendering: true,
+                        logging: false
                     }); 
                     const link = document.createElement('a');
                     link.download = `Nota_${(notaData.title || 'Nota').substring(0,10)}.jpg`;
@@ -3951,6 +3932,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
