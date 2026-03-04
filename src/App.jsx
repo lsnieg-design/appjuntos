@@ -3486,6 +3486,28 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
           .page-break { page-break-after: always; }
 
           /* --- ESTILOS GENERALES --- */
+          /* --- FIX SUPERPOSICIÓN --- */
+.cert-wrapper {
+    width: 100%;
+    display: block;
+    clear: both;
+    margin-bottom: 20px;
+    page-break-after: always; /* Fuerza una página nueva por alumno al imprimir */
+}
+
+.cert-container { 
+    border: 2px solid #65a30d; 
+    border-radius: 25px; 
+    padding: 25px 40px; 
+    margin: 0 auto; /* Centrado horizontal */
+    position: relative; 
+    height: 165mm; 
+    box-sizing: border-box; 
+    width: 190mm; /* Ancho fijo para evitar desbordes */
+    display: flex; 
+    flex-direction: column; 
+}
+
           .cert-container { 
     border: 2px solid #65a30d; 
     border-radius: 25px; 
@@ -3557,13 +3579,12 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
           }
       </style></head><body>`;
 
-      targets.forEach(s => {
+ targets.forEach(s => {
           // --- PARCHE DE REDACCIÓN DINÁMICA ACTUALIZADO ---
           const nivelRaw = (s.level || '').toUpperCase();
           const modRaw = (s.modality || 'Sede');
           let nivelDetallado = nivelRaw;
           
-          // Mapeo de Niveles según tu pedido
           if (nivelRaw.includes('INICIAL')) nivelDetallado = "escolaridad especial inicial";
           else if (nivelRaw.includes('CFI')) nivelDetallado = "escolaridad especial de formación laboral";
           else if (nivelRaw.includes('1°') || nivelRaw.includes('2°') || nivelRaw.includes('PRIMARIA') || nivelRaw.includes('CICLO')) {
@@ -3575,7 +3596,6 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
               jornadaInfo = ` con jornada ${s.journey.toLowerCase()}`;
           }
 
-          // Lógica para Inclusión vs Sede
           let fraseAlumno = "";
           if (modRaw === 'Inclusión') {
               fraseAlumno = `Es alumno/a regular de modulo de apoyo a la integración escolar (con equipo)`;
@@ -3584,59 +3604,65 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
           }
           // ------------------------------------------------
 
-    let presentadoAnte = customTarget.trim() !== "" ? customTarget : (s.healthInsurance && s.healthInsurance.trim().length > 2 ? s.healthInsurance : '................................................');
-         
+          let presentadoAnte = customTarget.trim() !== "" ? customTarget : (s.healthInsurance && s.healthInsurance.trim().length > 2 ? s.healthInsurance : '................................................');
 
-          // === OPCIÓN 1: CONSTANCIA REGULAR (LLEVA FIRMA Y SELLO) ===
-         if (template === 'constancia_regular') {
-    if (!customTarget && s.healthInsurance && s.healthInsurance.length > 2) presentadoAnte = s.healthInsurance;
-    else if (!customTarget) presentadoAnte = 'quien corresponda';
+          // === INICIO DEL WRAPPER (FIX SUPERPOSICIÓN) ===
+          htmlContent += `<div style="width: 100%; clear: both; display: block; page-break-after: always; margin-bottom: 30px;">`;
 
-    htmlContent += `
-    <div class="cert-container">
-        <div class="cert-header">
-            <img src="${LOGO_URL}" class="cert-logo"/>
-            <div class="cert-title">CONSTANCIA DE ALUMNO REGULAR</div>
-        </div>
-        <div class="cert-body">
-            Escuela Especial Juntos a la Par hace constar que
-            <div class="line-group" style="margin-top:15px;">
-                <span class="data-field">${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</span>
-            </div>
-            
-            <div class="line-group" style="margin-top:20px;">
-                con DNI N.° <span class="inline-field">${s.dni}</span>.
-                <div style="margin-top:15px; font-size:14px;">${fraseAlumno}</div>
-            </div>
+          // === OPCIÓN 1: CONSTANCIA REGULAR ===
+          if (template === 'constancia_regular') {
+              if (!customTarget && s.healthInsurance && s.healthInsurance.length > 2) presentadoAnte = s.healthInsurance;
+              else if (!customTarget) presentadoAnte = 'quien corresponda';
 
-            <div class="line-group" style="margin-top:10px;">en esta institución, con &nbsp;&nbsp; CUE 0623214-00.</div>
-            
-            <div class="line-group" style="margin-top:30px;">
-                A pedido del interesado y al efecto de ser presentado ante... 
-                <span class="data-field" style="margin-top:5px;">${presentadoAnte.toUpperCase()}</span>
-            </div>
-            
-            <div class="date-section" style="margin-top:50px;">
-                ${fullDate}
-                <div style="border-bottom: 1px dotted #000; width: 60%; margin: 0 auto;"></div>
-                <div style="font-weight: normal; font-size: 11px;">Lugar y fecha</div>
-            </div>
-        </div>
-       <div class="signatures-section" style="margin-top: auto; padding-bottom: 20px;">
-    <div class="sig-box">
-        <img src="${FIRMA_URL}" class="sig-img"/>
-        <div class="sig-line">Firma director o vicedirector</div>
-    </div>
-    <div class="sig-box">
-        <img src="${SELLO_URL}" class="sig-img"/>
-        <div class="sig-line">Sello institución</div>
-    </div>`;
-}
+              htmlContent += `
+              <div class="cert-container" style="height: 165mm; display: flex; flex-direction: column;">
+                  <div class="cert-header">
+                      <img src="${LOGO_URL}" class="cert-logo"/>
+                      <div class="cert-title">CONSTANCIA DE ALUMNO REGULAR</div>
+                  </div>
+                  <div class="cert-body">
+                      Escuela Especial Juntos a la Par hace constar que
+                      <div class="line-group" style="margin-top:15px;">
+                          <span class="data-field">${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</span>
+                      </div>
+                      
+                      <div class="line-group" style="margin-top:20px;">
+                          con DNI N.° <span class="inline-field">${s.dni}</span>.
+                          <div style="margin-top:20px; font-size:15px; line-height: 1.5;">${fraseAlumno}.</div>
+                      </div>
 
-          // === OPCIÓN 2: CONCESIÓN DE PASE (SIN FIRMA NI SELLO DIGITAL) ===
+                      <div class="line-group" style="margin-top:10px;">en esta institución, con &nbsp;&nbsp; CUE 0623214-00.</div>
+                      
+                      <div class="line-group" style="margin-top:30px;">
+                          A pedido del interesado y al efecto de ser presentado ante... 
+                          <span class="data-field" style="margin-top:5px;">${presentadoAnte.toUpperCase()}</span>
+                      </div>
+                      
+                      <div class="date-section" style="margin-top:50px;">
+                          ${fullDate}
+                          <div style="border-bottom: 1px dotted #000; width: 60%; margin: 0 auto;"></div>
+                          <div style="font-weight: normal; font-size: 11px;">Lugar y fecha</div>
+                      </div>
+                  </div>
+                  
+                  {/* FIRMAS Y SELLO (Agrandados y centrados) */}
+                  <div class="signatures-section" style="margin-top: auto; padding-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end; height: 140px;">
+                      <div class="sig-box" style="text-align: center; width: 250px;">
+                          <img src="${FIRMA_URL}" class="sig-img" style="height: 110px; width: auto; display: block; margin: 0 auto -20px auto;"/>
+                          <div class="sig-line">Firma director o vicedirector</div>
+                      </div>
+                      <div class="sig-box" style="text-align: center; width: 250px;">
+                          <img src="${SELLO_URL}" class="sig-img" style="height: 110px; width: auto; display: block; margin: 0 auto -20px auto;"/>
+                          <div class="sig-line">Sello institución</div>
+                      </div>
+                  </div>
+              </div>`;
+          }
+
+          // === OPCIÓN 2: CONCESIÓN DE PASE ===
           else if (template === 'concesion_pase') {
               htmlContent += `
-              <div class="cert-container">
+              <div class="cert-container" style="height: 165mm; display: flex; flex-direction: column;">
                   <div class="cert-header">
                       <img src="${LOGO_URL}" class="cert-logo"/>
                       <div>
@@ -3648,38 +3674,33 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
                       <div class="line-group" style="margin-top:30px;">
                           La dirección del establecimiento <span style="font-weight:bold; text-decoration:underline;">${paseAction}</span> el pase del alumno:
                       </div>
-                      
                       <div class="line-group" style="margin-top:15px;">
                           <span class="data-field">${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</span>
                       </div>
-                      
                       <div class="line-group" style="margin-top:20px;">
                           que actualmente cursa <span class="inline-field">${s.level || '................'} (${s.modality || 'Sede'})</span>
                       </div>
-
                       <div class="line-group" style="margin-top:10px;">
                           en la institución <b>Juntos a la Par</b>.
                       </div>
-
                       <div class="line-group" style="margin-top:30px;">
                           Para ser presentado ante las autoridades de la institución:
                           <span class="data-field" style="margin-top:5px;">${presentadoAnte.toUpperCase()}</span>
                       </div>
-                      
                       <div class="date-section" style="margin-top: 60px;">
                           ${fullDate}
                           <div style="border-bottom: 1px dotted #000; width: 60%; margin: 0 auto;"></div>
                           <div style="font-weight: normal; font-size: 11px;">Lugar y fecha</div>
                       </div>
                   </div>
-                  <div class="signatures-section">
+                  <div class="signatures-section" style="margin-top: auto; padding-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end; height: 140px;">
                       <div class="sig-box"><br/><br/><div class="sig-line">Firma director o vicedirector</div></div>
                       <div class="sig-box"><br/><br/><div class="sig-line">Sello institución</div></div>
                   </div>
               </div>`;
           }
 
-          // === OPCIÓN 3: PLANILLA MENSUAL (SIN FIRMA NI SELLO DIGITAL) ===
+          // === OPCIÓN 3: PLANILLA MENSUAL ===
           else if (template === 'planilla_asistencia') {
               const months = ['MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
               let horario = ""; let prestacion = "";
@@ -3696,31 +3717,16 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
                           <h1 class="planilla-title">PLANILLA DE ASISTENCIA MENSUAL</h1>
                           <div style="clear:both;"></div>
                       </div>
-
                       <div class="planilla-grid">
-                          <div class="p-label">OBRA SOCIAL:</div>
-                          <div class="p-value">${s.healthInsurance || 'NO DECLARA'}</div>
-
-                          <div class="p-label">APELLIDO Y NOMBRE:</div>
-                          <div class="p-value">${s.lastName}, ${s.firstName}</div>
-
-                          <div class="p-label">DNI:</div>
-                          <div class="p-value">${s.dni || '-'}</div>
-
-                          <div class="p-label">PRESTACIÓN:</div>
-                          <div class="p-value">${prestacion.toUpperCase()}</div>
-
-                          <div class="p-label">HORARIO:</div>
-                          <div class="p-value">${horario}</div>
-
-                          <div class="p-label">LUGAR DE PRESTACIÓN:</div>
-                          <div class="p-value">Escuela Especial Juntos a la Par - De las Boleadoras 2974, Ituzaingó</div>
+                          <div class="p-label">OBRA SOCIAL:</div><div class="p-value">${s.healthInsurance || 'NO DECLARA'}</div>
+                          <div class="p-label">APELLIDO Y NOMBRE:</div><div class="p-value">${s.lastName}, ${s.firstName}</div>
+                          <div class="p-label">DNI:</div><div class="p-value">${s.dni || '-'}</div>
+                          <div class="p-label">PRESTACIÓN:</div><div class="p-value">${prestacion.toUpperCase()}</div>
+                          <div class="p-label">HORARIO:</div><div class="p-value">${horario}</div>
+                          <div class="p-label">LUGAR DE PRESTACIÓN:</div><div class="p-value">Escuela Especial Juntos a la Par - De las Boleadoras 2974, Ituzaingó</div>
                       </div>
-
                       <div class="mes-box">MES Y AÑO: <span style="border-bottom: 1px solid #000; padding: 0 10px;">${mes} ${year}</span></div>
-
                       <p style="font-size: 11px; font-weight: bold; margin-bottom: 5px;">ACUERDO AL SIGUIENTE DETALLE (*):</p>
-
                       <table class="asistencia-table">
                           <tr>${Array.from({length:10},(_,i)=>`<th>${i+1}</th>`).join('')}</tr>
                           <tr>${Array.from({length:10},()=>`<td></td>`).join('')}</tr>
@@ -3734,25 +3740,18 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
                           <tr>${Array.from({length:10},()=>`<td></td>`).join('')}</tr>
                       </table>
                       <table class="asistencia-table" style="width: 10%;">
-                          <tr><th>31</th></tr>
-                          <tr><td></td></tr>
+                          <tr><th>31</th></tr><tr><td></td></tr>
                       </table>
-
                       <div class="firmas-planilla">
-                          <div class="firma-col">
-                              <br/><br/><br/><br/>
-                              <div class="linea-firma">FIRMA FAMILIAR / RESPONSABLE<br/>ACLARACIÓN Y DNI</div>
-                          </div>
-                          <div class="firma-col">
-                              <br/><br/><br/><br/>
-                              <div class="linea-firma">FIRMA Y SELLO DIRECTIVO</div>
-                          </div>
+                          <div class="firma-col"><br/><br/><br/><br/><div class="linea-firma">FIRMA FAMILIAR / RESPONSABLE<br/>ACLARACIÓN Y DNI</div></div>
+                          <div class="firma-col"><br/><br/><br/><br/><div class="linea-firma">FIRMA Y SELLO DIRECTIVO</div></div>
                       </div>
                   </div>`;
               });
           }
-      });
 
+          htmlContent += `</div>`; // FIN DEL WRAPPER
+      });
       htmlContent += '</body></html>';
 
       const iframe = document.createElement('iframe');
@@ -4145,6 +4144,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
