@@ -920,7 +920,21 @@ function TasksView({ tasks = [], user, canEdit }) {
     else setSelectedUsersObj(prev => [...prev, u]);
     setUserSearch(""); 
   };
-
+const handleAddComment = async (taskId, comments = []) => {
+    if (!newComment.trim()) return;
+    const comment = {
+      id: Date.now().toString(),
+      text: newComment,
+      author: user.firstName || user.fullName || 'Usuario',
+      date: new Date().toLocaleString('es-AR')
+    };
+    try {
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), {
+        comments: [...(comments || []), comment]
+      });
+      setNewComment("");
+    } catch (err) { alert(err.message); }
+  };
   const visibleTasks = (tasks || []).filter(t => {
     if (!t) return false;
     const isMine = (t.createdById === user.id || (t.targetUserIds && t.targetUserIds.includes(user.id)) || (user.role && t.targetRoles && t.targetRoles.includes(user.role)));
@@ -957,11 +971,14 @@ function TasksView({ tasks = [], user, canEdit }) {
       </div>
 
       <div className="grid gap-3 px-2">
-        {visibleTasks.map(t => (
-          <div key={t.id} className={`p-5 rounded-[30px] bg-white border-l-8 shadow-sm ${t.priority === 'alta' ? 'border-red-500' : 'border-violet-500'}`}>
+       {visibleTasks.map(t => (
+          <div key={t.id} className={`p-5 rounded-[30px] bg-white border-l-8 shadow-sm transition-all ${openCommentsId === t.id ? 'ring-2 ring-violet-200' : ''} ${t.priority === 'alta' ? 'border-red-500' : 'border-violet-500'}`}>
             <div className="flex justify-between items-start">
               <div className="flex-1 pr-6">
-                <p className="text-[9px] font-black text-violet-600 uppercase mb-1">Para: {t.assignedToName}</p>
+                <div className="flex flex-wrap gap-2 mb-1">
+                   <p className="text-[9px] font-black text-violet-600 uppercase bg-violet-50 px-2 py-0.5 rounded-md border border-violet-100">Para: {t.assignedToName}</p>
+                   <p className="text-[9px] font-black text-gray-400 uppercase bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">Por: {t.createdByName || 'Directivo'}</p>
+                </div>
                 {t.showDate && new Date(t.showDate + 'T' + (t.showTime || '08:00')) > new Date() && (
                   <span className="text-[8px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-black uppercase mb-1 inline-block border border-blue-200">⏳ Programada</span>
                 )}
@@ -976,23 +993,60 @@ function TasksView({ tasks = [], user, canEdit }) {
               <div className="flex gap-1">
                 {(t.createdById === user.id || isSuperAdmin) && (
                   <>
-                    <button onClick={() => { setEditingTask(t); setAssignType(t.targetType || 'user'); setShowModal(true); }} className="p-2 bg-gray-50 rounded-full text-blue-500 hover:bg-blue-50"><Edit3 size={14}/></button>
-                    <button onClick={() => handleDelete(t.id)} className="p-2 bg-gray-50 rounded-full text-red-400 hover:bg-red-50"><Trash2 size={14}/></button>
+                    <button onClick={() => { setEditingTask(t); setAssignType(t.targetType || 'user'); setShowModal(true); }} className="p-2 bg-gray-50 rounded-full text-blue-500 hover:bg-blue-50 transition-colors"><Edit3 size={14}/></button>
+                    <button onClick={() => handleDelete(t.id)} className="p-2 bg-gray-50 rounded-full text-red-400 hover:bg-red-50 transition-colors"><Trash2 size={14}/></button>
                   </>
                 )}
               </div>
             </div>
+
             <div className="mt-4 pt-3 border-t border-gray-50 flex justify-between items-center">
-              <span className="text-[10px] font-bold text-gray-400">💬 {t.comments?.length || 0} msjs</span>
+              {/* BOTÓN DE MENSAJES RECUPERADO */}
+              <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className="flex items-center gap-1.5 group">
+                <div className="bg-gray-100 p-2 rounded-xl group-hover:bg-violet-100 transition-colors">
+                  <MessageSquare size={16} className="text-gray-400 group-hover:text-violet-600"/>
+                </div>
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.comments?.length || 0} msjs</span>
+              </button>
+              
               <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
                 {['pending', 'completed'].map(st => (
-                  <button key={st} onClick={() => changeStatus(t, st)} className={`px-2 py-1 rounded-lg text-[9px] font-bold transition-all ${t.status===st ? (st==='completed'?'bg-green-500 text-white shadow':'bg-white shadow text-gray-700') : 'text-gray-400'}`}>{st==='pending'?'Pend.':'Listo'}</button>
+                  <button key={st} onClick={() => changeStatus(t, st)} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${t.status===st ? (st==='completed'?'bg-green-500 text-white shadow-md':'bg-white shadow text-violet-700') : 'text-gray-400'}`}>{st==='pending'?'Pend.':'Listo'}</button>
                 ))}
               </div>
             </div>
+
+            {/* PANEL DE COMENTARIOS RECUPERADO */}
+            {openCommentsId === t.id && (
+              <div className="mt-4 bg-violet-50/50 rounded-2xl p-4 animate-in slide-in-from-top-2 border border-violet-100">
+                <div className="space-y-3 max-h-40 overflow-y-auto mb-4 pr-2 custom-scrollbar">
+                  {(t.comments || []).map(c => (
+                    <div key={c.id} className="bg-white p-3 rounded-2xl shadow-sm border border-violet-50">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[10px] font-black text-violet-700 uppercase italic">{c.author}</span>
+                        <span className="text-[8px] font-bold text-gray-400">{c.date}</span>
+                      </div>
+                      <p className="text-xs text-gray-600 font-medium leading-relaxed">{c.text}</p>
+                    </div>
+                  ))}
+                  {(!t.comments || t.comments.length === 0) && <p className="text-[10px] text-center font-bold text-gray-400 uppercase py-4 italic">Sin mensajes todavía</p>}
+                </div>
+                <div className="flex gap-2">
+                  <input 
+                    value={newComment} 
+                    onChange={e => setNewComment(e.target.value)} 
+                    placeholder="Escribir mensaje..." 
+                    className="flex-1 p-3 bg-white rounded-xl text-xs font-bold outline-none border border-violet-100 focus:border-violet-300 shadow-inner"
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddComment(t.id, t.comments)}
+                  />
+                  <button onClick={() => handleAddComment(t.id, t.comments)} className="bg-violet-600 text-white p-3 rounded-xl shadow-lg hover:bg-violet-700 transition-all">
+                    <Send size={18}/>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
-      </div>
 
       {showModal && (
         <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4 backdrop-blur-sm">
@@ -4008,6 +4062,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
