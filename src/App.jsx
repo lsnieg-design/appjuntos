@@ -584,7 +584,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
     </div>
   );
 }
-// --- VISTA RECURSOS (VERSIÓN FINAL: NOTAS + CARPETAS + GESTIÓN + FIX BUILD) ---
+// --- VISTA RECURSOS (VERSIÓN INTEGRAL: FIX ESPACIADO DE NOTAS + CARPETAS) ---
 function ResourcesView({ resources, canEdit }) {
   const [folder, setFolder] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -667,7 +667,6 @@ function ResourcesView({ resources, canEdit }) {
         )}
       </div>
 
-      {/* ACCESO RÁPIDO A NOTAS */}
       {!folder && (
           <button onClick={() => setShowNotaModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-orange-400 p-6 rounded-3xl shadow-lg text-white flex items-center justify-between mb-6 group active:scale-95 transition-transform mx-2">
               <div className="flex items-center gap-4">
@@ -681,7 +680,6 @@ function ResourcesView({ resources, canEdit }) {
           </button>
       )}
 
-      {/* LISTADO DE CARPETAS / DOCUMENTOS */}
       {!folder ? (
         <div className="grid grid-cols-2 gap-4 pb-10 px-2">
           {Object.keys(folders).map(name => (
@@ -722,7 +720,6 @@ function ResourcesView({ resources, canEdit }) {
         </div>
       )}
 
-      {/* MODAL: CARGA DE RECURSO */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[400] flex items-center justify-center p-4">
           <form onSubmit={handleSaveResource} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-orange-500">
@@ -740,7 +737,6 @@ function ResourcesView({ resources, canEdit }) {
         </div>
       )}
 
-      {/* MODAL: GENERADOR DE NOTAS */}
       {showNotaModal && (
         <div className="fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-0 md:p-4 backdrop-blur-md" onClick={() => setShowNotaModal(false)}>
           <div className="bg-white rounded-t-[40px] md:rounded-[40px] w-full max-w-7xl flex flex-col h-[98vh] md:h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -767,15 +763,15 @@ function ResourcesView({ resources, canEdit }) {
                     ))}
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => setNotaData({...notaData, isPrintMode: false})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${!notaData.isPrintMode ? 'bg-orange-500 text-white' : 'bg-white text-orange-400'}`}>🎨 COLOR</button>
-                    <button onClick={() => setNotaData({...notaData, isPrintMode: true})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${notaData.isPrintMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-400'}`}>🖨️ BLANCO</button>
+                    <button onClick={() => setNotaData({...notaData, isPrintMode: false})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${!notaData.isPrintMode ? 'bg-orange-500 text-white shadow-md' : 'bg-white text-orange-400'}`}>🎨 COLOR</button>
+                    <button onClick={() => setNotaData({...notaData, isPrintMode: true})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${notaData.isPrintMode ? 'bg-gray-800 text-white shadow-md' : 'bg-white text-gray-400'}`}>🖨️ BLANCO</button>
                   </div>
                 </div>
                 <input type="text" placeholder="TÍTULO" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-4 bg-gray-50 rounded-xl outline-none font-black uppercase text-gray-700 border-2 border-transparent focus:border-orange-200 shadow-inner"/>
-                <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Mensaje..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-sm border-2 border-transparent focus:border-pink-200 h-[200px] resize-none font-medium text-gray-600 shadow-inner"/>
+                <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Mensaje..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-sm border-2 border-transparent focus:border-pink-200 h-[250px] resize-none font-medium text-gray-600 shadow-inner"/>
               </div>
-              <div className="flex-1 bg-slate-100 flex flex-col items-center justify-center p-10 relative overflow-hidden">
-                <div className="scale-[0.8] origin-top transition-all">
+              <div className="flex-1 bg-slate-100 flex flex-col items-center justify-center p-6 md:p-10 relative overflow-hidden">
+                <div className="scale-[0.5] sm:scale-[0.6] md:scale-[0.8] xl:scale-[0.95] origin-top transition-all">
                   <div id="nota-canvas" className={`w-[600px] min-h-[400px] relative shadow-2xl rounded-[15px] flex flex-col overflow-hidden transition-all duration-300 ${notaData.isPrintMode ? 'bg-white border-[10px] border-gray-200' : 'bg-[#fefce8] border-[10px] border-white'}`} style={{ height: 'auto' }}>
                     {!notaData.isPrintMode && <div className="absolute inset-0 opacity-[0.04]" style={{backgroundImage: 'radial-gradient(#f97316 2px, transparent 2px)', backgroundSize: '18px 18px'}}></div>}
                     <div className={`absolute top-0 left-0 right-0 h-3 opacity-80 ${notaData.isPrintMode ? 'bg-gray-300' : 'bg-gradient-to-r from-violet-600 via-pink-500 to-orange-400'}`}></div>
@@ -792,7 +788,7 @@ function ResourcesView({ resources, canEdit }) {
                       </div>
                       <h1 className="text-2xl font-black text-gray-800 uppercase leading-tight mb-6 text-center">{notaData.title || 'COMUNICADO'}</h1>
                       <div className="flex-1 w-full mb-10">
-                        <div className={`text-slate-700 font-bold whitespace-pre-wrap leading-relaxed break-words w-full px-8 ${notaData.fontSize} ${notaData.textAlign}`} style={{ maxWidth: '540px', margin: '0 auto', wordSpacing: '0.12em', letterSpacing: '0.01em' }}>
+                        <div className={`text-slate-700 font-bold whitespace-pre-wrap leading-relaxed break-words w-full px-8 ${notaData.fontSize} ${notaData.textAlign}`} style={{ maxWidth: '540px', margin: '0 auto', wordSpacing: '0.15em', letterSpacing: '0.01em', textRendering: "optimizeLegibility" }}>
                           {notaData.body || 'Vista previa del mensaje...'}
                         </div>
                       </div>
@@ -811,15 +807,24 @@ function ResourcesView({ resources, canEdit }) {
                 <button onClick={() => setShowNotaModal(false)} className="flex-1 text-gray-400 font-black text-xs uppercase py-4">VOLVER</button>
                 <button 
                   onClick={async () => {
+                    if(!notaData.title && !notaData.body) return alert("Escribí algo.");
                     const element = document.getElementById('nota-canvas');
                     try {
                       const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
                       const canvas = await html2canvas(element, { 
-                        scale: 3, useCORS: true, backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
+                        scale: 3, 
+                        useCORS: true, 
+                        backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
                         logging: false,
                         onclone: (clonedDoc) => {
-                          const txt = clonedDoc.getElementById('nota-canvas').querySelector('.whitespace-pre-wrap');
-                          if (txt) { txt.style.wordSpacing = '0.15em'; txt.style.textRendering = "optimizeLegibility"; }
+                          const container = clonedDoc.getElementById('nota-canvas');
+                          const txt = container.querySelector('.whitespace-pre-wrap');
+                          if (txt) { 
+                            txt.style.wordSpacing = '0.15em'; 
+                            txt.style.letterSpacing = '0.01em';
+                            txt.style.display = "block";
+                            txt.style.width = "100%";
+                          }
                         }
                       }); 
                       const link = document.createElement('a');
@@ -828,9 +833,9 @@ function ResourcesView({ resources, canEdit }) {
                       link.click();
                     } catch (error) { alert("Error al generar imagen."); }
                   }} 
-                  className="flex-[3] bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-sm uppercase tracking-[4px] rounded-2xl shadow-xl py-4 flex items-center justify-center gap-2"
+                  className="flex-[3] bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-sm uppercase tracking-[4px] rounded-2xl shadow-xl hover:scale-[1.02] transition py-4 flex items-center justify-center gap-2"
                 >
-                  <Download size={20}/> DESCARGAR NOTA
+                  <Download size={20}/> DESCARGAR NOTA OFICIAL
                 </button>
               </div>
             </div>
@@ -4042,6 +4047,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
