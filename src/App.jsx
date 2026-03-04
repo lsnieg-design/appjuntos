@@ -856,7 +856,7 @@ function TasksView({ tasks = [], user, canEdit }) {
 
   const ROLES_OPTIONS = ['Docente', 'Profes Especiales', 'Equipo Técnico', 'Equipo Directivo', 'Administración', 'Auxiliar/Preceptor', 'DAI', 'Dirección Inclusión', 'Equipo Técnico Inclusión'];
 
-  if (!user) return <div className="p-10 text-center opacity-50">Cargando...</div>;
+  if (!user) return <div className="p-10 text-center opacity-50 font-black uppercase italic text-violet-900">Cargando...</div>;
 
   const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.role || user.rol);
 
@@ -908,7 +908,7 @@ function TasksView({ tasks = [], user, canEdit }) {
         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData);
       } else {
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), {
-          ...taskData, createdByName: user.firstName || 'Directivo', createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: []
+          ...taskData, createdByName: user.firstName || user.fullName || 'Directivo', createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: []
         });
       }
       setShowModal(false); setEditingTask(null); setSelectedUsersObj([]); setSelectedRoles([]);
@@ -920,7 +920,8 @@ function TasksView({ tasks = [], user, canEdit }) {
     else setSelectedUsersObj(prev => [...prev, u]);
     setUserSearch(""); 
   };
-const handleAddComment = async (taskId, comments = []) => {
+
+  const handleAddComment = async (taskId, comments = []) => {
     if (!newComment.trim()) return;
     const comment = {
       id: Date.now().toString(),
@@ -935,6 +936,7 @@ const handleAddComment = async (taskId, comments = []) => {
       setNewComment("");
     } catch (err) { alert(err.message); }
   };
+
   const visibleTasks = (tasks || []).filter(t => {
     if (!t) return false;
     const isMine = (t.createdById === user.id || (t.targetUserIds && t.targetUserIds.includes(user.id)) || (user.role && t.targetRoles && t.targetRoles.includes(user.role)));
@@ -971,7 +973,7 @@ const handleAddComment = async (taskId, comments = []) => {
       </div>
 
       <div className="grid gap-3 px-2">
-       {visibleTasks.map(t => (
+        {visibleTasks.map(t => (
           <div key={t.id} className={`p-5 rounded-[30px] bg-white border-l-8 shadow-sm transition-all ${openCommentsId === t.id ? 'ring-2 ring-violet-200' : ''} ${t.priority === 'alta' ? 'border-red-500' : 'border-violet-500'}`}>
             <div className="flex justify-between items-start">
               <div className="flex-1 pr-6">
@@ -993,15 +995,14 @@ const handleAddComment = async (taskId, comments = []) => {
               <div className="flex gap-1">
                 {(t.createdById === user.id || isSuperAdmin) && (
                   <>
-                    <button onClick={() => { setEditingTask(t); setAssignType(t.targetType || 'user'); setShowModal(true); }} className="p-2 bg-gray-50 rounded-full text-blue-500 hover:bg-blue-50 transition-colors"><Edit3 size={14}/></button>
-                    <button onClick={() => handleDelete(t.id)} className="p-2 bg-gray-50 rounded-full text-red-400 hover:bg-red-50 transition-colors"><Trash2 size={14}/></button>
+                    <button onClick={() => { setEditingTask(t); setAssignType(t.targetType || 'user'); setShowModal(true); }} className="p-2 bg-gray-50 rounded-full text-blue-500 hover:bg-blue-50"><Edit3 size={14}/></button>
+                    <button onClick={() => handleDelete(t.id)} className="p-2 bg-gray-50 rounded-full text-red-400 hover:bg-red-50"><Trash2 size={14}/></button>
                   </>
                 )}
               </div>
             </div>
 
             <div className="mt-4 pt-3 border-t border-gray-50 flex justify-between items-center">
-              {/* BOTÓN DE MENSAJES RECUPERADO */}
               <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className="flex items-center gap-1.5 group">
                 <div className="bg-gray-100 p-2 rounded-xl group-hover:bg-violet-100 transition-colors">
                   <MessageSquare size={16} className="text-gray-400 group-hover:text-violet-600"/>
@@ -1016,7 +1017,6 @@ const handleAddComment = async (taskId, comments = []) => {
               </div>
             </div>
 
-            {/* PANEL DE COMENTARIOS RECUPERADO */}
             {openCommentsId === t.id && (
               <div className="mt-4 bg-violet-50/50 rounded-2xl p-4 animate-in slide-in-from-top-2 border border-violet-100">
                 <div className="space-y-3 max-h-40 overflow-y-auto mb-4 pr-2 custom-scrollbar">
@@ -1047,6 +1047,7 @@ const handleAddComment = async (taskId, comments = []) => {
             )}
           </div>
         ))}
+      </div> {/* ESTE DIV CIERRA LA GRILLA DE TAREAS (El fix) */}
 
       {showModal && (
         <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4 backdrop-blur-sm">
@@ -1059,43 +1060,22 @@ const handleAddComment = async (taskId, comments = []) => {
             </div>
             {assignType === 'user' ? (
               <div className="space-y-2 relative">
-                <input 
-                  placeholder="🔍 Buscar personas..." 
-                  value={userSearch} 
-                  onChange={(e) => setUserSearch(e.target.value)} 
-                  className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm border-2 border-transparent focus:border-violet-200 transition-all" 
-                />
-                
-                {/* LISTADO DE RESULTADOS (EL FIX) */}
+                <input placeholder="🔍 Buscar personas..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm border-2 border-transparent focus:border-violet-200 transition-all" />
                 {userSearch.length > 0 && (
                   <div className="absolute z-[120] w-full bg-white border shadow-xl rounded-2xl max-h-48 overflow-y-auto p-2 top-full mt-1 animate-in slide-in-from-top-2">
-                    {usersList
-                      .filter(u => u.fullName.toLowerCase().includes(userSearch.toLowerCase()))
-                      .map(u => (
-                        <button
-                          key={u.id}
-                          type="button"
-                          onClick={() => toggleUserSelection(u)}
-                          className="w-full text-left p-3 hover:bg-violet-50 rounded-xl flex justify-between items-center transition-colors"
-                        >
-                          <span className="font-bold text-xs text-gray-700">{u.fullName}</span>
-                          <Plus size={14} className="text-violet-400" />
-                        </button>
-                      ))}
-                    {usersList.filter(u => u.fullName.toLowerCase().includes(userSearch.toLowerCase())).length === 0 && (
-                      <p className="p-3 text-[10px] font-bold text-gray-400 text-center uppercase italic">No se encontraron resultados</p>
-                    )}
+                    {usersList.filter(u => u.fullName.toLowerCase().includes(userSearch.toLowerCase())).map(u => (
+                      <button key={u.id} type="button" onClick={() => toggleUserSelection(u)} className="w-full text-left p-3 hover:bg-violet-50 rounded-xl flex justify-between items-center transition-colors">
+                        <span className="font-bold text-xs text-gray-700">{u.fullName}</span>
+                        <Plus size={14} className="text-violet-400" />
+                      </button>
+                    ))}
                   </div>
                 )}
-
-                {/* PERSONAS SELECCIONADAS */}
                 <div className="flex flex-wrap gap-2 pt-1">
                   {selectedUsersObj.map(u => (
                     <div key={u.id} className="bg-violet-100 text-violet-800 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 border border-violet-200">
                       {u.firstName || u.fullName.split(' ')[0]} 
-                      <button type="button" onClick={() => toggleUserSelection(u)} className="hover:text-red-500 transition-colors">
-                        <X size={14}/>
-                      </button>
+                      <button type="button" onClick={() => toggleUserSelection(u)} className="hover:text-red-500 transition-colors"><X size={14}/></button>
                     </div>
                   ))}
                 </div>
@@ -4062,6 +4042,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
