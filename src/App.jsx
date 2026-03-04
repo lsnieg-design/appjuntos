@@ -3524,15 +3524,31 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
       </style></head><body>`;
 
       targets.forEach(s => {
-          // --- PARCHE DE REDACCIÓN DINÁMICA ---
-    const nivelDoc = s.level || '................';
-    const modalidadDoc = s.modality || 'Sede';
-    let jornadaInfo = "";
-    if (s.journey && s.journey !== "A DEFINIR" && s.journey.trim() !== "") {
-        jornadaInfo = ` con jornada ${s.journey.toLowerCase()}`;
-    }
-    const fraseAlumno = `Es alumno/a regular del nivel ${nivelDoc}, modalidad ${modalidadDoc}${jornadaInfo}`;
-    // ------------------------------------
+          // --- PARCHE DE REDACCIÓN DINÁMICA ACTUALIZADO ---
+          const nivelRaw = (s.level || '').toUpperCase();
+          const modRaw = (s.modality || 'Sede');
+          let nivelDetallado = nivelRaw;
+          
+          // Mapeo de Niveles según tu pedido
+          if (nivelRaw.includes('INICIAL')) nivelDetallado = "escolaridad especial inicial";
+          else if (nivelRaw.includes('CFI')) nivelDetallado = "escolaridad especial de formación laboral";
+          else if (nivelRaw.includes('1°') || nivelRaw.includes('2°') || nivelRaw.includes('PRIMARIA') || nivelRaw.includes('CICLO')) {
+              nivelDetallado = `escolaridad especial primaria, ${s.level || 'ciclo a definir'}`;
+          }
+
+          let jornadaInfo = "";
+          if (s.journey && s.journey !== "A DEFINIR" && s.journey.trim() !== "") {
+              jornadaInfo = ` con jornada ${s.journey.toLowerCase()}`;
+          }
+
+          // Lógica para Inclusión vs Sede
+          let fraseAlumno = "";
+          if (modRaw === 'Inclusión') {
+              fraseAlumno = `Es alumno/a regular de modulo de apoyo a la integración escolar (con equipo)`;
+          } else {
+              fraseAlumno = `Es alumno/a regular de ${nivelDetallado}${jornadaInfo}`;
+          }
+          // ------------------------------------------------
 
     let presentadoAnte = customTarget.trim() !== "" ? customTarget : (s.healthInsurance && s.healthInsurance.trim().length > 2 ? s.healthInsurance : '................................................');
          
@@ -4091,6 +4107,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
