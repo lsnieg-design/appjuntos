@@ -584,7 +584,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
     </div>
   );
 }
-// --- VISTA RECURSOS (CORREGIDA) ---
+// --- VISTA RECURSOS (CORREGIDA: ESPACIADO DE PALABRAS + CIERRE DE LLAVES) ---
 function ResourcesView({ resources, canEdit }) {
   const [folder, setFolder] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -665,11 +665,11 @@ function ResourcesView({ resources, canEdit }) {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Fecha</label>
-                    <input type="text" placeholder="FECHA" value={notaData.date} onChange={e => setNotaData({...notaData, date: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-gray-700 text-xs shadow-inner border border-gray-100"/>
+                    <input type="text" placeholder="FECHA" value={notaData.date} onChange={e => setNotaData({...notaData, date: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-gray-700 text-xs border border-gray-100"/>
                   </div>
                   <div>
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-1 block">Firma</label>
-                    <input type="text" placeholder="FIRMA" value={notaData.signature} onChange={e => setNotaData({...notaData, signature: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-violet-700 text-xs shadow-inner border border-gray-100"/>
+                    <input type="text" placeholder="FIRMA" value={notaData.signature} onChange={e => setNotaData({...notaData, signature: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-violet-700 text-xs border border-gray-100"/>
                   </div>
                 </div>
                 <div>
@@ -702,7 +702,6 @@ function ResourcesView({ resources, canEdit }) {
 
               {/* LADO DERECHO: VISTA PREVIA */}
               <div className="flex-1 bg-slate-100 flex flex-col items-center justify-center p-6 md:p-10 relative overflow-hidden">
-                <p className="absolute top-4 text-[10px] font-black text-gray-400 uppercase tracking-[4px]">VISTA PREVIA</p>
                 <div className="scale-[0.5] sm:scale-[0.6] md:scale-[0.8] xl:scale-[0.95] origin-top transition-all">
                   <div id="nota-canvas" className="w-[600px] min-h-[400px] bg-[#fefce8] relative shadow-2xl border-[10px] border-white rounded-[15px] flex flex-col overflow-hidden" style={{ height: 'auto' }}>
                     <div className="absolute inset-0 opacity-[0.04]" style={{backgroundImage: 'radial-gradient(#f97316 2px, transparent 2px)', backgroundSize: '18px 18px'}}></div>
@@ -718,12 +717,18 @@ function ResourcesView({ resources, canEdit }) {
                         </div>
                         <p className="text-[12px] text-orange-600 font-black uppercase pt-2">{notaData.date || '00/00/00'}</p>
                       </div>
-                      <h1 className="text-2xl font-black text-gray-800 uppercase leading-tight mb-4 text-center shrink-0">{notaData.title || 'SIN TÍTULO'}</h1>
-                      <div className="flex-1 w-full mb-8">
-                        <div className={`text-slate-700 font-bold whitespace-pre-wrap leading-relaxed break-words w-full px-6 ${notaData.fontSize} ${notaData.textAlign}`} style={{maxWidth: '500px', margin: '0 auto'}}>
+                      <h1 className="text-2xl font-black text-gray-800 uppercase leading-tight mb-6 text-center shrink-0">{notaData.title || 'SIN TÍTULO'}</h1>
+                      
+                      {/* SOLUCIÓN AL ESPACIADO: Agregamos word-spacing y un div de ancho controlado */}
+                      <div className="flex-1 w-full mb-10">
+                        <div 
+                          className={`text-slate-700 font-bold whitespace-pre-wrap leading-relaxed break-words w-full px-6 ${notaData.fontSize} ${notaData.textAlign}`} 
+                          style={{ maxWidth: '520px', margin: '0 auto', wordSpacing: '0.1em' }}
+                        >
                           {notaData.body || 'Escribí algo...'}
                         </div>
                       </div>
+                      
                       <div className="mt-auto flex flex-col items-center shrink-0">
                         <div className="w-48 h-[1px] bg-orange-200 mb-4 opacity-50"></div>
                         <p className="text-[16px] font-black text-violet-800 uppercase text-center leading-none mb-1 italic">{notaData.signature}</p>
@@ -744,7 +749,12 @@ function ResourcesView({ resources, canEdit }) {
                   const element = document.getElementById('nota-canvas');
                   try {
                     const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
-                    const canvas = await html2canvas(element, { scale: 3, useCORS: true, backgroundColor: '#fefce8' }); 
+                    const canvas = await html2canvas(element, { 
+                        scale: 3, 
+                        useCORS: true, 
+                        backgroundColor: '#fefce8',
+                        letterRendering: true // Ayuda a que html2canvas no pegue las letras
+                    }); 
                     const link = document.createElement('a');
                     link.download = `Nota_${(notaData.title || 'Nota').substring(0,10)}.jpg`;
                     link.href = canvas.toDataURL('image/jpeg', 0.95);
@@ -761,7 +771,6 @@ function ResourcesView({ resources, canEdit }) {
     </div>
   );
 }
-  
 // --- VISTA TAREAS (VERSIÓN UNIFICADA Y CORREGIDA) ---
 function TasksView({ tasks = [], user, canEdit }) {
   const [showModal, setShowModal] = useState(false);
@@ -3942,6 +3951,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
