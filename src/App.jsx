@@ -584,7 +584,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
     </div>
   );
 }
-// --- VISTA RECURSOS (VERSIÓN RESTAURADA: NOTAS + SUBIDA DE ARCHIVOS) ---
+// --- VISTA RECURSOS (VERSIÓN INTEGRAL: NOTAS + CARPETAS INTELIGENTES + GESTIÓN COMPLETA) ---
 function ResourcesView({ resources, canEdit }) {
   const [folder, setFolder] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -611,35 +611,55 @@ function ResourcesView({ resources, canEdit }) {
     return acc; 
   }, {});
 
-  // --- FUNCIÓN PARA GUARDAR RECURSOS (PDF/LINKS) ---
+  // --- ACCIÓN: GUARDAR RECURSO ---
   const handleSaveResource = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const data = {
       title: fd.get('title'),
       url: fd.get('url'),
-      category: fd.get('category').toUpperCase(),
+      category: (folder || fd.get('category') || 'VARIOS').toUpperCase().trim(),
       updatedAt: serverTimestamp()
     };
     try {
-      if (editingRes) {
+      if (editingRes && editingRes.id) {
         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', editingRes.id), data);
       } else {
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), { ...data, createdAt: serverTimestamp() });
       }
       setShowModal(false);
       setEditingRes(null);
-    } catch (err) { alert(err.message); }
+    } catch (err) { alert("Error al guardar: " + err.message); }
+  };
+
+  // --- ACCIÓN: ELIMINAR RECURSO ---
+  const handleDeleteResource = async (id) => {
+    if (!confirm("¿Seguro que querés eliminar este documento?")) return;
+    try {
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', id));
+    } catch (err) { alert("Error al eliminar: " + err.message); }
   };
 
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10">
+      {/* CABECERA */}
       <div className="flex justify-between items-center mb-6 px-2">
-        <h2 className="text-2xl font-black text-violet-900 italic tracking-tighter uppercase">Recursos</h2>
-        {/* Este es el botón que ahora sí abrirá el modal de carga */}
-        {canEdit && <button onClick={() => { setEditingRes(null); setShowModal(true); }} className="bg-orange-500 text-white p-2 rounded-xl shadow-lg hover:bg-orange-600 transition"><Plus size={20}/></button>}
+        <div>
+          <h2 className="text-2xl font-black text-violet-900 italic tracking-tighter uppercase">Recursos</h2>
+          {folder && <p className="text-[10px] font-black text-orange-500 uppercase tracking-[2px]">Carpeta: {folder}</p>}
+        </div>
+        {canEdit && (
+          <button 
+            onClick={() => { setEditingRes(null); setShowModal(true); }} 
+            className="bg-orange-500 text-white p-2 rounded-xl shadow-lg hover:bg-orange-600 transition flex items-center gap-2"
+          >
+            <Plus size={20}/>
+            <span className="text-[10px] font-black uppercase pr-1">{folder ? 'Nuevo Doc' : 'Nueva Carpeta'}</span>
+          </button>
+        )}
       </div>
 
+      {/* ACCESO RÁPIDO A NOTAS (Solo visible en la raíz) */}
       {!folder && (
           <button onClick={() => setShowNotaModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-orange-400 p-6 rounded-3xl shadow-lg text-white flex items-center justify-between mb-6 group active:scale-95 transition-transform mx-2">
               <div className="flex items-center gap-4">
@@ -653,7 +673,7 @@ function ResourcesView({ resources, canEdit }) {
           </button>
       )}
 
-      {/* VISTA DE CARPETAS */}
+      {/* LISTADO DE CARPETAS / DOCUMENTOS */}
       {!folder ? (
         <div className="grid grid-cols-2 gap-4 pb-10 px-2">
           {Object.keys(folders).map(name => (
@@ -666,7 +686,7 @@ function ResourcesView({ resources, canEdit }) {
         </div>
       ) : (
         <div className="px-2">
-            <button onClick={() => setFolder(null)} className="mb-4 text-xs font-black text-violet-600 uppercase flex items-center gap-1 bg-violet-50 p-2 px-4 rounded-xl shadow-sm"><ChevronLeft size={16}/> VOLVER</button>
+            <button onClick={() => setFolder(null)} className="mb-4 text-xs font-black text-violet-600 uppercase flex items-center gap-1 bg-violet-50 p-2 px-4 rounded-xl shadow-sm hover:bg-violet-100 transition"><ChevronLeft size={16}/> VOLVER A CARPETAS</button>
             <div className="grid gap-3 pb-20">
             {folders[folder].map(r => (
                 <div key={r.id} className="bg-white p-4 rounded-[20px] border border-violet-50 flex justify-between items-center group shadow-sm">
@@ -675,7 +695,10 @@ function ResourcesView({ resources, canEdit }) {
                         <span className="truncate">{r.title}</span>
                     </a>
                     {canEdit && (
-                      <button onClick={() => { setEditingRes(r); setShowModal(true); }} className="p-2 text-gray-300 hover:text-orange-500 transition"><Edit3 size={16}/></button>
+                      <div className="flex gap-1">
+                        <button onClick={() => { setEditingRes(r); setShowModal(true); }} className="p-2 text-gray-300 hover:text-orange-500 transition"><Edit3 size={16}/></button>
+                        <button onClick={() => handleDeleteResource(r.id)} className="p-2 text-gray-200 hover:text-red-500 transition"><Trash2 size={16}/></button>
+                      </div>
                     )}
                 </div>
             ))}
@@ -683,25 +706,31 @@ function ResourcesView({ resources, canEdit }) {
         </div>
       )}
 
-      {/* --- MODAL PARA AGREGAR NUEVO RECURSO (EL QUE FALTABA) --- */}
+      {/* MODAL: CARGA DE RECURSO */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[400] flex items-center justify-center p-4">
-          <form onSubmit={handleSaveResource} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95">
-            <h3 className="text-xl font-black text-violet-900 mb-6 uppercase italic">Nuevo Recurso</h3>
+          <form onSubmit={handleSaveResource} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-orange-500">
+            <h3 className="text-xl font-black text-violet-900 mb-6 uppercase italic">
+              {editingRes ? 'Editar Recurso' : (folder ? `Nuevo en ${folder}` : 'Nueva Carpeta')}
+            </h3>
             <div className="space-y-4">
               <input name="title" defaultValue={editingRes?.title} placeholder="Nombre del documento" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm border border-gray-100" required />
               <input name="url" defaultValue={editingRes?.url} placeholder="Link de Drive o Web" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm border border-gray-100" required />
-              <input name="category" defaultValue={editingRes?.category} placeholder="Categoría (Ej: PROYECTOS)" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm border border-gray-100" required />
+              {!folder && (
+                <input name="category" defaultValue={editingRes?.category} placeholder="Nombre de Carpeta (Ej: PROYECTOS)" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm border border-orange-100" required />
+              )}
               <div className="flex gap-2 pt-4">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-4 font-black text-xs text-gray-400 uppercase">Cancelar</button>
-                <button type="submit" className="flex-[2] py-4 bg-orange-500 text-white rounded-2xl font-black text-xs uppercase shadow-lg hover:bg-orange-600 transition">Guardar</button>
+                <button type="button" onClick={() => { setShowModal(false); setEditingRes(null); }} className="flex-1 py-4 font-black text-xs text-gray-400 uppercase">Cancelar</button>
+                <button type="submit" className="flex-[2] py-4 bg-orange-500 text-white rounded-2xl font-black text-xs uppercase shadow-lg hover:bg-orange-600 transition">
+                  {editingRes ? 'Actualizar' : 'Guardar'}
+                </button>
               </div>
             </div>
           </form>
         </div>
       )}
 
-      {/* MODAL GENERADOR DE NOTAS (Toda la lógica que ya teníamos) */}
+      {/* MODAL: GENERADOR DE NOTAS */}
       {showNotaModal && (
         <div className="fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-0 md:p-4 backdrop-blur-md" onClick={() => setShowNotaModal(false)}>
           <div className="bg-white rounded-t-[40px] md:rounded-[40px] w-full max-w-7xl flex flex-col h-[98vh] md:h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -711,15 +740,15 @@ function ResourcesView({ resources, canEdit }) {
             </div>
 
             <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-              {/* IZQUIERDA: FORMULARIO Y CONTROLES */}
+              {/* PANEL IZQUIERDO: CONTROLES */}
               <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-6 border-r border-gray-50">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block tracking-widest">Fecha</label>
+                    <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">Fecha</label>
                     <input type="text" value={notaData.date} onChange={e => setNotaData({...notaData, date: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs border border-gray-100"/>
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block tracking-widest">Firma</label>
+                    <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">Firma</label>
                     <input type="text" value={notaData.signature} onChange={e => setNotaData({...notaData, signature: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-violet-700 text-xs border border-gray-100"/>
                   </div>
                 </div>
@@ -729,7 +758,7 @@ function ResourcesView({ resources, canEdit }) {
                     <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-2">Tamaño de Letra</p>
                     <div className="flex gap-2">
                       {[ {l:'Chica', v:'text-[11px]'}, {l:'Media', v:'text-[14px]'}, {l:'Grande', v:'text-[18px]'} ].map(s => (
-                        <button key={s.v} onClick={() => setNotaData({...notaData, fontSize: s.v})} className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${notaData.fontSize === s.v ? 'bg-violet-600 text-white shadow-md' : 'bg-white text-violet-400'}`}>{s.l}</button>
+                        <button key={s.v} onClick={() => setNotaData({...notaData, fontSize: s.v})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${notaData.fontSize === s.v ? 'bg-violet-600 text-white shadow-md' : 'bg-white text-violet-400'}`}>{s.l}</button>
                       ))}
                     </div>
                   </div>
@@ -744,36 +773,22 @@ function ResourcesView({ resources, canEdit }) {
                   <div>
                     <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-2">Fondo de Nota</p>
                     <div className="flex gap-2">
-                        <button onClick={() => setNotaData({...notaData, isPrintMode: false})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${!notaData.isPrintMode ? 'bg-orange-500 text-white shadow-md' : 'bg-white text-orange-400'}`}>🎨 COLOR</button>
-                        <button onClick={() => setNotaData({...notaData, isPrintMode: true})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${notaData.isPrintMode ? 'bg-gray-800 text-white shadow-md' : 'bg-white text-gray-400'}`}>🖨️ BLANCO</button>
+                        <button onClick={() => setNotaData({...notaData, isPrintMode: false})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${!notaData.isPrintMode ? 'bg-orange-500 text-white' : 'bg-white text-orange-400'}`}>🎨 COLOR</button>
+                        <button onClick={() => setNotaData({...notaData, isPrintMode: true})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${notaData.isPrintMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-400'}`}>🖨️ BLANCO</button>
                     </div>
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block tracking-widest">Título</label>
-                  <input type="text" placeholder="TÍTULO" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-4 bg-gray-50 rounded-xl outline-none font-black uppercase text-gray-700 border-2 border-transparent focus:border-orange-200 shadow-inner"/>
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block tracking-widest">Mensaje</label>
-                  <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Mensaje..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-sm border-2 border-transparent focus:border-pink-200 h-[250px] resize-none font-medium text-gray-600 shadow-inner"/>
-                </div>
+                <input type="text" placeholder="TÍTULO" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-4 bg-gray-50 rounded-xl outline-none font-black uppercase text-gray-700 border-2 border-transparent focus:border-orange-200 shadow-inner"/>
+                <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Escribe aquí..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-sm border-2 border-transparent focus:border-pink-200 h-[200px] resize-none font-medium text-gray-600 shadow-inner"/>
               </div>
 
-              {/* DERECHA: VISTA PREVIA */}
+              {/* PANEL DERECHO: VISTA PREVIA */}
               <div className="flex-1 bg-slate-100 flex flex-col items-center justify-center p-6 md:p-10 relative overflow-hidden">
                 <div className="scale-[0.5] sm:scale-[0.6] md:scale-[0.8] xl:scale-[0.95] origin-top transition-all">
-                  <div 
-                    id="nota-canvas" 
-                    className={`w-[600px] min-h-[400px] relative shadow-2xl rounded-[15px] flex flex-col overflow-hidden transition-all duration-300 ${notaData.isPrintMode ? 'bg-white border-[10px] border-gray-200' : 'bg-[#fefce8] border-[10px] border-white'}`} 
-                    style={{ height: 'auto' }}
-                  >
-                    {!notaData.isPrintMode && (
-                        <div className="absolute inset-0 opacity-[0.04]" style={{backgroundImage: 'radial-gradient(#f97316 2px, transparent 2px)', backgroundSize: '18px 18px'}}></div>
-                    )}
+                  <div id="nota-canvas" className={`w-[600px] min-h-[400px] relative shadow-2xl rounded-[15px] flex flex-col overflow-hidden transition-all duration-300 ${notaData.isPrintMode ? 'bg-white border-[10px] border-gray-200' : 'bg-[#fefce8] border-[10px] border-white'}`} style={{ height: 'auto' }}>
+                    {!notaData.isPrintMode && <div className="absolute inset-0 opacity-[0.04]" style={{backgroundImage: 'radial-gradient(#f97316 2px, transparent 2px)', backgroundSize: '18px 18px'}}></div>}
                     <div className={`absolute top-0 left-0 right-0 h-3 opacity-80 ${notaData.isPrintMode ? 'bg-gray-300' : 'bg-gradient-to-r from-violet-600 via-pink-500 to-orange-400'}`}></div>
-                    
                     <div className="flex flex-col h-full px-12 pt-10 pb-12 z-10">
                       <div className="flex justify-between items-start mb-6 shrink-0">
                         <div className="flex items-center gap-4">
@@ -786,21 +801,11 @@ function ResourcesView({ resources, canEdit }) {
                         <p className={`text-[12px] font-black uppercase pt-2 ${notaData.isPrintMode ? 'text-gray-400' : 'text-orange-600'}`}>{notaData.date}</p>
                       </div>
                       <h1 className="text-2xl font-black text-gray-800 uppercase leading-tight mb-6 text-center">{notaData.title || 'COMUNICADO'}</h1>
-                      
                       <div className="flex-1 w-full mb-10">
-                        <div 
-                          className={`text-slate-700 font-bold whitespace-pre-wrap leading-relaxed break-words w-full px-8 ${notaData.fontSize} ${notaData.textAlign}`} 
-                          style={{ 
-                            maxWidth: '540px', 
-                            margin: '0 auto', 
-                            wordSpacing: '0.12em',
-                            letterSpacing: '0.01em'
-                          }}
-                        >
+                        <div className={`text-slate-700 font-bold whitespace-pre-wrap leading-relaxed break-words w-full px-8 ${notaData.fontSize} ${notaData.textAlign}`} style={{ maxWidth: '540px', margin: '0 auto', wordSpacing: '0.12em', letterSpacing: '0.01em' }}>
                           {notaData.body || 'Vista previa del mensaje...'}
                         </div>
                       </div>
-
                       <div className="mt-auto flex flex-col items-center shrink-0">
                         <div className="w-48 h-[1px] bg-orange-200 mb-4 opacity-50"></div>
                         <p className="text-[16px] font-black text-violet-800 uppercase text-center italic">{notaData.signature}</p>
@@ -812,7 +817,7 @@ function ResourcesView({ resources, canEdit }) {
               </div>
             </div>
 
-            {/* FOOTER NOTA */}
+            {/* BOTÓN DESCARGA */}
             <div className="p-4 md:p-6 border-t bg-white shrink-0 z-20 shadow-2xl">
               <div className="flex gap-4 max-w-4xl mx-auto">
                 <button onClick={() => setShowNotaModal(false)} className="flex-1 text-gray-400 font-black text-xs uppercase py-4">VOLVER</button>
@@ -822,16 +827,11 @@ function ResourcesView({ resources, canEdit }) {
                   try {
                     const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
                     const canvas = await html2canvas(element, { 
-                        scale: 3, 
-                        useCORS: true, 
-                        backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
+                        scale: 3, useCORS: true, backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
                         logging: false,
                         onclone: (clonedDoc) => {
                             const txt = clonedDoc.getElementById('nota-canvas').querySelector('.whitespace-pre-wrap');
-                            if (txt) {
-                                txt.style.wordSpacing = '0.15em';
-                                txt.style.textRendering = "optimizeLegibility";
-                            }
+                            if (txt) { txt.style.wordSpacing = '0.15em'; txt.style.textRendering = "optimizeLegibility"; }
                         }
                     }); 
                     const link = document.createElement('a');
@@ -4063,6 +4063,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
