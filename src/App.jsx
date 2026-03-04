@@ -612,7 +612,7 @@ function ResourcesView({ resources, canEdit }) {
   }, {});
 
   // --- ACCIÓN: GUARDAR RECURSO ---
-  const handleSaveResource = async (e) => {
+const handleSaveResource = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const data = {
@@ -622,47 +622,39 @@ function ResourcesView({ resources, canEdit }) {
       updatedAt: serverTimestamp()
     };
     try {
-      if (editingRes && editingRes.id) {
+      if (editingRes?.id) {
         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', editingRes.id), data);
       } else {
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), { ...data, createdAt: serverTimestamp() });
       }
-      setShowModal(false);
+      setShowModal(false); 
       setEditingRes(null);
-    } catch (err) { alert("Error al guardar: " + err.message); }
-  };
+    } catch (err) { 
+      alert(err.message); 
+    }
+  }; // <--- ESTA LLAVE CIERRA EL SAVE
 
-  // --- ACCIÓN: ELIMINAR RECURSO ---
-  const handleDeleteResource = async (id) => {
-    if (!confirm("¿Seguro que querés eliminar este documento?")) return;
-    try {
-      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', id));
-    } catch (err) { alert("Error al eliminar: " + err.message); }
-  };
-// --- ELIMINAR RECURSO CON FIX ANTIBLANCO ---
+  // --- FUNCIONES DE GESTIÓN (REVISADAS) ---
   const handleDeleteResource = async (res) => {
     if (!confirm(`¿Eliminar "${res.title}"?`)) return;
     try {
-      // Si es el último archivo de la carpeta, volvemos atrás antes de borrar para que no se rompa la app
       if (folders[folder]?.length === 1) { setFolder(null); }
       await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', res.id));
     } catch (err) { alert(err.message); }
   };
 
-  // --- BORRAR CARPETA ENTERA ---
   const handleDeleteFolder = async (folderName) => {
-    if (!confirm(`⚠️ ¿Seguro querés borrar la carpeta "${folderName}" y TODOS sus documentos?`)) return;
+    if (!confirm(`⚠️ ¿Borrar carpeta "${folderName}" y sus documentos?`)) return;
     try {
       const docsToDelete = folders[folderName];
       const promises = docsToDelete.map(d => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', d.id)));
       await Promise.all(promises);
-      if (folder === folderName) setFolder(null); // Fix pantalla blanca
+      if (folder === folderName) setFolder(null);
     } catch (err) { alert(err.message); }
   };
 
-  // --- EDITAR NOMBRE DE CARPETA ---
   const handleEditFolderName = async (oldName) => {
-    const newName = prompt("Nuevo nombre para la carpeta:", oldName);
+    const newName = prompt("Nuevo nombre:", oldName);
     if (!newName || newName === oldName) return;
     try {
       const docsToUpdate = folders[oldName];
@@ -671,25 +663,6 @@ function ResourcesView({ resources, canEdit }) {
       if (folder === oldName) setFolder(newName.toUpperCase().trim());
     } catch (err) { alert(err.message); }
   };
-  return (
-    <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10">
-      {/* CABECERA */}
-      <div className="flex justify-between items-center mb-6 px-2">
-        <div>
-          <h2 className="text-2xl font-black text-violet-900 italic tracking-tighter uppercase">Recursos</h2>
-          {folder && <p className="text-[10px] font-black text-orange-500 uppercase tracking-[2px]">Carpeta: {folder}</p>}
-        </div>
-        {canEdit && (
-          <button 
-            onClick={() => { setEditingRes(null); setShowModal(true); }} 
-            className="bg-orange-500 text-white p-2 rounded-xl shadow-lg hover:bg-orange-600 transition flex items-center gap-2"
-          >
-            <Plus size={20}/>
-            <span className="text-[10px] font-black uppercase pr-1">{folder ? 'Nuevo Doc' : 'Nueva Carpeta'}</span>
-          </button>
-        )}
-      </div>
-
       {/* ACCESO RÁPIDO A NOTAS (Solo visible en la raíz) */}
       {!folder && (
           <button onClick={() => setShowNotaModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-orange-400 p-6 rounded-3xl shadow-lg text-white flex items-center justify-between mb-6 group active:scale-95 transition-transform mx-2">
@@ -4103,6 +4076,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
