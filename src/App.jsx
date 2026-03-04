@@ -3486,8 +3486,21 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
           .page-break { page-break-after: always; }
 
           /* --- ESTILOS GENERALES --- */
-          .cert-container { border: 2px solid #65a30d; border-radius: 25px; padding: 25px 40px; margin: 10px auto; position: relative; height: 140mm; box-sizing: border-box; width: 100%; max-width: 210mm; display: flex; flex-direction: column; page-break-inside: avoid; }
-          .cert-header { display: flex; align-items: center; margin-bottom: 15px; }
+          .cert-container { 
+    border: 2px solid #65a30d; 
+    border-radius: 25px; 
+    padding: 25px 40px; 
+    margin: 10px auto; 
+    position: relative; 
+    height: 165mm; /* Aumentado de 140mm para que entre todo */
+    box-sizing: border-box; 
+    width: 100%; 
+    max-width: 210mm; 
+    display: flex; 
+    flex-direction: column; 
+    page-break-inside: avoid; 
+}
+.cert-header { display: flex; align-items: center; margin-bottom: 15px; }
           .cert-logo { width: 100px; height: auto; margin-right: 20px; }
           .cert-title { font-size: 16px; font-weight: bold; text-decoration: underline; text-transform: uppercase; padding-top: 15px; }
           .cert-subtitle { font-size: 12px; font-weight: bold; margin-top: 5px; }
@@ -3496,24 +3509,24 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
           .data-field { text-align: center; font-weight: bold; font-size: 14px; border-bottom: 1px dotted #000; display: block; margin: 2px 0; padding-bottom: 2px; }
           .inline-field { font-weight: bold; border-bottom: 1px dotted #000; padding: 0 10px; }
           .date-section { margin: 15px 0; text-align: center; font-weight: bold; }
-         .signatures-section { 
-              display: flex; 
-              justify-content: space-between; 
-              align-items: flex-end; 
-              padding: 0 10px; 
-              height: 120px; /* Aumentado de 80px */
-              margin-top: 20px;
-          }
-          .sig-box { text-align: center; width: 250px; position: relative; }
-          .sig-img { 
-              height: 100px; /* Aumentado de 60px */
-              width: auto; 
-              display: block; 
-              margin: 0 auto -15px auto; 
-              position: relative; 
-              z-index: 10; 
-              filter: contrast(1.2); /* Para que el sello se vea más nítido */
-          }
+        .signatures-section { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: flex-end; 
+    padding: 0 20px; 
+    height: 140px; /* Espacio extra para que no se encimen */
+    margin-top: 20px;
+}
+        .sig-box { text-align: center; width: 250px; position: relative; }
+
+.sig-img { 
+    height: 110px; /* Tamaño grande solicitado */
+    width: auto; 
+    display: block; 
+    margin: 0 auto -20px auto; /* Ajuste de margen para que pise un poco la línea */
+    position: relative; 
+    z-index: 10; 
+}
           .sig-line { 
               border-top: 1.5px solid #000; 
               margin-top: 0; 
@@ -3609,10 +3622,14 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
                 <div style="font-weight: normal; font-size: 11px;">Lugar y fecha</div>
             </div>
         </div>
-        <div class="signatures-section">
-            <div class="sig-box"><img src="${FIRMA_URL}" class="sig-img"/><div class="sig-line">Firma director o vicedirector</div></div>
-            <div class="sig-box"><img src="${SELLO_URL}" class="sig-img"/><div class="sig-line">Sello institución</div></div>
-        </div>
+       <div class="signatures-section" style="margin-top: auto; padding-bottom: 20px;">
+    <div class="sig-box">
+        <img src="${FIRMA_URL}" class="sig-img"/>
+        <div class="sig-line">Firma director o vicedirector</div>
+    </div>
+    <div class="sig-box">
+        <img src="${SELLO_URL}" class="sig-img"/>
+        <div class="sig-line">Sello institución</div>
     </div>`;
 }
 
@@ -4128,6 +4145,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
