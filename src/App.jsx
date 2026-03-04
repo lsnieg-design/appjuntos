@@ -3165,6 +3165,21 @@ const handleUpdateGroup = async (e) => {
 
   return (
     <div className="flex flex-col h-full bg-slate-100 animate-in fade-in relative">
+     {/* CABECERA DE PERFIL IDENTIFICADA POR ID (Fix para Yaninas) */}
+      {!isManagement && (
+        <div className="bg-white px-6 py-4 border-b flex items-center gap-4 shrink-0">
+          <div className="w-12 h-12 bg-violet-100 rounded-2xl flex items-center justify-center text-violet-600 shadow-inner">
+            <User size={24} />
+          </div>
+          <div>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Docente Identificada</p>
+            <h2 className="text-lg font-black text-violet-900 uppercase italic leading-none">
+              {user.fullName || `${user.firstName} ${user.lastName}`}
+            </h2>
+            <p className="text-[9px] font-bold text-orange-500 mt-1 uppercase">ID de seguridad: {user.id.substring(0,8)}...</p>
+          </div>
+        </div>
+      )}
       <div className="bg-white p-4 shadow-sm z-10 sticky top-0 flex flex-col gap-3">
           <div className="flex justify-between items-center">
               <div>
@@ -4005,6 +4020,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
