@@ -1118,7 +1118,7 @@ function TasksView({ tasks = [], user, canEdit }) {
   );
 }
       
-// --- VISTA CALENDARIO (FINAL: ACCESO UNIVERSAL + AGENDA TÉCNICA PRIVADA) ---
+// --- VISTA CALENDARIO (FINAL: IMÁGENES + GUARDADO FIX) ---
 function CalendarView({ events, canEdit, user }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDayEvents, setSelectedDayEvents] = useState(null);
@@ -1129,10 +1129,12 @@ function CalendarView({ events, canEdit, user }) {
   // MODO DE CALENDARIO
   const [calendarMode, setCalendarMode] = useState('general'); // 'general' | 'technical'
 
-  // ESTADOS PARA CARGA RÁPIDA
+  // ESTADOS PARA CARGA RÁPIDA Y FOTOS
   const [showQuickLoad, setShowQuickLoad] = useState(false);
   const [quickText, setQuickText] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
   
   // PERMISOS
   const isTechTeam = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Equipo Técnico Inclusión', 'Dirección Inclusión'].includes(user.role);
@@ -1181,6 +1183,26 @@ function CalendarView({ events, canEdit, user }) {
       }
   };
 
+  const handlePhotoChange = (e) => {
+      const f = e.target.files[0]; if(!f) return;
+      setUploading(true);
+      const reader = new FileReader();
+      reader.onload=(ev)=>{
+          const img=new Image();
+          img.onload=()=>{
+              const c=document.createElement('canvas');
+              const MAX_WIDTH = 800; // Un poco más grande para que se vea bien la invitación
+              const s = img.width > MAX_WIDTH ? MAX_WIDTH/img.width : 1;
+              c.width=img.width * s; c.height=img.height*s;
+              const ctx=c.getContext('2d'); ctx.drawImage(img,0,0,c.width,c.height);
+              setPhotoPreview(c.toDataURL('image/jpeg',0.8));
+              setUploading(false);
+          };
+          img.src=ev.target.result;
+      };
+      reader.readAsDataURL(f);
+  };
+
   const deleteEvent = async (id) => {
       // Solo permitimos borrar si es el autor, o si es admin/directivo
       if(confirm("¿Eliminar este evento?")) {
@@ -1194,18 +1216,42 @@ function CalendarView({ events, canEdit, user }) {
   };
 
   const handleSaveEvent = async (e) => {
-      e.preventDefault(); const fd = new FormData(e.target);
+      e.preventDefault(); 
+      const fd = new FormData(e.target);
       const formType = fd.get('type');
       const finalType = (calendarMode === 'technical') ? 'TECNICO' : formType;
 
-      const data = { title: fd.get('title'), date: fd.get('date'), type: finalType, description: fd.get('description'), author: user.firstName };
+      const data = { 
+          title: fd.get('title'), 
+          date: fd.get('date'), 
+          type: finalType, 
+          description: fd.get('description'), 
+          author: user.firstName,
+          imageUrl: photoPreview || editingEvent?.imageUrl || '' // Se guarda la imagen
+      };
       
-      if (editingEvent) {
-          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', editingEvent.id), data);
-      } else {
-          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), { ...data, createdAt: serverTimestamp() });
+      try {
+          if (editingEvent) {
+              await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', editingEvent.id), data);
+              // Actualizamos visualmente el día seleccionado para no tener que cerrar y abrir
+              if (selectedDayEvents) {
+                  const updatedEvents = selectedDayEvents.events.map(ev => ev.id === editingEvent.id ? { ...ev, ...data } : ev);
+                  setSelectedDayEvents({ ...selectedDayEvents, events: updatedEvents });
+              }
+          } else {
+              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), { ...data, createdAt: serverTimestamp() });
+              // Si agregamos un evento estando dentro del día, recargamos la data manual para verlo rápido
+              if (selectedDayEvents) {
+                 const newEventLocal = { id: Date.now().toString(), ...data };
+                 setSelectedDayEvents({ ...selectedDayEvents, events: [...selectedDayEvents.events, newEventLocal] });
+              }
+          }
+          setShowModal(false); 
+          setEditingEvent(null);
+          setPhotoPreview(null);
+      } catch (err) {
+          alert("Error al guardar: " + err.message);
       }
-      setShowModal(false); setEditingEvent(null);
   };
 
   const handleQuickSave = async () => {
@@ -1232,7 +1278,7 @@ function CalendarView({ events, canEdit, user }) {
                       }
                   }
                   if (!finalTitle) finalTitle = rawText.replace(new RegExp(`\\(?\\b${finalType}\\b\\)?`, 'i'), '').trim() || finalType;
-                  return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), { title: finalTitle, date: isoDate, type: finalType, description: 'Carga masiva', author: user.firstName, createdAt: serverTimestamp() });
+                  return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), { title: finalTitle, date: isoDate, type: finalType, description: 'Carga masiva', author: user.firstName, imageUrl: '', createdAt: serverTimestamp() });
               }
               return null; 
           });
@@ -1243,8 +1289,8 @@ function CalendarView({ events, canEdit, user }) {
       } catch (e) { alert("Error: " + e.message); } finally { setProcessing(false); }
   };
   
-  const openNew = () => { setEditingEvent(null); setShowModal(true); };
-  const openEdit = (ev) => { setEditingEvent(ev); setShowModal(true); };
+  const openNew = () => { setEditingEvent(null); setPhotoPreview(null); setShowModal(true); };
+  const openEdit = (ev) => { setEditingEvent(ev); setPhotoPreview(ev.imageUrl || null); setShowModal(true); };
 
   const renderGrid = () => {
     const year = currentDate.getFullYear(); const month = currentDate.getMonth();
@@ -1264,7 +1310,7 @@ function CalendarView({ events, canEdit, user }) {
       days.push(
         <div key={d} onClick={() => handleDayClick(dateStr)} className={`relative border-b border-r border-gray-100 p-1 transition flex flex-col group cursor-pointer ${isToday ? 'bg-violet-50' : 'bg-white hover:bg-gray-50'}`}>
           <div className="flex justify-center"><span className={`text-[10px] md:text-sm w-5 h-5 md:w-7 md:h-7 flex items-center justify-center rounded-full font-bold ${isToday ? 'bg-violet-600 text-white shadow-md' : 'text-gray-500'}`}>{d}</span></div>
-          <div className="flex flex-col gap-1 mt-1 overflow-y-auto no-scrollbar flex-1">{dayEvents.map((ev, idx) => { const style = EVENT_TYPES[ev.type] ? EVENT_TYPES[ev.type].color : EVENT_TYPES['GENERAL'].color; return (<div key={idx} className={`text-[9px] md:text-xs rounded-[3px] px-1 py-0.5 truncate font-bold uppercase border-l-2 shadow-sm ${style}`}>{ev.title}</div>); })}</div>
+          <div className="flex flex-col gap-1 mt-1 overflow-y-auto no-scrollbar flex-1">{dayEvents.map((ev, idx) => { const style = EVENT_TYPES[ev.type] ? EVENT_TYPES[ev.type].color : EVENT_TYPES['GENERAL'].color; return (<div key={idx} className={`text-[9px] md:text-xs rounded-[3px] px-1 py-0.5 truncate font-bold uppercase border-l-2 shadow-sm flex items-center justify-between ${style}`}><span>{ev.title}</span>{ev.imageUrl && <span className="opacity-50 text-[8px]">📷</span>}</div>); })}</div>
         </div>
       );
     }
@@ -1298,14 +1344,94 @@ function CalendarView({ events, canEdit, user }) {
       <div className="grid grid-cols-7 bg-white border-b border-gray-200 shrink-0">{['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d => <div key={d} className="py-2 text-center text-[9px] md:text-xs font-black text-gray-300 uppercase tracking-widest">{d}</div>)}</div>
       <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} className="flex-1 grid grid-cols-7 auto-rows-fr overflow-y-auto bg-gray-50/30">{renderGrid()}</div>
       
-      {showModal && (<div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm"><form onSubmit={handleSaveEvent} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600"><h3 className="text-lg font-black text-violet-900 uppercase italic">{editingEvent ? 'Editar Evento' : 'Nuevo Evento'}</h3>{calendarMode === 'technical' && <div className="text-xs font-bold text-teal-600 bg-teal-50 p-2 rounded-lg text-center uppercase">Creando Evento Privado Técnico</div>}<input name="title" defaultValue={editingEvent?.title} placeholder="Título" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-sm border focus:border-violet-300" /><div className="grid grid-cols-2 gap-3"><input name="date" type="date" defaultValue={editingEvent?.date || selectedDayEvents?.date} required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs border" />{calendarMode === 'general' ? (<select name="type" defaultValue={editingEvent?.type || 'GENERAL'} className="w-full p-3 bg-gray-50 rounded-xl outline-none text-[10px] font-bold border uppercase">{Object.keys(EVENT_TYPES).filter(t => t !== 'TECNICO').map(t => <option key={t} value={t}>{t}</option>)}</select>) : (<div className="w-full p-3 bg-teal-100 rounded-xl text-[10px] font-bold border border-teal-200 text-teal-800 flex items-center justify-center uppercase">Técnico</div>)}</div><textarea name="description" defaultValue={editingEvent?.description} placeholder="Detalles..." className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs border h-20 resize-none" /><div className="flex gap-2 pt-2"><button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-gray-400 font-bold text-xs uppercase hover:bg-gray-50 rounded-xl">Cancelar</button><button type="submit" className="flex-1 py-3 bg-violet-600 text-white rounded-xl font-bold shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700">Guardar</button></div></form></div>)}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
+          <form onSubmit={handleSaveEvent} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-black text-violet-900 uppercase italic">{editingEvent ? 'Editar Evento' : 'Nuevo Evento'}</h3>
+            {calendarMode === 'technical' && <div className="text-xs font-bold text-teal-600 bg-teal-50 p-2 rounded-lg text-center uppercase">Creando Evento Privado Técnico</div>}
+            
+            <input name="title" defaultValue={editingEvent?.title} placeholder="Título" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-sm border focus:border-violet-300" />
+            
+            <div className="grid grid-cols-2 gap-3">
+              <input name="date" type="date" defaultValue={editingEvent?.date || selectedDayEvents?.date} required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs border" />
+              {calendarMode === 'general' ? (
+                <select name="type" defaultValue={editingEvent?.type || 'GENERAL'} className="w-full p-3 bg-gray-50 rounded-xl outline-none text-[10px] font-bold border uppercase">{Object.keys(EVENT_TYPES).filter(t => t !== 'TECNICO').map(t => <option key={t} value={t}>{t}</option>)}</select>
+              ) : (
+                <div className="w-full p-3 bg-teal-100 rounded-xl text-[10px] font-bold border border-teal-200 text-teal-800 flex items-center justify-center uppercase">Técnico</div>
+              )}
+            </div>
+            
+            <textarea name="description" defaultValue={editingEvent?.description} placeholder="Detalles..." className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs border h-20 resize-none" />
+            
+            {/* SUBIDA DE FOTO PARA EL EVENTO */}
+            <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 relative overflow-hidden flex flex-col items-center justify-center gap-2">
+                {photoPreview || editingEvent?.imageUrl ? (
+                    <div className="relative w-full h-32 rounded-lg overflow-hidden border border-gray-300">
+                        <img src={photoPreview || editingEvent?.imageUrl} className="w-full h-full object-cover" />
+                        <button type="button" onClick={() => setPhotoPreview(null)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-md shadow-md"><X size={12}/></button>
+                    </div>
+                ) : (
+                    <div className="text-center w-full py-4 text-gray-400">
+                        <FileText size={24} className="mx-auto mb-1 opacity-50"/>
+                        <span className="text-[10px] font-bold uppercase tracking-widest block">Agregar Flyer/Foto</span>
+                    </div>
+                )}
+                <input type="file" accept="image/*" onChange={handlePhotoChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                {uploading && <div className="absolute inset-0 bg-white/80 flex items-center justify-center"><RefreshCw className="animate-spin text-violet-500"/></div>}
+            </div>
 
-      {selectedDayEvents && (<div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setSelectedDayEvents(null)}><div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-4 border-b pb-2"><h2 className="text-lg font-black text-violet-900 uppercase italic">{new Date(selectedDayEvents.date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</h2><button onClick={() => setSelectedDayEvents(null)} className="p-1 bg-gray-100 rounded-full"><X size={18} className="text-gray-500"/></button></div>
-      {/* Botón AGREGAR en el detalle (Habilitado para todos en general, o para técnicos en su modo) */}
-      {(canAddGeneral || (isTechTeam && calendarMode === 'technical')) && <button onClick={()=>{ setEditingEvent({ date: selectedDayEvents.date }); setShowModal(true); }} className="w-full py-3 mb-4 border-2 border-dashed border-gray-200 text-gray-400 rounded-2xl font-bold text-xs hover:border-violet-400 hover:text-violet-600 transition flex items-center justify-center gap-2"><Plus size={14}/> Agregar Evento Aquí</button>}
-      <div className="space-y-3">{selectedDayEvents.events.length === 0 ? <p className="text-center text-gray-400 text-xs py-4">No hay eventos para este día.</p> : selectedDayEvents.events.map(ev => { const style = EVENT_TYPES[ev.type] ? EVENT_TYPES[ev.type].color : EVENT_TYPES['GENERAL'].color; return (<div key={ev.id} className={`p-4 rounded-2xl border relative group ${style}`}><span className="text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest bg-white/50 border border-white/20">{ev.type}</span><h3 className="font-bold mt-2 text-sm">{ev.title}</h3><p className="text-xs opacity-80 mt-1 italic">{ev.description}</p><p className="text-[9px] opacity-50 mt-2 text-right uppercase font-bold">Por: {ev.author || 'Sistema'}</p>
-      {/* BOTONES EDICIÓN (PERMITIR A CREADOR O ADMIN) */}
-      {(user.firstName === ev.author || isTechTeam) && (<div className="absolute top-3 right-3 flex gap-1"><button onClick={() => openEdit(ev)} className="p-1.5 bg-white/50 hover:bg-white rounded-lg shadow-sm"><Edit3 size={12}/></button><button onClick={() => deleteEvent(ev.id)} className="p-1.5 bg-white/50 hover:bg-white text-red-600 rounded-lg shadow-sm"><Trash2 size={12}/></button></div>)}</div>)})}</div></div></div>)}
+            <div className="flex gap-2 pt-2">
+                <button type="button" onClick={() => {setShowModal(false); setPhotoPreview(null);}} className="flex-1 py-3 text-gray-400 font-bold text-xs uppercase hover:bg-gray-50 rounded-xl">Cancelar</button>
+                <button type="submit" className="flex-1 py-3 bg-violet-600 text-white rounded-xl font-bold shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700">Guardar</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {selectedDayEvents && (
+        <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setSelectedDayEvents(null)}>
+          <div className="bg-white rounded-[40px] w-full max-w-md p-6 shadow-2xl animate-in zoom-in-95 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4 border-b pb-2 sticky top-0 bg-white z-10 pt-2">
+              <h2 className="text-lg font-black text-violet-900 uppercase italic">{new Date(selectedDayEvents.date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</h2>
+              <button onClick={() => setSelectedDayEvents(null)} className="p-1 bg-gray-100 rounded-full"><X size={18} className="text-gray-500"/></button>
+            </div>
+            
+            {/* Botón AGREGAR en el detalle */}
+            {(canAddGeneral || (isTechTeam && calendarMode === 'technical')) && <button onClick={()=>{ setEditingEvent({ date: selectedDayEvents.date }); setShowModal(true); }} className="w-full py-3 mb-4 border-2 border-dashed border-gray-200 text-gray-400 rounded-2xl font-bold text-xs hover:border-violet-400 hover:text-violet-600 transition flex items-center justify-center gap-2"><Plus size={14}/> Agregar Evento Aquí</button>}
+            
+            <div className="space-y-4 pb-4">
+              {selectedDayEvents.events.length === 0 ? <p className="text-center text-gray-400 text-xs py-4">No hay eventos para este día.</p> : selectedDayEvents.events.map(ev => { 
+                  const style = EVENT_TYPES[ev.type] ? EVENT_TYPES[ev.type].color : EVENT_TYPES['GENERAL'].color; 
+                  return (
+                    <div key={ev.id} className={`p-4 rounded-3xl border relative group overflow-hidden ${style}`}>
+                        <span className="text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest bg-white/50 border border-white/20 inline-block mb-2">{ev.type}</span>
+                        <h3 className="font-bold text-base leading-tight pr-14">{ev.title}</h3>
+                        
+                        {/* IMAGEN DEL EVENTO SI EXISTE */}
+                        {ev.imageUrl && (
+                            <div className="mt-3 mb-2 rounded-xl overflow-hidden border border-black/10 max-h-48 relative">
+                                <img src={ev.imageUrl} alt="Flyer" className="w-full object-cover" />
+                                <button onClick={() => window.open(ev.imageUrl, '_blank')} className="absolute top-2 right-2 bg-black/50 text-white p-1.5 rounded-md hover:bg-black/70 backdrop-blur-sm"><ExternalLink size={14}/></button>
+                            </div>
+                        )}
+                        
+                        {ev.description && <p className="text-xs opacity-90 mt-2 font-medium whitespace-pre-wrap leading-relaxed">{ev.description}</p>}
+                        <p className="text-[9px] opacity-50 mt-3 pt-2 border-t border-black/5 text-right uppercase font-bold">Por: {ev.author || 'Sistema'}</p>
+                        
+                        {/* BOTONES EDICIÓN */}
+                        {(user.firstName === ev.author || isTechTeam) && (
+                            <div className="absolute top-3 right-3 flex gap-1">
+                                <button onClick={() => openEdit(ev)} className="p-2 bg-white/50 hover:bg-white rounded-xl shadow-sm transition"><Edit3 size={14}/></button>
+                                <button onClick={() => deleteEvent(ev.id)} className="p-2 bg-white/50 hover:bg-white text-red-600 rounded-xl shadow-sm transition"><Trash2 size={14}/></button>
+                            </div>
+                        )}
+                    </div>
+                  )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2959,58 +3085,53 @@ function MainApp({ user, onLogout }) {
     
       </main>
 
-   <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-16 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] pb-safe shrink-0">
-        <div className="grid grid-cols-5 md:grid-cols-8 h-full max-w-5xl mx-auto px-2 relative">
+<nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-16 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] pb-safe shrink-0">
+        {/* Usamos grid-cols-5 universal para PC y Celular */}
+        <div className="grid grid-cols-5 h-full max-w-3xl mx-auto px-2 relative">
+          
           <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Inicio" />
           <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={20} />} label="Tareas" />
-          <div className="hidden md:block"><NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={20} />} label="Agenda" /></div>
           
-          <div className="relative -top-5 flex justify-center"><button onClick={() => setActiveTab('groups')} className={`w-14 h-14 rounded-full flex flex-col items-center justify-center shadow-xl border-4 border-gray-50 transition-all transform active:scale-95 ${activeTab === 'groups' ? 'bg-orange-500 text-white scale-110' : 'bg-violet-600 text-white'}`}><Grid size={24} /></button><span className="absolute -bottom-4 text-[9px] font-black text-violet-900 uppercase tracking-wide whitespace-nowrap">Mi Aula</span></div>
+          {/* BOTÓN CENTRAL: MI AULA */}
+          <div className="relative -top-5 flex justify-center">
+            <button onClick={() => setActiveTab('groups')} className={`w-14 h-14 rounded-full flex flex-col items-center justify-center shadow-xl border-4 border-gray-50 transition-all transform active:scale-95 ${activeTab === 'groups' ? 'bg-orange-500 text-white scale-110' : 'bg-violet-600 text-white'}`}>
+              <Grid size={24} />
+            </button>
+            <span className="absolute -bottom-4 text-[9px] font-black text-violet-900 uppercase tracking-wide whitespace-nowrap">Mi Aula</span>
+          </div>
           
-          <div className="block md:hidden"><NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={20} />} label="Agenda" /></div>
-          <div className="hidden md:block"><NavButton active={activeTab === 'matricula'} onClick={() => setActiveTab('matricula')} icon={<GraduationCap size={20} />} label="Legajos" /></div>
-          <div className="hidden md:block"><NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<LinkIcon size={20} />} label="Recursos" /></div>
-          <div className="hidden md:block"><NavButton active={activeTab === 'proyecto'} onClick={() => setActiveTab('proyecto')} icon={<PieChart size={20} />} label="P.I." /></div>
+          <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={20} />} label="Agenda" />
 
-          {/* --- BOTONES ADMIN, PERSONAL Y SALUD (VERSIÓN PC) --- */}
-          {isAdminRole && (
-              <div className="hidden md:flex gap-1">
-                  <button onClick={() => setActiveTab('admin')} className={`flex flex-col items-center gap-1 transition h-full justify-center w-full px-1 ${activeTab === 'admin' ? 'text-blue-500 scale-110' : 'text-gray-400 hover:text-blue-400'}`}>
-                      <FileText size={20} />
-                      <span className="text-[9px] font-bold uppercase">Admin Docs</span>
-                  </button>
-                  <button onClick={() => setActiveTab('personal')} className={`flex flex-col items-center gap-1 transition h-full justify-center w-full px-1 ${activeTab === 'personal' ? 'text-violet-600 scale-110' : 'text-gray-400 hover:text-violet-500'}`}>
-                      <Users size={20} />
-                      <span className="text-[9px] font-bold uppercase">Personal</span>
-                  </button>
-                  {/* Botón Médico */}
-                  <button onClick={() => setActiveTab('medical')} className={`flex flex-col items-center gap-1 transition h-full justify-center w-full px-1 ${activeTab === 'medical' ? 'text-red-500 scale-110' : 'text-gray-400 hover:text-red-400'}`}>
-                      <Activity size={20} />
-                      <span className="text-[9px] font-bold uppercase">Salud</span>
-                  </button>
-              </div>
-          )}
-
-          <div className="relative block md:hidden"><NavButton active={['matricula', 'resources', 'proyecto', 'admin', 'personal', 'medical'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={20} />} label="Más" />
+          {/* BOTÓN MÁS (UNIVERSAL PARA PC Y CELULAR) */}
+          <div className="relative">
+              <NavButton active={['matricula', 'resources', 'proyecto', 'admin', 'personal', 'medical'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={20} />} label="Más" />
+              
               {showMoreMenu && (
-                  <div className="absolute bottom-16 right-0 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 w-48 animate-in slide-in-from-bottom-5 zoom-in-95 origin-bottom-right z-50">
-                      <button onClick={() => { setActiveTab('matricula'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><GraduationCap size={18} className="text-violet-500"/> Legajos</button>
-                      <button onClick={() => { setActiveTab('resources'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><LinkIcon size={18} className="text-green-500"/> Recursos</button>
-                      <button onClick={() => { setActiveTab('proyecto'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><PieChart size={18} className="text-orange-500"/> Proyecto Inst.</button>
+                  <div className="absolute bottom-16 right-0 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 w-56 animate-in slide-in-from-bottom-5 zoom-in-95 origin-bottom-right z-50">
+                      <button onClick={() => { setActiveTab('matricula'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
+                          <GraduationCap size={18} className="text-violet-500"/> Legajos
+                      </button>
+                      <button onClick={() => { setActiveTab('resources'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
+                          <LinkIcon size={18} className="text-green-500"/> Recursos
+                      </button>
+                      <button onClick={() => { setActiveTab('proyecto'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
+                          <PieChart size={18} className="text-orange-500"/> Proyecto Inst.
+                      </button>
                       
-                      {/* --- BOTONES EXTRAS MÓVIL --- */}
+                      {/* --- SECCIÓN PRIVADA: ADMIN, PERSONAL, MÉDICO --- */}
                       {isAdminRole && (
-                          <>
-                              <button onClick={() => { setActiveTab('admin'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-blue-600 border-t border-gray-100 mt-1">
+                          <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
+                              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-3 mb-1 mt-1">Gestión Privada</p>
+                              <button onClick={() => { setActiveTab('admin'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-blue-600 transition">
                                   <FileText size={18} className="text-blue-500"/> Admin Docs
                               </button>
-                              <button onClick={() => { setActiveTab('personal'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-violet-700">
+                              <button onClick={() => { setActiveTab('personal'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-violet-700 transition">
                                   <Users size={18} className="text-violet-500"/> Personal
                               </button>
-                              <button onClick={() => { setActiveTab('medical'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-red-50 flex items-center gap-3 text-sm font-bold text-red-600">
-                                  <Activity size={18} className="text-red-500"/> Consultorio Médico
+                              <button onClick={() => { setActiveTab('medical'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-red-50 flex items-center gap-3 text-sm font-bold text-red-600 transition">
+                                  <Activity size={18} className="text-red-500"/> Médico
                               </button>
-                          </>
+                          </div>
                       )}
                   </div>
               )}
@@ -3429,8 +3550,13 @@ function PersonalView({ user }) {
   const [staffList, setStaffList] = useState([]);
   const [staffFilterText, setStaffFilterText] = useState('');
   const [staffModalityFilter, setStaffModalityFilter] = useState('all');
+  
+  // Modales
+  const [viewingStaff, setViewingStaff] = useState(null); // ESTADO PARA VISTA LECTURA
   const [showStaffForm, setShowStaffForm] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
+  
+  // Estados de proceso
   const [processing, setProcessing] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -3485,6 +3611,8 @@ function PersonalView({ user }) {
     if (meses === 0) return `${anios} años`;
     return `${anios} años y ${meses} meses`;
   };
+
+  const getSafeDate = (d) => { if(!d) return '-'; try { return new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('es-AR'); } catch(e) { return d; } };
 
   const imprimirFichasDocentes = (lista) => {
       if (!lista || lista.length === 0) return alert("No hay docentes para imprimir.");
@@ -3574,8 +3702,13 @@ function PersonalView({ user }) {
     const d = Object.fromEntries(fd.entries());
     d.photoUrl = photoPreview || editingStaff?.photoUrl || '';
     try {
-        if (editingStaff) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id), d);
-        else await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), { ...d, createdAt: serverTimestamp() });
+        if (editingStaff) {
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id), d);
+            // Actualizamos también la vista de lectura si está abierta
+            if (viewingStaff?.id === editingStaff.id) setViewingStaff({ ...editingStaff, ...d });
+        } else {
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), { ...d, createdAt: serverTimestamp() });
+        }
         setShowStaffForm(false); setEditingStaff(null); setPhotoPreview(null);
     } catch (err) { alert(err.message); }
   };
@@ -3607,11 +3740,12 @@ function PersonalView({ user }) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[65vh] overflow-y-auto pb-10">
             {filteredStaff.map(s => (
-                <div key={s.id} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all">
-                    <div onClick={()=>{setEditingStaff(s); setPhotoPreview(s.photoUrl); setShowStaffForm(true);}} className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100 cursor-pointer shrink-0">
+                // AHORA AL HACER CLIC ABRIMOS LA VISTA DE LECTURA (viewingStaff)
+                <div key={s.id} onClick={() => setViewingStaff(s)} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all cursor-pointer group">
+                    <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100 shrink-0">
                         {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName?.[0]}
                     </div>
-                    <div onClick={()=>{setEditingStaff(s); setPhotoPreview(s.photoUrl); setShowStaffForm(true);}} className="flex-1 cursor-pointer min-w-0">
+                    <div className="flex-1 min-w-0">
                         <div className="flex gap-2 items-center flex-wrap">
                             <h4 className="font-bold text-gray-800 text-sm uppercase truncate">{s.lastName}, {s.firstName}</h4>
                             <span className={`text-[8px] px-2 py-0.5 rounded-md font-black uppercase ${s.modality === 'Inclusión' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}`}>{s.modality || 'Sede'}</span>
@@ -3625,11 +3759,82 @@ function PersonalView({ user }) {
                             {s.cargo2_name ? ` | C2: ${s.cargo2_name}` : ''}
                         </p>
                     </div>
-                    <button onClick={(e) => { e.stopPropagation(); imprimirFichasDocentes([s]); }} className="p-3 bg-gray-50 text-violet-600 rounded-xl hover:bg-violet-100 hover:scale-105 transition shrink-0" title="Imprimir Ficha"><Printer size={18}/></button>
+                    <Eye className="text-gray-300 group-hover:text-violet-500 transition-colors shrink-0" />
                 </div>
             ))}
         </div>
 
+        {/* MODAL 1: VISUALIZACIÓN DE LEGAJO (SÓLO LECTURA) */}
+        {viewingStaff && !showStaffForm && (
+            <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setViewingStaff(null)}>
+                <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+                    <div className="bg-violet-800 p-6 text-white relative">
+                        <button onClick={()=>setViewingStaff(null)} className="absolute top-4 right-4 bg-white/20 p-1.5 rounded-full hover:bg-white/40 transition"><X size={20}/></button>
+                        <div className="flex gap-5 items-center">
+                            <div className="w-20 h-20 rounded-2xl bg-white/20 border-4 border-white/10 overflow-hidden shadow-lg">
+                                {viewingStaff.photoUrl ? <img src={viewingStaff.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="m-auto mt-5 text-white/50"/>}
+                            </div>
+                            <div>
+                                <h2 className="text-2xl font-black uppercase tracking-tight">{viewingStaff.lastName}, {viewingStaff.firstName}</h2>
+                                <p className="text-orange-300 font-bold text-xs uppercase">{viewingStaff.role || 'Docente'} - {viewingStaff.modality || 'Sede'}</p>
+                                <span className="bg-white/20 px-3 py-1 rounded-lg text-xs font-bold inline-block mt-2">DNI: {viewingStaff.dni || '-'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className="p-6 overflow-y-auto bg-gray-50 flex-1 space-y-4">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Nacimiento</p><p className="font-black text-slate-800 text-xs">{getSafeDate(viewingStaff.birthDate)}</p></div>
+                            <div className="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Celular</p><p className="font-black text-slate-800 text-xs">{viewingStaff.phone || '-'}</p></div>
+                            <div className="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Email</p><p className="font-black text-slate-800 text-xs truncate">{viewingStaff.email || '-'}</p></div>
+                            <div className="bg-red-50 p-3 rounded-2xl border border-red-200 shadow-sm"><p className="text-[9px] text-red-400 font-bold uppercase mb-1">Emergencia</p><p className="font-black text-red-800 text-xs">{viewingStaff.emergencyContact || '-'}</p></div>
+                        </div>
+
+                        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                            <h4 className="font-bold text-violet-600 text-xs uppercase mb-2">Formación</h4>
+                            <p className="text-sm font-bold text-gray-800">{viewingStaff.degree || 'Sin cargar'}</p>
+                            <p className="text-xs text-gray-500 mt-1">Estado: {viewingStaff.studyStatus || '-'}</p>
+                        </div>
+
+                        <div className="bg-violet-50 p-4 rounded-2xl border border-violet-100 shadow-sm space-y-3">
+                            <div className="flex justify-between items-center border-b border-violet-200 pb-2">
+                                <h4 className="font-bold text-violet-800 text-xs uppercase">Contratación</h4>
+                                <span className="bg-white border border-violet-200 px-2 py-0.5 rounded text-[10px] font-bold text-violet-600">
+                                    {viewingStaff.isSubsidized === 'true' ? 'Subvencionada' : 'Sin Subvención'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                                <span className="font-bold text-gray-500">Ingreso: {getSafeDate(viewingStaff.fechaIngreso)}</span>
+                                <span className="font-black text-violet-700">Anti: {calcularAntiguedad(viewingStaff.fechaIngreso)}</span>
+                            </div>
+                            
+                            {(viewingStaff.cargo1_name || viewingStaff.cargo2_name) && (
+                                <div className="pt-2 space-y-2">
+                                    {viewingStaff.cargo1_name && (
+                                        <div className="bg-white p-2 rounded-lg border border-violet-200 text-xs">
+                                            <span className="font-black text-violet-900 block mb-1">C1: {viewingStaff.cargo1_name}</span>
+                                            <span className="text-gray-500">N° {viewingStaff.cargo1_numero || '-'} | {viewingStaff.cargo1_type} | {viewingStaff.cargo1_turn} | {viewingStaff.cargo1_revista}</span>
+                                        </div>
+                                    )}
+                                    {viewingStaff.cargo2_name && (
+                                        <div className="bg-white p-2 rounded-lg border border-violet-200 text-xs">
+                                            <span className="font-black text-violet-900 block mb-1">C2: {viewingStaff.cargo2_name}</span>
+                                            <span className="text-gray-500">N° {viewingStaff.cargo2_numero || '-'} | {viewingStaff.cargo2_type} | {viewingStaff.cargo2_turn} | {viewingStaff.cargo2_revista}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    <div className="p-4 border-t border-gray-100 bg-white flex justify-end gap-2 shrink-0">
+                        <button onClick={()=>imprimirFichasDocentes([viewingStaff])} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-slate-600 font-bold text-xs uppercase hover:bg-gray-50 flex gap-2 items-center shadow-sm"><FileText size={16}/> Imprimir</button>
+                        <button onClick={()=>{setEditingStaff(viewingStaff); setPhotoPreview(viewingStaff.photoUrl); setShowStaffForm(true);}} className="px-4 py-3 bg-violet-600 text-white rounded-xl font-bold text-xs uppercase hover:bg-violet-700 flex gap-2 items-center shadow-lg"><Edit3 size={16}/> Editar Ficha</button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* MODAL 2: FORMULARIO DE EDICIÓN DOCENTE */}
         {showStaffForm && (
           <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4 backdrop-blur-sm animate-in zoom-in-95">
               <div className="bg-white rounded-[40px] w-full max-w-xl p-8 shadow-2xl max-h-[90vh] overflow-y-auto border-t-8 border-violet-600">
@@ -3693,8 +3898,12 @@ function PersonalView({ user }) {
                           <input name="degree" defaultValue={editingStaff?.degree} placeholder="Título Alcanzado / En curso" className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900"/>
                       </div>
 
-                      <button type="submit" className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-violet-700 transition">Guardar Legajo</button>
-                      {editingStaff && <button type="button" onClick={async () => {if(confirm("¿Eliminar definitivamente?")) {await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); setShowStaffForm(false);}}} className="w-full py-2 text-red-400 font-bold text-xs hover:text-red-500">Eliminar definitivamente</button>}
+                      <div className="flex gap-2">
+                          <button type="button" onClick={()=>setShowStaffForm(false)} className="flex-1 py-4 text-gray-500 font-bold uppercase text-xs">Cancelar</button>
+                          <button type="submit" className="flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-violet-700 transition">Guardar Legajo</button>
+                      </div>
+                      
+                      {editingStaff && <button type="button" onClick={async () => {if(confirm("¿Eliminar definitivamente?")) {await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); setShowStaffForm(false); setViewingStaff(null);}}} className="w-full py-2 text-red-400 font-bold text-xs hover:text-red-500 mt-4">Eliminar definitivamente</button>}
 
                   </form>
               </div>
@@ -4273,6 +4482,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
