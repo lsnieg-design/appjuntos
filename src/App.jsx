@@ -1672,7 +1672,7 @@ function UsersAdminView() {
         <input name="username" defaultValue={editingUser?.username} placeholder="Usuario" className="w-full p-3 bg-gray-50 rounded-xl text-sm border outline-none focus:border-violet-500" required/>
         <input name="password" defaultValue={editingUser?.password} placeholder="Contraseña" className="w-full p-3 bg-gray-50 rounded-xl text-sm border outline-none focus:border-violet-500" required/>
         <select name="role" defaultValue={editingUser?.role || 'Docente'} className="w-full p-3 bg-gray-50 rounded-xl text-sm border outline-none focus:border-violet-500 font-bold text-gray-600">
-            {['Docente', 'Equipo Directivo', 'Equipo Técnico', 'Auxiliar/Preceptor', 'Inclusión', 'Profes Especiales', 'Administración', 'Dirección Inclusión', 'Equipo Técnico Inclusión', 'DAI'].map(r => <option key={r} value={r}>{r}</option>)}
+            {['Docente', 'Equipo Directivo', 'Equipo Técnico', 'Auxiliar/Preceptor', 'Inclusión', 'Profes Especiales', 'Administración', 'Médico', 'Dirección Inclusión', 'Equipo Técnico Inclusión', 'DAI'].map(r => <option key={r} value={r}>{r}</option>)}
         </select>
         <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200"><input type="checkbox" name="isAdmin" defaultChecked={editingUser?.rol === 'admin'} className="w-5 h-5 accent-violet-600"/><div><span className="text-sm font-bold text-gray-700 block">Permisos de Administrador</span><span className="text-[10px] text-gray-400 block">Puede editar tareas y eventos globales</span></div></div>
         <div className="flex gap-2 pt-2"><button type="button" onClick={()=>setShowModal(false)} className="flex-1 py-3 text-gray-400 text-xs font-bold uppercase hover:bg-gray-100 rounded-xl">Cancelar</button><button type="submit" className="flex-1 py-3 bg-violet-600 text-white rounded-xl text-xs font-bold uppercase shadow-lg hover:bg-violet-700">Guardar</button></div>
@@ -2955,6 +2955,7 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'admin' && <AdministracionView user={user} />}
         {/* PEGAR ESTA LÍNEA NUEVA: */}
         {activeTab === 'personal' && <PersonalView user={user} />}
+        {activeTab === 'medical' && <MedicalView user={user} />}
     
       </main>
 
@@ -2971,7 +2972,7 @@ function MainApp({ user, onLogout }) {
           <div className="hidden md:block"><NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<LinkIcon size={20} />} label="Recursos" /></div>
           <div className="hidden md:block"><NavButton active={activeTab === 'proyecto'} onClick={() => setActiveTab('proyecto')} icon={<PieChart size={20} />} label="P.I." /></div>
 
-          {/* --- BOTONES ADMIN Y PERSONAL (VERSIÓN PC) --- */}
+          {/* --- BOTONES ADMIN, PERSONAL Y SALUD (VERSIÓN PC) --- */}
           {isAdminRole && (
               <div className="hidden md:flex gap-1">
                   <button onClick={() => setActiveTab('admin')} className={`flex flex-col items-center gap-1 transition h-full justify-center w-full px-1 ${activeTab === 'admin' ? 'text-blue-500 scale-110' : 'text-gray-400 hover:text-blue-400'}`}>
@@ -2982,17 +2983,22 @@ function MainApp({ user, onLogout }) {
                       <Users size={20} />
                       <span className="text-[9px] font-bold uppercase">Personal</span>
                   </button>
+                  {/* Botón Médico */}
+                  <button onClick={() => setActiveTab('medical')} className={`flex flex-col items-center gap-1 transition h-full justify-center w-full px-1 ${activeTab === 'medical' ? 'text-red-500 scale-110' : 'text-gray-400 hover:text-red-400'}`}>
+                      <Activity size={20} />
+                      <span className="text-[9px] font-bold uppercase">Salud</span>
+                  </button>
               </div>
           )}
 
-          <div className="relative block md:hidden"><NavButton active={['matricula', 'resources', 'proyecto', 'admin', 'personal'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={20} />} label="Más" />
+          <div className="relative block md:hidden"><NavButton active={['matricula', 'resources', 'proyecto', 'admin', 'personal', 'medical'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={20} />} label="Más" />
               {showMoreMenu && (
                   <div className="absolute bottom-16 right-0 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 w-48 animate-in slide-in-from-bottom-5 zoom-in-95 origin-bottom-right z-50">
                       <button onClick={() => { setActiveTab('matricula'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><GraduationCap size={18} className="text-violet-500"/> Legajos</button>
                       <button onClick={() => { setActiveTab('resources'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><LinkIcon size={18} className="text-green-500"/> Recursos</button>
                       <button onClick={() => { setActiveTab('proyecto'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><PieChart size={18} className="text-orange-500"/> Proyecto Inst.</button>
                       
-                      {/* --- BOTONES ADMIN Y PERSONAL (VERSIÓN MÓVIL) --- */}
+                      {/* --- BOTONES EXTRAS MÓVIL --- */}
                       {isAdminRole && (
                           <>
                               <button onClick={() => { setActiveTab('admin'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-blue-600 border-t border-gray-100 mt-1">
@@ -3001,20 +3007,14 @@ function MainApp({ user, onLogout }) {
                               <button onClick={() => { setActiveTab('personal'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-violet-700">
                                   <Users size={18} className="text-violet-500"/> Personal
                               </button>
+                              <button onClick={() => { setActiveTab('medical'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-red-50 flex items-center gap-3 text-sm font-bold text-red-600">
+                                  <Activity size={18} className="text-red-500"/> Consultorio Médico
+                              </button>
                           </>
                       )}
                   </div>
               )}
           </div>
-        </div>
-      </nav>
-
-      {showSearch && ( <div className="fixed inset-0 bg-violet-900/90 z-[300] flex flex-col p-4 backdrop-blur-md animate-in fade-in"><div className="flex justify-between items-center text-white mb-4"><h3 className="font-black italic uppercase">Buscador Rápido</h3><button onClick={() => {setShowSearch(false); setSearchQuery(''); setSearchResults([]);}} className="p-2 bg-white/20 rounded-full"><X/></button></div><input autoFocus value={searchQuery} onChange={(e) => handleGlobalSearch(e.target.value)} placeholder="Escribí un nombre o apellido..." className="w-full p-4 rounded-2xl bg-white text-lg font-bold text-gray-800 outline-none shadow-xl mb-4"/><div className="flex-1 overflow-y-auto space-y-2">{searchResults.map(s => (<div key={s.id} onClick={() => setGlobalViewingStudent(s)} className="bg-white p-3 rounded-xl flex items-center gap-3 active:scale-95 transition cursor-pointer"><div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center font-bold text-gray-400">{s.firstName[0]}</div>}</div><div><p className="font-bold text-gray-800 text-sm">{s.lastName}, {s.firstName}</p><p className="text-[10px] text-gray-500">{s.level} • {s.groupMorning || s.groupAfternoon || 'Sin Grupo'}</p></div></div>))}{searchQuery.length > 2 && searchResults.length === 0 && <p className="text-white/50 text-center mt-4">No se encontraron resultados.</p>}</div></div> )}
-      {globalViewingStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[350] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95"><div className="bg-violet-600 p-4 text-white flex justify-between items-center"><h3 className="font-bold text-lg">{globalViewingStudent.lastName}, {globalViewingStudent.firstName}</h3><button onClick={() => setGlobalViewingStudent(null)}><X/></button></div><div className="p-6"><div className="flex gap-4 items-center mb-4"><div className="w-20 h-20 bg-gray-200 rounded-2xl overflow-hidden">{globalViewingStudent.photoUrl && <img src={globalViewingStudent.photoUrl} className="w-full h-full object-cover"/>}</div><div><p className="text-sm font-bold text-gray-600">Edad: {calculateAge(globalViewingStudent.birthDate)} años</p><p className="text-sm font-bold text-gray-600">DNI: {globalViewingStudent.dni}</p><p className="text-xs text-orange-500 font-bold mt-1 uppercase">{globalViewingStudent.dx}</p></div></div><button onClick={() => { setActiveTab('matricula'); setShowSearch(false); setGlobalViewingStudent(null); alert("Te llevamos a la sección Legajos. Buscalo ahí para editar."); }} className="w-full bg-violet-100 text-violet-700 py-3 rounded-xl font-bold text-xs uppercase hover:bg-violet-200 transition">Ir a Legajo Completo</button></div></div></div>)}
-    </div>
-  );
-}
-
 // --- VISTA AULA (FINAL: IMPRESIÓN INDIVIDUAL ARREGLADA) ---
 function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
@@ -3693,6 +3693,240 @@ function PersonalView({ user }) {
     </div>
   );
 }
+// --- VISTA SALUD Y CONSULTORIO MÉDICO (EXCLUSIVA DIRECTIVOS Y MÉDICO) ---
+function MedicalView({ user }) {
+  const [students, setStudents] = useState([]);
+  const [filterText, setFilterText] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  
+  // Estados para nueva evolución
+  const [isWriting, setIsWriting] = useState(false);
+  const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newNote, setNewNote] = useState("");
+
+  const LOGO_URL = "/icon-192.png";
+
+  // Seguridad: Solo Equipo Directivo, Super Admin o Médico
+  const canAccessMedical = ['admin', 'super-admin', 'Equipo Directivo', 'Médico'].includes(user.role) || user.rol === 'admin';
+
+  useEffect(() => {
+    if (!canAccessMedical) return;
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), orderBy('lastName', 'asc'));
+    const unsub = onSnapshot(q, (snap) => setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    return () => unsub();
+  }, [canAccessMedical]);
+
+  if (!canAccessMedical) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido al Departamento Médico.</div>;
+
+  const filteredStudents = students.filter(s => {
+      if (s.isActive === false) return false;
+      const searchTxt = filterText.toLowerCase();
+      return !searchTxt || `${s.lastName} ${s.firstName} ${s.dni}`.toLowerCase().includes(searchTxt);
+  });
+
+  const calculateAge = (d) => { 
+      if (!d) return '-'; 
+      const t = new Date(); const b = new Date(d); 
+      let a = t.getFullYear() - b.getFullYear(); 
+      if (t.getMonth() - b.getMonth() < 0 || (t.getMonth() === b.getMonth() && t.getDate() < b.getDate())) a--; 
+      return a; 
+  };
+
+  const getSafeDate = (d) => { if(!d) return '-'; try { return new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('es-AR'); } catch(e) { return d; } };
+
+  const handleSaveEvolution = async () => {
+      if (!newNote.trim()) return;
+      const evolution = {
+          id: Date.now().toString(),
+          date: newDate,
+          text: newNote,
+          doctor: user.fullName || user.firstName,
+          createdAt: new Date().toISOString()
+      };
+      
+      try {
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', selectedStudent.id), {
+              medicalHistory: arrayUnion(evolution)
+          });
+          // Actualizamos la vista local
+          setSelectedStudent(prev => ({ ...prev, medicalHistory: [...(prev.medicalHistory || []), evolution] }));
+          setNewNote("");
+          setIsWriting(false);
+      } catch (e) { alert("Error al guardar: " + e.message); }
+  };
+
+  const handleDeleteEvolution = async (evo) => {
+      if (!confirm("⚠️ ¿Eliminar esta evolución médica?")) return;
+      try {
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', selectedStudent.id), {
+              medicalHistory: arrayRemove(evo)
+          });
+          setSelectedStudent(prev => ({ ...prev, medicalHistory: prev.medicalHistory.filter(e => e.id !== evo.id) }));
+      } catch (e) { alert("Error al eliminar: " + e.message); }
+  };
+
+  const printMedicalHistory = () => {
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
+      document.body.appendChild(iframe);
+      
+      const history = selectedStudent.medicalHistory || [];
+      const sortedHistory = [...history].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      let html = `<html><head><title>Historia Clínica - ${selectedStudent.lastName}</title>
+      <style>
+          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
+          body { font-family: 'Roboto', sans-serif; padding: 30px; color: #111; line-height: 1.5; }
+          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 4px solid #ef4444; padding-bottom: 20px; margin-bottom: 30px; }
+          .title { font-size: 24px; font-weight: 900; color: #b91c1c; text-transform: uppercase; margin: 0; }
+          .patient-info { background: #fef2f2; border: 1px solid #fecaca; padding: 20px; border-radius: 15px; margin-bottom: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+          .info-item { font-size: 14px; }
+          .info-label { font-weight: bold; color: #991b1b; text-transform: uppercase; font-size: 11px; display: block; }
+          .evo-card { border-bottom: 1px solid #e5e7eb; padding: 15px 0; page-break-inside: avoid; }
+          .evo-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px; color: #6b7280; font-weight: bold; }
+          .evo-text { font-size: 14px; white-space: pre-wrap; color: #374151; }
+          @media print { body { padding: 0; } }
+      </style></head><body>
+      <div class="header">
+          <div><h1 class="title">Historia Clínica Escolar</h1><p style="margin:5px 0 0 0; color:#666; font-size:12px; font-weight:bold;">Juntos a la Par - Departamento Médico</p></div>
+          <img src="${LOGO_URL}" style="height: 60px;" />
+      </div>
+      <div class="patient-info">
+          <div class="info-item"><span class="info-label">Paciente</span><b>${selectedStudent.lastName.toUpperCase()}, ${selectedStudent.firstName}</b></div>
+          <div class="info-item"><span class="info-label">DNI</span>${selectedStudent.dni || '-'}</div>
+          <div class="info-item"><span class="info-label">Fecha de Nacimiento</span>${getSafeDate(selectedStudent.birthDate)} (${calculateAge(selectedStudent.birthDate)} años)</div>
+          <div class="info-item"><span class="info-label">Obra Social</span>${selectedStudent.healthInsurance || 'No declara'}</div>
+          <div class="info-item"><span class="info-label">Diagnóstico Base</span>${selectedStudent.dx || '-'}</div>
+          <div class="info-item"><span class="info-label">Vencimiento CUD</span>${getSafeDate(selectedStudent.cudExpiration) || '-'}</div>
+      </div>
+      <h3 style="color:#b91c1c; border-bottom: 2px solid #fee2e2; padding-bottom:5px; margin-bottom:20px;">EVOLUCIONES MÉDICAS</h3>`;
+      
+      if (sortedHistory.length === 0) {
+          html += `<p style="color:#6b7280; font-style:italic;">No hay registros médicos cargados.</p>`;
+      } else {
+          sortedHistory.forEach(evo => {
+              html += `<div class="evo-card">
+                  <div class="evo-header">
+                      <span>📅 ${getSafeDate(evo.date)}</span>
+                      <span>👨‍⚕️ Prof: ${evo.doctor}</span>
+                  </div>
+                  <div class="evo-text">${evo.text}</div>
+              </div>`;
+          });
+      }
+      
+      html += `</body></html>`;
+      const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close();
+      setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 1000);
+  };
+
+  return (
+    <div className="animate-in fade-in pb-20 px-2 pt-4">
+        {/* Cabecera */}
+        <div className="bg-gradient-to-r from-red-600 to-rose-500 rounded-[30px] shadow-lg relative overflow-hidden p-6 mb-6 text-white flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="flex items-center gap-4">
+                <div className="bg-white/20 p-4 rounded-2xl backdrop-blur-sm"><Activity size={32} /></div>
+                <div>
+                    <h2 className="text-2xl font-black uppercase italic tracking-tighter">Consultorio Médico</h2>
+                    <p className="text-sm font-bold text-red-100">Gestión de Historias Clínicas</p>
+                </div>
+            </div>
+            <div className="bg-white/20 p-2 rounded-xl flex items-center w-full md:w-64 border border-white/30 backdrop-blur-sm">
+                <Search className="ml-2 opacity-80" size={18}/>
+                <input value={filterText} onChange={e=>setFilterText(e.target.value)} placeholder="Buscar paciente..." className="bg-transparent border-none outline-none text-white w-full font-bold placeholder-white/70 ml-2 text-sm"/>
+            </div>
+        </div>
+
+        {/* Lista de Pacientes */}
+        <div className="bg-white shadow-sm border border-gray-200 overflow-hidden rounded-[30px]">
+            <div className="divide-y divide-gray-100 max-h-[65vh] overflow-y-auto p-2">
+                {filteredStudents.map(s => (
+                    <div key={s.id} onClick={() => {setSelectedStudent(s); setIsWriting(false);}} className="p-4 cursor-pointer hover:bg-red-50 transition-colors rounded-2xl flex justify-between items-center group">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 font-black flex items-center justify-center overflow-hidden border-2 border-red-200">
+                                {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName[0]}
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-slate-800 text-sm uppercase">{s.lastName}, {s.firstName}</h3>
+                                <p className="text-[10px] font-bold text-gray-400 mt-0.5">DNI: {s.dni || '-'} | OS: <span className="text-red-500">{s.healthInsurance || 'NO DECLARA'}</span></p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3 text-red-400 opacity-50 group-hover:opacity-100 transition-opacity">
+                            <span className="text-[10px] font-bold uppercase hidden md:inline">Ver Historia</span>
+                            <ChevronRight size={20}/>
+                        </div>
+                    </div>
+                ))}
+                {filteredStudents.length === 0 && <p className="text-center text-gray-400 font-bold py-10">No se encontraron pacientes.</p>}
+            </div>
+        </div>
+
+        {/* MODAL HISTORIA CLÍNICA */}
+        {selectedStudent && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-2 md:p-4" onClick={() => setSelectedStudent(null)}>
+                <div className="bg-white rounded-[35px] w-full max-w-4xl h-[95vh] md:h-[85vh] shadow-2xl flex flex-col border-t-8 border-red-500 overflow-hidden animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+                    
+                    {/* Header Paciente */}
+                    <div className="bg-red-50 p-6 flex justify-between items-start border-b border-red-100 shrink-0">
+                        <div className="flex gap-4 items-center">
+                            <div className="w-16 h-16 rounded-2xl bg-white border-2 border-red-200 overflow-hidden shadow-sm">
+                                {selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="m-auto mt-3 text-red-300"/>}
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-black text-red-900 uppercase leading-none mb-1">{selectedStudent.lastName}, {selectedStudent.firstName}</h2>
+                                <p className="text-xs font-bold text-red-600">DNI: {selectedStudent.dni} • Edad: {calculateAge(selectedStudent.birthDate)} años</p>
+                                <div className="flex gap-2 mt-2">
+                                    <span className="bg-white border border-red-200 text-red-700 text-[9px] px-2 py-0.5 rounded-md font-bold uppercase">OS: {selectedStudent.healthInsurance || 'S/D'}</span>
+                                    <span className="bg-white border border-red-200 text-red-700 text-[9px] px-2 py-0.5 rounded-md font-bold uppercase">DX: {selectedStudent.dx || 'S/D'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={printMedicalHistory} className="p-2 bg-white text-red-600 rounded-full shadow-sm border border-red-100 hover:bg-red-600 hover:text-white transition" title="Imprimir Historia"><Printer size={20}/></button>
+                            <button onClick={() => setSelectedStudent(null)} className="p-2 bg-white text-gray-400 rounded-full shadow-sm border border-gray-100 hover:bg-gray-100 transition"><X size={20}/></button>
+                        </div>
+                    </div>
+
+                    {/* Evoluciones */}
+                    <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50 space-y-4 relative">
+                        {isWriting ? (
+                            <div className="bg-white p-5 rounded-2xl border-2 border-red-200 shadow-lg animate-in slide-in-from-top-4 mb-6">
+                                <h4 className="font-bold text-red-800 mb-3 text-sm flex items-center gap-2"><Activity size={16}/> Nueva Evolución</h4>
+                                <input type="date" value={newDate} onChange={e=>setNewDate(e.target.value)} className="w-full md:w-auto p-2 bg-red-50 border border-red-100 rounded-lg text-xs font-bold text-red-900 outline-none mb-3"/>
+                                <textarea value={newNote} onChange={e=>setNewNote(e.target.value)} placeholder="Descripción de la atención, síntomas, indicaciones..." className="w-full h-32 p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-red-400 text-sm resize-none mb-3"/>
+                                <div className="flex justify-end gap-2">
+                                    <button onClick={() => setIsWriting(false)} className="px-4 py-2 text-gray-500 font-bold text-xs uppercase hover:bg-gray-100 rounded-xl">Cancelar</button>
+                                    <button onClick={handleSaveEvolution} disabled={!newNote.trim()} className="px-6 py-2 bg-red-600 text-white font-bold text-xs uppercase rounded-xl shadow-md hover:bg-red-700 disabled:opacity-50">Guardar Registro</button>
+                                </div>
+                            </div>
+                        ) : (
+                            <button onClick={() => setIsWriting(true)} className="w-full py-4 border-2 border-dashed border-red-300 text-red-600 rounded-2xl font-bold uppercase text-xs hover:bg-red-50 transition flex justify-center items-center gap-2"><Plus size={18}/> Agregar Evolución Médica</button>
+                        )}
+
+                        <div className="space-y-4 mt-6">
+                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b pb-2">Historial Clínico</h4>
+                            {(!selectedStudent.medicalHistory || selectedStudent.medicalHistory.length === 0) ? (
+                                <p className="text-center text-gray-400 text-xs italic py-10">El paciente no tiene registros médicos en el sistema.</p>
+                            ) : (
+                                [...selectedStudent.medicalHistory].sort((a,b) => new Date(b.date) - new Date(a.date)).map(evo => (
+                                    <div key={evo.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm relative group">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="bg-red-100 text-red-800 text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">{getSafeDate(evo.date)}</span>
+                                            <button onClick={() => handleDeleteEvolution(evo)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><Trash2 size={14}/></button>
+                                        </div>
+                                        <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{evo.text}</p>
+                                        <p className="text-[9px] text-gray-400 font-bold uppercase mt-3 pt-2 border-t border-gray-50">Atendido por: {evo.doctor}</p>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
+    </div>
+  );
+}
 // --- VISTA ADMINISTRACIÓN (FINAL: SOLO DOCUMENTOS Y ALUMNOS) ---
 function AdministracionView({ user }) {
   const [students, setStudents] = useState([]);
@@ -4029,6 +4263,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
