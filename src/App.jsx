@@ -2948,8 +2948,14 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={isSuperAdmin} user={user} />}
         
         {/* --- NUEVO: VISTA ADMIN (SOLO RENDERIZA SI EL TAB ES 'ADMIN') --- */}
-        {activeTab === 'admin' && <AdministracionView user={user} />}
+        {activeTab === 'admin' && <ew user={user} />}
         {/* ----------------------------------------------------------------- */}
+        {activeTab === 'users' && isSuperAdmin && <UsersAdminView />}
+        {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={isSuperAdmin} user={user} />}
+        {activeTab === 'admin' && <AdministracionView user={user} />}
+        {/* PEGAR ESTA LÍNEA NUEVA: */}
+        {activeTab === 'personal' && <PersonalView user={user} />}
+    
       </main>
 
       <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-16 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] pb-safe shrink-0">
@@ -2965,31 +2971,38 @@ function MainApp({ user, onLogout }) {
           <div className="hidden md:block"><NavButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} icon={<LinkIcon size={20} />} label="Recursos" /></div>
           <div className="hidden md:block"><NavButton active={activeTab === 'proyecto'} onClick={() => setActiveTab('proyecto')} icon={<PieChart size={20} />} label="P.I." /></div>
 
-          {/* --- NUEVO: BOTÓN ADMIN (VERSIÓN PC) --- */}
+          {/* --- BOTONES ADMIN Y PERSONAL (VERSIÓN PC) --- */}
           {isAdminRole && (
-              <div className="hidden md:block">
-                  <button onClick={() => setActiveTab('admin')} className={`flex flex-col items-center gap-1 transition h-full justify-center w-full ${activeTab === 'admin' ? 'text-blue-500 scale-110' : 'text-gray-400'}`}>
+              <div className="hidden md:flex gap-1">
+                  <button onClick={() => setActiveTab('admin')} className={`flex flex-col items-center gap-1 transition h-full justify-center w-full px-1 ${activeTab === 'admin' ? 'text-blue-500 scale-110' : 'text-gray-400 hover:text-blue-400'}`}>
                       <FileText size={20} />
-                      <span className="text-[9px] font-bold uppercase">Admin</span>
+                      <span className="text-[9px] font-bold uppercase">Admin Docs</span>
+                  </button>
+                  <button onClick={() => setActiveTab('personal')} className={`flex flex-col items-center gap-1 transition h-full justify-center w-full px-1 ${activeTab === 'personal' ? 'text-violet-600 scale-110' : 'text-gray-400 hover:text-violet-500'}`}>
+                      <Users size={20} />
+                      <span className="text-[9px] font-bold uppercase">Personal</span>
                   </button>
               </div>
           )}
-          {/* ----------------------------------------- */}
 
-          <div className="relative block md:hidden"><NavButton active={['matricula', 'resources', 'proyecto', 'admin'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={20} />} label="Más" />
+          <div className="relative block md:hidden"><NavButton active={['matricula', 'resources', 'proyecto', 'admin', 'personal'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={20} />} label="Más" />
               {showMoreMenu && (
                   <div className="absolute bottom-16 right-0 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 w-48 animate-in slide-in-from-bottom-5 zoom-in-95 origin-bottom-right z-50">
                       <button onClick={() => { setActiveTab('matricula'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><GraduationCap size={18} className="text-violet-500"/> Legajos</button>
                       <button onClick={() => { setActiveTab('resources'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><LinkIcon size={18} className="text-green-500"/> Recursos</button>
                       <button onClick={() => { setActiveTab('proyecto'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600"><PieChart size={18} className="text-orange-500"/> Proyecto Inst.</button>
                       
-                      {/* --- NUEVO: BOTÓN ADMIN (VERSIÓN MÓVIL) --- */}
+                      {/* --- BOTONES ADMIN Y PERSONAL (VERSIÓN MÓVIL) --- */}
                       {isAdminRole && (
-                          <button onClick={() => { setActiveTab('admin'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-blue-600 border-t border-gray-100 mt-1">
-                              <FileText size={18} className="text-blue-500"/> Administración
-                          </button>
+                          <>
+                              <button onClick={() => { setActiveTab('admin'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-blue-600 border-t border-gray-100 mt-1">
+                                  <FileText size={18} className="text-blue-500"/> Admin Docs
+                              </button>
+                              <button onClick={() => { setActiveTab('personal'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-violet-700">
+                                  <Users size={18} className="text-violet-500"/> Personal
+                              </button>
+                          </>
                       )}
-                      {/* ----------------------------------------- */}
                   </div>
               )}
           </div>
@@ -3401,19 +3414,8 @@ const handleUpdateGroup = async (e) => {
     </div>
   );
 }
-// --- VISTA ADMINISTRACIÓN (FINAL: PASE ARREGLADO + FIRMAS SOLO EN CONSTANCIA) ---
-function AdministracionView({ user }) {
-  const [students, setStudents] = useState([]);
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [filterText, setFilterText] = useState('');
-  const [filters, setFilters] = useState({ os: 'all', level: 'all', modality: 'all' });
-  
-  /// ESTADOS DOCUMENTOS
-  const [template, setTemplate] = useState('constancia_regular'); 
-  const [generating, setGenerating] = useState(false);
-
-  // ESTADOS STAFF
-  const [mainTab, setMainTab] = useState('docs'); // 'docs' o 'staff'
+// --- NUEVA VISTA: PERSONAL (EXCLUSIVO DIRECTIVOS/ADMIN) ---
+function PersonalView({ user }) {
   const [staffList, setStaffList] = useState([]);
   const [staffFilterText, setStaffFilterText] = useState('');
   const [staffModalityFilter, setStaffModalityFilter] = useState('all');
@@ -3422,63 +3424,19 @@ function AdministracionView({ user }) {
   const [processing, setProcessing] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
-  
-  // ESTADOS VARIABLES
-  const [customTarget, setCustomTarget] = useState(""); 
-  const [customDate, setCustomDate] = useState(new Date().toISOString().split('T')[0]);
-  const [paseAction, setPaseAction] = useState('CONCEDE'); // 'SOLICITA' o 'CONCEDE'
-  
-  const LOGO_URL = "/icon-192.png";
-  const FIRMA_URL = "/firma.png"; 
-  const SELLO_URL = "/sello.png";
-  // --- PARCHE DE SEGURIDAD ---
-const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.role || user.rol);
 
   const canAccess = ['admin', 'super-admin', 'Administración', 'Equipo Directivo'].includes(user.role) || user.rol === 'admin';
 
   useEffect(() => {
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), orderBy('lastName', 'asc'));
-    const unsubStudents = onSnapshot(q, (snap) => { setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
-
     const qStaff = query(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), orderBy('lastName', 'asc'));
     const unsubStaff = onSnapshot(qStaff, (snap) => { setStaffList(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
-
-    return () => { unsubStudents(); unsubStaff(); };
+    return () => unsubStaff();
   }, []);
 
- const filteredStudents = students.filter(s => {
-      // 1. Solo mostramos alumnos activos (puedes comentar esta línea para ver a TODOS)
-      if (s.isActive === false) return false;
-      
-      const txt = filterText.toLowerCase();
-      
-      // 2. BUSCADOR UNIVERSAL (Nombre, Apellido, DNI, OS y Nivel)
-      const matchesText = !txt || 
-          `${s.lastName} ${s.firstName} ${s.dni} ${s.healthInsurance || ''} ${s.level || ''}`.toLowerCase().includes(txt);
-      
-      if (!matchesText) return false;
-
-      // 3. FILTRO DE OBRA SOCIAL (Recuperado y robusto)
-      if (filters.os !== 'all') {
-          const sOS = (s.healthInsurance || '').toLowerCase();
-          if (filters.os === 'con_os' && sOS.length < 2) return false;
-          if (filters.os === 'sin_os' && sOS.length >= 2) return false;
-          if (filters.os !== 'con_os' && filters.os !== 'sin_os' && !sOS.includes(filters.os.toLowerCase())) return false;
-      }
-      
-      // 4. FILTRO DE NIVEL
-      if (filters.level !== 'all' && s.level !== filters.level) return false;
-      
-      return true;
-  });
-// LÓGICA DE FILTRADO STAFF
   const filteredStaff = staffList.filter(s => {
-      // 1. Buscador (Nombre, Apellido, DNI)
       const txt = staffFilterText.toLowerCase();
       const matchesText = !txt || `${s.lastName} ${s.firstName} ${s.dni}`.toLowerCase().includes(txt);
       if (!matchesText) return false;
-
-      // 2. Filtro Modalidad
       if (staffModalityFilter !== 'all') {
           const mod = s.modality || 'Sede';
           if (mod !== staffModalityFilter) return false;
@@ -3486,7 +3444,6 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
       return true;
   });
 
-  // Manejador de foto
   const handlePhotoChange = (e) => {
       const f = e.target.files[0]; if(!f) return;
       setUploading(true);
@@ -3504,220 +3461,69 @@ const isSuperAdmin = ['admin', 'super-admin', 'Equipo Directivo'].includes(user.
       };
       reader.readAsDataURL(f);
   };
-  const toggleSelectAll = () => { if (selectedIds.length === filteredStudents.length) setSelectedIds([]); else setSelectedIds(filteredStudents.map(s => s.id)); };
-  const toggleSelect = (id) => { if (selectedIds.includes(id)) setSelectedIds(selectedIds.filter(x => x !== id)); else setSelectedIds([...selectedIds, id]); };
 
-  // --- GENERADOR DE DOCUMENTOS ---
-  const generateDocument = () => {
-      if (selectedIds.length === 0) return alert("Selecciona al menos un estudiante.");
-      setGenerating(true);
+  const calcularAntiguedad = (fechaIngreso) => {
+    if (!fechaIngreso) return '-';
+    const inicio = new Date(fechaIngreso);
+    const hoy = new Date();
+    if (isNaN(inicio.getTime())) return '-';
+    let anios = hoy.getFullYear() - inicio.getFullYear();
+    let meses = hoy.getMonth() - inicio.getMonth();
+    if (meses < 0 || (meses === 0 && hoy.getDate() < inicio.getDate())) { anios--; meses += 12; }
+    if (anios === 0 && meses === 0) return 'Ingreso reciente';
+    if (anios === 0) return `${meses} meses`;
+    if (meses === 0) return `${anios} años`;
+    return `${anios} años y ${meses} meses`;
+  };
+
+  const imprimirFichasDocentes = (lista) => {
+      if (!lista || lista.length === 0) return alert("No hay docentes para imprimir.");
+      let html = `<html><head><title>Fichas Docentes</title>
+      <style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');body{font-family:'Roboto',sans-serif;padding:20px;}.page{border:1px solid #eee;padding:30px;margin-bottom:20px;border-radius:8px;page-break-after:always;max-width:800px;margin:0 auto 20px auto;border-top:10px solid #8b5cf6;}.header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #ddd;padding-bottom:20px;margin-bottom:20px;}.header-text h1{color:#5b21b6;font-size:24px;margin:0;text-transform:uppercase;}.header-text p{color:#666;font-size:14px;margin:5px 0 0 0;}.photo-box{width:80px;height:80px;background:#eee;border-radius:50%;overflow:hidden;border:3px solid #8b5cf6;display:flex;align-items:center;justify-content:center;font-size:30px;color:#aaa;}.photo-box img{width:100%;height:100%;object-fit:cover;}.section-title{background:#f3f4f6;color:#5b21b6;padding:8px 15px;font-weight:900;text-transform:uppercase;font-size:12px;border-radius:6px;margin-bottom:10px;border-left:5px solid #8b5cf6;}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px;}.field{margin-bottom:5px;}.label{display:block;font-size:9px;color:#888;text-transform:uppercase;font-weight:bold;}.value{font-size:12px;font-weight:bold;color:#333;}.footer{text-align:center;font-size:9px;color:#aaa;margin-top:30px;border-top:1px solid #eee;padding-top:10px;}</style></head><body>`;
       
-      const targets = students.filter(s => selectedIds.includes(s.id));
-      const dateObj = new Date(customDate + 'T12:00:00'); 
-      const day = dateObj.getDate();
-      const month = dateObj.toLocaleString('es-AR', { month: 'long' });
-      const year = dateObj.getFullYear();
-      const fullDate = `Villa Udaondo, ${day} de ${month} de ${year}`;
-      
-      let htmlContent = `<html><head><title>Documentos</title><style>
-          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
-          body { font-family: 'Times New Roman', Times, serif; margin: 0; padding: 0; color: #000; }
-          .page-break { page-break-after: always; }
+      lista.forEach(s => {
+          let c1 = s.cargo1_name ? `Cargo N°${s.cargo1_numero || '-'} | ${s.cargo1_name} (${s.cargo1_type}) - ${s.cargo1_turn} - ${s.cargo1_revista}` : '-';
+          let c2 = s.cargo2_name ? `Cargo N°${s.cargo2_numero || '-'} | ${s.cargo2_name} (${s.cargo2_type}) - ${s.cargo2_turn} - ${s.cargo2_revista}` : '-';
+          let antiguedad = calcularAntiguedad(s.fechaIngreso);
 
-          /* --- ESTILOS GENERALES --- */
-          /* --- FIX SUPERPOSICIÓN --- */
-.cert-wrapper {
-    width: 100%;
-    display: block;
-    clear: both;
-    margin-bottom: 20px;
-    page-break-after: always; /* Fuerza una página nueva por alumno al imprimir */
-}
-
-.cert-container { 
-    border: 2px solid #65a30d; 
-    border-radius: 25px; 
-    padding: 25px 40px; 
-    margin: 0 auto; /* Centrado horizontal */
-    position: relative; 
-    height: 165mm; 
-    box-sizing: border-box; 
-    width: 190mm; /* Ancho fijo para evitar desbordes */
-    display: flex; 
-    flex-direction: column; 
-}
-
-          .cert-container { 
-    border: 2px solid #65a30d; 
-    border-radius: 25px; 
-    padding: 25px 40px; 
-    margin: 10px auto; 
-    position: relative; 
-    height: 165mm; /* Aumentado de 140mm para que entre todo */
-    box-sizing: border-box; 
-    width: 100%; 
-    max-width: 210mm; 
-    display: flex; 
-    flex-direction: column; 
-    page-break-inside: avoid; 
-}
-.cert-header { display: flex; align-items: center; margin-bottom: 15px; }
-          .cert-logo { width: 100px; height: auto; margin-right: 20px; }
-          .cert-title { font-size: 16px; font-weight: bold; text-decoration: underline; text-transform: uppercase; padding-top: 15px; }
-          .cert-subtitle { font-size: 12px; font-weight: bold; margin-top: 5px; }
-          .cert-body { font-size: 13px; line-height: 1.6; flex-grow: 1; }
-          .line-group { margin-bottom: 12px; }
-          .data-field { text-align: center; font-weight: bold; font-size: 14px; border-bottom: 1px dotted #000; display: block; margin: 2px 0; padding-bottom: 2px; }
-          .inline-field { font-weight: bold; border-bottom: 1px dotted #000; padding: 0 10px; }
-          .date-section { margin: 15px 0; text-align: center; font-weight: bold; }
-        .signatures-section { 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: flex-end; 
-    padding: 0 20px; 
-    height: 140px; /* Espacio extra para que no se encimen */
-    margin-top: 20px;
-}
-        .sig-box { text-align: center; width: 250px; position: relative; }
-
-.sig-img { 
-    height: 110px; /* Tamaño grande solicitado */
-    width: auto; 
-    display: block; 
-    margin: 0 auto -20px auto; /* Ajuste de margen para que pise un poco la línea */
-    position: relative; 
-    z-index: 10; 
-}
-          .sig-line { 
-              border-top: 1.5px solid #000; 
-              margin-top: 0; 
-              padding-top: 6px; 
-              font-size: 12px; /* Un poco más legible */
-              font-weight: bold;
-          }
-
-          /* --- ESTILOS PLANILLA --- */
-          .planilla-page { width: 100%; max-width: 210mm; padding: 15px 30px; box-sizing: border-box; margin: 0 auto; height: 297mm; position: relative; }
-          .planilla-header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 10px; }
-          .planilla-title { font-size: 18px; font-weight: bold; text-transform: uppercase; margin: 0; padding-top: 10px; }
-          .planilla-grid { display: grid; grid-template-columns: 180px 1fr; gap: 5px; margin-bottom: 20px; font-size: 12px; }
-          .p-label { font-weight: bold; text-transform: uppercase; padding: 4px 0; }
-          .p-value { border-bottom: 1px dotted #000; padding: 4px 5px; font-weight: bold; text-transform: uppercase; }
-          .asistencia-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
-          .asistencia-table th, .asistencia-table td { border: 1px solid #000; padding: 4px; text-align: center; height: 25px; }
-          .asistencia-table th { background-color: #f0f0f0; font-weight: bold; }
-          .mes-box { text-align: right; font-size: 14px; font-weight: bold; margin: 15px 0; text-transform: uppercase; padding-right: 10px; }
-          .firmas-planilla { display: flex; justify-content: space-between; margin-top: 40px; padding: 0 20px; }
-          .firma-col { text-align: center; width: 40%; }
-          .linea-firma { border-top: 1px solid #000; margin-top: 10px; padding-top: 5px; font-size: 11px; font-weight: bold; }
-
-          @media print { 
-              body { margin: 0; padding: 0; } 
-              .cert-container { margin: 5mm auto; page-break-after: always; }
-              .planilla-page { page-break-after: always; }
-          }
-      </style></head><body>`;
-
-targets.forEach(s => {
-          // --- REDACCIÓN DINÁMICA ---
-          const nivelRaw = (s.level || '').toUpperCase();
-          const modRaw = (s.modality || 'Sede');
-          let nivelDetallado = nivelRaw;
-          
-          if (nivelRaw.includes('INICIAL')) nivelDetallado = "escolaridad especial inicial";
-          else if (nivelRaw.includes('CFI')) nivelDetallado = "escolaridad especial de formación laboral";
-          else if (nivelRaw.includes('1°') || nivelRaw.includes('2°') || nivelRaw.includes('PRIMARIA') || nivelRaw.includes('CICLO')) {
-              nivelDetallado = `escolaridad especial primaria, ${s.level || 'ciclo a definir'}`;
-          }
-
-          let jornadaInfo = "";
-          if (s.journey && s.journey !== "A DEFINIR" && s.journey.trim() !== "") {
-              jornadaInfo = ` con jornada ${s.journey.toLowerCase()}`;
-          }
-
-          let fraseAlumno = modRaw === 'Inclusión' 
-              ? `Es alumno/a regular de modulo de apoyo a la integración escolar (con equipo)`
-              : `Es alumno/a regular de ${nivelDetallado}${jornadaInfo}`;
-
-          let presentadoAnte = customTarget.trim() !== "" ? customTarget : (s.healthInsurance && s.healthInsurance.trim().length > 2 ? s.healthInsurance : '................................................');
-
-          // --- INICIO DEL CONTENEDOR (FIX SUPERPOSICIÓN) ---
-          htmlContent += `<div style="width: 100%; clear: both; display: block; page-break-after: always; padding: 10px 0;">`;
-
-          if (template === 'constancia_regular') {
-              if (!customTarget && s.healthInsurance && s.healthInsurance.length > 2) presentadoAnte = s.healthInsurance;
-              else if (!customTarget) presentadoAnte = 'quien corresponda';
-
-              htmlContent += `
-              <div style="height: 175mm; display: flex; flex-direction: column; border: 2px solid #65a30d; border-radius: 25px; padding: 25px 40px; margin: 0 auto; box-sizing: border-box; width: 190mm; overflow: hidden;">
-                  <div style="display: flex; align-items: center; margin-bottom: 15px;">
-                      <img src="${LOGO_URL}" style="width: 100px; height: auto; margin-right: 20px;"/>
-                      <div style="font-size: 16px; font-weight: bold; text-decoration: underline; text-transform: uppercase;">CONSTANCIA DE ALUMNO REGULAR</div>
-                  </div>
-                  <div style="font-size: 13px; line-height: 1.6; flex-grow: 1;">
-                      Escuela Especial Juntos a la Par hace constar que
-                      <div style="margin-top:15px; margin-bottom: 12px;">
-                          <span style="text-align: center; font-weight: bold; font-size: 14px; border-bottom: 1px dotted #000; display: block;">${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</span>
-                      </div>
-                      <div style="margin-top:20px; margin-bottom: 12px;">
-                          con DNI N.° <span style="font-weight: bold; border-bottom: 1px dotted #000; padding: 0 10px;">${s.dni}</span>.
-                          <div style="margin-top:20px; font-size:15px; line-height: 1.5;">${fraseAlumno}.</div>
-                      </div>
-                      <div style="margin-top:10px;">en esta institución, con &nbsp;&nbsp; CUE 0623214-00.</div>
-                      <div style="margin-top:30px;">
-                          A pedido del interesado y al efecto de ser presentado ante... 
-                          <span style="text-align: center; font-weight: bold; font-size: 14px; border-bottom: 1px dotted #000; display: block; margin-top:5px;">${presentadoAnte.toUpperCase()}</span>
-                      </div>
-                      <div style="margin-top:40px; text-align: center; font-weight: bold;">
-                          ${fullDate}
-                          <div style="border-bottom: 1px dotted #000; width: 60%; margin: 0 auto;"></div>
-                          <div style="font-weight: normal; font-size: 11px;">Lugar y fecha</div>
-                      </div>
-                  </div>
-                  <div style="margin-top: auto; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-end; height: 130px;">
-                      <div style="text-align: center; width: 220px;">
-                          <img src="${FIRMA_URL}" style="height: 95px; width: auto; display: block; margin: 0 auto -10px auto;"/>
-                          <div style="border-top: 1px solid #000; padding-top: 4px; font-size: 11px; font-weight: bold;">Firma director o vicedirector</div>
-                      </div>
-                      <div style="text-align: center; width: 220px;">
-                          <img src="${SELLO_URL}" style="height: 95px; width: auto; display: block; margin: 0 auto -10px auto;"/>
-                          <div style="border-top: 1px solid #000; padding-top: 4px; font-size: 11px; font-weight: bold;">Sello institución</div>
-                      </div>
-                  </div>
-              </div>`;
-          } else if (template === 'concesion_pase') {
-              // ... (código simplificado del pase para no abrumar, mantené tu lógica de pase acá)
-          } else if (template === 'planilla_asistencia') {
-              // ... (mantené tu lógica de planilla acá)
-          }
-
-          htmlContent += `</div>`; // FIN DEL WRAPPER
+          html += `<div class="page">
+              <div class="header">
+                  <div class="header-text"><h1>${s.lastName}, ${s.firstName}</h1><p>DNI: ${s.dni || '-'} | Rol: ${s.role || 'Docente'}</p></div>
+                  <div class="photo-box">${s.photoUrl ? `<img src="${s.photoUrl}"/>` : s.firstName?.[0] || 'U'}</div>
+              </div>
+              <div class="section-title">Datos Personales y Contacto</div>
+              <div class="grid">
+                  <div class="field"><span class="label">Fecha Nacimiento</span><span class="value">${s.birthDate ? new Date(s.birthDate + 'T00:00:00').toLocaleDateString('es-AR') : '-'}</span></div>
+                  <div class="field"><span class="label">Teléfono / Celular</span><span class="value">${s.phone || '-'}</span></div>
+                  <div class="field"><span class="label">Email</span><span class="value">${s.email || '-'}</span></div>
+                  <div class="field"><span class="label">Contacto de Emergencia</span><span class="value" style="color:#dc2626">${s.emergencyContact || '-'}</span></div>
+              </div>
+              <div class="field" style="margin-bottom:15px;"><span class="label">Dirección</span><span class="value">${s.address || '-'}</span></div>
+              <div class="section-title">Formación Académica</div>
+              <div class="grid">
+                  <div class="field"><span class="label">Estado de Estudios</span><span class="value">${s.studyStatus || '-'}</span></div>
+                  <div class="field"><span class="label">Título</span><span class="value">${s.degree || '-'}</span></div>
+              </div>
+              <div class="section-title">Datos de Contratación (${s.modality || 'Sede'})</div>
+              <div class="grid">
+                  <div class="field"><span class="label">Subvención</span><span class="value">${s.isSubsidized === 'true' || s.isSubsidized === true ? 'Sí, Subvencionada' : 'No Subvencionada'}</span></div>
+                  <div class="field"><span class="label">Fecha de Ingreso</span><span class="value">${s.fechaIngreso ? new Date(s.fechaIngreso + 'T00:00:00').toLocaleDateString('es-AR') : '-'}</span></div>
+                  <div class="field"><span class="label">Antigüedad Actual</span><span class="value">${antiguedad}</span></div>
+              </div>
+              <div class="field" style="margin-bottom:10px; margin-top:5px;"><span class="label">Cargo 1</span><span class="value">${c1}</span></div>
+              <div class="field"><span class="label">Cargo 2</span><span class="value">${c2}</span></div>
+              <div class="footer">Juntos a la Par - Legajo Docente generado el ${new Date().toLocaleDateString('es-AR')}</div>
+          </div>`;
       });
-    
-      htmlContent += '</body></html>';
+      html += '</body></html>';
 
-      const iframe = document.createElement('iframe');
-      iframe.style.position = 'fixed'; 
-      iframe.style.bottom = '0'; 
-      iframe.style.width = '0'; 
-      iframe.style.height = '0'; 
-      iframe.style.border = '0';
-      document.body.appendChild(iframe);
-      
-      const doc = iframe.contentWindow.document; 
-      doc.open(); 
-      doc.write(htmlContent); 
-      doc.close();
+      const iframe = document.createElement('iframe'); 
+      iframe.style.position = 'fixed'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0'; 
+      document.body.appendChild(iframe); 
+      const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close(); 
+      setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
+  };
 
-      setTimeout(() => { 
-        iframe.contentWindow.focus(); 
-        iframe.contentWindow.print(); 
-        setTimeout(() => { 
-          document.body.removeChild(iframe); 
-          setGenerating(false); // <--- ESTO ES LO QUE QUITA EL "PENSANDO"
-        }, 5000); 
-      }, 1000);
-  }; // ESTA LLAVE CIERRA LA FUNCIÓN DE IMPRESIÓN DE ALUMNOS
   const handleImportStaff = async (e) => {
       const file = e.target.files[0];
       if (!file || !confirm("⚠️ ¿Importar archivo CSV completo?")) return;
@@ -3728,19 +3534,11 @@ targets.forEach(s => {
               const rows = evt.target.result.split('\n').slice(1).filter(r => r.trim() !== '');
               const promises = rows.map(row => {
                   const cols = row.split(';');
-                  // 0:Apellido, 1:Nombre, 2:DNI, 3:FechaNac, 4:Direccion, 5:Celular, 6:TelEmergencia
-                  // 7:Email, 8:EstadoEstudios, 9:Titulo, 10:Rol, 11:Modalidad, 12:Subvencion
-                  // 13:C1_Cargo, 14:C1_Tipo, 15:C1_Turno, 16:C1_Revista
-                  // 17:C2_Cargo, 18:C2_Tipo, 19:C2_Turno, 20:C2_Revista
-                  
-                  // Formatear fecha de nac
                   let bDate = "";
-                  const rawDate = cols[3]?.trim();
-                  if (rawDate) {
-                      const parts = rawDate.split('/');
+                  if (cols[3]?.trim()) {
+                      const parts = cols[3].trim().split('/');
                       if (parts.length === 3) bDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
                   }
-
                   return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), {
                       lastName: cols[0]?.trim() || '', firstName: cols[1]?.trim() || '', dni: cols[2]?.trim() || '',
                       birthDate: bDate, address: cols[4]?.trim() || '', phone: cols[5]?.trim() || '',
@@ -3771,177 +3569,65 @@ targets.forEach(s => {
         setShowStaffForm(false); setEditingStaff(null); setPhotoPreview(null);
     } catch (err) { alert(err.message); }
   };
- return (
-    <div className="animate-in fade-in pb-20">
-      {/* SELECTOR DE PESTAÑAS */}
-      <div className="mb-6 flex gap-3 bg-white p-2 rounded-3xl shadow-sm border border-gray-100 mx-4">
-          <button onClick={() => setMainTab('docs')} className={`flex-1 py-3 rounded-2xl font-black uppercase text-[10px] transition ${mainTab === 'docs' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}>📄 Documentos</button>
-          <button onClick={() => setMainTab('staff')} className={`flex-1 py-3 rounded-2xl font-black uppercase text-[10px] transition ${mainTab === 'staff' ? 'bg-violet-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}>👩‍🏫 Legajos Docentes</button>
-      </div>
 
-      {mainTab === 'docs' ? (
-        <div className="animate-in slide-in-from-left">
-          {/* AQUÍ COMIENZA TU CÓDIGO ORIGINAL DE DOCUMENTOS */}
-          <div className="bg-white rounded-t-[30px] shadow-sm border-b border-gray-200 relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-600 to-violet-600"></div>
-              {/* REEMPLAZO EN EL HEADER DE DOCUMENTOS */}
-<div className="p-6 pt-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-    <div className="flex items-center gap-4">
-        <img src={LOGO_URL} className="w-16 h-auto object-contain" />
-        <div>
-            <h2 className="text-2xl font-black text-gray-800 uppercase italic">Administración</h2>
-            <p className="text-sm text-blue-600 font-bold uppercase">Centro de Documentación</p>
-        </div>
-    </div>
-    <div className="flex flex-wrap gap-2 w-full md:w-auto">
-        
-       <select 
-    value={filters.os} 
-    onChange={e => setFilters({...filters, os: e.target.value})} 
-    className="bg-gray-100 p-2 rounded-lg text-xs font-bold outline-none border-none text-blue-800"
->
-    <option value="all">🔍 TODAS LAS OBRAS SOCIALES</option>
-    <option value="con_os">✅ TIENEN COBERTURA</option>
-    <option value="sin_os">❌ SIN COBERTURA / NO DECLARA</option>
-    <optgroup label="Prepagas Comunes">
-        <option value="IOMA">IOMA</option>
-        <option value="OSDE">OSDE</option>
-        <option value="SWISS">SWISS MEDICAL</option>
-        <option value="GALENO">GALENO</option>
-        <option value="PAMI">PAMI</option>
-        <option value="UNION">U. PERSONAL</option>
-        <option value="SANCOR">SANCOR SALUD</option>
-    </optgroup>
-</select>
-        <select onChange={e=>setFilters({...filters, level: e.target.value})} className="bg-gray-100 p-2 rounded-lg text-xs font-bold outline-none border-none"><option value="all">Nivel: Todos</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option></select>
-        <div className="flex bg-gray-100 rounded-lg items-center px-2 border-none"><Search size={14} className="text-gray-400"/><input placeholder="Buscar..." onChange={e=>setFilterText(e.target.value)} className="bg-transparent p-2 text-xs font-bold outline-none w-full"/></div>
-    </div>
-</div>
-          </div>
+  if (!canAccess) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido.</div>;
 
-          <div className="bg-blue-50/80 p-4 backdrop-blur-sm border-b border-blue-100 flex flex-col md:flex-row justify-between items-center gap-4">
-              <button onClick={toggleSelectAll} className="text-xs font-black uppercase tracking-widest text-blue-700 bg-blue-100/50 px-3 py-1 rounded-full">{selectedIds.length === filteredStudents.length ? 'Deseleccionar' : 'Seleccionar'} Visibles ({selectedIds.length})</button>
-              <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto items-center">
-                  <input placeholder={template === 'concesion_pase' ? "Institución Destino..." : "Presentar ante..."} value={customTarget} onChange={e => setCustomTarget(e.target.value)} className="w-full md:w-48 p-2 rounded-xl text-xs font-bold border border-blue-200 outline-none text-blue-900"/>
-                  <input type="date" value={customDate} onChange={e => setCustomDate(e.target.value)} className="w-full md:w-auto p-2 rounded-xl text-xs font-bold border border-blue-200 outline-none text-blue-900"/>
-                  <select value={template} onChange={e=>setTemplate(e.target.value)} className="bg-white text-gray-700 pl-4 pr-8 py-2 rounded-xl text-xs font-bold w-full md:w-auto outline-none border border-blue-200 shadow-sm">
-                      <option value="constancia_regular">📄 Constancia Regular</option>
-                      <option value="planilla_asistencia">🗓️ Planilla Asistencia (Mar-Dic)</option>
-                      <option value="concesion_pase">✈️ Concesión de Pase</option>
-                  </select>
-                  {template === 'concesion_pase' && (
-                      <div className="flex bg-white rounded-lg border border-blue-200 overflow-hidden shadow-sm">
-                          <button onClick={() => setPaseAction('SOLICITA')} className={`px-3 py-2 text-[10px] font-bold transition ${paseAction === 'SOLICITA' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>SOLICITA</button>
-                          <button onClick={() => setPaseAction('CONCEDE')} className={`px-3 py-2 text-[10px] font-bold transition ${paseAction === 'CONCEDE' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>CONCEDE</button>
-                      </div>
-                  )}
-                  <button onClick={generateDocument} disabled={generating || selectedIds.length === 0} className={`bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-2 rounded-xl text-xs font-black uppercase shadow-md flex items-center gap-2 ${generating || selectedIds.length === 0 ? 'opacity-50' : 'hover:scale-105'}`}>{generating ? <RefreshCw className="animate-spin"/> : <><Printer size={16}/> Imprimir</>}</button>
-              </div>
-          </div>
-
-    <div className="bg-white shadow-sm border-x border-b border-gray-200 overflow-hidden rounded-b-[30px]">
-              <div className="divide-y divide-gray-100 max-h-[60vh] overflow-y-auto">
-                  {filteredStudents.map(s => (
-                      <div key={s.id} onClick={() => toggleSelect(s.id)} className={`p-4 cursor-pointer hover:bg-blue-50 transition-colors ${selectedIds.includes(s.id) ? 'bg-blue-50/80' : ''}`}>
-                          <div className="flex items-center gap-3">
-                              <div className="shrink-0 text-blue-600">
-    {selectedIds.includes(s.id) ? <CheckSquare size={20} /> : <div className="w-5 h-5 border-2 border-gray-300 rounded text-transparent"></div>}
-</div>
-                              <div className="flex-1 min-w-0">
-                                  <div className="flex justify-between items-start">
-                                      <p className="font-black text-slate-800 uppercase text-sm truncate">{s.lastName}, {s.firstName}</p>
-                                      
-                                      {/* PARCHE: ETIQUETA GRUPO/DAI AGREGADA JUNTO AL NIVEL */}
-                                      <div className="flex items-center gap-2">
-                                          <span className={`text-[9px] px-2 py-0.5 rounded-lg font-bold uppercase truncate max-w-[120px] ${
-                                              (s.modality === 'Inclusión' && !s.daiMorning && !s.daiAfternoon) || (s.modality !== 'Inclusión' && !s.groupMorning && !s.groupAfternoon)
-                                              ? 'bg-red-100 text-red-700 border border-red-200' 
-                                              : 'bg-gray-100 text-gray-500'
-                                          }`}>
-                                              {s.modality === 'Inclusión' 
-                                                  ? (s.daiMorning || s.daiAfternoon ? `DAI: ${s.daiMorning || s.daiAfternoon}` : '<><AlertTriangle size={10} className="inline mr-1 mb-0.5"/> Sin DAI</>I') 
-                                                  : (s.groupMorning || s.groupAfternoon ? `Grupo: ${s.groupMorning || s.groupAfternoon}` : '<><AlertTriangle size={10} className="inline mr-1 mb-0.5"/> Sin grupo</>')}
-                                          </span>
-                                          <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full uppercase shrink-0">{s.level}</span>
-                                      </div>
-
-                                  </div>
-                                  <div className="flex gap-3 mt-1">
-                                      <p className="text-[10px] font-bold text-gray-400 uppercase">DNI: <span className="text-gray-600">{s.dni || '-'}</span></p>
-                                      <p className="text-[10px] font-bold text-gray-400 uppercase truncate">OS: <span className="text-gray-600">{s.healthInsurance || 'NO DECLARA'}</span></p>
-                                  </div>
-                              </div>
-                          </div>
-                      </div>
-                  ))}
-              </div>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-4 animate-in slide-in-from-right px-4">
-       {/* SECCIÓN LEGAJOS DOCENTES */}
-            <div className="flex justify-between items-center bg-white p-4 rounded-3xl border border-violet-100 shadow-sm">
-                <div><h3 className="font-black text-violet-900 uppercase italic">Personal de la Casa</h3><p className="text-[10px] text-gray-400 font-bold uppercase">{filteredStaff.length} Legajos</p></div>
-                <div className="flex gap-2">
-                    <button onClick={() => imprimirFichasDocentes(filteredStaff)} className="bg-white text-violet-600 border border-violet-200 p-3 rounded-2xl shadow-sm hover:bg-violet-50 transition flex items-center justify-center" title="Imprimir Lista Actual"><Printer size={20}/></button>
-                    <label className="p-3 bg-emerald-100 text-emerald-700 rounded-2xl cursor-pointer hover:bg-emerald-200 transition flex items-center justify-center">
-                        {processing ? <RefreshCw className="animate-spin" size={20}/> : <UploadCloud size={20}/>}
-                        <input type="file" accept=".csv" className="hidden" onChange={handleImportStaff} />
-                    </label>
-                    <button onClick={()=>{setEditingStaff(null); setPhotoPreview(null); setShowStaffForm(true);}} className="bg-violet-600 text-white p-3 rounded-2xl shadow-lg flex items-center justify-center"><Plus size={20}/></button>
-                </div>
-            </div>
-
-            {/* FILTROS DOCENTES */}
+  return (
+    <div className="space-y-4 animate-in fade-in pb-20 px-2 md:px-4 pt-4">
+        <div className="flex justify-between items-center bg-white p-4 rounded-3xl border border-violet-100 shadow-sm">
+            <div><h3 className="font-black text-violet-900 uppercase italic text-xl">Personal</h3><p className="text-[10px] text-gray-400 font-bold uppercase">{filteredStaff.length} Legajos</p></div>
             <div className="flex gap-2">
-                <div className="bg-white flex-1 p-2 rounded-2xl border border-gray-100 flex items-center gap-2 shadow-sm">
-                    <Search size={18} className="ml-2 text-gray-300"/><input value={staffFilterText} onChange={e=>setStaffFilterText(e.target.value)} placeholder="Buscar docente (Nombre, Apellido, DNI)..." className="w-full p-2 outline-none text-sm font-bold text-gray-700 bg-transparent"/>
-                </div>
-                <select value={staffModalityFilter} onChange={e=>setStaffModalityFilter(e.target.value)} className="bg-white text-gray-700 text-xs p-3 rounded-2xl font-bold border border-gray-100 shadow-sm outline-none">
-                    <option value="all">Todas</option>
-                    <option value="Sede">Sede</option>
-                    <option value="Inclusión">Inclusión</option>
-                </select>
-            </div>
-
-           {/* LISTA DOCENTES */}
-            <div className="grid gap-3 max-h-[65vh] overflow-y-auto pb-10">
-                {filteredStaff.map(s => (
-                    <div key={s.id} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all">
-                        <div onClick={()=>{setEditingStaff(s); setPhotoPreview(s.photoUrl); setShowStaffForm(true);}} className="w-14 h-14 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100 cursor-pointer">
-                            {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName?.[0]}
-                        </div>
-                        <div onClick={()=>{setEditingStaff(s); setPhotoPreview(s.photoUrl); setShowStaffForm(true);}} className="flex-1 cursor-pointer">
-                            <div className="flex gap-2 items-center">
-                                <h4 className="font-bold text-gray-800 text-sm uppercase">{s.lastName}, {s.firstName}</h4>
-                                <span className={`text-[8px] px-2 py-0.5 rounded-md font-black uppercase ${s.modality === 'Inclusión' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}`}>{s.modality || 'Sede'}</span>
-                            </div>
-                            <div className="flex gap-2 text-[10px] mt-1 text-gray-500 font-bold">
-                                {s.dni && <span>DNI: {s.dni}</span>}
-                                {s.phone && <span>Tel: {s.phone}</span>}
-                            </div>
-                            <p className="text-[10px] font-black text-violet-500 uppercase mt-1 truncate">
-                                {s.cargo1_name ? `${s.cargo1_name} (${s.cargo1_type})` : 'Sin Cargo 1'} 
-                                {s.cargo2_name ? ` | ${s.cargo2_name} (${s.cargo2_type})` : ''}
-                            </p>
-                        </div>
-                        <button onClick={(e) => { e.stopPropagation(); imprimirFichasDocentes([s]); }} className="p-3 bg-gray-50 text-violet-600 rounded-xl hover:bg-violet-100 hover:scale-105 transition" title="Imprimir Ficha"><Printer size={18}/></button>
-                    </div>
-                ))}
-                {filteredStaff.length === 0 && <p className="text-center text-gray-400 font-bold text-sm py-10">No se encontraron docentes.</p>}
+                <button onClick={() => imprimirFichasDocentes(filteredStaff)} className="bg-white text-violet-600 border border-violet-200 p-3 rounded-2xl shadow-sm hover:bg-violet-50 transition" title="Imprimir Lista"><Printer size={20}/></button>
+                <label className="p-3 bg-emerald-100 text-emerald-700 rounded-2xl cursor-pointer hover:bg-emerald-200 transition">
+                    {processing ? <RefreshCw className="animate-spin" size={20}/> : <UploadCloud size={20}/>}
+                    <input type="file" accept=".csv" className="hidden" onChange={handleImportStaff} />
+                </label>
+                <button onClick={()=>{setEditingStaff(null); setPhotoPreview(null); setShowStaffForm(true);}} className="bg-violet-600 text-white p-3 rounded-2xl shadow-lg"><Plus size={20}/></button>
             </div>
         </div>
-      )}
-    {/* MODAL FORMULARIO DOCENTE */}
-      {showStaffForm && (
+
+        <div className="flex flex-col md:flex-row gap-2">
+            <div className="bg-white flex-1 p-2 rounded-2xl border border-gray-100 flex items-center gap-2 shadow-sm">
+                <Search size={18} className="ml-2 text-gray-300"/><input value={staffFilterText} onChange={e=>setStaffFilterText(e.target.value)} placeholder="Buscar docente..." className="w-full p-2 outline-none text-sm font-bold text-gray-700 bg-transparent"/>
+            </div>
+            <select value={staffModalityFilter} onChange={e=>setStaffModalityFilter(e.target.value)} className="bg-white text-gray-700 text-xs p-3 rounded-2xl font-bold border border-gray-100 shadow-sm outline-none">
+                <option value="all">Todas las Modalidades</option><option value="Sede">Sede</option><option value="Inclusión">Inclusión</option>
+            </select>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[65vh] overflow-y-auto pb-10">
+            {filteredStaff.map(s => (
+                <div key={s.id} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all">
+                    <div onClick={()=>{setEditingStaff(s); setPhotoPreview(s.photoUrl); setShowStaffForm(true);}} className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100 cursor-pointer shrink-0">
+                        {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName?.[0]}
+                    </div>
+                    <div onClick={()=>{setEditingStaff(s); setPhotoPreview(s.photoUrl); setShowStaffForm(true);}} className="flex-1 cursor-pointer min-w-0">
+                        <div className="flex gap-2 items-center flex-wrap">
+                            <h4 className="font-bold text-gray-800 text-sm uppercase truncate">{s.lastName}, {s.firstName}</h4>
+                            <span className={`text-[8px] px-2 py-0.5 rounded-md font-black uppercase ${s.modality === 'Inclusión' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}`}>{s.modality || 'Sede'}</span>
+                        </div>
+                        <div className="flex gap-2 text-[10px] mt-1 text-gray-500 font-bold">
+                            {s.dni && <span>DNI: {s.dni}</span>}
+                            {s.fechaIngreso && <span className="text-violet-500">Anti: {calcularAntiguedad(s.fechaIngreso)}</span>}
+                        </div>
+                        <p className="text-[10px] font-black text-violet-500 uppercase mt-1 truncate">
+                            {s.cargo1_name ? `C1: ${s.cargo1_name}` : 'Sin Cargos'} 
+                            {s.cargo2_name ? ` | C2: ${s.cargo2_name}` : ''}
+                        </p>
+                    </div>
+                    <button onClick={(e) => { e.stopPropagation(); imprimirFichasDocentes([s]); }} className="p-3 bg-gray-50 text-violet-600 rounded-xl hover:bg-violet-100 hover:scale-105 transition shrink-0" title="Imprimir Ficha"><Printer size={18}/></button>
+                </div>
+            ))}
+        </div>
+
+        {showStaffForm && (
           <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4 backdrop-blur-sm animate-in zoom-in-95">
-              <div className="bg-white rounded-[40px] w-full max-w-lg p-8 shadow-2xl max-h-[90vh] overflow-y-auto border-t-8 border-violet-600">
+              <div className="bg-white rounded-[40px] w-full max-w-xl p-8 shadow-2xl max-h-[90vh] overflow-y-auto border-t-8 border-violet-600">
                   <div className="flex justify-between items-center mb-6">
                       <h3 className="text-xl font-black text-violet-900 uppercase italic">{editingStaff ? 'Editar Legajo' : 'Nuevo Legajo'}</h3>
                       <button onClick={()=>setShowStaffForm(false)}><X size={24} className="text-gray-300"/></button>
                   </div>
                   
-                  {/* FOTO */}
                   <div className="flex justify-center mb-6">
                       <div className="relative group w-24 h-24">
                           <div className="w-24 h-24 rounded-3xl overflow-hidden border-4 border-violet-100 bg-gray-50 shadow-inner flex items-center justify-center">
@@ -3955,27 +3641,15 @@ targets.forEach(s => {
                   </div>
 
                   <form onSubmit={handleSaveStaff} className="space-y-4">
-                      {/* DATOS PERSONALES */}
-                     {/* DATOS PERSONALES */}
                       <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-3">
                           <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Datos Personales</h4>
-                          <div className="grid grid-cols-2 gap-3">
-                              <input name="firstName" defaultValue={editingStaff?.firstName} placeholder="Nombre" required className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
-                              <input name="lastName" defaultValue={editingStaff?.lastName} placeholder="Apellido" required className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
-                          </div>
-                          <div className="grid grid-cols-2 gap-3">
-                              <input name="dni" defaultValue={editingStaff?.dni} placeholder="DNI" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
-                              <input name="birthDate" type="date" defaultValue={editingStaff?.birthDate} className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-xs text-gray-500"/>
-                          </div>
-                          <div className="grid grid-cols-2 gap-3">
-                              <input name="phone" defaultValue={editingStaff?.phone} placeholder="Celular" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
-                              <input name="email" defaultValue={editingStaff?.email} placeholder="Email" type="email" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
-                          </div>
+                          <div className="grid grid-cols-2 gap-3"><input name="firstName" defaultValue={editingStaff?.firstName} placeholder="Nombre" required className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/><input name="lastName" defaultValue={editingStaff?.lastName} placeholder="Apellido" required className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/></div>
+                          <div className="grid grid-cols-2 gap-3"><input name="dni" defaultValue={editingStaff?.dni} placeholder="DNI" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/><input name="birthDate" type="date" defaultValue={editingStaff?.birthDate} className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-xs text-gray-500"/></div>
+                          <div className="grid grid-cols-2 gap-3"><input name="phone" defaultValue={editingStaff?.phone} placeholder="Celular" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/><input name="email" defaultValue={editingStaff?.email} placeholder="Email" type="email" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/></div>
                           <input name="address" defaultValue={editingStaff?.address} placeholder="Dirección" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
                           <input name="emergencyContact" defaultValue={editingStaff?.emergencyContact} placeholder="Teléfono/Contacto de Emergencia" className="p-3 bg-red-50 text-red-800 rounded-xl w-full border border-red-100 outline-none font-bold text-xs"/>
                       </div>
 
-                      {/* CONTRATACIÓN Y CARGOS */}
                       <div className="bg-violet-50 p-4 rounded-2xl border border-violet-100 space-y-4">
                           <div className="flex justify-between items-center border-b border-violet-200 pb-2">
                               <h4 className="text-[10px] font-black text-violet-500 uppercase tracking-widest">Contratación</h4>
@@ -3985,30 +3659,21 @@ targets.forEach(s => {
                               </div>
                           </div>
 
-                          {/* CARGO 1 */}
-                          <div className="space-y-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm">
-                              <h5 className="text-[10px] font-black text-gray-400 uppercase">Cargo 1</h5>
-                              <div className="grid grid-cols-2 gap-2">
-                                  <input name="cargo1_name" defaultValue={editingStaff?.cargo1_name} placeholder="Nombre (Ej: MG, PR)" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"/>
-                                  <select name="cargo1_type" defaultValue={editingStaff?.cargo1_type} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Tipo...</option><option value="meca">Mecanizada</option><option value="deno">Deno</option></select>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2">
-                                  <input name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn} placeholder="Turno (Ej: mañana, 12hs)" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"/>
-                                  <select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Revista...</option><option value="Titular">Titular</option><option value="Provicional">Provisional</option><option value="Suplente">Suplente</option></select>
-                              </div>
+                          <div className="grid grid-cols-2 gap-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm">
+                              <div><label className="text-[9px] font-black text-gray-400 uppercase ml-1 tracking-widest">Fecha Ingreso</label><input name="fechaIngreso" type="date" defaultValue={editingStaff?.fechaIngreso} className="w-full p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs" /></div>
+                              <div><label className="text-[9px] font-black text-gray-400 uppercase ml-1 tracking-widest">Antigüedad</label><div className="w-full p-2 bg-violet-100 text-violet-800 rounded-lg font-bold text-xs text-center border border-violet-200">{calcularAntiguedad(editingStaff?.fechaIngreso)}</div></div>
                           </div>
 
-                          {/* CARGO 2 */}
+                          <div className="space-y-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm">
+                              <h5 className="text-[10px] font-black text-gray-400 uppercase">Cargo 1</h5>
+                              <div className="grid grid-cols-[1fr,2fr] gap-2"><input name="cargo1_numero" defaultValue={editingStaff?.cargo1_numero} placeholder="N° Cargo" className="p-2 bg-violet-50 text-violet-900 rounded-lg outline-none font-black text-xs w-full border border-violet-100"/><input name="cargo1_name" defaultValue={editingStaff?.cargo1_name} placeholder="Nombre (Ej: MG, PR)" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"/></div>
+                              <div className="grid grid-cols-3 gap-2"><select name="cargo1_type" defaultValue={editingStaff?.cargo1_type} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Tipo...</option><option value="meca">Mecanizada</option><option value="deno">Deno</option></select><input name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn} placeholder="Turno" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"/><select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Revista...</option><option value="Titular">Titular</option><option value="Provicional">Provisional</option><option value="Suplente">Suplente</option></select></div>
+                          </div>
+
                           <div className="space-y-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm">
                               <h5 className="text-[10px] font-black text-gray-400 uppercase">Cargo 2 (Opcional)</h5>
-                              <div className="grid grid-cols-2 gap-2">
-                                  <input name="cargo2_name" defaultValue={editingStaff?.cargo2_name} placeholder="Nombre (Ej: AUX)" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"/>
-                                  <select name="cargo2_type" defaultValue={editingStaff?.cargo2_type} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Tipo...</option><option value="meca">Mecanizada</option><option value="deno">Deno</option></select>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2">
-                                  <input name="cargo2_turn" defaultValue={editingStaff?.cargo2_turn} placeholder="Turno (Ej: tarde, 4hs)" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"/>
-                                  <select name="cargo2_revista" defaultValue={editingStaff?.cargo2_revista} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Revista...</option><option value="Titular">Titular</option><option value="Provicional">Provisional</option><option value="Suplente">Suplente</option></select>
-                              </div>
+                              <div className="grid grid-cols-[1fr,2fr] gap-2"><input name="cargo2_numero" defaultValue={editingStaff?.cargo2_numero} placeholder="N° Cargo" className="p-2 bg-violet-50 text-violet-900 rounded-lg outline-none font-black text-xs w-full border border-violet-100"/><input name="cargo2_name" defaultValue={editingStaff?.cargo2_name} placeholder="Nombre (Ej: AUX)" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"/></div>
+                              <div className="grid grid-cols-3 gap-2"><select name="cargo2_type" defaultValue={editingStaff?.cargo2_type} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Tipo...</option><option value="meca">Mecanizada</option><option value="deno">Deno</option></select><input name="cargo2_turn" defaultValue={editingStaff?.cargo2_turn} placeholder="Turno" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"/><select name="cargo2_revista" defaultValue={editingStaff?.cargo2_revista} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Revista...</option><option value="Titular">Titular</option><option value="Provicional">Provisional</option><option value="Suplente">Suplente</option></select></div>
                           </div>
                           
                           <div className="grid grid-cols-2 gap-2">
@@ -4021,10 +3686,327 @@ targets.forEach(s => {
                       <button type="submit" className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-violet-700 transition">Guardar Legajo</button>
                       {editingStaff && <button type="button" onClick={async () => {if(confirm("¿Eliminar definitivamente?")) {await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); setShowStaffForm(false);}}} className="w-full py-2 text-red-400 font-bold text-xs hover:text-red-500">Eliminar definitivamente</button>}
 
-                       </form>
+                  </form>
               </div>
           </div>
       )}
+    </div>
+  );
+}
+// --- VISTA ADMINISTRACIÓN (FINAL: SOLO DOCUMENTOS Y ALUMNOS) ---
+function AdministracionView({ user }) {
+  const [students, setStudents] = useState([]);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [filterText, setFilterText] = useState('');
+  const [filters, setFilters] = useState({ os: 'all', level: 'all', modality: 'all' });
+  
+  /// ESTADOS DOCUMENTOS
+  const [template, setTemplate] = useState('constancia_regular'); 
+  const [generating, setGenerating] = useState(false);
+  const [customTarget, setCustomTarget] = useState(""); 
+  const [customDate, setCustomDate] = useState(new Date().toISOString().split('T')[0]);
+  const [paseAction, setPaseAction] = useState('CONCEDE'); 
+  
+  const LOGO_URL = "/icon-192.png";
+  const FIRMA_URL = "/firma.png"; 
+  const SELLO_URL = "/sello.png";
+  
+  const canAccess = ['admin', 'super-admin', 'Administración', 'Equipo Directivo'].includes(user.role) || user.rol === 'admin';
+
+  useEffect(() => {
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), orderBy('lastName', 'asc'));
+    const unsubStudents = onSnapshot(q, (snap) => { setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
+    return () => unsubStudents();
+  }, []);
+
+  const filteredStudents = students.filter(s => {
+      if (s.isActive === false) return false;
+      const txt = filterText.toLowerCase();
+      const matchesText = !txt || `${s.lastName} ${s.firstName} ${s.dni} ${s.healthInsurance || ''} ${s.level || ''}`.toLowerCase().includes(txt);
+      if (!matchesText) return false;
+      if (filters.os !== 'all') {
+          const sOS = (s.healthInsurance || '').toLowerCase();
+          if (filters.os === 'con_os' && sOS.length < 2) return false;
+          if (filters.os === 'sin_os' && sOS.length >= 2) return false;
+          if (filters.os !== 'con_os' && filters.os !== 'sin_os' && !sOS.includes(filters.os.toLowerCase())) return false;
+      }
+      if (filters.level !== 'all' && s.level !== filters.level) return false;
+      return true;
+  });
+
+  const toggleSelectAll = () => { if (selectedIds.length === filteredStudents.length) setSelectedIds([]); else setSelectedIds(filteredStudents.map(s => s.id)); };
+  const toggleSelect = (id) => { if (selectedIds.includes(id)) setSelectedIds(selectedIds.filter(x => x !== id)); else setSelectedIds([...selectedIds, id]); };
+
+  const generateDocument = () => {
+      if (selectedIds.length === 0) return alert("Selecciona al menos un estudiante.");
+      setGenerating(true);
+      
+      const targets = students.filter(s => selectedIds.includes(s.id));
+      const dateObj = new Date(customDate + 'T12:00:00'); 
+      const day = dateObj.getDate();
+      const month = dateObj.toLocaleString('es-AR', { month: 'long' });
+      const year = dateObj.getFullYear();
+      const fullDate = `Villa Udaondo, ${day} de ${month} de ${year}`;
+      
+      let htmlContent = `<html><head><title>Documentos</title><style>
+          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+          body { font-family: 'Times New Roman', Times, serif; margin: 0; padding: 0; color: #000; }
+          .cert-wrapper { width: 100%; display: block; clear: both; margin-bottom: 20px; page-break-after: always; }
+          .cert-container { border: 2px solid #65a30d; border-radius: 25px; padding: 25px 40px; margin: 0 auto; position: relative; height: 175mm; box-sizing: border-box; width: 190mm; display: flex; flex-direction: column; overflow: hidden; }
+          .cert-header { display: flex; align-items: center; margin-bottom: 15px; }
+          .cert-logo { width: 100px; height: auto; margin-right: 20px; }
+          .cert-title { font-size: 16px; font-weight: bold; text-decoration: underline; text-transform: uppercase; padding-top: 15px; }
+          .cert-subtitle { font-size: 12px; font-weight: bold; margin-top: 5px; }
+          .cert-body { font-size: 13px; line-height: 1.6; flex-grow: 1; }
+          .line-group { margin-bottom: 12px; }
+          .data-field { text-align: center; font-weight: bold; font-size: 14px; border-bottom: 1px dotted #000; display: block; margin: 2px 0; padding-bottom: 2px; }
+          .inline-field { font-weight: bold; border-bottom: 1px dotted #000; padding: 0 10px; }
+          .date-section { margin: 15px 0; text-align: center; font-weight: bold; }
+          .signatures-section { display: flex; justify-content: space-between; align-items: flex-end; padding: 0 20px; height: 130px; margin-top: auto; padding-bottom: 10px; }
+          .sig-box { text-align: center; width: 220px; position: relative; }
+          .sig-img { height: 95px; width: auto; display: block; margin: 0 auto -10px auto; position: relative; z-index: 10; }
+          .sig-line { border-top: 1px solid #000; margin-top: 0; padding-top: 4px; font-size: 11px; font-weight: bold; }
+
+          .planilla-page { width: 100%; max-width: 210mm; padding: 15px 30px; box-sizing: border-box; margin: 0 auto; height: 297mm; position: relative; }
+          .planilla-header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+          .planilla-title { font-size: 18px; font-weight: bold; text-transform: uppercase; margin: 0; padding-top: 10px; }
+          .planilla-grid { display: grid; grid-template-columns: 180px 1fr; gap: 5px; margin-bottom: 20px; font-size: 12px; }
+          .p-label { font-weight: bold; text-transform: uppercase; padding: 4px 0; }
+          .p-value { border-bottom: 1px dotted #000; padding: 4px 5px; font-weight: bold; text-transform: uppercase; }
+          .asistencia-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
+          .asistencia-table th, .asistencia-table td { border: 1px solid #000; padding: 4px; text-align: center; height: 25px; }
+          .asistencia-table th { background-color: #f0f0f0; font-weight: bold; }
+          .mes-box { text-align: right; font-size: 14px; font-weight: bold; margin: 15px 0; text-transform: uppercase; padding-right: 10px; }
+          .firmas-planilla { display: flex; justify-content: space-between; margin-top: 40px; padding: 0 20px; }
+          .firma-col { text-align: center; width: 45%; border-top: 1px solid #000; padding-top: 5px; font-size: 10px; font-weight: bold; }
+          @media print { body { margin: 0; padding: 0; } .cert-container, .planilla-page { margin: 5mm auto; page-break-after: always; } }
+      </style></head><body>`;
+
+      targets.forEach(s => {
+          const nivelRaw = (s.level || '').toUpperCase();
+          const modRaw = (s.modality || 'Sede');
+          let nivelDetallado = nivelRaw;
+          
+          if (nivelRaw.includes('INICIAL')) nivelDetallado = "escolaridad especial inicial";
+          else if (nivelRaw.includes('CFI')) nivelDetallado = "escolaridad especial de formación laboral";
+          else if (nivelRaw.includes('1°') || nivelRaw.includes('2°') || nivelRaw.includes('PRIMARIA') || nivelRaw.includes('CICLO')) {
+              nivelDetallado = `escolaridad especial primaria, ${s.level || 'ciclo a definir'}`;
+          }
+
+          let jornadaInfo = "";
+          if (s.journey && s.journey !== "A DEFINIR" && s.journey.trim() !== "") {
+              jornadaInfo = ` con jornada ${s.journey.toLowerCase()}`;
+          }
+
+          let fraseAlumno = modRaw === 'Inclusión' 
+              ? `Es alumno/a regular de modulo de apoyo a la integración escolar (con equipo)`
+              : `Es alumno/a regular de ${nivelDetallado}${jornadaInfo}`;
+
+          let presentadoAnte = customTarget.trim() !== "" ? customTarget : (s.healthInsurance && s.healthInsurance.trim().length > 2 ? s.healthInsurance : '................................................');
+
+          htmlContent += `<div class="cert-wrapper">`;
+
+          if (template === 'constancia_regular') {
+              if (!customTarget && s.healthInsurance && s.healthInsurance.length > 2) presentadoAnte = s.healthInsurance;
+              else if (!customTarget) presentadoAnte = 'quien corresponda';
+
+              htmlContent += `
+              <div class="cert-container">
+                  <div class="cert-header">
+                      <img src="${LOGO_URL}" class="cert-logo"/>
+                      <div class="cert-title">CONSTANCIA DE ALUMNO REGULAR</div>
+                  </div>
+                  <div class="cert-body">
+                      Escuela Especial Juntos a la Par hace constar que
+                      <div class="line-group" style="margin-top:15px;">
+                          <span class="data-field">${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</span>
+                      </div>
+                      <div class="line-group" style="margin-top:20px;">
+                          con DNI N.° <span class="inline-field">${s.dni}</span>.
+                          <div style="margin-top:20px; font-size:15px; line-height: 1.5;">${fraseAlumno}.</div>
+                      </div>
+                      <div class="line-group" style="margin-top:10px;">en esta institución, con &nbsp;&nbsp; CUE 0623214-00.</div>
+                      <div class="line-group" style="margin-top:30px;">
+                          A pedido del interesado y al efecto de ser presentado ante... 
+                          <span class="data-field" style="margin-top:5px;">${presentadoAnte.toUpperCase()}</span>
+                      </div>
+                      <div class="date-section" style="margin-top:40px;">
+                          ${fullDate}
+                          <div style="border-bottom: 1px dotted #000; width: 60%; margin: 0 auto;"></div>
+                          <div style="font-weight: normal; font-size: 11px;">Lugar y fecha</div>
+                      </div>
+                  </div>
+                  <div class="signatures-section">
+                      <div class="sig-box">
+                          <img src="${FIRMA_URL}" class="sig-img"/>
+                          <div class="sig-line">Firma director o vicedirector</div>
+                      </div>
+                      <div class="sig-box">
+                          <img src="${SELLO_URL}" class="sig-img"/>
+                          <div class="sig-line">Sello institución</div>
+                      </div>
+                  </div>
+              </div>`;
+          } else if (template === 'concesion_pase') {
+              htmlContent += `
+              <div class="cert-container">
+                  <div class="cert-header">
+                      <img src="${LOGO_URL}" class="cert-logo"/>
+                      <div>
+                          <div class="cert-title">PASE - SOLICITUD CONCESIÓN</div>
+                          <div class="cert-subtitle">Escuela Especial Juntos a la Par con CUE 0623214-00 y DIEGEP N°8298.</div>
+                      </div>
+                  </div>
+                  <div class="cert-body">
+                      <div class="line-group" style="margin-top:30px;">La dirección del establecimiento <span style="font-weight:bold; text-decoration:underline;">${paseAction}</span> el pase del alumno:</div>
+                      <div class="line-group" style="margin-top:15px;"><span class="data-field">${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</span></div>
+                      <div class="line-group" style="margin-top:20px;">que actualmente cursa <span class="inline-field">${s.level || '................'} (${s.modality || 'Sede'})</span></div>
+                      <div class="line-group" style="margin-top:10px;">en la institución <b>Juntos a la Par</b>.</div>
+                      <div class="line-group" style="margin-top:30px;">Para ser presentado ante las autoridades de la institución:<span class="data-field" style="margin-top:5px;">${presentadoAnte.toUpperCase()}</span></div>
+                      <div class="date-section" style="margin-top: 60px;">${fullDate}<div style="border-bottom: 1px dotted #000; width: 60%; margin: 0 auto;"></div><div style="font-weight: normal; font-size: 11px;">Lugar y fecha</div></div>
+                  </div>
+                  <div class="signatures-section">
+                      <div class="sig-box"><br/><br/><div class="sig-line">Firma director o vicedirector</div></div>
+                      <div class="sig-box"><br/><br/><div class="sig-line">Sello institución</div></div>
+                  </div>
+              </div>`;
+          } else if (template === 'planilla_asistencia') {
+              const months = ['MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+              let horario = ""; let prestacion = "";
+              if (s.journey === 'Simple Mañana') { horario = "08:30 a 12:30"; prestacion = "Jornada Simple"; }
+              else if (s.journey === 'Simple Tarde') { horario = "12:30 a 16:30"; prestacion = "Jornada Simple"; }
+              else if (s.journey === 'Doble') { horario = "08:30 a 16:30"; prestacion = "Jornada Doble"; }
+              else { horario = "A DEFINIR"; prestacion = s.journey || "-"; }
+
+              months.forEach(mes => {
+                  htmlContent += `
+                  <div class="planilla-page">
+                      <div class="planilla-header"><img src="${LOGO_URL}" style="height: 40px; float: left;" /><h1 class="planilla-title">PLANILLA DE ASISTENCIA MENSUAL</h1><div style="clear:both;"></div></div>
+                      <div class="planilla-grid">
+                          <div class="p-label">OBRA SOCIAL:</div><div class="p-value">${s.healthInsurance || 'NO DECLARA'}</div>
+                          <div class="p-label">APELLIDO Y NOMBRE:</div><div class="p-value">${s.lastName}, ${s.firstName}</div>
+                          <div class="p-label">DNI:</div><div class="p-value">${s.dni || '-'}</div>
+                          <div class="p-label">PRESTACIÓN:</div><div class="p-value">${prestacion.toUpperCase()}</div>
+                          <div class="p-label">HORARIO:</div><div class="p-value">${horario}</div>
+                          <div class="p-label">LUGAR DE PRESTACIÓN:</div><div class="p-value">Escuela Especial Juntos a la Par - De las Boleadoras 2974, Ituzaingó</div>
+                      </div>
+                      <div class="mes-box">MES Y AÑO: <span style="border-bottom: 1px solid #000; padding: 0 10px;">${mes} ${year}</span></div>
+                      <p style="font-size: 11px; font-weight: bold; margin-bottom: 5px;">ACUERDO AL SIGUIENTE DETALLE (*):</p>
+                      <table class="asistencia-table"><tr>${Array.from({length:10},(_,i)=>`<th>${i+1}</th>`).join('')}</tr><tr>${Array.from({length:10},()=>`<td></td>`).join('')}</tr></table>
+                      <table class="asistencia-table"><tr>${Array.from({length:10},(_,i)=>`<th>${i+11}</th>`).join('')}</tr><tr>${Array.from({length:10},()=>`<td></td>`).join('')}</tr></table>
+                      <table class="asistencia-table"><tr>${Array.from({length:10},(_,i)=>`<th>${i+21}</th>`).join('')}</tr><tr>${Array.from({length:10},()=>`<td></td>`).join('')}</tr></table>
+                      <table class="asistencia-table" style="width: 10%;"><tr><th>31</th></tr><tr><td></td></tr></table>
+                      <div class="firmas-planilla">
+                          <div class="firma-col"><br/><br/><br/><br/>FIRMA FAMILIAR / RESPONSABLE<br/>ACLARACIÓN Y DNI</div>
+                          <div class="firma-col"><br/><br/><br/><br/>FIRMA Y SELLO DIRECTIVO</div>
+                      </div>
+                  </div>`;
+              });
+          }
+          htmlContent += `</div>`; 
+      });
+    
+      htmlContent += '</body></html>';
+
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed'; 
+      iframe.style.bottom = '0'; 
+      iframe.style.width = '0'; 
+      iframe.style.height = '0'; 
+      iframe.style.border = '0';
+      document.body.appendChild(iframe);
+      
+      const doc = iframe.contentWindow.document; 
+      doc.open(); 
+      doc.write(htmlContent); 
+      doc.close();
+
+      setTimeout(() => { 
+        iframe.contentWindow.focus(); 
+        iframe.contentWindow.print(); 
+        setTimeout(() => { document.body.removeChild(iframe); setGenerating(false); }, 5000); 
+      }, 1000);
+  }; 
+
+  if (!canAccess) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido.</div>;
+
+  return (
+    <div className="animate-in fade-in pb-20 px-2 pt-4">
+        <div className="bg-white rounded-[30px] shadow-sm border border-gray-200 relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-600 to-violet-600"></div>
+            <div className="p-6 pt-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div className="flex items-center gap-4">
+                    <img src={LOGO_URL} className="w-16 h-auto object-contain" />
+                    <div>
+                        <h2 className="text-2xl font-black text-gray-800 uppercase italic">Docs Alumnos</h2>
+                        <p className="text-sm text-blue-600 font-bold uppercase">Centro de Documentación</p>
+                    </div>
+                </div>
+                <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                    <select value={filters.os} onChange={e => setFilters({...filters, os: e.target.value})} className="bg-gray-100 p-2 rounded-lg text-xs font-bold outline-none border-none text-blue-800">
+                        <option value="all">🔍 TODAS LAS O.S.</option>
+                        <option value="con_os">✅ CON COBERTURA</option>
+                        <option value="sin_os">❌ SIN COBERTURA</option>
+                    </select>
+                    <select onChange={e=>setFilters({...filters, level: e.target.value})} className="bg-gray-100 p-2 rounded-lg text-xs font-bold outline-none border-none">
+                        <option value="all">Nivel: Todos</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option>
+                    </select>
+                    <div className="flex bg-gray-100 rounded-lg items-center px-2 border-none">
+                        <Search size={14} className="text-gray-400"/>
+                        <input placeholder="Buscar..." onChange={e=>setFilterText(e.target.value)} className="bg-transparent p-2 text-xs font-bold outline-none w-full"/>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div className="bg-blue-50/80 p-4 backdrop-blur-sm border-b border-x border-blue-100 flex flex-col md:flex-row justify-between items-center gap-4 shadow-sm">
+            <button onClick={toggleSelectAll} className="text-xs font-black uppercase tracking-widest text-blue-700 bg-blue-100/50 px-3 py-1 rounded-full">{selectedIds.length === filteredStudents.length ? 'Deseleccionar' : 'Seleccionar'} Visibles ({selectedIds.length})</button>
+            <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto items-center">
+                <input placeholder={template === 'concesion_pase' ? "Institución Destino..." : "Presentar ante..."} value={customTarget} onChange={e => setCustomTarget(e.target.value)} className="w-full md:w-48 p-2 rounded-xl text-xs font-bold border border-blue-200 outline-none text-blue-900"/>
+                <input type="date" value={customDate} onChange={e => setCustomDate(e.target.value)} className="w-full md:w-auto p-2 rounded-xl text-xs font-bold border border-blue-200 outline-none text-blue-900"/>
+                <select value={template} onChange={e=>setTemplate(e.target.value)} className="bg-white text-gray-700 pl-4 pr-8 py-2 rounded-xl text-xs font-bold w-full md:w-auto outline-none border border-blue-200 shadow-sm">
+                    <option value="constancia_regular">📄 Constancia Regular</option>
+                    <option value="planilla_asistencia">🗓️ Planilla Asistencia (Mar-Dic)</option>
+                    <option value="concesion_pase">✈️ Concesión de Pase</option>
+                </select>
+                {template === 'concesion_pase' && (
+                    <div className="flex bg-white rounded-lg border border-blue-200 overflow-hidden shadow-sm">
+                        <button onClick={() => setPaseAction('SOLICITA')} className={`px-3 py-2 text-[10px] font-bold transition ${paseAction === 'SOLICITA' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>SOLICITA</button>
+                        <button onClick={() => setPaseAction('CONCEDE')} className={`px-3 py-2 text-[10px] font-bold transition ${paseAction === 'CONCEDE' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>CONCEDE</button>
+                    </div>
+                )}
+                <button onClick={generateDocument} disabled={generating || selectedIds.length === 0} className={`bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-2 rounded-xl text-xs font-black uppercase shadow-md flex items-center gap-2 ${generating || selectedIds.length === 0 ? 'opacity-50' : 'hover:scale-105'}`}>{generating ? <RefreshCw className="animate-spin"/> : <><Printer size={16}/> Imprimir</>}</button>
+            </div>
+        </div>
+
+        <div className="bg-white shadow-sm border-x border-b border-gray-200 overflow-hidden rounded-b-[30px]">
+            <div className="divide-y divide-gray-100 max-h-[60vh] overflow-y-auto">
+                {filteredStudents.map(s => (
+                    <div key={s.id} onClick={() => toggleSelect(s.id)} className={`p-4 cursor-pointer hover:bg-blue-50 transition-colors ${selectedIds.includes(s.id) ? 'bg-blue-50/80' : ''}`}>
+                        <div className="flex items-center gap-3">
+                            <div className="shrink-0 text-blue-600">
+                                {selectedIds.includes(s.id) ? <CheckSquare size={20} /> : <div className="w-5 h-5 border-2 border-gray-300 rounded text-transparent"></div>}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-start">
+                                    <p className="font-black text-slate-800 uppercase text-sm truncate">{s.lastName}, {s.firstName}</p>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`text-[9px] px-2 py-0.5 rounded-lg font-bold uppercase truncate max-w-[120px] ${(s.modality === 'Inclusión' && !s.daiMorning && !s.daiAfternoon) || (s.modality !== 'Inclusión' && !s.groupMorning && !s.groupAfternoon) ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-gray-100 text-gray-500'}`}>
+                                            {s.modality === 'Inclusión' ? (s.daiMorning || s.daiAfternoon ? `DAI: ${s.daiMorning || s.daiAfternoon}` : '<><AlertTriangle size={10} className="inline mr-1 mb-0.5"/> Sin DAI</>') : (s.groupMorning || s.groupAfternoon ? `Grupo: ${s.groupMorning || s.groupAfternoon}` : '<><AlertTriangle size={10} className="inline mr-1 mb-0.5"/> Sin grupo</>')}
+                                        </span>
+                                        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full uppercase shrink-0">{s.level}</span>
+                                    </div>
+                                </div>
+                                <div className="flex gap-3 mt-1">
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase">DNI: <span className="text-gray-600">{s.dni || '-'}</span></p>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase truncate">OS: <span className="text-gray-600">{s.healthInsurance || 'NO DECLARA'}</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
     </div>
   );
 }
@@ -4047,6 +4029,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
