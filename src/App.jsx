@@ -2306,11 +2306,11 @@ const handleSaveIncident = async (type, severity) => {
           setViewingStudent(prev => ({...prev, incidents: [...(prev.incidents || []), incidentData]})); 
           alert("✅ Registro guardado"); 
       } catch (e) { console.error(e); } 
-  }; // <--- ESTA LLAVE SUELE PERDERSE
+  }; // <--- ESTA ERA LA LLAVE QUE FALTABA
   
   const deleteIncident = async (sid, inc) => { 
       if(confirm("¿Borrar evento?")) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', sid), { incidents: arrayRemove(inc) }); 
-  }; // <--- ESTA LLAVE TAMBIÉN ES VITAL
+  }; 
   
   const markAsInactive = async (s) => { 
       if(!confirm(`¿Dar de baja a ${s.firstName}?`)) return; 
@@ -2323,11 +2323,6 @@ const handleSaveIncident = async (type, severity) => {
       const query = `name contains '${clean(student.lastName).split(' ')[0]}' and name contains '${clean(student.firstName).split(' ')[0]}' and trashed = false`; 
       window.open(`https://drive.google.com/drive/search?q=${encodeURIComponent(query)}`, '_blank'); 
   };
-  
-  const deleteIncident = async (sid, inc) => { if(confirm("¿Borrar evento?")) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', sid), { incidents: arrayRemove(inc) }); }; 
-  const markAsInactive = async (s) => { if(!confirm(`¿Dar de baja a ${s.firstName}?`)) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { isActive: false }); setUnassignedList(p=>p.filter(x=>x.id!==s.id)); };
-  
-  
 
   // ==========================================
   // 6. FUNCIONES DE GESTIÓN Y NUBE (RECUPERADAS)
@@ -4530,6 +4525,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
