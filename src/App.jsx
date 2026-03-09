@@ -2271,9 +2271,18 @@ function MatriculaView({ user }) {
 
   const handleDelete = async (id) => { if(confirm("⚠️ ¿Eliminar definitivamente?")) { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id)); setShowForm(false); setEditingStudent(null); } };
   
+  const handleDelete = async (id) => { if(confirm("⚠️ ¿Eliminar definitivamente?")) { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id)); setShowForm(false); setEditingStudent(null); } };
+  
+  // --- FIX BITÁCORA (BOTONES Y TEXTO) ---
   const addIncident = async (type, text = "") => { 
       if (!viewingStudent) return; 
-      const newInc = { date: new Date().toISOString(), type: text ? "Nota" : type, severity: type, text: text || type, author: user.firstName }; 
+      const newInc = { 
+          date: new Date().toISOString(), 
+          type: text ? "Nota" : type, 
+          severity: type, 
+          text: text || type, 
+          author: user.firstName 
+      }; 
       try { 
           const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', viewingStudent.id); 
           await updateDoc(studentRef, { incidents: arrayUnion(newInc) }); 
@@ -2282,8 +2291,25 @@ function MatriculaView({ user }) {
       } catch (e) { alert("Error: " + e.message); } 
   };
   
-  const deleteIncident = async (sid, inc) => { if(confirm("¿Borrar evento?")) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', sid), { incidents: arrayRemove(inc) }); };
+  const handleSaveIncident = async (type, severity) => { 
+      if (!viewingStudent) return; 
+      const incidentData = { 
+          type, 
+          severity, 
+          text: type, // Usamos el type como texto para los botones rápidos
+          date: new Date().toISOString(), 
+          author: user.fullName || user.firstName, 
+          authorId: user.id 
+      }; 
+      try { 
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', viewingStudent.id), { incidents: arrayUnion(incidentData) }); 
+          setViewingStudent(prev => ({...prev, incidents: [...(prev.incidents || []), incidentData]})); 
+          alert("✅ Registro guardado"); 
+      } catch (e) { console.error(e); } 
+  };
+  // ----------------------------------------
   
+  const deleteIncident = async (sid, inc) => { if(confirm("¿Borrar evento?")) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', sid), { incidents: arrayRemove(inc) }); }; 
   const markAsInactive = async (s) => { if(!confirm(`¿Dar de baja a ${s.firstName}?`)) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { isActive: false }); setUnassignedList(p=>p.filter(x=>x.id!==s.id)); };
   
   const abrirLegajoDigital = (student) => { 
@@ -2594,7 +2620,18 @@ const findDuplicates = () => {
                     ) : (
                       <div className="space-y-4 pb-20">
                         {!isWriting && (
-                            <div className="grid grid-cols-3 gap-2 mb-4">{INCIDENT_TYPES.map((type) => (<button key={type.label} onClick={() => addIncident(type.severity, type.label)} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color}`}><span className="text-2xl">{type.emoji}</span><span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span></button>))}</div>
+                            <div className="grid grid-cols-3 gap-2 mb-4">
+                                {INCIDENT_TYPES.map((type) => (
+                                    <button 
+                                        key={type.label} 
+                                        onClick={() => handleSaveIncident(type.label, type.severity)} 
+                                        className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color}`}
+                                    >
+                                        <span className="text-2xl">{type.emoji}</span>
+                                        <span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span>
+                                    </button>
+                                ))}
+                            </div>
                         )}
                         <div className="space-y-3">{viewingStudent.incidents?.length > 0 ? viewingStudent.incidents.slice().reverse().map((inc,i)=>(<div key={i} className={`${getSeverityColor(inc.severity)} p-3 rounded-xl border shadow-sm`}><div className="flex justify-between border-b border-gray-200/50 pb-1 mb-1"><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{new Date(inc.date).toLocaleDateString()}</span><button onClick={()=>deleteIncident(viewingStudent.id, inc)}><Trash2 size={12} className="text-gray-400 hover:text-red-500"/></button></div><p className="font-bold text-sm text-slate-800">{inc.text || inc.type}</p><p className="text-xs text-gray-500 mt-1 uppercase font-bold pl-7">Por: {inc.author}</p></div>)) : <div className="text-center py-6 text-gray-400 text-xs font-bold uppercase">Sin registros</div>}</div>
                         <div className="sticky bottom-0 bg-white pt-4 border-t border-gray-100">
@@ -4482,6 +4519,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
