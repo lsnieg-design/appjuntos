@@ -3463,15 +3463,44 @@ function GroupsView({ user }) {
 
   let groups = Object.values(groupedData).sort((a, b) => a.name.localeCompare(b.name));
 
-  // --- FILTRADO FINAL POR ID (SOLUCIÓN YANINAS) ---
+ // --- FILTRADO FINAL INFALIBLE (POR ID Y POR NOMBRE) ---
   if (!isManagement) {
+      // Función para "limpiar" nombres y compararlos sin importar tildes o mayúsculas
+      const normalizeName = (name) => {
+          if (!name) return "";
+          return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+      };
+
       groups = groups.filter(g => {
-          // Comprobamos si el ID del usuario logueado coincide con el ID del docente del grupo
-          // O si el usuario está entre los alumnos como DAI o Docente
+          const uNameRaw = user.fullName || `${user.firstName} ${user.lastName}`;
+          const uName = normalizeName(uNameRaw);
+          const uId = user.id;
+
+          // 1. Verificar si es el Docente principal (por ID o por Nombre)
+          if (g.teacherId === uId || normalizeName(g.teacher) === uName) return true;
+
+          // 2. Verificar si está como Auxiliar, Pareja Pedagógica o Equipo de Apoyo en el Grupo
+          if (normalizeName(g.aux) === uName || 
+              normalizeName(g.teacher2) === uName || 
+              normalizeName(g.sup1) === uName || 
+              normalizeName(g.sup2) === uName) return true;
+
+          // 3. Verificar si es algún Profe Especial de este grupo
+          if (normalizeName(g.special1) === uName || 
+              normalizeName(g.special2) === uName || 
+              normalizeName(g.special3) === uName) return true;
+
+          // 4. Si no es nada de eso a nivel grupo, revisamos alumno por alumno
           const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-          
-          return g.teacherId === user.id || 
-                 g.students.some(s => s[`teacherId${suf}`] === user.id || s.daiId === user.id);
+          const isAssignedToAnyStudent = g.students.some(s => {
+              return s[`teacherId${suf}`] === uId || 
+                     normalizeName(s[`teacher${suf}`]) === uName || 
+                     s.daiId === uId || 
+                     normalizeName(s.daiMorning) === uName || 
+                     normalizeName(s.daiAfternoon) === uName;
+          });
+
+          return isAssignedToAnyStudent;
       });
   } else {
       if (viewFilter !== 'all') { 
@@ -4673,6 +4702,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
