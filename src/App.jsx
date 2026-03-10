@@ -2117,7 +2117,9 @@ function MatriculaView({ user }) {
       modality: [], 
       level: [], 
       gender: 'all', 
-      dx: 'all' 
+      dx: 'all',
+      turn: 'all',      // <--- NUEVO
+      journey: 'all'    // <--- NUEVO
   });
 
   // Estados de Bitácora
@@ -2474,7 +2476,6 @@ const findDuplicates = () => {
       setShowDataManagement(false); // Cierra el modal de la Nube para mostrar los duplicados
     }
   };
-  // Lógica para mostrar la etiqueta correcta (Grupo o DAI)
  // --- CÁLCULO DE ESTADÍSTICAS ---
   const statsResults = students.filter(s => {
       if (s.isActive === false) return false;
@@ -2482,6 +2483,14 @@ const findDuplicates = () => {
       if (statFilters.modality.length > 0 && !statFilters.modality.includes(s.modality || 'Sede')) return false;
       if (statFilters.dx !== 'all' && s.dx !== statFilters.dx) return false;
       if (statFilters.gender !== 'all' && s.gender !== statFilters.gender) return false;
+      
+      // NUEVOS FILTROS
+      if (statFilters.journey !== 'all' && s.journey !== statFilters.journey) return false;
+      if (statFilters.turn !== 'all') {
+          if (statFilters.turn === 'Mañana' && !s.groupMorning && !s.daiMorning && s.turn !== 'Mañana') return false;
+          if (statFilters.turn === 'Tarde' && !s.groupAfternoon && !s.daiAfternoon && s.turn !== 'Tarde') return false;
+      }
+      
       return true;
   });
   const getGroupLabel = (s) => {
@@ -2892,12 +2901,26 @@ const findDuplicates = () => {
                             ))}
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                         <select value={statFilters.dx} onChange={e => setStatFilters({...statFilters, dx: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">DX: Todos</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select>
                         <select value={statFilters.gender} onChange={e => setStatFilters({...statFilters, gender: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Género: Todos</option><option value="M">Varón</option><option value="F">Mujer</option></select>
                     </div>
+                    {/* NUEVOS SELECTORES DE TURNO Y JORNADA */}
+                    <div className="grid grid-cols-2 gap-2">
+                        <select value={statFilters.turn} onChange={e => setStatFilters({...statFilters, turn: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200">
+                            <option value="all">Turno: Todos</option>
+                            <option value="Mañana">Mañana</option>
+                            <option value="Tarde">Tarde</option>
+                        </select>
+                        <select value={statFilters.journey} onChange={e => setStatFilters({...statFilters, journey: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200">
+                            <option value="all">Jornada: Todas</option>
+                            <option value="Simple Mañana">Simple Mañana</option>
+                            <option value="Simple Tarde">Simple Tarde</option>
+                            <option value="Doble">Doble</option>
+                        </select>
+                    </div>
                 </div>
-                <button onClick={() => setStatFilters({ modality: [], level: [], dx: 'all', gender: 'all' })} className="w-full py-3 text-red-400 font-bold text-xs hover:bg-red-50 rounded-xl transition mt-4">Limpiar Filtros</button>
+                <button onClick={() => setStatFilters({ modality: [], level: [], dx: 'all', gender: 'all', turn: 'all', journey: 'all' })} className="w-full py-3 text-red-400 font-bold text-xs hover:bg-red-50 rounded-xl transition mt-4">Limpiar Filtros</button>
             </div>
         </div>
       )}
@@ -4525,6 +4548,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
