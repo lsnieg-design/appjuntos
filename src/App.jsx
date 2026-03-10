@@ -584,7 +584,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
     </div>
   );
 }
-// --- VISTA RECURSOS (VERSIÓN INTEGRAL: FIX ESPACIADO DE NOTAS + CARPETAS) ---
+// --- VISTA RECURSOS (VERSIÓN CON PLANTILLAS EN GENERADOR DE NOTAS) ---
 function ResourcesView({ resources, canEdit }) {
   const [folder, setFolder] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -596,6 +596,15 @@ function ResourcesView({ resources, canEdit }) {
     title: '', body: '', signature: 'EQUIPO DIRECTIVO',
     fontSize: 'text-[14px]', textAlign: 'text-center',
     wordSpacing: '0.12em', isPrintMode: false 
+  });
+
+  // ESTADOS PARA PLANTILLAS
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [templateData, setTemplateData] = useState({
+      destinatario: '',
+      fechaReunion: '',
+      horaReunion: '',
+      modalidad: 'Presencial en la Institución'
   });
   
   const LOGO_SIN_FONDO = "/logosinfondo.png";
@@ -655,6 +664,40 @@ function ResourcesView({ resources, canEdit }) {
     } catch (err) { alert(err.message); }
   };
 
+  // FUNCIÓN PARA APLICAR PLANTILLA DE REUNIÓN
+  const aplicarPlantillaReunion = () => {
+      if(!templateData.fechaReunion || !templateData.horaReunion) {
+          alert("Por favor, completá al menos la fecha y la hora.");
+          return;
+      }
+
+      // Convertir fecha de YYYY-MM-DD a formato legible (ej: 15/04/2026)
+      const partesFecha = templateData.fechaReunion.split('-');
+      const fechaLegible = `${partesFecha[2]}/${partesFecha[1]}/${partesFecha[0]}`;
+
+      const textoDestinatario = templateData.destinatario 
+          ? `Estimada familia de ${templateData.destinatario}:` 
+          : `Estimadas familias:`;
+
+      const cuerpoMensaje = `${textoDestinatario}
+
+Por medio de la presente, nos comunicamos para citarlos a una reunión a fin de conversar sobre aspectos relacionados a la trayectoria escolar.
+
+La misma se llevará a cabo el día ${fechaLegible} a las ${templateData.horaReunion} hs.
+Modalidad: ${templateData.modalidad}.
+
+Agradecemos su compromiso y puntualidad.
+Por favor, confirmar asistencia.`;
+
+      setNotaData({
+          ...notaData,
+          title: 'CITACIÓN A REUNIÓN',
+          body: cuerpoMensaje,
+          textAlign: 'text-left' // Forzamos alineación izquierda para que quede prolijo
+      });
+      setShowTemplates(false);
+  };
+
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10">
       <div className="flex justify-between items-center mb-6 px-2">
@@ -673,7 +716,7 @@ function ResourcesView({ resources, canEdit }) {
                   <div className="bg-white/20 p-3 rounded-2xl group-hover:rotate-12 transition-transform"><Edit3 size={32}/></div>
                   <div className="text-left">
                       <h3 className="font-black text-xl tracking-widest uppercase italic drop-shadow-md">Generador de Notas</h3>
-                      <p className="text-xs font-bold opacity-90 mt-1">Vista previa en tiempo real</p>
+                      <p className="text-xs font-bold opacity-90 mt-1">Crear comunicados oficiales</p>
                   </div>
               </div>
               <ChevronRight size={24} className="opacity-50"/>
@@ -744,18 +787,86 @@ function ResourcesView({ resources, canEdit }) {
               <h3 className="text-xl font-black text-violet-900 uppercase italic">Editor Institucional</h3>
               <button onClick={() => setShowNotaModal(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20}/></button>
             </div>
+            
             <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-              <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-6 border-r border-gray-50">
-                <div className="grid grid-cols-2 gap-4">
+              <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-6 border-r border-gray-50 relative">
+                
+                {/* BOTÓN DE PLANTILLAS */}
+                <button 
+                    onClick={() => setShowTemplates(!showTemplates)} 
+                    className="w-full bg-blue-50 text-blue-700 py-3 rounded-xl font-bold text-xs uppercase border border-blue-200 flex justify-center items-center gap-2 hover:bg-blue-100 transition"
+                >
+                    <List size={16}/> {showTemplates ? 'Ocultar Plantillas' : 'Usar una Plantilla (Ej: Reunión)'}
+                </button>
+
+                {/* PANEL DE PLANTILLAS DESPLEGABLE */}
+                {showTemplates && (
+                    <div className="bg-white p-4 rounded-2xl border border-blue-200 shadow-sm animate-in slide-in-from-top-2 space-y-3">
+                        <h4 className="font-black text-blue-900 text-xs uppercase italic border-b pb-2">Plantilla: Citación a Reunión</h4>
+                        
+                        <div className="space-y-2">
+                            <div>
+                                <label className="text-[10px] font-bold text-gray-400 uppercase block ml-1 mb-1">Destinatario (Opcional)</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="Ej: Pérez Juan / Grupo 1° Ciclo" 
+                                    value={templateData.destinatario} 
+                                    onChange={e => setTemplateData({...templateData, destinatario: e.target.value})} 
+                                    className="w-full p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs border border-gray-200"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase block ml-1 mb-1">Fecha</label>
+                                    <input 
+                                        type="date" 
+                                        value={templateData.fechaReunion} 
+                                        onChange={e => setTemplateData({...templateData, fechaReunion: e.target.value})} 
+                                        className="w-full p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs border border-gray-200 text-gray-600"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase block ml-1 mb-1">Hora</label>
+                                    <input 
+                                        type="time" 
+                                        value={templateData.horaReunion} 
+                                        onChange={e => setTemplateData({...templateData, horaReunion: e.target.value})} 
+                                        className="w-full p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs border border-gray-200 text-gray-600"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-bold text-gray-400 uppercase block ml-1 mb-1">Modalidad</label>
+                                <select 
+                                    value={templateData.modalidad} 
+                                    onChange={e => setTemplateData({...templateData, modalidad: e.target.value})} 
+                                    className="w-full p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs border border-gray-200 text-gray-600"
+                                >
+                                    <option value="Presencial en la Institución">Presencial</option>
+                                    <option value="Virtual (Se enviará enlace)">Virtual (Meet/Zoom)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={aplicarPlantillaReunion} 
+                            className="w-full mt-2 bg-blue-600 text-white py-2 rounded-xl font-bold text-xs uppercase shadow-md hover:bg-blue-700"
+                        >
+                            Generar Texto
+                        </button>
+                    </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100">
                   <div>
-                    <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">Fecha</label>
+                    <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">Fecha Arriba</label>
                     <input type="text" value={notaData.date} onChange={e => setNotaData({...notaData, date: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs border border-gray-100"/>
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">Firma</label>
+                    <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">Firma Abajo</label>
                     <input type="text" value={notaData.signature} onChange={e => setNotaData({...notaData, signature: e.target.value})} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-violet-700 text-xs border border-gray-100"/>
                   </div>
                 </div>
+                
                 <div className="bg-violet-50 p-4 rounded-3xl space-y-4">
                   <div className="flex gap-2">
                     {[{l:'Chica', v:'text-[11px]'}, {l:'Media', v:'text-[14px]'}, {l:'Grande', v:'text-[18px]'}].map(s => (
@@ -766,15 +877,25 @@ function ResourcesView({ resources, canEdit }) {
                     <button onClick={() => setNotaData({...notaData, isPrintMode: false})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${!notaData.isPrintMode ? 'bg-orange-500 text-white shadow-md' : 'bg-white text-orange-400'}`}>🎨 COLOR</button>
                     <button onClick={() => setNotaData({...notaData, isPrintMode: true})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${notaData.isPrintMode ? 'bg-gray-800 text-white shadow-md' : 'bg-white text-gray-400'}`}>🖨️ BLANCO</button>
                   </div>
+                  {/* ALINEACIÓN DE TEXTO */}
+                  <div className="flex gap-2 justify-center pt-2 border-t border-violet-200/50">
+                      <button onClick={() => setNotaData({...notaData, textAlign: 'text-left'})} className={`p-2 rounded-lg transition-colors ${notaData.textAlign === 'text-left' ? 'bg-violet-200 text-violet-800' : 'text-violet-400 hover:bg-violet-100'}`} title="Izquierda"><AlignLeft size={16}/></button>
+                      <button onClick={() => setNotaData({...notaData, textAlign: 'text-center'})} className={`p-2 rounded-lg transition-colors ${notaData.textAlign === 'text-center' ? 'bg-violet-200 text-violet-800' : 'text-violet-400 hover:bg-violet-100'}`} title="Centro"><AlignCenter size={16}/></button>
+                      <button onClick={() => setNotaData({...notaData, textAlign: 'text-justify'})} className={`p-2 rounded-lg transition-colors ${notaData.textAlign === 'text-justify' ? 'bg-violet-200 text-violet-800' : 'text-violet-400 hover:bg-violet-100'}`} title="Justificado"><AlignJustify size={16}/></button>
+                  </div>
                 </div>
-                <input type="text" placeholder="TÍTULO" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-4 bg-gray-50 rounded-xl outline-none font-black uppercase text-gray-700 border-2 border-transparent focus:border-orange-200 shadow-inner"/>
-                <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Mensaje..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-sm border-2 border-transparent focus:border-pink-200 h-[250px] resize-none font-medium text-gray-600 shadow-inner"/>
+
+                <input type="text" placeholder="TÍTULO DE LA NOTA" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-4 bg-gray-50 rounded-xl outline-none font-black uppercase text-gray-700 border-2 border-transparent focus:border-orange-200 shadow-inner"/>
+                <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Escribe tu comunicado aquí o usa la plantilla de arriba..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-sm border-2 border-transparent focus:border-pink-200 h-[250px] resize-none font-medium text-gray-600 shadow-inner custom-scrollbar"/>
               </div>
+
+              {/* LADO DE VISTA PREVIA (CANVAS) */}
               <div className="flex-1 bg-slate-100 flex flex-col items-center justify-center p-6 md:p-10 relative overflow-hidden">
                 <div className="scale-[0.5] sm:scale-[0.6] md:scale-[0.8] xl:scale-[0.95] origin-top transition-all">
                   <div id="nota-canvas" className={`w-[600px] min-h-[400px] relative shadow-2xl rounded-[15px] flex flex-col overflow-hidden transition-all duration-300 ${notaData.isPrintMode ? 'bg-white border-[10px] border-gray-200' : 'bg-[#fefce8] border-[10px] border-white'}`} style={{ height: 'auto' }}>
                     {!notaData.isPrintMode && <div className="absolute inset-0 opacity-[0.04]" style={{backgroundImage: 'radial-gradient(#f97316 2px, transparent 2px)', backgroundSize: '18px 18px'}}></div>}
                     <div className={`absolute top-0 left-0 right-0 h-3 opacity-80 ${notaData.isPrintMode ? 'bg-gray-300' : 'bg-gradient-to-r from-violet-600 via-pink-500 to-orange-400'}`}></div>
+                    
                     <div className="flex flex-col h-full px-12 pt-10 pb-12 z-10">
                       <div className="flex justify-between items-start mb-6 shrink-0 text-gray-800">
                         <div className="flex items-center gap-4">
@@ -786,12 +907,15 @@ function ResourcesView({ resources, canEdit }) {
                         </div>
                         <p className={`text-[12px] font-black uppercase pt-2 ${notaData.isPrintMode ? 'text-gray-400' : 'text-orange-600'}`}>{notaData.date}</p>
                       </div>
+                      
                       <h1 className="text-2xl font-black text-gray-800 uppercase leading-tight mb-6 text-center">{notaData.title || 'COMUNICADO'}</h1>
+                      
                       <div className="flex-1 w-full mb-10">
                         <div className={`text-slate-700 font-bold whitespace-pre-wrap leading-relaxed break-words w-full px-8 ${notaData.fontSize} ${notaData.textAlign}`} style={{ maxWidth: '540px', margin: '0 auto', wordSpacing: '0.15em', letterSpacing: '0.01em', textRendering: "optimizeLegibility" }}>
                           {notaData.body || 'Vista previa del mensaje...'}
                         </div>
                       </div>
+
                       <div className="mt-auto flex flex-col items-center shrink-0">
                         <div className="w-48 h-[1px] bg-orange-200 mb-4 opacity-50"></div>
                         <p className="text-[16px] font-black text-violet-800 uppercase text-center italic">{notaData.signature}</p>
@@ -802,6 +926,7 @@ function ResourcesView({ resources, canEdit }) {
                 </div>
               </div>
             </div>
+
             <div className="p-6 border-t bg-white shrink-0 z-20 shadow-2xl">
               <div className="flex gap-4 max-w-4xl mx-auto">
                 <button onClick={() => setShowNotaModal(false)} className="flex-1 text-gray-400 font-black text-xs uppercase py-4">VOLVER</button>
@@ -4548,6 +4673,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
