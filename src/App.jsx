@@ -2238,13 +2238,13 @@ function MatriculaView({ user }) {
       journey: 'all', 
       os: 'all' 
   });
-  const [statFilters, setStatFilters] = useState({ 
+ const [statFilters, setStatFilters] = useState({ 
       modality: [], 
       level: [], 
       gender: 'all', 
       dx: 'all',
-      turn: 'all',      // <--- NUEVO
-      journey: 'all'    // <--- NUEVO
+      turn: 'all',
+      journey: 'all'
   });
 
   // Estados de Bitácora
@@ -2601,6 +2601,7 @@ const findDuplicates = () => {
       setShowDataManagement(false); // Cierra el modal de la Nube para mostrar los duplicados
     }
   };
+ // --- CÁLCULO DE ESTADÍSTICAS ---
  // --- CÁLCULO DE ESTADÍSTICAS ---
   const statsResults = students.filter(s => {
       if (s.isActive === false) return false;
@@ -3045,8 +3046,7 @@ const findDuplicates = () => {
                         </select>
                     </div>
                 </div>
-                <button onClick={() => setStatFilters({ modality: [], level: [], dx: 'all', gender: 'all', turn: 'all', journey: 'all' })} className="w-full py-3 text-red-400 font-bold text-xs hover:bg-red-50 rounded-xl transition mt-4">Limpiar Filtros</button>
-            </div>
+                <button onClick={() => setStatFilters({ modality: [], level: [], dx: 'all', gender: 'all', turn: 'all', journey: 'all' })} className="w-full py-3 text-red-400 font-bold text-xs hover:bg-red-50 rounded-xl transition mt-4">Limpiar Filtros</button>  </div>
         </div>
       )}
       
@@ -4543,6 +4543,39 @@ function AdministracionView({ user }) {
                       <div class="sig-box"><br/><br/><div class="sig-line">Sello institución</div></div>
                   </div>
               </div>`;
+        } else if (template === 'informe_jornada') {
+              htmlContent += `
+              <div class="cert-container" style="height: 260mm;">
+                  <div class="cert-header" style="border-bottom: 2px solid #65a30d; padding-bottom: 10px; margin-bottom: 20px;">
+                      <img src="${LOGO_URL}" class="cert-logo"/>
+                      <div>
+                          <div class="cert-title" style="padding-top: 0;">INFORME DE FUNDAMENTACIÓN</div>
+                          <div class="cert-subtitle">Modalidad Jornada Doble</div>
+                      </div>
+                  </div>
+                  <div class="cert-body" style="text-align: justify; font-size: 13px; line-height: 1.6;">
+                      <div style="text-align: right; margin-bottom: 20px; font-weight: bold; text-transform: uppercase;">
+                          Presentado ante: ${presentadoAnte}
+                      </div>
+                      <p>El presente informe tiene como propósito fundamentar la incorporación del estudiante <b>${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</b> con DNI <b>${s.dni}</b> a la modalidad de jornada doble en el nivel primario de la Escuela de Educación Especial "Juntos a la Par". Esta propuesta organizativa resulta fundamental para garantizar una trayectoria educativa integral, brindando al estudiante un abordaje equilibrado que potencie todas sus áreas de desarrollo.</p>
+                      
+                      <p>Durante uno de los turnos, el trabajo se centra exclusivamente en el abordaje pedagógico-curricular. En este espacio, se prioriza la adquisición y el fortalecimiento de las habilidades cognitivas, la alfabetización, el pensamiento lógico-matemático y la construcción de la autonomía, siempre diseñando las configuraciones de apoyo necesarias para acompañar el aprendizaje de los niños.</p>
+                      
+                      <p>En el contra-turno, el/la estudiante participa del espacio de Pre-taller con Modalidad Artística. Esta instancia es de vital importancia, ya que el arte funciona como un vehículo privilegiado para la expresión emocional, la comunicación y la socialización. A través de la exploración de lenguajes como la plástica y la música, los estudiantes desarrollan la motricidad fina y gruesa, la creatividad y la percepción. Además, este espacio funciona como un primer acercamiento paulatino a las dinámicas de trabajo en taller, preparando el terreno de manera lúdica y expresiva para su futura trayectoria en el Centro de Formación Integral (CFI).</p>
+                      
+                      <p>La articulación de ambos turnos conforma una propuesta superadora. La complementariedad entre el núcleo pedagógico y el espacio artístico-expresivo permite sostener una rutina estructurada y enriquecedora, resultando indispensable para favorecer el bienestar, la permanencia y el desarrollo integral del/la estudiante en la institución.</p>
+                      
+                      <div class="date-section" style="margin-top:40px;">
+                          ${fullDate}
+                          <div style="border-bottom: 1px dotted #000; width: 60%; margin: 0 auto;"></div>
+                          <div style="font-weight: normal; font-size: 11px;">Lugar y fecha</div>
+                      </div>
+                  </div>
+                  <div class="signatures-section">
+                      <div class="sig-box"><br/><br/><div class="sig-line">Firma director o vicedirector</div></div>
+                      <div class="sig-box"><br/><br/><div class="sig-line">Sello institución</div></div>
+                  </div>
+              </div>`;
           } else if (template === 'planilla_asistencia') {
               const months = ['MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
               let horario = ""; let prestacion = "";
@@ -4637,10 +4670,11 @@ function AdministracionView({ user }) {
             <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto items-center">
                 <input placeholder={template === 'concesion_pase' ? "Institución Destino..." : "Presentar ante..."} value={customTarget} onChange={e => setCustomTarget(e.target.value)} className="w-full md:w-48 p-2 rounded-xl text-xs font-bold border border-blue-200 outline-none text-blue-900"/>
                 <input type="date" value={customDate} onChange={e => setCustomDate(e.target.value)} className="w-full md:w-auto p-2 rounded-xl text-xs font-bold border border-blue-200 outline-none text-blue-900"/>
-                <select value={template} onChange={e=>setTemplate(e.target.value)} className="bg-white text-gray-700 pl-4 pr-8 py-2 rounded-xl text-xs font-bold w-full md:w-auto outline-none border border-blue-200 shadow-sm">
+              <select value={template} onChange={e=>setTemplate(e.target.value)} className="bg-white text-gray-700 pl-4 pr-8 py-2 rounded-xl text-xs font-bold w-full md:w-auto outline-none border border-blue-200 shadow-sm">
                     <option value="constancia_regular">📄 Constancia Regular</option>
                     <option value="planilla_asistencia">🗓️ Planilla Asistencia (Mar-Dic)</option>
                     <option value="concesion_pase">✈️ Concesión de Pase</option>
+                    <option value="informe_jornada">📄 Informe Jornada Doble</option>
                 </select>
                 {template === 'concesion_pase' && (
                     <div className="flex bg-white rounded-lg border border-blue-200 overflow-hidden shadow-sm">
@@ -4683,7 +4717,7 @@ function AdministracionView({ user }) {
     </div>
   );
 }
-// ===============================================================
+
 // ===============================================================
 // PEGAR ESTO AL FINAL DEL ARCHIVO (FUERA DE CUALQUIER OTRA FUNCIÓN)
 // ===============================================================
@@ -4702,6 +4736,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
