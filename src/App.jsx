@@ -4547,39 +4547,40 @@ function AdministracionView({ user }) {
               const presentadoAnteJornada = s.healthInsurance && s.healthInsurance.trim().length > 2 ? s.healthInsurance : 'quien corresponda';
               htmlContent += `
               <div class="cert-container" style="height: 260mm; border: none; padding: 15px 40px; font-family: Arial, sans-serif;">
-                  <div class="cert-header" style="border-bottom: 1px solid #333; padding-bottom: 15px; margin-bottom: 20px;">
-                      <img src="${LOGO_URL}" class="cert-logo"/>
+                  <div class="cert-header" style="border-bottom: 1px solid #333; padding-bottom: 15px; margin-bottom: 25px;">
+                      <img src="${LOGO_URL}" class="cert-logo" style="width: 110px; height: auto;"/>
                       <div>
-                          <div class="cert-title" style="padding-top: 0; font-size: 16px;">INFORME DE FUNDAMENTACIÓN</div>
-                          <div class="cert-subtitle" style="font-size: 14px;">Modalidad Jornada Doble</div>
+                          <div class="cert-title" style="padding-top: 0; font-size: 18px;">INFORME DE FUNDAMENTACIÓN</div>
+                          <div class="cert-subtitle" style="font-size: 15px;">Modalidad Jornada Doble</div>
                       </div>
                   </div>
-                  <div class="cert-body" style="text-align: justify; font-size: 14px; line-height: 1.5; padding: 0 10px;">
-                      <div style="text-align: right; margin-bottom: 25px; font-weight: bold; text-transform: uppercase; font-size: 13px;">
+                  <div class="cert-body" style="font-size: 16px; line-height: 1.6; padding: 0 10px;">
+                      <div style="text-align: right; margin-bottom: 30px; font-weight: bold; text-transform: uppercase; font-size: 14px;">
                           Presentado ante: ${presentadoAnteJornada}
                       </div>
-                      <p style="margin-bottom: 15px; text-indent: 30px;">El presente informe tiene como propósito fundamentar la incorporación del estudiante <b>${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</b> con DNI <b>${s.dni}</b> a la modalidad de jornada doble en el nivel primario de la Escuela de Educación Especial "Juntos a la Par". Esta propuesta organizativa resulta fundamental para garantizar una trayectoria educativa integral, brindando al estudiante un abordaje equilibrado que potencie todas sus áreas de desarrollo.</p>
                       
-                      <p style="margin-bottom: 15px; text-indent: 30px;">Durante uno de los turnos, el trabajo se centra exclusivamente en el abordaje pedagógico-curricular. En este espacio, se prioriza la adquisición y el fortalecimiento de las habilidades cognitivas, la alfabetización, el pensamiento lógico-matemático y la construcción de la autonomía, siempre diseñando las configuraciones de apoyo necesarias para acompañar el aprendizaje de los niños.</p>
+                      <p style="text-align: justify; margin-bottom: 20px; text-indent: 40px;">El presente informe tiene como propósito fundamentar la incorporación del estudiante <b>${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</b> con DNI <b>${s.dni}</b> a la modalidad de jornada doble en el nivel primario de la Escuela de Educación Especial "Juntos a la Par". Esta propuesta organizativa resulta fundamental para garantizar una trayectoria educativa integral, brindando al estudiante un abordaje equilibrado que potencie todas sus áreas de desarrollo.</p>
                       
-                      <p style="margin-bottom: 15px; text-indent: 30px;">En el contra-turno, el/la estudiante participa del espacio de Pre-taller con Modalidad Artística. Esta instancia es de vital importancia, ya que el arte funciona como un vehículo privilegiado para la expresión emocional, la comunicación y la socialización. A través de la exploración de lenguajes como la plástica y la música, los estudiantes desarrollan la motricidad fina y gruesa, la creatividad y la percepción. Además, este espacio funciona como un primer acercamiento paulatino a las dinámicas de trabajo en taller, preparando el terreno de manera lúdica y expresiva para su futura trayectoria en el Centro de Formación Integral (CFI).</p>
+                      <p style="text-align: justify; margin-bottom: 20px; text-indent: 40px;">Durante uno de los turnos, el trabajo se centra exclusivamente en el abordaje pedagógico-curricular. En este espacio, se prioriza la adquisición y el fortalecimiento de las habilidades cognitivas, la alfabetización, el pensamiento lógico-matemático y la construcción de la autonomía, siempre diseñando las configuraciones de apoyo necesarias para acompañar el aprendizaje de los niños.</p>
                       
-                      <p style="margin-bottom: 15px; text-indent: 30px;">La articulación de ambos turnos conforma una propuesta superadora. La complementariedad entre el núcleo pedagógico y el espacio artístico-expresivo permite sostener una rutina estructurada y enriquecedora, resultando indispensable para favorecer el bienestar, la permanencia y el desarrollo integral del/la estudiante en la institución.</p>
+                      <p style="text-align: justify; margin-bottom: 20px; text-indent: 40px;">En el contra-turno, el/la estudiante participa del espacio de Pre-taller con Modalidad Artística. Esta instancia es de vital importancia, ya que el arte funciona como un vehículo privilegiado para la expresión emocional, la comunicación y la socialización. A través de la exploración de lenguajes como la plástica y la música, los estudiantes desarrollan la motricidad fina y gruesa, la creatividad y la percepción. Además, este espacio funciona como un primer acercamiento paulatino a las dinámicas de trabajo en taller, preparando el terreno de manera lúdica y expresiva para su futura trayectoria en el Centro de Formación Integral (CFI).</p>
                       
-                      <div class="date-section" style="margin-top:45px; text-align: center;">
-                          <span style="font-size: 13px;">${fullDate}</span>
+                      <p style="text-align: justify; margin-bottom: 20px; text-indent: 40px;">La articulación de ambos turnos conforma una propuesta superadora. La complementariedad entre el núcleo pedagógico y el espacio artístico-expresivo permite sostener una rutina estructurada y enriquecedora, resultando indispensable para favorecer el bienestar, la permanencia y el desarrollo integral del/la estudiante en la institución.</p>
+                      
+                      <div class="date-section" style="margin-top:50px; text-align: center;">
+                          <span style="font-size: 15px;">${fullDate}</span>
                           <div style="border-bottom: 1px dotted #000; width: 50%; margin: 5px auto 2px auto;"></div>
-                          <div style="font-weight: normal; font-size: 11px;">Lugar y fecha</div>
+                          <div style="font-weight: normal; font-size: 12px;">Lugar y fecha</div>
                       </div>
                   </div>
                   <div class="signatures-section" style="padding-top: 15px;">
                       <div class="sig-box">
-                          <img src="${FIRMA_URL}" class="sig-img" style="height: 85px;"/>
-                          <div class="sig-line" style="font-size: 10px;">Firma director o vicedirector</div>
+                          <img src="${FIRMA_URL}" class="sig-img" style="height: 90px;"/>
+                          <div class="sig-line" style="font-size: 11px;">Firma director o vicedirector</div>
                       </div>
                       <div class="sig-box">
-                          <img src="${SELLO_URL}" class="sig-img" style="height: 85px;"/>
-                          <div class="sig-line" style="font-size: 10px;">Sello institución</div>
+                          <img src="${SELLO_URL}" class="sig-img" style="height: 90px;"/>
+                          <div class="sig-line" style="font-size: 11px;">Sello institución</div>
                       </div>
                   </div>
               </div>`;
@@ -4743,6 +4744,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
