@@ -4544,6 +4544,7 @@ function AdministracionView({ user }) {
                   </div>
               </div>`;
         } else if (template === 'informe_jornada') {
+              const presentadoAnteJornada = s.healthInsurance && s.healthInsurance.trim().length > 2 ? s.healthInsurance : 'quien corresponda';
               htmlContent += `
               <div class="cert-container" style="height: 260mm;">
                   <div class="cert-header" style="border-bottom: 2px solid #65a30d; padding-bottom: 10px; margin-bottom: 20px;">
@@ -4555,7 +4556,7 @@ function AdministracionView({ user }) {
                   </div>
                   <div class="cert-body" style="text-align: justify; font-size: 13px; line-height: 1.6;">
                       <div style="text-align: right; margin-bottom: 20px; font-weight: bold; text-transform: uppercase;">
-                          Presentado ante: ${presentadoAnte}
+                          Presentado ante: ${presentadoAnteJornada}
                       </div>
                       <p>El presente informe tiene como propósito fundamentar la incorporación del estudiante <b>${s.lastName.toUpperCase()}, ${s.firstName.toUpperCase()}</b> con DNI <b>${s.dni}</b> a la modalidad de jornada doble en el nivel primario de la Escuela de Educación Especial "Juntos a la Par". Esta propuesta organizativa resulta fundamental para garantizar una trayectoria educativa integral, brindando al estudiante un abordaje equilibrado que potencie todas sus áreas de desarrollo.</p>
                       
@@ -4572,8 +4573,14 @@ function AdministracionView({ user }) {
                       </div>
                   </div>
                   <div class="signatures-section">
-                      <div class="sig-box"><br/><br/><div class="sig-line">Firma director o vicedirector</div></div>
-                      <div class="sig-box"><br/><br/><div class="sig-line">Sello institución</div></div>
+                      <div class="sig-box">
+                          <img src="${FIRMA_URL}" class="sig-img"/>
+                          <div class="sig-line">Firma director o vicedirector</div>
+                      </div>
+                      <div class="sig-box">
+                          <img src="${SELLO_URL}" class="sig-img"/>
+                          <div class="sig-line">Sello institución</div>
+                      </div>
                   </div>
               </div>`;
           } else if (template === 'planilla_asistencia') {
@@ -4736,6 +4743,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
