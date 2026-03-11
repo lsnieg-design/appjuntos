@@ -3124,18 +3124,22 @@ function ActivityLogView() {
     </div>
   );
 }
-// --- NUEVA VISTA: EQUIPO TÉCNICO (FIX PANTALLA BLANCA) ---
+// --- NUEVA VISTA: EQUIPO TÉCNICO (CON PERMISOS ESTRICTOS POR ÁREA) ---
 function EquipoTecnicoView({ user }) {
     const [items, setItems] = useState([]);
     
-    const userRoleStr = (user?.role || '').toLowerCase();
-    const defaultTeam = userRoleStr.includes('inclusión') || userRoleStr.includes('inclusion') ? 'inclusion' : 'sede';
+    // 1. DEFINICIÓN ESTRICTA DE ROLES
+    const isSedeRole = ['Equipo Directivo', 'Equipo Técnico'].includes(user.role);
+    const isInclusionRole = ['Dirección Inclusión', 'Equipo Técnico Inclusión'].includes(user.role);
+    const isAdmin = ['admin', 'super-admin'].includes(user.role) || user.rol === 'admin';
+    const canAccess = isSedeRole || isInclusionRole || isAdmin;
+
+    // 2. EQUIPO POR DEFECTO SEGÚN ROL
+    const defaultTeam = (isInclusionRole && !isAdmin && !isSedeRole) ? 'inclusion' : 'sede';
     const [activeTeam, setActiveTeam] = useState(defaultTeam);
     
     const [showModal, setShowModal] = useState(false);
     const [modalType, setModalType] = useState(''); 
-    
-    const isTechTeam = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Equipo Técnico Inclusión', 'Dirección Inclusión'].includes(user.role) || user.rol === 'admin';
 
     useEffect(() => {
         const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'tech_items'));
@@ -3145,13 +3149,12 @@ function EquipoTecnicoView({ user }) {
         return () => unsub();
     }, []);
 
-    if (!isTechTeam) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido al Equipo Técnico.</div>;
+    // BLOQUEO TOTAL SI NO PERTENECE A ESTOS ROLES
+    if (!canAccess) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido a Equipos de Gestión y Técnicos.</div>;
 
     const teamItems = items.filter(i => i.team === activeTeam);
     
-    // FIX: Ordenamiento seguro para fechas de Firebase
     const topics = teamItems.filter(i => i.type === 'topic').sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-    
     const tasks = teamItems.filter(i => i.type === 'task').sort((a,b) => {
         const statusOrder = { 'Pendiente': 0, 'En curso': 1, 'Completada': 2 };
         return statusOrder[a.status] - statusOrder[b.status];
@@ -3203,20 +3206,25 @@ function EquipoTecnicoView({ user }) {
         setShowModal(false);
     };
 
-    // REEMPLAZAMOS ÍCONOS NUEVOS POR LOS QUE YA TENÍAS IMPORTADOS
     return (
         <div className="space-y-4 animate-in fade-in pb-20 px-2 pt-4">
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                     <div>
                         <h2 className="text-2xl font-black text-slate-800 uppercase italic flex items-center gap-2">
-                            <List className="text-teal-500" size={24}/> Organizador Técnico
+                            <List className="text-teal-500" size={24}/> Organizador {activeTeam === 'sede' ? 'Sede' : 'Inclusión'}
                         </h2>
                         <p className="text-xs text-gray-500 font-bold uppercase mt-1">Espacio de Trabajo Confidencial</p>
                     </div>
+                    
+                    {/* SELECTOR CONDICIONAL POR ROL */}
                     <div className="flex bg-gray-100 p-1 rounded-xl w-full md:w-auto">
-                        <button onClick={() => setActiveTeam('sede')} className={`flex-1 md:px-6 py-3 rounded-lg text-xs font-black uppercase transition ${activeTeam === 'sede' ? 'bg-white shadow text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>Sede</button>
-                        <button onClick={() => setActiveTeam('inclusion')} className={`flex-1 md:px-6 py-3 rounded-lg text-xs font-black uppercase transition ${activeTeam === 'inclusion' ? 'bg-white shadow text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}>Inclusión</button>
+                        {(isSedeRole || isAdmin) && (
+                            <button onClick={() => setActiveTeam('sede')} className={`flex-1 md:px-6 py-3 rounded-lg text-xs font-black uppercase transition ${activeTeam === 'sede' ? 'bg-white shadow text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>Sede</button>
+                        )}
+                        {(isInclusionRole || isAdmin) && (
+                            <button onClick={() => setActiveTeam('inclusion')} className={`flex-1 md:px-6 py-3 rounded-lg text-xs font-black uppercase transition ${activeTeam === 'inclusion' ? 'bg-white shadow text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}>Inclusión</button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -4994,6 +5002,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
