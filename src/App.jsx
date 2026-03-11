@@ -3124,6 +3124,262 @@ function ActivityLogView() {
     </div>
   );
 }
+// --- NUEVA VISTA: EQUIPO TÉCNICO ---
+function EquipoTecnicoView({ user }) {
+    const [items, setItems] = useState([]);
+    
+    // Determinar equipo por defecto según el rol del usuario
+    const userRoleStr = (user?.role || '').toLowerCase();
+    const defaultTeam = userRoleStr.includes('inclusión') || userRoleStr.includes('inclusion') ? 'inclusion' : 'sede';
+    const [activeTeam, setActiveTeam] = useState(defaultTeam);
+    
+    const [showModal, setShowModal] = useState(false);
+    const [modalType, setModalType] = useState(''); // 'task', 'date', 'outing'
+    
+    // Permisos
+    const isTechTeam = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Equipo Técnico Inclusión', 'Dirección Inclusión'].includes(user.role) || user.rol === 'admin';
+
+    useEffect(() => {
+        const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'tech_items'));
+        const unsub = onSnapshot(q, snap => {
+            setItems(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        });
+        return () => unsub();
+    }, []);
+
+    if (!isTechTeam) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido al Equipo Técnico.</div>;
+
+    // Filtrar por equipo activo
+    const teamItems = items.filter(i => i.team === activeTeam);
+    
+    const topics = teamItems.filter(i => i.type === 'topic').sort((a,b) => b.createdAt - a.createdAt);
+    const tasks = teamItems.filter(i => i.type === 'task').sort((a,b) => {
+        const statusOrder = { 'Pendiente': 0, 'En curso': 1, 'Completada': 2 };
+        return statusOrder[a.status] - statusOrder[b.status];
+    });
+    const dates = teamItems.filter(i => i.type === 'date').sort((a,b) => new Date(a.date) - new Date(b.date));
+    const outings = teamItems.filter(i => i.type === 'outing').sort((a,b) => new Date(a.date) - new Date(b.date));
+
+    // Lógica para "Próxima Fecha"
+    const today = new Date().toISOString().split('T')[0];
+    const upcomingDates = dates.filter(d => d.date >= today);
+    const nextDate = upcomingDates.length > 0 ? upcomingDates[0] : null;
+
+    // Acciones Rápidas
+    const handleAddTopic = async () => {
+        const text = prompt("Nuevo tema para la reunión:");
+        if (!text) return;
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tech_items'), {
+            type: 'topic', text, team: activeTeam, author: user.firstName, createdAt: serverTimestamp()
+        });
+    };
+
+    const handleClearTopics = async () => {
+        if (!confirm("¿Borrar todos los temas de esta reunión?")) return;
+        const promises = topics.map(t => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tech_items', t.id)));
+        await Promise.all(promises);
+    };
+
+    const handleDelete = async (id) => {
+        if (confirm("¿Eliminar este registro?")) {
+            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tech_items', id));
+        }
+    };
+
+    const toggleTaskStatus = async (task) => {
+        const nextStatus = task.status === 'Pendiente' ? 'En curso' : task.status === 'En curso' ? 'Completada' : 'Pendiente';
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tech_items', task.id), { status: nextStatus });
+    };
+
+    const handleSaveForm = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const data = Object.fromEntries(fd.entries());
+        data.type = modalType;
+        data.team = activeTeam;
+        data.author = user.firstName;
+        data.createdAt = serverTimestamp();
+        
+        if(modalType === 'task') data.status = 'Pendiente';
+        
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tech_items'), data);
+        setShowModal(false);
+    };
+
+    return (
+        <div className="space-y-4 animate-in fade-in pb-20 px-2 pt-4">
+            {/* ENCABEZADO Y SELECTOR DE EQUIPO */}
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200">
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div>
+                        <h2 className="text-2xl font-black text-slate-800 uppercase italic flex items-center gap-2">
+                            <Briefcase className="text-teal-500" size={24}/> Organizador Técnico
+                        </h2>
+                        <p className="text-xs text-gray-500 font-bold uppercase mt-1">Espacio de Trabajo Confidencial</p>
+                    </div>
+                    <div className="flex bg-gray-100 p-1 rounded-xl w-full md:w-auto">
+                        <button onClick={() => setActiveTeam('sede')} className={`flex-1 md:px-6 py-3 rounded-lg text-xs font-black uppercase transition ${activeTeam === 'sede' ? 'bg-white shadow text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>Sede</button>
+                        <button onClick={() => setActiveTeam('inclusion')} className={`flex-1 md:px-6 py-3 rounded-lg text-xs font-black uppercase transition ${activeTeam === 'inclusion' ? 'bg-white shadow text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}>Inclusión</button>
+                    </div>
+                </div>
+            </div>
+
+            {/* ALERTA PRÓXIMA FECHA */}
+            {nextDate && (
+                <div className="bg-gradient-to-r from-teal-500 to-emerald-500 p-4 rounded-2xl shadow-lg text-white flex items-center justify-between animate-in slide-in-from-top-4">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-white/20 p-3 rounded-xl"><AlertCircle size={24}/></div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-teal-100">Próximo Vencimiento / Evento</p>
+                            <h3 className="font-bold text-lg">{nextDate.title}</h3>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                        <span className="bg-white text-teal-700 px-3 py-1 rounded-lg text-sm font-black shadow-sm">
+                            {new Date(nextDate.date + 'T00:00:00').toLocaleDateString('es-AR')}
+                        </span>
+                    </div>
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* COLUMNA 1: REUNIONES Y TAREAS */}
+                <div className="space-y-4">
+                    {/* TEMAS DE REUNIÓN */}
+                    <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-orange-400"></div>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-black text-gray-800 uppercase flex items-center gap-2"><MessageSquare size={18} className="text-orange-500"/> Próxima Reunión</h3>
+                            <div className="flex gap-2">
+                                <button onClick={handleAddTopic} className="bg-orange-100 text-orange-700 p-2 rounded-lg hover:bg-orange-200 transition"><Plus size={16}/></button>
+                                {topics.length > 0 && <button onClick={handleClearTopics} className="bg-red-50 text-red-600 p-2 rounded-lg hover:bg-red-100 transition" title="Limpiar todo"><Trash2 size={16}/></button>}
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            {topics.length === 0 ? <p className="text-xs text-gray-400 italic">No hay temas agendados.</p> : topics.map(t => (
+                                <div key={t.id} className="flex justify-between items-start bg-orange-50/50 p-3 rounded-xl border border-orange-100/50 group">
+                                    <div className="flex gap-2 items-start">
+                                        <div className="w-1.5 h-1.5 bg-orange-400 rounded-full mt-1.5 shrink-0"></div>
+                                        <p className="text-sm font-bold text-gray-700">{t.text}</p>
+                                    </div>
+                                    <button onClick={() => handleDelete(t.id)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition"><X size={14}/></button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* TAREAS */}
+                    <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-black text-gray-800 uppercase flex items-center gap-2"><CheckCircle size={18} className="text-blue-500"/> Tareas del Equipo</h3>
+                            <button onClick={() => {setModalType('task'); setShowModal(true);}} className="bg-blue-50 text-blue-600 p-2 rounded-lg hover:bg-blue-100 transition"><Plus size={16}/></button>
+                        </div>
+                        <div className="space-y-3">
+                            {tasks.length === 0 ? <p className="text-xs text-gray-400 italic">No hay tareas pendientes.</p> : tasks.map(t => (
+                                <div key={t.id} className={`p-3 rounded-xl border transition flex justify-between items-center group ${t.status === 'Completada' ? 'bg-gray-50 border-gray-200 opacity-60' : 'bg-white border-blue-100 shadow-sm'}`}>
+                                    <div>
+                                        <h4 className={`font-bold text-sm ${t.status === 'Completada' ? 'line-through text-gray-500' : 'text-gray-800'}`}>{t.title}</h4>
+                                        <p className="text-[10px] font-black text-blue-500 uppercase mt-1">Responsable: {t.assignee}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={() => toggleTaskStatus(t)} className={`text-[9px] font-black uppercase px-2 py-1 rounded-md border transition ${t.status === 'Pendiente' ? 'bg-red-50 text-red-600 border-red-200' : t.status === 'En curso' ? 'bg-yellow-50 text-yellow-600 border-yellow-200' : 'bg-green-50 text-green-600 border-green-200'}`}>{t.status}</button>
+                                        <button onClick={() => handleDelete(t.id)} className="text-gray-300 hover:text-red-500 transition"><Trash2 size={14}/></button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* COLUMNA 2: FECHAS Y SALIDAS */}
+                <div className="space-y-4">
+                    {/* FECHAS CLAVE */}
+                    <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500"></div>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-black text-gray-800 uppercase flex items-center gap-2"><CalendarIcon size={18} className="text-emerald-500"/> Fechas Importantes</h3>
+                            <button onClick={() => {setModalType('date'); setShowModal(true);}} className="bg-emerald-50 text-emerald-600 p-2 rounded-lg hover:bg-emerald-100 transition"><Plus size={16}/></button>
+                        </div>
+                        <div className="space-y-2">
+                            {dates.length === 0 ? <p className="text-xs text-gray-400 italic">Agenda libre.</p> : dates.map(d => (
+                                <div key={d.id} className="flex justify-between items-center bg-white border border-gray-100 p-3 rounded-xl shadow-sm group">
+                                    <div className="flex gap-3 items-center">
+                                        <div className="bg-emerald-100 text-emerald-800 text-center rounded-lg px-2 py-1 min-w-[50px]">
+                                            <span className="block text-sm font-black leading-none">{d.date.split('-')[2]}</span>
+                                            <span className="block text-[9px] uppercase font-bold">{new Date(d.date+'T00:00:00').toLocaleString('es-ES', {month:'short'})}</span>
+                                        </div>
+                                        <h4 className="font-bold text-sm text-gray-700">{d.title}</h4>
+                                    </div>
+                                    <button onClick={() => handleDelete(d.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition"><Trash2 size={14}/></button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* SALIDAS EDUCATIVAS */}
+                    <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-purple-500"></div>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-black text-gray-800 uppercase flex items-center gap-2"><MapPin size={18} className="text-purple-500"/> Salidas / Proyectos</h3>
+                            <button onClick={() => {setModalType('outing'); setShowModal(true);}} className="bg-purple-50 text-purple-600 p-2 rounded-lg hover:bg-purple-100 transition"><Plus size={16}/></button>
+                        </div>
+                        <div className="space-y-3">
+                            {outings.length === 0 ? <p className="text-xs text-gray-400 italic">No hay salidas planificadas.</p> : outings.map(o => (
+                                <div key={o.id} className="bg-purple-50/30 p-4 rounded-2xl border border-purple-100 relative group">
+                                    <button onClick={() => handleDelete(o.id)} className="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><Trash2 size={14}/></button>
+                                    <h4 className="font-black text-purple-900 text-sm mb-1">{o.title}</h4>
+                                    <div className="flex gap-2 mb-2">
+                                        <span className="text-[9px] font-bold bg-white text-gray-600 px-2 py-0.5 rounded border border-gray-200">📅 {new Date(o.date+'T00:00:00').toLocaleDateString('es-AR')}</span>
+                                        <span className="text-[9px] font-bold bg-white text-gray-600 px-2 py-0.5 rounded border border-gray-200">👥 {o.groups}</span>
+                                    </div>
+                                    <p className="text-xs text-gray-600 mb-2 font-medium">{o.ideas}</p>
+                                    <div className="text-[10px] font-bold text-gray-500 bg-white p-2 rounded-lg border border-gray-100">
+                                        <p><span className="text-purple-500">Docentes:</span> {o.teachers || '-'}</p>
+                                        <p><span className="text-purple-500">Equipo Téc:</span> {o.techs || '-'}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* MODAL MULTIUSO */}
+            {showModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <form onSubmit={handleSaveForm} className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-black text-slate-800 uppercase italic">
+                                {modalType === 'task' ? 'Nueva Tarea' : modalType === 'date' ? 'Nueva Fecha' : 'Nueva Salida'}
+                            </h3>
+                            <button type="button" onClick={() => setShowModal(false)}><X/></button>
+                        </div>
+                        
+                        <div className="space-y-3">
+                            <input name="title" placeholder={modalType === 'task' ? 'Ej: Revisar informes' : modalType === 'date' ? 'Ej: Entrega PPI' : 'Lugar de salida'} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-sm border focus:border-blue-300" required />
+                            
+                            {modalType === 'task' && <input name="assignee" placeholder="Responsable (Ej: Myrian)" className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs border" required />}
+                            
+                            {(modalType === 'date' || modalType === 'outing') && <input name="date" type="date" className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs border font-bold text-gray-600" required />}
+                            
+                            {modalType === 'outing' && (
+                                <>
+                                    <input name="groups" placeholder="Grupos (Ej: 1° Ciclo TM)" className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs border" required />
+                                    <textarea name="ideas" placeholder="Propósito / Ideas previas..." className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs border h-16 resize-none" required />
+                                    <input name="teachers" placeholder="Docentes asistentes" className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs border" />
+                                    <input name="techs" placeholder="Miembros Equipo Técnico" className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs border" />
+                                </>
+                            )}
+                            
+                            <button type="submit" className="w-full py-3 bg-slate-800 text-white rounded-xl font-black uppercase text-xs shadow-lg hover:bg-slate-700 transition mt-2">Guardar</button>
+                        </div>
+                    </form>
+                </div>
+            )}
+        </div>
+    );
+}
 // --- APP PRINCIPAL (FINAL: CON ADMIN INTEGRADO + MANTENIMIENTO + NOTIFS) ---
 function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -3263,7 +3519,7 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'groups' && <GroupsView user={user} />}
         {activeTab === 'users' && isSuperAdmin && <UsersAdminView />}
         {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={isSuperAdmin} user={user} />}
-        
+        {activeTab === 'equipo' && <EquipoTecnicoView user={user} />}
         {/* --- NUEVO: VISTA ADMIN (SOLO RENDERIZA SI EL TAB ES 'ADMIN') --- */}
         {activeTab === 'admin' && <ew user={user} />}
         {/* ----------------------------------------------------------------- */}
@@ -3295,7 +3551,7 @@ function MainApp({ user, onLogout }) {
 
           {/* BOTÓN MÁS (UNIVERSAL PARA PC Y CELULAR) */}
           <div className="relative">
-              <NavButton active={['matricula', 'resources', 'proyecto', 'admin', 'personal', 'medical'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={20} />} label="Más" />
+              <NavButton active={['matricula', 'resources', 'proyecto', 'admin', 'personal', 'medical', 'equipo'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={20} />} label="Más" />
               
               {showMoreMenu && (
                   <div className="absolute bottom-16 right-0 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 w-56 animate-in slide-in-from-bottom-5 zoom-in-95 origin-bottom-right z-50">
@@ -3319,6 +3575,9 @@ function MainApp({ user, onLogout }) {
                               <button onClick={() => { setActiveTab('personal'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-violet-700 transition">
                                   <Users size={18} className="text-violet-500"/> Personal
                               </button>
+                            <button onClick={() => { setActiveTab('equipo'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-teal-50 flex items-center gap-3 text-sm font-bold text-teal-700 transition">
+                               <Briefcase size={18} className="text-teal-500"/> Equipo Técnico
+                           </button>
                               <button onClick={() => { setActiveTab('medical'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-red-50 flex items-center gap-3 text-sm font-bold text-red-600 transition">
                                   <Activity size={18} className="text-red-500"/> Médico
                               </button>
@@ -4746,6 +5005,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
