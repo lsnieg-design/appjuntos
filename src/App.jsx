@@ -4543,7 +4543,7 @@ function AdministracionView({ user }) {
                       <div class="sig-box"><br/><br/><div class="sig-line">Sello institución</div></div>
                   </div>
               </div>`;
-      } else if (template === 'informe_jornada') {
+    } else if (template === 'informe_jornada') {
               const presentadoAnteJornada = s.healthInsurance && s.healthInsurance.trim().length > 2 ? s.healthInsurance : 'quien corresponda';
               htmlContent += `
               <div class="cert-container" style="height: 260mm; border: none; padding: 15px 40px; font-family: Arial, sans-serif;">
@@ -4573,14 +4573,16 @@ function AdministracionView({ user }) {
                           <div style="font-weight: normal; font-size: 12px;">Lugar y fecha</div>
                       </div>
                   </div>
-                  <div class="signatures-section" style="padding-top: 15px;">
-                      <div class="sig-box">
-                          <img src="${FIRMA_URL}" class="sig-img" style="height: 90px;"/>
-                          <div class="sig-line" style="font-size: 11px;">Firma director o vicedirector</div>
+                  
+                  {/* SECCIÓN DE FIRMAS Y SELLOS AÑADIDA NUEVAMENTE */}
+                  <div class="signatures-section" style="padding-top: 15px; margin-top: auto; height: 130px; display: flex; justify-content: space-between; align-items: flex-end;">
+                      <div class="sig-box" style="text-align: center; width: 220px;">
+                          <img src="${FIRMA_URL}" class="sig-img" style="height: 90px; width: auto; display: block; margin: 0 auto -10px auto;"/>
+                          <div class="sig-line" style="font-size: 11px; border-top: 1px solid #000; padding-top: 4px; font-weight: bold;">Firma director o vicedirector</div>
                       </div>
-                      <div class="sig-box">
-                          <img src="${SELLO_URL}" class="sig-img" style="height: 90px;"/>
-                          <div class="sig-line" style="font-size: 11px;">Sello institución</div>
+                      <div class="sig-box" style="text-align: center; width: 220px;">
+                          <img src="${SELLO_URL}" class="sig-img" style="height: 90px; width: auto; display: block; margin: 0 auto -10px auto;"/>
+                          <div class="sig-line" style="font-size: 11px; border-top: 1px solid #000; padding-top: 4px; font-weight: bold;">Sello institución</div>
                       </div>
                   </div>
               </div>`;
@@ -4744,6 +4746,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
