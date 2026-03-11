@@ -3124,19 +3124,17 @@ function ActivityLogView() {
     </div>
   );
 }
-// --- NUEVA VISTA: EQUIPO TÉCNICO ---
+// --- NUEVA VISTA: EQUIPO TÉCNICO (FIX PANTALLA BLANCA) ---
 function EquipoTecnicoView({ user }) {
     const [items, setItems] = useState([]);
     
-    // Determinar equipo por defecto según el rol del usuario
     const userRoleStr = (user?.role || '').toLowerCase();
     const defaultTeam = userRoleStr.includes('inclusión') || userRoleStr.includes('inclusion') ? 'inclusion' : 'sede';
     const [activeTeam, setActiveTeam] = useState(defaultTeam);
     
     const [showModal, setShowModal] = useState(false);
-    const [modalType, setModalType] = useState(''); // 'task', 'date', 'outing'
+    const [modalType, setModalType] = useState(''); 
     
-    // Permisos
     const isTechTeam = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Equipo Técnico Inclusión', 'Dirección Inclusión'].includes(user.role) || user.rol === 'admin';
 
     useEffect(() => {
@@ -3149,10 +3147,11 @@ function EquipoTecnicoView({ user }) {
 
     if (!isTechTeam) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido al Equipo Técnico.</div>;
 
-    // Filtrar por equipo activo
     const teamItems = items.filter(i => i.team === activeTeam);
     
-    const topics = teamItems.filter(i => i.type === 'topic').sort((a,b) => b.createdAt - a.createdAt);
+    // FIX: Ordenamiento seguro para fechas de Firebase
+    const topics = teamItems.filter(i => i.type === 'topic').sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    
     const tasks = teamItems.filter(i => i.type === 'task').sort((a,b) => {
         const statusOrder = { 'Pendiente': 0, 'En curso': 1, 'Completada': 2 };
         return statusOrder[a.status] - statusOrder[b.status];
@@ -3160,12 +3159,10 @@ function EquipoTecnicoView({ user }) {
     const dates = teamItems.filter(i => i.type === 'date').sort((a,b) => new Date(a.date) - new Date(b.date));
     const outings = teamItems.filter(i => i.type === 'outing').sort((a,b) => new Date(a.date) - new Date(b.date));
 
-    // Lógica para "Próxima Fecha"
     const today = new Date().toISOString().split('T')[0];
     const upcomingDates = dates.filter(d => d.date >= today);
     const nextDate = upcomingDates.length > 0 ? upcomingDates[0] : null;
 
-    // Acciones Rápidas
     const handleAddTopic = async () => {
         const text = prompt("Nuevo tema para la reunión:");
         if (!text) return;
@@ -3206,14 +3203,14 @@ function EquipoTecnicoView({ user }) {
         setShowModal(false);
     };
 
+    // REEMPLAZAMOS ÍCONOS NUEVOS POR LOS QUE YA TENÍAS IMPORTADOS
     return (
         <div className="space-y-4 animate-in fade-in pb-20 px-2 pt-4">
-            {/* ENCABEZADO Y SELECTOR DE EQUIPO */}
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                     <div>
                         <h2 className="text-2xl font-black text-slate-800 uppercase italic flex items-center gap-2">
-                            <Briefcase className="text-teal-500" size={24}/> Organizador Técnico
+                            <List className="text-teal-500" size={24}/> Organizador Técnico
                         </h2>
                         <p className="text-xs text-gray-500 font-bold uppercase mt-1">Espacio de Trabajo Confidencial</p>
                     </div>
@@ -3224,11 +3221,10 @@ function EquipoTecnicoView({ user }) {
                 </div>
             </div>
 
-            {/* ALERTA PRÓXIMA FECHA */}
             {nextDate && (
                 <div className="bg-gradient-to-r from-teal-500 to-emerald-500 p-4 rounded-2xl shadow-lg text-white flex items-center justify-between animate-in slide-in-from-top-4">
                     <div className="flex items-center gap-4">
-                        <div className="bg-white/20 p-3 rounded-xl"><AlertCircle size={24}/></div>
+                        <div className="bg-white/20 p-3 rounded-xl"><AlertTriangle size={24}/></div>
                         <div>
                             <p className="text-[10px] font-black uppercase tracking-widest text-teal-100">Próximo Vencimiento / Evento</p>
                             <h3 className="font-bold text-lg">{nextDate.title}</h3>
@@ -3243,13 +3239,11 @@ function EquipoTecnicoView({ user }) {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* COLUMNA 1: REUNIONES Y TAREAS */}
                 <div className="space-y-4">
-                    {/* TEMAS DE REUNIÓN */}
                     <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-1 h-full bg-orange-400"></div>
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-black text-gray-800 uppercase flex items-center gap-2"><MessageSquare size={18} className="text-orange-500"/> Próxima Reunión</h3>
+                            <h3 className="font-black text-gray-800 uppercase flex items-center gap-2"><FileText size={18} className="text-orange-500"/> Próxima Reunión</h3>
                             <div className="flex gap-2">
                                 <button onClick={handleAddTopic} className="bg-orange-100 text-orange-700 p-2 rounded-lg hover:bg-orange-200 transition"><Plus size={16}/></button>
                                 {topics.length > 0 && <button onClick={handleClearTopics} className="bg-red-50 text-red-600 p-2 rounded-lg hover:bg-red-100 transition" title="Limpiar todo"><Trash2 size={16}/></button>}
@@ -3268,11 +3262,10 @@ function EquipoTecnicoView({ user }) {
                         </div>
                     </div>
 
-                    {/* TAREAS */}
                     <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-black text-gray-800 uppercase flex items-center gap-2"><CheckCircle size={18} className="text-blue-500"/> Tareas del Equipo</h3>
+                            <h3 className="font-black text-gray-800 uppercase flex items-center gap-2"><CheckSquare size={18} className="text-blue-500"/> Tareas del Equipo</h3>
                             <button onClick={() => {setModalType('task'); setShowModal(true);}} className="bg-blue-50 text-blue-600 p-2 rounded-lg hover:bg-blue-100 transition"><Plus size={16}/></button>
                         </div>
                         <div className="space-y-3">
@@ -3292,9 +3285,7 @@ function EquipoTecnicoView({ user }) {
                     </div>
                 </div>
 
-                {/* COLUMNA 2: FECHAS Y SALIDAS */}
                 <div className="space-y-4">
-                    {/* FECHAS CLAVE */}
                     <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500"></div>
                         <div className="flex justify-between items-center mb-4">
@@ -3317,11 +3308,10 @@ function EquipoTecnicoView({ user }) {
                         </div>
                     </div>
 
-                    {/* SALIDAS EDUCATIVAS */}
                     <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-1 h-full bg-purple-500"></div>
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-black text-gray-800 uppercase flex items-center gap-2"><MapPin size={18} className="text-purple-500"/> Salidas / Proyectos</h3>
+                            <h3 className="font-black text-gray-800 uppercase flex items-center gap-2"><span className="text-lg">📍</span> Salidas / Proyectos</h3>
                             <button onClick={() => {setModalType('outing'); setShowModal(true);}} className="bg-purple-50 text-purple-600 p-2 rounded-lg hover:bg-purple-100 transition"><Plus size={16}/></button>
                         </div>
                         <div className="space-y-3">
@@ -3345,9 +3335,8 @@ function EquipoTecnicoView({ user }) {
                 </div>
             </div>
 
-            {/* MODAL MULTIUSO */}
             {showModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <form onSubmit={handleSaveForm} className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-black text-slate-800 uppercase italic">
@@ -5005,6 +4994,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
