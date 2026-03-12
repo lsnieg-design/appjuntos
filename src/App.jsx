@@ -4523,7 +4523,28 @@ const filteredStaff = staffList.filter(s => {
                           
                           <div className="grid grid-cols-2 gap-2">
                               <select name="studyStatus" defaultValue={editingStaff?.studyStatus} className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900"><option value="">Estado Estudios...</option><option value="Finalizado">Finalizado</option><option value="En curso 0% - 30%">En curso 0% - 30%</option><option value="En curso 30% - 50%">En curso 30% - 50%</option><option value="En curso 50% - 70%">En curso 50% - 70%</option><option value="En curso 70% - 99%">En curso 70% - 99%</option></select>
-                              <input name="role" defaultValue={editingStaff?.role} placeholder="Rol Principal (Ej: Docente, DAI)" className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900"/>
+                              <select name="role" defaultValue={editingStaff?.role || ''} className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900" required>
+                                  <option value="">Rol Principal...</option>
+                                  <optgroup label="SEDE">
+                                      <option value="Docente">Docente</option>
+                                      <option value="Preceptora">Preceptora</option>
+                                      <option value="Auxiliar">Auxiliar</option>
+                                      <option value="Profe Especial">Profe especial</option>
+                                      <option value="Equipo Técnico">Equipo técnico</option>
+                                      <option value="Equipo Directivo">Equipo directivo</option>
+                                  </optgroup>
+                                  <optgroup label="INCLUSIÓN">
+                                      <option value="Dirección Inclusión">Dirección</option>
+                                      <option value="Equipo Técnico Inclusión">Equipo técnico</option>
+                                      <option value="DAI">DAI</option>
+                                  </optgroup>
+                                  <optgroup label="ADMIN / MAESTRANZA">
+                                      <option value="Cocina">Cocina</option>
+                                      <option value="Limpieza">Limpieza</option>
+                                      <option value="Mantenimiento">Mantenimiento</option>
+                                      <option value="Administración">Administración</option>
+                                  </optgroup>
+                              </select>
                           </div>
                           <input name="degree" defaultValue={editingStaff?.degree} placeholder="Título Alcanzado / En curso" className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900"/>
                       </div>
@@ -5156,6 +5177,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
