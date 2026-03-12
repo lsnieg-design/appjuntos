@@ -4633,233 +4633,253 @@ function PersonalView({ user }) {
     </div>
   );
 }
-// --- VISTA SALUD Y CONSULTORIO MÉDICO (EXCLUSIVA DIRECTIVOS Y MÉDICO) ---
+// --- VISTA MÉDICA (SINCRONIZADA CON LEGAJOS GENERALES) ---
 function MedicalView({ user }) {
   const [students, setStudents] = useState([]);
   const [filterText, setFilterText] = useState('');
   const [selectedStudent, setSelectedStudent] = useState(null);
-  
-  // Estados para nueva evolución
-  const [isWriting, setIsWriting] = useState(false);
-  const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
-  const [newNote, setNewNote] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const LOGO_URL = "/icon-192.png";
-
-  // Seguridad: Solo Equipo Directivo, Super Admin o Médico
-  const canAccessMedical = ['admin', 'super-admin', 'Equipo Directivo', 'Médico'].includes(user.role) || user.rol === 'admin';
+  // Permisos: Solo Salud, Directivos y Admins
+  const canAccess = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión', 'Médico', 'Enfermería', 'Salud'].includes(user.role) || user.rol === 'admin';
 
   useEffect(() => {
-    if (!canAccessMedical) return;
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), orderBy('lastName', 'asc'));
-    const unsub = onSnapshot(q, (snap) => setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-    return () => unsub();
-  }, [canAccessMedical]);
-
-  if (!canAccessMedical) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido al Departamento Médico.</div>;
+    // Traemos a todos los alumnos activos
+    const qS = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
+    const unsubS = onSnapshot(qS, (snap) => setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    return () => unsubS();
+  }, []);
 
   const filteredStudents = students.filter(s => {
-      if (s.isActive === false) return false;
-      const searchTxt = filterText.toLowerCase();
-      return !searchTxt || `${s.lastName} ${s.firstName} ${s.dni}`.toLowerCase().includes(searchTxt);
+      const txt = filterText.toLowerCase();
+      return !txt || `${s.lastName} ${s.firstName} ${s.dni}`.toLowerCase().includes(txt);
   });
 
-  const calculateAge = (d) => { 
-      if (!d) return '-'; 
-      const t = new Date(); const b = new Date(d); 
-      let a = t.getFullYear() - b.getFullYear(); 
-      if (t.getMonth() - b.getMonth() < 0 || (t.getMonth() === b.getMonth() && t.getDate() < b.getDate())) a--; 
-      return a; 
-  };
-
   const getSafeDate = (d) => { if(!d) return '-'; try { return new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('es-AR'); } catch(e) { return d; } };
+  const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
 
-  const handleSaveEvolution = async () => {
-      if (!newNote.trim()) return;
-      const evolution = {
-          id: Date.now().toString(),
-          date: newDate,
-          text: newNote,
-          doctor: user.fullName || user.firstName,
-          createdAt: new Date().toISOString()
+  // Verifica si el CUD está vencido o vence en menos de 30 días
+  const checkCudStatus = (cudDate) => {
+      if (!cudDate) return { status: 'none', text: 'Sin CUD cargado' };
+      const today = new Date();
+      const exp = new Date(cudDate + 'T00:00:00');
+      const diffTime = exp - today;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays < 0) return { status: 'expired', text: 'CUD Vencido' };
+      if (diffDays <= 30) return { status: 'warning', text: `Vence en ${diffDays} días` };
+      return { status: 'ok', text: 'CUD Vigente' };
+  };
+
+  const handleSaveMedicalData = async (e) => {
+      e.preventDefault();
+      setSaving(true);
+      const fd = new FormData(e.target);
+      
+      // Estos campos se actualizarán directamente en el legajo del estudiante
+      const updates = {
+          healthInsurance: fd.get('healthInsurance'),
+          cudExpiration: fd.get('cudExpiration'),
+          cudDiagnosis: fd.get('cudDiagnosis'),
+          allergies: fd.get('allergies'),
+          medication: fd.get('medication'),
+          weight: fd.get('weight'),
+          vaccines: fd.get('vaccines')
       };
-      
+
       try {
-          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', selectedStudent.id), {
-              medicalHistory: arrayUnion(evolution)
-          });
-          // Actualizamos la vista local
-          setSelectedStudent(prev => ({ ...prev, medicalHistory: [...(prev.medicalHistory || []), evolution] }));
-          setNewNote("");
-          setIsWriting(false);
-      } catch (e) { alert("Error al guardar: " + e.message); }
-  };
-
-  const handleDeleteEvolution = async (evo) => {
-      if (!confirm("⚠️ ¿Eliminar esta evolución médica?")) return;
-      try {
-          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', selectedStudent.id), {
-              medicalHistory: arrayRemove(evo)
-          });
-          setSelectedStudent(prev => ({ ...prev, medicalHistory: prev.medicalHistory.filter(e => e.id !== evo.id) }));
-      } catch (e) { alert("Error al eliminar: " + e.message); }
-  };
-
-  const printMedicalHistory = () => {
-      const iframe = document.createElement('iframe');
-      iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
-      document.body.appendChild(iframe);
-      
-      const history = selectedStudent.medicalHistory || [];
-      const sortedHistory = [...history].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-      let html = `<html><head><title>Historia Clínica - ${selectedStudent.lastName}</title>
-      <style>
-          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
-          body { font-family: 'Roboto', sans-serif; padding: 30px; color: #111; line-height: 1.5; }
-          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 4px solid #ef4444; padding-bottom: 20px; margin-bottom: 30px; }
-          .title { font-size: 24px; font-weight: 900; color: #b91c1c; text-transform: uppercase; margin: 0; }
-          .patient-info { background: #fef2f2; border: 1px solid #fecaca; padding: 20px; border-radius: 15px; margin-bottom: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-          .info-item { font-size: 14px; }
-          .info-label { font-weight: bold; color: #991b1b; text-transform: uppercase; font-size: 11px; display: block; }
-          .evo-card { border-bottom: 1px solid #e5e7eb; padding: 15px 0; page-break-inside: avoid; }
-          .evo-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px; color: #6b7280; font-weight: bold; }
-          .evo-text { font-size: 14px; white-space: pre-wrap; color: #374151; }
-          @media print { body { padding: 0; } }
-      </style></head><body>
-      <div class="header">
-          <div><h1 class="title">Historia Clínica Escolar</h1><p style="margin:5px 0 0 0; color:#666; font-size:12px; font-weight:bold;">Juntos a la Par - Departamento Médico</p></div>
-          <img src="${LOGO_URL}" style="height: 60px;" />
-      </div>
-      <div class="patient-info">
-          <div class="info-item"><span class="info-label">Paciente</span><b>${selectedStudent.lastName.toUpperCase()}, ${selectedStudent.firstName}</b></div>
-          <div class="info-item"><span class="info-label">DNI</span>${selectedStudent.dni || '-'}</div>
-          <div class="info-item"><span class="info-label">Fecha de Nacimiento</span>${getSafeDate(selectedStudent.birthDate)} (${calculateAge(selectedStudent.birthDate)} años)</div>
-          <div class="info-item"><span class="info-label">Obra Social</span>${selectedStudent.healthInsurance || 'No declara'}</div>
-          <div class="info-item"><span class="info-label">Diagnóstico Base</span>${selectedStudent.dx || '-'}</div>
-          <div class="info-item"><span class="info-label">Vencimiento CUD</span>${getSafeDate(selectedStudent.cudExpiration) || '-'}</div>
-      </div>
-      <h3 style="color:#b91c1c; border-bottom: 2px solid #fee2e2; padding-bottom:5px; margin-bottom:20px;">EVOLUCIONES MÉDICAS</h3>`;
-      
-      if (sortedHistory.length === 0) {
-          html += `<p style="color:#6b7280; font-style:italic;">No hay registros médicos cargados.</p>`;
-      } else {
-          sortedHistory.forEach(evo => {
-              html += `<div class="evo-card">
-                  <div class="evo-header">
-                      <span>📅 ${getSafeDate(evo.date)}</span>
-                      <span>👨‍⚕️ Prof: ${evo.doctor}</span>
-                  </div>
-                  <div class="evo-text">${evo.text}</div>
-              </div>`;
-          });
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', selectedStudent.id), updates);
+          setSelectedStudent({ ...selectedStudent, ...updates });
+          setIsEditing(false);
+      } catch (err) {
+          alert("Error al guardar: " + err.message);
+      } finally {
+          setSaving(false);
       }
-      
-      html += `</body></html>`;
-      const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close();
-      setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 1000);
   };
+
+  if (!canAccess) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido al Departamento Médico.</div>;
 
   return (
-    <div className="animate-in fade-in pb-20 px-2 pt-4">
-        {/* Cabecera */}
-        <div className="bg-gradient-to-r from-red-600 to-rose-500 rounded-[30px] shadow-lg relative overflow-hidden p-6 mb-6 text-white flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex items-center gap-4">
-                <div className="bg-white/20 p-4 rounded-2xl backdrop-blur-sm"><Activity size={32} /></div>
-                <div>
-                    <h2 className="text-2xl font-black uppercase italic tracking-tighter">Consultorio Médico</h2>
-                    <p className="text-sm font-bold text-red-100">Gestión de Historias Clínicas</p>
-                </div>
+    <div className="space-y-4 animate-in fade-in pb-20 px-2 pt-4">
+        {/* HEADER */}
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-red-100 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h2 className="text-2xl font-black text-red-700 uppercase italic flex items-center gap-2">
+                    <Activity size={24} /> Fichas Médicas
+                </h2>
+                <p className="text-xs text-gray-500 font-bold uppercase mt-1">Gabinete de Salud Institucional</p>
             </div>
-            <div className="bg-white/20 p-2 rounded-xl flex items-center w-full md:w-64 border border-white/30 backdrop-blur-sm">
-                <Search className="ml-2 opacity-80" size={18}/>
-                <input value={filterText} onChange={e=>setFilterText(e.target.value)} placeholder="Buscar paciente..." className="bg-transparent border-none outline-none text-white w-full font-bold placeholder-white/70 ml-2 text-sm"/>
+            <div className="flex bg-gray-50 rounded-xl items-center px-3 border border-gray-200 w-full md:w-72 shadow-inner">
+                <Search size={16} className="text-gray-400"/>
+                <input 
+                    placeholder="Buscar paciente..." 
+                    value={filterText}
+                    onChange={e=>setFilterText(e.target.value)} 
+                    className="bg-transparent p-3 text-xs font-bold outline-none w-full text-gray-700"
+                />
+                {filterText && <button onClick={() => setFilterText('')} className="text-gray-400 hover:text-red-500"><X size={14}/></button>}
             </div>
         </div>
 
-        {/* Lista de Pacientes */}
-        <div className="bg-white shadow-sm border border-gray-200 overflow-hidden rounded-[30px]">
-            <div className="divide-y divide-gray-100 max-h-[65vh] overflow-y-auto p-2">
-                {filteredStudents.map(s => (
-                    <div key={s.id} onClick={() => {setSelectedStudent(s); setIsWriting(false);}} className="p-4 cursor-pointer hover:bg-red-50 transition-colors rounded-2xl flex justify-between items-center group">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 font-black flex items-center justify-center overflow-hidden border-2 border-red-200">
-                                {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName[0]}
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-slate-800 text-sm uppercase">{s.lastName}, {s.firstName}</h3>
-                                <p className="text-[10px] font-bold text-gray-400 mt-0.5">DNI: {s.dni || '-'} | OS: <span className="text-red-500">{s.healthInsurance || 'NO DECLARA'}</span></p>
-                            </div>
+        {/* LISTADO DE PACIENTES */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[70vh] overflow-y-auto pr-1">
+            {filteredStudents.map(s => {
+                const cud = checkCudStatus(s.cudExpiration);
+                const hasAlert = cud.status === 'expired' || cud.status === 'warning' || (s.allergies && s.allergies.length > 2);
+
+                return (
+                    <div key={s.id} onClick={() => { setSelectedStudent(s); setIsEditing(false); }} className={`bg-white p-4 rounded-2xl shadow-sm border-2 cursor-pointer transition-all hover:scale-[1.02] flex items-center gap-3 ${hasAlert ? 'border-red-200' : 'border-transparent'}`}>
+                        <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-red-300 font-black shrink-0 overflow-hidden border border-red-100">
+                            {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName[0]}
                         </div>
-                        <div className="flex items-center gap-3 text-red-400 opacity-50 group-hover:opacity-100 transition-opacity">
-                            <span className="text-[10px] font-bold uppercase hidden md:inline">Ver Historia</span>
-                            <ChevronRight size={20}/>
+                        <div className="flex-1 min-w-0">
+                            <h4 className="font-bold text-gray-800 text-sm truncate uppercase">{s.lastName}, {s.firstName}</h4>
+                            <p className="text-[10px] text-gray-500 font-bold">{calculateAge(s.birthDate)} años | OS: {s.healthInsurance || 'S/D'}</p>
+                            
+                            <div className="flex gap-1 mt-1.5 flex-wrap">
+                                {cud.status !== 'none' && (
+                                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${cud.status === 'expired' ? 'bg-red-100 text-red-700' : cud.status === 'warning' ? 'bg-yellow-100 text-yellow-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                        CUD: {cud.text}
+                                    </span>
+                                )}
+                                {s.allergies && s.allergies.length > 2 && (
+                                    <span className="text-[8px] font-black px-1.5 py-0.5 rounded uppercase bg-orange-100 text-orange-700 flex items-center gap-1">
+                                        <AlertTriangle size={8}/> Alergias
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
-                ))}
-                {filteredStudents.length === 0 && <p className="text-center text-gray-400 font-bold py-10">No se encontraron pacientes.</p>}
-            </div>
+                );
+            })}
         </div>
 
-        {/* MODAL HISTORIA CLÍNICA */}
+        {/* MODAL FICHA CLÍNICA */}
         {selectedStudent && (
-            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-2 md:p-4" onClick={() => setSelectedStudent(null)}>
-                <div className="bg-white rounded-[35px] w-full max-w-4xl h-[95vh] md:h-[85vh] shadow-2xl flex flex-col border-t-8 border-red-500 overflow-hidden animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+            <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setSelectedStudent(null)}>
+                <div className="bg-white rounded-[35px] w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
                     
-                    {/* Header Paciente */}
-                    <div className="bg-red-50 p-6 flex justify-between items-start border-b border-red-100 shrink-0">
+                    <div className="bg-red-700 p-6 text-white relative shrink-0">
+                        <button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 p-1.5 rounded-full hover:bg-white/40 transition"><X size={20}/></button>
                         <div className="flex gap-4 items-center">
-                            <div className="w-16 h-16 rounded-2xl bg-white border-2 border-red-200 overflow-hidden shadow-sm">
-                                {selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="m-auto mt-3 text-red-300"/>}
+                            <div className="w-16 h-16 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center font-black text-2xl">
+                                {selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : selectedStudent.firstName[0]}
                             </div>
                             <div>
-                                <h2 className="text-xl font-black text-red-900 uppercase leading-none mb-1">{selectedStudent.lastName}, {selectedStudent.firstName}</h2>
-                                <p className="text-xs font-bold text-red-600">DNI: {selectedStudent.dni} • Edad: {calculateAge(selectedStudent.birthDate)} años</p>
-                                <div className="flex gap-2 mt-2">
-                                    <span className="bg-white border border-red-200 text-red-700 text-[9px] px-2 py-0.5 rounded-md font-bold uppercase">OS: {selectedStudent.healthInsurance || 'S/D'}</span>
-                                    <span className="bg-white border border-red-200 text-red-700 text-[9px] px-2 py-0.5 rounded-md font-bold uppercase">DX: {selectedStudent.dx || 'S/D'}</span>
-                                </div>
+                                <h2 className="text-2xl font-black uppercase tracking-tight leading-none">{selectedStudent.lastName}, {selectedStudent.firstName}</h2>
+                                <p className="text-red-200 font-bold text-xs uppercase mt-1">DNI: {selectedStudent.dni || '-'} • {calculateAge(selectedStudent.birthDate)} AÑOS</p>
                             </div>
-                        </div>
-                        <div className="flex gap-2">
-                            <button onClick={printMedicalHistory} className="p-2 bg-white text-red-600 rounded-full shadow-sm border border-red-100 hover:bg-red-600 hover:text-white transition" title="Imprimir Historia"><Printer size={20}/></button>
-                            <button onClick={() => setSelectedStudent(null)} className="p-2 bg-white text-gray-400 rounded-full shadow-sm border border-gray-100 hover:bg-gray-100 transition"><X size={20}/></button>
                         </div>
                     </div>
 
-                    {/* Evoluciones */}
-                    <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50 space-y-4 relative">
-                        {isWriting ? (
-                            <div className="bg-white p-5 rounded-2xl border-2 border-red-200 shadow-lg animate-in slide-in-from-top-4 mb-6">
-                                <h4 className="font-bold text-red-800 mb-3 text-sm flex items-center gap-2"><Activity size={16}/> Nueva Evolución</h4>
-                                <input type="date" value={newDate} onChange={e=>setNewDate(e.target.value)} className="w-full md:w-auto p-2 bg-red-50 border border-red-100 rounded-lg text-xs font-bold text-red-900 outline-none mb-3"/>
-                                <textarea value={newNote} onChange={e=>setNewNote(e.target.value)} placeholder="Descripción de la atención, síntomas, indicaciones..." className="w-full h-32 p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-red-400 text-sm resize-none mb-3"/>
-                                <div className="flex justify-end gap-2">
-                                    <button onClick={() => setIsWriting(false)} className="px-4 py-2 text-gray-500 font-bold text-xs uppercase hover:bg-gray-100 rounded-xl">Cancelar</button>
-                                    <button onClick={handleSaveEvolution} disabled={!newNote.trim()} className="px-6 py-2 bg-red-600 text-white font-bold text-xs uppercase rounded-xl shadow-md hover:bg-red-700 disabled:opacity-50">Guardar Registro</button>
+                    <div className="p-6 overflow-y-auto bg-gray-50 flex-1">
+                        {!isEditing ? (
+                            <div className="space-y-5">
+                                {/* RESUMEN DE ALERTAS */}
+                                {(selectedStudent.allergies || checkCudStatus(selectedStudent.cudExpiration).status === 'expired') && (
+                                    <div className="bg-red-50 border border-red-200 p-4 rounded-2xl">
+                                        <h4 className="text-red-800 font-black text-xs uppercase flex items-center gap-1 mb-2"><AlertTriangle size={14}/> Alertas Médicas</h4>
+                                        {selectedStudent.allergies && <p className="text-sm font-bold text-red-700">Alergias: <span className="font-medium text-red-600">{selectedStudent.allergies}</span></p>}
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Obra Social</p>
+                                        <p className="font-bold text-slate-800 text-sm">{selectedStudent.healthInsurance || 'No declara'}</p>
+                                    </div>
+                                    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Vencimiento CUD</p>
+                                        <p className={`font-bold text-sm ${checkCudStatus(selectedStudent.cudExpiration).status === 'expired' ? 'text-red-600' : 'text-slate-800'}`}>
+                                            {getSafeDate(selectedStudent.cudExpiration)}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+                                    <div>
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Diagnóstico CUD / Médico</p>
+                                        <p className="font-bold text-slate-800 text-sm">{selectedStudent.cudDiagnosis || 'Sin datos cargados'}</p>
+                                    </div>
+                                    <div className="border-t border-gray-100 pt-3">
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Medicación Habitual</p>
+                                        <p className="font-bold text-slate-800 text-sm">{selectedStudent.medication || 'No refiere'}</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Peso (Aprox)</p>
+                                        <p className="font-bold text-slate-800 text-sm">{selectedStudent.weight ? `${selectedStudent.weight} kg` : 'S/D'}</p>
+                                    </div>
+                                    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Vacunación</p>
+                                        <p className="font-bold text-slate-800 text-sm">{selectedStudent.vaccines || 'S/D'}</p>
+                                    </div>
                                 </div>
                             </div>
                         ) : (
-                            <button onClick={() => setIsWriting(true)} className="w-full py-4 border-2 border-dashed border-red-300 text-red-600 rounded-2xl font-bold uppercase text-xs hover:bg-red-50 transition flex justify-center items-center gap-2"><Plus size={18}/> Agregar Evolución Médica</button>
-                        )}
-
-                        <div className="space-y-4 mt-6">
-                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b pb-2">Historial Clínico</h4>
-                            {(!selectedStudent.medicalHistory || selectedStudent.medicalHistory.length === 0) ? (
-                                <p className="text-center text-gray-400 text-xs italic py-10">El paciente no tiene registros médicos en el sistema.</p>
-                            ) : (
-                                [...selectedStudent.medicalHistory].sort((a,b) => new Date(b.date) - new Date(a.date)).map(evo => (
-                                    <div key={evo.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm relative group">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <span className="bg-red-100 text-red-800 text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">{getSafeDate(evo.date)}</span>
-                                            <button onClick={() => handleDeleteEvolution(evo)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><Trash2 size={14}/></button>
-                                        </div>
-                                        <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{evo.text}</p>
-                                        <p className="text-[9px] text-gray-400 font-bold uppercase mt-3 pt-2 border-t border-gray-50">Atendido por: {evo.doctor}</p>
+                            <form id="medicalForm" onSubmit={handleSaveMedicalData} className="space-y-4">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Obra Social</label>
+                                        <input name="healthInsurance" defaultValue={selectedStudent.healthInsurance} className="w-full p-3 bg-white rounded-xl outline-none font-bold text-xs border border-gray-200 focus:border-red-300"/>
                                     </div>
-                                ))
-                            )}
-                        </div>
+                                    <div>
+                                        <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Vencimiento CUD</label>
+                                        <input type="date" name="cudExpiration" defaultValue={selectedStudent.cudExpiration} className="w-full p-3 bg-white rounded-xl outline-none font-bold text-xs border border-gray-200 text-gray-600 focus:border-red-300"/>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Diagnóstico (Detalle Clínico / CUD)</label>
+                                    <textarea name="cudDiagnosis" defaultValue={selectedStudent.cudDiagnosis} className="w-full p-3 bg-white rounded-xl outline-none font-bold text-xs border border-gray-200 h-20 resize-none focus:border-red-300"/>
+                                </div>
+
+                                <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
+                                    <label className="text-[10px] font-black text-red-800 uppercase ml-1">Alergias (Alimentarias / Medicamentosas)</label>
+                                    <input name="allergies" defaultValue={selectedStudent.allergies} placeholder="Ej: Penicilina, Maní..." className="w-full p-3 mt-1 bg-white rounded-xl outline-none font-bold text-xs border border-red-200 text-red-700"/>
+                                </div>
+
+                                <div>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Medicación Habitual / Dosis</label>
+                                    <textarea name="medication" defaultValue={selectedStudent.medication} className="w-full p-3 bg-white rounded-xl outline-none font-bold text-xs border border-gray-200 h-20 resize-none focus:border-red-300"/>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Peso (kg)</label>
+                                        <input name="weight" type="number" step="0.1" defaultValue={selectedStudent.weight} className="w-full p-3 bg-white rounded-xl outline-none font-bold text-xs border border-gray-200 focus:border-red-300"/>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Plan de Vacunación</label>
+                                        <select name="vaccines" defaultValue={selectedStudent.vaccines} className="w-full p-3 bg-white rounded-xl outline-none font-bold text-xs border border-gray-200 text-gray-700 focus:border-red-300">
+                                            <option value="">Seleccionar...</option>
+                                            <option value="Completas">Completas</option>
+                                            <option value="Incompletas">Incompletas</option>
+                                            <option value="No presenta libreta">No presenta libreta</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+                    
+                    <div className="p-4 border-t border-gray-100 bg-white flex justify-end gap-2 shrink-0">
+                        {isEditing ? (
+                            <>
+                                <button onClick={() => setIsEditing(false)} className="px-5 py-3 text-gray-500 font-bold text-xs uppercase hover:bg-gray-100 rounded-xl transition">Cancelar</button>
+                                <button type="submit" form="medicalForm" disabled={saving} className="px-6 py-3 bg-red-600 text-white rounded-xl font-bold text-xs uppercase shadow-lg hover:bg-red-700 transition flex items-center gap-2">
+                                    {saving ? <RefreshCw size={16} className="animate-spin"/> : 'Guardar Cambios'}
+                                </button>
+                            </>
+                        ) : (
+                            <button onClick={() => setIsEditing(true)} className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold text-xs uppercase shadow-lg hover:bg-gray-800 transition flex items-center justify-center gap-2">
+                                <Edit3 size={16}/> Editar Ficha Médica
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -5247,6 +5267,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
