@@ -4230,9 +4230,9 @@ const filteredStaff = staffList.filter(s => {
   // --- LÓGICA DE ESTADÍSTICAS ---
   const calculateStats = () => {
       const stats = {
-          total: staffList.length,
-          sede: staffList.filter(s => s.modality === 'Sede').length,
-          inclusion: staffList.filter(s => s.modality === 'Inclusión').length,
+          total: filteredStaff.length,
+          sede: filteredStaff.filter(s => (s.modality || 'Sede') === 'Sede').length,
+          inclusion: filteredStaff.filter(s => s.modality === 'Inclusión').length,
           roles: {},
           cargos: { simple: 0, doble: 0 },
           subvencion: { si: 0, no: 0 }
@@ -4283,13 +4283,29 @@ const filteredStaff = staffList.filter(s => {
             </div>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-2">
-            <div className="bg-white flex-1 p-2 rounded-2xl border border-gray-100 flex items-center gap-2 shadow-sm">
-                <Search size={18} className="ml-2 text-gray-300"/><input value={staffFilterText} onChange={e=>setStaffFilterText(e.target.value)} placeholder="Buscar docente..." className="w-full p-2 outline-none text-sm font-bold text-gray-700 bg-transparent"/>
+        <div className="space-y-2">
+            <div className="bg-white p-2 rounded-2xl border border-gray-100 flex items-center gap-2 shadow-sm">
+                <Search size={18} className="ml-2 text-gray-300"/>
+                <input value={staffFilterText} onChange={e=>setStaffFilterText(e.target.value)} placeholder="Buscar por apellido, nombre o DNI..." className="w-full p-2 outline-none text-sm font-bold text-gray-700 bg-transparent"/>
+                {staffFilterText && <button onClick={()=>setStaffFilterText('')} className="pr-2 text-gray-400 hover:text-gray-600"><X size={16}/></button>}
             </div>
-            <select value={staffModalityFilter} onChange={e=>setStaffModalityFilter(e.target.value)} className="bg-white text-gray-700 text-xs p-3 rounded-2xl font-bold border border-gray-100 shadow-sm outline-none">
-                <option value="all">Todas las Modalidades</option><option value="Sede">Sede</option><option value="Inclusión">Inclusión</option>
-            </select>
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                <select value={filters.modality} onChange={e=>setFilters({...filters, modality: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
+                    <option value="all">Modalidad: Todas</option><option value="Sede">Sede</option><option value="Inclusión">Inclusión</option>
+                </select>
+                <select value={filters.role} onChange={e=>setFilters({...filters, role: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
+                    <option value="all">Rol: Todos</option>
+                    {uniqueRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+                <select value={filters.turn} onChange={e=>setFilters({...filters, turn: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
+                    <option value="all">Turno: Todos</option>
+                    {uniqueTurns.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <select value={filters.subsidized} onChange={e=>setFilters({...filters, subsidized: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
+                    <option value="all">Subvención: Todas</option><option value="yes">Subvencionada</option><option value="no">Sin Subvención</option>
+                </select>
+                <button onClick={() => setFilters({ modality: 'all', role: 'all', turn: 'all', subsidized: 'all' })} className="bg-red-50 text-red-600 text-xs px-3 py-2 rounded-lg font-bold min-w-[80px] border border-red-100 shadow-sm hover:bg-red-100 transition">Limpiar</button>
+            </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[65vh] overflow-y-auto pb-10">
@@ -5149,6 +5165,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
