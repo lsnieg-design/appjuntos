@@ -3403,9 +3403,11 @@ function MainApp({ user, onLogout }) {
   const canManageContent = user.rol === 'admin' || isSuperAdmin || user.role === 'Equipo Directivo';
   
   // PERMISO ADMIN (PARA EL BOTÓN)
-  const isAdminRole = ['admin', 'super-admin', 'Administración', 'Equipo Directivo'].includes(user.role) || user.rol === 'admin';
-
-  // TABS ANCHOS
+  // --- DEFINICIÓN DE PERMISOS GLOBALES ---
+  const isAdminRole = ['admin', 'super-admin', 'Administración', 'Equipo Directivo', 'Dirección Inclusión'].includes(user.role) || user.rol === 'admin';
+  const isTechTeamRole = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión', 'Equipo Técnico', 'Equipo Técnico Inclusión'].includes(user.role) || user.rol === 'admin';
+  const isMedicalRole = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión', 'Médico', 'Enfermería', 'Salud'].includes(user.role) || user.rol === 'admin';
+  const showPrivateMenu = isAdminRole || isTechTeamRole || isMedicalRole;
   const isWideTab = ['groups', 'calendar', 'matricula', 'resources', 'users', 'admin'].includes(activeTab);
 
   useEffect(() => {
@@ -3562,22 +3564,33 @@ function MainApp({ user, onLogout }) {
                           <PieChart size={18} className="text-orange-500"/> Proyecto Inst.
                       </button>
                       
-                      {/* --- SECCIÓN PRIVADA: ADMIN, PERSONAL, MÉDICO --- */}
-                      {isAdminRole && (
+                      {/* --- SECCIÓN PRIVADA: ADMIN, PERSONAL, EQUIPO TÉCNICO, MÉDICO --- */}
+                      {showPrivateMenu && (
                           <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
                               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-3 mb-1 mt-1">Gestión Privada</p>
-                              <button onClick={() => { setActiveTab('admin'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-blue-600 transition">
-                                  <FileText size={18} className="text-blue-500"/> Admin Docs
-                              </button>
-                              <button onClick={() => { setActiveTab('personal'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-violet-700 transition">
-                                  <Users size={18} className="text-violet-500"/> Personal
-                              </button>
-                            <button onClick={() => { setActiveTab('equipo'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-teal-50 flex items-center gap-3 text-sm font-bold text-teal-700 transition">
-                               <Briefcase size={18} className="text-teal-500"/> Equipo Técnico
-                           </button>
-                              <button onClick={() => { setActiveTab('medical'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-red-50 flex items-center gap-3 text-sm font-bold text-red-600 transition">
-                                  <Activity size={18} className="text-red-500"/> Médico
-                              </button>
+                              
+                              {isTechTeamRole && (
+                                  <button onClick={() => { setActiveTab('equipo'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-teal-50 flex items-center gap-3 text-sm font-bold text-teal-700 transition">
+                                      <Briefcase size={18} className="text-teal-500"/> Equipo Técnico
+                                  </button>
+                              )}
+
+                              {isAdminRole && (
+                                  <>
+                                      <button onClick={() => { setActiveTab('admin'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-blue-600 transition">
+                                          <FileText size={18} className="text-blue-500"/> Admin Docs
+                                      </button>
+                                      <button onClick={() => { setActiveTab('personal'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-violet-700 transition">
+                                          <Users size={18} className="text-violet-500"/> Personal
+                                      </button>
+                                  </>
+                              )}
+
+                              {isMedicalRole && (
+                                  <button onClick={() => { setActiveTab('medical'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-red-50 flex items-center gap-3 text-sm font-bold text-red-600 transition">
+                                      <Activity size={18} className="text-red-500"/> Médico
+                                  </button>
+                              )}
                           </div>
                       )}
                   </div>
@@ -5002,6 +5015,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
