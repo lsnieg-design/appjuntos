@@ -4633,7 +4633,7 @@ function PersonalView({ user }) {
     </div>
   );
 }
-// --- VISTA MÉDICA (COMPLETA CON FIRMA DEL DR. GÓMEZ) ---
+// --- VISTA MÉDICA (COMPLETA: DATOS CLÍNICOS, EVOLUCIONES E IMPRESIÓN CON FIRMA) ---
 function MedicalView({ user }) {
   const [students, setStudents] = useState([]);
   const [filterText, setFilterText] = useState('');
@@ -4720,7 +4720,7 @@ function MedicalView({ user }) {
       } catch (err) { alert("Error al eliminar: " + err.message); }
   };
 
- const imprimirHistoriaClinica = (student) => {
+  const imprimirHistoriaClinica = (student) => {
       const fullDate = new Date().toLocaleDateString('es-AR');
       const evos = student.medicalEvolutions || [];
       let evosHtml = evos.length > 0 
@@ -4822,12 +4822,230 @@ function MedicalView({ user }) {
       const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close(); 
       setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
   };
+
   if (!canAccess) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido al Departamento Médico.</div>;
 
-  const currentStats = calculateStats();
-
   return (
-    // ... resto del componente JSX (Header, Listado, Modales) permanece igual ...
+    <div className="space-y-4 animate-in fade-in pb-20 px-2 pt-4">
+        {/* HEADER */}
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-red-100 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h2 className="text-2xl font-black text-red-700 uppercase italic flex items-center gap-2">
+                    <Activity size={24} /> Fichas Médicas
+                </h2>
+                <p className="text-xs text-gray-500 font-bold uppercase mt-1">Gabinete de Salud Institucional</p>
+            </div>
+            <div className="flex bg-gray-50 rounded-xl items-center px-3 border border-gray-200 w-full md:w-72 shadow-inner">
+                <Search size={16} className="text-gray-400"/>
+                <input 
+                    placeholder="Buscar paciente..." 
+                    value={filterText}
+                    onChange={e=>setFilterText(e.target.value)} 
+                    className="bg-transparent p-3 text-xs font-bold outline-none w-full text-gray-700"
+                />
+                {filterText && <button onClick={() => setFilterText('')} className="text-gray-400 hover:text-red-500"><X size={14}/></button>}
+            </div>
+        </div>
+
+        {/* LISTADO DE PACIENTES */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[70vh] overflow-y-auto pr-1">
+            {filteredStudents.map(s => {
+                const cud = checkCudStatus(s.cudExpiration);
+                const hasAlert = cud.status === 'expired' || cud.status === 'warning' || (s.allergies && s.allergies.length > 2);
+
+                return (
+                    <div key={s.id} onClick={() => { setSelectedStudent(s); setIsEditing(false); setNewEvoText(''); }} className={`bg-white p-4 rounded-2xl shadow-sm border-2 cursor-pointer transition-all hover:scale-[1.02] flex items-center gap-3 ${hasAlert ? 'border-red-200' : 'border-transparent'}`}>
+                        <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-red-300 font-black shrink-0 overflow-hidden border border-red-100">
+                            {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName[0]}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h4 className="font-bold text-gray-800 text-sm truncate uppercase">{s.lastName}, {s.firstName}</h4>
+                            <p className="text-[10px] text-gray-500 font-bold">{calculateAge(s.birthDate)} años | OS: {s.healthInsurance || 'S/D'}</p>
+                            
+                            <div className="flex gap-1 mt-1.5 flex-wrap">
+                                {cud.status !== 'none' && (
+                                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${cud.status === 'expired' ? 'bg-red-100 text-red-700' : cud.status === 'warning' ? 'bg-yellow-100 text-yellow-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                        CUD: {cud.text}
+                                    </span>
+                                )}
+                                {s.allergies && s.allergies.length > 2 && (
+                                    <span className="text-[8px] font-black px-1.5 py-0.5 rounded uppercase bg-orange-100 text-orange-700 flex items-center gap-1">
+                                        <AlertTriangle size={8}/> Alergias
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+
+        {/* MODAL FICHA CLÍNICA */}
+        {selectedStudent && (
+            <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setSelectedStudent(null)}>
+                <div className="bg-white rounded-[35px] w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+                    
+                    <div className="bg-red-700 p-6 text-white relative shrink-0">
+                        <button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 p-1.5 rounded-full hover:bg-white/40 transition"><X size={20}/></button>
+                        <div className="flex gap-4 items-center">
+                            <div className="w-16 h-16 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center font-black text-2xl">
+                                {selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : selectedStudent.firstName[0]}
+                            </div>
+                            <div className="flex-1">
+                                <h2 className="text-2xl font-black uppercase tracking-tight leading-none">{selectedStudent.lastName}, {selectedStudent.firstName}</h2>
+                                <p className="text-red-200 font-bold text-xs uppercase mt-1">DNI: {selectedStudent.dni || '-'} • {calculateAge(selectedStudent.birthDate)} AÑOS</p>
+                            </div>
+                            <button onClick={() => imprimirHistoriaClinica(selectedStudent)} className="hidden md:flex flex-col items-center justify-center bg-white text-red-700 p-2 rounded-xl shadow-md hover:bg-red-50 transition" title="Imprimir Historia Clínica">
+                                <Printer size={20}/>
+                                <span className="text-[9px] font-black uppercase mt-1">Imprimir</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="p-6 overflow-y-auto bg-gray-50 flex-1">
+                        {!isEditing ? (
+                            <div className="space-y-5">
+                                {/* RESUMEN DE ALERTAS */}
+                                {(selectedStudent.allergies || checkCudStatus(selectedStudent.cudExpiration).status === 'expired') && (
+                                    <div className="bg-red-50 border border-red-200 p-4 rounded-2xl shadow-inner">
+                                        <h4 className="text-red-800 font-black text-xs uppercase flex items-center gap-1 mb-2"><AlertTriangle size={14}/> Alertas Médicas</h4>
+                                        {selectedStudent.allergies && <p className="text-sm font-bold text-red-700 mb-1">Alergias: <span className="font-medium text-red-600">{selectedStudent.allergies}</span></p>}
+                                        {checkCudStatus(selectedStudent.cudExpiration).status === 'expired' && <p className="text-sm font-bold text-red-700">CUD: <span className="font-medium text-red-600">Vencido ({getSafeDate(selectedStudent.cudExpiration)})</span></p>}
+                                    </div>
+                                )}
+
+                                {/* DATOS CLÍNICOS ESTATICOS */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Obra Social</p>
+                                        <p className="font-bold text-slate-800 text-sm">{selectedStudent.healthInsurance || 'No declara'}</p>
+                                    </div>
+                                    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Vencimiento CUD</p>
+                                        <p className={`font-bold text-sm ${checkCudStatus(selectedStudent.cudExpiration).status === 'expired' ? 'text-red-600' : 'text-slate-800'}`}>
+                                            {getSafeDate(selectedStudent.cudExpiration)}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+                                    <div>
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Diagnóstico CUD / Médico</p>
+                                        <p className="font-bold text-slate-800 text-sm">{selectedStudent.cudDiagnosis || 'Sin datos cargados'}</p>
+                                    </div>
+                                    <div className="border-t border-gray-100 pt-3">
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Medicación Habitual</p>
+                                        <p className="font-bold text-slate-800 text-sm">{selectedStudent.medication || 'No refiere'}</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Peso (Aprox)</p>
+                                        <p className="font-bold text-slate-800 text-sm">{selectedStudent.weight ? `${selectedStudent.weight} kg` : 'S/D'}</p>
+                                    </div>
+                                    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Vacunación</p>
+                                        <p className="font-bold text-slate-800 text-sm">{selectedStudent.vaccines || 'S/D'}</p>
+                                    </div>
+                                </div>
+
+                                {/* SECCIÓN EVOLUCIONES */}
+                                <div className="mt-8 pt-6 border-t-2 border-dashed border-gray-200">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h4 className="font-black text-red-800 uppercase flex items-center gap-2"><FileText size={18}/> Evoluciones</h4>
+                                        <button onClick={() => imprimirHistoriaClinica(selectedStudent)} className="md:hidden bg-white text-red-600 px-3 py-1.5 rounded-lg border border-red-200 shadow-sm text-[10px] font-black uppercase flex items-center gap-1"><Printer size={12}/> Imprimir</button>
+                                    </div>
+                                    
+                                    <div className="flex gap-2 mb-6">
+                                        <textarea value={newEvoText} onChange={e => setNewEvoText(e.target.value)} placeholder="Escribir nueva evolución o nota médica..." className="w-full p-3 bg-white rounded-xl border border-red-200 outline-none text-xs font-medium resize-none h-14 shadow-inner focus:border-red-400"/>
+                                        <button onClick={handleAddEvolution} className="bg-red-600 text-white px-4 rounded-xl font-black text-[10px] uppercase shadow-md hover:bg-red-700 transition">Guardar<br/>Nota</button>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        {(!selectedStudent.medicalEvolutions || selectedStudent.medicalEvolutions.length === 0) && (
+                                            <p className="text-xs text-gray-400 italic text-center py-4 bg-white rounded-xl border border-gray-100">No hay evoluciones registradas aún.</p>
+                                        )}
+                                        {(selectedStudent.medicalEvolutions || []).slice().reverse().map(e => (
+                                            <div key={e.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm relative group">
+                                                <button onClick={() => handleDeleteEvolution(e.id)} className="absolute top-3 right-3 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition" title="Borrar evolución"><Trash2 size={14}/></button>
+                                                <div className="flex gap-2 items-center mb-2">
+                                                    <span className="text-[10px] font-black text-red-700 bg-red-50 border border-red-100 px-2 py-0.5 rounded">{new Date(e.date).toLocaleDateString('es-AR')}</span>
+                                                    <span className="text-[10px] font-bold text-gray-400">{e.author}</span>
+                                                </div>
+                                                <p className="text-sm text-gray-700 whitespace-pre-wrap font-medium leading-relaxed">{e.text}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                            </div>
+                        ) : (
+                            /* MODO EDICIÓN */
+                            <form id="medicalForm" onSubmit={handleSaveMedicalData} className="space-y-4">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Obra Social</label>
+                                        <input name="healthInsurance" defaultValue={selectedStudent.healthInsurance} className="w-full p-3 bg-white rounded-xl outline-none font-bold text-xs border border-gray-200 focus:border-red-300"/>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Vencimiento CUD</label>
+                                        <input type="date" name="cudExpiration" defaultValue={selectedStudent.cudExpiration} className="w-full p-3 bg-white rounded-xl outline-none font-bold text-xs border border-gray-200 text-gray-600 focus:border-red-300"/>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Diagnóstico (Detalle Clínico / CUD)</label>
+                                    <textarea name="cudDiagnosis" defaultValue={selectedStudent.cudDiagnosis} className="w-full p-3 bg-white rounded-xl outline-none font-bold text-xs border border-gray-200 h-20 resize-none focus:border-red-300"/>
+                                </div>
+
+                                <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
+                                    <label className="text-[10px] font-black text-red-800 uppercase ml-1">Alergias (Alimentarias / Medicamentosas)</label>
+                                    <input name="allergies" defaultValue={selectedStudent.allergies} placeholder="Ej: Penicilina, Maní..." className="w-full p-3 mt-1 bg-white rounded-xl outline-none font-bold text-xs border border-red-200 text-red-700"/>
+                                </div>
+
+                                <div>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Medicación Habitual / Dosis</label>
+                                    <textarea name="medication" defaultValue={selectedStudent.medication} className="w-full p-3 bg-white rounded-xl outline-none font-bold text-xs border border-gray-200 h-20 resize-none focus:border-red-300"/>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Peso (kg)</label>
+                                        <input name="weight" type="number" step="0.1" defaultValue={selectedStudent.weight} className="w-full p-3 bg-white rounded-xl outline-none font-bold text-xs border border-gray-200 focus:border-red-300"/>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Plan de Vacunación</label>
+                                        <select name="vaccines" defaultValue={selectedStudent.vaccines} className="w-full p-3 bg-white rounded-xl outline-none font-bold text-xs border border-gray-200 text-gray-700 focus:border-red-300">
+                                            <option value="">Seleccionar...</option>
+                                            <option value="Completas">Completas</option>
+                                            <option value="Incompletas">Incompletas</option>
+                                            <option value="No presenta libreta">No presenta libreta</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+                    
+                    <div className="p-4 border-t border-gray-100 bg-white flex justify-end gap-2 shrink-0">
+                        {isEditing ? (
+                            <>
+                                <button onClick={() => setIsEditing(false)} className="px-5 py-3 text-gray-500 font-bold text-xs uppercase hover:bg-gray-100 rounded-xl transition">Cancelar</button>
+                                <button type="submit" form="medicalForm" disabled={saving} className="px-6 py-3 bg-red-600 text-white rounded-xl font-bold text-xs uppercase shadow-lg hover:bg-red-700 transition flex items-center gap-2">
+                                    {saving ? <RefreshCw size={16} className="animate-spin"/> : 'Guardar Ficha Clínica'}
+                                </button>
+                            </>
+                        ) : (
+                            <button onClick={() => setIsEditing(true)} className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold text-xs uppercase shadow-lg hover:bg-gray-800 transition flex items-center justify-center gap-2">
+                                <Edit3 size={16}/> Editar Datos Fijos
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>
+        )}
+    </div>
   );
 }
 // --- VISTA ADMINISTRACIÓN (FINAL: SOLO DOCUMENTOS Y ALUMNOS) ---
@@ -5210,6 +5428,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
