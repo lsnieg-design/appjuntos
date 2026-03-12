@@ -4034,16 +4034,17 @@ const handleUpdateGroup = async (e) => {
     </div>
   );
 }
-// --- NUEVA VISTA: PERSONAL (EXCLUSIVO DIRECTIVOS/ADMIN) ---
+// --- VISTA PERSONAL (ACTUALIZADA CON ESTADÍSTICAS) ---
 function PersonalView({ user }) {
   const [staffList, setStaffList] = useState([]);
   const [staffFilterText, setStaffFilterText] = useState('');
   const [staffModalityFilter, setStaffModalityFilter] = useState('all');
   
   // Modales
-  const [viewingStaff, setViewingStaff] = useState(null); // ESTADO PARA VISTA LECTURA
+  const [viewingStaff, setViewingStaff] = useState(null); 
   const [showStaffForm, setShowStaffForm] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
+  const [showStats, setShowStats] = useState(false); // NUEVO ESTADO PARA MODAL
   
   // Estados de proceso
   const [processing, setProcessing] = useState(false);
@@ -4193,7 +4194,6 @@ function PersonalView({ user }) {
     try {
         if (editingStaff) {
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id), d);
-            // Actualizamos también la vista de lectura si está abierta
             if (viewingStaff?.id === editingStaff.id) setViewingStaff({ ...editingStaff, ...d });
         } else {
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), { ...d, createdAt: serverTimestamp() });
@@ -4202,13 +4202,53 @@ function PersonalView({ user }) {
     } catch (err) { alert(err.message); }
   };
 
+  // --- LÓGICA DE ESTADÍSTICAS ---
+  const calculateStats = () => {
+      const stats = {
+          total: staffList.length,
+          sede: staffList.filter(s => s.modality === 'Sede').length,
+          inclusion: staffList.filter(s => s.modality === 'Inclusión').length,
+          roles: {},
+          cargos: { simple: 0, doble: 0 },
+          subvencion: { si: 0, no: 0 }
+      };
+
+      staffList.forEach(s => {
+          // Contar roles (normalizando minúsculas para evitar duplicados como "DAI" y "dai")
+          const rol = (s.role || 'Sin Definir').toUpperCase();
+          stats.roles[rol] = (stats.roles[rol] || 0) + 1;
+
+          // Contar cargos simples o dobles
+          const tieneCargo1 = s.cargo1_name && s.cargo1_name.trim() !== '';
+          const tieneCargo2 = s.cargo2_name && s.cargo2_name.trim() !== '';
+          
+          if (tieneCargo1 && tieneCargo2) stats.cargos.doble++;
+          else if (tieneCargo1 || tieneCargo2) stats.cargos.simple++;
+
+          // Subvención
+          if (s.isSubsidized === 'true' || s.isSubsidized === true) stats.subvencion.si++;
+          else stats.subvencion.no++;
+      });
+
+      // Ordenar roles de mayor a menor
+      stats.rolesSorted = Object.entries(stats.roles).sort((a,b) => b[1] - a[1]);
+
+      return stats;
+  };
+
   if (!canAccess) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido.</div>;
+
+  const currentStats = calculateStats();
 
   return (
     <div className="space-y-4 animate-in fade-in pb-20 px-2 md:px-4 pt-4">
-        <div className="flex justify-between items-center bg-white p-4 rounded-3xl border border-violet-100 shadow-sm">
-            <div><h3 className="font-black text-violet-900 uppercase italic text-xl">Personal</h3><p className="text-[10px] text-gray-400 font-bold uppercase">{filteredStaff.length} Legajos</p></div>
+        <div className="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-3xl border border-violet-100 shadow-sm gap-4">
+            <div>
+                <h3 className="font-black text-violet-900 uppercase italic text-xl">Personal</h3>
+                <p className="text-[10px] text-gray-400 font-bold uppercase">{filteredStaff.length} Legajos visibles</p>
+            </div>
             <div className="flex gap-2">
+                <button onClick={() => setShowStats(true)} className="bg-white text-orange-500 border border-orange-200 p-3 rounded-2xl shadow-sm hover:bg-orange-50 transition" title="Ver Estadísticas"><PieChart size={20}/></button>
                 <button onClick={() => imprimirFichasDocentes(filteredStaff)} className="bg-white text-violet-600 border border-violet-200 p-3 rounded-2xl shadow-sm hover:bg-violet-50 transition" title="Imprimir Lista"><Printer size={20}/></button>
                 <label className="p-3 bg-emerald-100 text-emerald-700 rounded-2xl cursor-pointer hover:bg-emerald-200 transition">
                     {processing ? <RefreshCw className="animate-spin" size={20}/> : <UploadCloud size={20}/>}
@@ -4229,7 +4269,6 @@ function PersonalView({ user }) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[65vh] overflow-y-auto pb-10">
             {filteredStaff.map(s => (
-                // AHORA AL HACER CLIC ABRIMOS LA VISTA DE LECTURA (viewingStaff)
                 <div key={s.id} onClick={() => setViewingStaff(s)} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all cursor-pointer group">
                     <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100 shrink-0">
                         {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName?.[0]}
@@ -4252,6 +4291,76 @@ function PersonalView({ user }) {
                 </div>
             ))}
         </div>
+
+        {/* MODAL ESTADÍSTICAS */}
+        {showStats && (
+            <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowStats(false)}>
+                <div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-orange-500 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                    <div className="flex justify-between items-center mb-6">
+                        <div>
+                            <h3 className="text-2xl font-black text-violet-900 uppercase italic">Métricas</h3>
+                            <p className="text-xs text-gray-500 font-bold">Resumen del Personal</p>
+                        </div>
+                        <button onClick={() => setShowStats(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button>
+                    </div>
+
+                    <div className="space-y-6">
+                        <div className="flex gap-3">
+                            <div className="flex-1 bg-violet-50 rounded-2xl p-4 text-center border border-violet-100">
+                                <span className="block text-3xl font-black text-violet-700">{currentStats.total}</span>
+                                <span className="text-[9px] font-bold text-violet-500 uppercase tracking-widest">Total Staff</span>
+                            </div>
+                            <div className="flex-1 bg-indigo-50 rounded-2xl p-4 text-center border border-indigo-100">
+                                <span className="block text-xl font-black text-indigo-700">{currentStats.inclusion}</span>
+                                <span className="text-[9px] font-bold text-indigo-500 uppercase tracking-widest">Inclusión</span>
+                            </div>
+                            <div className="flex-1 bg-orange-50 rounded-2xl p-4 text-center border border-orange-100">
+                                <span className="block text-xl font-black text-orange-700">{currentStats.sede}</span>
+                                <span className="text-[9px] font-bold text-orange-500 uppercase tracking-widest">Sede</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Distribución por Rol</h4>
+                            <div className="space-y-2">
+                                {currentStats.rolesSorted.map(([rol, count]) => {
+                                    const percentage = Math.round((count / currentStats.total) * 100);
+                                    return (
+                                        <div key={rol} className="bg-gray-50 p-2 rounded-lg border border-gray-100">
+                                            <div className="flex justify-between text-xs font-bold text-gray-700 mb-1">
+                                                <span>{rol}</span>
+                                                <span>{count} ({percentage}%)</span>
+                                            </div>
+                                            <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                                <div style={{width: `${percentage}%`}} className="h-full bg-violet-500"></div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-white border-2 border-gray-100 p-4 rounded-2xl">
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase mb-2 text-center">Tipo de Cargo</h4>
+                                <div className="space-y-1">
+                                    <div className="flex justify-between text-xs font-bold"><span className="text-gray-500">Simples</span><span className="text-gray-800">{currentStats.cargos.simple}</span></div>
+                                    <div className="flex justify-between text-xs font-bold"><span className="text-gray-500">Dobles</span><span className="text-gray-800">{currentStats.cargos.doble}</span></div>
+                                </div>
+                            </div>
+                            <div className="bg-white border-2 border-gray-100 p-4 rounded-2xl">
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase mb-2 text-center">Subvención</h4>
+                                <div className="space-y-1">
+                                    <div className="flex justify-between text-xs font-bold"><span className="text-emerald-500">Aprobada</span><span className="text-gray-800">{currentStats.subvencion.si}</span></div>
+                                    <div className="flex justify-between text-xs font-bold"><span className="text-red-400">Sin aval</span><span className="text-gray-800">{currentStats.subvencion.no}</span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        )}
 
         {/* MODAL 1: VISUALIZACIÓN DE LEGAJO (SÓLO LECTURA) */}
         {viewingStaff && !showStaffForm && (
@@ -4289,7 +4398,7 @@ function PersonalView({ user }) {
                             <div className="flex justify-between items-center border-b border-violet-200 pb-2">
                                 <h4 className="font-bold text-violet-800 text-xs uppercase">Contratación</h4>
                                 <span className="bg-white border border-violet-200 px-2 py-0.5 rounded text-[10px] font-bold text-violet-600">
-                                    {viewingStaff.isSubsidized === 'true' ? 'Subvencionada' : 'Sin Subvención'}
+                                    {viewingStaff.isSubsidized === 'true' || viewingStaff.isSubsidized === true ? 'Subvencionada' : 'Sin Subvención'}
                                 </span>
                             </div>
                             <div className="flex justify-between text-xs">
@@ -5015,6 +5124,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
