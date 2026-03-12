@@ -4034,7 +4034,7 @@ const handleUpdateGroup = async (e) => {
     </div>
   );
 }
-// --- VISTA PERSONAL (ACTUALIZADA: AUDITORÍA DE ROLES, TURNOS ESTRICTOS Y MECA/DENO AUTOMÁTICO) ---
+// --- VISTA PERSONAL (ACTUALIZADA: CARGOS "EN PAPELES" EXCLUIDOS DE MÉTRICAS) ---
 function PersonalView({ user }) {
   const [staffList, setStaffList] = useState([]);
   
@@ -4059,6 +4059,12 @@ function PersonalView({ user }) {
       "Cocina", "Limpieza", "Mantenimiento", "Administración"
   ];
 
+  const getNormRole = (r) => {
+      if (!r) return '';
+      const match = VALID_ROLES.find(v => v.toLowerCase() === r.trim().toLowerCase());
+      return match || r.trim();
+  };
+
   useEffect(() => {
     const qStaff = query(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), orderBy('lastName', 'asc'));
     const unsubStaff = onSnapshot(qStaff, (snap) => { setStaffList(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
@@ -4080,22 +4086,23 @@ function PersonalView({ user }) {
           if (filters.subsidized === 'no' && hasAnySub) return false;
       }
 
-      const c1Role = s.cargo1_role || s.role || ''; 
-      const c2Role = s.cargo2_role || '';
-      const c1Turn = (s.cargo1_turn || '').toLowerCase();
-      const c2Turn = (s.cargo2_turn || '').toLowerCase();
+      const c1Role = getNormRole(s.cargo1_role || s.role); 
+      const c2Role = getNormRole(s.cargo2_role);
+      const c1Turn = (s.cargo1_turn || '').trim().toLowerCase();
+      const c2Turn = (s.cargo2_turn || '').trim().toLowerCase();
 
       const filterRole = filters.role;
       const filterTurn = filters.turn.toLowerCase();
 
-      const c1IsUnassigned = !VALID_ROLES.includes(c1Role);
-      const c2IsUnassigned = s.cargo2_name && !VALID_ROLES.includes(c2Role);
+      const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || c1Turn);
+      const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || c2Turn);
+
+      const c1IsUnassigned = !hasC1 || !VALID_ROLES.includes(c1Role);
+      const c2IsUnassigned = hasC2 && !VALID_ROLES.includes(c2Role);
 
       if (filterRole === 'sin-asignar') {
-          // Mostrar si tiene errores de rol en algún cargo
           if (!c1IsUnassigned && !c2IsUnassigned) return false;
       } else if (filterRole !== 'all') {
-          // Filtrado estricto por rol
           const c1MatchesRole = c1Role === filterRole;
           const c2MatchesRole = c2Role === filterRole;
           if (!c1MatchesRole && !c2MatchesRole) return false;
@@ -4108,7 +4115,6 @@ function PersonalView({ user }) {
       return true;
   });
 
-  // LISTA ESTRICTA DE TURNOS PARA EL FILTRO Y FORMULARIO
   const uniqueTurns = ["Mañana", "Tarde", "Alternado"];
 
   const handlePhotoChange = (e) => {
@@ -4169,14 +4175,19 @@ function PersonalView({ user }) {
       lista.forEach(s => {
           let antiguedad = calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef);
           
-          let c1Role = s.cargo1_role || s.role || 'Rol Pendiente';
-          let c2Role = s.cargo2_role || 'Rol Pendiente';
+          let c1Role = getNormRole(s.cargo1_role || s.role) || 'Rol Pendiente';
+          let c2Role = getNormRole(s.cargo2_role) || 'Rol Pendiente';
+
+          const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role !== 'Rol Pendiente' || (s.cargo1_turn && s.cargo1_turn.trim()));
+          const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role !== 'Rol Pendiente' || (s.cargo2_turn && s.cargo2_turn.trim()));
 
           let sub1Text = (s.cargo1_subsidized === 'true' || s.isSubsidized === 'true') ? 'SUBVENCIONADO' : 'SIN SUBVENCIÓN';
-          let c1 = s.cargo1_name ? `Cargo N°${s.cargo1_numero || '-'} | <b>${c1Role}</b> | ${s.cargo1_name} (${s.cargo1_type}) - ${s.cargo1_turn} - ${s.cargo1_revista} - <b>${sub1Text}</b> <br/><span style="color:#666; font-size:9px; text-transform:uppercase;">ALTA CARGO: ${getSafeDate(s.cargo1_ingreso)}</span>` : 'NO TRABAJA / SIN CARGO';
+          let papeles1Text = s.cargo1_en_papeles === 'true' ? ' <b>[SOLO EN PAPELES]</b>' : '';
+          let c1 = hasC1 ? `Cargo N°${s.cargo1_numero || '-'} | <b>${c1Role}</b> | ${s.cargo1_name || ''} (${s.cargo1_type || ''}) - ${s.cargo1_turn || ''} - ${s.cargo1_revista || ''} - <b>${sub1Text}</b>${papeles1Text} <br/><span style="color:#666; font-size:9px; text-transform:uppercase;">ALTA CARGO: ${getSafeDate(s.cargo1_ingreso)}</span>` : 'NO TRABAJA / SIN CARGO';
           
           let sub2Text = s.cargo2_subsidized === 'true' ? 'SUBVENCIONADO' : 'SIN SUBVENCIÓN';
-          let c2 = s.cargo2_name ? `Cargo N°${s.cargo2_numero || '-'} | <b>${c2Role}</b> | ${s.cargo2_name} (${s.cargo2_type}) - ${s.cargo2_turn} - ${s.cargo2_revista} - <b>${sub2Text}</b> <br/><span style="color:#666; font-size:9px; text-transform:uppercase;">ALTA CARGO: ${getSafeDate(s.cargo2_ingreso)}</span>` : 'NO TRABAJA / SIN CARGO';
+          let papeles2Text = s.cargo2_en_papeles === 'true' ? ' <b>[SOLO EN PAPELES]</b>' : '';
+          let c2 = hasC2 ? `Cargo N°${s.cargo2_numero || '-'} | <b>${c2Role}</b> | ${s.cargo2_name || ''} (${s.cargo2_type || ''}) - ${s.cargo2_turn || ''} - ${s.cargo2_revista || ''} - <b>${sub2Text}</b>${papeles2Text} <br/><span style="color:#666; font-size:9px; text-transform:uppercase;">ALTA CARGO: ${getSafeDate(s.cargo2_ingreso)}</span>` : 'NO TRABAJA / SIN CARGO';
 
           html += `<div class="page">
               <div class="header">
@@ -4238,8 +4249,10 @@ function PersonalView({ user }) {
                       modality: cols[11]?.trim() || 'Sede',
                       cargo1_role: cols[10]?.trim() || '', 
                       cargo1_subsidized: cols[12]?.trim() === 'SI' ? 'true' : 'false',
+                      cargo1_en_papeles: 'false',
                       cargo1_name: cols[13]?.trim() || '', cargo1_type: cols[14]?.trim() || '', cargo1_turn: cols[15]?.trim() || '', cargo1_revista: cols[16]?.trim() || '',
                       cargo2_name: cols[17]?.trim() || '', cargo2_type: cols[18]?.trim() || '', cargo2_turn: cols[19]?.trim() || '', cargo2_revista: cols[20]?.trim() || '',
+                      cargo2_en_papeles: 'false',
                       createdAt: serverTimestamp()
                   });
               });
@@ -4256,8 +4269,12 @@ function PersonalView({ user }) {
     const d = Object.fromEntries(fd.entries());
     d.photoUrl = photoPreview || editingStaff?.photoUrl || '';
     
-    // Si limpian los cargos, forzamos vaciado
-    if(!d.cargo2_name) { d.cargo2_role = ''; d.cargo2_turn = ''; d.cargo2_type = ''; d.cargo2_revista = ''; d.cargo2_ingreso = ''; }
+    // Auto-limpieza profunda de Cargo 2 si no tiene nombre
+    if(!d.cargo2_name || d.cargo2_name.trim() === '') { 
+        d.cargo2_role = ''; d.cargo2_turn = ''; d.cargo2_type = ''; 
+        d.cargo2_revista = ''; d.cargo2_ingreso = ''; d.cargo2_name = ''; 
+        d.cargo2_subsidized = 'false'; d.cargo2_en_papeles = 'false';
+    }
 
     try {
         if (editingStaff) {
@@ -4281,27 +4298,38 @@ function PersonalView({ user }) {
       };
 
       filteredStaff.forEach(s => {
-          const c1Role = s.cargo1_role || s.role || '';
-          const c2Role = s.cargo2_role || '';
+          const c1Role = getNormRole(s.cargo1_role || s.role);
+          const c2Role = getNormRole(s.cargo2_role);
           const c1Turn = (s.cargo1_turn || '').toLowerCase();
           const c2Turn = (s.cargo2_turn || '').toLowerCase();
           
           const filterRole = filters.role;
           const filterTurn = filters.turn.toLowerCase();
 
-          const c1Matches = (s.cargo1_name || c1Role) && (filterRole === 'all' || c1Role === filterRole) && (filterTurn === 'all' || c1Turn.includes(filterTurn));
-          const c2Matches = (s.cargo2_name || c2Role) && (filterRole === 'all' || c2Role === filterRole) && (filterTurn === 'all' || c2Turn.includes(filterTurn));
+          const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || c1Turn);
+          const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || c2Turn);
 
-          if (s.cargo1_name && s.cargo2_name) stats.cargos.doble++;
-          else if (s.cargo1_name || s.cargo2_name) stats.cargos.simple++;
+          const c1Matches = hasC1 && (filterRole === 'all' || c1Role === filterRole) && (filterTurn === 'all' || c1Turn.includes(filterTurn));
+          const c2Matches = hasC2 && (filterRole === 'all' || c2Role === filterRole) && (filterTurn === 'all' || c2Turn.includes(filterTurn));
 
-          if (c1Matches && c1Role) {
+          // IGNORAMOS CARGOS EN PAPELES EN LAS MÉTRICAS
+          const isC1Papeles = s.cargo1_en_papeles === 'true';
+          const isC2Papeles = s.cargo2_en_papeles === 'true';
+
+          let activeCargosCount = 0;
+          if (c1Matches && !isC1Papeles && s.cargo1_name) activeCargosCount++;
+          if (c2Matches && !isC2Papeles && s.cargo2_name) activeCargosCount++;
+
+          if (activeCargosCount === 2) stats.cargos.doble++;
+          else if (activeCargosCount === 1) stats.cargos.simple++;
+
+          if (c1Matches && !isC1Papeles && c1Role) {
               const r1 = VALID_ROLES.includes(c1Role) ? c1Role : '⚠️ Error / Pendiente';
               stats.roles[r1] = (stats.roles[r1] || 0) + 1;
               if (s.cargo1_subsidized === 'true' || s.isSubsidized === 'true') stats.subvencion.si++;
               else stats.subvencion.no++;
           }
-          if (c2Matches && c2Role) {
+          if (c2Matches && !isC2Papeles && c2Role) {
               const r2 = VALID_ROLES.includes(c2Role) ? c2Role : '⚠️ Error / Pendiente';
               stats.roles[r2] = (stats.roles[r2] || 0) + 1;
               if (s.cargo2_subsidized === 'true') stats.subvencion.si++;
@@ -4335,7 +4363,7 @@ function PersonalView({ user }) {
             </div>
         </div>
 
-        {/* BARRA DE FILTROS ACTUALIZADA */}
+        {/* BARRA DE FILTROS */}
         <div className="space-y-2">
             <div className="bg-white p-2 rounded-2xl border border-gray-100 flex items-center gap-2 shadow-sm">
                 <Search size={18} className="ml-2 text-gray-300"/>
@@ -4367,9 +4395,15 @@ function PersonalView({ user }) {
             {filteredStaff.map(s => {
                 const tieneSub = s.cargo1_subsidized === 'true' || s.cargo2_subsidized === 'true' || s.isSubsidized === 'true';
                 
-                const c1Role = s.cargo1_role || s.role || '';
-                const c2Role = s.cargo2_role || '';
-                const needsRoleFix = !VALID_ROLES.includes(c1Role) || (s.cargo2_name && !VALID_ROLES.includes(c2Role));
+                const c1Role = getNormRole(s.cargo1_role || s.role);
+                const c2Role = getNormRole(s.cargo2_role);
+
+                const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || (s.cargo1_turn && s.cargo1_turn.trim()));
+                const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || (s.cargo2_turn && s.cargo2_turn.trim()));
+
+                const c1NeedsFix = !hasC1 || !VALID_ROLES.includes(c1Role);
+                const c2NeedsFix = hasC2 && !VALID_ROLES.includes(c2Role);
+                const needsRoleFix = c1NeedsFix || c2NeedsFix;
                 
                 return (
                     <div key={s.id} onClick={() => setViewingStaff(s)} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all cursor-pointer group relative">
@@ -4388,8 +4422,8 @@ function PersonalView({ user }) {
                                 <span className="text-violet-500">Anti: {calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef)}</span>
                             </div>
                             <p className="text-[10px] font-black text-violet-600 uppercase mt-1 truncate">
-                                {s.cargo1_name ? `C1: ${c1Role} (${s.cargo1_turn || '-'})` : <span className="text-gray-400">NO TRABAJA (C1)</span>} 
-                                {s.cargo2_name ? ` | C2: ${c2Role} (${s.cargo2_turn || '-'})` : <span className="text-gray-400"> | NO TRABAJA (C2)</span>}
+                                {hasC1 ? `C1: ${c1Role || 'S/D'} (${s.cargo1_turn || '-'}) ${s.cargo1_en_papeles === 'true' ? '📝' : ''}` : <span className="text-gray-400">NO TRABAJA (C1)</span>} 
+                                {hasC2 ? ` | C2: ${c2Role || 'S/D'} (${s.cargo2_turn || '-'}) ${s.cargo2_en_papeles === 'true' ? '📝' : ''}` : <span className="text-gray-400"> | NO TRABAJA (C2)</span>}
                             </p>
                         </div>
                         <Eye className="text-gray-300 group-hover:text-violet-500 transition-colors shrink-0" />
@@ -4405,7 +4439,7 @@ function PersonalView({ user }) {
                     <div className="flex justify-between items-center mb-6">
                         <div>
                             <h3 className="text-2xl font-black text-violet-900 uppercase italic">Métricas</h3>
-                            <p className="text-xs text-gray-500 font-bold">Cargos Filtrados Actualmente</p>
+                            <p className="text-xs text-gray-500 font-bold">Cargos Filtrados (Ignorando 'En Papeles')</p>
                         </div>
                         <button onClick={() => setShowStats(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button>
                     </div>
@@ -4419,7 +4453,7 @@ function PersonalView({ user }) {
                         </div>
 
                         <div>
-                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Distribución de Roles (Según Filtro Activo)</h4>
+                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Distribución de Roles Activos</h4>
                             <div className="space-y-2">
                                 {currentStats.rolesSorted.map(([rol, count]) => {
                                     const totalRoles = Object.values(currentStats.roles).reduce((a,b)=>a+b, 0);
@@ -4441,14 +4475,14 @@ function PersonalView({ user }) {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="bg-white border-2 border-gray-100 p-4 rounded-2xl">
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase mb-2 text-center">Tipo de Cargo</h4>
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase mb-2 text-center">Tipos Ejerciendo</h4>
                                 <div className="space-y-1">
                                     <div className="flex justify-between text-xs font-bold"><span className="text-gray-500">Pers. con 1 Cargo</span><span className="text-gray-800">{currentStats.cargos.simple}</span></div>
                                     <div className="flex justify-between text-xs font-bold"><span className="text-gray-500">Pers. con 2 Cargos</span><span className="text-gray-800">{currentStats.cargos.doble}</span></div>
                                 </div>
                             </div>
                             <div className="bg-white border-2 border-gray-100 p-4 rounded-2xl">
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase mb-2 text-center">Subvención (Cargos)</h4>
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase mb-2 text-center">Subvención (Activos)</h4>
                                 <div className="space-y-1">
                                     <div className="flex justify-between text-xs font-bold"><span className="text-emerald-500">Aprobados</span><span className="text-gray-800">{currentStats.subvencion.si}</span></div>
                                     <div className="flex justify-between text-xs font-bold"><span className="text-red-400">Sin aval</span><span className="text-gray-800">{currentStats.subvencion.no}</span></div>
@@ -4494,32 +4528,32 @@ function PersonalView({ user }) {
                             </div>
                             
                             <div className="pt-1 space-y-2">
-                                {viewingStaff.cargo1_name ? (
-                                    <div className="bg-white p-3 rounded-lg border border-violet-200 text-xs shadow-sm relative">
+                                {Boolean((viewingStaff.cargo1_name && viewingStaff.cargo1_name.trim()) || viewingStaff.cargo1_role || (viewingStaff.cargo1_turn && viewingStaff.cargo1_turn.trim())) ? (
+                                    <div className={`bg-white p-3 rounded-lg border ${viewingStaff.cargo1_en_papeles === 'true' ? 'border-gray-200 opacity-70' : 'border-violet-200 shadow-sm'} text-xs relative`}>
                                         <div className="flex justify-between items-center mb-1 pr-16">
-                                            <span className="font-black text-violet-900">C1: {viewingStaff.cargo1_role || viewingStaff.role || 'Rol Pendiente'}</span>
+                                            <span className="font-black text-violet-900">C1: {getNormRole(viewingStaff.cargo1_role || viewingStaff.role) || 'Rol Pendiente'} {viewingStaff.cargo1_en_papeles === 'true' && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[8px] ml-1">EN PAPELES</span>}</span>
                                             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded absolute top-2 right-2 ${viewingStaff.cargo1_subsidized === 'true' || viewingStaff.isSubsidized === 'true' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`}>
                                                 {viewingStaff.cargo1_subsidized === 'true' || viewingStaff.isSubsidized === 'true' ? 'Subvencionado' : 'Sin Subvención'}
                                             </span>
                                         </div>
                                         <p className="font-bold text-gray-700 mb-1">{viewingStaff.cargo1_name}</p>
-                                        <p className="text-gray-500 mb-1">N° {viewingStaff.cargo1_numero || '-'} | {viewingStaff.cargo1_type} | {viewingStaff.cargo1_turn} | {viewingStaff.cargo1_revista}</p>
+                                        <p className="text-gray-500 mb-1">N° {viewingStaff.cargo1_numero || '-'} | {viewingStaff.cargo1_type || '-'} | {viewingStaff.cargo1_turn || '-'} | {viewingStaff.cargo1_revista || '-'}</p>
                                         <p className="text-[10px] text-violet-600 font-bold">Alta Cargo: {getSafeDate(viewingStaff.cargo1_ingreso)}</p>
                                     </div>
                                 ) : (
                                     <div className="bg-gray-100 p-2 rounded-lg text-xs text-gray-400 text-center font-bold">NO TRABAJA / SIN CARGO 1</div>
                                 )}
 
-                                {viewingStaff.cargo2_name ? (
-                                    <div className="bg-white p-3 rounded-lg border border-violet-200 text-xs shadow-sm relative">
+                                {Boolean((viewingStaff.cargo2_name && viewingStaff.cargo2_name.trim()) || viewingStaff.cargo2_role || (viewingStaff.cargo2_turn && viewingStaff.cargo2_turn.trim())) ? (
+                                    <div className={`bg-white p-3 rounded-lg border ${viewingStaff.cargo2_en_papeles === 'true' ? 'border-gray-200 opacity-70' : 'border-violet-200 shadow-sm'} text-xs relative`}>
                                         <div className="flex justify-between items-center mb-1 pr-16">
-                                            <span className="font-black text-violet-900">C2: {viewingStaff.cargo2_role || 'Rol Pendiente'}</span>
+                                            <span className="font-black text-violet-900">C2: {getNormRole(viewingStaff.cargo2_role) || 'Rol Pendiente'} {viewingStaff.cargo2_en_papeles === 'true' && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[8px] ml-1">EN PAPELES</span>}</span>
                                             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded absolute top-2 right-2 ${viewingStaff.cargo2_subsidized === 'true' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`}>
                                                 {viewingStaff.cargo2_subsidized === 'true' ? 'Subvencionado' : 'Sin Subvención'}
                                             </span>
                                         </div>
                                         <p className="font-bold text-gray-700 mb-1">{viewingStaff.cargo2_name}</p>
-                                        <p className="text-gray-500 mb-1">N° {viewingStaff.cargo2_numero || '-'} | {viewingStaff.cargo2_type} | {viewingStaff.cargo2_turn} | {viewingStaff.cargo2_revista}</p>
+                                        <p className="text-gray-500 mb-1">N° {viewingStaff.cargo2_numero || '-'} | {viewingStaff.cargo2_type || '-'} | {viewingStaff.cargo2_turn || '-'} | {viewingStaff.cargo2_revista || '-'}</p>
                                         <p className="text-[10px] text-violet-600 font-bold">Alta Cargo: {getSafeDate(viewingStaff.cargo2_ingreso)}</p>
                                     </div>
                                 ) : (
@@ -4557,7 +4591,7 @@ function PersonalView({ user }) {
                       </div>
                   </div>
 
-                  <form onSubmit={handleSaveStaff} className="space-y-4">
+                  <form id="staffForm" onSubmit={handleSaveStaff} className="space-y-4">
                       <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-3">
                           <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Datos Personales</h4>
                           <div className="grid grid-cols-2 gap-3"><input name="firstName" defaultValue={editingStaff?.firstName} placeholder="Nombre" required className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/><input name="lastName" defaultValue={editingStaff?.lastName} placeholder="Apellido" required className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/></div>
@@ -4593,15 +4627,27 @@ function PersonalView({ user }) {
 
                           {/* CARGO 1 */}
                           <div className="space-y-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm relative">
-                              <h5 className="text-[10px] font-black text-gray-400 uppercase">Cargo 1</h5>
-                              <div className="grid grid-cols-[1fr,2fr,1.5fr] gap-2">
+                              <div className="flex justify-between items-center">
+                                  <h5 className="text-[10px] font-black text-gray-400 uppercase">Cargo 1</h5>
+                                  <button type="button" onClick={() => {
+                                      const form = document.getElementById('staffForm');
+                                      if(form) {
+                                          form.cargo1_numero.value = ''; form.cargo1_name.value = ''; form.cargo1_ingreso.value = '';
+                                          form.cargo1_role.value = ''; form.cargo1_turn.value = ''; form.cargo1_revista.value = '';
+                                          form.cargo1_subsidized.value = 'false'; form.cargo1_en_papeles.value = 'false';
+                                          const typeInput = document.getElementById('cargo1_type_input');
+                                          if(typeInput) typeInput.value = 'deno';
+                                      }
+                                  }} className="text-[9px] bg-red-50 text-red-500 px-2 py-0.5 rounded-lg font-black uppercase hover:bg-red-100 transition shadow-sm">Borrar Datos C1</button>
+                              </div>
+                              <div className="grid grid-cols-[1fr,2fr,1.5fr] gap-2 mt-1">
                                   <input name="cargo1_numero" defaultValue={editingStaff?.cargo1_numero} placeholder="N° Cargo" className="p-2 bg-violet-50 text-violet-900 rounded-lg outline-none font-black text-xs w-full border border-violet-100"/>
                                   <input name="cargo1_name" defaultValue={editingStaff?.cargo1_name} placeholder="Nombre (Ej: MG)" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full border border-gray-200"/>
                                   <input name="cargo1_ingreso" type="date" defaultValue={editingStaff?.cargo1_ingreso} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-[10px] text-gray-500 w-full border border-gray-200" title="Fecha Alta Cargo"/>
                               </div>
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                                  <select name="cargo1_role" defaultValue={editingStaff?.cargo1_role || editingStaff?.role || ''} className="p-2 bg-white rounded-lg border border-red-300 shadow-sm outline-none font-bold text-xs text-violet-900" required>
-                                      <option value="">⚠️ Asignar Rol...</option>
+                                  <select name="cargo1_role" defaultValue={getNormRole(editingStaff?.cargo1_role || editingStaff?.role)} className="p-2 bg-white rounded-lg border border-red-300 shadow-sm outline-none font-bold text-xs text-violet-900">
+                                      <option value="">-- Sin Rol (No Trabaja) --</option>
                                       <optgroup label="SEDE">
                                           <option value="Docente">Docente</option>
                                           <option value="Preceptora">Preceptora</option>
@@ -4622,45 +4668,49 @@ function PersonalView({ user }) {
                                           <option value="Administración">Administración</option>
                                       </optgroup>
                                   </select>
-                                  
-                                  {/* SELECT TURNO */}
                                   <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn || ''} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full text-violet-800">
                                       <option value="">Turno...</option>
                                       <option value="Mañana">Mañana</option>
                                       <option value="Tarde">Tarde</option>
                                       <option value="Alternado">Alternado</option>
                                   </select>
-                                  
                                   <select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Revista...</option><option value="Titular">Titular</option><option value="Provicional">Provisional</option><option value="Suplente">Suplente</option></select>
                                   
-                                  {/* SELECT SUBVENCIÓN QUE MANEJA TIPO */}
-                                  <select 
-                                    name="cargo1_subsidized" 
-                                    defaultValue={editingStaff?.cargo1_subsidized === 'true' || editingStaff?.isSubsidized === 'true' ? 'true' : 'false'} 
-                                    onChange={(e) => {
-                                      const typeInput = document.getElementById('cargo1_type_input');
-                                      if(typeInput) typeInput.value = e.target.value === 'true' ? 'meca' : 'deno';
-                                    }}
-                                    className="p-2 bg-emerald-50 text-emerald-800 rounded-lg outline-none font-bold text-xs w-full border border-emerald-100"
-                                  >
-                                      <option value="false">Sin Subv (DENO)</option>
-                                      <option value="true">Subvencion. (MECA)</option>
+                                  <select name="cargo1_en_papeles" defaultValue={editingStaff?.cargo1_en_papeles || 'false'} className="p-2 bg-white rounded-lg border border-gray-200 outline-none font-bold text-xs w-full text-gray-600">
+                                      <option value="false">Cargo Ejerciendo</option>
+                                      <option value="true">Solo en Papeles</option>
                                   </select>
-                                  {/* INPUT OCULTO DE TIPO */}
-                                  <input type="hidden" id="cargo1_type_input" name="cargo1_type" defaultValue={editingStaff?.cargo1_subsidized === 'true' || editingStaff?.isSubsidized === 'true' ? 'meca' : 'deno'} />
+                              </div>
+                              <div className="mt-2">
+                                <select name="cargo1_subsidized" defaultValue={editingStaff?.cargo1_subsidized === 'true' || editingStaff?.isSubsidized === 'true' ? 'true' : 'false'} onChange={(e) => { const typeInput = document.getElementById('cargo1_type_input'); if(typeInput) typeInput.value = e.target.value === 'true' ? 'meca' : 'deno'; }} className="p-2 bg-emerald-50 text-emerald-800 rounded-lg outline-none font-bold text-xs w-full border border-emerald-100">
+                                    <option value="false">Sin Subvención (DENO)</option><option value="true">Cargo Subvencionado (MECA)</option>
+                                </select>
+                                <input type="hidden" id="cargo1_type_input" name="cargo1_type" defaultValue={editingStaff?.cargo1_subsidized === 'true' || editingStaff?.isSubsidized === 'true' ? 'meca' : 'deno'} />
                               </div>
                           </div>
 
                           {/* CARGO 2 */}
                           <div className="space-y-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm relative">
-                              <h5 className="text-[10px] font-black text-gray-400 uppercase">Cargo 2 (Opcional)</h5>
-                              <div className="grid grid-cols-[1fr,2fr,1.5fr] gap-2">
+                              <div className="flex justify-between items-center">
+                                  <h5 className="text-[10px] font-black text-gray-400 uppercase">Cargo 2 (Opcional)</h5>
+                                  <button type="button" onClick={() => {
+                                      const form = document.getElementById('staffForm');
+                                      if(form) {
+                                          form.cargo2_numero.value = ''; form.cargo2_name.value = ''; form.cargo2_ingreso.value = '';
+                                          form.cargo2_role.value = ''; form.cargo2_turn.value = ''; form.cargo2_revista.value = '';
+                                          form.cargo2_subsidized.value = 'false'; form.cargo2_en_papeles.value = 'false';
+                                          const typeInput = document.getElementById('cargo2_type_input');
+                                          if(typeInput) typeInput.value = 'deno';
+                                      }
+                                  }} className="text-[9px] bg-red-50 text-red-500 px-2 py-0.5 rounded-lg font-black uppercase hover:bg-red-100 transition shadow-sm">Borrar Datos C2</button>
+                              </div>
+                              <div className="grid grid-cols-[1fr,2fr,1.5fr] gap-2 mt-1">
                                   <input name="cargo2_numero" defaultValue={editingStaff?.cargo2_numero} placeholder="N° Cargo" className="p-2 bg-violet-50 text-violet-900 rounded-lg outline-none font-black text-xs w-full border border-violet-100"/>
                                   <input name="cargo2_name" defaultValue={editingStaff?.cargo2_name} placeholder="Nombre (Ej: AUX)" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full border border-gray-200"/>
                                   <input name="cargo2_ingreso" type="date" defaultValue={editingStaff?.cargo2_ingreso} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-[10px] text-gray-500 w-full border border-gray-200" title="Fecha Alta Cargo"/>
                               </div>
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                                  <select name="cargo2_role" defaultValue={editingStaff?.cargo2_role || ''} className="p-2 bg-white rounded-lg border border-gray-200 outline-none font-bold text-xs text-violet-900">
+                                  <select name="cargo2_role" defaultValue={getNormRole(editingStaff?.cargo2_role)} className="p-2 bg-white rounded-lg border border-gray-200 outline-none font-bold text-xs text-violet-900">
                                       <option value="">-- No posee / Sin Cargo --</option>
                                       <optgroup label="SEDE">
                                           <option value="Docente">Docente</option>
@@ -4682,32 +4732,24 @@ function PersonalView({ user }) {
                                           <option value="Administración">Administración</option>
                                       </optgroup>
                                   </select>
-
-                                  {/* SELECT TURNO */}
                                   <select name="cargo2_turn" defaultValue={editingStaff?.cargo2_turn || ''} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full text-violet-800">
                                       <option value="">Turno...</option>
                                       <option value="Mañana">Mañana</option>
                                       <option value="Tarde">Tarde</option>
                                       <option value="Alternado">Alternado</option>
                                   </select>
-                                  
                                   <select name="cargo2_revista" defaultValue={editingStaff?.cargo2_revista} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Revista...</option><option value="Titular">Titular</option><option value="Provicional">Provisional</option><option value="Suplente">Suplente</option></select>
                                   
-                                  {/* SELECT SUBVENCIÓN QUE MANEJA TIPO */}
-                                  <select 
-                                    name="cargo2_subsidized" 
-                                    defaultValue={editingStaff?.cargo2_subsidized === 'true' ? 'true' : 'false'} 
-                                    onChange={(e) => {
-                                      const typeInput = document.getElementById('cargo2_type_input');
-                                      if(typeInput) typeInput.value = e.target.value === 'true' ? 'meca' : 'deno';
-                                    }}
-                                    className="p-2 bg-emerald-50 text-emerald-800 rounded-lg outline-none font-bold text-xs w-full border border-emerald-100"
-                                  >
-                                      <option value="false">Sin Subv (DENO)</option>
-                                      <option value="true">Subvencion. (MECA)</option>
+                                  <select name="cargo2_en_papeles" defaultValue={editingStaff?.cargo2_en_papeles || 'false'} className="p-2 bg-white rounded-lg border border-gray-200 outline-none font-bold text-xs w-full text-gray-600">
+                                      <option value="false">Cargo Ejerciendo</option>
+                                      <option value="true">Solo en Papeles</option>
                                   </select>
-                                  {/* INPUT OCULTO DE TIPO */}
-                                  <input type="hidden" id="cargo2_type_input" name="cargo2_type" defaultValue={editingStaff?.cargo2_subsidized === 'true' ? 'meca' : 'deno'} />
+                              </div>
+                              <div className="mt-2">
+                                <select name="cargo2_subsidized" defaultValue={editingStaff?.cargo2_subsidized === 'true' ? 'true' : 'false'} onChange={(e) => { const typeInput = document.getElementById('cargo2_type_input'); if(typeInput) typeInput.value = e.target.value === 'true' ? 'meca' : 'deno'; }} className="p-2 bg-emerald-50 text-emerald-800 rounded-lg outline-none font-bold text-xs w-full border border-emerald-100">
+                                    <option value="false">Sin Subvención (DENO)</option><option value="true">Cargo Subvencionado (MECA)</option>
+                                </select>
+                                <input type="hidden" id="cargo2_type_input" name="cargo2_type" defaultValue={editingStaff?.cargo2_subsidized === 'true' ? 'meca' : 'deno'} />
                               </div>
                           </div>
                           
@@ -5560,6 +5602,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
