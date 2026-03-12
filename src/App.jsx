@@ -4633,14 +4633,14 @@ function PersonalView({ user }) {
     </div>
   );
 }
-// --- VISTA MÉDICA (COMPLETA: DATOS CLÍNICOS, EVOLUCIONES E IMPRESIÓN CON FIRMA) ---
+// --- VISTA MÉDICA (HISTORIAS CLÍNICAS FORMALES Y FIRMA) ---
 function MedicalView({ user }) {
   const [students, setStudents] = useState([]);
   const [filterText, setFilterText] = useState('');
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [newEvoText, setNewEvoText] = useState('');
+  const [showEvoForm, setShowEvoForm] = useState(false); // NUEVO ESTADO PARA EL FORMULARIO MÉDICO
 
   // Permisos: Solo Salud, Directivos y Admins
   const canAccess = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión', 'Médico', 'Enfermería', 'Salud'].includes(user.role) || user.rol === 'admin';
@@ -4694,25 +4694,35 @@ function MedicalView({ user }) {
       finally { setSaving(false); }
   };
 
-  const handleAddEvolution = async () => {
-      if (!newEvoText.trim()) return;
+  // NUEVA FUNCIÓN PARA GUARDAR EVOLUCIONES FORMALES
+  const handleAddEvolution = async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const text = fd.get('text');
+      const date = fd.get('date');
+
+      if (!text.trim()) return;
+
       const newEvo = {
           id: Date.now().toString(),
-          date: new Date().toISOString(),
-          text: newEvoText.trim(),
+          date: date, // Ahora guarda la fecha que eligió el médico
+          text: text.trim(),
           author: user.firstName + (user.lastName ? ' ' + user.lastName : '')
       };
+      
       const updatedEvos = [...(selectedStudent.medicalEvolutions || []), newEvo];
       
       try {
+          setSaving(true);
           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', selectedStudent.id), { medicalEvolutions: updatedEvos });
           setSelectedStudent({ ...selectedStudent, medicalEvolutions: updatedEvos });
-          setNewEvoText('');
+          setShowEvoForm(false);
       } catch (err) { alert("Error al guardar evolución: " + err.message); }
+      finally { setSaving(false); }
   };
 
   const handleDeleteEvolution = async (evoId) => {
-      if (!confirm("¿Seguro que querés eliminar esta evolución?")) return;
+      if (!confirm("¿Seguro que querés eliminar este registro clínico?")) return;
       const updatedEvos = (selectedStudent.medicalEvolutions || []).filter(e => e.id !== evoId);
       try {
           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', selectedStudent.id), { medicalEvolutions: updatedEvos });
@@ -4723,12 +4733,14 @@ function MedicalView({ user }) {
   const imprimirHistoriaClinica = (student) => {
       const fullDate = new Date().toLocaleDateString('es-AR');
       const evos = student.medicalEvolutions || [];
+      
+      // Ordenamos las evoluciones por fecha para que salgan bien en el PDF
       let evosHtml = evos.length > 0 
-          ? evos.slice().reverse().map(e => `<div style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dotted #ccc;">
-              <div style="font-size: 11px; color: #666; margin-bottom: 4px;"><strong>${new Date(e.date).toLocaleDateString('es-AR')}</strong> | Cargado por: ${e.author}</div>
+          ? evos.slice().sort((a,b) => new Date(b.date) - new Date(a.date)).map(e => `<div style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dotted #ccc;">
+              <div style="font-size: 11px; color: #666; margin-bottom: 4px;"><strong>${new Date(e.date + 'T00:00:00').toLocaleDateString('es-AR')}</strong> | Registro de: ${e.author}</div>
               <div style="font-size: 13px; line-height: 1.5; white-space: pre-wrap;">${e.text}</div>
             </div>`).join('')
-          : '<p style="font-size: 13px; color: #666; font-style: italic;">No hay evoluciones registradas en la historia clínica.</p>';
+          : '<p style="font-size: 13px; color: #666; font-style: italic;">No hay registros clínicos guardados en este legajo.</p>';
 
       let html = `
       <html><head><title>Historia Clínica - ${student.lastName}</title>
@@ -4775,7 +4787,7 @@ function MedicalView({ user }) {
           </div>
 
           <div class="section">
-              <div class="section-title">Datos del Estudiante</div>
+              <div class="section-title">Datos del Paciente</div>
               <div class="grid">
                   <div><span class="label">Nombre y Apellido</span><div class="value">${student.lastName.toUpperCase()}, ${student.firstName}</div></div>
                   <div><span class="label">DNI</span><div class="value">${student.dni || '-'}</div></div>
@@ -4785,7 +4797,7 @@ function MedicalView({ user }) {
           </div>
 
           <div class="section">
-              <div class="section-title">Información Clínica General</div>
+              <div class="section-title">Información Médica de Base</div>
               <div class="grid">
                   <div><span class="label">Obra Social</span><div class="value">${student.healthInsurance || 'No declara'}</div></div>
                   <div><span class="label">Vencimiento CUD</span><div class="value">${student.cudExpiration ? new Date(student.cudExpiration + 'T00:00:00').toLocaleDateString('es-AR') : 'Sin cargar'}</div></div>
@@ -4801,7 +4813,7 @@ function MedicalView({ user }) {
           </div>
 
           <div class="section">
-              <div class="section-title">Evoluciones y Registros Médicos</div>
+              <div class="section-title">Registros y Evoluciones</div>
               ${evosHtml}
           </div>
 
@@ -4809,7 +4821,7 @@ function MedicalView({ user }) {
             <div class="signature-box">
                 <img src="/firmamedico.jfif" alt="Firma del Médico" style="max-width: 220px; max-height: 120px; object-fit: contain;">
                 <p style="margin: 0; font-weight: bold; border-top: 1px solid #ccc; padding-top: 5px; margin-top: 5px;">_________________________</p>
-                <p style="margin: 2px 0 0 0;">Firma y Sello Médico</p>
+                <p style="margin: 2px 0 0 0;">Firma y Sello Profesional</p>
             </div>
           </div>
 
@@ -4854,7 +4866,7 @@ function MedicalView({ user }) {
                 const hasAlert = cud.status === 'expired' || cud.status === 'warning' || (s.allergies && s.allergies.length > 2);
 
                 return (
-                    <div key={s.id} onClick={() => { setSelectedStudent(s); setIsEditing(false); setNewEvoText(''); }} className={`bg-white p-4 rounded-2xl shadow-sm border-2 cursor-pointer transition-all hover:scale-[1.02] flex items-center gap-3 ${hasAlert ? 'border-red-200' : 'border-transparent'}`}>
+                    <div key={s.id} onClick={() => { setSelectedStudent(s); setIsEditing(false); setShowEvoForm(false); }} className={`bg-white p-4 rounded-2xl shadow-sm border-2 cursor-pointer transition-all hover:scale-[1.02] flex items-center gap-3 ${hasAlert ? 'border-red-200' : 'border-transparent'}`}>
                         <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-red-300 font-black shrink-0 overflow-hidden border border-red-100">
                             {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName[0]}
                         </div>
@@ -4914,7 +4926,7 @@ function MedicalView({ user }) {
                                     </div>
                                 )}
 
-                                {/* DATOS CLÍNICOS ESTATICOS */}
+                                {/* DATOS CLÍNICOS ESTÁTICOS */}
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
                                         <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Obra Social</p>
@@ -4950,28 +4962,52 @@ function MedicalView({ user }) {
                                     </div>
                                 </div>
 
-                                {/* SECCIÓN EVOLUCIONES */}
+                                {/* SECCIÓN EVOLUCIONES FORMALES */}
                                 <div className="mt-8 pt-6 border-t-2 border-dashed border-gray-200">
                                     <div className="flex justify-between items-center mb-4">
                                         <h4 className="font-black text-red-800 uppercase flex items-center gap-2"><FileText size={18}/> Evoluciones</h4>
-                                        <button onClick={() => imprimirHistoriaClinica(selectedStudent)} className="md:hidden bg-white text-red-600 px-3 py-1.5 rounded-lg border border-red-200 shadow-sm text-[10px] font-black uppercase flex items-center gap-1"><Printer size={12}/> Imprimir</button>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setShowEvoForm(true)} className="bg-red-50 text-red-700 px-3 py-1.5 rounded-lg border border-red-200 shadow-sm text-[10px] font-black uppercase flex items-center gap-1 hover:bg-red-100 transition"><Plus size={12}/> Nuevo Registro</button>
+                                            <button onClick={() => imprimirHistoriaClinica(selectedStudent)} className="md:hidden bg-white text-red-600 px-3 py-1.5 rounded-lg border border-red-200 shadow-sm text-[10px] font-black uppercase flex items-center gap-1"><Printer size={12}/> Imprimir</button>
+                                        </div>
                                     </div>
                                     
-                                    <div className="flex gap-2 mb-6">
-                                        <textarea value={newEvoText} onChange={e => setNewEvoText(e.target.value)} placeholder="Escribir nueva evolución o nota médica..." className="w-full p-3 bg-white rounded-xl border border-red-200 outline-none text-xs font-medium resize-none h-14 shadow-inner focus:border-red-400"/>
-                                        <button onClick={handleAddEvolution} className="bg-red-600 text-white px-4 rounded-xl font-black text-[10px] uppercase shadow-md hover:bg-red-700 transition">Guardar<br/>Nota</button>
-                                    </div>
+                                    {showEvoForm && (
+                                        <form onSubmit={handleAddEvolution} className="bg-white p-4 rounded-2xl border border-red-200 shadow-sm mb-6 animate-in fade-in slide-in-from-top-2">
+                                            <div className="flex justify-between items-center mb-3">
+                                                <h5 className="font-bold text-xs text-red-800 uppercase">Registrar Nueva Evolución</h5>
+                                                <button type="button" onClick={() => setShowEvoForm(false)}><X size={16} className="text-gray-400 hover:text-red-500"/></button>
+                                            </div>
+                                            <div className="space-y-3">
+                                                <div>
+                                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Fecha del registro</label>
+                                                    <input type="date" name="date" defaultValue={new Date().toISOString().split('T')[0]} required className="w-full p-2 bg-gray-50 rounded-xl outline-none font-bold text-xs border border-gray-200 text-gray-600"/>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Detalle clínico</label>
+                                                    <textarea name="text" required placeholder="Escriba aquí los detalles de la consulta o evaluación..." className="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 outline-none text-xs font-medium resize-none h-24 focus:border-red-400"/>
+                                                </div>
+                                                <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+                                                    <button type="button" onClick={() => setShowEvoForm(false)} className="px-4 py-2 text-gray-500 font-bold text-xs uppercase hover:bg-gray-100 rounded-lg transition">Cancelar</button>
+                                                    <button type="submit" disabled={saving} className="px-4 py-2 bg-red-600 text-white rounded-lg font-bold text-xs uppercase shadow-md hover:bg-red-700 transition flex items-center gap-2">
+                                                        {saving ? <RefreshCw size={14} className="animate-spin"/> : 'Guardar Evolución'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    )}
 
                                     <div className="space-y-3">
-                                        {(!selectedStudent.medicalEvolutions || selectedStudent.medicalEvolutions.length === 0) && (
-                                            <p className="text-xs text-gray-400 italic text-center py-4 bg-white rounded-xl border border-gray-100">No hay evoluciones registradas aún.</p>
+                                        {(!selectedStudent.medicalEvolutions || selectedStudent.medicalEvolutions.length === 0) && !showEvoForm && (
+                                            <p className="text-xs text-gray-400 italic text-center py-4 bg-white rounded-xl border border-gray-100 shadow-sm">No hay evoluciones registradas en este legajo.</p>
                                         )}
-                                        {(selectedStudent.medicalEvolutions || []).slice().reverse().map(e => (
+                                        {/* ORDENAMIENTO POR FECHA REAL */}
+                                        {(selectedStudent.medicalEvolutions || []).slice().sort((a,b) => new Date(b.date) - new Date(a.date)).map(e => (
                                             <div key={e.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm relative group">
                                                 <button onClick={() => handleDeleteEvolution(e.id)} className="absolute top-3 right-3 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition" title="Borrar evolución"><Trash2 size={14}/></button>
                                                 <div className="flex gap-2 items-center mb-2">
-                                                    <span className="text-[10px] font-black text-red-700 bg-red-50 border border-red-100 px-2 py-0.5 rounded">{new Date(e.date).toLocaleDateString('es-AR')}</span>
-                                                    <span className="text-[10px] font-bold text-gray-400">{e.author}</span>
+                                                    <span className="text-[10px] font-black text-red-700 bg-red-50 border border-red-100 px-2 py-0.5 rounded">{new Date(e.date + 'T00:00:00').toLocaleDateString('es-AR')}</span>
+                                                    <span className="text-[10px] font-bold text-gray-400">Dr/a. {e.author}</span>
                                                 </div>
                                                 <p className="text-sm text-gray-700 whitespace-pre-wrap font-medium leading-relaxed">{e.text}</p>
                                             </div>
@@ -4981,7 +5017,7 @@ function MedicalView({ user }) {
 
                             </div>
                         ) : (
-                            /* MODO EDICIÓN */
+                            /* MODO EDICIÓN DATOS FIJOS */
                             <form id="medicalForm" onSubmit={handleSaveMedicalData} className="space-y-4">
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
@@ -5428,6 +5464,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
