@@ -4034,16 +4034,19 @@ const handleUpdateGroup = async (e) => {
     </div>
   );
 }
-// --- VISTA PERSONAL (ACTUALIZADA CON ESTADÍSTICAS) ---
+// --- VISTA PERSONAL (ACTUALIZADA: ROLES, ANTIGÜEDAD Y ALTA POR CARGO) ---
 function PersonalView({ user }) {
   const [staffList, setStaffList] = useState([]);
+  
+  // Estados de Filtros
   const [staffFilterText, setStaffFilterText] = useState('');
   const [filters, setFilters] = useState({ modality: 'all', role: 'all', turn: 'all', subsidized: 'all' });
+  
   // Modales
   const [viewingStaff, setViewingStaff] = useState(null); 
   const [showStaffForm, setShowStaffForm] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
-  const [showStats, setShowStats] = useState(false); // NUEVO ESTADO PARA MODAL
+  const [showStats, setShowStats] = useState(false); 
   
   // Estados de proceso
   const [processing, setProcessing] = useState(false);
@@ -4058,8 +4061,8 @@ function PersonalView({ user }) {
     return () => unsubStaff();
   }, []);
 
-  
-const filteredStaff = staffList.filter(s => {
+  // LÓGICA DE FILTRADO
+  const filteredStaff = staffList.filter(s => {
       const txt = staffFilterText.toLowerCase();
       const matchesText = !txt || `${s.lastName} ${s.firstName} ${s.dni}`.toLowerCase().includes(txt);
       if (!matchesText) return false;
@@ -4083,9 +4086,10 @@ const filteredStaff = staffList.filter(s => {
       return true;
   });
 
-  // Extraemos las opciones únicas para los filtros basándonos en los datos reales cargados
+  // Opciones únicas para los filtros basadas en los datos reales cargados
   const uniqueRoles = [...new Set(staffList.map(s => s.role || 'Sin Definir'))].sort();
   const uniqueTurns = [...new Set([...staffList.map(s => s.cargo1_turn), ...staffList.map(s => s.cargo2_turn)].filter(Boolean))].sort();
+
   const handlePhotoChange = (e) => {
       const f = e.target.files[0]; if(!f) return;
       setUploading(true);
@@ -4104,18 +4108,37 @@ const filteredStaff = staffList.filter(s => {
       reader.readAsDataURL(f);
   };
 
-  const calcularAntiguedad = (fechaIngreso) => {
-    if (!fechaIngreso) return '-';
-    const inicio = new Date(fechaIngreso);
-    const hoy = new Date();
-    if (isNaN(inicio.getTime())) return '-';
-    let anios = hoy.getFullYear() - inicio.getFullYear();
-    let meses = hoy.getMonth() - inicio.getMonth();
-    if (meses < 0 || (meses === 0 && hoy.getDate() < inicio.getDate())) { anios--; meses += 12; }
-    if (anios === 0 && meses === 0) return 'Ingreso reciente';
-    if (anios === 0) return `${meses} meses`;
-    if (meses === 0) return `${anios} años`;
-    return `${anios} años y ${meses} meses`;
+  // --- NUEVA LÓGICA DE ANTIGÜEDAD COMPUESTA ---
+  const calcularAntiguedad = (aniosBase, mesesBase, fechaReferencia) => {
+      const aBase = parseInt(aniosBase) || 0;
+      const mBase = parseInt(mesesBase) || 0;
+      
+      // Si no cargaron nada, mostramos guión
+      if (!fechaReferencia && aBase === 0 && mBase === 0) return '-';
+
+      const refDate = fechaReferencia ? new Date(fechaReferencia + 'T00:00:00') : new Date();
+      const hoy = new Date();
+      
+      let diffAnios = hoy.getFullYear() - refDate.getFullYear();
+      let diffMeses = hoy.getMonth() - refDate.getMonth();
+      
+      if (diffMeses < 0 || (diffMeses === 0 && hoy.getDate() < refDate.getDate())) {
+          diffAnios--;
+          diffMeses += 12;
+      }
+
+      let totalMeses = mBase + diffMeses;
+      let totalAnios = aBase + diffAnios;
+
+      if (totalMeses >= 12) {
+          totalAnios += Math.floor(totalMeses / 12);
+          totalMeses = totalMeses % 12;
+      }
+
+      if (totalAnios <= 0 && totalMeses <= 0) return 'Reciente';
+      if (totalAnios <= 0) return `${totalMeses} meses`;
+      if (totalMeses === 0) return `${totalAnios} años`;
+      return `${totalAnios} años, ${totalMeses} mes${totalMeses !== 1 ? 'es' : ''}`;
   };
 
   const getSafeDate = (d) => { if(!d) return '-'; try { return new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('es-AR'); } catch(e) { return d; } };
@@ -4126,9 +4149,9 @@ const filteredStaff = staffList.filter(s => {
       <style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');body{font-family:'Roboto',sans-serif;padding:20px;}.page{border:1px solid #eee;padding:30px;margin-bottom:20px;border-radius:8px;page-break-after:always;max-width:800px;margin:0 auto 20px auto;border-top:10px solid #8b5cf6;}.header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #ddd;padding-bottom:20px;margin-bottom:20px;}.header-text h1{color:#5b21b6;font-size:24px;margin:0;text-transform:uppercase;}.header-text p{color:#666;font-size:14px;margin:5px 0 0 0;}.photo-box{width:80px;height:80px;background:#eee;border-radius:50%;overflow:hidden;border:3px solid #8b5cf6;display:flex;align-items:center;justify-content:center;font-size:30px;color:#aaa;}.photo-box img{width:100%;height:100%;object-fit:cover;}.section-title{background:#f3f4f6;color:#5b21b6;padding:8px 15px;font-weight:900;text-transform:uppercase;font-size:12px;border-radius:6px;margin-bottom:10px;border-left:5px solid #8b5cf6;}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px;}.field{margin-bottom:5px;}.label{display:block;font-size:9px;color:#888;text-transform:uppercase;font-weight:bold;}.value{font-size:12px;font-weight:bold;color:#333;}.footer{text-align:center;font-size:9px;color:#aaa;margin-top:30px;border-top:1px solid #eee;padding-top:10px;}</style></head><body>`;
       
       lista.forEach(s => {
-          let c1 = s.cargo1_name ? `Cargo N°${s.cargo1_numero || '-'} | ${s.cargo1_name} (${s.cargo1_type}) - ${s.cargo1_turn} - ${s.cargo1_revista}` : '-';
-          let c2 = s.cargo2_name ? `Cargo N°${s.cargo2_numero || '-'} | ${s.cargo2_name} (${s.cargo2_type}) - ${s.cargo2_turn} - ${s.cargo2_revista}` : '-';
-          let antiguedad = calcularAntiguedad(s.fechaIngreso);
+          let antiguedad = calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef);
+          let c1 = s.cargo1_name ? `Cargo N°${s.cargo1_numero || '-'} | ${s.cargo1_name} (${s.cargo1_type}) - ${s.cargo1_turn} - ${s.cargo1_revista} <br/><span style="color:#666; font-size:9px; text-transform:uppercase;">ALTA CARGO: ${getSafeDate(s.cargo1_ingreso)}</span>` : '-';
+          let c2 = s.cargo2_name ? `Cargo N°${s.cargo2_numero || '-'} | ${s.cargo2_name} (${s.cargo2_type}) - ${s.cargo2_turn} - ${s.cargo2_revista} <br/><span style="color:#666; font-size:9px; text-transform:uppercase;">ALTA CARGO: ${getSafeDate(s.cargo2_ingreso)}</span>` : '-';
 
           html += `<div class="page">
               <div class="header">
@@ -4151,8 +4174,8 @@ const filteredStaff = staffList.filter(s => {
               <div class="section-title">Datos de Contratación (${s.modality || 'Sede'})</div>
               <div class="grid">
                   <div class="field"><span class="label">Subvención</span><span class="value">${s.isSubsidized === 'true' || s.isSubsidized === true ? 'Sí, Subvencionada' : 'No Subvencionada'}</span></div>
-                  <div class="field"><span class="label">Fecha de Ingreso</span><span class="value">${s.fechaIngreso ? new Date(s.fechaIngreso + 'T00:00:00').toLocaleDateString('es-AR') : '-'}</span></div>
-                  <div class="field"><span class="label">Antigüedad Actual</span><span class="value">${antiguedad}</span></div>
+                  <div class="field"><span class="label">Fecha Ingreso Inst.</span><span class="value">${s.fechaIngreso ? new Date(s.fechaIngreso + 'T00:00:00').toLocaleDateString('es-AR') : '-'}</span></div>
+                  <div class="field" style="grid-column: span 2;"><span class="label">Antigüedad Reconocida Total</span><span class="value">${antiguedad}</span></div>
               </div>
               <div class="field" style="margin-bottom:10px; margin-top:5px;"><span class="label">Cargo 1</span><span class="value">${c1}</span></div>
               <div class="field"><span class="label">Cargo 2</span><span class="value">${c2}</span></div>
@@ -4229,24 +4252,21 @@ const filteredStaff = staffList.filter(s => {
           subvencion: { si: 0, no: 0 }
       };
 
-      staffList.forEach(s => {
-          // Contar roles (normalizando minúsculas para evitar duplicados como "DAI" y "dai")
+      filteredStaff.forEach(s => {
           const rol = (s.role || 'Sin Definir').toUpperCase();
           stats.roles[rol] = (stats.roles[rol] || 0) + 1;
 
-          // Contar cargos simples o dobles
           const tieneCargo1 = s.cargo1_name && s.cargo1_name.trim() !== '';
           const tieneCargo2 = s.cargo2_name && s.cargo2_name.trim() !== '';
           
           if (tieneCargo1 && tieneCargo2) stats.cargos.doble++;
           else if (tieneCargo1 || tieneCargo2) stats.cargos.simple++;
 
-          // Subvención
-          if (s.isSubsidized === 'true' || s.isSubsidized === true) stats.subvencion.si++;
+          const isSub = s.isSubsidized === 'true' || s.isSubsidized === true;
+          if (isSub) stats.subvencion.si++;
           else stats.subvencion.no++;
       });
 
-      // Ordenar roles de mayor a menor
       stats.rolesSorted = Object.entries(stats.roles).sort((a,b) => b[1] - a[1]);
 
       return stats;
@@ -4299,7 +4319,7 @@ const filteredStaff = staffList.filter(s => {
             </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[65vh] overflow-y-auto pb-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[65vh] overflow-y-auto pb-10 mt-2">
             {filteredStaff.map(s => (
                 <div key={s.id} onClick={() => setViewingStaff(s)} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all cursor-pointer group">
                     <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100 shrink-0">
@@ -4312,7 +4332,7 @@ const filteredStaff = staffList.filter(s => {
                         </div>
                         <div className="flex gap-2 text-[10px] mt-1 text-gray-500 font-bold">
                             {s.dni && <span>DNI: {s.dni}</span>}
-                            {s.fechaIngreso && <span className="text-violet-500">Anti: {calcularAntiguedad(s.fechaIngreso)}</span>}
+                            <span className="text-violet-500">Anti: {calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef)}</span>
                         </div>
                         <p className="text-[10px] font-black text-violet-500 uppercase mt-1 truncate">
                             {s.cargo1_name ? `C1: ${s.cargo1_name}` : 'Sin Cargos'} 
@@ -4331,7 +4351,7 @@ const filteredStaff = staffList.filter(s => {
                     <div className="flex justify-between items-center mb-6">
                         <div>
                             <h3 className="text-2xl font-black text-violet-900 uppercase italic">Métricas</h3>
-                            <p className="text-xs text-gray-500 font-bold">Resumen del Personal</p>
+                            <p className="text-xs text-gray-500 font-bold">Resumen del Personal (Filtrado)</p>
                         </div>
                         <button onClick={() => setShowStats(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button>
                     </div>
@@ -4434,21 +4454,27 @@ const filteredStaff = staffList.filter(s => {
                                 </span>
                             </div>
                             <div className="flex justify-between text-xs">
-                                <span className="font-bold text-gray-500">Ingreso: {getSafeDate(viewingStaff.fechaIngreso)}</span>
-                                <span className="font-black text-violet-700">Anti: {calcularAntiguedad(viewingStaff.fechaIngreso)}</span>
+                                <span className="font-bold text-gray-500">Ingreso Inst: {getSafeDate(viewingStaff.fechaIngreso)}</span>
+                                <span className="font-black text-violet-700">Anti. total: {calcularAntiguedad(viewingStaff.antiguedadAnios, viewingStaff.antiguedadMeses, viewingStaff.antiguedadFechaRef)}</span>
                             </div>
                             
                             {(viewingStaff.cargo1_name || viewingStaff.cargo2_name) && (
                                 <div className="pt-2 space-y-2">
                                     {viewingStaff.cargo1_name && (
                                         <div className="bg-white p-2 rounded-lg border border-violet-200 text-xs">
-                                            <span className="font-black text-violet-900 block mb-1">C1: {viewingStaff.cargo1_name}</span>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="font-black text-violet-900">C1: {viewingStaff.cargo1_name}</span>
+                                                <span className="text-[9px] font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded">Alta: {getSafeDate(viewingStaff.cargo1_ingreso)}</span>
+                                            </div>
                                             <span className="text-gray-500">N° {viewingStaff.cargo1_numero || '-'} | {viewingStaff.cargo1_type} | {viewingStaff.cargo1_turn} | {viewingStaff.cargo1_revista}</span>
                                         </div>
                                     )}
                                     {viewingStaff.cargo2_name && (
                                         <div className="bg-white p-2 rounded-lg border border-violet-200 text-xs">
-                                            <span className="font-black text-violet-900 block mb-1">C2: {viewingStaff.cargo2_name}</span>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="font-black text-violet-900">C2: {viewingStaff.cargo2_name}</span>
+                                                <span className="text-[9px] font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded">Alta: {getSafeDate(viewingStaff.cargo2_ingreso)}</span>
+                                            </div>
                                             <span className="text-gray-500">N° {viewingStaff.cargo2_numero || '-'} | {viewingStaff.cargo2_type} | {viewingStaff.cargo2_turn} | {viewingStaff.cargo2_revista}</span>
                                         </div>
                                     )}
@@ -4467,7 +4493,7 @@ const filteredStaff = staffList.filter(s => {
         {/* MODAL 2: FORMULARIO DE EDICIÓN DOCENTE */}
         {showStaffForm && (
           <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4 backdrop-blur-sm animate-in zoom-in-95">
-              <div className="bg-white rounded-[40px] w-full max-w-xl p-8 shadow-2xl max-h-[90vh] overflow-y-auto border-t-8 border-violet-600">
+              <div className="bg-white rounded-[40px] w-full max-w-xl p-8 shadow-2xl max-h-[90vh] overflow-y-auto border-t-8 border-violet-600 custom-scrollbar">
                   <div className="flex justify-between items-center mb-6">
                       <h3 className="text-xl font-black text-violet-900 uppercase italic">{editingStaff ? 'Editar Legajo' : 'Nuevo Legajo'}</h3>
                       <button onClick={()=>setShowStaffForm(false)}><X size={24} className="text-gray-300"/></button>
@@ -4505,19 +4531,40 @@ const filteredStaff = staffList.filter(s => {
                           </div>
 
                           <div className="grid grid-cols-2 gap-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm">
-                              <div><label className="text-[9px] font-black text-gray-400 uppercase ml-1 tracking-widest">Fecha Ingreso</label><input name="fechaIngreso" type="date" defaultValue={editingStaff?.fechaIngreso} className="w-full p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs" /></div>
-                              <div><label className="text-[9px] font-black text-gray-400 uppercase ml-1 tracking-widest">Antigüedad</label><div className="w-full p-2 bg-violet-100 text-violet-800 rounded-lg font-bold text-xs text-center border border-violet-200">{calcularAntiguedad(editingStaff?.fechaIngreso)}</div></div>
+                              <div>
+                                  <label className="text-[9px] font-black text-gray-400 uppercase ml-1 tracking-widest">Ingreso Inst.</label>
+                                  <input name="fechaIngreso" type="date" defaultValue={editingStaff?.fechaIngreso} className="w-full p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs text-gray-600" />
+                              </div>
+                              <div>
+                                  <label className="text-[9px] font-black text-gray-400 uppercase ml-1 tracking-widest">Antigüedad Inicial</label>
+                                  <div className="flex gap-1">
+                                      <input name="antiguedadAnios" type="number" placeholder="Años" defaultValue={editingStaff?.antiguedadAnios || ''} className="w-1/2 p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs text-center border border-gray-200" />
+                                      <input name="antiguedadMeses" type="number" placeholder="Meses" defaultValue={editingStaff?.antiguedadMeses || ''} className="w-1/2 p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs text-center border border-gray-200" />
+                                  </div>
+                                  <div className="mt-1 flex items-center gap-1">
+                                      <label className="text-[8px] font-bold text-gray-400 uppercase w-1/3 leading-tight text-center">Calculada al:</label>
+                                      <input name="antiguedadFechaRef" type="date" defaultValue={editingStaff?.antiguedadFechaRef || new Date().toISOString().split('T')[0]} className="w-2/3 p-1 bg-gray-50 rounded-lg outline-none font-bold text-[9px] text-gray-600 border border-gray-200" />
+                                  </div>
+                              </div>
                           </div>
 
                           <div className="space-y-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm">
                               <h5 className="text-[10px] font-black text-gray-400 uppercase">Cargo 1</h5>
-                              <div className="grid grid-cols-[1fr,2fr] gap-2"><input name="cargo1_numero" defaultValue={editingStaff?.cargo1_numero} placeholder="N° Cargo" className="p-2 bg-violet-50 text-violet-900 rounded-lg outline-none font-black text-xs w-full border border-violet-100"/><input name="cargo1_name" defaultValue={editingStaff?.cargo1_name} placeholder="Nombre (Ej: MG, PR)" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"/></div>
+                              <div className="grid grid-cols-[1fr,2fr,1.5fr] gap-2">
+                                  <input name="cargo1_numero" defaultValue={editingStaff?.cargo1_numero} placeholder="N° Cargo" className="p-2 bg-violet-50 text-violet-900 rounded-lg outline-none font-black text-xs w-full border border-violet-100"/>
+                                  <input name="cargo1_name" defaultValue={editingStaff?.cargo1_name} placeholder="Nombre (Ej: MG)" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full border border-gray-200"/>
+                                  <input name="cargo1_ingreso" type="date" defaultValue={editingStaff?.cargo1_ingreso} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-[10px] text-gray-500 w-full border border-gray-200" title="Fecha Alta Cargo"/>
+                              </div>
                               <div className="grid grid-cols-3 gap-2"><select name="cargo1_type" defaultValue={editingStaff?.cargo1_type} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Tipo...</option><option value="meca">Mecanizada</option><option value="deno">Deno</option></select><input name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn} placeholder="Turno" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"/><select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Revista...</option><option value="Titular">Titular</option><option value="Provicional">Provisional</option><option value="Suplente">Suplente</option></select></div>
                           </div>
 
                           <div className="space-y-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm">
                               <h5 className="text-[10px] font-black text-gray-400 uppercase">Cargo 2 (Opcional)</h5>
-                              <div className="grid grid-cols-[1fr,2fr] gap-2"><input name="cargo2_numero" defaultValue={editingStaff?.cargo2_numero} placeholder="N° Cargo" className="p-2 bg-violet-50 text-violet-900 rounded-lg outline-none font-black text-xs w-full border border-violet-100"/><input name="cargo2_name" defaultValue={editingStaff?.cargo2_name} placeholder="Nombre (Ej: AUX)" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"/></div>
+                              <div className="grid grid-cols-[1fr,2fr,1.5fr] gap-2">
+                                  <input name="cargo2_numero" defaultValue={editingStaff?.cargo2_numero} placeholder="N° Cargo" className="p-2 bg-violet-50 text-violet-900 rounded-lg outline-none font-black text-xs w-full border border-violet-100"/>
+                                  <input name="cargo2_name" defaultValue={editingStaff?.cargo2_name} placeholder="Nombre (Ej: AUX)" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full border border-gray-200"/>
+                                  <input name="cargo2_ingreso" type="date" defaultValue={editingStaff?.cargo2_ingreso} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-[10px] text-gray-500 w-full border border-gray-200" title="Fecha Alta Cargo"/>
+                              </div>
                               <div className="grid grid-cols-3 gap-2"><select name="cargo2_type" defaultValue={editingStaff?.cargo2_type} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Tipo...</option><option value="meca">Mecanizada</option><option value="deno">Deno</option></select><input name="cargo2_turn" defaultValue={editingStaff?.cargo2_turn} placeholder="Turno" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"/><select name="cargo2_revista" defaultValue={editingStaff?.cargo2_revista} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Revista...</option><option value="Titular">Titular</option><option value="Provicional">Provisional</option><option value="Suplente">Suplente</option></select></div>
                           </div>
                           
@@ -5177,6 +5224,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
