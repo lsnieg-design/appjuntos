@@ -4034,7 +4034,7 @@ const handleUpdateGroup = async (e) => {
     </div>
   );
 }
-// --- VISTA PERSONAL (ACTUALIZADA: ROLES, ANTIGÜEDAD Y ALTA POR CARGO) ---
+// --- VISTA PERSONAL (ACTUALIZADA: SUBVENCIÓN POR CARGO INDIVIDUAL) ---
 function PersonalView({ user }) {
   const [staffList, setStaffList] = useState([]);
   
@@ -4071,9 +4071,13 @@ function PersonalView({ user }) {
       if (filters.role !== 'all' && (s.role || 'Sin Definir') !== filters.role) return false;
       
       if (filters.subsidized !== 'all') {
-          const isSub = s.isSubsidized === 'true' || s.isSubsidized === true;
-          if (filters.subsidized === 'yes' && !isSub) return false;
-          if (filters.subsidized === 'no' && isSub) return false;
+          // Revisamos si ALGUNO de sus cargos está subvencionado (o el flag viejo por retrocompatibilidad)
+          const isSub1 = s.cargo1_subsidized === 'true' || (s.isSubsidized === 'true' && s.cargo1_name);
+          const isSub2 = s.cargo2_subsidized === 'true';
+          const hasAnySub = isSub1 || isSub2;
+          
+          if (filters.subsidized === 'yes' && !hasAnySub) return false;
+          if (filters.subsidized === 'no' && hasAnySub) return false;
       }
 
       if (filters.turn !== 'all') {
@@ -4086,7 +4090,6 @@ function PersonalView({ user }) {
       return true;
   });
 
-  // Opciones únicas para los filtros basadas en los datos reales cargados
   const uniqueRoles = [...new Set(staffList.map(s => s.role || 'Sin Definir'))].sort();
   const uniqueTurns = [...new Set([...staffList.map(s => s.cargo1_turn), ...staffList.map(s => s.cargo2_turn)].filter(Boolean))].sort();
 
@@ -4108,12 +4111,9 @@ function PersonalView({ user }) {
       reader.readAsDataURL(f);
   };
 
-  // --- NUEVA LÓGICA DE ANTIGÜEDAD COMPUESTA ---
   const calcularAntiguedad = (aniosBase, mesesBase, fechaReferencia) => {
       const aBase = parseInt(aniosBase) || 0;
       const mBase = parseInt(mesesBase) || 0;
-      
-      // Si no cargaron nada, mostramos guión
       if (!fechaReferencia && aBase === 0 && mBase === 0) return '-';
 
       const refDate = fechaReferencia ? new Date(fechaReferencia + 'T00:00:00') : new Date();
@@ -4150,8 +4150,12 @@ function PersonalView({ user }) {
       
       lista.forEach(s => {
           let antiguedad = calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef);
-          let c1 = s.cargo1_name ? `Cargo N°${s.cargo1_numero || '-'} | ${s.cargo1_name} (${s.cargo1_type}) - ${s.cargo1_turn} - ${s.cargo1_revista} <br/><span style="color:#666; font-size:9px; text-transform:uppercase;">ALTA CARGO: ${getSafeDate(s.cargo1_ingreso)}</span>` : '-';
-          let c2 = s.cargo2_name ? `Cargo N°${s.cargo2_numero || '-'} | ${s.cargo2_name} (${s.cargo2_type}) - ${s.cargo2_turn} - ${s.cargo2_revista} <br/><span style="color:#666; font-size:9px; text-transform:uppercase;">ALTA CARGO: ${getSafeDate(s.cargo2_ingreso)}</span>` : '-';
+          
+          let sub1Text = (s.cargo1_subsidized === 'true' || s.isSubsidized === 'true') ? 'SUBVENCIONADO' : 'SIN SUBVENCIÓN';
+          let c1 = s.cargo1_name ? `Cargo N°${s.cargo1_numero || '-'} | ${s.cargo1_name} (${s.cargo1_type}) - ${s.cargo1_turn} - ${s.cargo1_revista} - <b>${sub1Text}</b> <br/><span style="color:#666; font-size:9px; text-transform:uppercase;">ALTA CARGO: ${getSafeDate(s.cargo1_ingreso)}</span>` : '-';
+          
+          let sub2Text = s.cargo2_subsidized === 'true' ? 'SUBVENCIONADO' : 'SIN SUBVENCIÓN';
+          let c2 = s.cargo2_name ? `Cargo N°${s.cargo2_numero || '-'} | ${s.cargo2_name} (${s.cargo2_type}) - ${s.cargo2_turn} - ${s.cargo2_revista} - <b>${sub2Text}</b> <br/><span style="color:#666; font-size:9px; text-transform:uppercase;">ALTA CARGO: ${getSafeDate(s.cargo2_ingreso)}</span>` : '-';
 
           html += `<div class="page">
               <div class="header">
@@ -4173,9 +4177,8 @@ function PersonalView({ user }) {
               </div>
               <div class="section-title">Datos de Contratación (${s.modality || 'Sede'})</div>
               <div class="grid">
-                  <div class="field"><span class="label">Subvención</span><span class="value">${s.isSubsidized === 'true' || s.isSubsidized === true ? 'Sí, Subvencionada' : 'No Subvencionada'}</span></div>
                   <div class="field"><span class="label">Fecha Ingreso Inst.</span><span class="value">${s.fechaIngreso ? new Date(s.fechaIngreso + 'T00:00:00').toLocaleDateString('es-AR') : '-'}</span></div>
-                  <div class="field" style="grid-column: span 2;"><span class="label">Antigüedad Reconocida Total</span><span class="value">${antiguedad}</span></div>
+                  <div class="field"><span class="label">Antigüedad Reconocida Total</span><span class="value">${antiguedad}</span></div>
               </div>
               <div class="field" style="margin-bottom:10px; margin-top:5px;"><span class="label">Cargo 1</span><span class="value">${c1}</span></div>
               <div class="field"><span class="label">Cargo 2</span><span class="value">${c2}</span></div>
@@ -4212,7 +4215,7 @@ function PersonalView({ user }) {
                       emergencyContact: cols[6]?.trim() || '', email: cols[7]?.trim() || '',
                       studyStatus: cols[8]?.trim() || '', degree: cols[9]?.trim() || '',
                       role: cols[10]?.trim() || 'Docente', modality: cols[11]?.trim() || 'Sede',
-                      isSubsidized: cols[12]?.trim() === 'SI' ? 'true' : 'false',
+                      cargo1_subsidized: cols[12]?.trim() === 'SI' ? 'true' : 'false', // Mapeamos el viejo isSubsidized al cargo 1
                       cargo1_name: cols[13]?.trim() || '', cargo1_type: cols[14]?.trim() || '', cargo1_turn: cols[15]?.trim() || '', cargo1_revista: cols[16]?.trim() || '',
                       cargo2_name: cols[17]?.trim() || '', cargo2_type: cols[18]?.trim() || '', cargo2_turn: cols[19]?.trim() || '', cargo2_revista: cols[20]?.trim() || '',
                       createdAt: serverTimestamp()
@@ -4230,6 +4233,7 @@ function PersonalView({ user }) {
     const fd = new FormData(e.target);
     const d = Object.fromEntries(fd.entries());
     d.photoUrl = photoPreview || editingStaff?.photoUrl || '';
+    
     try {
         if (editingStaff) {
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id), d);
@@ -4241,7 +4245,7 @@ function PersonalView({ user }) {
     } catch (err) { alert(err.message); }
   };
 
-  // --- LÓGICA DE ESTADÍSTICAS ---
+  // --- LÓGICA DE ESTADÍSTICAS ACTUALIZADA (CUENTA CARGOS SUBVENCIONADOS) ---
   const calculateStats = () => {
       const stats = {
           total: filteredStaff.length,
@@ -4249,11 +4253,11 @@ function PersonalView({ user }) {
           inclusion: filteredStaff.filter(s => s.modality === 'Inclusión').length,
           roles: {},
           cargos: { simple: 0, doble: 0 },
-          subvencion: { si: 0, no: 0 }
+          subvencion: { si: 0, no: 0 } // AHORA CUENTA CARGOS (No personas)
       };
 
       filteredStaff.forEach(s => {
-          const rol = (s.role || 'Sin Definir').toUpperCase();
+          const rol = (s.role || 'Sin Definir');
           stats.roles[rol] = (stats.roles[rol] || 0) + 1;
 
           const tieneCargo1 = s.cargo1_name && s.cargo1_name.trim() !== '';
@@ -4262,13 +4266,17 @@ function PersonalView({ user }) {
           if (tieneCargo1 && tieneCargo2) stats.cargos.doble++;
           else if (tieneCargo1 || tieneCargo2) stats.cargos.simple++;
 
-          const isSub = s.isSubsidized === 'true' || s.isSubsidized === true;
-          if (isSub) stats.subvencion.si++;
-          else stats.subvencion.no++;
+          if (tieneCargo1) {
+              if (s.cargo1_subsidized === 'true' || s.isSubsidized === 'true') stats.subvencion.si++;
+              else stats.subvencion.no++;
+          }
+          if (tieneCargo2) {
+              if (s.cargo2_subsidized === 'true') stats.subvencion.si++;
+              else stats.subvencion.no++;
+          }
       });
 
       stats.rolesSorted = Object.entries(stats.roles).sort((a,b) => b[1] - a[1]);
-
       return stats;
   };
 
@@ -4313,35 +4321,41 @@ function PersonalView({ user }) {
                     {uniqueTurns.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
                 <select value={filters.subsidized} onChange={e=>setFilters({...filters, subsidized: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
-                    <option value="all">Subvención: Todas</option><option value="yes">Subvencionada</option><option value="no">Sin Subvención</option>
+                    <option value="all">Subvención: Todas</option><option value="yes">Con Subvención (Algún cargo)</option><option value="no">Sin Subvención</option>
                 </select>
                 <button onClick={() => setFilters({ modality: 'all', role: 'all', turn: 'all', subsidized: 'all' })} className="bg-red-50 text-red-600 text-xs px-3 py-2 rounded-lg font-bold min-w-[80px] border border-red-100 shadow-sm hover:bg-red-100 transition">Limpiar</button>
             </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[65vh] overflow-y-auto pb-10 mt-2">
-            {filteredStaff.map(s => (
-                <div key={s.id} onClick={() => setViewingStaff(s)} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all cursor-pointer group">
-                    <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100 shrink-0">
-                        {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName?.[0]}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="flex gap-2 items-center flex-wrap">
-                            <h4 className="font-bold text-gray-800 text-sm uppercase truncate">{s.lastName}, {s.firstName}</h4>
-                            <span className={`text-[8px] px-2 py-0.5 rounded-md font-black uppercase ${s.modality === 'Inclusión' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}`}>{s.modality || 'Sede'}</span>
+            {filteredStaff.map(s => {
+                // Pequeño chequeo visual rápido para ver si tiene subvención en algún lado
+                const tieneSub = s.cargo1_subsidized === 'true' || s.cargo2_subsidized === 'true' || s.isSubsidized === 'true';
+                
+                return (
+                    <div key={s.id} onClick={() => setViewingStaff(s)} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all cursor-pointer group">
+                        <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100 shrink-0 relative">
+                            {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName?.[0]}
+                            {tieneSub && <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white shadow-sm" title="Subvencionada"></div>}
                         </div>
-                        <div className="flex gap-2 text-[10px] mt-1 text-gray-500 font-bold">
-                            {s.dni && <span>DNI: {s.dni}</span>}
-                            <span className="text-violet-500">Anti: {calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef)}</span>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex gap-2 items-center flex-wrap">
+                                <h4 className="font-bold text-gray-800 text-sm uppercase truncate">{s.lastName}, {s.firstName}</h4>
+                                <span className={`text-[8px] px-2 py-0.5 rounded-md font-black uppercase ${s.modality === 'Inclusión' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}`}>{s.modality || 'Sede'}</span>
+                            </div>
+                            <div className="flex gap-2 text-[10px] mt-1 text-gray-500 font-bold">
+                                {s.dni && <span>DNI: {s.dni}</span>}
+                                <span className="text-violet-500">Anti: {calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef)}</span>
+                            </div>
+                            <p className="text-[10px] font-black text-violet-500 uppercase mt-1 truncate">
+                                {s.cargo1_name ? `C1: ${s.cargo1_name}` : 'Sin Cargos'} 
+                                {s.cargo2_name ? ` | C2: ${s.cargo2_name}` : ''}
+                            </p>
                         </div>
-                        <p className="text-[10px] font-black text-violet-500 uppercase mt-1 truncate">
-                            {s.cargo1_name ? `C1: ${s.cargo1_name}` : 'Sin Cargos'} 
-                            {s.cargo2_name ? ` | C2: ${s.cargo2_name}` : ''}
-                        </p>
+                        <Eye className="text-gray-300 group-hover:text-violet-500 transition-colors shrink-0" />
                     </div>
-                    <Eye className="text-gray-300 group-hover:text-violet-500 transition-colors shrink-0" />
-                </div>
-            ))}
+                )
+            })}
         </div>
 
         {/* MODAL ESTADÍSTICAS */}
@@ -4401,9 +4415,9 @@ function PersonalView({ user }) {
                                 </div>
                             </div>
                             <div className="bg-white border-2 border-gray-100 p-4 rounded-2xl">
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase mb-2 text-center">Subvención</h4>
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase mb-2 text-center">Subvención (Cargos)</h4>
                                 <div className="space-y-1">
-                                    <div className="flex justify-between text-xs font-bold"><span className="text-emerald-500">Aprobada</span><span className="text-gray-800">{currentStats.subvencion.si}</span></div>
+                                    <div className="flex justify-between text-xs font-bold"><span className="text-emerald-500">Aprobados</span><span className="text-gray-800">{currentStats.subvencion.si}</span></div>
                                     <div className="flex justify-between text-xs font-bold"><span className="text-red-400">Sin aval</span><span className="text-gray-800">{currentStats.subvencion.no}</span></div>
                                 </div>
                             </div>
@@ -4414,7 +4428,7 @@ function PersonalView({ user }) {
             </div>
         )}
 
-        {/* MODAL 1: VISUALIZACIÓN DE LEGAJO (SÓLO LECTURA) */}
+        {/* MODAL LECTURA LEGAJO */}
         {viewingStaff && !showStaffForm && (
             <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setViewingStaff(null)}>
                 <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
@@ -4447,35 +4461,35 @@ function PersonalView({ user }) {
                         </div>
 
                         <div className="bg-violet-50 p-4 rounded-2xl border border-violet-100 shadow-sm space-y-3">
-                            <div className="flex justify-between items-center border-b border-violet-200 pb-2">
-                                <h4 className="font-bold text-violet-800 text-xs uppercase">Contratación</h4>
-                                <span className="bg-white border border-violet-200 px-2 py-0.5 rounded text-[10px] font-bold text-violet-600">
-                                    {viewingStaff.isSubsidized === 'true' || viewingStaff.isSubsidized === true ? 'Subvencionada' : 'Sin Subvención'}
-                                </span>
-                            </div>
-                            <div className="flex justify-between text-xs">
+                            <div className="flex justify-between text-xs border-b border-violet-200 pb-2">
                                 <span className="font-bold text-gray-500">Ingreso Inst: {getSafeDate(viewingStaff.fechaIngreso)}</span>
                                 <span className="font-black text-violet-700">Anti. total: {calcularAntiguedad(viewingStaff.antiguedadAnios, viewingStaff.antiguedadMeses, viewingStaff.antiguedadFechaRef)}</span>
                             </div>
                             
                             {(viewingStaff.cargo1_name || viewingStaff.cargo2_name) && (
-                                <div className="pt-2 space-y-2">
+                                <div className="pt-1 space-y-2">
                                     {viewingStaff.cargo1_name && (
-                                        <div className="bg-white p-2 rounded-lg border border-violet-200 text-xs">
+                                        <div className="bg-white p-3 rounded-lg border border-violet-200 text-xs shadow-sm">
                                             <div className="flex justify-between items-center mb-1">
                                                 <span className="font-black text-violet-900">C1: {viewingStaff.cargo1_name}</span>
-                                                <span className="text-[9px] font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded">Alta: {getSafeDate(viewingStaff.cargo1_ingreso)}</span>
+                                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${viewingStaff.cargo1_subsidized === 'true' || viewingStaff.isSubsidized === 'true' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                                                    {viewingStaff.cargo1_subsidized === 'true' || viewingStaff.isSubsidized === 'true' ? 'Subvencionado' : 'Sin Subvención'}
+                                                </span>
                                             </div>
-                                            <span className="text-gray-500">N° {viewingStaff.cargo1_numero || '-'} | {viewingStaff.cargo1_type} | {viewingStaff.cargo1_turn} | {viewingStaff.cargo1_revista}</span>
+                                            <p className="text-gray-500 mb-1">N° {viewingStaff.cargo1_numero || '-'} | {viewingStaff.cargo1_type} | {viewingStaff.cargo1_turn} | {viewingStaff.cargo1_revista}</p>
+                                            <p className="text-[10px] text-violet-600 font-bold">Alta Cargo: {getSafeDate(viewingStaff.cargo1_ingreso)}</p>
                                         </div>
                                     )}
                                     {viewingStaff.cargo2_name && (
-                                        <div className="bg-white p-2 rounded-lg border border-violet-200 text-xs">
+                                        <div className="bg-white p-3 rounded-lg border border-violet-200 text-xs shadow-sm">
                                             <div className="flex justify-between items-center mb-1">
                                                 <span className="font-black text-violet-900">C2: {viewingStaff.cargo2_name}</span>
-                                                <span className="text-[9px] font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded">Alta: {getSafeDate(viewingStaff.cargo2_ingreso)}</span>
+                                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${viewingStaff.cargo2_subsidized === 'true' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                                                    {viewingStaff.cargo2_subsidized === 'true' ? 'Subvencionado' : 'Sin Subvención'}
+                                                </span>
                                             </div>
-                                            <span className="text-gray-500">N° {viewingStaff.cargo2_numero || '-'} | {viewingStaff.cargo2_type} | {viewingStaff.cargo2_turn} | {viewingStaff.cargo2_revista}</span>
+                                            <p className="text-gray-500 mb-1">N° {viewingStaff.cargo2_numero || '-'} | {viewingStaff.cargo2_type} | {viewingStaff.cargo2_turn} | {viewingStaff.cargo2_revista}</p>
+                                            <p className="text-[10px] text-violet-600 font-bold">Alta Cargo: {getSafeDate(viewingStaff.cargo2_ingreso)}</p>
                                         </div>
                                     )}
                                 </div>
@@ -4490,7 +4504,7 @@ function PersonalView({ user }) {
             </div>
         )}
 
-        {/* MODAL 2: FORMULARIO DE EDICIÓN DOCENTE */}
+        {/* MODAL EDICIÓN LEGAJO */}
         {showStaffForm && (
           <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4 backdrop-blur-sm animate-in zoom-in-95">
               <div className="bg-white rounded-[40px] w-full max-w-xl p-8 shadow-2xl max-h-[90vh] overflow-y-auto border-t-8 border-violet-600 custom-scrollbar">
@@ -4524,10 +4538,7 @@ function PersonalView({ user }) {
                       <div className="bg-violet-50 p-4 rounded-2xl border border-violet-100 space-y-4">
                           <div className="flex justify-between items-center border-b border-violet-200 pb-2">
                               <h4 className="text-[10px] font-black text-violet-500 uppercase tracking-widest">Contratación</h4>
-                              <div className="flex gap-2">
-                                  <select name="modality" defaultValue={editingStaff?.modality || 'Sede'} className="p-1 bg-white rounded-lg border border-violet-200 outline-none font-bold text-[10px] text-violet-900"><option value="Sede">Sede</option><option value="Inclusión">Inclusión</option><option value="Ambos">Ambos</option></select>
-                                  <select name="isSubsidized" defaultValue={editingStaff?.isSubsidized ? 'true' : 'false'} className="p-1 bg-white rounded-lg border border-violet-200 outline-none font-bold text-[10px] text-violet-900"><option value="false">Sin Subvención</option><option value="true">Subvencionada</option></select>
-                              </div>
+                              <select name="modality" defaultValue={editingStaff?.modality || 'Sede'} className="p-1 bg-white rounded-lg border border-violet-200 outline-none font-bold text-[10px] text-violet-900"><option value="Sede">Sede</option><option value="Inclusión">Inclusión</option><option value="Ambos">Ambos</option></select>
                           </div>
 
                           <div className="grid grid-cols-2 gap-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm">
@@ -4548,6 +4559,7 @@ function PersonalView({ user }) {
                               </div>
                           </div>
 
+                          {/* CARGO 1 */}
                           <div className="space-y-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm">
                               <h5 className="text-[10px] font-black text-gray-400 uppercase">Cargo 1</h5>
                               <div className="grid grid-cols-[1fr,2fr,1.5fr] gap-2">
@@ -4555,9 +4567,15 @@ function PersonalView({ user }) {
                                   <input name="cargo1_name" defaultValue={editingStaff?.cargo1_name} placeholder="Nombre (Ej: MG)" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full border border-gray-200"/>
                                   <input name="cargo1_ingreso" type="date" defaultValue={editingStaff?.cargo1_ingreso} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-[10px] text-gray-500 w-full border border-gray-200" title="Fecha Alta Cargo"/>
                               </div>
-                              <div className="grid grid-cols-3 gap-2"><select name="cargo1_type" defaultValue={editingStaff?.cargo1_type} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Tipo...</option><option value="meca">Mecanizada</option><option value="deno">Deno</option></select><input name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn} placeholder="Turno" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"/><select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Revista...</option><option value="Titular">Titular</option><option value="Provicional">Provisional</option><option value="Suplente">Suplente</option></select></div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                  <select name="cargo1_type" defaultValue={editingStaff?.cargo1_type} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Tipo...</option><option value="meca">Mecanizada</option><option value="deno">Deno</option></select>
+                                  <input name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn} placeholder="Turno" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"/>
+                                  <select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Revista...</option><option value="Titular">Titular</option><option value="Provicional">Provisional</option><option value="Suplente">Suplente</option></select>
+                                  <select name="cargo1_subsidized" defaultValue={editingStaff?.cargo1_subsidized === 'true' || editingStaff?.isSubsidized === 'true' ? 'true' : 'false'} className="p-2 bg-emerald-50 text-emerald-800 rounded-lg outline-none font-bold text-xs w-full border border-emerald-100"><option value="false">Sin Subv</option><option value="true">Subvencionado</option></select>
+                              </div>
                           </div>
 
+                          {/* CARGO 2 */}
                           <div className="space-y-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm">
                               <h5 className="text-[10px] font-black text-gray-400 uppercase">Cargo 2 (Opcional)</h5>
                               <div className="grid grid-cols-[1fr,2fr,1.5fr] gap-2">
@@ -4565,7 +4583,12 @@ function PersonalView({ user }) {
                                   <input name="cargo2_name" defaultValue={editingStaff?.cargo2_name} placeholder="Nombre (Ej: AUX)" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full border border-gray-200"/>
                                   <input name="cargo2_ingreso" type="date" defaultValue={editingStaff?.cargo2_ingreso} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-[10px] text-gray-500 w-full border border-gray-200" title="Fecha Alta Cargo"/>
                               </div>
-                              <div className="grid grid-cols-3 gap-2"><select name="cargo2_type" defaultValue={editingStaff?.cargo2_type} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Tipo...</option><option value="meca">Mecanizada</option><option value="deno">Deno</option></select><input name="cargo2_turn" defaultValue={editingStaff?.cargo2_turn} placeholder="Turno" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"/><select name="cargo2_revista" defaultValue={editingStaff?.cargo2_revista} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Revista...</option><option value="Titular">Titular</option><option value="Provicional">Provisional</option><option value="Suplente">Suplente</option></select></div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                  <select name="cargo2_type" defaultValue={editingStaff?.cargo2_type} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Tipo...</option><option value="meca">Mecanizada</option><option value="deno">Deno</option></select>
+                                  <input name="cargo2_turn" defaultValue={editingStaff?.cargo2_turn} placeholder="Turno" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"/>
+                                  <select name="cargo2_revista" defaultValue={editingStaff?.cargo2_revista} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Revista...</option><option value="Titular">Titular</option><option value="Provicional">Provisional</option><option value="Suplente">Suplente</option></select>
+                                  <select name="cargo2_subsidized" defaultValue={editingStaff?.cargo2_subsidized === 'true' ? 'true' : 'false'} className="p-2 bg-emerald-50 text-emerald-800 rounded-lg outline-none font-bold text-xs w-full border border-emerald-100"><option value="false">Sin Subv</option><option value="true">Subvencionado</option></select>
+                              </div>
                           </div>
                           
                           <div className="grid grid-cols-2 gap-2">
@@ -5224,6 +5247,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
