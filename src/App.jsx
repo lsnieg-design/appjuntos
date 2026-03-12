@@ -4034,7 +4034,7 @@ const handleUpdateGroup = async (e) => {
     </div>
   );
 }
-// --- VISTA PERSONAL (ACTUALIZADA: SUBVENCIÓN POR CARGO INDIVIDUAL) ---
+// --- VISTA PERSONAL (ACTUALIZADA: ROLES POR CARGO Y ESTADÍSTICAS INTELIGENTES) ---
 function PersonalView({ user }) {
   const [staffList, setStaffList] = useState([]);
   
@@ -4061,36 +4061,50 @@ function PersonalView({ user }) {
     return () => unsubStaff();
   }, []);
 
-  // LÓGICA DE FILTRADO
+  // LÓGICA DE FILTRADO (AHORA EVALÚA POR CARGO INDIVIDUALMENTE)
   const filteredStaff = staffList.filter(s => {
       const txt = staffFilterText.toLowerCase();
       const matchesText = !txt || `${s.lastName} ${s.firstName} ${s.dni}`.toLowerCase().includes(txt);
       if (!matchesText) return false;
       
       if (filters.modality !== 'all' && (s.modality || 'Sede') !== filters.modality) return false;
-      if (filters.role !== 'all' && (s.role || 'Sin Definir') !== filters.role) return false;
       
       if (filters.subsidized !== 'all') {
-          // Revisamos si ALGUNO de sus cargos está subvencionado (o el flag viejo por retrocompatibilidad)
           const isSub1 = s.cargo1_subsidized === 'true' || (s.isSubsidized === 'true' && s.cargo1_name);
           const isSub2 = s.cargo2_subsidized === 'true';
           const hasAnySub = isSub1 || isSub2;
-          
           if (filters.subsidized === 'yes' && !hasAnySub) return false;
           if (filters.subsidized === 'no' && hasAnySub) return false;
       }
 
-      if (filters.turn !== 'all') {
-          const c1T = (s.cargo1_turn || '').toLowerCase();
-          const c2T = (s.cargo2_turn || '').toLowerCase();
-          const targetTurn = filters.turn.toLowerCase();
-          if (!c1T.includes(targetTurn) && !c2T.includes(targetTurn)) return false;
-      }
+      const c1Role = s.cargo1_role || s.role || 'Sin Definir'; 
+      const c2Role = s.cargo2_role || s.role || 'Sin Definir';
+      const c1Turn = (s.cargo1_turn || '').toLowerCase();
+      const c2Turn = (s.cargo2_turn || '').toLowerCase();
+
+      const filterRole = filters.role;
+      const filterTurn = filters.turn.toLowerCase();
+
+      // ¿El Cargo 1 cumple los filtros?
+      const c1MatchesRole = filterRole === 'all' || c1Role === filterRole;
+      const c1MatchesTurn = filterTurn === 'all' || c1Turn.includes(filterTurn);
+      const c1IsValid = (s.cargo1_name || s.cargo1_role) && c1MatchesRole && c1MatchesTurn;
+
+      // ¿El Cargo 2 cumple los filtros?
+      const c2MatchesRole = filterRole === 'all' || c2Role === filterRole;
+      const c2MatchesTurn = filterTurn === 'all' || c2Turn.includes(filterTurn);
+      const c2IsValid = (s.cargo2_name || s.cargo2_role) && c2MatchesRole && c2MatchesTurn;
+
+      // Si no tiene filtros activos, pasa. Si tiene, debe cumplir en AL MENOS un cargo.
+      if (filterRole === 'all' && filterTurn === 'all') return true;
+      if (!c1IsValid && !c2IsValid) return false;
 
       return true;
   });
 
-  const uniqueRoles = [...new Set(staffList.map(s => s.role || 'Sin Definir'))].sort();
+  // Opciones únicas basadas en los cargos
+  const allRoles = staffList.flatMap(s => [s.cargo1_role || s.role, s.cargo2_role || s.role]).filter(Boolean);
+  const uniqueRoles = [...new Set(allRoles)].sort();
   const uniqueTurns = [...new Set([...staffList.map(s => s.cargo1_turn), ...staffList.map(s => s.cargo2_turn)].filter(Boolean))].sort();
 
   const handlePhotoChange = (e) => {
@@ -4151,15 +4165,18 @@ function PersonalView({ user }) {
       lista.forEach(s => {
           let antiguedad = calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef);
           
+          let c1Role = s.cargo1_role || s.role || 'Rol s/d';
+          let c2Role = s.cargo2_role || s.role || 'Rol s/d';
+
           let sub1Text = (s.cargo1_subsidized === 'true' || s.isSubsidized === 'true') ? 'SUBVENCIONADO' : 'SIN SUBVENCIÓN';
-          let c1 = s.cargo1_name ? `Cargo N°${s.cargo1_numero || '-'} | ${s.cargo1_name} (${s.cargo1_type}) - ${s.cargo1_turn} - ${s.cargo1_revista} - <b>${sub1Text}</b> <br/><span style="color:#666; font-size:9px; text-transform:uppercase;">ALTA CARGO: ${getSafeDate(s.cargo1_ingreso)}</span>` : '-';
+          let c1 = s.cargo1_name ? `Cargo N°${s.cargo1_numero || '-'} | <b>${c1Role}</b> | ${s.cargo1_name} (${s.cargo1_type}) - ${s.cargo1_turn} - ${s.cargo1_revista} - <b>${sub1Text}</b> <br/><span style="color:#666; font-size:9px; text-transform:uppercase;">ALTA CARGO: ${getSafeDate(s.cargo1_ingreso)}</span>` : '-';
           
           let sub2Text = s.cargo2_subsidized === 'true' ? 'SUBVENCIONADO' : 'SIN SUBVENCIÓN';
-          let c2 = s.cargo2_name ? `Cargo N°${s.cargo2_numero || '-'} | ${s.cargo2_name} (${s.cargo2_type}) - ${s.cargo2_turn} - ${s.cargo2_revista} - <b>${sub2Text}</b> <br/><span style="color:#666; font-size:9px; text-transform:uppercase;">ALTA CARGO: ${getSafeDate(s.cargo2_ingreso)}</span>` : '-';
+          let c2 = s.cargo2_name ? `Cargo N°${s.cargo2_numero || '-'} | <b>${c2Role}</b> | ${s.cargo2_name} (${s.cargo2_type}) - ${s.cargo2_turn} - ${s.cargo2_revista} - <b>${sub2Text}</b> <br/><span style="color:#666; font-size:9px; text-transform:uppercase;">ALTA CARGO: ${getSafeDate(s.cargo2_ingreso)}</span>` : '-';
 
           html += `<div class="page">
               <div class="header">
-                  <div class="header-text"><h1>${s.lastName}, ${s.firstName}</h1><p>DNI: ${s.dni || '-'} | Rol: ${s.role || 'Docente'}</p></div>
+                  <div class="header-text"><h1>${s.lastName}, ${s.firstName}</h1><p>DNI: ${s.dni || '-'} | Rol Principal: ${c1Role}</p></div>
                   <div class="photo-box">${s.photoUrl ? `<img src="${s.photoUrl}"/>` : s.firstName?.[0] || 'U'}</div>
               </div>
               <div class="section-title">Datos Personales y Contacto</div>
@@ -4214,8 +4231,9 @@ function PersonalView({ user }) {
                       birthDate: bDate, address: cols[4]?.trim() || '', phone: cols[5]?.trim() || '',
                       emergencyContact: cols[6]?.trim() || '', email: cols[7]?.trim() || '',
                       studyStatus: cols[8]?.trim() || '', degree: cols[9]?.trim() || '',
-                      role: cols[10]?.trim() || 'Docente', modality: cols[11]?.trim() || 'Sede',
-                      cargo1_subsidized: cols[12]?.trim() === 'SI' ? 'true' : 'false', // Mapeamos el viejo isSubsidized al cargo 1
+                      modality: cols[11]?.trim() || 'Sede',
+                      cargo1_role: cols[10]?.trim() || 'Docente', // Usamos la columna vieja de rol para el cargo 1
+                      cargo1_subsidized: cols[12]?.trim() === 'SI' ? 'true' : 'false',
                       cargo1_name: cols[13]?.trim() || '', cargo1_type: cols[14]?.trim() || '', cargo1_turn: cols[15]?.trim() || '', cargo1_revista: cols[16]?.trim() || '',
                       cargo2_name: cols[17]?.trim() || '', cargo2_type: cols[18]?.trim() || '', cargo2_turn: cols[19]?.trim() || '', cargo2_revista: cols[20]?.trim() || '',
                       createdAt: serverTimestamp()
@@ -4245,7 +4263,7 @@ function PersonalView({ user }) {
     } catch (err) { alert(err.message); }
   };
 
-  // --- LÓGICA DE ESTADÍSTICAS ACTUALIZADA (CUENTA CARGOS SUBVENCIONADOS) ---
+  // --- LÓGICA DE ESTADÍSTICAS INTELIGENTE (CUENTA POR CARGO FILTRADO) ---
   const calculateStats = () => {
       const stats = {
           total: filteredStaff.length,
@@ -4253,24 +4271,32 @@ function PersonalView({ user }) {
           inclusion: filteredStaff.filter(s => s.modality === 'Inclusión').length,
           roles: {},
           cargos: { simple: 0, doble: 0 },
-          subvencion: { si: 0, no: 0 } // AHORA CUENTA CARGOS (No personas)
+          subvencion: { si: 0, no: 0 }
       };
 
       filteredStaff.forEach(s => {
-          const rol = (s.role || 'Sin Definir');
-          stats.roles[rol] = (stats.roles[rol] || 0) + 1;
-
-          const tieneCargo1 = s.cargo1_name && s.cargo1_name.trim() !== '';
-          const tieneCargo2 = s.cargo2_name && s.cargo2_name.trim() !== '';
+          const c1Role = s.cargo1_role || s.role || 'Sin Definir';
+          const c2Role = s.cargo2_role || s.role || 'Sin Definir';
+          const c1Turn = (s.cargo1_turn || '').toLowerCase();
+          const c2Turn = (s.cargo2_turn || '').toLowerCase();
           
-          if (tieneCargo1 && tieneCargo2) stats.cargos.doble++;
-          else if (tieneCargo1 || tieneCargo2) stats.cargos.simple++;
+          const filterRole = filters.role;
+          const filterTurn = filters.turn.toLowerCase();
 
-          if (tieneCargo1) {
+          // Solo sumamos a las estadísticas el cargo si cumple los filtros actuales
+          const c1Matches = (s.cargo1_name || s.cargo1_role) && (filterRole === 'all' || c1Role === filterRole) && (filterTurn === 'all' || c1Turn.includes(filterTurn));
+          const c2Matches = (s.cargo2_name || s.cargo2_role) && (filterRole === 'all' || c2Role === filterRole) && (filterTurn === 'all' || c2Turn.includes(filterTurn));
+
+          if (c1Matches && c2Matches) stats.cargos.doble++;
+          else if (c1Matches || c2Matches) stats.cargos.simple++;
+
+          if (c1Matches) {
+              stats.roles[c1Role] = (stats.roles[c1Role] || 0) + 1;
               if (s.cargo1_subsidized === 'true' || s.isSubsidized === 'true') stats.subvencion.si++;
               else stats.subvencion.no++;
           }
-          if (tieneCargo2) {
+          if (c2Matches) {
+              stats.roles[c2Role] = (stats.roles[c2Role] || 0) + 1;
               if (s.cargo2_subsidized === 'true') stats.subvencion.si++;
               else stats.subvencion.no++;
           }
@@ -4329,8 +4355,9 @@ function PersonalView({ user }) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[65vh] overflow-y-auto pb-10 mt-2">
             {filteredStaff.map(s => {
-                // Pequeño chequeo visual rápido para ver si tiene subvención en algún lado
                 const tieneSub = s.cargo1_subsidized === 'true' || s.cargo2_subsidized === 'true' || s.isSubsidized === 'true';
+                const c1Role = s.cargo1_role || s.role;
+                const c2Role = s.cargo2_role || s.role;
                 
                 return (
                     <div key={s.id} onClick={() => setViewingStaff(s)} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all cursor-pointer group">
@@ -4347,9 +4374,9 @@ function PersonalView({ user }) {
                                 {s.dni && <span>DNI: {s.dni}</span>}
                                 <span className="text-violet-500">Anti: {calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef)}</span>
                             </div>
-                            <p className="text-[10px] font-black text-violet-500 uppercase mt-1 truncate">
-                                {s.cargo1_name ? `C1: ${s.cargo1_name}` : 'Sin Cargos'} 
-                                {s.cargo2_name ? ` | C2: ${s.cargo2_name}` : ''}
+                            <p className="text-[9px] font-black text-violet-500 uppercase mt-1 truncate">
+                                {s.cargo1_name ? `C1: ${c1Role} (${s.cargo1_turn || '-'})` : 'Sin Cargos'} 
+                                {s.cargo2_name ? ` | C2: ${c2Role} (${s.cargo2_turn || '-'})` : ''}
                             </p>
                         </div>
                         <Eye className="text-gray-300 group-hover:text-violet-500 transition-colors shrink-0" />
@@ -4387,10 +4414,12 @@ function PersonalView({ user }) {
                         </div>
 
                         <div>
-                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Distribución por Rol</h4>
+                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Distribución de Roles (Según Filtro Activo)</h4>
                             <div className="space-y-2">
                                 {currentStats.rolesSorted.map(([rol, count]) => {
-                                    const percentage = Math.round((count / currentStats.total) * 100);
+                                    // Calculamos porcentaje sobre el total de CARGOS mostrados, no personas, para ser más exactos.
+                                    const totalCargosMostrados = currentStats.cargos.simple + (currentStats.cargos.doble * 2);
+                                    const percentage = totalCargosMostrados > 0 ? Math.round((count / totalCargosMostrados) * 100) : 0;
                                     return (
                                         <div key={rol} className="bg-gray-50 p-2 rounded-lg border border-gray-100">
                                             <div className="flex justify-between text-xs font-bold text-gray-700 mb-1">
@@ -4440,7 +4469,7 @@ function PersonalView({ user }) {
                             </div>
                             <div>
                                 <h2 className="text-2xl font-black uppercase tracking-tight">{viewingStaff.lastName}, {viewingStaff.firstName}</h2>
-                                <p className="text-orange-300 font-bold text-xs uppercase">{viewingStaff.role || 'Docente'} - {viewingStaff.modality || 'Sede'}</p>
+                                <p className="text-orange-300 font-bold text-xs uppercase">{viewingStaff.cargo1_role || viewingStaff.role || 'Docente'} - {viewingStaff.modality || 'Sede'}</p>
                                 <span className="bg-white/20 px-3 py-1 rounded-lg text-xs font-bold inline-block mt-2">DNI: {viewingStaff.dni || '-'}</span>
                             </div>
                         </div>
@@ -4469,25 +4498,27 @@ function PersonalView({ user }) {
                             {(viewingStaff.cargo1_name || viewingStaff.cargo2_name) && (
                                 <div className="pt-1 space-y-2">
                                     {viewingStaff.cargo1_name && (
-                                        <div className="bg-white p-3 rounded-lg border border-violet-200 text-xs shadow-sm">
-                                            <div className="flex justify-between items-center mb-1">
-                                                <span className="font-black text-violet-900">C1: {viewingStaff.cargo1_name}</span>
-                                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${viewingStaff.cargo1_subsidized === 'true' || viewingStaff.isSubsidized === 'true' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                                        <div className="bg-white p-3 rounded-lg border border-violet-200 text-xs shadow-sm relative">
+                                            <div className="flex justify-between items-center mb-1 pr-16">
+                                                <span className="font-black text-violet-900">C1: {viewingStaff.cargo1_role || viewingStaff.role || 'S/D'}</span>
+                                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded absolute top-2 right-2 ${viewingStaff.cargo1_subsidized === 'true' || viewingStaff.isSubsidized === 'true' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`}>
                                                     {viewingStaff.cargo1_subsidized === 'true' || viewingStaff.isSubsidized === 'true' ? 'Subvencionado' : 'Sin Subvención'}
                                                 </span>
                                             </div>
+                                            <p className="font-bold text-gray-700 mb-1">{viewingStaff.cargo1_name}</p>
                                             <p className="text-gray-500 mb-1">N° {viewingStaff.cargo1_numero || '-'} | {viewingStaff.cargo1_type} | {viewingStaff.cargo1_turn} | {viewingStaff.cargo1_revista}</p>
                                             <p className="text-[10px] text-violet-600 font-bold">Alta Cargo: {getSafeDate(viewingStaff.cargo1_ingreso)}</p>
                                         </div>
                                     )}
                                     {viewingStaff.cargo2_name && (
-                                        <div className="bg-white p-3 rounded-lg border border-violet-200 text-xs shadow-sm">
-                                            <div className="flex justify-between items-center mb-1">
-                                                <span className="font-black text-violet-900">C2: {viewingStaff.cargo2_name}</span>
-                                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${viewingStaff.cargo2_subsidized === 'true' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                                        <div className="bg-white p-3 rounded-lg border border-violet-200 text-xs shadow-sm relative">
+                                            <div className="flex justify-between items-center mb-1 pr-16">
+                                                <span className="font-black text-violet-900">C2: {viewingStaff.cargo2_role || viewingStaff.role || 'S/D'}</span>
+                                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded absolute top-2 right-2 ${viewingStaff.cargo2_subsidized === 'true' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`}>
                                                     {viewingStaff.cargo2_subsidized === 'true' ? 'Subvencionado' : 'Sin Subvención'}
                                                 </span>
                                             </div>
+                                            <p className="font-bold text-gray-700 mb-1">{viewingStaff.cargo2_name}</p>
                                             <p className="text-gray-500 mb-1">N° {viewingStaff.cargo2_numero || '-'} | {viewingStaff.cargo2_type} | {viewingStaff.cargo2_turn} | {viewingStaff.cargo2_revista}</p>
                                             <p className="text-[10px] text-violet-600 font-bold">Alta Cargo: {getSafeDate(viewingStaff.cargo2_ingreso)}</p>
                                         </div>
@@ -4560,7 +4591,7 @@ function PersonalView({ user }) {
                           </div>
 
                           {/* CARGO 1 */}
-                          <div className="space-y-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm">
+                          <div className="space-y-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm relative">
                               <h5 className="text-[10px] font-black text-gray-400 uppercase">Cargo 1</h5>
                               <div className="grid grid-cols-[1fr,2fr,1.5fr] gap-2">
                                   <input name="cargo1_numero" defaultValue={editingStaff?.cargo1_numero} placeholder="N° Cargo" className="p-2 bg-violet-50 text-violet-900 rounded-lg outline-none font-black text-xs w-full border border-violet-100"/>
@@ -4568,15 +4599,39 @@ function PersonalView({ user }) {
                                   <input name="cargo1_ingreso" type="date" defaultValue={editingStaff?.cargo1_ingreso} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-[10px] text-gray-500 w-full border border-gray-200" title="Fecha Alta Cargo"/>
                               </div>
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                  <select name="cargo1_role" defaultValue={editingStaff?.cargo1_role || editingStaff?.role || ''} className="p-2 bg-white rounded-lg border border-gray-200 outline-none font-bold text-xs text-violet-900" required>
+                                      <option value="">Rol...</option>
+                                      <optgroup label="SEDE">
+                                          <option value="Docente">Docente</option>
+                                          <option value="Preceptora">Preceptora</option>
+                                          <option value="Auxiliar">Auxiliar</option>
+                                          <option value="Profe Especial">Profe especial</option>
+                                          <option value="Equipo Técnico">Equipo técnico</option>
+                                          <option value="Equipo Directivo">Equipo directivo</option>
+                                      </optgroup>
+                                      <optgroup label="INCLUSIÓN">
+                                          <option value="Dirección Inclusión">Dirección</option>
+                                          <option value="Equipo Técnico Inclusión">Equipo técnico</option>
+                                          <option value="DAI">DAI</option>
+                                      </optgroup>
+                                      <optgroup label="ADMIN / MAESTRANZA">
+                                          <option value="Cocina">Cocina</option>
+                                          <option value="Limpieza">Limpieza</option>
+                                          <option value="Mantenimiento">Mantenimiento</option>
+                                          <option value="Administración">Administración</option>
+                                      </optgroup>
+                                  </select>
                                   <select name="cargo1_type" defaultValue={editingStaff?.cargo1_type} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Tipo...</option><option value="meca">Mecanizada</option><option value="deno">Deno</option></select>
                                   <input name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn} placeholder="Turno" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"/>
                                   <select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Revista...</option><option value="Titular">Titular</option><option value="Provicional">Provisional</option><option value="Suplente">Suplente</option></select>
-                                  <select name="cargo1_subsidized" defaultValue={editingStaff?.cargo1_subsidized === 'true' || editingStaff?.isSubsidized === 'true' ? 'true' : 'false'} className="p-2 bg-emerald-50 text-emerald-800 rounded-lg outline-none font-bold text-xs w-full border border-emerald-100"><option value="false">Sin Subv</option><option value="true">Subvencionado</option></select>
+                              </div>
+                              <div className="mt-2">
+                                <select name="cargo1_subsidized" defaultValue={editingStaff?.cargo1_subsidized === 'true' || editingStaff?.isSubsidized === 'true' ? 'true' : 'false'} className="p-2 bg-emerald-50 text-emerald-800 rounded-lg outline-none font-bold text-xs w-full border border-emerald-100"><option value="false">Sin Subvención</option><option value="true">Cargo Subvencionado</option></select>
                               </div>
                           </div>
 
                           {/* CARGO 2 */}
-                          <div className="space-y-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm">
+                          <div className="space-y-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm relative">
                               <h5 className="text-[10px] font-black text-gray-400 uppercase">Cargo 2 (Opcional)</h5>
                               <div className="grid grid-cols-[1fr,2fr,1.5fr] gap-2">
                                   <input name="cargo2_numero" defaultValue={editingStaff?.cargo2_numero} placeholder="N° Cargo" className="p-2 bg-violet-50 text-violet-900 rounded-lg outline-none font-black text-xs w-full border border-violet-100"/>
@@ -4584,39 +4639,41 @@ function PersonalView({ user }) {
                                   <input name="cargo2_ingreso" type="date" defaultValue={editingStaff?.cargo2_ingreso} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-[10px] text-gray-500 w-full border border-gray-200" title="Fecha Alta Cargo"/>
                               </div>
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                  <select name="cargo2_role" defaultValue={editingStaff?.cargo2_role || ''} className="p-2 bg-white rounded-lg border border-gray-200 outline-none font-bold text-xs text-violet-900">
+                                      <option value="">Rol...</option>
+                                      <optgroup label="SEDE">
+                                          <option value="Docente">Docente</option>
+                                          <option value="Preceptora">Preceptora</option>
+                                          <option value="Auxiliar">Auxiliar</option>
+                                          <option value="Profe Especial">Profe especial</option>
+                                          <option value="Equipo Técnico">Equipo técnico</option>
+                                          <option value="Equipo Directivo">Equipo directivo</option>
+                                      </optgroup>
+                                      <optgroup label="INCLUSIÓN">
+                                          <option value="Dirección Inclusión">Dirección</option>
+                                          <option value="Equipo Técnico Inclusión">Equipo técnico</option>
+                                          <option value="DAI">DAI</option>
+                                      </optgroup>
+                                      <optgroup label="ADMIN / MAESTRANZA">
+                                          <option value="Cocina">Cocina</option>
+                                          <option value="Limpieza">Limpieza</option>
+                                          <option value="Mantenimiento">Mantenimiento</option>
+                                          <option value="Administración">Administración</option>
+                                      </optgroup>
+                                  </select>
                                   <select name="cargo2_type" defaultValue={editingStaff?.cargo2_type} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Tipo...</option><option value="meca">Mecanizada</option><option value="deno">Deno</option></select>
                                   <input name="cargo2_turn" defaultValue={editingStaff?.cargo2_turn} placeholder="Turno" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"/>
                                   <select name="cargo2_revista" defaultValue={editingStaff?.cargo2_revista} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Revista...</option><option value="Titular">Titular</option><option value="Provicional">Provisional</option><option value="Suplente">Suplente</option></select>
-                                  <select name="cargo2_subsidized" defaultValue={editingStaff?.cargo2_subsidized === 'true' ? 'true' : 'false'} className="p-2 bg-emerald-50 text-emerald-800 rounded-lg outline-none font-bold text-xs w-full border border-emerald-100"><option value="false">Sin Subv</option><option value="true">Subvencionado</option></select>
+                              </div>
+                              <div className="mt-2">
+                                <select name="cargo2_subsidized" defaultValue={editingStaff?.cargo2_subsidized === 'true' ? 'true' : 'false'} className="p-2 bg-emerald-50 text-emerald-800 rounded-lg outline-none font-bold text-xs w-full border border-emerald-100"><option value="false">Sin Subvención</option><option value="true">Cargo Subvencionado</option></select>
                               </div>
                           </div>
                           
                           <div className="grid grid-cols-2 gap-2">
                               <select name="studyStatus" defaultValue={editingStaff?.studyStatus} className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900"><option value="">Estado Estudios...</option><option value="Finalizado">Finalizado</option><option value="En curso 0% - 30%">En curso 0% - 30%</option><option value="En curso 30% - 50%">En curso 30% - 50%</option><option value="En curso 50% - 70%">En curso 50% - 70%</option><option value="En curso 70% - 99%">En curso 70% - 99%</option></select>
-                              <select name="role" defaultValue={editingStaff?.role || ''} className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900" required>
-                                  <option value="">Rol Principal...</option>
-                                  <optgroup label="SEDE">
-                                      <option value="Docente">Docente</option>
-                                      <option value="Preceptora">Preceptora</option>
-                                      <option value="Auxiliar">Auxiliar</option>
-                                      <option value="Profe Especial">Profe especial</option>
-                                      <option value="Equipo Técnico">Equipo técnico</option>
-                                      <option value="Equipo Directivo">Equipo directivo</option>
-                                  </optgroup>
-                                  <optgroup label="INCLUSIÓN">
-                                      <option value="Dirección Inclusión">Dirección</option>
-                                      <option value="Equipo Técnico Inclusión">Equipo técnico</option>
-                                      <option value="DAI">DAI</option>
-                                  </optgroup>
-                                  <optgroup label="ADMIN / MAESTRANZA">
-                                      <option value="Cocina">Cocina</option>
-                                      <option value="Limpieza">Limpieza</option>
-                                      <option value="Mantenimiento">Mantenimiento</option>
-                                      <option value="Administración">Administración</option>
-                                  </optgroup>
-                              </select>
+                              <input name="degree" defaultValue={editingStaff?.degree} placeholder="Título Alcanzado / En curso" className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900"/>
                           </div>
-                          <input name="degree" defaultValue={editingStaff?.degree} placeholder="Título Alcanzado / En curso" className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900"/>
                       </div>
 
                       <div className="flex gap-2">
@@ -5462,6 +5519,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
