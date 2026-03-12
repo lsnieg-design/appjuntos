@@ -4034,7 +4034,7 @@ const handleUpdateGroup = async (e) => {
     </div>
   );
 }
-// --- VISTA PERSONAL (ACTUALIZADA: AUDITORÍA DE ROLES Y ESTADOS "NO TRABAJA") ---
+// --- VISTA PERSONAL (ACTUALIZADA: AUDITORÍA DE ROLES, TURNOS ESTRICTOS Y MECA/DENO AUTOMÁTICO) ---
 function PersonalView({ user }) {
   const [staffList, setStaffList] = useState([]);
   
@@ -4108,7 +4108,8 @@ function PersonalView({ user }) {
       return true;
   });
 
-  const uniqueTurns = [...new Set([...staffList.map(s => s.cargo1_turn), ...staffList.map(s => s.cargo2_turn)].filter(Boolean))].sort();
+  // LISTA ESTRICTA DE TURNOS PARA EL FILTRO Y FORMULARIO
+  const uniqueTurns = ["Mañana", "Tarde", "Alternado"];
 
   const handlePhotoChange = (e) => {
       const f = e.target.files[0]; if(!f) return;
@@ -4215,7 +4216,6 @@ function PersonalView({ user }) {
   };
 
   const handleImportStaff = async (e) => {
-      // (Se mantiene igual tu función original)
       const file = e.target.files[0];
       if (!file || !confirm("⚠️ ¿Importar archivo CSV completo?")) return;
       setProcessing(true);
@@ -4592,7 +4592,7 @@ function PersonalView({ user }) {
                           </div>
 
                           {/* CARGO 1 */}
-                          <div className="space-y-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm">
+                          <div className="space-y-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm relative">
                               <h5 className="text-[10px] font-black text-gray-400 uppercase">Cargo 1</h5>
                               <div className="grid grid-cols-[1fr,2fr,1.5fr] gap-2">
                                   <input name="cargo1_numero" defaultValue={editingStaff?.cargo1_numero} placeholder="N° Cargo" className="p-2 bg-violet-50 text-violet-900 rounded-lg outline-none font-black text-xs w-full border border-violet-100"/>
@@ -4622,17 +4622,37 @@ function PersonalView({ user }) {
                                           <option value="Administración">Administración</option>
                                       </optgroup>
                                   </select>
-                                  <select name="cargo1_type" defaultValue={editingStaff?.cargo1_type} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Tipo...</option><option value="meca">Mecanizada</option><option value="deno">Deno</option></select>
-                                  <input name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn} placeholder="Turno" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"/>
+                                  
+                                  {/* SELECT TURNO */}
+                                  <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn || ''} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full text-violet-800">
+                                      <option value="">Turno...</option>
+                                      <option value="Mañana">Mañana</option>
+                                      <option value="Tarde">Tarde</option>
+                                      <option value="Alternado">Alternado</option>
+                                  </select>
+                                  
                                   <select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Revista...</option><option value="Titular">Titular</option><option value="Provicional">Provisional</option><option value="Suplente">Suplente</option></select>
-                              </div>
-                              <div className="mt-2">
-                                <select name="cargo1_subsidized" defaultValue={editingStaff?.cargo1_subsidized === 'true' || editingStaff?.isSubsidized === 'true' ? 'true' : 'false'} className="p-2 bg-emerald-50 text-emerald-800 rounded-lg outline-none font-bold text-xs w-full border border-emerald-100"><option value="false">Sin Subvención</option><option value="true">Cargo Subvencionado</option></select>
+                                  
+                                  {/* SELECT SUBVENCIÓN QUE MANEJA TIPO */}
+                                  <select 
+                                    name="cargo1_subsidized" 
+                                    defaultValue={editingStaff?.cargo1_subsidized === 'true' || editingStaff?.isSubsidized === 'true' ? 'true' : 'false'} 
+                                    onChange={(e) => {
+                                      const typeInput = document.getElementById('cargo1_type_input');
+                                      if(typeInput) typeInput.value = e.target.value === 'true' ? 'meca' : 'deno';
+                                    }}
+                                    className="p-2 bg-emerald-50 text-emerald-800 rounded-lg outline-none font-bold text-xs w-full border border-emerald-100"
+                                  >
+                                      <option value="false">Sin Subv (DENO)</option>
+                                      <option value="true">Subvencion. (MECA)</option>
+                                  </select>
+                                  {/* INPUT OCULTO DE TIPO */}
+                                  <input type="hidden" id="cargo1_type_input" name="cargo1_type" defaultValue={editingStaff?.cargo1_subsidized === 'true' || editingStaff?.isSubsidized === 'true' ? 'meca' : 'deno'} />
                               </div>
                           </div>
 
                           {/* CARGO 2 */}
-                          <div className="space-y-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm">
+                          <div className="space-y-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm relative">
                               <h5 className="text-[10px] font-black text-gray-400 uppercase">Cargo 2 (Opcional)</h5>
                               <div className="grid grid-cols-[1fr,2fr,1.5fr] gap-2">
                                   <input name="cargo2_numero" defaultValue={editingStaff?.cargo2_numero} placeholder="N° Cargo" className="p-2 bg-violet-50 text-violet-900 rounded-lg outline-none font-black text-xs w-full border border-violet-100"/>
@@ -4662,12 +4682,32 @@ function PersonalView({ user }) {
                                           <option value="Administración">Administración</option>
                                       </optgroup>
                                   </select>
-                                  <select name="cargo2_type" defaultValue={editingStaff?.cargo2_type} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Tipo...</option><option value="meca">Mecanizada</option><option value="deno">Deno</option></select>
-                                  <input name="cargo2_turn" defaultValue={editingStaff?.cargo2_turn} placeholder="Turno" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"/>
+
+                                  {/* SELECT TURNO */}
+                                  <select name="cargo2_turn" defaultValue={editingStaff?.cargo2_turn || ''} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full text-violet-800">
+                                      <option value="">Turno...</option>
+                                      <option value="Mañana">Mañana</option>
+                                      <option value="Tarde">Tarde</option>
+                                      <option value="Alternado">Alternado</option>
+                                  </select>
+                                  
                                   <select name="cargo2_revista" defaultValue={editingStaff?.cargo2_revista} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Revista...</option><option value="Titular">Titular</option><option value="Provicional">Provisional</option><option value="Suplente">Suplente</option></select>
-                              </div>
-                              <div className="mt-2">
-                                <select name="cargo2_subsidized" defaultValue={editingStaff?.cargo2_subsidized === 'true' ? 'true' : 'false'} className="p-2 bg-emerald-50 text-emerald-800 rounded-lg outline-none font-bold text-xs w-full border border-emerald-100"><option value="false">Sin Subvención</option><option value="true">Cargo Subvencionado</option></select>
+                                  
+                                  {/* SELECT SUBVENCIÓN QUE MANEJA TIPO */}
+                                  <select 
+                                    name="cargo2_subsidized" 
+                                    defaultValue={editingStaff?.cargo2_subsidized === 'true' ? 'true' : 'false'} 
+                                    onChange={(e) => {
+                                      const typeInput = document.getElementById('cargo2_type_input');
+                                      if(typeInput) typeInput.value = e.target.value === 'true' ? 'meca' : 'deno';
+                                    }}
+                                    className="p-2 bg-emerald-50 text-emerald-800 rounded-lg outline-none font-bold text-xs w-full border border-emerald-100"
+                                  >
+                                      <option value="false">Sin Subv (DENO)</option>
+                                      <option value="true">Subvencion. (MECA)</option>
+                                  </select>
+                                  {/* INPUT OCULTO DE TIPO */}
+                                  <input type="hidden" id="cargo2_type_input" name="cargo2_type" defaultValue={editingStaff?.cargo2_subsidized === 'true' ? 'meca' : 'deno'} />
                               </div>
                           </div>
                           
@@ -5520,6 +5560,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
