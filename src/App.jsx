@@ -4633,14 +4633,14 @@ function PersonalView({ user }) {
     </div>
   );
 }
-// --- VISTA MÉDICA (HISTORIAS CLÍNICAS FORMALES Y FIRMA) ---
+// --- VISTA MÉDICA (HISTORIAS CLÍNICAS FORMALES, FIRMA Y LOGO) ---
 function MedicalView({ user }) {
   const [students, setStudents] = useState([]);
   const [filterText, setFilterText] = useState('');
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [showEvoForm, setShowEvoForm] = useState(false); // NUEVO ESTADO PARA EL FORMULARIO MÉDICO
+  const [showEvoForm, setShowEvoForm] = useState(false);
 
   // Permisos: Solo Salud, Directivos y Admins
   const canAccess = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión', 'Médico', 'Enfermería', 'Salud'].includes(user.role) || user.rol === 'admin';
@@ -4694,7 +4694,6 @@ function MedicalView({ user }) {
       finally { setSaving(false); }
   };
 
-  // NUEVA FUNCIÓN PARA GUARDAR EVOLUCIONES FORMALES
   const handleAddEvolution = async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
@@ -4705,7 +4704,7 @@ function MedicalView({ user }) {
 
       const newEvo = {
           id: Date.now().toString(),
-          date: date, // Ahora guarda la fecha que eligió el médico
+          date: date,
           text: text.trim(),
           author: user.firstName + (user.lastName ? ' ' + user.lastName : '')
       };
@@ -4730,11 +4729,11 @@ function MedicalView({ user }) {
       } catch (err) { alert("Error al eliminar: " + err.message); }
   };
 
+  // --- FUNCIÓN DE IMPRESIÓN ACTUALIZADA CON LOGO ---
   const imprimirHistoriaClinica = (student) => {
       const fullDate = new Date().toLocaleDateString('es-AR');
       const evos = student.medicalEvolutions || [];
       
-      // Ordenamos las evoluciones por fecha para que salgan bien en el PDF
       let evosHtml = evos.length > 0 
           ? evos.slice().sort((a,b) => new Date(b.date) - new Date(a.date)).map(e => `<div style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dotted #ccc;">
               <div style="font-size: 11px; color: #666; margin-bottom: 4px;"><strong>${new Date(e.date + 'T00:00:00').toLocaleDateString('es-AR')}</strong> | Registro de: ${e.author}</div>
@@ -4756,29 +4755,20 @@ function MedicalView({ user }) {
           .value { font-size: 14px; font-weight: bold; color: #000;}
           .signature-box { width: 100%; max-width: 300px; text-align: center; font-size: 12px; color: #333; }
           @media print {
-            .signature-container {
-              position: fixed;
-              bottom: 30px;
-              left: 30px;
-              right: 30px;
-              display: flex;
-              justify-content: flex-end;
-              width: calc(100% - 60px);
-            }
+            .signature-container { position: fixed; bottom: 30px; left: 30px; right: 30px; display: flex; justify-content: flex-end; width: calc(100% - 60px); }
           }
           @media screen {
-            .signature-container {
-              margin-top: 50px;
-              display: flex;
-              justify-content: flex-end;
-            }
+            .signature-container { margin-top: 50px; display: flex; justify-content: flex-end; }
           }
       </style>
       </head><body>
           <div class="header">
-              <div>
-                  <div class="title">HISTORIA CLÍNICA</div>
-                  <div class="subtitle">Escuela de Educación Especial "Juntos a la Par"</div>
+              <div style="display: flex; align-items: center; gap: 15px;">
+                  <img src="/_next/image?url=logo_escuela.png&w=128&q=75" alt="Logo Escuela" style="width: 60px; height: 60px; object-fit: contain;">
+                  <div>
+                      <div class="title">HISTORIA CLÍNICA</div>
+                      <div class="subtitle">Escuela de Educación Especial "Juntos a la Par"</div>
+                  </div>
               </div>
               <div style="text-align: right; font-size: 11px; color: #666;">
                   Documento Confidencial<br/>
@@ -4824,7 +4814,6 @@ function MedicalView({ user }) {
                 <p style="margin: 2px 0 0 0;">Firma y Sello Profesional</p>
             </div>
           </div>
-
       </body></html>
       `;
 
@@ -4839,245 +4828,254 @@ function MedicalView({ user }) {
 
   return (
     <div className="space-y-4 animate-in fade-in pb-20 px-2 pt-4">
-        {/* HEADER */}
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-red-100 flex flex-col md:flex-row justify-between items-center gap-4">
-            <div>
-                <h2 className="text-2xl font-black text-red-700 uppercase italic flex items-center gap-2">
-                    <Activity size={24} /> Fichas Médicas
-                </h2>
-                <p className="text-xs text-gray-500 font-bold uppercase mt-1">Gabinete de Salud Institucional</p>
-            </div>
-            <div className="flex bg-gray-50 rounded-xl items-center px-3 border border-gray-200 w-full md:w-72 shadow-inner">
-                <Search size={16} className="text-gray-400"/>
-                <input 
-                    placeholder="Buscar paciente..." 
-                    value={filterText}
-                    onChange={e=>setFilterText(e.target.value)} 
-                    className="bg-transparent p-3 text-xs font-bold outline-none w-full text-gray-700"
-                />
-                {filterText && <button onClick={() => setFilterText('')} className="text-gray-400 hover:text-red-500"><X size={14}/></button>}
-            </div>
-        </div>
-
-        {/* LISTADO DE PACIENTES */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[70vh] overflow-y-auto pr-1">
-            {filteredStudents.map(s => {
-                const cud = checkCudStatus(s.cudExpiration);
-                const hasAlert = cud.status === 'expired' || cud.status === 'warning' || (s.allergies && s.allergies.length > 2);
-
-                return (
-                    <div key={s.id} onClick={() => { setSelectedStudent(s); setIsEditing(false); setShowEvoForm(false); }} className={`bg-white p-4 rounded-2xl shadow-sm border-2 cursor-pointer transition-all hover:scale-[1.02] flex items-center gap-3 ${hasAlert ? 'border-red-200' : 'border-transparent'}`}>
-                        <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-red-300 font-black shrink-0 overflow-hidden border border-red-100">
-                            {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName[0]}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <h4 className="font-bold text-gray-800 text-sm truncate uppercase">{s.lastName}, {s.firstName}</h4>
-                            <p className="text-[10px] text-gray-500 font-bold">{calculateAge(s.birthDate)} años | OS: {s.healthInsurance || 'S/D'}</p>
-                            
-                            <div className="flex gap-1 mt-1.5 flex-wrap">
-                                {cud.status !== 'none' && (
-                                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${cud.status === 'expired' ? 'bg-red-100 text-red-700' : cud.status === 'warning' ? 'bg-yellow-100 text-yellow-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                                        CUD: {cud.text}
-                                    </span>
-                                )}
-                                {s.allergies && s.allergies.length > 2 && (
-                                    <span className="text-[8px] font-black px-1.5 py-0.5 rounded uppercase bg-orange-100 text-orange-700 flex items-center gap-1">
-                                        <AlertTriangle size={8}/> Alergias
-                                    </span>
-                                )}
-                            </div>
-                        </div>
+        
+        {!selectedStudent ? (
+            /* --- PANTALLA 1: LISTADO DE PACIENTES --- */
+            <>
+                <div className="bg-white p-6 rounded-3xl shadow-sm border border-red-100 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div>
+                        <h2 className="text-2xl font-black text-red-700 uppercase italic flex items-center gap-2">
+                            <Activity size={24} /> Fichas Médicas
+                        </h2>
+                        <p className="text-xs text-gray-500 font-bold uppercase mt-1">Gabinete de Salud Institucional</p>
                     </div>
-                );
-            })}
-        </div>
+                    <div className="flex bg-gray-50 rounded-xl items-center px-3 border border-gray-200 w-full md:w-72 shadow-inner">
+                        <Search size={16} className="text-gray-400"/>
+                        <input 
+                            placeholder="Buscar paciente..." 
+                            value={filterText}
+                            onChange={e=>setFilterText(e.target.value)} 
+                            className="bg-transparent p-3 text-xs font-bold outline-none w-full text-gray-700"
+                        />
+                        {filterText && <button onClick={() => setFilterText('')} className="text-gray-400 hover:text-red-500"><X size={14}/></button>}
+                    </div>
+                </div>
 
-        {/* MODAL FICHA CLÍNICA */}
-        {selectedStudent && (
-            <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setSelectedStudent(null)}>
-                <div className="bg-white rounded-[35px] w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {filteredStudents.map(s => {
+                        const cud = checkCudStatus(s.cudExpiration);
+                        const hasAlert = cud.status === 'expired' || cud.status === 'warning' || (s.allergies && s.allergies.length > 2);
+
+                        return (
+                            <div key={s.id} onClick={() => { setSelectedStudent(s); setIsEditing(false); setShowEvoForm(false); }} className={`bg-white p-4 rounded-2xl shadow-sm border-2 cursor-pointer transition-all hover:scale-[1.02] flex items-center gap-3 ${hasAlert ? 'border-red-200' : 'border-transparent'}`}>
+                                <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-red-300 font-black shrink-0 overflow-hidden border border-red-100">
+                                    {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName[0]}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="font-bold text-gray-800 text-sm truncate uppercase">{s.lastName}, {s.firstName}</h4>
+                                    <p className="text-[10px] text-gray-500 font-bold">{calculateAge(s.birthDate)} años | OS: {s.healthInsurance || 'S/D'}</p>
+                                    
+                                    <div className="flex gap-1 mt-1.5 flex-wrap">
+                                        {cud.status !== 'none' && (
+                                            <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${cud.status === 'expired' ? 'bg-red-100 text-red-700' : cud.status === 'warning' ? 'bg-yellow-100 text-yellow-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                                CUD: {cud.text}
+                                            </span>
+                                        )}
+                                        {s.allergies && s.allergies.length > 2 && (
+                                            <span className="text-[8px] font-black px-1.5 py-0.5 rounded uppercase bg-orange-100 text-orange-700 flex items-center gap-1">
+                                                <AlertTriangle size={8}/> Alergias
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </>
+        ) : (
+            /* --- PANTALLA 2: FICHA CLÍNICA (INTEGRADA, SIN MODAL) --- */
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden flex flex-col animate-in slide-in-from-right-8 fade-in duration-300">
+                
+                {/* ENCABEZADO DE LA FICHA */}
+                <div className="bg-red-700 p-6 text-white relative">
+                    <button onClick={() => setSelectedStudent(null)} className="mb-4 flex items-center gap-2 text-red-200 hover:text-white transition font-black uppercase text-xs tracking-widest">
+                        ← Volver a Pacientes
+                    </button>
                     
-                    <div className="bg-red-700 p-6 text-white relative shrink-0">
-                        <button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 p-1.5 rounded-full hover:bg-white/40 transition"><X size={20}/></button>
+                    <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
                         <div className="flex gap-4 items-center">
                             <div className="w-16 h-16 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center font-black text-2xl">
                                 {selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : selectedStudent.firstName[0]}
                             </div>
-                            <div className="flex-1">
+                            <div>
                                 <h2 className="text-2xl font-black uppercase tracking-tight leading-none">{selectedStudent.lastName}, {selectedStudent.firstName}</h2>
                                 <p className="text-red-200 font-bold text-xs uppercase mt-1">DNI: {selectedStudent.dni || '-'} • {calculateAge(selectedStudent.birthDate)} AÑOS</p>
                             </div>
-                            <button onClick={() => imprimirHistoriaClinica(selectedStudent)} className="hidden md:flex flex-col items-center justify-center bg-white text-red-700 p-2 rounded-xl shadow-md hover:bg-red-50 transition" title="Imprimir Historia Clínica">
-                                <Printer size={20}/>
-                                <span className="text-[9px] font-black uppercase mt-1">Imprimir</span>
-                            </button>
                         </div>
+                        <button onClick={() => imprimirHistoriaClinica(selectedStudent)} className="bg-white text-red-700 px-4 py-3 rounded-xl shadow-md hover:bg-red-50 transition flex items-center gap-2 font-black uppercase text-[10px] md:text-xs">
+                            <Printer size={18}/> Imprimir Ficha
+                        </button>
                     </div>
+                </div>
 
-                    <div className="p-6 overflow-y-auto bg-gray-50 flex-1">
-                        {!isEditing ? (
-                            <div className="space-y-5">
-                                {/* RESUMEN DE ALERTAS */}
-                                {(selectedStudent.allergies || checkCudStatus(selectedStudent.cudExpiration).status === 'expired') && (
-                                    <div className="bg-red-50 border border-red-200 p-4 rounded-2xl shadow-inner">
-                                        <h4 className="text-red-800 font-black text-xs uppercase flex items-center gap-1 mb-2"><AlertTriangle size={14}/> Alertas Médicas</h4>
-                                        {selectedStudent.allergies && <p className="text-sm font-bold text-red-700 mb-1">Alergias: <span className="font-medium text-red-600">{selectedStudent.allergies}</span></p>}
-                                        {checkCudStatus(selectedStudent.cudExpiration).status === 'expired' && <p className="text-sm font-bold text-red-700">CUD: <span className="font-medium text-red-600">Vencido ({getSafeDate(selectedStudent.cudExpiration)})</span></p>}
-                                    </div>
+                {/* CUERPO DE LA FICHA */}
+                <div className="p-4 md:p-6 bg-gray-50 flex-1">
+                    {!isEditing ? (
+                        <div className="space-y-6">
+                            {/* ALERTAS */}
+                            {(selectedStudent.allergies || checkCudStatus(selectedStudent.cudExpiration).status === 'expired') && (
+                                <div className="bg-red-50 border border-red-200 p-4 rounded-2xl shadow-inner">
+                                    <h4 className="text-red-800 font-black text-xs uppercase flex items-center gap-1 mb-2"><AlertTriangle size={14}/> Alertas Médicas</h4>
+                                    {selectedStudent.allergies && <p className="text-sm font-bold text-red-700 mb-1">Alergias: <span className="font-medium text-red-600">{selectedStudent.allergies}</span></p>}
+                                    {checkCudStatus(selectedStudent.cudExpiration).status === 'expired' && <p className="text-sm font-bold text-red-700">CUD: <span className="font-medium text-red-600">Vencido ({getSafeDate(selectedStudent.cudExpiration)})</span></p>}
+                                </div>
+                            )}
+
+                            {/* DATOS ESTÁTICOS */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Obra Social</p>
+                                    <p className="font-bold text-slate-800">{selectedStudent.healthInsurance || 'No declara'}</p>
+                                </div>
+                                <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Vencimiento CUD</p>
+                                    <p className={`font-bold ${checkCudStatus(selectedStudent.cudExpiration).status === 'expired' ? 'text-red-600' : 'text-slate-800'}`}>
+                                        {getSafeDate(selectedStudent.cudExpiration)}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+                                <div>
+                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Diagnóstico CUD / Médico</p>
+                                    <p className="font-bold text-slate-800">{selectedStudent.cudDiagnosis || 'Sin datos cargados'}</p>
+                                </div>
+                                <div className="border-t border-gray-100 pt-4">
+                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Medicación Habitual</p>
+                                    <p className="font-bold text-slate-800">{selectedStudent.medication || 'No refiere'}</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Peso (Aprox)</p>
+                                    <p className="font-bold text-slate-800">{selectedStudent.weight ? `${selectedStudent.weight} kg` : 'S/D'}</p>
+                                </div>
+                                <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Vacunación</p>
+                                    <p className="font-bold text-slate-800">{selectedStudent.vaccines || 'S/D'}</p>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end">
+                                <button onClick={() => setIsEditing(true)} className="px-6 py-3 bg-gray-900 text-white rounded-xl font-bold text-xs uppercase shadow-md hover:bg-gray-800 transition flex items-center gap-2">
+                                    <Edit3 size={16}/> Editar Datos Fijos
+                                </button>
+                            </div>
+
+                            {/* SECCIÓN EVOLUCIONES FORMALES */}
+                            <div className="mt-8 pt-8 border-t-2 border-dashed border-gray-200">
+                                <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
+                                    <h4 className="font-black text-red-800 uppercase flex items-center gap-2 text-lg"><FileText size={20}/> Evoluciones Médicas</h4>
+                                    <button onClick={() => setShowEvoForm(true)} className="bg-red-600 text-white px-4 py-3 rounded-xl shadow-md text-xs font-black uppercase flex items-center justify-center gap-2 hover:bg-red-700 transition">
+                                        <Plus size={16}/> Nuevo Registro
+                                    </button>
+                                </div>
+                                
+                                {showEvoForm && (
+                                    <form onSubmit={handleAddEvolution} className="bg-white p-6 rounded-2xl border border-red-200 shadow-lg mb-8 animate-in slide-in-from-top-4">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h5 className="font-black text-sm text-red-800 uppercase">Registrar Nueva Evolución</h5>
+                                            <button type="button" onClick={() => setShowEvoForm(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={16}/></button>
+                                        </div>
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Fecha de la Consulta / Registro</label>
+                                                <input type="date" name="date" defaultValue={new Date().toISOString().split('T')[0]} required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-sm border border-gray-200 text-gray-700 mt-1"/>
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Detalle Clínico</label>
+                                                <textarea name="text" required placeholder="Escriba aquí los detalles de la consulta, indicaciones o seguimiento..." className="w-full p-4 bg-gray-50 rounded-xl border border-gray-200 outline-none text-sm font-medium resize-none h-32 mt-1 focus:border-red-400"/>
+                                            </div>
+                                            <div className="flex justify-end gap-2 pt-2">
+                                                <button type="button" onClick={() => setShowEvoForm(false)} className="px-5 py-3 text-gray-500 font-bold text-xs uppercase hover:bg-gray-100 rounded-xl transition">Cancelar</button>
+                                                <button type="submit" disabled={saving} className="px-6 py-3 bg-red-600 text-white rounded-xl font-black text-xs uppercase shadow-md hover:bg-red-700 transition flex items-center gap-2">
+                                                    {saving ? <RefreshCw size={16} className="animate-spin"/> : 'Guardar Evolución'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </form>
                                 )}
 
-                                {/* DATOS CLÍNICOS ESTÁTICOS */}
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Obra Social</p>
-                                        <p className="font-bold text-slate-800 text-sm">{selectedStudent.healthInsurance || 'No declara'}</p>
-                                    </div>
-                                    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Vencimiento CUD</p>
-                                        <p className={`font-bold text-sm ${checkCudStatus(selectedStudent.cudExpiration).status === 'expired' ? 'text-red-600' : 'text-slate-800'}`}>
-                                            {getSafeDate(selectedStudent.cudExpiration)}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-4">
-                                    <div>
-                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Diagnóstico CUD / Médico</p>
-                                        <p className="font-bold text-slate-800 text-sm">{selectedStudent.cudDiagnosis || 'Sin datos cargados'}</p>
-                                    </div>
-                                    <div className="border-t border-gray-100 pt-3">
-                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Medicación Habitual</p>
-                                        <p className="font-bold text-slate-800 text-sm">{selectedStudent.medication || 'No refiere'}</p>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Peso (Aprox)</p>
-                                        <p className="font-bold text-slate-800 text-sm">{selectedStudent.weight ? `${selectedStudent.weight} kg` : 'S/D'}</p>
-                                    </div>
-                                    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Vacunación</p>
-                                        <p className="font-bold text-slate-800 text-sm">{selectedStudent.vaccines || 'S/D'}</p>
-                                    </div>
-                                </div>
-
-                                {/* SECCIÓN EVOLUCIONES FORMALES */}
-                                <div className="mt-8 pt-6 border-t-2 border-dashed border-gray-200">
-                                    <div className="flex justify-between items-center mb-4">
-                                        <h4 className="font-black text-red-800 uppercase flex items-center gap-2"><FileText size={18}/> Evoluciones</h4>
-                                        <div className="flex gap-2">
-                                            <button onClick={() => setShowEvoForm(true)} className="bg-red-50 text-red-700 px-3 py-1.5 rounded-lg border border-red-200 shadow-sm text-[10px] font-black uppercase flex items-center gap-1 hover:bg-red-100 transition"><Plus size={12}/> Nuevo Registro</button>
-                                            <button onClick={() => imprimirHistoriaClinica(selectedStudent)} className="md:hidden bg-white text-red-600 px-3 py-1.5 rounded-lg border border-red-200 shadow-sm text-[10px] font-black uppercase flex items-center gap-1"><Printer size={12}/> Imprimir</button>
+                                <div className="space-y-4">
+                                    {(!selectedStudent.medicalEvolutions || selectedStudent.medicalEvolutions.length === 0) && !showEvoForm && (
+                                        <div className="bg-white border border-gray-100 p-8 rounded-2xl text-center shadow-sm">
+                                            <p className="text-gray-400 font-bold">No hay evoluciones registradas en este legajo.</p>
                                         </div>
-                                    </div>
-                                    
-                                    {showEvoForm && (
-                                        <form onSubmit={handleAddEvolution} className="bg-white p-4 rounded-2xl border border-red-200 shadow-sm mb-6 animate-in fade-in slide-in-from-top-2">
-                                            <div className="flex justify-between items-center mb-3">
-                                                <h5 className="font-bold text-xs text-red-800 uppercase">Registrar Nueva Evolución</h5>
-                                                <button type="button" onClick={() => setShowEvoForm(false)}><X size={16} className="text-gray-400 hover:text-red-500"/></button>
-                                            </div>
-                                            <div className="space-y-3">
-                                                <div>
-                                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Fecha del registro</label>
-                                                    <input type="date" name="date" defaultValue={new Date().toISOString().split('T')[0]} required className="w-full p-2 bg-gray-50 rounded-xl outline-none font-bold text-xs border border-gray-200 text-gray-600"/>
-                                                </div>
-                                                <div>
-                                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Detalle clínico</label>
-                                                    <textarea name="text" required placeholder="Escriba aquí los detalles de la consulta o evaluación..." className="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 outline-none text-xs font-medium resize-none h-24 focus:border-red-400"/>
-                                                </div>
-                                                <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-                                                    <button type="button" onClick={() => setShowEvoForm(false)} className="px-4 py-2 text-gray-500 font-bold text-xs uppercase hover:bg-gray-100 rounded-lg transition">Cancelar</button>
-                                                    <button type="submit" disabled={saving} className="px-4 py-2 bg-red-600 text-white rounded-lg font-bold text-xs uppercase shadow-md hover:bg-red-700 transition flex items-center gap-2">
-                                                        {saving ? <RefreshCw size={14} className="animate-spin"/> : 'Guardar Evolución'}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </form>
                                     )}
-
-                                    <div className="space-y-3">
-                                        {(!selectedStudent.medicalEvolutions || selectedStudent.medicalEvolutions.length === 0) && !showEvoForm && (
-                                            <p className="text-xs text-gray-400 italic text-center py-4 bg-white rounded-xl border border-gray-100 shadow-sm">No hay evoluciones registradas en este legajo.</p>
-                                        )}
-                                        {/* ORDENAMIENTO POR FECHA REAL */}
-                                        {(selectedStudent.medicalEvolutions || []).slice().sort((a,b) => new Date(b.date) - new Date(a.date)).map(e => (
-                                            <div key={e.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm relative group">
-                                                <button onClick={() => handleDeleteEvolution(e.id)} className="absolute top-3 right-3 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition" title="Borrar evolución"><Trash2 size={14}/></button>
-                                                <div className="flex gap-2 items-center mb-2">
-                                                    <span className="text-[10px] font-black text-red-700 bg-red-50 border border-red-100 px-2 py-0.5 rounded">{new Date(e.date + 'T00:00:00').toLocaleDateString('es-AR')}</span>
-                                                    <span className="text-[10px] font-bold text-gray-400">Dr/a. {e.author}</span>
-                                                </div>
-                                                <p className="text-sm text-gray-700 whitespace-pre-wrap font-medium leading-relaxed">{e.text}</p>
+                                    
+                                    {(selectedStudent.medicalEvolutions || []).slice().sort((a,b) => new Date(b.date) - new Date(a.date)).map(e => (
+                                        <div key={e.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm relative group hover:border-red-100 transition">
+                                            <button onClick={() => handleDeleteEvolution(e.id)} className="absolute top-4 right-4 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition p-2 bg-gray-50 rounded-full" title="Borrar evolución"><Trash2 size={16}/></button>
+                                            <div className="flex gap-3 items-center mb-3">
+                                                <span className="text-[11px] font-black text-red-700 bg-red-50 border border-red-100 px-3 py-1 rounded-lg uppercase tracking-widest">{new Date(e.date + 'T00:00:00').toLocaleDateString('es-AR')}</span>
+                                                <span className="text-[11px] font-bold text-gray-400 uppercase">Dr/a. {e.author}</span>
                                             </div>
-                                        ))}
-                                    </div>
+                                            <p className="text-sm text-gray-800 whitespace-pre-wrap font-medium leading-relaxed">{e.text}</p>
+                                        </div>
+                                    ))}
                                 </div>
-
                             </div>
-                        ) : (
-                            /* MODO EDICIÓN DATOS FIJOS */
-                            <form id="medicalForm" onSubmit={handleSaveMedicalData} className="space-y-4">
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Obra Social</label>
-                                        <input name="healthInsurance" defaultValue={selectedStudent.healthInsurance} className="w-full p-3 bg-white rounded-xl outline-none font-bold text-xs border border-gray-200 focus:border-red-300"/>
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Vencimiento CUD</label>
-                                        <input type="date" name="cudExpiration" defaultValue={selectedStudent.cudExpiration} className="w-full p-3 bg-white rounded-xl outline-none font-bold text-xs border border-gray-200 text-gray-600 focus:border-red-300"/>
-                                    </div>
-                                </div>
-
+                        </div>
+                    ) : (
+                        /* --- MODO EDICIÓN DATOS FIJOS --- */
+                        <form id="medicalForm" onSubmit={handleSaveMedicalData} className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-5 animate-in zoom-in-95">
+                            <div className="flex justify-between items-center border-b border-gray-100 pb-4 mb-2">
+                                <h3 className="font-black text-gray-800 uppercase text-lg">Modificar Datos de Base</h3>
+                                <button type="button" onClick={() => setIsEditing(false)}><X size={20} className="text-gray-400"/></button>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Diagnóstico (Detalle Clínico / CUD)</label>
-                                    <textarea name="cudDiagnosis" defaultValue={selectedStudent.cudDiagnosis} className="w-full p-3 bg-white rounded-xl outline-none font-bold text-xs border border-gray-200 h-20 resize-none focus:border-red-300"/>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Obra Social</label>
+                                    <input name="healthInsurance" defaultValue={selectedStudent.healthInsurance} className="w-full p-3 mt-1 bg-gray-50 rounded-xl outline-none font-bold text-sm border border-gray-200 focus:border-red-300"/>
                                 </div>
-
-                                <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
-                                    <label className="text-[10px] font-black text-red-800 uppercase ml-1">Alergias (Alimentarias / Medicamentosas)</label>
-                                    <input name="allergies" defaultValue={selectedStudent.allergies} placeholder="Ej: Penicilina, Maní..." className="w-full p-3 mt-1 bg-white rounded-xl outline-none font-bold text-xs border border-red-200 text-red-700"/>
-                                </div>
-
                                 <div>
-                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Medicación Habitual / Dosis</label>
-                                    <textarea name="medication" defaultValue={selectedStudent.medication} className="w-full p-3 bg-white rounded-xl outline-none font-bold text-xs border border-gray-200 h-20 resize-none focus:border-red-300"/>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Vencimiento CUD</label>
+                                    <input type="date" name="cudExpiration" defaultValue={selectedStudent.cudExpiration} className="w-full p-3 mt-1 bg-gray-50 rounded-xl outline-none font-bold text-sm border border-gray-200 text-gray-700 focus:border-red-300"/>
                                 </div>
+                            </div>
 
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Peso (kg)</label>
-                                        <input name="weight" type="number" step="0.1" defaultValue={selectedStudent.weight} className="w-full p-3 bg-white rounded-xl outline-none font-bold text-xs border border-gray-200 focus:border-red-300"/>
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Plan de Vacunación</label>
-                                        <select name="vaccines" defaultValue={selectedStudent.vaccines} className="w-full p-3 bg-white rounded-xl outline-none font-bold text-xs border border-gray-200 text-gray-700 focus:border-red-300">
-                                            <option value="">Seleccionar...</option>
-                                            <option value="Completas">Completas</option>
-                                            <option value="Incompletas">Incompletas</option>
-                                            <option value="No presenta libreta">No presenta libreta</option>
-                                        </select>
-                                    </div>
+                            <div>
+                                <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Diagnóstico (Detalle Clínico / CUD)</label>
+                                <textarea name="cudDiagnosis" defaultValue={selectedStudent.cudDiagnosis} className="w-full p-3 mt-1 bg-gray-50 rounded-xl outline-none font-bold text-sm border border-gray-200 h-20 resize-none focus:border-red-300"/>
+                            </div>
+
+                            <div className="bg-red-50 p-5 rounded-2xl border border-red-100">
+                                <label className="text-[10px] font-black text-red-800 uppercase ml-1 tracking-widest">Alergias (Alimentarias / Medicamentosas)</label>
+                                <input name="allergies" defaultValue={selectedStudent.allergies} placeholder="Ej: Penicilina, Maní..." className="w-full p-3 mt-2 bg-white rounded-xl outline-none font-bold text-sm border border-red-200 text-red-700"/>
+                            </div>
+
+                            <div>
+                                <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Medicación Habitual / Dosis</label>
+                                <textarea name="medication" defaultValue={selectedStudent.medication} className="w-full p-3 mt-1 bg-gray-50 rounded-xl outline-none font-bold text-sm border border-gray-200 h-20 resize-none focus:border-red-300"/>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Peso (kg)</label>
+                                    <input name="weight" type="number" step="0.1" defaultValue={selectedStudent.weight} className="w-full p-3 mt-1 bg-gray-50 rounded-xl outline-none font-bold text-sm border border-gray-200 focus:border-red-300"/>
                                 </div>
-                            </form>
-                        )}
-                    </div>
-                    
-                    <div className="p-4 border-t border-gray-100 bg-white flex justify-end gap-2 shrink-0">
-                        {isEditing ? (
-                            <>
-                                <button onClick={() => setIsEditing(false)} className="px-5 py-3 text-gray-500 font-bold text-xs uppercase hover:bg-gray-100 rounded-xl transition">Cancelar</button>
-                                <button type="submit" form="medicalForm" disabled={saving} className="px-6 py-3 bg-red-600 text-white rounded-xl font-bold text-xs uppercase shadow-lg hover:bg-red-700 transition flex items-center gap-2">
-                                    {saving ? <RefreshCw size={16} className="animate-spin"/> : 'Guardar Ficha Clínica'}
+                                <div>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Plan de Vacunación</label>
+                                    <select name="vaccines" defaultValue={selectedStudent.vaccines} className="w-full p-3 mt-1 bg-gray-50 rounded-xl outline-none font-bold text-sm border border-gray-200 text-gray-800 focus:border-red-300">
+                                        <option value="">Seleccionar...</option>
+                                        <option value="Completas">Completas</option>
+                                        <option value="Incompletas">Incompletas</option>
+                                        <option value="No presenta libreta">No presenta libreta</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
+                                <button type="button" onClick={() => setIsEditing(false)} className="px-6 py-3 text-gray-500 font-bold text-xs uppercase hover:bg-gray-100 rounded-xl transition">Cancelar</button>
+                                <button type="submit" disabled={saving} className="px-8 py-3 bg-red-600 text-white rounded-xl font-black text-xs uppercase shadow-lg hover:bg-red-700 transition flex items-center gap-2">
+                                    {saving ? <RefreshCw size={16} className="animate-spin"/> : 'Guardar Ficha'}
                                 </button>
-                            </>
-                        ) : (
-                            <button onClick={() => setIsEditing(true)} className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold text-xs uppercase shadow-lg hover:bg-gray-800 transition flex items-center justify-center gap-2">
-                                <Edit3 size={16}/> Editar Datos Fijos
-                            </button>
-                        )}
-                    </div>
+                            </div>
+                        </form>
+                    )}
                 </div>
             </div>
         )}
@@ -5464,6 +5462,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
