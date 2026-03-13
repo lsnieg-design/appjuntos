@@ -4040,7 +4040,7 @@ function PersonalView({ user }) {
   
   const [staffFilterText, setStaffFilterText] = useState('');
   // AHORA ROLES ES UN ARRAY (LISTA) PARA PERMITIR VARIOS A LA VEZ
-  const [filters, setFilters] = useState({ modality: 'all', roles: [], turn: 'all', subsidized: 'all' });
+ const [filters, setFilters] = useState({ modality: 'all', roles: [], turn: 'all', subsidized: 'all' });
   
   const [viewingStaff, setViewingStaff] = useState(null); 
   const [showStaffForm, setShowStaffForm] = useState(false);
@@ -4453,7 +4453,8 @@ function PersonalView({ user }) {
           const c1Turn = (s.cargo1_turn || '').toLowerCase();
           const c2Turn = (s.cargo2_turn || '').toLowerCase();
           
-          const filterRoles = filters.roles;
+          // SALVAVIDAS: Si no hay roles seleccionados, usa un array vacío []
+          const filterRoles = filters.roles || [];
           const filterTurn = filters.turn.toLowerCase();
 
           const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || c1Turn);
@@ -4462,12 +4463,14 @@ function PersonalView({ user }) {
           const c1IsUnassigned = !hasC1 || !VALID_ROLES.includes(c1Role);
           const c2IsUnassigned = hasC2 && !VALID_ROLES.includes(c2Role);
 
+          // Evalúa múltiples roles al mismo tiempo
           let c1MatchesRole = filterRoles.length === 0 || (filterRoles.includes('sin-asignar') && c1IsUnassigned) || filterRoles.includes(c1Role);
           let c2MatchesRole = filterRoles.length === 0 || (filterRoles.includes('sin-asignar') && c2IsUnassigned) || filterRoles.includes(c2Role);
 
           const c1Matches = hasC1 && c1MatchesRole && (filterTurn === 'all' || c1Turn.includes(filterTurn));
           const c2Matches = hasC2 && c2MatchesRole && (filterTurn === 'all' || c2Turn.includes(filterTurn));
 
+          // IGNORAMOS CARGOS "EN PAPELES" EN LAS MÉTRICAS
           const isC1Papeles = s.cargo1_en_papeles === 'true';
           const isC2Papeles = s.cargo2_en_papeles === 'true';
 
@@ -4503,35 +4506,28 @@ function PersonalView({ user }) {
   return (
     <div className="space-y-4 animate-in fade-in pb-20 px-2 md:px-4 pt-4">
         
-        {/* ENCABEZADO CON TODOS LOS BOTONES CERRADOS CORRECTAMENTE */}
+      {/* ENCABEZADO CON CONTADOR EN VIVO */}
         <div className="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-3xl border border-violet-100 shadow-sm gap-4">
-            <div>
+            <div className="flex items-center gap-4">
                 <h3 className="font-black text-violet-900 uppercase italic text-xl">Personal</h3>
-                <p className="text-[10px] text-gray-400 font-bold uppercase">{filteredStaff.length} Legajos visibles</p>
+                <div className="bg-orange-100 text-orange-700 px-4 py-2 rounded-xl font-black text-xs md:text-sm flex items-center gap-2 border border-orange-200 shadow-sm uppercase tracking-widest">
+                    <User size={16}/> {filteredStaff.length} {filteredStaff.length === 1 ? 'Persona' : 'Personas'}
+                </div>
             </div>
             <div className="flex gap-2">
-                <button onClick={() => setShowStats(true)} className="bg-white text-orange-500 border border-orange-200 p-3 rounded-2xl shadow-sm hover:bg-orange-50 transition" title="Ver Estadísticas"><PieChart size={20}/></button>
                 <button onClick={() => imprimirPlanillaGeneral(filteredStaff)} className="bg-white text-blue-600 border border-blue-200 p-3 rounded-2xl shadow-sm hover:bg-blue-50 transition" title="Imprimir Planilla General (Tabla)"><Grid size={20}/></button>
                 <button onClick={() => imprimirFichasDocentes(filteredStaff)} className="bg-white text-violet-600 border border-violet-200 p-3 rounded-2xl shadow-sm hover:bg-violet-50 transition" title="Imprimir Fichas Individuales"><Printer size={20}/></button>
                 
-                <label className="p-3 bg-emerald-100 text-emerald-700 rounded-2xl cursor-pointer hover:bg-emerald-200 transition">
+                <label className="p-3 bg-emerald-100 text-emerald-700 rounded-2xl cursor-pointer hover:bg-emerald-200 transition flex items-center justify-center">
                     {processing ? <RefreshCw className="animate-spin" size={20}/> : <UploadCloud size={20}/>}
                     <input type="file" accept=".csv" className="hidden" onChange={handleImportStaff} />
                 </label>
 
-                <button onClick={()=>{setEditingStaff(null); setPhotoPreview(null); setShowStaffForm(true);}} className="bg-violet-600 text-white p-3 rounded-2xl shadow-lg"><Plus size={20}/></button>
+                <button onClick={()=>{setEditingStaff(null); setPhotoPreview(null); setShowStaffForm(true);}} className="bg-violet-600 text-white p-3 rounded-2xl shadow-lg flex items-center justify-center"><Plus size={20}/></button>
             </div>
         </div>
 
-        {/* BARRA DE FILTROS ACTUALIZADA PARA MULTISELECCIÓN */}
-        <div className="space-y-2">
-            <div className="bg-white p-2 rounded-2xl border border-gray-100 flex items-center gap-2 shadow-sm">
-                <Search size={18} className="ml-2 text-gray-300"/>
-                <input value={staffFilterText} onChange={e=>setStaffFilterText(e.target.value)} placeholder="Buscar por apellido, nombre o DNI..." className="w-full p-2 outline-none text-sm font-bold text-gray-700 bg-transparent"/>
-                {staffFilterText && <button onClick={()=>setStaffFilterText('')} className="pr-2 text-gray-400 hover:text-gray-600"><X size={16}/></button>}
-            </div>
-            
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide items-center">
+      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide items-center">
                 <select value={filters.modality} onChange={e=>setFilters({...filters, modality: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
                     <option value="all">Modalidad: Todas</option><option value="Sede">Sede</option><option value="Inclusión">Inclusión</option>
                 </select>
@@ -4564,7 +4560,7 @@ function PersonalView({ user }) {
 
             {/* MOSTRAR ETIQUETAS DE ROLES SELECCIONADOS */}
             {filters.roles.length > 0 && (
-                <div className="flex flex-wrap gap-2 animate-in fade-in">
+                <div className="flex flex-wrap gap-2 animate-in fade-in mt-1 mb-2">
                     {filters.roles.map(r => (
                         <span key={r} className="bg-violet-100 text-violet-800 text-[10px] font-black px-2 py-1.5 rounded-lg flex items-center gap-1 border border-violet-200 shadow-sm">
                             {r === 'sin-asignar' ? '⚠️ Sin Asignar' : r}
@@ -4573,7 +4569,6 @@ function PersonalView({ user }) {
                     ))}
                 </div>
             )}
-        </div>
 
         {/* LISTADO DE PERSONAL */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[65vh] overflow-y-auto pb-10 mt-2">
@@ -5787,6 +5782,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
