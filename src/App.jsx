@@ -4034,12 +4034,13 @@ const handleUpdateGroup = async (e) => {
     </div>
   );
 }
-// --- VISTA PERSONAL (ACTUALIZADA: CARGOS "EN PAPELES" EXCLUIDOS DE MÉTRICAS) ---
+// --- VISTA PERSONAL (ACTUALIZADA: FILTROS MÚLTIPLES DE ROLES) ---
 function PersonalView({ user }) {
   const [staffList, setStaffList] = useState([]);
   
   const [staffFilterText, setStaffFilterText] = useState('');
-  const [filters, setFilters] = useState({ modality: 'all', role: 'all', turn: 'all', subsidized: 'all' });
+  // AHORA ROLES ES UN ARRAY (LISTA) PARA PERMITIR VARIOS A LA VEZ
+  const [filters, setFilters] = useState({ modality: 'all', roles: [], turn: 'all', subsidized: 'all' });
   
   const [viewingStaff, setViewingStaff] = useState(null); 
   const [showStaffForm, setShowStaffForm] = useState(false);
@@ -4091,7 +4092,7 @@ function PersonalView({ user }) {
       const c1Turn = (s.cargo1_turn || '').trim().toLowerCase();
       const c2Turn = (s.cargo2_turn || '').trim().toLowerCase();
 
-      const filterRole = filters.role;
+      const filterRoles = filters.roles;
       const filterTurn = filters.turn.toLowerCase();
 
       const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || c1Turn);
@@ -4100,17 +4101,27 @@ function PersonalView({ user }) {
       const c1IsUnassigned = !hasC1 || !VALID_ROLES.includes(c1Role);
       const c2IsUnassigned = hasC2 && !VALID_ROLES.includes(c2Role);
 
-      if (filterRole === 'sin-asignar') {
-          if (!c1IsUnassigned && !c2IsUnassigned) return false;
-      } else if (filterRole !== 'all') {
-          const c1MatchesRole = c1Role === filterRole;
-          const c2MatchesRole = c2Role === filterRole;
-          if (!c1MatchesRole && !c2MatchesRole) return false;
+      // EVALUAR MÚLTIPLES ROLES
+      let c1MatchesRole = filterRoles.length === 0;
+      let c2MatchesRole = filterRoles.length === 0;
+
+      if (filterRoles.length > 0) {
+          if (filterRoles.includes('sin-asignar') && c1IsUnassigned) c1MatchesRole = true;
+          if (filterRoles.includes(c1Role)) c1MatchesRole = true;
+
+          if (filterRoles.includes('sin-asignar') && c2IsUnassigned) c2MatchesRole = true;
+          if (filterRoles.includes(c2Role)) c2MatchesRole = true;
       }
 
-      if (filterTurn !== 'all') {
-          if (!c1Turn.includes(filterTurn) && !c2Turn.includes(filterTurn)) return false;
-      }
+      const c1MatchesTurn = filterTurn === 'all' || c1Turn.includes(filterTurn);
+      const c2MatchesTurn = filterTurn === 'all' || c2Turn.includes(filterTurn);
+
+      const c1IsValid = hasC1 && c1MatchesRole && c1MatchesTurn;
+      const c2IsValid = hasC2 && c2MatchesRole && c2MatchesTurn;
+
+      // Si no hay filtro de rol ni turno, pasan todos. Si no, debe cumplir en alguno de los cargos.
+      if (filterRoles.length === 0 && filterTurn === 'all') return true;
+      if (!c1IsValid && !c2IsValid) return false;
 
       return true;
   });
@@ -4167,10 +4178,35 @@ function PersonalView({ user }) {
 
   const getSafeDate = (d) => { if(!d) return '-'; try { return new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('es-AR'); } catch(e) { return d; } };
 
-  const imprimirFichasDocentes = (lista) => {
+ const imprimirFichasDocentes = (lista) => {
       if (!lista || lista.length === 0) return alert("No hay docentes para imprimir.");
       let html = `<html><head><title>Fichas Docentes</title>
-      <style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');body{font-family:'Roboto',sans-serif;padding:20px;}.page{border:1px solid #eee;padding:30px;margin-bottom:20px;border-radius:8px;page-break-after:always;max-width:800px;margin:0 auto 20px auto;border-top:10px solid #8b5cf6;}.header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #ddd;padding-bottom:20px;margin-bottom:20px;}.header-text h1{color:#5b21b6;font-size:24px;margin:0;text-transform:uppercase;}.header-text p{color:#666;font-size:14px;margin:5px 0 0 0;}.photo-box{width:80px;height:80px;background:#eee;border-radius:50%;overflow:hidden;border:3px solid #8b5cf6;display:flex;align-items:center;justify-content:center;font-size:30px;color:#aaa;}.photo-box img{width:100%;height:100%;object-fit:cover;}.section-title{background:#f3f4f6;color:#5b21b6;padding:8px 15px;font-weight:900;text-transform:uppercase;font-size:12px;border-radius:6px;margin-bottom:10px;border-left:5px solid #8b5cf6;}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px;}.field{margin-bottom:5px;}.label{display:block;font-size:9px;color:#888;text-transform:uppercase;font-weight:bold;}.value{font-size:12px;font-weight:bold;color:#333;}.footer{text-align:center;font-size:9px;color:#aaa;margin-top:30px;border-top:1px solid #eee;padding-top:10px;}</style></head><body>`;
+      <style>
+          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
+          body{font-family:'Roboto',sans-serif;padding:20px; color: #222;}
+          .page{border:1px solid #eee;padding:30px;margin-bottom:20px;border-radius:8px;page-break-after:always;max-width:800px;margin:0 auto 20px auto;border-top:10px solid #8b5cf6;}
+          .header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #ddd;padding-bottom:20px;margin-bottom:20px;}
+          .header-text h1{color:#5b21b6;font-size:24px;margin:0;text-transform:uppercase;}
+          .header-text p{color:#666;font-size:14px;margin:5px 0 0 0;}
+          .photo-box{width:80px;height:80px;background:#eee;border-radius:50%;overflow:hidden;border:3px solid #8b5cf6;display:flex;align-items:center;justify-content:center;font-size:30px;color:#aaa;}
+          .photo-box img{width:100%;height:100%;object-fit:cover;}
+          .section-title{background:#f3f4f6;color:#5b21b6;padding:8px 15px;font-weight:900;text-transform:uppercase;font-size:12px;border-radius:6px;margin-bottom:10px;border-left:5px solid #8b5cf6; margin-top:20px;}
+          .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px;}
+          .field{margin-bottom:5px;}
+          .label{display:block;font-size:9px;color:#888;text-transform:uppercase;font-weight:bold;}
+          .value{font-size:12px;font-weight:bold;color:#333;}
+          .footer{text-align:center;font-size:9px;color:#aaa;margin-top:30px;border-top:1px solid #eee;padding-top:10px;}
+          
+          /* NUEVOS ESTILOS PARA LOS CARGOS */
+          .cargo-card { border: 2px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-bottom: 15px; background-color: #f9fafb; }
+          .cargo-card.active { border-color: #c4b5fd; background-color: #fff; }
+          .cargo-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px dashed #e5e7eb; padding-bottom: 10px; margin-bottom: 15px; }
+          .cargo-role { font-size: 16px; font-weight: 900; color: #6d28d9; text-transform: uppercase; }
+          .badge-sub { background: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; }
+          .badge-nosub { background: #f3f4f6; color: #4b5563; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; }
+          .badge-papeles { background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-left: 5px; }
+          .cargo-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+      </style></head><body>`;
       
       lista.forEach(s => {
           let antiguedad = calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef);
@@ -4181,40 +4217,80 @@ function PersonalView({ user }) {
           const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role !== 'Rol Pendiente' || (s.cargo1_turn && s.cargo1_turn.trim()));
           const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role !== 'Rol Pendiente' || (s.cargo2_turn && s.cargo2_turn.trim()));
 
-          let sub1Text = (s.cargo1_subsidized === 'true' || s.isSubsidized === 'true') ? 'SUBVENCIONADO' : 'SIN SUBVENCIÓN';
-          let papeles1Text = s.cargo1_en_papeles === 'true' ? ' <b>[SOLO EN PAPELES]</b>' : '';
-          let c1 = hasC1 ? `Cargo N°${s.cargo1_numero || '-'} | <b>${c1Role}</b> | ${s.cargo1_name || ''} (${s.cargo1_type || ''}) - ${s.cargo1_turn || ''} - ${s.cargo1_revista || ''} - <b>${sub1Text}</b>${papeles1Text} <br/><span style="color:#666; font-size:9px; text-transform:uppercase;">ALTA CARGO: ${getSafeDate(s.cargo1_ingreso)}</span>` : 'NO TRABAJA / SIN CARGO';
-          
-          let sub2Text = s.cargo2_subsidized === 'true' ? 'SUBVENCIONADO' : 'SIN SUBVENCIÓN';
-          let papeles2Text = s.cargo2_en_papeles === 'true' ? ' <b>[SOLO EN PAPELES]</b>' : '';
-          let c2 = hasC2 ? `Cargo N°${s.cargo2_numero || '-'} | <b>${c2Role}</b> | ${s.cargo2_name || ''} (${s.cargo2_type || ''}) - ${s.cargo2_turn || ''} - ${s.cargo2_revista || ''} - <b>${sub2Text}</b>${papeles2Text} <br/><span style="color:#666; font-size:9px; text-transform:uppercase;">ALTA CARGO: ${getSafeDate(s.cargo2_ingreso)}</span>` : 'NO TRABAJA / SIN CARGO';
+          let c1Html = '';
+          if (hasC1) {
+              let subBadge = (s.cargo1_subsidized === 'true' || s.isSubsidized === 'true') ? '<span class="badge-sub">SUBVENCIONADO (MECA)</span>' : '<span class="badge-nosub">SIN SUBVENCIÓN (DENO)</span>';
+              let papelesBadge = s.cargo1_en_papeles === 'true' ? '<span class="badge-papeles">SOLO EN PAPELES</span>' : '';
+              c1Html = `
+              <div class="cargo-card active">
+                  <div class="cargo-header">
+                      <span class="cargo-role">CARGO 1: ${c1Role}</span>
+                      <div>${subBadge}${papelesBadge}</div>
+                  </div>
+                  <div class="cargo-grid">
+                      <div class="field"><span class="label">N° de Cargo</span><span class="value">${s.cargo1_numero || '-'}</span></div>
+                      <div class="field"><span class="label">Detalle / Nombre</span><span class="value">${s.cargo1_name || '-'}</span></div>
+                      <div class="field"><span class="label">Turno</span><span class="value">${s.cargo1_turn || '-'}</span></div>
+                      <div class="field"><span class="label">Sit. de Revista</span><span class="value">${s.cargo1_revista || '-'}</span></div>
+                      <div class="field"><span class="label">Tipo</span><span class="value" style="text-transform:uppercase;">${s.cargo1_type || '-'}</span></div>
+                      <div class="field"><span class="label">Fecha Alta</span><span class="value">${getSafeDate(s.cargo1_ingreso)}</span></div>
+                  </div>
+              </div>`;
+          } else {
+              c1Html = `<div class="cargo-card"><div class="cargo-role" style="color:#aaa; font-size: 14px;">CARGO 1: NO TRABAJA / SIN CARGO</div></div>`;
+          }
+
+          let c2Html = '';
+          if (hasC2) {
+              let subBadge = s.cargo2_subsidized === 'true' ? '<span class="badge-sub">SUBVENCIONADO (MECA)</span>' : '<span class="badge-nosub">SIN SUBVENCIÓN (DENO)</span>';
+              let papelesBadge = s.cargo2_en_papeles === 'true' ? '<span class="badge-papeles">SOLO EN PAPELES</span>' : '';
+              c2Html = `
+              <div class="cargo-card active">
+                  <div class="cargo-header">
+                      <span class="cargo-role">CARGO 2: ${c2Role}</span>
+                      <div>${subBadge}${papelesBadge}</div>
+                  </div>
+                  <div class="cargo-grid">
+                      <div class="field"><span class="label">N° de Cargo</span><span class="value">${s.cargo2_numero || '-'}</span></div>
+                      <div class="field"><span class="label">Detalle / Nombre</span><span class="value">${s.cargo2_name || '-'}</span></div>
+                      <div class="field"><span class="label">Turno</span><span class="value">${s.cargo2_turn || '-'}</span></div>
+                      <div class="field"><span class="label">Sit. de Revista</span><span class="value">${s.cargo2_revista || '-'}</span></div>
+                      <div class="field"><span class="label">Tipo</span><span class="value" style="text-transform:uppercase;">${s.cargo2_type || '-'}</span></div>
+                      <div class="field"><span class="label">Fecha Alta</span><span class="value">${getSafeDate(s.cargo2_ingreso)}</span></div>
+                  </div>
+              </div>`;
+          } else {
+              c2Html = `<div class="cargo-card"><div class="cargo-role" style="color:#aaa; font-size: 14px;">CARGO 2: NO TRABAJA / SIN CARGO</div></div>`;
+          }
 
           html += `<div class="page">
               <div class="header">
-                  <div class="header-text"><h1>${s.lastName}, ${s.firstName}</h1><p>DNI: ${s.dni || '-'} | Rol C1: ${c1Role}</p></div>
+                  <div class="header-text"><h1>${s.lastName}, ${s.firstName}</h1><p>DNI: ${s.dni || '-'} | Modalidad: <strong style="color: #6d28d9;">${s.modality || 'Sede'}</strong></p></div>
                   <div class="photo-box">${s.photoUrl ? `<img src="${s.photoUrl}"/>` : s.firstName?.[0] || 'U'}</div>
               </div>
-              <div class="section-title">Datos Personales y Contacto</div>
+              
+              <div class="section-title">Datos Personales y Formación</div>
               <div class="grid">
                   <div class="field"><span class="label">Fecha Nacimiento</span><span class="value">${s.birthDate ? new Date(s.birthDate + 'T00:00:00').toLocaleDateString('es-AR') : '-'}</span></div>
                   <div class="field"><span class="label">Teléfono / Celular</span><span class="value">${s.phone || '-'}</span></div>
                   <div class="field"><span class="label">Email</span><span class="value">${s.email || '-'}</span></div>
                   <div class="field"><span class="label">Contacto de Emergencia</span><span class="value" style="color:#dc2626">${s.emergencyContact || '-'}</span></div>
-              </div>
-              <div class="field" style="margin-bottom:15px;"><span class="label">Dirección</span><span class="value">${s.address || '-'}</span></div>
-              <div class="section-title">Formación Académica</div>
-              <div class="grid">
-                  <div class="field"><span class="label">Estado de Estudios</span><span class="value">${s.studyStatus || '-'}</span></div>
+                  <div class="field" style="grid-column: span 2;"><span class="label">Dirección</span><span class="value">${s.address || '-'}</span></div>
                   <div class="field"><span class="label">Título</span><span class="value">${s.degree || '-'}</span></div>
+                  <div class="field"><span class="label">Estado de Estudios</span><span class="value">${s.studyStatus || '-'}</span></div>
               </div>
-              <div class="section-title">Datos de Contratación (${s.modality || 'Sede'})</div>
+
+              <div class="section-title">Antigüedad e Ingreso Institucional</div>
               <div class="grid">
                   <div class="field"><span class="label">Fecha Ingreso Inst.</span><span class="value">${s.fechaIngreso ? new Date(s.fechaIngreso + 'T00:00:00').toLocaleDateString('es-AR') : '-'}</span></div>
-                  <div class="field"><span class="label">Antigüedad Reconocida Total</span><span class="value">${antiguedad}</span></div>
+                  <div class="field"><span class="label">Antigüedad Reconocida Total</span><span class="value" style="color:#5b21b6; font-size:14px;">${antiguedad}</span></div>
               </div>
-              <div class="field" style="margin-bottom:10px; margin-top:5px;"><span class="label">Cargo 1</span><span class="value">${c1}</span></div>
-              <div class="field"><span class="label">Cargo 2</span><span class="value">${c2}</span></div>
-              <div class="footer">Juntos a la Par - Legajo Docente generado el ${new Date().toLocaleDateString('es-AR')}</div>
+
+              <div class="section-title" style="margin-bottom: 15px;">Detalle de Cargos Activos</div>
+              ${c1Html}
+              ${c2Html}
+              
+              <div class="footer">Juntos a la Par - Legajo Docente generado el ${new Date().toLocaleDateString('es-AR')} a las ${new Date().toLocaleTimeString('es-AR', {hour: '2-digit', minute:'2-digit'})}</div>
           </div>`;
       });
       html += '</body></html>';
@@ -4225,8 +4301,7 @@ function PersonalView({ user }) {
       const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close(); 
       setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
   };
-
-const imprimirPlanillaGeneral = (lista) => {
+  const imprimirPlanillaGeneral = (lista) => {
       if (!lista || lista.length === 0) return alert("No hay docentes para imprimir.");
       let html = `<html><head><title>Planilla General de Personal</title>
       <style>
@@ -4300,9 +4375,9 @@ const imprimirPlanillaGeneral = (lista) => {
       document.body.appendChild(iframe); 
       const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close(); 
       setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
-  };  const handleImportStaff = async (e) => {
+  };
 
-  
+  const handleImportStaff = async (e) => {
       const file = e.target.files[0];
       if (!file || !confirm("⚠️ ¿Importar archivo CSV completo?")) return;
       setProcessing(true);
@@ -4345,7 +4420,6 @@ const imprimirPlanillaGeneral = (lista) => {
     const d = Object.fromEntries(fd.entries());
     d.photoUrl = photoPreview || editingStaff?.photoUrl || '';
     
-    // Auto-limpieza profunda de Cargo 2 si no tiene nombre
     if(!d.cargo2_name || d.cargo2_name.trim() === '') { 
         d.cargo2_role = ''; d.cargo2_turn = ''; d.cargo2_type = ''; 
         d.cargo2_revista = ''; d.cargo2_ingreso = ''; d.cargo2_name = ''; 
@@ -4379,16 +4453,21 @@ const imprimirPlanillaGeneral = (lista) => {
           const c1Turn = (s.cargo1_turn || '').toLowerCase();
           const c2Turn = (s.cargo2_turn || '').toLowerCase();
           
-          const filterRole = filters.role;
+          const filterRoles = filters.roles;
           const filterTurn = filters.turn.toLowerCase();
 
           const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || c1Turn);
           const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || c2Turn);
 
-          const c1Matches = hasC1 && (filterRole === 'all' || c1Role === filterRole) && (filterTurn === 'all' || c1Turn.includes(filterTurn));
-          const c2Matches = hasC2 && (filterRole === 'all' || c2Role === filterRole) && (filterTurn === 'all' || c2Turn.includes(filterTurn));
+          const c1IsUnassigned = !hasC1 || !VALID_ROLES.includes(c1Role);
+          const c2IsUnassigned = hasC2 && !VALID_ROLES.includes(c2Role);
 
-          // IGNORAMOS CARGOS EN PAPELES EN LAS MÉTRICAS
+          let c1MatchesRole = filterRoles.length === 0 || (filterRoles.includes('sin-asignar') && c1IsUnassigned) || filterRoles.includes(c1Role);
+          let c2MatchesRole = filterRoles.length === 0 || (filterRoles.includes('sin-asignar') && c2IsUnassigned) || filterRoles.includes(c2Role);
+
+          const c1Matches = hasC1 && c1MatchesRole && (filterTurn === 'all' || c1Turn.includes(filterTurn));
+          const c2Matches = hasC2 && c2MatchesRole && (filterTurn === 'all' || c2Turn.includes(filterTurn));
+
           const isC1Papeles = s.cargo1_en_papeles === 'true';
           const isC2Papeles = s.cargo2_en_papeles === 'true';
 
@@ -4405,7 +4484,7 @@ const imprimirPlanillaGeneral = (lista) => {
               if (s.cargo1_subsidized === 'true' || s.isSubsidized === 'true') stats.subvencion.si++;
               else stats.subvencion.no++;
           }
-          if (c2Matches && !isC2Papeles && c2Role) {
+          if (c2Matches && !isC2Papeles && c2Role && hasC2) {
               const r2 = VALID_ROLES.includes(c2Role) ? c2Role : '⚠️ Error / Pendiente';
               stats.roles[r2] = (stats.roles[r2] || 0) + 1;
               if (s.cargo2_subsidized === 'true') stats.subvencion.si++;
@@ -4423,36 +4502,56 @@ const imprimirPlanillaGeneral = (lista) => {
 
   return (
     <div className="space-y-4 animate-in fade-in pb-20 px-2 md:px-4 pt-4">
+        
+        {/* ENCABEZADO CON TODOS LOS BOTONES CERRADOS CORRECTAMENTE */}
         <div className="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-3xl border border-violet-100 shadow-sm gap-4">
             <div>
                 <h3 className="font-black text-violet-900 uppercase italic text-xl">Personal</h3>
                 <p className="text-[10px] text-gray-400 font-bold uppercase">{filteredStaff.length} Legajos visibles</p>
             </div>
-        <div className="flex gap-2">
+            <div className="flex gap-2">
                 <button onClick={() => setShowStats(true)} className="bg-white text-orange-500 border border-orange-200 p-3 rounded-2xl shadow-sm hover:bg-orange-50 transition" title="Ver Estadísticas"><PieChart size={20}/></button>
                 <button onClick={() => imprimirPlanillaGeneral(filteredStaff)} className="bg-white text-blue-600 border border-blue-200 p-3 rounded-2xl shadow-sm hover:bg-blue-50 transition" title="Imprimir Planilla General (Tabla)"><Grid size={20}/></button>
                 <button onClick={() => imprimirFichasDocentes(filteredStaff)} className="bg-white text-violet-600 border border-violet-200 p-3 rounded-2xl shadow-sm hover:bg-violet-50 transition" title="Imprimir Fichas Individuales"><Printer size={20}/></button>
-                <label className="p-3 bg-emerald-100 text-emerald-700 rounded-2xl cursor-pointer hover:bg-emerald-200 transition"> </label>
+                
+                <label className="p-3 bg-emerald-100 text-emerald-700 rounded-2xl cursor-pointer hover:bg-emerald-200 transition">
+                    {processing ? <RefreshCw className="animate-spin" size={20}/> : <UploadCloud size={20}/>}
+                    <input type="file" accept=".csv" className="hidden" onChange={handleImportStaff} />
+                </label>
+
                 <button onClick={()=>{setEditingStaff(null); setPhotoPreview(null); setShowStaffForm(true);}} className="bg-violet-600 text-white p-3 rounded-2xl shadow-lg"><Plus size={20}/></button>
             </div>
         </div>
 
-        {/* BARRA DE FILTROS */}
+        {/* BARRA DE FILTROS ACTUALIZADA PARA MULTISELECCIÓN */}
         <div className="space-y-2">
             <div className="bg-white p-2 rounded-2xl border border-gray-100 flex items-center gap-2 shadow-sm">
                 <Search size={18} className="ml-2 text-gray-300"/>
                 <input value={staffFilterText} onChange={e=>setStaffFilterText(e.target.value)} placeholder="Buscar por apellido, nombre o DNI..." className="w-full p-2 outline-none text-sm font-bold text-gray-700 bg-transparent"/>
                 {staffFilterText && <button onClick={()=>setStaffFilterText('')} className="pr-2 text-gray-400 hover:text-gray-600"><X size={16}/></button>}
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide items-center">
                 <select value={filters.modality} onChange={e=>setFilters({...filters, modality: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
                     <option value="all">Modalidad: Todas</option><option value="Sede">Sede</option><option value="Inclusión">Inclusión</option>
                 </select>
-                <select value={filters.role} onChange={e=>setFilters({...filters, role: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
-                    <option value="all">Rol: Todos</option>
+                
+                {/* SELECTOR DE ROLES - AHORA AGREGA AL FILTRO */}
+                <select 
+                    value="default" 
+                    onChange={e => {
+                        const val = e.target.value;
+                        if (val !== 'default' && !filters.roles.includes(val)) {
+                            setFilters({...filters, roles: [...filters.roles, val]});
+                        }
+                    }} 
+                    className="bg-white text-violet-700 text-xs p-2 rounded-lg font-bold min-w-[140px] border border-violet-200 shadow-sm outline-none cursor-pointer"
+                >
+                    <option value="default">+ Agregar Rol...</option>
                     <option value="sin-asignar">⚠️ Sin Asignar / Error</option>
                     {VALID_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
+
                 <select value={filters.turn} onChange={e=>setFilters({...filters, turn: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
                     <option value="all">Turno: Todos</option>
                     {uniqueTurns.map(t => <option key={t} value={t}>{t}</option>)}
@@ -4460,8 +4559,20 @@ const imprimirPlanillaGeneral = (lista) => {
                 <select value={filters.subsidized} onChange={e=>setFilters({...filters, subsidized: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
                     <option value="all">Subvención: Todas</option><option value="yes">Con Subvención</option><option value="no">Sin Subvención</option>
                 </select>
-                <button onClick={() => setFilters({ modality: 'all', role: 'all', turn: 'all', subsidized: 'all' })} className="bg-red-50 text-red-600 text-xs px-3 py-2 rounded-lg font-bold min-w-[80px] border border-red-100 shadow-sm hover:bg-red-100 transition">Limpiar</button>
+                <button onClick={() => setFilters({ modality: 'all', roles: [], turn: 'all', subsidized: 'all' })} className="bg-red-50 text-red-600 text-xs px-3 py-2 rounded-lg font-bold min-w-[80px] border border-red-100 shadow-sm hover:bg-red-100 transition">Limpiar</button>
             </div>
+
+            {/* MOSTRAR ETIQUETAS DE ROLES SELECCIONADOS */}
+            {filters.roles.length > 0 && (
+                <div className="flex flex-wrap gap-2 animate-in fade-in">
+                    {filters.roles.map(r => (
+                        <span key={r} className="bg-violet-100 text-violet-800 text-[10px] font-black px-2 py-1.5 rounded-lg flex items-center gap-1 border border-violet-200 shadow-sm">
+                            {r === 'sin-asignar' ? '⚠️ Sin Asignar' : r}
+                            <button onClick={() => setFilters({...filters, roles: filters.roles.filter(role => role !== r)})} className="hover:text-red-500 transition-colors bg-white rounded-full p-0.5 ml-1"><X size={10}/></button>
+                        </span>
+                    ))}
+                </div>
+            )}
         </div>
 
         {/* LISTADO DE PERSONAL */}
@@ -5676,6 +5787,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
