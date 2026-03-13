@@ -458,17 +458,30 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
     
     const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
     const unsubStudents = onSnapshot(qStudents, (snap) => {
-        let noGroup = 0;
-        setStudentBirthdays(snap.docs.map(d => {
-            const data = d.data();
-            if (!data.groupMorning && !data.groupAfternoon && !data.daiMorning && !data.daiAfternoon) noGroup++;
+        const allStudents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        
+        // 1. Guardamos TODOS los alumnos (Esto es lo que usa la ficha del docente para mostrar sus grupos)
+        setStudents(allStudents); 
+
+        // 2. Calculamos los CUMPLEAÑOS aparte (Esto es por si lo usás en esta vista para algún indicador)
+        const today = new Date(); today.setHours(0,0,0,0);
+        const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7);
+        
+        const upcomingBirthdays = allStudents.map(data => {
             if(!data.birthDate) return null;
             const dob = new Date(data.birthDate + 'T00:00:00');
             const nextB = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
             if (nextB < today) nextB.setFullYear(today.getFullYear() + 1);
-            return { ...data, id: d.id, nextBirthday: nextB };
-        }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday));
-        setUngroupedCount(noGroup);
+            return { ...data, nextBirthday: nextB };
+        }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek)
+          .sort((a, b) => a.nextBirthday - b.nextBirthday);
+
+        // Si tenés el estado setStudentBirthdays lo usás acá, si no, lo borrás:
+        if (typeof setStudentBirthdays === 'function') setStudentBirthdays(upcomingBirthdays);
+
+        // 3. Contador de alumnos sin grupo
+        let noGroupCount = allStudents.filter(s => !s.groupMorning && !s.groupAfternoon && !s.daiMorning && !s.daiAfternoon).length;
+        if (typeof setUngroupedCount === 'function') setUngroupedCount(noGroupCount);
     });
 
     const qStaff = query(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'));
@@ -4753,72 +4766,70 @@ function PersonalView({ user }) {
         </div>
 
         {/* MODAL LECTURA LEGAJO */}
-        {viewingStaff && !showStaffForm && (
-            <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setViewingStaff(null)}>
-                <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
-                    <div className="bg-violet-800 p-6 text-white relative">
-                        <button onClick={()=>setViewingStaff(null)} className="absolute top-4 right-4 bg-white/20 p-1.5 rounded-full hover:bg-white/40 transition"><X size={20}/></button>
-                        <div className="flex gap-5 items-center">
-                            <div className="w-20 h-20 rounded-2xl bg-white/20 border-4 border-white/10 overflow-hidden shadow-lg">
-                                {viewingStaff.photoUrl ? <img src={viewingStaff.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="m-auto mt-5 text-white/50"/>}
-                            </div>
-                            <div>
-                                <h2 className="text-2xl font-black uppercase tracking-tight">{viewingStaff.lastName}, {viewingStaff.firstName}</h2>
-                                <p className="text-orange-300 font-bold text-xs uppercase">{viewingStaff.modality || 'Sede'}</p>
-                                <span className="bg-white/20 px-3 py-1 rounded-lg text-xs font-bold inline-block mt-2">DNI: {viewingStaff.dni || '-'}</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div className="p-6 overflow-y-auto bg-gray-50 flex-1 space-y-4">
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Nacimiento</p><p className="font-black text-slate-800 text-xs">{getSafeDate(viewingStaff.birthDate)}</p></div>
-                            <div className="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Celular</p><p className="font-black text-slate-800 text-xs">{viewingStaff.phone || '-'}</p></div>
-                            <div className="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Email</p><p className="font-black text-slate-800 text-xs truncate">{viewingStaff.email || '-'}</p></div>
-                            <div className="bg-red-50 p-3 rounded-2xl border border-red-200 shadow-sm"><p className="text-[9px] text-red-400 font-bold uppercase mb-1">Emergencia</p><p className="font-black text-red-800 text-xs">{viewingStaff.emergencyContact || '-'}</p></div>
-                        </div>
+     {/* MODAL LECTURA LEGAJO (PARCHE BLINDADO) */}
+      {viewingStaff && !showStaffForm && (
+          <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setViewingStaff(null)}>
+              <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+                  <div className="bg-violet-800 p-6 text-white relative shrink-0">
+                      <button onClick={()=>setViewingStaff(null)} className="absolute top-4 right-4 bg-white/20 p-1.5 rounded-full hover:bg-white/40 transition"><X size={20}/></button>
+                      <div className="flex gap-5 items-center">
+                          <div className="w-20 h-20 rounded-2xl bg-white/20 border-4 border-white/10 overflow-hidden flex items-center justify-center">
+                              {viewingStaff.photoUrl ? <img src={viewingStaff.photoUrl} className="w-full h-full object-cover"/> : <div className="text-4xl font-black text-white/50">{viewingStaff.firstName?.charAt(0) || '👤'}</div>}
+                          </div>
+                          <div>
+                              <h2 className="text-xl font-black uppercase tracking-tight leading-tight">{viewingStaff.lastName || 'S/A'}, {viewingStaff.firstName || 'S/N'}</h2>
+                              <p className="text-orange-300 font-bold text-xs uppercase tracking-widest mt-1">{viewingStaff.modality || 'Sede'}</p>
+                              <span className="bg-white/20 px-3 py-1 rounded-lg text-[10px] font-bold inline-block mt-2 tracking-widest uppercase">DNI: {viewingStaff.dni || '-'}</span>
+                          </div>
+                      </div>
+                  </div>
+                  
+                  <div className="p-6 overflow-y-auto bg-gray-50 flex-1 space-y-4">
+                      <div className="space-y-2">
+                           <div className="bg-white p-3 rounded-xl border border-violet-200 text-xs shadow-sm">
+                              <p className="font-black text-violet-900 uppercase mb-1">Cargo 1: {getNormRole(viewingStaff.cargo1_role || viewingStaff.role) || 'Sin asignar'}</p>
+                              <p className="text-gray-500 font-bold uppercase text-[10px]">{viewingStaff.cargo1_turn || 'S/D'} | {viewingStaff.cargo1_revista || 'S/D'}</p>
+                           </div>
+                           {(viewingStaff.cargo2_role || viewingStaff.cargo2_name) && (
+                              <div className="bg-white p-3 rounded-xl border border-violet-200 text-xs shadow-sm">
+                                  <p className="font-black text-violet-900 uppercase mb-1">Cargo 2: {getNormRole(viewingStaff.cargo2_role)}</p>
+                                  <p className="text-gray-500 font-bold uppercase text-[10px]">{viewingStaff.cargo2_turn || 'S/D'} | {viewingStaff.cargo2_revista || 'S/D'}</p>
+                              </div>
+                           )}
+                      </div>
 
-                        <div className="bg-violet-50 p-4 rounded-2xl border border-violet-100 shadow-sm space-y-3">
-                            <div className="flex justify-between text-xs border-b border-violet-200 pb-2">
-                                <span className="font-bold text-gray-500">Ingreso Inst: {getSafeDate(viewingStaff.fechaIngreso)}</span>
-                                <span className="font-black text-violet-700">Anti. total: {calcularAntiguedad(viewingStaff.antiguedadAnios, viewingStaff.antiguedadMeses, viewingStaff.antiguedadFechaRef)}</span>
-                            </div>
-                            
-                            <div className="pt-1 space-y-2">
-                                {Boolean((viewingStaff.cargo1_name && viewingStaff.cargo1_name.trim()) || viewingStaff.cargo1_role || (viewingStaff.cargo1_turn && viewingStaff.cargo1_turn.trim())) ? (
-                                    <div className={`bg-white p-3 rounded-lg border ${viewingStaff.cargo1_en_papeles === 'true' ? 'border-gray-200 opacity-70' : 'border-violet-200 shadow-sm'} text-xs relative`}>
-                                        <div className="flex justify-between items-center mb-1 pr-16">
-                                            <span className="font-black text-violet-900">C1: {getNormRole(viewingStaff.cargo1_role || viewingStaff.role) || 'Rol Pendiente'} {viewingStaff.cargo1_en_papeles === 'true' && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[8px] ml-1">EN PAPELES</span>}</span>
-                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded absolute top-2 right-2 ${viewingStaff.cargo1_subsidized === 'true' || viewingStaff.isSubsidized === 'true' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`}>
-                                                {viewingStaff.cargo1_subsidized === 'true' || viewingStaff.isSubsidized === 'true' ? 'Subvencionado' : 'Sin Subvención'}
-                                            </span>
-                                        </div>
-                                        <p className="font-bold text-gray-700 mb-1">{viewingStaff.cargo1_name}</p>
-                                        <p className="text-gray-500 mb-1">N° {viewingStaff.cargo1_numero || '-'} | {viewingStaff.cargo1_type || '-'} | {viewingStaff.cargo1_turn || '-'} | {viewingStaff.cargo1_revista || '-'}</p>
-                                        <p className="text-[10px] text-violet-600 font-bold">Alta Cargo: {getSafeDate(viewingStaff.cargo1_ingreso)}</p>
-                                    </div>
-                                ) : (
-                                    <div className="bg-gray-100 p-2 rounded-lg text-xs text-gray-400 text-center font-bold">NO TRABAJA / SIN CARGO 1</div>
-                                )}
-
-                                {Boolean((viewingStaff.cargo2_name && viewingStaff.cargo2_name.trim()) || viewingStaff.cargo2_role || (viewingStaff.cargo2_turn && viewingStaff.cargo2_turn.trim())) ? (
-                                    <div className={`bg-white p-3 rounded-lg border ${viewingStaff.cargo2_en_papeles === 'true' ? 'border-gray-200 opacity-70' : 'border-violet-200 shadow-sm'} text-xs relative`}>
-                                        <div className="flex justify-between items-center mb-1 pr-16">
-                                            <span className="font-black text-violet-900">C2: {getNormRole(viewingStaff.cargo2_role) || 'Rol Pendiente'} {viewingStaff.cargo2_en_papeles === 'true' && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[8px] ml-1">EN PAPELES</span>}</span>
-                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded absolute top-2 right-2 ${viewingStaff.cargo2_subsidized === 'true' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`}>
-                                                {viewingStaff.cargo2_subsidized === 'true' ? 'Subvencionado' : 'Sin Subvención'}
-                                            </span>
-                                        </div>
-                                        <p className="font-bold text-gray-700 mb-1">{viewingStaff.cargo2_name}</p>
-                                        <p className="text-gray-500 mb-1">N° {viewingStaff.cargo2_numero || '-'} | {viewingStaff.cargo2_type || '-'} | {viewingStaff.cargo2_turn || '-'} | {viewingStaff.cargo2_revista || '-'}</p>
-                                        <p className="text-[10px] text-violet-600 font-bold">Alta Cargo: {getSafeDate(viewingStaff.cargo2_ingreso)}</p>
-                                    </div>
-                                ) : (
-                                    <div className="bg-gray-100 p-2 rounded-lg text-xs text-gray-400 text-center font-bold">SIN CARGO 2</div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
+                      {/* GRUPOS VINCULADOS POR ID (Sincronización automática) */}
+                      <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
+                          <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">📍 Grupos a Cargo (Ciclo 2026)</h4>
+                          <div className="grid grid-cols-2 gap-2">
+                              {(() => {
+                                  const myGroupsTM = [...new Set(students.filter(s => s.teacherIdMorning === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupMorning))].filter(Boolean);
+                                  const myGroupsTT = [...new Set(students.filter(s => s.teacherIdAfternoon === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupAfternoon))].filter(Boolean);
+                                  return (
+                                      <>
+                                          <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
+                                              <p className="text-[8px] font-black text-gray-400 uppercase">Turno Mañana</p>
+                                              <p className="font-bold text-emerald-700 text-xs">{myGroupsTM.length > 0 ? myGroupsTM.join(', ') : 'Sin grupo'}</p>
+                                          </div>
+                                          <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
+                                              <p className="text-[8px] font-black text-gray-400 uppercase">Turno Tarde</p>
+                                              <p className="font-bold text-emerald-700 text-xs">{myGroupsTT.length > 0 ? myGroupsTT.join(', ') : 'Sin grupo'}</p>
+                                          </div>
+                                      </>
+                                  );
+                              })()}
+                          </div>
+                          <p className="text-[8px] text-emerald-400 mt-3 italic text-center">* Datos sincronizados por ID.</p>
+                      </div>
+                  </div>
+                  
+                  <div className="p-4 border-t bg-white flex justify-end gap-2 shrink-0">
+                      <button onClick={()=>imprimirFichasDocentes([viewingStaff])} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-slate-600 font-bold text-xs uppercase hover:bg-gray-50 flex gap-2 items-center shadow-sm"><FileText size={16}/> Imprimir</button>
+                      <button onClick={()=>{setEditingStaff(viewingStaff); setPhotoPreview(viewingStaff.photoUrl); setShowStaffForm(true);}} className="px-6 py-3 bg-violet-600 text-white rounded-xl font-bold text-xs uppercase shadow-lg hover:bg-violet-700 transition">Editar Legajo</button>
+                  </div>
+              </div>
+          </div>
+      )}
                   {/* PARCHE: GRUPOS ASIGNADOS AUTOMÁTICAMENTE */}
 <div className="mt-4 bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
     <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
