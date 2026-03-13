@@ -4765,7 +4765,7 @@ function PersonalView({ user }) {
             })}
         </div>
 
-  {/* --- MODAL LECTURA LEGAJO (ESTRUCTURA SIMPLIFICADA) --- */}
+ {/* MODAL LECTURA LEGAJO */}
       {viewingStaff && !showStaffForm && (
         <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setViewingStaff(null)}>
           <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
@@ -4778,7 +4778,7 @@ function PersonalView({ user }) {
                 <div>
                   <h2 className="text-xl font-black uppercase leading-tight">{viewingStaff.lastName || 'S/A'}, {viewingStaff.firstName || 'S/N'}</h2>
                   <p className="text-orange-300 font-bold text-xs uppercase tracking-widest mt-1">{viewingStaff.modality || 'Sede'}</p>
-                  <span className="bg-white/20 px-3 py-1 rounded-lg text-[10px] font-bold inline-block mt-2 uppercase">DNI: {viewingStaff.dni || '-'}</span>
+                  <span className="bg-white/20 px-3 py-1 rounded-lg text-[10px] font-bold inline-block mt-2">DNI: {viewingStaff.dni || '-'}</span>
                 </div>
               </div>
             </div>
@@ -4821,6 +4821,31 @@ function PersonalView({ user }) {
           </div>
         </div>
       )}
+
+      {/* MODAL FORMULARIO (Sigue igual, pero nos aseguramos de que esté bien cerrado) */}
+      {showStaffForm && (
+        <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4 backdrop-blur-sm animate-in zoom-in-95">
+          <div className="bg-white rounded-[40px] w-full max-w-xl p-8 shadow-2xl max-h-[90vh] overflow-y-auto border-t-8 border-violet-600">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-violet-900 uppercase italic">{editingStaff ? 'Editar Legajo' : 'Nuevo Legajo'}</h3>
+              <button onClick={()=>setShowStaffForm(false)}><X size={24}/></button>
+            </div>
+            <form onSubmit={handleSaveStaff} className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-3">
+                <input name="firstName" defaultValue={editingStaff?.firstName} placeholder="Nombre" required className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
+                <input name="lastName" defaultValue={editingStaff?.lastName} placeholder="Apellido" required className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
+              </div>
+              <div className="flex gap-2">
+                <button type="button" onClick={()=>setShowStaffForm(false)} className="flex-1 py-4 text-gray-500 font-bold uppercase text-xs">Cancelar</button>
+                <button type="submit" className="flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg">Guardar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div> // CIERRE DEL DIV PRINCIPAL DE PersonalView
+  ); // CIERRE DEL RETURN
+} // CIERRE DE LA FUNCIÓN PersonalView
                   {/* PARCHE: GRUPOS ASIGNADOS AUTOMÁTICAMENTE */}
 <div className="mt-4 bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
     <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
