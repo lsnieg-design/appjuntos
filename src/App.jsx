@@ -4765,7 +4765,7 @@ function PersonalView({ user }) {
             })}
         </div>
 
-  {/* --- MODAL LECTURA LEGAJO --- */}
+  {/* --- MODAL LECTURA LEGAJO (ESTRUCTURA SIMPLIFICADA) --- */}
       {viewingStaff && !showStaffForm && (
         <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setViewingStaff(null)}>
           <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
@@ -4777,8 +4777,8 @@ function PersonalView({ user }) {
                 </div>
                 <div>
                   <h2 className="text-xl font-black uppercase leading-tight">{viewingStaff.lastName || 'S/A'}, {viewingStaff.firstName || 'S/N'}</h2>
-                  <p className="text-orange-300 font-bold text-xs uppercase mt-1">{viewingStaff.modality || 'Sede'}</p>
-                  <span className="bg-white/20 px-3 py-1 rounded-lg text-[10px] font-bold inline-block mt-2">DNI: {viewingStaff.dni || '-'}</span>
+                  <p className="text-orange-300 font-bold text-xs uppercase tracking-widest mt-1">{viewingStaff.modality || 'Sede'}</p>
+                  <span className="bg-white/20 px-3 py-1 rounded-lg text-[10px] font-bold inline-block mt-2 uppercase">DNI: {viewingStaff.dni || '-'}</span>
                 </div>
               </div>
             </div>
@@ -4788,7 +4788,7 @@ function PersonalView({ user }) {
                 <div className="bg-white p-3 rounded-xl border border-violet-200 text-xs shadow-sm">
                   <p className="font-black text-violet-900 uppercase">Cargo 1: {getNormRole(viewingStaff.cargo1_role || viewingStaff.role) || 'Sin asignar'}</p>
                 </div>
-                {(viewingStaff.cargo2_role || viewingStaff.cargo2_name) && (
+                {viewingStaff.cargo2_role && (
                   <div className="bg-white p-3 rounded-xl border border-violet-200 text-xs shadow-sm">
                     <p className="font-black text-violet-900 uppercase">Cargo 2: {getNormRole(viewingStaff.cargo2_role)}</p>
                   </div>
@@ -4801,13 +4801,13 @@ function PersonalView({ user }) {
                   <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
                     <p className="text-[8px] font-black text-gray-400 uppercase">Mañana</p>
                     <p className="font-bold text-emerald-700 text-xs">
-                      {[...new Set(students.filter(s => s.teacherIdMorning === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupMorning))].filter(Boolean).join(', ') || 'Sin grupo'}
+                      {students.filter(s => s.teacherIdMorning === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupMorning).filter((v, i, a) => v && a.indexOf(v) === i).join(', ') || 'Sin grupo'}
                     </p>
                   </div>
                   <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
                     <p className="text-[8px] font-black text-gray-400 uppercase">Tarde</p>
                     <p className="font-bold text-emerald-700 text-xs">
-                      {[...new Set(students.filter(s => s.teacherIdAfternoon === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupAfternoon))].filter(Boolean).join(', ') || 'Sin grupo'}
+                      {students.filter(s => s.teacherIdAfternoon === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupAfternoon).filter((v, i, a) => v && a.indexOf(v) === i).join(', ') || 'Sin grupo'}
                     </p>
                   </div>
                 </div>
@@ -4815,13 +4815,12 @@ function PersonalView({ user }) {
             </div>
             
             <div className="p-4 border-t bg-white flex justify-end gap-2 shrink-0">
-              <button onClick={()=>imprimirFichasDocentes([viewingStaff])} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-slate-600 font-bold text-xs uppercase flex gap-2 items-center"><FileText size={16}/> Imprimir</button>
+              <button onClick={()=>imprimirFichasDocentes([viewingStaff])} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-slate-600 font-bold text-xs uppercase flex gap-2 items-center shadow-sm"><FileText size={16}/> Imprimir</button>
               <button onClick={()=>{setEditingStaff(viewingStaff); setPhotoPreview(viewingStaff.photoUrl); setShowStaffForm(true);}} className="px-6 py-3 bg-violet-600 text-white rounded-xl font-bold text-xs uppercase shadow-lg">Editar</button>
             </div>
           </div>
         </div>
       )}
-      {/* --- FIN DEL MODAL --- */}
                   {/* PARCHE: GRUPOS ASIGNADOS AUTOMÁTICAMENTE */}
 <div className="mt-4 bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
     <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
