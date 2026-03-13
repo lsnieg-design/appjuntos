@@ -3863,31 +3863,30 @@ function GroupsView({ user }) {
 
   let groups = Object.values(groupedData).sort((a, b) => a.name.localeCompare(b.name));
 
- // --- FILTRADO FINAL INFALIBLE (POR ID Y POR NOMBRE) ---
+// --- FILTRADO FINAL INFALIBLE (PARCHE CORRECTOR DE SINTAXIS) ---
   if (!isManagement) {
-      // Función para "limpiar" nombres y compararlos sin importar tildes o mayúsculas
       const normalizeName = (name) => {
           if (!name) return "";
           return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
       };
 
-     groups = groups.filter(g => {
+      groups = groups.filter(g => {
           const uId = user.id;
-          const legajoId = user.legajoId; // Usamos el vínculo que creamos en el Paso 1
+          const legajoId = user.legajoId; 
           const uNameRaw = user.fullName || `${user.firstName} ${user.lastName}`;
           const uName = normalizeName(uNameRaw);
 
-          // 1. Identidad por ID (Lo más seguro)
+          // 1. Identidad por ID
           if (g.teacherId === uId || g.teacherId === legajoId) return true;
 
-          // 2. Identidad por Nombre (Respaldo por si no está vinculado)
+          // 2. Identidad por Nombre
           if (normalizeName(g.teacher) === uName || normalizeName(g.teacher2) === uName) return true;
 
-          // 3. Roles de apoyo (Auxiliar, Especiales, etc.)
+          // 3. Roles de apoyo
           const supportStaff = [g.aux, g.special1, g.special2, g.special3, g.sup1, g.sup2].map(normalizeName);
           if (supportStaff.includes(uName)) return true;
 
-          // 4. Inclusión: Revisamos si es DAI del alumno por ID o Nombre
+          // 4. Inclusión: Revisamos alumno por alumno
           const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
           return g.students.some(s => 
               s.daiId === uId || s.daiId === legajoId || 
@@ -3895,9 +3894,6 @@ function GroupsView({ user }) {
               normalizeName(s[`teacher${suf}`]) === uName ||
               s[`teacherId${suf}`] === uId || s[`teacherId${suf}`] === legajoId
           );
-      });
-
-          return isAssignedToAnyStudent;
       });
   } else {
       if (viewFilter !== 'all') { 
