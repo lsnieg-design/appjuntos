@@ -319,7 +319,7 @@ function LoginScreen({ onLogin }) {
     </div>
   );
 }
-// --- VISTA DASHBOARD (CUMPLES SEPARADOS, CUENTA REGRESIVA Y DESAFÍOS) ---
+// --- VISTA DASHBOARD (CUMPLES, CUENTA REGRESIVA Y DESAFÍOS DÍAS HÁBILES 2026) ---
 function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEvents = events.filter(e => e.date === todayStr);
@@ -357,23 +357,83 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const isInclusionStaff = INCLUSION_ROLES.includes(user.role);
   const isSedeStaff = SEDE_ROLES.includes(user.role);
 
-  // BASE DE DATOS DE DESAFÍOS (Juego del día)
+  // BASE DE DATOS DE 31 DESAFÍOS LÓGICOS
   const DESAFIOS = [
-      { q: "Tengo agujas pero no sé coser, tengo números pero no sé leer. ¿Qué soy?", a: "reloj" },
-      { q: "Si me nombras, me rompes. ¿Qué soy?", a: "silencio" },
-      { q: "Es tuyo, pero los demás lo usan más que tú.", a: "nombre" },
-      { q: "Blanco por dentro, verde por fuera. Si quieres que te lo diga, espera.", a: "pera" },
-      { q: "Cuanto más le quitas, más grande se hace. ¿Qué es?", a: "agujero" },
-      { q: "Todos pasan por mí, yo no paso por nadie. Todos preguntan por mí, yo no pregunto por nadie.", a: "calle" },
-      { q: "Lana sube, lana baja. ¿Qué es?", a: "navaja" },
-      { q: "Oro parece, plata no es. Quien no lo adivine, bien tonto es.", a: "platano" },
-      { q: "Tiene dientes y no come, tiene cabeza y no es hombre.", a: "ajo" },
-      { q: "Vuelo sin alas, lloro sin ojos. ¿Qué soy?", a: "nube" }
+      { q: "El padre de Clara tiene 5 hijas: Jana, Jena, Jina, Jona y...", a: ["clara"] },
+      { q: "Algunos meses tienen 31 días, otros 30. ¿Cuántos tienen 28?", a: ["12", "doce", "todos"] },
+      { q: "¿Qué tiene ciudades pero no casas, montañas pero no árboles, y agua pero no peces?", a: ["mapa", "mapas"] },
+      { q: "Soy alto cuando soy joven y bajo cuando soy viejo. ¿Qué soy?", a: ["vela", "lapiz", "lápiz"] },
+      { q: "¿Qué puedes encontrar una vez en un minuto, dos veces en un momento y ninguna vez en cien años?", a: ["m", "letra m"] },
+      { q: "¿De qué color son realmente las 'cajas negras' de los aviones comerciales?", a: ["naranja", "anaranjado"] },
+      { q: "Antes de que se descubriera el Monte Everest, ¿cuál era la montaña más alta del mundo?", a: ["everest", "el everest", "el mismo"] },
+      { q: "Si me nombras, me rompes. ¿Qué soy?", a: ["silencio", "el silencio"] },
+      { q: "Un hombre entra en un bar y pide agua. El camarero saca un arma y le apunta. El hombre dice 'gracias' y se va. ¿Qué tenía el hombre?", a: ["hipo", "un ataque de hipo"] },
+      { q: "Es tuyo, pero las demás personas lo usan mucho más que tú. ¿Qué es?", a: ["nombre", "mi nombre", "el nombre"] },
+      { q: "Cuanto más le quitas, más grande se hace. ¿Qué es?", a: ["agujero", "pozo", "hoyo"] },
+      { q: "Tengo agujas pero no sé coser, tengo números pero no sé leer. ¿Qué soy?", a: ["reloj", "el reloj"] },
+      { q: "Todos pasan por mí, yo no paso por nadie. Todos preguntan por mí, yo no pregunto por nadie.", a: ["calle", "avenida", "camino"] },
+      { q: "Oro parece, plata no es. Quien no lo adivine, bien tonto es.", a: ["platano", "plátano", "banana"] },
+      { q: "Vuelo sin alas, lloro sin ojos. ¿Qué soy?", a: ["nube", "la nube"] },
+      { q: "Te sigo de día, te abandono de noche. No tengo voz, pero siempre estoy contigo. ¿Qué soy?", a: ["sombra", "la sombra"] },
+      { q: "Tiene dientes y no come, tiene cabeza y no es hombre.", a: ["ajo", "un ajo", "el ajo"] },
+      { q: "¿Qué cosa es que cuanto más la secas, más se moja?", a: ["toalla", "la toalla"] },
+      { q: "¿Qué tiene cuello pero no tiene cabeza?", a: ["botella", "la botella", "camisa"] },
+      { q: "¿Qué tiene ojos pero no puede ver?", a: ["aguja", "la aguja", "ciego", "tormenta"] },
+      { q: "Estoy lleno de agujeros, pero aún así retengo el agua. ¿Qué soy?", a: ["esponja", "la esponja"] },
+      { q: "Si 3 niños cazan 3 moscas en 3 minutos. ¿Cuánto tardan 30 niños en cazar 30 moscas?", a: ["3", "tres"] },
+      { q: "¿Qué pesa más: un kilo de plomo o un kilo de plumas?", a: ["igual", "lo mismo", "pesan igual", "ninguno"] },
+      { q: "¿Qué no hace preguntas pero requiere muchas respuestas?", a: ["timbre", "telefono", "teléfono", "celular", "puerta"] },
+      { q: "¿Qué se rompe sin siquiera sostenerlo o tocarlo?", a: ["promesa", "la promesa", "secreto", "el secreto"] },
+      { q: "Siempre voy a mi destino y nunca vuelvo, pero no me muevo del sitio. ¿Qué soy?", a: ["camino", "carretera", "ruta", "calle"] },
+      { q: "Si estás participando en una carrera y adelantas al segundo, ¿en qué posición terminas?", a: ["segundo", "2", "2do"] },
+      { q: "Un tren eléctrico viaja hacia el norte a 100km/h. El viento sopla hacia el sur a 10km/h. ¿Hacia dónde va el humo?", a: ["ningun lado", "ninguno", "no hay", "a ningun lado", "electrico", "eléctrico"] },
+      { q: "Me pisas y no me quejo, me cepillas si me mancho, y con mi hermano gemelo, bajo tu cama descanso.", a: ["zapato", "zapatilla", "botin", "calzado"] },
+      { q: "Tengo copa pero no soy árbol, tengo alas pero no soy pájaro. ¿Qué soy?", a: ["sombrero", "el sombrero"] },
+      { q: "Solo hay una pregunta que no se puede contestar con un 'sí' sincero. ¿Cuál es?", a: ["estas dormido", "duermes", "estas durmiendo", "estas muerto"] }
   ];
 
-  // Elegir un desafío aleatorio diario (basado en el día del mes)
-  const todayDateNum = new Date().getDate();
-  const currentChallenge = DESAFIOS[todayDateNum % DESAFIOS.length];
+  // LÓGICA DEL CALENDARIO DOCENTE 2026 (FILTRO DÍAS HÁBILES)
+  const todayDate = new Date();
+  const dayOfWeek = todayDate.getDay(); // 0 = Domingo, 6 = Sábado
+  const monthStr = (todayDate.getMonth() + 1).toString().padStart(2, '0');
+  const dayStr = todayDate.getDate().toString().padStart(2, '0');
+  const dateString = `${monthStr}-${dayStr}`;
+
+  const feriadosDocentes2026 = [
+      '01-01', // Año Nuevo
+      '02-16', '02-17', // Carnaval
+      '03-24', // Memoria
+      '04-02', // Malvinas
+      '04-03', // Viernes Santo (2026)
+      '05-01', // Trabajador
+      '05-25', // Revolución de Mayo
+      '06-15', '06-20', // Güemes y Belgrano
+      '07-09', // Independencia
+      '08-17', // San Martín
+      '09-11', // Día del Maestro
+      '10-12', // Diversidad
+      '11-23', // Soberanía
+      '12-08', // Inmaculada Concepción
+      '12-25', // Navidad
+      // Vacaciones de Invierno PBA aprox (Últimas 2 de julio)
+      '07-20', '07-21', '07-22', '07-23', '07-24', '07-27', '07-28', '07-29', '07-30', '07-31'
+  ];
+
+  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+  const isHoliday = feriadosDocentes2026.includes(dateString);
+  const isWorkingDay = !isWeekend && !isHoliday;
+
+  let currentChallenge;
+  if (!isWorkingDay) {
+      currentChallenge = { 
+          q: "¡Hoy es día de descanso! El cerebro también necesita recargar energías. Nos vemos el próximo día hábil para un nuevo desafío.", 
+          a: [], 
+          isRestDay: true 
+      };
+  } else {
+      const todayDateNum = todayDate.getDate(); // Del 1 al 31
+      currentChallenge = DESAFIOS[(todayDateNum - 1) % DESAFIOS.length];
+  }
 
   const myPendingTasksCount = tasks.filter(t => {
       if (t.status === 'completed') return false;
@@ -397,7 +457,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
         const me = usersData.find(u => u.id === user.id);
         if (me) setUserScore(me.score || 0);
         
-        // Armar ranking ordenado
+        // Armar ranking ordenado (Top 5)
         const sortedRanking = usersData.filter(u => u.score > 0).sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 5);
         setRankingData(sortedRanking);
     });
@@ -467,22 +527,25 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
       setIsEditingCountdown(false);
   };
 
-  // ENVIAR RESPUESTA AL DESAFÍO
+  // ENVIAR RESPUESTA AL DESAFÍO (INTELIGENTE: Ignora mayúsculas y acentos)
   const checkChallenge = async (e) => {
       e.preventDefault();
-      const cleanAnswer = challengeAnswer.trim().toLowerCase();
-      // Elimina acentos para hacer la comparación más fácil
-      const normalizedAnswer = cleanAnswer.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      const normalizedCorrect = currentChallenge.a.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      if(!challengeAnswer) return;
+      
+      const cleanAnswer = challengeAnswer.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      
+      const isCorrect = currentChallenge.a.some(validAns => {
+          const cleanValid = validAns.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          return cleanAnswer.includes(cleanValid);
+      });
 
-      if (normalizedAnswer === normalizedCorrect) {
+      if (isCorrect) {
           setShowChallengeSuccess(true);
-          // Sumar 10 puntos al usuario en la BD
           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { score: (userScore || 0) + 10 });
           setChallengeAnswer('');
-          setTimeout(() => setShowChallengeSuccess(false), 4000); // Ocultar cartel de éxito a los 4 seg
+          setTimeout(() => setShowChallengeSuccess(false), 4000);
       } else {
-          alert("¡Casi! Sigue intentando.");
+          alert("🤔 ¡Casi! Pensalo desde otra perspectiva o probá con otras palabras.");
       }
   };
 
@@ -524,7 +587,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
               </button>
           )}
 
-          {/* WIDGET CUENTA REGRESIVA (Solo lo ven todos si hay datos, o los directivos siempre) */}
+          {/* WIDGET CUENTA REGRESIVA */}
           {(countdown.daysLeft > 0 || isManagement) && (
               <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 shadow-sm relative group flex items-center gap-4">
                   {isManagement && !isEditingCountdown && (
@@ -533,13 +596,13 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
                   
                   {isEditingCountdown ? (
                       <div className="w-full flex flex-col gap-1">
-                          <input type="text" value={newCountdownTitle} onChange={e=>setNewCountdownTitle(e.target.value)} placeholder="¿Qué esperamos?" className="p-1 text-xs border rounded w-full"/>
-                          <input type="date" value={newCountdownDate} onChange={e=>setNewCountdownDate(e.target.value)} className="p-1 text-xs border rounded w-full"/>
-                          <button onClick={handleSaveCountdown} className="bg-blue-500 text-white text-[10px] font-bold p-1 rounded">Guardar</button>
+                          <input type="text" value={newCountdownTitle} onChange={e=>setNewCountdownTitle(e.target.value)} placeholder="¿Qué esperamos?" className="p-1 text-xs border rounded w-full outline-none"/>
+                          <input type="date" value={newCountdownDate} onChange={e=>setNewCountdownDate(e.target.value)} className="p-1 text-xs border rounded w-full outline-none"/>
+                          <button onClick={handleSaveCountdown} className="bg-blue-500 text-white text-[10px] font-bold p-1.5 rounded-lg mt-1 uppercase tracking-widest">Guardar</button>
                       </div>
                   ) : (
                       <>
-                          <div className="bg-blue-500 text-white w-12 h-12 rounded-xl flex flex-col items-center justify-center shadow-md">
+                          <div className="bg-blue-500 text-white w-12 h-12 rounded-xl flex flex-col items-center justify-center shadow-md shrink-0">
                               <span className="text-xl font-black leading-none">{countdown.daysLeft}</span>
                               <span className="text-[8px] font-bold uppercase tracking-widest">Días</span>
                           </div>
@@ -553,30 +616,48 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
           )}
       </div>
 
-      {/* BLOQUE DESAFÍO DIARIO (NUEVO JUEGO) */}
+      {/* BLOQUE DESAFÍO DIARIO (TEXTO/LÓGICA + DÍAS HÁBILES) */}
       <div className="bg-gradient-to-br from-emerald-400 to-teal-500 p-5 rounded-[30px] shadow-md text-white relative overflow-hidden">
-          <div className="absolute -right-4 -top-4 opacity-10"><Crown size={120}/></div>
+          <div className="absolute -right-4 -top-4 opacity-10"><Star size={120}/></div>
           
           <div className="flex justify-between items-start mb-2 relative z-10">
-              <div>
-                  <h3 className="text-[10px] font-black text-emerald-100 uppercase tracking-widest flex items-center gap-1"><Star size={12}/> Desafío del Día</h3>
-                  <p className="font-medium text-sm mt-1">{currentChallenge.q}</p>
+              <div className="flex-1 pr-4">
+                  <h3 className="text-[10px] font-black text-emerald-100 uppercase tracking-widest flex items-center gap-1"><HelpCircle size={12}/> Acertijo del Día</h3>
+                  
+                  {/* SI ES DÍA DE DESCANSO MUESTRA ESTO: */}
+                  {currentChallenge.isRestDay && (
+                      <div className="bg-white/20 p-3 rounded-xl mt-3 border-2 border-white/30 border-dashed animate-in fade-in">
+                          <p className="font-bold text-white text-sm">☕ {currentChallenge.q}</p>
+                      </div>
+                  )}
+
+                  {/* SI ES DÍA HÁBIL MUESTRA EL DESAFÍO: */}
+                  {!currentChallenge.isRestDay && (
+                      <>
+                          <p className="font-bold text-base mt-2 leading-snug text-white">"{currentChallenge.q}"</p>
+                          <p className="text-[9px] text-emerald-100 mt-1 uppercase font-bold tracking-widest opacity-80">💡 Pensamiento Lateral</p>
+                      </>
+                  )}
               </div>
-              <div className="bg-white/20 p-2 rounded-xl text-center min-w-[60px] cursor-pointer hover:bg-white/30 transition" onClick={() => setShowRanking(true)}>
+
+              <div className="bg-white/20 p-2 rounded-xl text-center min-w-[60px] cursor-pointer hover:bg-white/30 transition shrink-0" onClick={() => setShowRanking(true)}>
                   <span className="block text-xl font-black">{userScore}</span>
                   <span className="block text-[8px] font-bold uppercase tracking-widest">Puntos</span>
               </div>
           </div>
 
-          {showChallengeSuccess ? (
-              <div className="bg-white/20 p-3 rounded-xl mt-3 text-center animate-in zoom-in">
-                  <p className="font-black text-white text-sm">🎉 ¡Respuesta Correcta! Sumaste 10 pts.</p>
-              </div>
-          ) : (
-              <form onSubmit={checkChallenge} className="flex gap-2 mt-3 relative z-10">
-                  <input value={challengeAnswer} onChange={e=>setChallengeAnswer(e.target.value)} placeholder="Tu respuesta secreta..." className="flex-1 bg-white/20 text-white placeholder-emerald-100 border-2 border-white/30 p-2.5 rounded-xl outline-none font-bold text-xs focus:bg-white/30 transition"/>
-                  <button type="submit" className="bg-white text-emerald-600 font-black px-4 rounded-xl text-xs uppercase hover:scale-105 transition shadow-lg">Jugar</button>
-              </form>
+          {/* FORMULARIO DE RESPUESTA (Solo si hay desafío activo) */}
+          {!currentChallenge.isRestDay && (
+              showChallengeSuccess ? (
+                  <div className="bg-white/20 p-3 rounded-xl mt-3 text-center animate-in zoom-in">
+                      <p className="font-black text-white text-sm">🎉 ¡Respuesta Correcta! Sumaste 10 pts.</p>
+                  </div>
+              ) : (
+                  <form onSubmit={checkChallenge} className="flex gap-2 mt-4 relative z-10">
+                      <input value={challengeAnswer} onChange={e=>setChallengeAnswer(e.target.value)} placeholder="Tu respuesta secreta..." className="flex-1 bg-white/20 text-white placeholder-emerald-100 border-2 border-white/30 p-2.5 rounded-xl outline-none font-bold text-xs focus:bg-white/30 transition"/>
+                      <button type="submit" className="bg-white text-emerald-600 font-black px-4 rounded-xl text-xs uppercase hover:scale-105 transition shadow-lg">Jugar</button>
+                  </form>
+              )
           )}
       </div>
       
@@ -5869,6 +5950,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
