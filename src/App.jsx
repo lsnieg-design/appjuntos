@@ -4501,19 +4501,32 @@ function PersonalView({ user }) {
 
   if (!canAccess) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido.</div>;
 
-  const currentStats = calculateStats();
+const currentStats = calculateStats();
+  
+  // Novedad: Sumamos los cargos reales (los simples valen 1, los dobles valen 2)
+  const totalCargosReales = currentStats.cargos.simple + (currentStats.cargos.doble * 2);
 
   return (
     <div className="space-y-4 animate-in fade-in pb-20 px-2 md:px-4 pt-4">
         
-      {/* ENCABEZADO CON CONTADOR EN VIVO */}
+        {/* ENCABEZADO CON CONTADOR EN VIVO (PERSONAS Y CARGOS) */}
         <div className="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-3xl border border-violet-100 shadow-sm gap-4">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
                 <h3 className="font-black text-violet-900 uppercase italic text-xl">Personal</h3>
-                <div className="bg-orange-100 text-orange-700 px-4 py-2 rounded-xl font-black text-xs md:text-sm flex items-center gap-2 border border-orange-200 shadow-sm uppercase tracking-widest">
-                    <User size={16}/> {filteredStaff.length} {filteredStaff.length === 1 ? 'Persona' : 'Personas'}
+                
+                <div className="flex gap-2">
+                    {/* CARTEL DE PERSONAS FÍSICAS */}
+                    <div className="bg-orange-100 text-orange-700 px-3 py-2 rounded-xl font-black text-[10px] md:text-xs flex items-center gap-1.5 border border-orange-200 shadow-sm uppercase tracking-widest" title="Cantidad de personas físicas">
+                        <User size={14}/> {filteredStaff.length} {filteredStaff.length === 1 ? 'Persona' : 'Personas'}
+                    </div>
+                    
+                    {/* CARTEL DE CARGOS TOTALES */}
+                    <div className="bg-emerald-100 text-emerald-800 px-3 py-2 rounded-xl font-black text-[10px] md:text-xs flex items-center gap-1.5 border border-emerald-200 shadow-sm uppercase tracking-widest" title="Cantidad total de cargos ejercidos">
+                        {totalCargosReales} {totalCargosReales === 1 ? 'Cargo Activo' : 'Cargos Activos'}
+                    </div>
                 </div>
             </div>
+            
             <div className="flex gap-2">
                 <button onClick={() => imprimirPlanillaGeneral(filteredStaff)} className="bg-white text-blue-600 border border-blue-200 p-3 rounded-2xl shadow-sm hover:bg-blue-50 transition" title="Imprimir Planilla General (Tabla)"><Grid size={20}/></button>
                 <button onClick={() => imprimirFichasDocentes(filteredStaff)} className="bg-white text-violet-600 border border-violet-200 p-3 rounded-2xl shadow-sm hover:bg-violet-50 transition" title="Imprimir Fichas Individuales"><Printer size={20}/></button>
@@ -4526,49 +4539,6 @@ function PersonalView({ user }) {
                 <button onClick={()=>{setEditingStaff(null); setPhotoPreview(null); setShowStaffForm(true);}} className="bg-violet-600 text-white p-3 rounded-2xl shadow-lg flex items-center justify-center"><Plus size={20}/></button>
             </div>
         </div>
-
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide items-center">
-                <select value={filters.modality} onChange={e=>setFilters({...filters, modality: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
-                    <option value="all">Modalidad: Todas</option><option value="Sede">Sede</option><option value="Inclusión">Inclusión</option>
-                </select>
-                
-                {/* SELECTOR DE ROLES - AHORA AGREGA AL FILTRO */}
-                <select 
-                    value="default" 
-                    onChange={e => {
-                        const val = e.target.value;
-                        if (val !== 'default' && !filters.roles.includes(val)) {
-                            setFilters({...filters, roles: [...filters.roles, val]});
-                        }
-                    }} 
-                    className="bg-white text-violet-700 text-xs p-2 rounded-lg font-bold min-w-[140px] border border-violet-200 shadow-sm outline-none cursor-pointer"
-                >
-                    <option value="default">+ Agregar Rol...</option>
-                    <option value="sin-asignar">⚠️ Sin Asignar / Error</option>
-                    {VALID_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
-
-                <select value={filters.turn} onChange={e=>setFilters({...filters, turn: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
-                    <option value="all">Turno: Todos</option>
-                    {uniqueTurns.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-                <select value={filters.subsidized} onChange={e=>setFilters({...filters, subsidized: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
-                    <option value="all">Subvención: Todas</option><option value="yes">Con Subvención</option><option value="no">Sin Subvención</option>
-                </select>
-                <button onClick={() => setFilters({ modality: 'all', roles: [], turn: 'all', subsidized: 'all' })} className="bg-red-50 text-red-600 text-xs px-3 py-2 rounded-lg font-bold min-w-[80px] border border-red-100 shadow-sm hover:bg-red-100 transition">Limpiar</button>
-            </div>
-
-            {/* MOSTRAR ETIQUETAS DE ROLES SELECCIONADOS */}
-            {filters.roles.length > 0 && (
-                <div className="flex flex-wrap gap-2 animate-in fade-in mt-1 mb-2">
-                    {filters.roles.map(r => (
-                        <span key={r} className="bg-violet-100 text-violet-800 text-[10px] font-black px-2 py-1.5 rounded-lg flex items-center gap-1 border border-violet-200 shadow-sm">
-                            {r === 'sin-asignar' ? '⚠️ Sin Asignar' : r}
-                            <button onClick={() => setFilters({...filters, roles: filters.roles.filter(role => role !== r)})} className="hover:text-red-500 transition-colors bg-white rounded-full p-0.5 ml-1"><X size={10}/></button>
-                        </span>
-                    ))}
-                </div>
-            )}
 
         {/* LISTADO DE PERSONAL */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[65vh] overflow-y-auto pb-10 mt-2">
@@ -5782,6 +5752,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
