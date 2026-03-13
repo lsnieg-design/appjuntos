@@ -4226,7 +4226,83 @@ function PersonalView({ user }) {
       setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
   };
 
-  const handleImportStaff = async (e) => {
+const imprimirPlanillaGeneral = (lista) => {
+      if (!lista || lista.length === 0) return alert("No hay docentes para imprimir.");
+      let html = `<html><head><title>Planilla General de Personal</title>
+      <style>
+          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
+          @page { size: landscape; margin: 15mm; }
+          body { font-family: 'Roboto', sans-serif; padding: 0; color: #333; font-size: 10px; }
+          h1 { color: #5b21b6; font-size: 18px; margin: 0 0 15px 0; text-transform: uppercase; text-align: center; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          th { background-color: #ede9fe; color: #5b21b6; font-weight: 900; text-transform: uppercase; padding: 8px; border: 1px solid #c4b5fd; font-size: 9px; text-align: left; }
+          td { padding: 6px 8px; border: 1px solid #e5e7eb; vertical-align: middle; }
+          tr:nth-child(even) { background-color: #f9fafb; }
+          .cargo-sub { color: #059669; font-weight: bold; font-size: 8px; }
+          .cargo-papeles { color: #6b7280; font-weight: bold; font-size: 8px; background: #e5e7eb; padding: 2px 4px; border-radius: 4px; }
+          .footer { text-align: center; font-size: 9px; color: #aaa; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px; }
+      </style></head><body>
+      
+      <h1>Planilla General de Personal - Juntos a la Par</h1>
+      
+      <table>
+          <thead>
+              <tr>
+                  <th style="width: 15%;">Apellido y Nombre</th>
+                  <th style="width: 8%;">Antigüedad</th>
+                  <th style="width: 33%;">Cargo 1</th>
+                  <th style="width: 33%;">Cargo 2</th>
+                  <th style="width: 11%;">Modalidad</th>
+              </tr>
+          </thead>
+          <tbody>`;
+      
+      lista.forEach(s => {
+          let antiguedad = calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef);
+          
+          let c1Role = getNormRole(s.cargo1_role || s.role);
+          let c2Role = getNormRole(s.cargo2_role);
+
+          const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || (s.cargo1_turn && s.cargo1_turn.trim()));
+          const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || (s.cargo2_turn && s.cargo2_turn.trim()));
+
+          let c1Text = 'NO TRABAJA';
+          if (hasC1) {
+              let extras = [];
+              if (s.cargo1_subsidized === 'true' || s.isSubsidized === 'true') extras.push('<span class="cargo-sub">SUBV</span>');
+              if (s.cargo1_en_papeles === 'true') extras.push('<span class="cargo-papeles">EN PAPELES</span>');
+              c1Text = `<b>${c1Role || '-'}</b>: ${s.cargo1_name || '-'} (${s.cargo1_type || '-'})<br/>Turno: ${s.cargo1_turn || '-'} | Rev: ${s.cargo1_revista || '-'}<br/>${extras.join(' ')}`;
+          }
+
+          let c2Text = 'NO TRABAJA';
+          if (hasC2) {
+              let extras = [];
+              if (s.cargo2_subsidized === 'true') extras.push('<span class="cargo-sub">SUBV</span>');
+              if (s.cargo2_en_papeles === 'true') extras.push('<span class="cargo-papeles">EN PAPELES</span>');
+              c2Text = `<b>${c2Role || '-'}</b>: ${s.cargo2_name || '-'} (${s.cargo2_type || '-'})<br/>Turno: ${s.cargo2_turn || '-'} | Rev: ${s.cargo2_revista || '-'}<br/>${extras.join(' ')}`;
+          }
+
+          html += `<tr>
+              <td><strong>${s.lastName.toUpperCase()}</strong>, ${s.firstName}</td>
+              <td>${antiguedad}</td>
+              <td>${c1Text}</td>
+              <td>${c2Text}</td>
+              <td>${s.modality || 'Sede'}</td>
+          </tr>`;
+      });
+
+      html += `</tbody></table>
+      <div class="footer">Impreso el ${new Date().toLocaleDateString('es-AR')} a las ${new Date().toLocaleTimeString('es-AR', {hour: '2-digit', minute:'2-digit'})}</div>
+      </body></html>`;
+
+      const iframe = document.createElement('iframe'); 
+      iframe.style.position = 'fixed'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0'; 
+      document.body.appendChild(iframe); 
+      const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close(); 
+      setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
+  };  const handleImportStaff = async (e) => {
+
+  
       const file = e.target.files[0];
       if (!file || !confirm("⚠️ ¿Importar archivo CSV completo?")) return;
       setProcessing(true);
@@ -4352,13 +4428,11 @@ function PersonalView({ user }) {
                 <h3 className="font-black text-violet-900 uppercase italic text-xl">Personal</h3>
                 <p className="text-[10px] text-gray-400 font-bold uppercase">{filteredStaff.length} Legajos visibles</p>
             </div>
-            <div className="flex gap-2">
+        <div className="flex gap-2">
                 <button onClick={() => setShowStats(true)} className="bg-white text-orange-500 border border-orange-200 p-3 rounded-2xl shadow-sm hover:bg-orange-50 transition" title="Ver Estadísticas"><PieChart size={20}/></button>
-                <button onClick={() => imprimirFichasDocentes(filteredStaff)} className="bg-white text-violet-600 border border-violet-200 p-3 rounded-2xl shadow-sm hover:bg-violet-50 transition" title="Imprimir Lista"><Printer size={20}/></button>
+                <button onClick={() => imprimirPlanillaGeneral(filteredStaff)} className="bg-white text-blue-600 border border-blue-200 p-3 rounded-2xl shadow-sm hover:bg-blue-50 transition" title="Imprimir Planilla General (Tabla)"><Grid size={20}/></button>
+                <button onClick={() => imprimirFichasDocentes(filteredStaff)} className="bg-white text-violet-600 border border-violet-200 p-3 rounded-2xl shadow-sm hover:bg-violet-50 transition" title="Imprimir Fichas Individuales"><Printer size={20}/></button>
                 <label className="p-3 bg-emerald-100 text-emerald-700 rounded-2xl cursor-pointer hover:bg-emerald-200 transition">
-                    {processing ? <RefreshCw className="animate-spin" size={20}/> : <UploadCloud size={20}/>}
-                    <input type="file" accept=".csv" className="hidden" onChange={handleImportStaff} />
-                </label>
                 <button onClick={()=>{setEditingStaff(null); setPhotoPreview(null); setShowStaffForm(true);}} className="bg-violet-600 text-white p-3 rounded-2xl shadow-lg"><Plus size={20}/></button>
             </div>
         </div>
@@ -5602,6 +5676,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
