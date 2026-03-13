@@ -319,7 +319,7 @@ function LoginScreen({ onLogin }) {
     </div>
   );
 }
-// --- VISTA DASHBOARD (A PRUEBA DE FALLOS: DÍAS HÁBILES Y CUMPLES) ---
+// --- VISTA DASHBOARD (PREPARACIÓN PARA ESTRENO DE DESAFÍOS EL 16/03) ---
 function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEvents = events.filter(e => e.date === todayStr);
@@ -345,6 +345,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   
   // ESTADOS DE LA CUENTA REGRESIVA
   const [countdown, setCountdown] = useState({ title: "Vacaciones", date: "", daysLeft: 0 });
+  const [countdownDocId, setCountdownDocId] = useState(null);
   const [isEditingCountdown, setIsEditingCountdown] = useState(false);
   const [newCountdownTitle, setNewCountdownTitle] = useState('');
   const [newCountdownDate, setNewCountdownDate] = useState('');
@@ -392,8 +393,10 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
       { q: "Solo hay una pregunta que no se puede contestar con un 'sí' sincero. ¿Cuál es?", a: ["estas dormido", "duermes", "estas durmiendo", "estas muerto"] }
   ];
 
-  // LÓGICA DEL CALENDARIO DOCENTE 2026 (FILTRO DÍAS HÁBILES)
+  // LÓGICA DE TIEMPOS (FECHA DE ESTRENO Y CALENDARIO)
   const todayDate = new Date();
+  const challengeStartDate = new Date('2026-03-16T00:00:00'); // Fecha de estreno
+
   const dayOfWeek = todayDate.getDay(); 
   const monthStr = (todayDate.getMonth() + 1).toString().padStart(2, '0');
   const dayStr = todayDate.getDate().toString().padStart(2, '0');
@@ -410,13 +413,23 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const isWorkingDay = !isWeekend && !isHoliday;
 
   let currentChallenge;
-  if (!isWorkingDay) {
+  
+  if (todayDate < challengeStartDate) {
+      // MODO PRE-ESTRENO (Antes del 16/03)
+      currentChallenge = { 
+          q: "¡Preparate! A partir del lunes 16 arrancan los desafíos diarios con sorpresas y premios. ¡Andá calentando motores! 🚀", 
+          a: [], 
+          isComingSoon: true 
+      };
+  } else if (!isWorkingDay) {
+      // MODO FINDE / FERIADO
       currentChallenge = { 
           q: "¡Hoy es día de descanso! El cerebro también necesita recargar energías. Nos vemos el próximo día hábil para un nuevo desafío.", 
           a: [], 
           isRestDay: true 
       };
   } else {
+      // MODO JUEGO ACTIVO
       const todayDateNum = todayDate.getDate(); 
       currentChallenge = DESAFIOS[(todayDateNum - 1) % DESAFIOS.length];
   }
@@ -445,15 +458,19 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
         setRankingData(sortedRanking);
     });
 
-    const qSettings = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'countdown');
-    const unsubSettings = onSnapshot(qSettings, (docSnap) => {
-        if (docSnap.exists()) {
+    const qSettings = query(collection(db, 'artifacts', appId, 'public', 'data', 'settings'));
+    const unsubSettings = onSnapshot(qSettings, (snap) => {
+        if (!snap.empty) {
+            const docSnap = snap.docs[0];
+            setCountdownDocId(docSnap.id);
             const data = docSnap.data();
-            const targetDate = new Date(data.date + 'T00:00:00');
-            const now = new Date();
-            const diffTime = targetDate - now;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            setCountdown({ title: data.title, date: data.date, daysLeft: diffDays > 0 ? diffDays : 0 });
+            if (data.date) {
+                const targetDate = new Date(data.date + 'T00:00:00');
+                const now = new Date();
+                const diffTime = targetDate - now;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                setCountdown({ title: data.title || '', date: data.date, daysLeft: diffDays > 0 ? diffDays : 0 });
+            }
         }
     });
 
@@ -500,21 +517,22 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   
   const handleSaveCountdown = async () => {
       if(!newCountdownTitle || !newCountdownDate) return;
-      // Usamos updateDoc para evitar el error si falta la importación de setDoc
       try {
-          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'countdown'), {
-              title: newCountdownTitle,
-              date: newCountdownDate
-          });
+          if (countdownDocId) {
+              await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', countdownDocId), {
+                  title: newCountdownTitle,
+                  date: newCountdownDate
+              });
+          } else {
+              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'settings'), {
+                  title: newCountdownTitle,
+                  date: newCountdownDate
+              });
+          }
+          setIsEditingCountdown(false);
       } catch (err) {
-          // Si el documento no existe todavía
-          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'settings'), {
-              id: 'countdown',
-              title: newCountdownTitle,
-              date: newCountdownDate
-          });
+          alert("Hubo un error al guardar: " + err.message);
       }
-      setIsEditingCountdown(false);
   };
 
   const checkChallenge = async (e) => {
@@ -574,7 +592,11 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
           {(countdown.daysLeft > 0 || isManagement) && (
               <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 shadow-sm relative group flex items-center gap-4">
                   {isManagement && !isEditingCountdown && (
-                      <button onClick={() => setIsEditingCountdown(true)} className="absolute top-2 right-2 text-blue-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition"><Edit3 size={14}/></button>
+                      <button onClick={() => {
+                          setNewCountdownTitle(countdown.title || '');
+                          setNewCountdownDate(countdown.date || '');
+                          setIsEditingCountdown(true);
+                      }} className="absolute top-2 right-2 text-blue-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition"><Edit3 size={14}/></button>
                   )}
                   
                   {isEditingCountdown ? (
@@ -599,20 +621,27 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
           )}
       </div>
 
+      {/* BLOQUE DESAFÍO DIARIO CON ESTADOS PRÓXIMAMENTE Y FINDE */}
       <div className="bg-gradient-to-br from-emerald-400 to-teal-500 p-5 rounded-[30px] shadow-md text-white relative overflow-hidden">
-          <div className="absolute -right-4 -top-4 opacity-10"><Crown size={120}/></div>
+          <div className="absolute -right-4 -top-4 opacity-10"><Star size={120}/></div>
           
           <div className="flex justify-between items-start mb-2 relative z-10">
               <div className="flex-1 pr-4">
                   <h3 className="text-[10px] font-black text-emerald-100 uppercase tracking-widest flex items-center gap-1"><HelpCircle size={12}/> Acertijo del Día</h3>
                   
-                  {currentChallenge.isRestDay && (
+                  {currentChallenge.isComingSoon && (
+                      <div className="bg-white/20 p-3 rounded-xl mt-3 border-2 border-white/30 border-dashed animate-in fade-in">
+                          <p className="font-bold text-white text-sm">⏳ {currentChallenge.q}</p>
+                      </div>
+                  )}
+
+                  {currentChallenge.isRestDay && !currentChallenge.isComingSoon && (
                       <div className="bg-white/20 p-3 rounded-xl mt-3 border-2 border-white/30 border-dashed animate-in fade-in">
                           <p className="font-bold text-white text-sm">☕ {currentChallenge.q}</p>
                       </div>
                   )}
 
-                  {!currentChallenge.isRestDay && (
+                  {!currentChallenge.isRestDay && !currentChallenge.isComingSoon && (
                       <>
                           <p className="font-bold text-base mt-2 leading-snug text-white">"{currentChallenge.q}"</p>
                           <p className="text-[9px] text-emerald-100 mt-1 uppercase font-bold tracking-widest opacity-80">💡 Pensamiento Lateral</p>
@@ -626,7 +655,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
               </div>
           </div>
 
-          {!currentChallenge.isRestDay && (
+          {!currentChallenge.isRestDay && !currentChallenge.isComingSoon && (
               showChallengeSuccess ? (
                   <div className="bg-white/20 p-3 rounded-xl mt-3 text-center animate-in zoom-in">
                       <p className="font-black text-white text-sm">🎉 ¡Respuesta Correcta! Sumaste 10 pts.</p>
@@ -760,7 +789,6 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
         </div>
       )}
 
-      {/* --- MODAL CUMPLEAÑOS DINÁMICO --- */}
       {showBirthdayModal && (
           <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowBirthdayModal(false)}>
               <div className={`bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 ${birthdayModalType === 'students' ? 'border-pink-500' : 'border-violet-500'} max-h-[85vh] flex flex-col`} onClick={e => e.stopPropagation()}>
@@ -5924,6 +5952,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
