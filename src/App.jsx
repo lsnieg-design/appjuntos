@@ -3871,34 +3871,31 @@ function GroupsView({ user }) {
           return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
       };
 
-      groups = groups.filter(g => {
+     groups = groups.filter(g => {
+          const uId = user.id;
+          const legajoId = user.legajoId; // Usamos el vínculo que creamos en el Paso 1
           const uNameRaw = user.fullName || `${user.firstName} ${user.lastName}`;
           const uName = normalizeName(uNameRaw);
-          const uId = user.id;
 
-          // 1. Verificar si es el Docente principal (por ID o por Nombre)
-          if (g.teacherId === uId || normalizeName(g.teacher) === uName) return true;
+          // 1. Identidad por ID (Lo más seguro)
+          if (g.teacherId === uId || g.teacherId === legajoId) return true;
 
-          // 2. Verificar si está como Auxiliar, Pareja Pedagógica o Equipo de Apoyo en el Grupo
-          if (normalizeName(g.aux) === uName || 
-              normalizeName(g.teacher2) === uName || 
-              normalizeName(g.sup1) === uName || 
-              normalizeName(g.sup2) === uName) return true;
+          // 2. Identidad por Nombre (Respaldo por si no está vinculado)
+          if (normalizeName(g.teacher) === uName || normalizeName(g.teacher2) === uName) return true;
 
-          // 3. Verificar si es algún Profe Especial de este grupo
-          if (normalizeName(g.special1) === uName || 
-              normalizeName(g.special2) === uName || 
-              normalizeName(g.special3) === uName) return true;
+          // 3. Roles de apoyo (Auxiliar, Especiales, etc.)
+          const supportStaff = [g.aux, g.special1, g.special2, g.special3, g.sup1, g.sup2].map(normalizeName);
+          if (supportStaff.includes(uName)) return true;
 
-          // 4. Si no es nada de eso a nivel grupo, revisamos alumno por alumno
+          // 4. Inclusión: Revisamos si es DAI del alumno por ID o Nombre
           const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-          const isAssignedToAnyStudent = g.students.some(s => {
-              return s[`teacherId${suf}`] === uId || 
-                     normalizeName(s[`teacher${suf}`]) === uName || 
-                     s.daiId === uId || 
-                     normalizeName(s.daiMorning) === uName || 
-                     normalizeName(s.daiAfternoon) === uName;
-          });
+          return g.students.some(s => 
+              s.daiId === uId || s.daiId === legajoId || 
+              normalizeName(s[`dai${suf}`]) === uName ||
+              normalizeName(s[`teacher${suf}`]) === uName ||
+              s[`teacherId${suf}`] === uId || s[`teacherId${suf}`] === legajoId
+          );
+      });
 
           return isAssignedToAnyStudent;
       });
@@ -4001,19 +3998,25 @@ const handleUpdateGroup = async (e) => {
       const updates = {}; 
       const suf = turn === 'morning' ? 'Morning' : 'Afternoon'; 
       
-      // Buscamos el ID del docente seleccionado para que sea infalible
-      const selectedTeacherName = fd.get('teacher');
-      const teacherObj = usersList.find(u => u.fullName === selectedTeacherName);
-      const teacherId = teacherObj ? teacherObj.id : null;
+      // 1. Obtenemos el ID del legajo desde el select
+      const selectedStaffId = fd.get('teacher');
+      
+      // 2. Buscamos al profesional en staffList (que es la colección staff_records)
+      // Asegurate de que staffList esté disponible en el componente
+      const staffObj = staffList.find(st => st.id === selectedStaffId);
+      const teacherName = staffObj ? `${staffObj.lastName}, ${staffObj.firstName}` : "";
 
       if (editingGroup.isInclusionGroup) { 
-          // Para Inclusión, actualizamos en ambos turnos porque ahora están unificados
-          updates['daiMorning'] = selectedTeacherName; 
-          updates['daiAfternoon'] = selectedTeacherName;
-          updates['daiId'] = teacherId; // <--- GUARDAMOS EL ID ÚNICO
+          // Para Inclusión
+          updates['daiId'] = selectedStaffId; // Guardamos el vínculo real
+          updates['daiMorning'] = teacherName; 
+          updates['daiAfternoon'] = teacherName;
       } else { 
-          updates[`teacher${suf}`] = selectedTeacherName; 
-          updates[`teacherId${suf}`] = teacherId; // <--- GUARDAMOS EL ID ÚNICO
+          // Para Sede
+          updates[`teacherId${suf}`] = selectedStaffId; // Guardamos el vínculo real
+          updates[`teacher${suf}`] = teacherName; 
+          
+          // El resto de los campos (los dejamos como texto por ahora para no romper todo de golpe)
           updates[`teacher2${suf}`] = fd.get('teacher2'); 
           updates[`aux${suf}`] = fd.get('aux'); 
           updates[`special1${suf}`] = fd.get('special1'); 
@@ -4024,14 +4027,19 @@ const handleUpdateGroup = async (e) => {
           updates[`group${suf}`] = fd.get('groupName'); 
           updates.classroom = fd.get('classroom'); 
       } 
+      
       updates[`driveLink${suf}`] = fd.get('driveLink'); 
       
       try { 
           const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)); 
           await Promise.all(promises); 
-          alert("✅ Actualizado correctamente con ID de seguridad."); 
+          alert("✅ Actualizado correctamente. Ahora el grupo está vinculado al legajo oficial."); 
           setEditingGroup(null); 
-      } catch (err) { alert(err.message); } finally { setUpdatingGroup(false); } 
+      } catch (err) { 
+          alert("Error al actualizar: " + err.message); 
+      } finally { 
+          setUpdatingGroup(false); 
+      } 
   };
   const staffOptions = usersList.filter(u => ['Docente', 'Auxiliar/Preceptor', 'Equipo Técnico', 'Profes Especiales', 'DAI', 'Inclusión'].includes(u.role));
   const techOptions = usersList.filter(u => u.role === 'Equipo Técnico' || u.role === 'Equipo Técnico Inclusión' || u.role === 'Trabajadora Social');
@@ -4142,11 +4150,24 @@ const handleUpdateGroup = async (e) => {
       {editingGroup && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><form onSubmit={handleUpdateGroup} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto"><div className="flex justify-between items-center mb-6"><h3 className="text-xl font-black text-violet-900 uppercase italic">Editar Grupo</h3><button type="button" onClick={()=>setEditingGroup(null)}><X/></button></div><div className="space-y-4"><div className="bg-violet-50 p-3 rounded-xl border border-violet-100 text-center"><p className="text-xs text-violet-500 font-bold uppercase mb-1">{editingGroup.isInclusionGroup ? 'Editando Cartera DAI' : 'Editando Grupo Sede'}</p>{!editingGroup.isInclusionGroup && <input name="groupName" defaultValue={editingGroup.name} className="font-black text-2xl text-violet-900 bg-transparent text-center w-full outline-none border-b border-violet-200 focus:border-violet-500" placeholder="Nombre Grupo"/>}</div>
        <div>
         <label className="text-xs font-bold text-gray-500 ml-1">{editingGroup.isInclusionGroup ? 'DAI Responsable' : 'Docente a Cargo'}</label>
-        <select name="teacher" defaultValue={editingGroup.teacher} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs">
-            <option value="">Sin asignar</option>
-            {editingGroup?.teacher && !staffOptions.find(u => u.fullName === editingGroup.teacher) && <option value={editingGroup.teacher}>{editingGroup.teacher} (Nombre Viejo)</option>}
-            {staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}
-        </select>
+        <div>
+    <label className="text-xs font-bold text-gray-500 ml-1">
+        {editingGroup.isInclusionGroup ? 'DAI Responsable' : 'Docente a Cargo'}
+    </label>
+    <select 
+        name="teacher" 
+        defaultValue={editingGroup.teacherId || editingGroup.teacher} 
+        className="w-full p-3 bg-white border-2 border-violet-100 rounded-xl outline-none font-bold text-xs focus:border-violet-500"
+    >
+        <option value="">Seleccionar Profesional...</option>
+        {/* Usamos la lista de staff_records que es la "verdad oficial" */}
+        {staffList.map(st => (
+            <option key={st.id} value={st.id}>
+                {st.lastName}, {st.firstName} ({getNormRole(st.cargo1_role)})
+            </option>
+        ))}
+    </select>
+</div>
     </div>
         {!editingGroup.isInclusionGroup && (<><div><label className="text-xs font-bold text-gray-500 ml-1">Docente 2 (Pareja)</label><select name="teacher2" defaultValue={editingGroup.teacher2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div><label className="text-xs font-bold text-gray-500 ml-1">Auxiliar</label><select name="aux" defaultValue={editingGroup.aux} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Sin asignar</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div><label className="text-xs font-bold text-gray-500 ml-1">Aula Física</label><input name="classroom" defaultValue={editingGroup.classroom} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" placeholder="Ej: 5"/></div><div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-[10px] font-black text-gray-400 uppercase mb-2">Profes Especiales (Opcional)</p><div className="space-y-2"><select name="special1" defaultValue={editingGroup.special1} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 1...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="special2" defaultValue={editingGroup.special2} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 2...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="special3" defaultValue={editingGroup.special3} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 3...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div></div><div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-gray-500 ml-1">Sup. 1</label><select name="sup1" defaultValue={editingGroup.sup1} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div><label className="text-xs font-bold text-gray-500 ml-1">Sup. 2</label><select name="sup2" defaultValue={editingGroup.sup2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div></div></>)}<div><label className="text-xs font-bold text-green-600 ml-1">Enlace a Carpeta Drive</label><input name="driveLink" defaultValue={editingGroup.driveLink} className="w-full p-3 bg-green-50 border border-green-100 rounded-xl outline-none font-bold text-xs text-green-700" placeholder="https://drive.google.com/..."/></div><button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition flex justify-center items-center gap-2">{updatingGroup ? <RefreshCw className="animate-spin"/> : 'Aplicar Cambios'}</button></div></form></div>)}
       
@@ -4797,11 +4818,38 @@ function PersonalView({ user }) {
                                         <p className="text-[10px] text-violet-600 font-bold">Alta Cargo: {getSafeDate(viewingStaff.cargo2_ingreso)}</p>
                                     </div>
                                 ) : (
-                                    <div className="bg-gray-100 p-2 rounded-lg text-xs text-gray-400 text-center font-bold">NO TRABAJA / SIN CARGO 2</div>
+                                    <div className="bg-gray-100 p-2 rounded-lg text-xs text-gray-400 text-center font-bold">SIN CARGO 2</div>
                                 )}
                             </div>
                         </div>
                     </div>
+                  {/* PARCHE: GRUPOS ASIGNADOS AUTOMÁTICAMENTE */}
+<div className="mt-4 bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
+    <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+        <Grid size={14}/> Grupos a Cargo (Ciclo 2026)
+    </h4>
+    <div className="grid grid-cols-2 gap-2">
+        {/* Buscamos en la lista de alumnos quiénes tienen el ID de este docente */}
+        {(() => {
+            const myGroupsTM = [...new Set(students.filter(s => s.teacherIdMorning === viewingStaff.id).map(s => s.groupMorning))].filter(Boolean);
+            const myGroupsTT = [...new Set(students.filter(s => s.teacherIdAfternoon === viewingStaff.id).map(s => s.groupAfternoon))].filter(Boolean);
+            
+            return (
+                <>
+                    <div className="bg-white p-2 rounded-xl border border-emerald-100">
+                        <p className="text-[8px] font-black text-gray-400 uppercase">Turno Mañana</p>
+                        <p className="font-bold text-emerald-700 text-xs">{myGroupsTM.length > 0 ? myGroupsTM.join(', ') : 'Sin grupo'}</p>
+                    </div>
+                    <div className="bg-white p-2 rounded-xl border border-emerald-100">
+                        <p className="text-[8px] font-black text-gray-400 uppercase">Turno Tarde</p>
+                        <p className="font-bold text-emerald-700 text-xs">{myGroupsTT.length > 0 ? myGroupsTT.join(', ') : 'Sin grupo'}</p>
+                    </div>
+                </>
+            );
+        })()}
+    </div>
+    <p className="text-[8px] text-emerald-400 mt-2 italic">* Esta información se actualiza sola desde Gestión de Aulas.</p>
+</div>
                     <div className="p-4 border-t border-gray-100 bg-white flex justify-end gap-2 shrink-0">
                         <button onClick={()=>imprimirFichasDocentes([viewingStaff])} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-slate-600 font-bold text-xs uppercase hover:bg-gray-50 flex gap-2 items-center shadow-sm"><FileText size={16}/> Imprimir</button>
                         <button onClick={()=>{setEditingStaff(viewingStaff); setPhotoPreview(viewingStaff.photoUrl); setShowStaffForm(true);}} className="px-4 py-3 bg-violet-600 text-white rounded-xl font-bold text-xs uppercase hover:bg-violet-700 flex gap-2 items-center shadow-lg"><Edit3 size={16}/> Editar Ficha</button>
