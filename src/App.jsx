@@ -319,7 +319,7 @@ function LoginScreen({ onLogin }) {
     </div>
   );
 }
-// --- VISTA DASHBOARD (CUMPLES, CUENTA REGRESIVA Y DESAFÍOS DÍAS HÁBILES 2026) ---
+// --- VISTA DASHBOARD (A PRUEBA DE FALLOS: DÍAS HÁBILES Y CUMPLES) ---
 function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEvents = events.filter(e => e.date === todayStr);
@@ -394,28 +394,14 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
 
   // LÓGICA DEL CALENDARIO DOCENTE 2026 (FILTRO DÍAS HÁBILES)
   const todayDate = new Date();
-  const dayOfWeek = todayDate.getDay(); // 0 = Domingo, 6 = Sábado
+  const dayOfWeek = todayDate.getDay(); 
   const monthStr = (todayDate.getMonth() + 1).toString().padStart(2, '0');
   const dayStr = todayDate.getDate().toString().padStart(2, '0');
   const dateString = `${monthStr}-${dayStr}`;
 
   const feriadosDocentes2026 = [
-      '01-01', // Año Nuevo
-      '02-16', '02-17', // Carnaval
-      '03-24', // Memoria
-      '04-02', // Malvinas
-      '04-03', // Viernes Santo (2026)
-      '05-01', // Trabajador
-      '05-25', // Revolución de Mayo
-      '06-15', '06-20', // Güemes y Belgrano
-      '07-09', // Independencia
-      '08-17', // San Martín
-      '09-11', // Día del Maestro
-      '10-12', // Diversidad
-      '11-23', // Soberanía
-      '12-08', // Inmaculada Concepción
-      '12-25', // Navidad
-      // Vacaciones de Invierno PBA aprox (Últimas 2 de julio)
+      '01-01', '02-16', '02-17', '03-24', '04-02', '04-03', '05-01', '05-25', 
+      '06-15', '06-20', '07-09', '08-17', '09-11', '10-12', '11-23', '12-08', '12-25',
       '07-20', '07-21', '07-22', '07-23', '07-24', '07-27', '07-28', '07-29', '07-30', '07-31'
   ];
 
@@ -431,7 +417,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
           isRestDay: true 
       };
   } else {
-      const todayDateNum = todayDate.getDate(); // Del 1 al 31
+      const todayDateNum = todayDate.getDate(); 
       currentChallenge = DESAFIOS[(todayDateNum - 1) % DESAFIOS.length];
   }
 
@@ -450,19 +436,15 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
     const qNotes = query(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), where('userId', '==', user.id));
     const unsubNotes = onSnapshot(qNotes, (snap) => setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.done - b.done)));
     
-    // CARGAR RANKING Y PUNTAJE DE USUARIO
     const qUsers = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
     const unsubUsers = onSnapshot(qUsers, (snap) => {
         const usersData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         const me = usersData.find(u => u.id === user.id);
         if (me) setUserScore(me.score || 0);
-        
-        // Armar ranking ordenado (Top 5)
         const sortedRanking = usersData.filter(u => u.score > 0).sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 5);
         setRankingData(sortedRanking);
     });
 
-    // CARGAR CUENTA REGRESIVA
     const qSettings = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'countdown');
     const unsubSettings = onSnapshot(qSettings, (docSnap) => {
         if (docSnap.exists()) {
@@ -475,7 +457,6 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
         }
     });
 
-    // LÓGICA DE CUMPLEAÑOS
     const today = new Date(); today.setHours(0,0,0,0);
     const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7); nextWeek.setHours(23,59,59,999);
 
@@ -517,17 +498,25 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const toggleNote = async (note) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', note.id), { done: !note.done });
   const deleteNote = async (id) => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', id));
   
-  // GUARDAR EDICIÓN DE CUENTA REGRESIVA
   const handleSaveCountdown = async () => {
       if(!newCountdownTitle || !newCountdownDate) return;
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'countdown'), {
-          title: newCountdownTitle,
-          date: newCountdownDate
-      });
+      // Usamos updateDoc para evitar el error si falta la importación de setDoc
+      try {
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'countdown'), {
+              title: newCountdownTitle,
+              date: newCountdownDate
+          });
+      } catch (err) {
+          // Si el documento no existe todavía
+          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'settings'), {
+              id: 'countdown',
+              title: newCountdownTitle,
+              date: newCountdownDate
+          });
+      }
       setIsEditingCountdown(false);
   };
 
-  // ENVIAR RESPUESTA AL DESAFÍO (INTELIGENTE: Ignora mayúsculas y acentos)
   const checkChallenge = async (e) => {
       e.preventDefault();
       if(!challengeAnswer) return;
@@ -554,7 +543,6 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   return (
     <div className="space-y-4 animate-in fade-in pb-10">
       
-      {/* HEADER DE BIENVENIDA */}
       <div className="flex justify-between items-center px-2">
           <div>
               <h2 className="text-2xl font-black text-slate-800 tracking-tighter italic">¡Hola, {user.firstName}! 👋</h2>
@@ -568,10 +556,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
       
       {isManagement && ungroupedCount > 0 && (<div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl flex items-center justify-between shadow-sm animate-pulse"><div className="flex items-center gap-3"><AlertTriangle className="text-red-500" size={24} /><div><h4 className="font-black text-red-700 text-xs uppercase tracking-widest">Atención Administrativa</h4><p className="text-xs text-red-600 font-bold">Hay {ungroupedCount} estudiantes activos sin grupo asignado.</p></div></div></div>)}
       
-      {/* BLOQUE SUPERIOR: CUMPLEAÑOS SEPARADOS Y CUENTA REGRESIVA */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          
-          {/* BOTÓN CUMPLES ALUMNOS */}
           {studentBirthdays.length > 0 && (
               <button onClick={() => { setBirthdayModalType('students'); setShowBirthdayModal(true); }} className="bg-gradient-to-r from-pink-400 to-pink-500 p-4 rounded-2xl shadow-sm text-white flex items-center gap-3 active:scale-95 transition">
                   <div className="bg-white/20 p-2 rounded-xl"><Crown size={20}/></div>
@@ -579,15 +564,13 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
               </button>
           )}
 
-          {/* BOTÓN CUMPLES PROFES */}
           {staffBirthdays.length > 0 && (
               <button onClick={() => { setBirthdayModalType('staff'); setShowBirthdayModal(true); }} className="bg-gradient-to-r from-violet-500 to-indigo-500 p-4 rounded-2xl shadow-sm text-white flex items-center gap-3 active:scale-95 transition">
-                  <div className="bg-white/20 p-2 rounded-xl"><Users size={20}/></div>
+                  <div className="bg-white/20 p-2 rounded-xl"><User size={20}/></div>
                   <div className="text-left"><h3 className="font-black text-xs uppercase tracking-widest">Cumples Profes</h3><p className="text-[10px] opacity-90">{staffBirthdays.length} festejos semanales</p></div>
               </button>
           )}
 
-          {/* WIDGET CUENTA REGRESIVA */}
           {(countdown.daysLeft > 0 || isManagement) && (
               <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 shadow-sm relative group flex items-center gap-4">
                   {isManagement && !isEditingCountdown && (
@@ -616,22 +599,19 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
           )}
       </div>
 
-      {/* BLOQUE DESAFÍO DIARIO (TEXTO/LÓGICA + DÍAS HÁBILES) */}
       <div className="bg-gradient-to-br from-emerald-400 to-teal-500 p-5 rounded-[30px] shadow-md text-white relative overflow-hidden">
-          <div className="absolute -right-4 -top-4 opacity-10"><Star size={120}/></div>
+          <div className="absolute -right-4 -top-4 opacity-10"><Crown size={120}/></div>
           
           <div className="flex justify-between items-start mb-2 relative z-10">
               <div className="flex-1 pr-4">
                   <h3 className="text-[10px] font-black text-emerald-100 uppercase tracking-widest flex items-center gap-1"><HelpCircle size={12}/> Acertijo del Día</h3>
                   
-                  {/* SI ES DÍA DE DESCANSO MUESTRA ESTO: */}
                   {currentChallenge.isRestDay && (
                       <div className="bg-white/20 p-3 rounded-xl mt-3 border-2 border-white/30 border-dashed animate-in fade-in">
                           <p className="font-bold text-white text-sm">☕ {currentChallenge.q}</p>
                       </div>
                   )}
 
-                  {/* SI ES DÍA HÁBIL MUESTRA EL DESAFÍO: */}
                   {!currentChallenge.isRestDay && (
                       <>
                           <p className="font-bold text-base mt-2 leading-snug text-white">"{currentChallenge.q}"</p>
@@ -646,7 +626,6 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
               </div>
           </div>
 
-          {/* FORMULARIO DE RESPUESTA (Solo si hay desafío activo) */}
           {!currentChallenge.isRestDay && (
               showChallengeSuccess ? (
                   <div className="bg-white/20 p-3 rounded-xl mt-3 text-center animate-in zoom-in">
@@ -661,15 +640,12 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
           )}
       </div>
       
-      {/* CARTELERA OFICIAL */}
       {visibleAnnouncements.length > 0 && (<div className="bg-yellow-100 p-5 rounded-[30px] border-2 border-yellow-200 shadow-sm relative"><h3 className="text-[10px] font-black text-yellow-700 uppercase tracking-widest flex items-center gap-1 mb-3"><Bell size={12}/> Cartelera Oficial</h3><div className="space-y-3">{visibleAnnouncements.map(a => (<div key={a.id} className="bg-white/80 p-3 rounded-2xl border border-yellow-200/50 text-sm text-gray-800 flex justify-between items-start"><div>{a.channel === 'inclusion' && <span className="bg-indigo-100 text-indigo-700 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-indigo-200">Canal Inclusión</span>}{a.channel === 'sede' && <span className="bg-orange-100 text-orange-700 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-orange-200">Canal Sede</span>}{(a.channel === 'general' || !a.channel) && <span className="bg-gray-100 text-gray-500 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-gray-200">General</span>}<p className="italic font-medium">"{a.message}"</p><p className="text-[9px] text-yellow-600 font-bold mt-1 uppercase tracking-wider">- {a.author}</p></div>{(canPost || a.authorId === user.id) && (<button onClick={() => deleteAnnouncement(a.id)} className="text-yellow-600 hover:text-red-500 p-1 bg-yellow-50 rounded-lg transition"><Trash2 size={14}/></button>)}</div>))}</div></div>)}
       
-      {/* TAREAS Y CALENDARIO */}
       <div className="grid grid-cols-2 gap-3"><div onClick={() => setActiveTab('tasks')} className="bg-white p-5 rounded-[30px] border border-orange-100 shadow-sm cursor-pointer hover:shadow-md transition"><h4 className="text-3xl font-black text-orange-500">{myPendingTasksCount}</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Tareas Pendientes</p></div><div onClick={() => setActiveTab('calendar')} className={`p-5 rounded-[30px] border shadow-sm relative overflow-hidden cursor-pointer hover:shadow-md transition ${todayEvents.length > 0 ? 'bg-violet-600 text-white border-violet-600' : 'bg-white border-violet-100'}`}>{todayEvents.length > 0 ? ( <><h4 className="text-lg font-black leading-tight mb-1">{todayEvents[0].title}</h4><p className="text-[9px] opacity-80 uppercase tracking-widest font-bold">Es Hoy</p></> ) : ( <><h4 className="text-3xl font-black text-violet-600">0</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Eventos Hoy</p></> )}</div></div>
       
       <div className="bg-gray-50 p-5 rounded-[35px] border border-gray-100 shadow-inner"><h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px] mb-3 flex items-center gap-2"><Lock size={12}/> Tareas Personales</h3><form onSubmit={saveNote} className="flex gap-2 mb-3"><input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Nueva nota..." className="flex-1 p-3 rounded-xl border-none outline-none text-xs bg-white shadow-sm font-medium" /><button type="submit" className="bg-violet-600 text-white p-3 rounded-xl font-bold shadow-lg hover:bg-violet-700 transition"><Plus size={16}/></button></form><div className="space-y-2">{notes.map(n => (<div key={n.id} className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm group"><button onClick={() => toggleNote(n)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${n.done ? 'bg-violet-400 border-violet-400' : 'border-violet-200'}`}>{n.done && <Check size={12} className="text-white"/>}</button><span className={`text-xs flex-1 font-medium ${n.done ? 'line-through text-gray-300' : 'text-gray-600'}`}>{n.text}</span><button onClick={() => deleteNote(n.id)} className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"><Trash2 size={14}/></button></div>))}</div></div>
       
-      {/* MODAL RANKING JUEGO */}
       {showRanking && (
           <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowRanking(false)}>
               <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-yellow-400" onClick={e => e.stopPropagation()}>
@@ -683,7 +659,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
                           <div key={u.id} className={`flex items-center justify-between p-3 rounded-2xl border ${index === 0 ? 'bg-yellow-50 border-yellow-200 shadow-sm' : 'bg-gray-50 border-gray-100'}`}>
                               <div className="flex items-center gap-3">
                                   <span className={`font-black text-lg ${index === 0 ? 'text-yellow-500' : index === 1 ? 'text-slate-400' : index === 2 ? 'text-amber-700' : 'text-gray-400'}`}>#{index + 1}</span>
-                                  <span className="font-bold text-gray-700 text-sm">{u.firstName} {u.lastName?.[0]}.</span>
+                                  <span className="font-bold text-gray-700 text-sm">{u.firstName} {u.lastName?.charAt(0) || ''}.</span>
                               </div>
                               <div className="bg-white px-3 py-1 rounded-lg border border-gray-200 font-black text-emerald-600 text-xs shadow-sm">{u.score} pts</div>
                           </div>
@@ -693,10 +669,8 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
           </div>
       )}
 
-      {/* MODAL CREAR AVISO */}
       {showAnnounceModal && (<div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm"><form onSubmit={handlePost} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95"><h3 className="text-lg font-black text-orange-500 mb-2 uppercase italic">Nuevo Aviso</h3><textarea name="message" className="w-full p-4 bg-orange-50 rounded-2xl outline-none text-sm h-32 resize-none border border-orange-100 focus:ring-2 ring-orange-200 text-gray-700" placeholder="Escribe aquí..." required></textarea><div className="mt-3"><label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">¿Quién puede ver esto?</label><select name="channel" className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200 outline-none focus:border-orange-300"><option value="general">🌍 Toda la Escuela</option><option value="sede">🏫 Solo Sede</option><option value="inclusion">💙 Solo Inclusión</option></select></div><div className="flex gap-2 mt-4"><button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 text-gray-400 font-bold text-xs uppercase tracking-widest">Cancelar</button><button type="submit" className="flex-1 bg-orange-500 text-white py-3 rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-orange-600 transition">Publicar</button></div></form></div>)}
       
-      {/* MANUAL DE AYUDA (TUTORIAL COMPLETO) */}
       {showTutorial && (
         <div className="fixed inset-0 bg-violet-900/95 z-[300] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in">
             <div className="bg-white rounded-[40px] w-full max-w-lg p-6 shadow-2xl max-h-[85vh] flex flex-col relative">
@@ -786,13 +760,13 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
         </div>
       )}
 
-      {/* --- MODAL CUMPLEAÑOS DINÁMICO (ESTUDIANTES O STAFF) --- */}
+      {/* --- MODAL CUMPLEAÑOS DINÁMICO --- */}
       {showBirthdayModal && (
           <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowBirthdayModal(false)}>
               <div className={`bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 ${birthdayModalType === 'students' ? 'border-pink-500' : 'border-violet-500'} max-h-[85vh] flex flex-col`} onClick={e => e.stopPropagation()}>
                   <div className="flex justify-between items-center mb-6">
                       <h3 className={`text-lg font-black uppercase italic flex items-center gap-2 ${birthdayModalType === 'students' ? 'text-pink-500' : 'text-violet-600'}`}>
-                          {birthdayModalType === 'students' ? <><Crown size={20}/> Cumples Alumnos</> : <><Users size={20}/> Cumples Profes</>}
+                          {birthdayModalType === 'students' ? <><Crown size={20}/> Cumples Alumnos</> : <><User size={20}/> Cumples Profes</>}
                       </h3>
                       <button onClick={() => setShowBirthdayModal(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20}/></button>
                   </div>
@@ -804,7 +778,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
                           (birthdayModalType === 'students' ? studentBirthdays : staffBirthdays).map(b => (
                               <div key={b.id} className={`flex items-center gap-4 p-3 rounded-2xl border transition ${birthdayModalType === 'students' ? 'bg-pink-50 border-pink-100 hover:border-pink-300' : 'bg-violet-50 border-violet-100 hover:border-violet-300'}`}>
                                   <div className={`w-12 h-12 rounded-full bg-white border-2 overflow-hidden shrink-0 flex items-center justify-center font-bold ${birthdayModalType === 'students' ? 'border-pink-200 text-pink-400' : 'border-violet-200 text-violet-400'}`}>
-                                      {b.photoUrl ? <img src={b.photoUrl} className="w-full h-full object-cover"/> : b.firstName[0]}
+                                      {b.photoUrl ? <img src={b.photoUrl} className="w-full h-full object-cover"/> : b.firstName?.charAt(0) || '👤'}
                                   </div>
                                   <div>
                                       <h4 className="font-bold text-gray-800 leading-tight">{b.firstName} {b.lastName}</h4>
@@ -5950,6 +5924,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
