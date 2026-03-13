@@ -4766,10 +4766,12 @@ function PersonalView({ user }) {
         </div>
 
         {/* MODAL LECTURA LEGAJO */}
-     {/* MODAL LECTURA LEGAJO (PARCHE BLINDADO) */}
+     {/* MODAL LECTURA LEGAJO (PARCHE CORREGIDO SIN ERRORES DE SINTAXIS) */}
       {viewingStaff && !showStaffForm && (
           <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setViewingStaff(null)}>
               <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+                  
+                  {/* CABECERA MODAL */}
                   <div className="bg-violet-800 p-6 text-white relative shrink-0">
                       <button onClick={()=>setViewingStaff(null)} className="absolute top-4 right-4 bg-white/20 p-1.5 rounded-full hover:bg-white/40 transition"><X size={20}/></button>
                       <div className="flex gap-5 items-center">
@@ -4784,7 +4786,9 @@ function PersonalView({ user }) {
                       </div>
                   </div>
                   
+                  {/* CUERPO DEL MODAL */}
                   <div className="p-6 overflow-y-auto bg-gray-50 flex-1 space-y-4">
+                      {/* TARJETAS DE CARGOS */}
                       <div className="space-y-2">
                            <div className="bg-white p-3 rounded-xl border border-violet-200 text-xs shadow-sm">
                               <p className="font-black text-violet-900 uppercase mb-1">Cargo 1: {getNormRole(viewingStaff.cargo1_role || viewingStaff.role) || 'Sin asignar'}</p>
@@ -4798,11 +4802,12 @@ function PersonalView({ user }) {
                            )}
                       </div>
 
-                      {/* GRUPOS VINCULADOS POR ID (Sincronización automática) */}
+                      {/* GRUPOS VINCULADOS POR ID */}
                       <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
                           <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">📍 Grupos a Cargo (Ciclo 2026)</h4>
                           <div className="grid grid-cols-2 gap-2">
                               {(() => {
+                                  // Filtramos los alumnos que tienen vinculado el ID de este docente
                                   const myGroupsTM = [...new Set(students.filter(s => s.teacherIdMorning === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupMorning))].filter(Boolean);
                                   const myGroupsTT = [...new Set(students.filter(s => s.teacherIdAfternoon === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupAfternoon))].filter(Boolean);
                                   return (
@@ -4819,10 +4824,11 @@ function PersonalView({ user }) {
                                   );
                               })()}
                           </div>
-                          <p className="text-[8px] text-emerald-400 mt-3 italic text-center">* Datos sincronizados por ID.</p>
+                          <p className="text-[8px] text-emerald-400 mt-3 italic text-center">* Sincronizado por ID.</p>
                       </div>
                   </div>
                   
+                  {/* PIE DEL MODAL */}
                   <div className="p-4 border-t bg-white flex justify-end gap-2 shrink-0">
                       <button onClick={()=>imprimirFichasDocentes([viewingStaff])} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-slate-600 font-bold text-xs uppercase hover:bg-gray-50 flex gap-2 items-center shadow-sm"><FileText size={16}/> Imprimir</button>
                       <button onClick={()=>{setEditingStaff(viewingStaff); setPhotoPreview(viewingStaff.photoUrl); setShowStaffForm(true);}} className="px-6 py-3 bg-violet-600 text-white rounded-xl font-bold text-xs uppercase shadow-lg hover:bg-violet-700 transition">Editar Legajo</button>
