@@ -319,8 +319,7 @@ function LoginScreen({ onLogin }) {
     </div>
   );
 }
-// --- VISTA DASHBOARD (MANUAL COMPLETO: AULA + RECURSOS + PROYECTO) ---
-// --- VISTA DASHBOARD (MANUAL COMPLETO + CUMPLES UNIFICADOS) ---
+// --- VISTA DASHBOARD (CUMPLES SEPARADOS, CUENTA REGRESIVA Y DESAFÍOS) ---
 function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEvents = events.filter(e => e.date === todayStr);
@@ -328,16 +327,27 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const [showAnnounceModal, setShowAnnounceModal] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [showBirthdayModal, setShowBirthdayModal] = useState(false);
+  const [birthdayModalType, setBirthdayModalType] = useState('students'); // 'students' o 'staff'
   const [notes, setNotes] = useState([]);
   const [newNote, setNewNote] = useState('');
   const [ungroupedCount, setUngroupedCount] = useState(0);
   
-  // NUEVOS ESTADOS DE CUMPLEAÑOS
   const [studentBirthdays, setStudentBirthdays] = useState([]);
   const [staffBirthdays, setStaffBirthdays] = useState([]);
-
-  // ESTADO DEL MANUAL
   const [tutorialTab, setTutorialTab] = useState('inicio'); 
+
+  // ESTADOS DEL JUEGO / DESAFÍO
+  const [challengeAnswer, setChallengeAnswer] = useState('');
+  const [showChallengeSuccess, setShowChallengeSuccess] = useState(false);
+  const [userScore, setUserScore] = useState(0);
+  const [showRanking, setShowRanking] = useState(false);
+  const [rankingData, setRankingData] = useState([]);
+  
+  // ESTADOS DE LA CUENTA REGRESIVA
+  const [countdown, setCountdown] = useState({ title: "Vacaciones", date: "", daysLeft: 0 });
+  const [isEditingCountdown, setIsEditingCountdown] = useState(false);
+  const [newCountdownTitle, setNewCountdownTitle] = useState('');
+  const [newCountdownDate, setNewCountdownDate] = useState('');
 
   const canPost = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión'].includes(user.rol || user.role);
   const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración', 'Dirección Inclusión'].includes(user.role) || user.rol === 'admin';
@@ -347,7 +357,24 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const isInclusionStaff = INCLUSION_ROLES.includes(user.role);
   const isSedeStaff = SEDE_ROLES.includes(user.role);
 
-  // Contador de tareas
+  // BASE DE DATOS DE DESAFÍOS (Juego del día)
+  const DESAFIOS = [
+      { q: "Tengo agujas pero no sé coser, tengo números pero no sé leer. ¿Qué soy?", a: "reloj" },
+      { q: "Si me nombras, me rompes. ¿Qué soy?", a: "silencio" },
+      { q: "Es tuyo, pero los demás lo usan más que tú.", a: "nombre" },
+      { q: "Blanco por dentro, verde por fuera. Si quieres que te lo diga, espera.", a: "pera" },
+      { q: "Cuanto más le quitas, más grande se hace. ¿Qué es?", a: "agujero" },
+      { q: "Todos pasan por mí, yo no paso por nadie. Todos preguntan por mí, yo no pregunto por nadie.", a: "calle" },
+      { q: "Lana sube, lana baja. ¿Qué es?", a: "navaja" },
+      { q: "Oro parece, plata no es. Quien no lo adivine, bien tonto es.", a: "platano" },
+      { q: "Tiene dientes y no come, tiene cabeza y no es hombre.", a: "ajo" },
+      { q: "Vuelo sin alas, lloro sin ojos. ¿Qué soy?", a: "nube" }
+  ];
+
+  // Elegir un desafío aleatorio diario (basado en el día del mes)
+  const todayDateNum = new Date().getDate();
+  const currentChallenge = DESAFIOS[todayDateNum % DESAFIOS.length];
+
   const myPendingTasksCount = tasks.filter(t => {
       if (t.status === 'completed') return false;
       const scheduledTime = new Date(`${t.showDate || '2000-01-01'}T${t.showTime || '00:00'}`);
@@ -363,7 +390,32 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
     const qNotes = query(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), where('userId', '==', user.id));
     const unsubNotes = onSnapshot(qNotes, (snap) => setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.done - b.done)));
     
-    // LÓGICA DE CUMPLEAÑOS UNIFICADA
+    // CARGAR RANKING Y PUNTAJE DE USUARIO
+    const qUsers = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
+    const unsubUsers = onSnapshot(qUsers, (snap) => {
+        const usersData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const me = usersData.find(u => u.id === user.id);
+        if (me) setUserScore(me.score || 0);
+        
+        // Armar ranking ordenado
+        const sortedRanking = usersData.filter(u => u.score > 0).sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 5);
+        setRankingData(sortedRanking);
+    });
+
+    // CARGAR CUENTA REGRESIVA
+    const qSettings = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'countdown');
+    const unsubSettings = onSnapshot(qSettings, (docSnap) => {
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            const targetDate = new Date(data.date + 'T00:00:00');
+            const now = new Date();
+            const diffTime = targetDate - now;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            setCountdown({ title: data.title, date: data.date, daysLeft: diffDays > 0 ? diffDays : 0 });
+        }
+    });
+
+    // LÓGICA DE CUMPLEAÑOS
     const today = new Date(); today.setHours(0,0,0,0);
     const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7); nextWeek.setHours(23,59,59,999);
 
@@ -379,7 +431,6 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
             if (currentYearBirth < today) currentYearBirth.setFullYear(today.getFullYear() + 1);
             return { ...data, id: d.id, nextBirthday: currentYearBirth };
         }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday);
-        
         setStudentBirthdays(upcoming);
         setUngroupedCount(noGroupCounter);
     });
@@ -389,20 +440,16 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
         const upcoming = snap.docs.map(d => {
             const data = d.data();
             if(!data.birthDate) return null;
-            // Para el staff la fecha puede venir con distinto formato (Y-M-D) o sin tiempo
             const dob = new Date(data.birthDate.includes('T') ? data.birthDate : data.birthDate + 'T00:00:00');
             const currentYearBirth = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
             if (currentYearBirth < today) currentYearBirth.setFullYear(today.getFullYear() + 1);
             return { ...data, id: d.id, nextBirthday: currentYearBirth };
         }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday);
-        
         setStaffBirthdays(upcoming);
     });
 
-    return () => { unsubNotes(); unsubStudents(); unsubStaff(); };
+    return () => { unsubNotes(); unsubStudents(); unsubStaff(); unsubUsers(); unsubSettings(); };
   }, [user.id]);
-
-  const totalBirthdays = studentBirthdays.length + staffBirthdays.length;
 
   const handlePost = async (e) => { e.preventDefault(); const text = e.target.message.value; const channel = e.target.channel?.value || 'general'; if(!text.trim()) return; try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), { message: text, author: user.fullName || user.firstName, authorId: user.id, role: user.role, channel: channel, createdAt: serverTimestamp() }); setShowAnnounceModal(false); } catch(e) { alert("Error: " + e.message); } };
   const deleteAnnouncement = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'announcements', id)); };
@@ -410,27 +457,162 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const toggleNote = async (note) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', note.id), { done: !note.done });
   const deleteNote = async (id) => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', id));
   
+  // GUARDAR EDICIÓN DE CUENTA REGRESIVA
+  const handleSaveCountdown = async () => {
+      if(!newCountdownTitle || !newCountdownDate) return;
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'countdown'), {
+          title: newCountdownTitle,
+          date: newCountdownDate
+      });
+      setIsEditingCountdown(false);
+  };
+
+  // ENVIAR RESPUESTA AL DESAFÍO
+  const checkChallenge = async (e) => {
+      e.preventDefault();
+      const cleanAnswer = challengeAnswer.trim().toLowerCase();
+      // Elimina acentos para hacer la comparación más fácil
+      const normalizedAnswer = cleanAnswer.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const normalizedCorrect = currentChallenge.a.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+      if (normalizedAnswer === normalizedCorrect) {
+          setShowChallengeSuccess(true);
+          // Sumar 10 puntos al usuario en la BD
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { score: (userScore || 0) + 10 });
+          setChallengeAnswer('');
+          setTimeout(() => setShowChallengeSuccess(false), 4000); // Ocultar cartel de éxito a los 4 seg
+      } else {
+          alert("¡Casi! Sigue intentando.");
+      }
+  };
+
   const visibleAnnouncements = announcements.filter(a => { if (isSuperAdmin) return true; if (a.authorId === user.id) return true; if (!a.channel || a.channel === 'general') return true; if (a.channel === 'inclusion' && isInclusionStaff) return true; if (a.channel === 'sede' && isSedeStaff) return true; return false; });
 
   return (
     <div className="space-y-4 animate-in fade-in pb-10">
-      <div className="flex justify-between items-center px-2"><div><h2 className="text-2xl font-black text-slate-800 tracking-tighter italic">¡Hola, {user.firstName}! 👋</h2><p className="text-slate-500 font-medium text-xs">Panel de Control</p></div><div className="flex gap-2"><button onClick={() => setShowTutorial(true)} className="bg-white text-violet-600 px-3 py-2 rounded-xl text-xs font-bold shadow-sm border border-violet-100 flex items-center gap-1 hover:bg-violet-50 transition"><HelpCircle size={16}/> Ayuda</button>{canPost && <button onClick={() => setShowAnnounceModal(true)} className="bg-orange-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-lg hover:scale-105 transition flex items-center gap-1"><Edit3 size={14}/> Aviso</button>}</div></div>
+      
+      {/* HEADER DE BIENVENIDA */}
+      <div className="flex justify-between items-center px-2">
+          <div>
+              <h2 className="text-2xl font-black text-slate-800 tracking-tighter italic">¡Hola, {user.firstName}! 👋</h2>
+              <p className="text-slate-500 font-medium text-xs">Panel de Control</p>
+          </div>
+          <div className="flex gap-2">
+              <button onClick={() => setShowTutorial(true)} className="bg-white text-violet-600 px-3 py-2 rounded-xl text-xs font-bold shadow-sm border border-violet-100 flex items-center gap-1 hover:bg-violet-50 transition"><HelpCircle size={16}/> Ayuda</button>
+              {canPost && <button onClick={() => setShowAnnounceModal(true)} className="bg-orange-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-lg hover:scale-105 transition flex items-center gap-1"><Edit3 size={14}/> Aviso</button>}
+          </div>
+      </div>
       
       {isManagement && ungroupedCount > 0 && (<div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl flex items-center justify-between shadow-sm animate-pulse"><div className="flex items-center gap-3"><AlertTriangle className="text-red-500" size={24} /><div><h4 className="font-black text-red-700 text-xs uppercase tracking-widest">Atención Administrativa</h4><p className="text-xs text-red-600 font-bold">Hay {ungroupedCount} estudiantes activos sin grupo asignado.</p></div></div></div>)}
       
-      {totalBirthdays > 0 && (
-          <button onClick={() => setShowBirthdayModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-rose-500 p-3 rounded-2xl shadow-md text-white flex items-center justify-between active:scale-95 transition">
-              <div className="flex items-center gap-3">
-                  <div className="bg-white/20 p-2 rounded-xl"><Crown size={20} className="text-white"/></div>
-                  <div className="text-left"><h3 className="font-bold text-sm uppercase tracking-widest">¡Hay Cumpleaños!</h3><p className="text-xs opacity-90">{totalBirthdays} festejos esta semana</p></div>
+      {/* BLOQUE SUPERIOR: CUMPLEAÑOS SEPARADOS Y CUENTA REGRESIVA */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          
+          {/* BOTÓN CUMPLES ALUMNOS */}
+          {studentBirthdays.length > 0 && (
+              <button onClick={() => { setBirthdayModalType('students'); setShowBirthdayModal(true); }} className="bg-gradient-to-r from-pink-400 to-pink-500 p-4 rounded-2xl shadow-sm text-white flex items-center gap-3 active:scale-95 transition">
+                  <div className="bg-white/20 p-2 rounded-xl"><Crown size={20}/></div>
+                  <div className="text-left"><h3 className="font-black text-xs uppercase tracking-widest">Cumples Alumnos</h3><p className="text-[10px] opacity-90">{studentBirthdays.length} festejos semanales</p></div>
+              </button>
+          )}
+
+          {/* BOTÓN CUMPLES PROFES */}
+          {staffBirthdays.length > 0 && (
+              <button onClick={() => { setBirthdayModalType('staff'); setShowBirthdayModal(true); }} className="bg-gradient-to-r from-violet-500 to-indigo-500 p-4 rounded-2xl shadow-sm text-white flex items-center gap-3 active:scale-95 transition">
+                  <div className="bg-white/20 p-2 rounded-xl"><Users size={20}/></div>
+                  <div className="text-left"><h3 className="font-black text-xs uppercase tracking-widest">Cumples Profes</h3><p className="text-[10px] opacity-90">{staffBirthdays.length} festejos semanales</p></div>
+              </button>
+          )}
+
+          {/* WIDGET CUENTA REGRESIVA (Solo lo ven todos si hay datos, o los directivos siempre) */}
+          {(countdown.daysLeft > 0 || isManagement) && (
+              <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 shadow-sm relative group flex items-center gap-4">
+                  {isManagement && !isEditingCountdown && (
+                      <button onClick={() => setIsEditingCountdown(true)} className="absolute top-2 right-2 text-blue-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition"><Edit3 size={14}/></button>
+                  )}
+                  
+                  {isEditingCountdown ? (
+                      <div className="w-full flex flex-col gap-1">
+                          <input type="text" value={newCountdownTitle} onChange={e=>setNewCountdownTitle(e.target.value)} placeholder="¿Qué esperamos?" className="p-1 text-xs border rounded w-full"/>
+                          <input type="date" value={newCountdownDate} onChange={e=>setNewCountdownDate(e.target.value)} className="p-1 text-xs border rounded w-full"/>
+                          <button onClick={handleSaveCountdown} className="bg-blue-500 text-white text-[10px] font-bold p-1 rounded">Guardar</button>
+                      </div>
+                  ) : (
+                      <>
+                          <div className="bg-blue-500 text-white w-12 h-12 rounded-xl flex flex-col items-center justify-center shadow-md">
+                              <span className="text-xl font-black leading-none">{countdown.daysLeft}</span>
+                              <span className="text-[8px] font-bold uppercase tracking-widest">Días</span>
+                          </div>
+                          <div className="flex-1">
+                              <p className="text-[9px] text-blue-400 font-bold uppercase tracking-widest">Falta poco para...</p>
+                              <h3 className="font-black text-blue-900 text-sm leading-tight">{countdown.title || "Configurar fecha"}</h3>
+                          </div>
+                      </>
+                  )}
               </div>
-              <ChevronRight size={20}/>
-          </button>
-      )}
+          )}
+      </div>
+
+      {/* BLOQUE DESAFÍO DIARIO (NUEVO JUEGO) */}
+      <div className="bg-gradient-to-br from-emerald-400 to-teal-500 p-5 rounded-[30px] shadow-md text-white relative overflow-hidden">
+          <div className="absolute -right-4 -top-4 opacity-10"><Crown size={120}/></div>
+          
+          <div className="flex justify-between items-start mb-2 relative z-10">
+              <div>
+                  <h3 className="text-[10px] font-black text-emerald-100 uppercase tracking-widest flex items-center gap-1"><Star size={12}/> Desafío del Día</h3>
+                  <p className="font-medium text-sm mt-1">{currentChallenge.q}</p>
+              </div>
+              <div className="bg-white/20 p-2 rounded-xl text-center min-w-[60px] cursor-pointer hover:bg-white/30 transition" onClick={() => setShowRanking(true)}>
+                  <span className="block text-xl font-black">{userScore}</span>
+                  <span className="block text-[8px] font-bold uppercase tracking-widest">Puntos</span>
+              </div>
+          </div>
+
+          {showChallengeSuccess ? (
+              <div className="bg-white/20 p-3 rounded-xl mt-3 text-center animate-in zoom-in">
+                  <p className="font-black text-white text-sm">🎉 ¡Respuesta Correcta! Sumaste 10 pts.</p>
+              </div>
+          ) : (
+              <form onSubmit={checkChallenge} className="flex gap-2 mt-3 relative z-10">
+                  <input value={challengeAnswer} onChange={e=>setChallengeAnswer(e.target.value)} placeholder="Tu respuesta secreta..." className="flex-1 bg-white/20 text-white placeholder-emerald-100 border-2 border-white/30 p-2.5 rounded-xl outline-none font-bold text-xs focus:bg-white/30 transition"/>
+                  <button type="submit" className="bg-white text-emerald-600 font-black px-4 rounded-xl text-xs uppercase hover:scale-105 transition shadow-lg">Jugar</button>
+              </form>
+          )}
+      </div>
       
+      {/* CARTELERA OFICIAL */}
       {visibleAnnouncements.length > 0 && (<div className="bg-yellow-100 p-5 rounded-[30px] border-2 border-yellow-200 shadow-sm relative"><h3 className="text-[10px] font-black text-yellow-700 uppercase tracking-widest flex items-center gap-1 mb-3"><Bell size={12}/> Cartelera Oficial</h3><div className="space-y-3">{visibleAnnouncements.map(a => (<div key={a.id} className="bg-white/80 p-3 rounded-2xl border border-yellow-200/50 text-sm text-gray-800 flex justify-between items-start"><div>{a.channel === 'inclusion' && <span className="bg-indigo-100 text-indigo-700 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-indigo-200">Canal Inclusión</span>}{a.channel === 'sede' && <span className="bg-orange-100 text-orange-700 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-orange-200">Canal Sede</span>}{(a.channel === 'general' || !a.channel) && <span className="bg-gray-100 text-gray-500 text-[8px] px-1.5 py-0.5 rounded uppercase font-bold mb-1 inline-block border border-gray-200">General</span>}<p className="italic font-medium">"{a.message}"</p><p className="text-[9px] text-yellow-600 font-bold mt-1 uppercase tracking-wider">- {a.author}</p></div>{(canPost || a.authorId === user.id) && (<button onClick={() => deleteAnnouncement(a.id)} className="text-yellow-600 hover:text-red-500 p-1 bg-yellow-50 rounded-lg transition"><Trash2 size={14}/></button>)}</div>))}</div></div>)}
+      
+      {/* TAREAS Y CALENDARIO */}
       <div className="grid grid-cols-2 gap-3"><div onClick={() => setActiveTab('tasks')} className="bg-white p-5 rounded-[30px] border border-orange-100 shadow-sm cursor-pointer hover:shadow-md transition"><h4 className="text-3xl font-black text-orange-500">{myPendingTasksCount}</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Tareas Pendientes</p></div><div onClick={() => setActiveTab('calendar')} className={`p-5 rounded-[30px] border shadow-sm relative overflow-hidden cursor-pointer hover:shadow-md transition ${todayEvents.length > 0 ? 'bg-violet-600 text-white border-violet-600' : 'bg-white border-violet-100'}`}>{todayEvents.length > 0 ? ( <><h4 className="text-lg font-black leading-tight mb-1">{todayEvents[0].title}</h4><p className="text-[9px] opacity-80 uppercase tracking-widest font-bold">Es Hoy</p></> ) : ( <><h4 className="text-3xl font-black text-violet-600">0</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Eventos Hoy</p></> )}</div></div>
+      
       <div className="bg-gray-50 p-5 rounded-[35px] border border-gray-100 shadow-inner"><h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px] mb-3 flex items-center gap-2"><Lock size={12}/> Tareas Personales</h3><form onSubmit={saveNote} className="flex gap-2 mb-3"><input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Nueva nota..." className="flex-1 p-3 rounded-xl border-none outline-none text-xs bg-white shadow-sm font-medium" /><button type="submit" className="bg-violet-600 text-white p-3 rounded-xl font-bold shadow-lg hover:bg-violet-700 transition"><Plus size={16}/></button></form><div className="space-y-2">{notes.map(n => (<div key={n.id} className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm group"><button onClick={() => toggleNote(n)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${n.done ? 'bg-violet-400 border-violet-400' : 'border-violet-200'}`}>{n.done && <Check size={12} className="text-white"/>}</button><span className={`text-xs flex-1 font-medium ${n.done ? 'line-through text-gray-300' : 'text-gray-600'}`}>{n.text}</span><button onClick={() => deleteNote(n.id)} className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"><Trash2 size={14}/></button></div>))}</div></div>
+      
+      {/* MODAL RANKING JUEGO */}
+      {showRanking && (
+          <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowRanking(false)}>
+              <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-yellow-400" onClick={e => e.stopPropagation()}>
+                  <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-xl font-black text-yellow-600 uppercase italic flex items-center gap-2"><Crown size={24}/> Ranking Top 5</h3>
+                      <button onClick={() => setShowRanking(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20}/></button>
+                  </div>
+                  <div className="space-y-3">
+                      {rankingData.length === 0 ? <p className="text-center text-gray-400 text-xs font-bold py-4">Nadie ha sumado puntos aún. ¡Sé el primero!</p> : 
+                      rankingData.map((u, index) => (
+                          <div key={u.id} className={`flex items-center justify-between p-3 rounded-2xl border ${index === 0 ? 'bg-yellow-50 border-yellow-200 shadow-sm' : 'bg-gray-50 border-gray-100'}`}>
+                              <div className="flex items-center gap-3">
+                                  <span className={`font-black text-lg ${index === 0 ? 'text-yellow-500' : index === 1 ? 'text-slate-400' : index === 2 ? 'text-amber-700' : 'text-gray-400'}`}>#{index + 1}</span>
+                                  <span className="font-bold text-gray-700 text-sm">{u.firstName} {u.lastName?.[0]}.</span>
+                              </div>
+                              <div className="bg-white px-3 py-1 rounded-lg border border-gray-200 font-black text-emerald-600 text-xs shadow-sm">{u.score} pts</div>
+                          </div>
+                      ))}
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* MODAL CREAR AVISO */}
       {showAnnounceModal && (<div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm"><form onSubmit={handlePost} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95"><h3 className="text-lg font-black text-orange-500 mb-2 uppercase italic">Nuevo Aviso</h3><textarea name="message" className="w-full p-4 bg-orange-50 rounded-2xl outline-none text-sm h-32 resize-none border border-orange-100 focus:ring-2 ring-orange-200 text-gray-700" placeholder="Escribe aquí..." required></textarea><div className="mt-3"><label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">¿Quién puede ver esto?</label><select name="channel" className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200 outline-none focus:border-orange-300"><option value="general">🌍 Toda la Escuela</option><option value="sede">🏫 Solo Sede</option><option value="inclusion">💙 Solo Inclusión</option></select></div><div className="flex gap-2 mt-4"><button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 text-gray-400 font-bold text-xs uppercase tracking-widest">Cancelar</button><button type="submit" className="flex-1 bg-orange-500 text-white py-3 rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-orange-600 transition">Publicar</button></div></form></div>)}
       
       {/* MANUAL DE AYUDA (TUTORIAL COMPLETO) */}
@@ -523,60 +705,36 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
         </div>
       )}
 
-      {/* --- MODAL CUMPLEAÑOS UNIFICADO (DOS COLUMNAS) --- */}
+      {/* --- MODAL CUMPLEAÑOS DINÁMICO (ESTUDIANTES O STAFF) --- */}
       {showBirthdayModal && (
           <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowBirthdayModal(false)}>
-              <div className="bg-white rounded-[40px] w-full max-w-3xl p-6 md:p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-pink-500 max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
-                  
-                  <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
-                      <h3 className="text-xl md:text-2xl font-black text-pink-500 uppercase italic flex items-center gap-2"><Crown size={28}/> Cumpleaños de la Semana</h3>
+              <div className={`bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 ${birthdayModalType === 'students' ? 'border-pink-500' : 'border-violet-500'} max-h-[85vh] flex flex-col`} onClick={e => e.stopPropagation()}>
+                  <div className="flex justify-between items-center mb-6">
+                      <h3 className={`text-lg font-black uppercase italic flex items-center gap-2 ${birthdayModalType === 'students' ? 'text-pink-500' : 'text-violet-600'}`}>
+                          {birthdayModalType === 'students' ? <><Crown size={20}/> Cumples Alumnos</> : <><Users size={20}/> Cumples Profes</>}
+                      </h3>
                       <button onClick={() => setShowBirthdayModal(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20}/></button>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 pr-2">
-                      
-                      {/* --- COLUMNA ESTUDIANTES --- */}
-                      <div>
-                          <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><GraduationCap size={16}/> Estudiantes ({studentBirthdays.length})</h4>
-                          {studentBirthdays.length === 0 ? <p className="text-sm text-gray-400 italic text-center py-6">No hay alumnos cumpliendo años.</p> : (
-                              <div className="space-y-3">
-                                  {studentBirthdays.map(b => (
-                                      <div key={b.id} className="flex items-center gap-4 bg-pink-50 p-3 rounded-2xl border border-pink-100 hover:shadow-sm transition">
-                                          <div className="w-12 h-12 rounded-full bg-white border-2 border-pink-200 overflow-hidden shrink-0 flex items-center justify-center font-bold text-pink-400">
-                                              {b.photoUrl ? <img src={b.photoUrl} className="w-full h-full object-cover"/> : b.firstName[0]}
-                                          </div>
-                                          <div>
-                                              <h4 className="font-bold text-gray-800 leading-tight">{b.firstName} {b.lastName}</h4>
-                                              <p className="text-[10px] text-pink-600 font-bold uppercase mt-0.5">{b.modality === 'Inclusión' ? '📍 Inclusión' : `📍 ${[b.groupMorning, b.groupAfternoon].filter(Boolean).join(' / ') || 'Sin Grupo'}`}</p>
-                                              <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-0.5 flex items-center gap-1"><CalendarIcon size={10}/> {new Date(b.nextBirthday).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-                                          </div>
-                                      </div>
-                                  ))}
+                  <div className="flex-1 overflow-y-auto pr-2 space-y-3">
+                      {(birthdayModalType === 'students' ? studentBirthdays : staffBirthdays).length === 0 ? (
+                          <p className="text-sm text-gray-400 italic text-center py-6">No hay cumpleaños esta semana.</p>
+                      ) : (
+                          (birthdayModalType === 'students' ? studentBirthdays : staffBirthdays).map(b => (
+                              <div key={b.id} className={`flex items-center gap-4 p-3 rounded-2xl border transition ${birthdayModalType === 'students' ? 'bg-pink-50 border-pink-100 hover:border-pink-300' : 'bg-violet-50 border-violet-100 hover:border-violet-300'}`}>
+                                  <div className={`w-12 h-12 rounded-full bg-white border-2 overflow-hidden shrink-0 flex items-center justify-center font-bold ${birthdayModalType === 'students' ? 'border-pink-200 text-pink-400' : 'border-violet-200 text-violet-400'}`}>
+                                      {b.photoUrl ? <img src={b.photoUrl} className="w-full h-full object-cover"/> : b.firstName[0]}
+                                  </div>
+                                  <div>
+                                      <h4 className="font-bold text-gray-800 leading-tight">{b.firstName} {b.lastName}</h4>
+                                      <p className={`text-[10px] font-bold uppercase mt-0.5 ${birthdayModalType === 'students' ? 'text-pink-600' : 'text-violet-600'}`}>
+                                          {birthdayModalType === 'students' ? (b.modality === 'Inclusión' ? '📍 Inclusión' : `📍 ${[b.groupMorning, b.groupAfternoon].filter(Boolean).join(' / ') || 'Sin Grupo'}`) : `💼 ${b.role || 'Docente'}`}
+                                      </p>
+                                      <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-0.5 flex items-center gap-1"><CalendarIcon size={10}/> {new Date(b.nextBirthday).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                                  </div>
                               </div>
-                          )}
-                      </div>
-
-                      {/* --- COLUMNA PERSONAL --- */}
-                      <div>
-                          <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Users size={16}/> Personal de la Casa ({staffBirthdays.length})</h4>
-                          {staffBirthdays.length === 0 ? <p className="text-sm text-gray-400 italic text-center py-6">No hay docentes cumpliendo años.</p> : (
-                              <div className="space-y-3">
-                                  {staffBirthdays.map(b => (
-                                      <div key={b.id} className="flex items-center gap-4 bg-violet-50 p-3 rounded-2xl border border-violet-100 hover:shadow-sm transition">
-                                          <div className="w-12 h-12 rounded-full bg-white border-2 border-violet-200 overflow-hidden shrink-0 flex items-center justify-center font-bold text-violet-400">
-                                              {b.photoUrl ? <img src={b.photoUrl} className="w-full h-full object-cover"/> : b.firstName[0]}
-                                          </div>
-                                          <div>
-                                              <h4 className="font-bold text-gray-800 leading-tight">{b.firstName} {b.lastName}</h4>
-                                              <p className="text-[10px] text-violet-600 font-bold uppercase mt-0.5">💼 {b.role || 'Docente'}</p>
-                                              <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-0.5 flex items-center gap-1"><CalendarIcon size={10}/> {new Date(b.nextBirthday).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-                                          </div>
-                                      </div>
-                                  ))}
-                              </div>
-                          )}
-                      </div>
-
+                          ))
+                      )}
                   </div>
               </div>
           </div>
@@ -5711,6 +5869,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
