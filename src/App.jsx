@@ -4432,7 +4432,7 @@ const imprimirPlanillaGeneral = (lista) => {
                 <button onClick={() => setShowStats(true)} className="bg-white text-orange-500 border border-orange-200 p-3 rounded-2xl shadow-sm hover:bg-orange-50 transition" title="Ver Estadísticas"><PieChart size={20}/></button>
                 <button onClick={() => imprimirPlanillaGeneral(filteredStaff)} className="bg-white text-blue-600 border border-blue-200 p-3 rounded-2xl shadow-sm hover:bg-blue-50 transition" title="Imprimir Planilla General (Tabla)"><Grid size={20}/></button>
                 <button onClick={() => imprimirFichasDocentes(filteredStaff)} className="bg-white text-violet-600 border border-violet-200 p-3 rounded-2xl shadow-sm hover:bg-violet-50 transition" title="Imprimir Fichas Individuales"><Printer size={20}/></button>
-                <label className="p-3 bg-emerald-100 text-emerald-700 rounded-2xl cursor-pointer hover:bg-emerald-200 transition">
+                <label className="p-3 bg-emerald-100 text-emerald-700 rounded-2xl cursor-pointer hover:bg-emerald-200 transition"> </label>
                 <button onClick={()=>{setEditingStaff(null); setPhotoPreview(null); setShowStaffForm(true);}} className="bg-violet-600 text-white p-3 rounded-2xl shadow-lg"><Plus size={20}/></button>
             </div>
         </div>
@@ -5676,6 +5676,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
