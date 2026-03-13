@@ -4765,115 +4765,62 @@ function PersonalView({ user }) {
             })}
         </div>
 
- {/* MODAL LECTURA LEGAJO */}
-      {viewingStaff && !showStaffForm && (
-        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setViewingStaff(null)}>
-          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-violet-800 p-6 text-white relative shrink-0">
-              <button onClick={()=>setViewingStaff(null)} className="absolute top-4 right-4 bg-white/20 p-1.5 rounded-full hover:bg-white/40 transition"><X size={20}/></button>
-              <div className="flex gap-5 items-center">
-                <div className="w-20 h-20 rounded-2xl bg-white/20 border-4 border-white/10 overflow-hidden flex items-center justify-center">
-                  {viewingStaff.photoUrl ? <img src={viewingStaff.photoUrl} className="w-full h-full object-cover"/> : <div className="text-4xl font-black text-white/50">{viewingStaff.firstName?.charAt(0) || '👤'}</div>}
-                </div>
-                <div>
-                  <h2 className="text-xl font-black uppercase leading-tight">{viewingStaff.lastName || 'S/A'}, {viewingStaff.firstName || 'S/N'}</h2>
-                  <p className="text-orange-300 font-bold text-xs uppercase tracking-widest mt-1">{viewingStaff.modality || 'Sede'}</p>
-                  <span className="bg-white/20 px-3 py-1 rounded-lg text-[10px] font-bold inline-block mt-2">DNI: {viewingStaff.dni || '-'}</span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-6 overflow-y-auto bg-gray-50 flex-1 space-y-4">
-              <div className="space-y-2">
-                <div className="bg-white p-3 rounded-xl border border-violet-200 text-xs shadow-sm">
-                  <p className="font-black text-violet-900 uppercase">Cargo 1: {getNormRole(viewingStaff.cargo1_role || viewingStaff.role) || 'Sin asignar'}</p>
-                </div>
-                {viewingStaff.cargo2_role && (
-                  <div className="bg-white p-3 rounded-xl border border-violet-200 text-xs shadow-sm">
-                    <p className="font-black text-violet-900 uppercase">Cargo 2: {getNormRole(viewingStaff.cargo2_role)}</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
-                <h4 className="text-[10px] font-black text-emerald-600 uppercase mb-3">📍 Grupos a Cargo</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
-                    <p className="text-[8px] font-black text-gray-400 uppercase">Mañana</p>
-                    <p className="font-bold text-emerald-700 text-xs">
-                      {students.filter(s => s.teacherIdMorning === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupMorning).filter((v, i, a) => v && a.indexOf(v) === i).join(', ') || 'Sin grupo'}
-                    </p>
-                  </div>
-                  <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
-                    <p className="text-[8px] font-black text-gray-400 uppercase">Tarde</p>
-                    <p className="font-bold text-emerald-700 text-xs">
-                      {students.filter(s => s.teacherIdAfternoon === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupAfternoon).filter((v, i, a) => v && a.indexOf(v) === i).join(', ') || 'Sin grupo'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-4 border-t bg-white flex justify-end gap-2 shrink-0">
-              <button onClick={()=>imprimirFichasDocentes([viewingStaff])} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-slate-600 font-bold text-xs uppercase flex gap-2 items-center shadow-sm"><FileText size={16}/> Imprimir</button>
-              <button onClick={()=>{setEditingStaff(viewingStaff); setPhotoPreview(viewingStaff.photoUrl); setShowStaffForm(true);}} className="px-6 py-3 bg-violet-600 text-white rounded-xl font-bold text-xs uppercase shadow-lg">Editar</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL FORMULARIO (Sigue igual, pero nos aseguramos de que esté bien cerrado) */}
-      {showStaffForm && (
-        <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4 backdrop-blur-sm animate-in zoom-in-95">
-          <div className="bg-white rounded-[40px] w-full max-w-xl p-8 shadow-2xl max-h-[90vh] overflow-y-auto border-t-8 border-violet-600">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-black text-violet-900 uppercase italic">{editingStaff ? 'Editar Legajo' : 'Nuevo Legajo'}</h3>
-              <button onClick={()=>setShowStaffForm(false)}><X size={24}/></button>
-            </div>
-            <form onSubmit={handleSaveStaff} className="space-y-4">
-              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-3">
-                <input name="firstName" defaultValue={editingStaff?.firstName} placeholder="Nombre" required className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
-                <input name="lastName" defaultValue={editingStaff?.lastName} placeholder="Apellido" required className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
-              </div>
-              <div className="flex gap-2">
-                <button type="button" onClick={()=>setShowStaffForm(false)} className="flex-1 py-4 text-gray-500 font-bold uppercase text-xs">Cancelar</button>
-                <button type="submit" className="flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg">Guardar</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div> // CIERRE DEL DIV PRINCIPAL DE PersonalView
-  ); // CIERRE DEL RETURN
-} // CIERRE DE LA FUNCIÓN PersonalView
-                  {/* PARCHE: GRUPOS ASIGNADOS AUTOMÁTICAMENTE */}
-<div className="mt-4 bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
-    <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
-        <Grid size={14}/> Grupos a Cargo (Ciclo 2026)
-    </h4>
-    <div className="grid grid-cols-2 gap-2">
-        {/* Buscamos en la lista de alumnos quiénes tienen el ID de este docente */}
-        {(() => {
-            const myGroupsTM = [...new Set(students.filter(s => s.teacherIdMorning === viewingStaff.id).map(s => s.groupMorning))].filter(Boolean);
-            const myGroupsTT = [...new Set(students.filter(s => s.teacherIdAfternoon === viewingStaff.id).map(s => s.groupAfternoon))].filter(Boolean);
-            
-            return (
-                <>
-                    <div className="bg-white p-2 rounded-xl border border-emerald-100">
-                        <p className="text-[8px] font-black text-gray-400 uppercase">Turno Mañana</p>
-                        <p className="font-bold text-emerald-700 text-xs">{myGroupsTM.length > 0 ? myGroupsTM.join(', ') : 'Sin grupo'}</p>
+{/* MODAL LECTURA LEGAJO */}
+        {viewingStaff && !showStaffForm && (
+            <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setViewingStaff(null)}>
+                <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+                    <div className="bg-violet-800 p-6 text-white relative shrink-0">
+                        <button onClick={()=>setViewingStaff(null)} className="absolute top-4 right-4 bg-white/20 p-1.5 rounded-full hover:bg-white/40 transition"><X size={20}/></button>
+                        <div className="flex gap-5 items-center">
+                            <div className="w-20 h-20 rounded-2xl bg-white/20 border-4 border-white/10 overflow-hidden flex items-center justify-center">
+                                {viewingStaff.photoUrl ? <img src={viewingStaff.photoUrl} className="w-full h-full object-cover"/> : <div className="text-4xl font-black text-white/50">{viewingStaff.firstName?.charAt(0) || '👤'}</div>}
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-black uppercase leading-tight">{viewingStaff.lastName || 'S/A'}, {viewingStaff.firstName || 'S/N'}</h2>
+                                <p className="text-orange-300 font-bold text-xs uppercase tracking-widest mt-1">{viewingStaff.modality || 'Sede'}</p>
+                                <span className="bg-white/20 px-3 py-1 rounded-lg text-[10px] font-bold inline-block mt-2 uppercase tracking-widest">DNI: {viewingStaff.dni || '-'}</span>
+                            </div>
+                        </div>
                     </div>
-                    <div className="bg-white p-2 rounded-xl border border-emerald-100">
-                        <p className="text-[8px] font-black text-gray-400 uppercase">Turno Tarde</p>
-                        <p className="font-bold text-emerald-700 text-xs">{myGroupsTT.length > 0 ? myGroupsTT.join(', ') : 'Sin grupo'}</p>
+                    
+                    <div className="p-6 overflow-y-auto bg-gray-50 flex-1 space-y-4">
+                        <div className="space-y-2">
+                             <div className="bg-white p-3 rounded-xl border border-violet-200 text-xs shadow-sm">
+                                <p className="font-black text-violet-900 uppercase">Cargo 1: {getNormRole(viewingStaff.cargo1_role || viewingStaff.role) || 'Sin asignar'}</p>
+                                <p className="text-gray-500 font-bold uppercase text-[10px]">{viewingStaff.cargo1_turn || 'S/D'} | {viewingStaff.cargo1_revista || 'S/D'}</p>
+                             </div>
+                             {(viewingStaff.cargo2_role || viewingStaff.cargo2_name) && (
+                                <div className="bg-white p-3 rounded-xl border border-violet-200 text-xs shadow-sm">
+                                    <p className="font-black text-violet-900 uppercase">Cargo 2: {getNormRole(viewingStaff.cargo2_role)}</p>
+                                    <p className="text-gray-500 font-bold uppercase text-[10px]">{viewingStaff.cargo2_turn || 'S/D'} | {viewingStaff.cargo2_revista || 'S/D'}</p>
+                                </div>
+                             )}
+                        </div>
+
+                        {/* PARCHE: GRUPOS ASIGNADOS AUTOMÁTICAMENTE */}
+                        <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
+                            <h4 className="text-[10px] font-black text-emerald-600 uppercase mb-3 flex items-center gap-2">📍 Grupos a Cargo (Ciclo 2026)</h4>
+                            <div className="grid grid-cols-2 gap-2">
+                                {(() => {
+                                    const myGroupsTM = [...new Set(students.filter(s => s.teacherIdMorning === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupMorning))].filter(Boolean);
+                                    const myGroupsTT = [...new Set(students.filter(s => s.teacherIdAfternoon === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupAfternoon))].filter(Boolean);
+                                    return (
+                                        <>
+                                            <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
+                                                <p className="text-[8px] font-black text-gray-400 uppercase">Turno Mañana</p>
+                                                <p className="font-bold text-emerald-700 text-xs">{myGroupsTM.length > 0 ? myGroupsTM.join(', ') : 'Sin grupo'}</p>
+                                            </div>
+                                            <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
+                                                <p className="text-[8px] font-black text-gray-400 uppercase">Turno Tarde</p>
+                                                <p className="font-bold text-emerald-700 text-xs">{myGroupsTT.length > 0 ? myGroupsTT.join(', ') : 'Sin grupo'}</p>
+                                            </div>
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                        </div>
                     </div>
-                </>
-            );
-        })()}
-    </div>
-    <p className="text-[8px] text-emerald-400 mt-2 italic">* Esta información se actualiza sola desde Gestión de Aulas.</p>
-</div>
-                    <div className="p-4 border-t border-gray-100 bg-white flex justify-end gap-2 shrink-0">
+                    <div className="p-4 border-t bg-white flex justify-end gap-2 shrink-0">
                         <button onClick={()=>imprimirFichasDocentes([viewingStaff])} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-slate-600 font-bold text-xs uppercase hover:bg-gray-50 flex gap-2 items-center shadow-sm"><FileText size={16}/> Imprimir</button>
                         <button onClick={()=>{setEditingStaff(viewingStaff); setPhotoPreview(viewingStaff.photoUrl); setShowStaffForm(true);}} className="px-4 py-3 bg-violet-600 text-white rounded-xl font-bold text-xs uppercase hover:bg-violet-700 flex gap-2 items-center shadow-lg"><Edit3 size={16}/> Editar Ficha</button>
                     </div>
@@ -4929,144 +4876,45 @@ function PersonalView({ user }) {
                                       <input name="antiguedadAnios" type="number" placeholder="Años" defaultValue={editingStaff?.antiguedadAnios || ''} className="w-1/2 p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs text-center border border-gray-200" />
                                       <input name="antiguedadMeses" type="number" placeholder="Meses" defaultValue={editingStaff?.antiguedadMeses || ''} className="w-1/2 p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs text-center border border-gray-200" />
                                   </div>
-                                  <div className="mt-1 flex items-center gap-1">
-                                      <label className="text-[8px] font-bold text-gray-400 uppercase w-1/3 leading-tight text-center">Calculada al:</label>
-                                      <input name="antiguedadFechaRef" type="date" defaultValue={editingStaff?.antiguedadFechaRef || new Date().toISOString().split('T')[0]} className="w-2/3 p-1 bg-gray-50 rounded-lg outline-none font-bold text-[9px] text-gray-600 border border-gray-200" />
-                                  </div>
                               </div>
                           </div>
 
-                          {/* CARGO 1 */}
                           <div className="space-y-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm relative">
-                              <div className="flex justify-between items-center">
-                                  <h5 className="text-[10px] font-black text-gray-400 uppercase">Cargo 1</h5>
-                                  <button type="button" onClick={() => {
-                                      const form = document.getElementById('staffForm');
-                                      if(form) {
-                                          form.cargo1_numero.value = ''; form.cargo1_name.value = ''; form.cargo1_ingreso.value = '';
-                                          form.cargo1_role.value = ''; form.cargo1_turn.value = ''; form.cargo1_revista.value = '';
-                                          form.cargo1_subsidized.value = 'false'; form.cargo1_en_papeles.value = 'false';
-                                          const typeInput = document.getElementById('cargo1_type_input');
-                                          if(typeInput) typeInput.value = 'deno';
-                                      }
-                                  }} className="text-[9px] bg-red-50 text-red-500 px-2 py-0.5 rounded-lg font-black uppercase hover:bg-red-100 transition shadow-sm">Borrar Datos C1</button>
+                              <h5 className="text-[10px] font-black text-gray-400 uppercase">Cargo 1</h5>
+                              <div className="grid grid-cols-2 gap-2">
+                                  <input name="cargo1_numero" defaultValue={editingStaff?.cargo1_numero} placeholder="N° Cargo" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs border border-gray-200"/>
+                                  <input name="cargo1_name" defaultValue={editingStaff?.cargo1_name} placeholder="Nombre Cargo" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs border border-gray-200"/>
                               </div>
-                              <div className="grid grid-cols-[1fr,2fr,1.5fr] gap-2 mt-1">
-                                  <input name="cargo1_numero" defaultValue={editingStaff?.cargo1_numero} placeholder="N° Cargo" className="p-2 bg-violet-50 text-violet-900 rounded-lg outline-none font-black text-xs w-full border border-violet-100"/>
-                                  <input name="cargo1_name" defaultValue={editingStaff?.cargo1_name} placeholder="Nombre (Ej: MG)" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full border border-gray-200"/>
-                                  <input name="cargo1_ingreso" type="date" defaultValue={editingStaff?.cargo1_ingreso} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-[10px] text-gray-500 w-full border border-gray-200" title="Fecha Alta Cargo"/>
-                              </div>
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                                  <select name="cargo1_role" defaultValue={getNormRole(editingStaff?.cargo1_role || editingStaff?.role)} className="p-2 bg-white rounded-lg border border-red-300 shadow-sm outline-none font-bold text-xs text-violet-900">
-                                      <option value="">-- Sin Rol (No Trabaja) --</option>
-                                      <optgroup label="SEDE">
-                                          <option value="Docente">Docente</option>
-                                          <option value="Preceptora">Preceptora</option>
-                                          <option value="Auxiliar">Auxiliar</option>
-                                          <option value="Profe Especial">Profe especial</option>
-                                          <option value="Equipo Técnico">Equipo técnico</option>
-                                          <option value="Equipo Directivo">Equipo directivo</option>
-                                      </optgroup>
-                                      <optgroup label="INCLUSIÓN">
-                                          <option value="Dirección Inclusión">Dirección Inclusión</option>
-                                          <option value="Equipo Técnico Inclusión">Equipo Técnico Inclusión</option>
-                                          <option value="DAI">DAI</option>
-                                      </optgroup>
-                                      <optgroup label="ADMIN / MAESTRANZA">
-                                          <option value="Cocina">Cocina</option>
-                                          <option value="Limpieza">Limpieza</option>
-                                          <option value="Mantenimiento">Mantenimiento</option>
-                                          <option value="Administración">Administración</option>
-                                      </optgroup>
-                                  </select>
-                                  <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn || ''} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full text-violet-800">
-                                      <option value="">Turno...</option>
-                                      <option value="Mañana">Mañana</option>
-                                      <option value="Tarde">Tarde</option>
-                                      <option value="Alternado">Alternado</option>
-                                  </select>
-                                  <select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Revista...</option><option value="Titular">Titular</option><option value="Provicional">Provisional</option><option value="Suplente">Suplente</option></select>
-                                  
-                                  <select name="cargo1_en_papeles" defaultValue={editingStaff?.cargo1_en_papeles || 'false'} className="p-2 bg-white rounded-lg border border-gray-200 outline-none font-bold text-xs w-full text-gray-600">
-                                      <option value="false">Cargo Ejerciendo</option>
-                                      <option value="true">Solo en Papeles</option>
-                                  </select>
-                              </div>
-                              <div className="mt-2">
-                                <select name="cargo1_subsidized" defaultValue={editingStaff?.cargo1_subsidized === 'true' || editingStaff?.isSubsidized === 'true' ? 'true' : 'false'} onChange={(e) => { const typeInput = document.getElementById('cargo1_type_input'); if(typeInput) typeInput.value = e.target.value === 'true' ? 'meca' : 'deno'; }} className="p-2 bg-emerald-50 text-emerald-800 rounded-lg outline-none font-bold text-xs w-full border border-emerald-100">
-                                    <option value="false">Sin Subvención (DENO)</option><option value="true">Cargo Subvencionado (MECA)</option>
-                                </select>
-                                <input type="hidden" id="cargo1_type_input" name="cargo1_type" defaultValue={editingStaff?.cargo1_subsidized === 'true' || editingStaff?.isSubsidized === 'true' ? 'meca' : 'deno'} />
-                              </div>
+                              <select name="cargo1_role" defaultValue={editingStaff?.cargo1_role || editingStaff?.role} className="w-full p-2 bg-white rounded-lg border border-gray-200 outline-none font-bold text-xs">
+                                  <option value="">Seleccionar Rol...</option>
+                                  {VALID_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                              </select>
                           </div>
 
-                          {/* CARGO 2 */}
                           <div className="space-y-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm relative">
                               <div className="flex justify-between items-center">
                                   <h5 className="text-[10px] font-black text-gray-400 uppercase">Cargo 2 (Opcional)</h5>
                                   <button type="button" onClick={() => {
                                       const form = document.getElementById('staffForm');
                                       if(form) {
-                                          form.cargo2_numero.value = ''; form.cargo2_name.value = ''; form.cargo2_ingreso.value = '';
-                                          form.cargo2_role.value = ''; form.cargo2_turn.value = ''; form.cargo2_revista.value = '';
-                                          form.cargo2_subsidized.value = 'false'; form.cargo2_en_papeles.value = 'false';
-                                          const typeInput = document.getElementById('cargo2_type_input');
-                                          if(typeInput) typeInput.value = 'deno';
+                                          form.cargo2_numero.value = ''; form.cargo2_name.value = '';
+                                          form.cargo2_role.value = ''; form.cargo2_turn.value = '';
                                       }
-                                  }} className="text-[9px] bg-red-50 text-red-500 px-2 py-0.5 rounded-lg font-black uppercase hover:bg-red-100 transition shadow-sm">Borrar Datos C2</button>
+                                  }} className="text-[9px] bg-red-50 text-red-500 px-2 py-0.5 rounded-lg font-black uppercase shadow-sm">Borrar C2</button>
                               </div>
-                              <div className="grid grid-cols-[1fr,2fr,1.5fr] gap-2 mt-1">
-                                  <input name="cargo2_numero" defaultValue={editingStaff?.cargo2_numero} placeholder="N° Cargo" className="p-2 bg-violet-50 text-violet-900 rounded-lg outline-none font-black text-xs w-full border border-violet-100"/>
-                                  <input name="cargo2_name" defaultValue={editingStaff?.cargo2_name} placeholder="Nombre (Ej: AUX)" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full border border-gray-200"/>
-                                  <input name="cargo2_ingreso" type="date" defaultValue={editingStaff?.cargo2_ingreso} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-[10px] text-gray-500 w-full border border-gray-200" title="Fecha Alta Cargo"/>
+                              <div className="grid grid-cols-2 gap-2 mt-1">
+                                  <input name="cargo2_numero" defaultValue={editingStaff?.cargo2_numero} placeholder="N° Cargo" className="p-2 bg-gray-50 rounded-lg outline-none font-black text-xs w-full border border-gray-200"/>
+                                  <input name="cargo2_name" defaultValue={editingStaff?.cargo2_name} placeholder="Nombre Cargo" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full border border-gray-200"/>
                               </div>
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                                  <select name="cargo2_role" defaultValue={getNormRole(editingStaff?.cargo2_role)} className="p-2 bg-white rounded-lg border border-gray-200 outline-none font-bold text-xs text-violet-900">
-                                      <option value="">-- No posee / Sin Cargo --</option>
-                                      <optgroup label="SEDE">
-                                          <option value="Docente">Docente</option>
-                                          <option value="Preceptora">Preceptora</option>
-                                          <option value="Auxiliar">Auxiliar</option>
-                                          <option value="Profe Especial">Profe especial</option>
-                                          <option value="Equipo Técnico">Equipo técnico</option>
-                                          <option value="Equipo Directivo">Equipo directivo</option>
-                                      </optgroup>
-                                      <optgroup label="INCLUSIÓN">
-                                          <option value="Dirección Inclusión">Dirección Inclusión</option>
-                                          <option value="Equipo Técnico Inclusión">Equipo Técnico Inclusión</option>
-                                          <option value="DAI">DAI</option>
-                                      </optgroup>
-                                      <optgroup label="ADMIN / MAESTRANZA">
-                                          <option value="Cocina">Cocina</option>
-                                          <option value="Limpieza">Limpieza</option>
-                                          <option value="Mantenimiento">Mantenimiento</option>
-                                          <option value="Administración">Administración</option>
-                                      </optgroup>
-                                  </select>
-                                  <select name="cargo2_turn" defaultValue={editingStaff?.cargo2_turn || ''} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full text-violet-800">
-                                      <option value="">Turno...</option>
-                                      <option value="Mañana">Mañana</option>
-                                      <option value="Tarde">Tarde</option>
-                                      <option value="Alternado">Alternado</option>
-                                  </select>
-                                  <select name="cargo2_revista" defaultValue={editingStaff?.cargo2_revista} className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full"><option value="">Revista...</option><option value="Titular">Titular</option><option value="Provicional">Provisional</option><option value="Suplente">Suplente</option></select>
-                                  
-                                  <select name="cargo2_en_papeles" defaultValue={editingStaff?.cargo2_en_papeles || 'false'} className="p-2 bg-white rounded-lg border border-gray-200 outline-none font-bold text-xs w-full text-gray-600">
-                                      <option value="false">Cargo Ejerciendo</option>
-                                      <option value="true">Solo en Papeles</option>
-                                  </select>
-                              </div>
-                              <div className="mt-2">
-                                <select name="cargo2_subsidized" defaultValue={editingStaff?.cargo2_subsidized === 'true' ? 'true' : 'false'} onChange={(e) => { const typeInput = document.getElementById('cargo2_type_input'); if(typeInput) typeInput.value = e.target.value === 'true' ? 'meca' : 'deno'; }} className="p-2 bg-emerald-50 text-emerald-800 rounded-lg outline-none font-bold text-xs w-full border border-emerald-100">
-                                    <option value="false">Sin Subvención (DENO)</option><option value="true">Cargo Subvencionado (MECA)</option>
-                                </select>
-                                <input type="hidden" id="cargo2_type_input" name="cargo2_type" defaultValue={editingStaff?.cargo2_subsidized === 'true' ? 'meca' : 'deno'} />
-                              </div>
+                              <select name="cargo2_role" defaultValue={editingStaff?.cargo2_role} className="p-2 bg-white rounded-lg border border-gray-200 outline-none font-bold text-xs w-full">
+                                  <option value="">-- No posee / Sin Cargo --</option>
+                                  {VALID_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                              </select>
                           </div>
-                          
+
                           <div className="grid grid-cols-2 gap-2">
-                              <select name="studyStatus" defaultValue={editingStaff?.studyStatus} className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900"><option value="">Estado Estudios...</option><option value="Finalizado">Finalizado</option><option value="En curso 0% - 30%">En curso 0% - 30%</option><option value="En curso 30% - 50%">En curso 30% - 50%</option><option value="En curso 50% - 70%">En curso 50% - 70%</option><option value="En curso 70% - 99%">En curso 70% - 99%</option></select>
-                              <input name="degree" defaultValue={editingStaff?.degree} placeholder="Título Alcanzado / En curso" className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900"/>
+                              <select name="studyStatus" defaultValue={editingStaff?.studyStatus} className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900"><option value="">Estado Estudios...</option><option value="Finalizado">Finalizado</option><option value="En curso">En curso</option></select>
+                              <input name="degree" defaultValue={editingStaff?.degree} placeholder="Título" className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900"/>
                           </div>
                       </div>
 
@@ -5074,13 +4922,12 @@ function PersonalView({ user }) {
                           <button type="button" onClick={()=>setShowStaffForm(false)} className="flex-1 py-4 text-gray-500 font-bold uppercase text-xs">Cancelar</button>
                           <button type="submit" className="flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-violet-700 transition">Guardar Legajo</button>
                       </div>
-                      
-                      {editingStaff && <button type="button" onClick={async () => {if(confirm("¿Eliminar definitivamente?")) {await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); setShowStaffForm(false); setViewingStaff(null);}}} className="w-full py-2 text-red-400 font-bold text-xs hover:text-red-500 mt-4">Eliminar definitivamente</button>}
 
+                      {editingStaff && <button type="button" onClick={async () => {if(confirm("¿Eliminar definitivamente?")) {await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); setShowStaffForm(false); setViewingStaff(null);}}} className="w-full py-2 text-red-400 font-bold text-xs hover:text-red-500 mt-4">Eliminar definitivamente</button>}
                   </form>
               </div>
           </div>
-      )}
+        )}
     </div>
   );
 }
