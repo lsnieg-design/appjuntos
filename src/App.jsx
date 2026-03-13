@@ -4034,18 +4034,17 @@ const handleUpdateGroup = async (e) => {
     </div>
   );
 }
-// --- VISTA PERSONAL (ACTUALIZADA: FILTROS MÚLTIPLES DE ROLES) ---
+// --- VISTA PERSONAL (VERSIÓN DEFINITIVA Y COMPLETA) ---
 function PersonalView({ user }) {
   const [staffList, setStaffList] = useState([]);
   
   const [staffFilterText, setStaffFilterText] = useState('');
-  // AHORA ROLES ES UN ARRAY (LISTA) PARA PERMITIR VARIOS A LA VEZ
- const [filters, setFilters] = useState({ modality: 'all', roles: [], turn: 'all', subsidized: 'all' });
+  // ROLES COMO ARRAY PARA MULTISELECCIÓN
+  const [filters, setFilters] = useState({ modality: 'all', roles: [], turn: 'all', subsidized: 'all' });
   
   const [viewingStaff, setViewingStaff] = useState(null); 
   const [showStaffForm, setShowStaffForm] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
-  const [showStats, setShowStats] = useState(false); 
   
   const [processing, setProcessing] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -4092,7 +4091,7 @@ function PersonalView({ user }) {
       const c1Turn = (s.cargo1_turn || '').trim().toLowerCase();
       const c2Turn = (s.cargo2_turn || '').trim().toLowerCase();
 
-      const filterRoles = filters.roles;
+      const filterRoles = filters.roles || [];
       const filterTurn = filters.turn.toLowerCase();
 
       const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || c1Turn);
@@ -4119,7 +4118,6 @@ function PersonalView({ user }) {
       const c1IsValid = hasC1 && c1MatchesRole && c1MatchesTurn;
       const c2IsValid = hasC2 && c2MatchesRole && c2MatchesTurn;
 
-      // Si no hay filtro de rol ni turno, pasan todos. Si no, debe cumplir en alguno de los cargos.
       if (filterRoles.length === 0 && filterTurn === 'all') return true;
       if (!c1IsValid && !c2IsValid) return false;
 
@@ -4178,7 +4176,8 @@ function PersonalView({ user }) {
 
   const getSafeDate = (d) => { if(!d) return '-'; try { return new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('es-AR'); } catch(e) { return d; } };
 
- const imprimirFichasDocentes = (lista) => {
+  // IMPRIMIR FICHAS INDIVIDUALES (CARDS)
+  const imprimirFichasDocentes = (lista) => {
       if (!lista || lista.length === 0) return alert("No hay docentes para imprimir.");
       let html = `<html><head><title>Fichas Docentes</title>
       <style>
@@ -4196,8 +4195,6 @@ function PersonalView({ user }) {
           .label{display:block;font-size:9px;color:#888;text-transform:uppercase;font-weight:bold;}
           .value{font-size:12px;font-weight:bold;color:#333;}
           .footer{text-align:center;font-size:9px;color:#aaa;margin-top:30px;border-top:1px solid #eee;padding-top:10px;}
-          
-          /* NUEVOS ESTILOS PARA LOS CARGOS */
           .cargo-card { border: 2px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-bottom: 15px; background-color: #f9fafb; }
           .cargo-card.active { border-color: #c4b5fd; background-color: #fff; }
           .cargo-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px dashed #e5e7eb; padding-bottom: 10px; margin-bottom: 15px; }
@@ -4268,7 +4265,6 @@ function PersonalView({ user }) {
                   <div class="header-text"><h1>${s.lastName}, ${s.firstName}</h1><p>DNI: ${s.dni || '-'} | Modalidad: <strong style="color: #6d28d9;">${s.modality || 'Sede'}</strong></p></div>
                   <div class="photo-box">${s.photoUrl ? `<img src="${s.photoUrl}"/>` : s.firstName?.[0] || 'U'}</div>
               </div>
-              
               <div class="section-title">Datos Personales y Formación</div>
               <div class="grid">
                   <div class="field"><span class="label">Fecha Nacimiento</span><span class="value">${s.birthDate ? new Date(s.birthDate + 'T00:00:00').toLocaleDateString('es-AR') : '-'}</span></div>
@@ -4279,17 +4275,14 @@ function PersonalView({ user }) {
                   <div class="field"><span class="label">Título</span><span class="value">${s.degree || '-'}</span></div>
                   <div class="field"><span class="label">Estado de Estudios</span><span class="value">${s.studyStatus || '-'}</span></div>
               </div>
-
               <div class="section-title">Antigüedad e Ingreso Institucional</div>
               <div class="grid">
                   <div class="field"><span class="label">Fecha Ingreso Inst.</span><span class="value">${s.fechaIngreso ? new Date(s.fechaIngreso + 'T00:00:00').toLocaleDateString('es-AR') : '-'}</span></div>
                   <div class="field"><span class="label">Antigüedad Reconocida Total</span><span class="value" style="color:#5b21b6; font-size:14px;">${antiguedad}</span></div>
               </div>
-
               <div class="section-title" style="margin-bottom: 15px;">Detalle de Cargos Activos</div>
               ${c1Html}
               ${c2Html}
-              
               <div class="footer">Juntos a la Par - Legajo Docente generado el ${new Date().toLocaleDateString('es-AR')} a las ${new Date().toLocaleTimeString('es-AR', {hour: '2-digit', minute:'2-digit'})}</div>
           </div>`;
       });
@@ -4301,6 +4294,8 @@ function PersonalView({ user }) {
       const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close(); 
       setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
   };
+
+  // IMPRIMIR PLANILLA GENERAL (TABLA)
   const imprimirPlanillaGeneral = (lista) => {
       if (!lista || lista.length === 0) return alert("No hay docentes para imprimir.");
       let html = `<html><head><title>Planilla General de Personal</title>
@@ -4439,12 +4434,7 @@ function PersonalView({ user }) {
 
   const calculateStats = () => {
       const stats = {
-          total: filteredStaff.length,
-          sede: filteredStaff.filter(s => (s.modality || 'Sede') === 'Sede').length,
-          inclusion: filteredStaff.filter(s => s.modality === 'Inclusión').length,
-          roles: {},
           cargos: { simple: 0, doble: 0 },
-          subvencion: { si: 0, no: 0 }
       };
 
       filteredStaff.forEach(s => {
@@ -4453,7 +4443,6 @@ function PersonalView({ user }) {
           const c1Turn = (s.cargo1_turn || '').toLowerCase();
           const c2Turn = (s.cargo2_turn || '').toLowerCase();
           
-          // SALVAVIDAS: Si no hay roles seleccionados, usa un array vacío []
           const filterRoles = filters.roles || [];
           const filterTurn = filters.turn.toLowerCase();
 
@@ -4463,14 +4452,12 @@ function PersonalView({ user }) {
           const c1IsUnassigned = !hasC1 || !VALID_ROLES.includes(c1Role);
           const c2IsUnassigned = hasC2 && !VALID_ROLES.includes(c2Role);
 
-          // Evalúa múltiples roles al mismo tiempo
           let c1MatchesRole = filterRoles.length === 0 || (filterRoles.includes('sin-asignar') && c1IsUnassigned) || filterRoles.includes(c1Role);
           let c2MatchesRole = filterRoles.length === 0 || (filterRoles.includes('sin-asignar') && c2IsUnassigned) || filterRoles.includes(c2Role);
 
           const c1Matches = hasC1 && c1MatchesRole && (filterTurn === 'all' || c1Turn.includes(filterTurn));
           const c2Matches = hasC2 && c2MatchesRole && (filterTurn === 'all' || c2Turn.includes(filterTurn));
 
-          // IGNORAMOS CARGOS "EN PAPELES" EN LAS MÉTRICAS
           const isC1Papeles = s.cargo1_en_papeles === 'true';
           const isC2Papeles = s.cargo2_en_papeles === 'true';
 
@@ -4480,30 +4467,13 @@ function PersonalView({ user }) {
 
           if (activeCargosCount === 2) stats.cargos.doble++;
           else if (activeCargosCount === 1) stats.cargos.simple++;
-
-          if (c1Matches && !isC1Papeles && c1Role) {
-              const r1 = VALID_ROLES.includes(c1Role) ? c1Role : '⚠️ Error / Pendiente';
-              stats.roles[r1] = (stats.roles[r1] || 0) + 1;
-              if (s.cargo1_subsidized === 'true' || s.isSubsidized === 'true') stats.subvencion.si++;
-              else stats.subvencion.no++;
-          }
-          if (c2Matches && !isC2Papeles && c2Role && hasC2) {
-              const r2 = VALID_ROLES.includes(c2Role) ? c2Role : '⚠️ Error / Pendiente';
-              stats.roles[r2] = (stats.roles[r2] || 0) + 1;
-              if (s.cargo2_subsidized === 'true') stats.subvencion.si++;
-              else stats.subvencion.no++;
-          }
       });
-
-      stats.rolesSorted = Object.entries(stats.roles).sort((a,b) => b[1] - a[1]);
       return stats;
   };
 
   if (!canAccess) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido.</div>;
 
-const currentStats = calculateStats();
-  
-  // Novedad: Sumamos los cargos reales (los simples valen 1, los dobles valen 2)
+  const currentStats = calculateStats();
   const totalCargosReales = currentStats.cargos.simple + (currentStats.cargos.doble * 2);
 
   return (
@@ -4538,6 +4508,58 @@ const currentStats = calculateStats();
 
                 <button onClick={()=>{setEditingStaff(null); setPhotoPreview(null); setShowStaffForm(true);}} className="bg-violet-600 text-white p-3 rounded-2xl shadow-lg flex items-center justify-center"><Plus size={20}/></button>
             </div>
+        </div>
+
+        {/* BARRA DE FILTROS ACTUALIZADA PARA MULTISELECCIÓN */}
+        <div className="space-y-2">
+            <div className="bg-white p-2 rounded-2xl border border-gray-100 flex items-center gap-2 shadow-sm">
+                <Search size={18} className="ml-2 text-gray-300"/>
+                <input value={staffFilterText} onChange={e=>setStaffFilterText(e.target.value)} placeholder="Buscar por apellido, nombre o DNI..." className="w-full p-2 outline-none text-sm font-bold text-gray-700 bg-transparent"/>
+                {staffFilterText && <button onClick={()=>setStaffFilterText('')} className="pr-2 text-gray-400 hover:text-gray-600"><X size={16}/></button>}
+            </div>
+            
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide items-center">
+                <select value={filters.modality} onChange={e=>setFilters({...filters, modality: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
+                    <option value="all">Modalidad: Todas</option><option value="Sede">Sede</option><option value="Inclusión">Inclusión</option>
+                </select>
+                
+                {/* SELECTOR DE ROLES */}
+                <select 
+                    value="default" 
+                    onChange={e => {
+                        const val = e.target.value;
+                        if (val !== 'default' && !filters.roles.includes(val)) {
+                            setFilters({...filters, roles: [...filters.roles, val]});
+                        }
+                    }} 
+                    className="bg-white text-violet-700 text-xs p-2 rounded-lg font-bold min-w-[140px] border border-violet-200 shadow-sm outline-none cursor-pointer"
+                >
+                    <option value="default">+ Agregar Rol...</option>
+                    <option value="sin-asignar">⚠️ Sin Asignar / Error</option>
+                    {VALID_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+
+                <select value={filters.turn} onChange={e=>setFilters({...filters, turn: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
+                    <option value="all">Turno: Todos</option>
+                    {uniqueTurns.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <select value={filters.subsidized} onChange={e=>setFilters({...filters, subsidized: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
+                    <option value="all">Subvención: Todas</option><option value="yes">Con Subvención</option><option value="no">Sin Subvención</option>
+                </select>
+                <button onClick={() => setFilters({ modality: 'all', roles: [], turn: 'all', subsidized: 'all' })} className="bg-red-50 text-red-600 text-xs px-3 py-2 rounded-lg font-bold min-w-[80px] border border-red-100 shadow-sm hover:bg-red-100 transition">Limpiar</button>
+            </div>
+
+            {/* MOSTRAR ETIQUETAS DE ROLES SELECCIONADOS */}
+            {filters.roles.length > 0 && (
+                <div className="flex flex-wrap gap-2 animate-in fade-in mt-1 mb-2">
+                    {filters.roles.map(r => (
+                        <span key={r} className="bg-violet-100 text-violet-800 text-[10px] font-black px-2 py-1.5 rounded-lg flex items-center gap-1 border border-violet-200 shadow-sm">
+                            {r === 'sin-asignar' ? '⚠️ Sin Asignar' : r}
+                            <button onClick={() => setFilters({...filters, roles: filters.roles.filter(role => role !== r)})} className="hover:text-red-500 transition-colors bg-white rounded-full p-0.5 ml-1"><X size={10}/></button>
+                        </span>
+                    ))}
+                </div>
+            )}
         </div>
 
         {/* LISTADO DE PERSONAL */}
@@ -4581,69 +4603,6 @@ const currentStats = calculateStats();
                 )
             })}
         </div>
-
-        {/* MODAL ESTADÍSTICAS */}
-        {showStats && (
-            <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowStats(false)}>
-                <div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-orange-500 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-                    <div className="flex justify-between items-center mb-6">
-                        <div>
-                            <h3 className="text-2xl font-black text-violet-900 uppercase italic">Métricas</h3>
-                            <p className="text-xs text-gray-500 font-bold">Cargos Filtrados (Ignorando 'En Papeles')</p>
-                        </div>
-                        <button onClick={() => setShowStats(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button>
-                    </div>
-
-                    <div className="space-y-6">
-                        <div className="flex gap-3">
-                            <div className="flex-1 bg-violet-50 rounded-2xl p-4 text-center border border-violet-100">
-                                <span className="block text-3xl font-black text-violet-700">{currentStats.total}</span>
-                                <span className="text-[9px] font-bold text-violet-500 uppercase tracking-widest">Personas</span>
-                            </div>
-                        </div>
-
-                        <div>
-                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Distribución de Roles Activos</h4>
-                            <div className="space-y-2">
-                                {currentStats.rolesSorted.map(([rol, count]) => {
-                                    const totalRoles = Object.values(currentStats.roles).reduce((a,b)=>a+b, 0);
-                                    const percentage = totalRoles > 0 ? Math.round((count / totalRoles) * 100) : 0;
-                                    return (
-                                        <div key={rol} className="bg-gray-50 p-2 rounded-lg border border-gray-100">
-                                            <div className="flex justify-between text-xs font-bold text-gray-700 mb-1">
-                                                <span>{rol}</span>
-                                                <span>{count} cargo(s) - {percentage}%</span>
-                                            </div>
-                                            <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                                                <div style={{width: `${percentage}%`}} className="h-full bg-violet-500"></div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-white border-2 border-gray-100 p-4 rounded-2xl">
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase mb-2 text-center">Tipos Ejerciendo</h4>
-                                <div className="space-y-1">
-                                    <div className="flex justify-between text-xs font-bold"><span className="text-gray-500">Pers. con 1 Cargo</span><span className="text-gray-800">{currentStats.cargos.simple}</span></div>
-                                    <div className="flex justify-between text-xs font-bold"><span className="text-gray-500">Pers. con 2 Cargos</span><span className="text-gray-800">{currentStats.cargos.doble}</span></div>
-                                </div>
-                            </div>
-                            <div className="bg-white border-2 border-gray-100 p-4 rounded-2xl">
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase mb-2 text-center">Subvención (Activos)</h4>
-                                <div className="space-y-1">
-                                    <div className="flex justify-between text-xs font-bold"><span className="text-emerald-500">Aprobados</span><span className="text-gray-800">{currentStats.subvencion.si}</span></div>
-                                    <div className="flex justify-between text-xs font-bold"><span className="text-red-400">Sin aval</span><span className="text-gray-800">{currentStats.subvencion.no}</span></div>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-            </div>
-        )}
 
         {/* MODAL LECTURA LEGAJO */}
         {viewingStaff && !showStaffForm && (
@@ -5752,6 +5711,7 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+
 
 
 
