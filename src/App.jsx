@@ -4852,7 +4852,7 @@ function PersonalView({ user }) {
           </div>
         </details>
 
-        {/* SECCIÓN 3: CARGO SECUNDARIO (ACORDEÓN CERRADO POR DEFECTO) */}
+       {/* SECCIÓN 3: CARGO SECUNDARIO (ACORDEÓN CERRADO POR DEFECTO) */}
         <details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
             <span className="text-[11px] font-black text-slate-500 uppercase flex items-center gap-2">
@@ -4862,15 +4862,15 @@ function PersonalView({ user }) {
           </summary>
           <div className="p-4 pt-0 space-y-3">
              <div className="grid grid-cols-[1fr,2fr] gap-2">
-              <input name="cargo2_numero" defaultValue={editingStaff?.cargo2_numero} placeholder="N°" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
-              <input name="cargo2_name" defaultValue={editingStaff?.cargo2_name} placeholder="Nombre Cargo 2" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+              <input name="cargo2_numero" defaultValue={editingStaff?.cargo2_numero} placeholder="N°" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm w-full"/>
+              <input name="cargo2_name" defaultValue={editingStaff?.cargo2_name} placeholder="Nombre Cargo 2" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm w-full"/>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <select name="cargo2_role" defaultValue={editingStaff?.cargo2_role} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+              <select name="cargo2_role" defaultValue={editingStaff?.cargo2_role} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
                 <option value="">Rol Cargo 2...</option>
                 {VALID_ROLES?.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
-              <select name="cargo2_subsidized" defaultValue={editingStaff?.cargo2_subsidized || 'false'} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+              <select name="cargo2_subsidized" defaultValue={editingStaff?.cargo2_subsidized || 'false'} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
                 <option value="false">DENO (Sin Subvención)</option>
                 <option value="true">MECA (Subvencionado)</option>
               </select>
@@ -4878,6 +4878,8 @@ function PersonalView({ user }) {
           </div>
         </details>
 
+        {/* ESPACIADOR PARA QUE EL ÚLTIMO ITEM NO QUEDE PEGADO AL BOTÓN EN CELULARES */}
+        <div className="h-4"></div>
       </form>
 
       {/* BOTONERA FIJA INFERIOR */}
@@ -4885,14 +4887,22 @@ function PersonalView({ user }) {
         <button type="button" onClick={() => setShowStaffForm(false)} className="order-2 sm:order-1 flex-1 py-3 text-slate-500 font-bold uppercase text-[10px] tracking-widest">
           Cancelar
         </button>
-        <button type="submit" form="staffForm" className="order-1 sm:order-2 flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-violet-200 hover:bg-violet-700 transition active:scale-95">
+        <button type="submit" form="staffForm" className="order-1 sm:order-2 flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-violet-700 transition active:scale-95">
           Guardar Cambios
         </button>
       </div>
+
+      {editingStaff && (
+        <div className="p-4 pt-0 bg-white">
+            <button type="button" onClick={async () => {if(confirm("¿Eliminar definitivamente?")) {await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); setShowStaffForm(false); setViewingStaff(null);}}} className="w-full py-2 text-red-400 font-bold text-[10px] uppercase hover:text-red-500 transition">Eliminar Personal del Sistema</button>
+        </div>
+      )}
     </div>
   </div>
 )}
-
+</div> // CIERRE DIV PRINCIPAL PersonalView
+); // CIERRE RETURN
+} // CIERRE FUNCIÓN PersonalView
 
 
 // --- VISTA MÉDICA (HISTORIAS CLÍNICAS FORMALES, FIRMA Y LOGO) ---
