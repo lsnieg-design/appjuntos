@@ -4894,10 +4894,6 @@ function PersonalView({ user }) {
 // --- VISTA MÉDICA (HISTORIAS CLÍNICAS FORMALES, FIRMA Y LOGO) ---
 function MedicalView({ user }) {
   const [students, setStudents] = useState([]);
-  // ... resto del código médico
-// --- VISTA MÉDICA (HISTORIAS CLÍNICAS FORMALES, FIRMA Y LOGO) ---
-function MedicalView({ user }) {
-  const [students, setStudents] = useState([]);
   const [filterText, setFilterText] = useState('');
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
