@@ -4199,7 +4199,6 @@ function PersonalView({ user }) {
       return true;
   });
 
-  const uniqueTurns = ["Mañana", "Tarde", "Alternado"];
 
   const handlePhotoChange = (e) => {
       const f = e.target.files[0]; if(!f) return;
