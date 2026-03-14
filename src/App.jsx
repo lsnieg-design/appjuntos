@@ -4848,7 +4848,7 @@ function PersonalView({ user }) {
                   </select>
                   <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
                     <option value="">Turno...</option>
-                    {(typeof uniqueTurns !== 'undefined' ? uniqueTurns : ["Mañana", "Tarde", "Alternado"]).map(t => <option key={t} value={t}>{t}</option>)}
+                    {(typeof uniqueTurns !== 'undefined' ? uniqueTurns : []).map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -4943,7 +4943,8 @@ function PersonalView({ user }) {
   </div> // CIERRE DIV PRINCIPAL PersonalView
   ); // CIERRE RETURN
 } // CIERRE FUNCIÓN PersonalView
-// --- VISTA MÉDICA (HISTORIAS CLÍNICAS FORMALES, FIRMA Y LOGO) ---
+
+
 function MedicalView({ user }) {
   const [students, setStudents] = useState([]);
   const [filterText, setFilterText] = useState('');
