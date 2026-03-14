@@ -4691,11 +4691,10 @@ function PersonalView({ user }) {
                     <div className="p-6 overflow-y-auto bg-gray-50 flex-1 space-y-4">
                         <div className="space-y-2">
                              <div className="bg-white p-3 rounded-xl border border-violet-200 text-xs shadow-sm">
-                                // Cambiá esas líneas por estas (con el ?. para que no rompa si no hay dato)
-<p className="font-black text-violet-900 uppercase">
-  Cargo 1: {getNormRole(viewingStaff?.cargo1_role || viewingStaff?.role) || 'Sin asignar'}
-</p>
-                               <p className="text-gray-500 font-bold uppercase text-[10px]">{viewingStaff.cargo1_turn || 'S/D'} | {viewingStaff.cargo1_revista || 'S/D'}</p>
+                                <p className="font-black text-violet-900 uppercase">
+                                    Cargo 1: {getNormRole(viewingStaff?.cargo1_role || viewingStaff?.role) || 'Sin asignar'}
+                                </p>
+                                <p className="text-gray-500 font-bold uppercase text-[10px]">{viewingStaff.cargo1_turn || 'S/D'} | {viewingStaff.cargo1_revista || 'S/D'}</p>
                              </div>
                              {(viewingStaff.cargo2_role || viewingStaff.cargo2_name) && (
                                 <div className="bg-white p-3 rounded-xl border border-violet-200 text-xs shadow-sm">
@@ -4705,7 +4704,7 @@ function PersonalView({ user }) {
                              )}
                         </div>
 
-                        {/* PARCHE: GRUPOS ASIGNADOS AUTOMÁTICAMENTE */}
+                        {/* GRUPOS ASIGNADOS AUTOMÁTICAMENTE */}
                         <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
                             <h4 className="text-[10px] font-black text-emerald-600 uppercase mb-3 flex items-center gap-2">📍 Grupos a Cargo (Ciclo 2026)</h4>
                             <div className="grid grid-cols-2 gap-2">
@@ -4760,67 +4759,28 @@ function PersonalView({ user }) {
                   <form id="staffForm" onSubmit={handleSaveStaff} className="space-y-4">
                       <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-3">
                           <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Datos Personales</h4>
-                          <div className="grid grid-cols-2 gap-3"><input name="firstName" defaultValue={editingStaff?.firstName} placeholder="Nombre" required className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/><input name="lastName" defaultValue={editingStaff?.lastName} placeholder="Apellido" required className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/></div>
-                          <div className="grid grid-cols-2 gap-3"><input name="dni" defaultValue={editingStaff?.dni} placeholder="DNI" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/><input name="birthDate" type="date" defaultValue={editingStaff?.birthDate} className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-xs text-gray-500"/></div>
-                          <div className="grid grid-cols-2 gap-3"><input name="phone" defaultValue={editingStaff?.phone} placeholder="Celular" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/><input name="email" defaultValue={editingStaff?.email} placeholder="Email" type="email" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/></div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <input name="firstName" defaultValue={editingStaff?.firstName} placeholder="Nombre" required className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
+                            <input name="lastName" defaultValue={editingStaff?.lastName} placeholder="Apellido" required className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <input name="dni" defaultValue={editingStaff?.dni} placeholder="DNI" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
+                            <input name="birthDate" type="date" defaultValue={editingStaff?.birthDate} className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-xs text-gray-500"/>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <input name="phone" defaultValue={editingStaff?.phone} placeholder="Celular" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
+                            <input name="email" defaultValue={editingStaff?.email} placeholder="Email" type="email" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
+                          </div>
                           <input name="address" defaultValue={editingStaff?.address} placeholder="Dirección" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
-                          <input name="emergencyContact" defaultValue={editingStaff?.emergencyContact} placeholder="Teléfono/Contacto de Emergencia" className="p-3 bg-red-50 text-red-800 rounded-xl w-full border border-red-100 outline-none font-bold text-xs"/>
+                          <input name="emergencyContact" defaultValue={editingStaff?.emergencyContact} placeholder="Teléfono de Emergencia" className="p-3 bg-red-50 text-red-800 rounded-xl w-full border border-red-100 outline-none font-bold text-xs"/>
                       </div>
 
                       <div className="bg-violet-50 p-4 rounded-2xl border border-violet-100 space-y-4">
                           <div className="flex justify-between items-center border-b border-violet-200 pb-2">
-                              <h4 className="text-[10px] font-black text-violet-500 uppercase tracking-widest">Contratación General</h4>
+                              <h4 className="text-[10px] font-black text-violet-500 uppercase tracking-widest">Contratación</h4>
                               <select name="modality" defaultValue={editingStaff?.modality || 'Sede'} className="p-1 bg-white rounded-lg border border-violet-200 outline-none font-bold text-[10px] text-violet-900"><option value="Sede">Sede</option><option value="Inclusión">Inclusión</option><option value="Ambos">Ambos</option></select>
                           </div>
-
-                          <div className="grid grid-cols-2 gap-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm">
-                              <div>
-                                  <label className="text-[9px] font-black text-gray-400 uppercase ml-1 tracking-widest">Ingreso Inst.</label>
-                                  <input name="fechaIngreso" type="date" defaultValue={editingStaff?.fechaIngreso} className="w-full p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs text-gray-600" />
-                              </div>
-                              <div>
-                                  <label className="text-[9px] font-black text-gray-400 uppercase ml-1 tracking-widest">Antigüedad Inicial</label>
-                                  <div className="flex gap-1">
-                                      <input name="antiguedadAnios" type="number" placeholder="Años" defaultValue={editingStaff?.antiguedadAnios || ''} className="w-1/2 p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs text-center border border-gray-200" />
-                                      <input name="antiguedadMeses" type="number" placeholder="Meses" defaultValue={editingStaff?.antiguedadMeses || ''} className="w-1/2 p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs text-center border border-gray-200" />
-                                  </div>
-                              </div>
-                          </div>
-
-                          <div className="space-y-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm relative">
-                              <h5 className="text-[10px] font-black text-gray-400 uppercase">Cargo 1</h5>
-                              <div className="grid grid-cols-2 gap-2">
-                                  <input name="cargo1_numero" defaultValue={editingStaff?.cargo1_numero} placeholder="N° Cargo" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs border border-gray-200"/>
-                                  <input name="cargo1_name" defaultValue={editingStaff?.cargo1_name} placeholder="Nombre Cargo" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs border border-gray-200"/>
-                              </div>
-                              <select name="cargo1_role" defaultValue={editingStaff?.cargo1_role || editingStaff?.role} className="w-full p-2 bg-white rounded-lg border border-gray-200 outline-none font-bold text-xs">
-                                  <option value="">Seleccionar Rol...</option>
-                                  {VALID_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                              </select>
-                          </div>
-
-                          <div className="space-y-2 bg-white p-3 rounded-xl border border-violet-100 shadow-sm relative">
-                              <div className="flex justify-between items-center">
-                                  <h5 className="text-[10px] font-black text-gray-400 uppercase">Cargo 2 (Opcional)</h5>
-                                  <button type="button" onClick={() => {
-                                      const form = document.getElementById('staffForm');
-                                      if(form) {
-                                          form.cargo2_numero.value = ''; form.cargo2_name.value = '';
-                                          form.cargo2_role.value = ''; form.cargo2_turn.value = '';
-                                      }
-                                  }} className="text-[9px] bg-red-50 text-red-500 px-2 py-0.5 rounded-lg font-black uppercase shadow-sm">Borrar C2</button>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2 mt-1">
-                                  <input name="cargo2_numero" defaultValue={editingStaff?.cargo2_numero} placeholder="N° Cargo" className="p-2 bg-gray-50 rounded-lg outline-none font-black text-xs w-full border border-gray-200"/>
-                                  <input name="cargo2_name" defaultValue={editingStaff?.cargo2_name} placeholder="Nombre Cargo" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs w-full border border-gray-200"/>
-                              </div>
-                              <select name="cargo2_role" defaultValue={editingStaff?.cargo2_role} className="p-2 bg-white rounded-lg border border-gray-200 outline-none font-bold text-xs w-full">
-                                  <option value="">-- No posee / Sin Cargo --</option>
-                                  {VALID_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                              </select>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2">
+                          <div className="grid grid-cols-2 gap-3">
                               <select name="studyStatus" defaultValue={editingStaff?.studyStatus} className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900"><option value="">Estado Estudios...</option><option value="Finalizado">Finalizado</option><option value="En curso">En curso</option></select>
                               <input name="degree" defaultValue={editingStaff?.degree} placeholder="Título" className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900"/>
                           </div>
