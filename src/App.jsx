@@ -4777,70 +4777,134 @@ function PersonalView({ user }) {
     </div>
 )}
 
-        {/* MODAL EDICIÓN LEGAJO */}
-        {showStaffForm && (
-          <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4 backdrop-blur-sm animate-in zoom-in-95">
-              <div className="bg-white rounded-[40px] w-full max-w-xl p-8 shadow-2xl max-h-[90vh] overflow-y-auto border-t-8 border-violet-600 custom-scrollbar">
-                  <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-xl font-black text-violet-900 uppercase italic">{editingStaff ? 'Editar Legajo' : 'Nuevo Legajo'}</h3>
-                      <button onClick={()=>setShowStaffForm(false)}><X size={24} className="text-gray-300"/></button>
-                  </div>
-                  
-                  <div className="flex justify-center mb-6">
-                      <div className="relative group w-24 h-24">
-                          <div className="w-24 h-24 rounded-3xl overflow-hidden border-4 border-violet-100 bg-gray-50 shadow-inner flex items-center justify-center">
-                              {photoPreview || editingStaff?.photoUrl ? <img src={photoPreview || editingStaff?.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-gray-300"/>}
-                          </div>
-                          <label className="absolute -bottom-2 -right-2 bg-violet-600 text-white p-2 rounded-full cursor-pointer hover:bg-violet-700 shadow-lg border-2 border-white transition-transform hover:scale-110">
-                              <input type="file" className="hidden" accept="image/*" onChange={handlePhotoChange} />
-                              {uploading ? <RefreshCw className="animate-spin" size={14}/> : <Edit3 size={14}/>}
-                          </label>
-                      </div>
-                  </div>
+        {/* MODAL EDICIÓN LEGAJO COMPLETO (RECONSTRUIDO) */}
+      {showStaffForm && (
+        <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4 backdrop-blur-sm animate-in zoom-in-95">
+          <div className="bg-white rounded-[40px] w-full max-w-xl p-8 shadow-2xl max-h-[90vh] overflow-y-auto border-t-8 border-violet-600 custom-scrollbar">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-violet-900 uppercase italic">{editingStaff ? 'Editar Legajo' : 'Nuevo Legajo'}</h3>
+              <button type="button" onClick={()=>setShowStaffForm(false)} className="text-gray-400 hover:text-gray-600"><X size={24}/></button>
+            </div>
+            
+            <div className="flex justify-center mb-6">
+                <div className="relative group w-24 h-24">
+                    <div className="w-24 h-24 rounded-3xl overflow-hidden border-4 border-violet-100 bg-gray-50 shadow-inner flex items-center justify-center">
+                        {photoPreview || editingStaff?.photoUrl ? <img src={photoPreview || editingStaff?.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-gray-300"/>}
+                    </div>
+                    <label className="absolute -bottom-2 -right-2 bg-violet-600 text-white p-2 rounded-full cursor-pointer hover:bg-violet-700 shadow-lg border-2 border-white transition-transform hover:scale-110">
+                        <input type="file" className="hidden" accept="image/*" onChange={handlePhotoChange} />
+                        {uploading ? <RefreshCw className="animate-spin" size={14}/> : <Edit3 size={14}/>}
+                    </label>
+                </div>
+            </div>
 
-                  <form id="staffForm" onSubmit={handleSaveStaff} className="space-y-4">
-                      <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-3">
-                          <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Datos Personales</h4>
-                          <div className="grid grid-cols-2 gap-3">
-                            <input name="firstName" defaultValue={editingStaff?.firstName} placeholder="Nombre" required className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
-                            <input name="lastName" defaultValue={editingStaff?.lastName} placeholder="Apellido" required className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
-                          </div>
-                          <div className="grid grid-cols-2 gap-3">
-                            <input name="dni" defaultValue={editingStaff?.dni} placeholder="DNI" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
-                            <input name="birthDate" type="date" defaultValue={editingStaff?.birthDate} className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-xs text-gray-500"/>
-                          </div>
-                          <div className="grid grid-cols-2 gap-3">
-                            <input name="phone" defaultValue={editingStaff?.phone} placeholder="Celular" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
-                            <input name="email" defaultValue={editingStaff?.email} placeholder="Email" type="email" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
-                          </div>
-                          <input name="address" defaultValue={editingStaff?.address} placeholder="Dirección" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
-                          <input name="emergencyContact" defaultValue={editingStaff?.emergencyContact} placeholder="Teléfono de Emergencia" className="p-3 bg-red-50 text-red-800 rounded-xl w-full border border-red-100 outline-none font-bold text-xs"/>
-                      </div>
-
-                      <div className="bg-violet-50 p-4 rounded-2xl border border-violet-100 space-y-4">
-                          <div className="flex justify-between items-center border-b border-violet-200 pb-2">
-                              <h4 className="text-[10px] font-black text-violet-500 uppercase tracking-widest">Contratación</h4>
-                              <select name="modality" defaultValue={editingStaff?.modality || 'Sede'} className="p-1 bg-white rounded-lg border border-violet-200 outline-none font-bold text-[10px] text-violet-900"><option value="Sede">Sede</option><option value="Inclusión">Inclusión</option><option value="Ambos">Ambos</option></select>
-                          </div>
-                          <div className="grid grid-cols-2 gap-3">
-                              <select name="studyStatus" defaultValue={editingStaff?.studyStatus} className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900"><option value="">Estado Estudios...</option><option value="Finalizado">Finalizado</option><option value="En curso">En curso</option></select>
-                              <input name="degree" defaultValue={editingStaff?.degree} placeholder="Título" className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900"/>
-                          </div>
-                      </div>
-
-                      <div className="flex gap-2">
-                          <button type="button" onClick={()=>setShowStaffForm(false)} className="flex-1 py-4 text-gray-500 font-bold uppercase text-xs">Cancelar</button>
-                          <button type="submit" className="flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-violet-700 transition">Guardar Legajo</button>
-                      </div>
-
-                      {editingStaff && <button type="button" onClick={async () => {if(confirm("¿Eliminar definitivamente?")) {await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); setShowStaffForm(false); setViewingStaff(null);}}} className="w-full py-2 text-red-400 font-bold text-xs hover:text-red-500 mt-4">Eliminar definitivamente</button>}
-                  </form>
+            <form id="staffForm" onSubmit={handleSaveStaff} className="space-y-4">
+              {/* DATOS PERSONALES */}
+              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-3">
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Datos Básicos</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <input name="firstName" defaultValue={editingStaff?.firstName} placeholder="Nombre" required className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
+                  <input name="lastName" defaultValue={editingStaff?.lastName} placeholder="Apellido" required className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <input name="dni" defaultValue={editingStaff?.dni} placeholder="DNI" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
+                  <input name="birthDate" type="date" defaultValue={editingStaff?.birthDate} className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-xs text-gray-500"/>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                    <input name="phone" defaultValue={editingStaff?.phone} placeholder="Celular" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
+                    <input name="email" defaultValue={editingStaff?.email} placeholder="Email" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
+                </div>
+                <input name="address" defaultValue={editingStaff?.address} placeholder="Dirección" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
               </div>
+
+              {/* CONTRATACIÓN Y ANTIGÜEDAD */}
+              <div className="bg-violet-50 p-4 rounded-2xl border border-violet-100 space-y-3">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-[10px] font-black text-violet-500 uppercase tracking-widest">Institucional</h4>
+                  <select name="modality" defaultValue={editingStaff?.modality || 'Sede'} className="p-1 bg-white rounded-lg border border-violet-200 outline-none font-bold text-[10px] text-violet-900">
+                    <option value="Sede">Sede</option>
+                    <option value="Inclusión">Inclusión</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Fecha Ingreso Inst.</label>
+                    <input name="fechaIngreso" type="date" defaultValue={editingStaff?.fechaIngreso} className="p-2 bg-white rounded-lg w-full border border-violet-100 outline-none font-bold text-xs"/>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1">
+                    <div>
+                      <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Años Anti.</label>
+                      <input name="antiguedadAnios" type="number" defaultValue={editingStaff?.antiguedadAnios} className="p-2 bg-white rounded-lg w-full border border-violet-100 outline-none font-bold text-xs text-center"/>
+                    </div>
+                    <div>
+                      <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Meses Anti.</label>
+                      <input name="antiguedadMeses" type="number" defaultValue={editingStaff?.antiguedadMeses} className="p-2 bg-white rounded-lg w-full border border-violet-100 outline-none font-bold text-xs text-center"/>
+                    </div>
+                  </div>
+                </div>
+                <input name="antiguedadFechaRef" type="hidden" defaultValue={editingStaff?.antiguedadFechaRef || new Date().toISOString().split('T')[0]} />
+              </div>
+
+              {/* CARGO 1 */}
+              <div className="p-4 bg-white border-2 border-violet-100 rounded-2xl space-y-3 shadow-sm">
+                <h5 className="text-[10px] font-black text-violet-600 uppercase border-b pb-1">Detalle Cargo 1</h5>
+                <div className="grid grid-cols-[1fr,2fr] gap-2">
+                  <input name="cargo1_numero" defaultValue={editingStaff?.cargo1_numero} placeholder="N° Cargo" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs border border-gray-200"/>
+                  <input name="cargo1_name" defaultValue={editingStaff?.cargo1_name} placeholder="Nombre (Ej: MG 1° A)" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs border border-gray-200"/>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <select name="cargo1_role" defaultValue={editingStaff?.cargo1_role || editingStaff?.role} className="p-2 bg-white rounded-lg border border-gray-200 outline-none font-bold text-xs">
+                    <option value="">Seleccionar Rol...</option>
+                    {VALID_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                  <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn} className="p-2 bg-white rounded-lg border border-gray-200 outline-none font-bold text-xs">
+                    <option value="">Turno...</option>
+                    {uniqueTurns.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista} className="p-2 bg-white rounded-lg border border-gray-200 outline-none font-bold text-xs">
+                    <option value="">Revista...</option>
+                    <option value="Titular">Titular</option><option value="Provisional">Provisional</option><option value="Suplente">Suplente</option>
+                  </select>
+                  <select name="cargo1_subsidized" defaultValue={editingStaff?.cargo1_subsidized || 'false'} className="p-2 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-100 outline-none font-bold text-xs">
+                    <option value="false">Sin Subvención (DENO)</option>
+                    <option value="true">Subvencionado (MECA)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* CARGO 2 */}
+              <div className="p-4 bg-white border-2 border-violet-100 rounded-2xl space-y-3 shadow-sm">
+                <h5 className="text-[10px] font-black text-violet-600 uppercase border-b pb-1">Detalle Cargo 2 (Opcional)</h5>
+                <div className="grid grid-cols-[1fr,2fr] gap-2">
+                  <input name="cargo2_numero" defaultValue={editingStaff?.cargo2_numero} placeholder="N° Cargo" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs border border-gray-200"/>
+                  <input name="cargo2_name" defaultValue={editingStaff?.cargo2_name} placeholder="Nombre Cargo" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs border border-gray-200"/>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <select name="cargo2_role" defaultValue={editingStaff?.cargo2_role} className="p-2 bg-white rounded-lg border border-gray-200 outline-none font-bold text-xs">
+                    <option value="">Seleccionar Rol...</option>
+                    {VALID_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                  <select name="cargo2_turn" defaultValue={editingStaff?.cargo2_turn} className="p-2 bg-white rounded-lg border border-gray-200 outline-none font-bold text-xs">
+                    <option value="">Turno...</option>
+                    {uniqueTurns.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <button type="button" onClick={()=>setShowStaffForm(false)} className="flex-1 py-4 text-gray-500 font-bold uppercase text-xs">Cancelar</button>
+                <button type="submit" className="flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-violet-700 transition">Guardar Legajo</button>
+              </div>
+
+              {editingStaff && (
+                <button type="button" onClick={async () => {if(confirm("¿Eliminar definitivamente?")) {await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); setShowStaffForm(false); setViewingStaff(null);}}} className="w-full py-2 text-red-400 font-bold text-[10px] uppercase hover:text-red-500 transition">Eliminar Personal del Sistema</button>
+              )}
+            </form>
           </div>
-        )}
-    </div>
-  );
-}
+        </div>
+      )}
 // --- VISTA MÉDICA (HISTORIAS CLÍNICAS FORMALES, FIRMA Y LOGO) ---
 function MedicalView({ user }) {
   const [students, setStudents] = useState([]);
