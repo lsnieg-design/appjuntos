@@ -4944,7 +4944,6 @@ function PersonalView({ user }) {
   ); // CIERRE RETURN
 } // CIERRE FUNCIÓN PersonalView
 
-
 function MedicalView({ user }) {
   const [students, setStudents] = useState([]);
   const [filterText, setFilterText] = useState('');
