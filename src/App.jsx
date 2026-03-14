@@ -4043,12 +4043,22 @@ function GroupsView({ user }) {
                 {!editingGroup.isInclusionGroup && <input name="groupName" defaultValue={editingGroup.name} className="font-black text-2xl text-violet-900 bg-transparent text-center w-full outline-none border-b border-violet-200 focus:border-violet-500" placeholder="Nombre Grupo"/>}
               </div>
               <div>
-                <label className="text-xs font-bold text-gray-500 ml-1">{editingGroup.isInclusionGroup ? 'DAI Responsable' : 'Docente a Cargo'}</label>
-                <select name="teacher" defaultValue={editingGroup.teacherId || editingGroup.teacher} className="w-full p-3 bg-white border-2 border-violet-100 rounded-xl outline-none font-bold text-xs focus:border-violet-500">
-                    <option value="">Seleccionar Profesional...</option>
-                    {staffOptions.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
-                </select>
-              </div>
+  <label className="text-xs font-bold text-gray-500 ml-1">
+    {editingGroup.isInclusionGroup ? 'DAI Responsable' : 'Docente a Cargo'}
+  </label>
+  <select 
+    name="teacher" 
+    defaultValue={editingGroup.teacherId || ""} 
+    className="w-full p-3 bg-white border-2 border-violet-100 rounded-xl outline-none font-bold text-xs focus:border-violet-500"
+  >
+    <option value="">Seleccionar del Legajo...</option>
+    {usersList.map(st => (
+      <option key={st.id} value={st.id}>
+        {st.lastName}, {st.firstName} ({st.cargo1_role || 'Sin Rol'})
+      </option>
+    ))}
+  </select>
+</div>
               {!editingGroup.isInclusionGroup && (
                 <>
                   <div><label className="text-xs font-bold text-gray-500 ml-1">Docente 2 (Pareja)</label><select name="teacher2" defaultValue={editingGroup.teacher2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
@@ -4681,8 +4691,11 @@ function PersonalView({ user }) {
                     <div className="p-6 overflow-y-auto bg-gray-50 flex-1 space-y-4">
                         <div className="space-y-2">
                              <div className="bg-white p-3 rounded-xl border border-violet-200 text-xs shadow-sm">
-                                <p className="font-black text-violet-900 uppercase">Cargo 1: {getNormRole(viewingStaff.cargo1_role || viewingStaff.role) || 'Sin asignar'}</p>
-                                <p className="text-gray-500 font-bold uppercase text-[10px]">{viewingStaff.cargo1_turn || 'S/D'} | {viewingStaff.cargo1_revista || 'S/D'}</p>
+                                // Cambiá esas líneas por estas (con el ?. para que no rompa si no hay dato)
+<p className="font-black text-violet-900 uppercase">
+  Cargo 1: {getNormRole(viewingStaff?.cargo1_role || viewingStaff?.role) || 'Sin asignar'}
+</p>
+                               <p className="text-gray-500 font-bold uppercase text-[10px]">{viewingStaff.cargo1_turn || 'S/D'} | {viewingStaff.cargo1_revista || 'S/D'}</p>
                              </div>
                              {(viewingStaff.cargo2_role || viewingStaff.cargo2_name) && (
                                 <div className="bg-white p-3 rounded-xl border border-violet-200 text-xs shadow-sm">
@@ -4838,16 +4851,18 @@ function MedicalView({ user }) {
   // Permisos: Solo Salud, Directivos y Admins
   const canAccess = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión', 'Médico', 'Enfermería', 'Salud'].includes(user.role) || user.rol === 'admin';
 
-  useEffect(() => {
-    const qS = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
-    const unsubS = onSnapshot(qS, (snap) => setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-    return () => unsubS();
-  }, []);
-
-  const filteredStudents = students.filter(s => {
-      const txt = filterText.toLowerCase();
-      return !txt || `${s.lastName} ${s.firstName} ${s.dni}`.toLowerCase().includes(txt);
+ useEffect(() => {
+  const qS = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
+  const unsubS = onSnapshot(qS, (snap) => { setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
+  
+  // TRAEMOS EL PERSONAL REAL (staff_records)
+  const qStaff = query(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), orderBy('lastName', 'asc'));
+  const unsubStaff = onSnapshot(qStaff, (snap) => { 
+      setUsersList(snap.docs.map(d => ({ id: d.id, fullName: `${d.lastName}, ${d.firstName}`, ...d.data() }))); 
   });
+
+  return () => { unsubS(); unsubStaff(); };
+}, []);
 
   const getSafeDate = (d) => { if(!d) return '-'; try { return new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('es-AR'); } catch(e) { return d; } };
   const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
