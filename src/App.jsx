@@ -4103,6 +4103,7 @@ function GroupsView({ user }) {
 // --- VISTA PERSONAL (VERSIÓN DEFINITIVA Y COMPLETA) ---
 function PersonalView({ user }) {
   const [staffList, setStaffList] = useState([]);
+  const [students, setStudents] = useState([]); // <-- AGREGÁ ESTO
   
   const [staffFilterText, setStaffFilterText] = useState('');
   // ROLES COMO ARRAY PARA MULTISELECCIÓN
@@ -4131,11 +4132,18 @@ function PersonalView({ user }) {
       return match || r.trim();
   };
 
-  useEffect(() => {
-    const qStaff = query(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), orderBy('lastName', 'asc'));
-    const unsubStaff = onSnapshot(qStaff, (snap) => { setStaffList(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
-    return () => unsubStaff();
-  }, []);
+ useEffect(() => {
+  const qStaff = query(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), orderBy('lastName', 'asc'));
+  const unsubStaff = onSnapshot(qStaff, (snap) => { setStaffList(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
+
+  // AGREGÁ ESTE BLOQUE:
+  const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
+  const unsubStudents = onSnapshot(qStudents, (snap) => { 
+      setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))); 
+  });
+
+  return () => { unsubStaff(); unsubStudents(); }; // Asegurate de cerrar ambos
+}, []);
 
   const filteredStaff = staffList.filter(s => {
       const txt = staffFilterText.toLowerCase();
