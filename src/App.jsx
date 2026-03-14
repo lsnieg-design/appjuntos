@@ -3750,7 +3750,7 @@ function MainApp({ user, onLogout }) {
   );
 } // <--- CIERRE CORRECTO DE LA FUNCIÓN MainApp
 
-// --- VISTA AULA (FINAL: IMPRESIÓN INDIVIDUAL ARREGLADA) ---
+// --- VISTA AULA CORREGIDA (SELECTOR DE DOCENTES ARREGLADO) ---
 function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
@@ -3759,11 +3759,10 @@ function GroupsView({ user }) {
   const [showBitacoraModal, setShowBitacoraModal] = useState(null); 
   const [activeTab, setActiveTab] = useState('info');
   
-  // ESTADOS
   const [newNote, setNewNote] = useState("");
   const [isWriting, setIsWriting] = useState(false);
   const [editingGroup, setEditingGroup] = useState(null);
-  // Detecta si es inclusión leyendo cualquier parte de su rol (ej: "Docente de apoyo a la inclusión")
+  
   const userRoleStr = (user?.role || '').toLowerCase();
   const isDAIRole = userRoleStr.includes('inclusión') || userRoleStr.includes('inclusion') || userRoleStr.includes('dai');
   const [viewFilter, setViewFilter] = useState(isDAIRole ? 'inclusion' : 'sede');
@@ -3771,10 +3770,7 @@ function GroupsView({ user }) {
   const [updatingGroup, setUpdatingGroup] = useState(false);
   const [savingIncident, setSavingIncident] = useState(false);
 
-  // --- CONFIGURACIÓN DE TRABAJO SOCIAL ---
   const SOCIAL_TARGETS = ['mchancalay', 'Myrian Chancalay'];
-  
-  // REF PARA EL SCROLL (FLECHAS)
   const scrollRef = useRef(null); 
   const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scrollRef.current.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' }); } };
 
@@ -3806,68 +3802,33 @@ function GroupsView({ user }) {
     return () => { unsubS(); unsubU(); };
   }, []);
 
- 
- // --- AGRUPAMIENTO DE DATOS ---
- // --- AGRUPAMIENTO DE DATOS ---
+  const getNormRole = (r) => {
+    if (!r) return '';
+    return r.trim();
+  };
+
   const groupedData = students.reduce((acc, s) => {
       const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-      
       if (s.modality === 'Inclusión') {
           const dais = [...new Set([s.daiMorning, s.daiAfternoon].filter(Boolean))];
           dais.forEach(daiName => {
               const groupKey = `DAI: ${daiName}`;
               if (!acc[groupKey]) {
-                  acc[groupKey] = { 
-                    name: groupKey, 
-                    students: [], 
-                    teacher: daiName, 
-                    teacherId: s.daiId, // <--- GUARDAMOS EL ID EN EL GRUPO
-                    isInclusionGroup: true 
-                  };
+                  acc[groupKey] = { name: groupKey, students: [], teacher: daiName, teacherId: s.daiId, isInclusionGroup: true };
               }
-              if (!acc[groupKey].students.find(x => x.id === s.id)) {
-                  acc[groupKey].students.push(s);
-              }
+              if (!acc[groupKey].students.find(x => x.id === s.id)) { acc[groupKey].students.push(s); }
           });
       } else {
           const groupName = s[`group${suf}`];
           if (!groupName) return acc;
           const groupKey = groupName.trim();
-          const myTeacher = s[`teacher${suf}`];
-          const myTeacherId = s[`teacherId${suf}`]; // <--- LEEMOS EL ID DEL ALUMNO
-          
           if (!acc[groupKey]) { 
               acc[groupKey] = { 
-                  name: groupKey, 
-                  students: [], 
-                  teacher: myTeacher, 
-                  teacherId: myTeacherId, // <--- ASIGNAMOS EL ID AL GRUPO
-                  teacher2: s[`teacher2${suf}`], 
-                  aux: s[`aux${suf}`], 
-                  special1: s[`special1${suf}`], 
-                  special2: s[`special2${suf}`], 
-                  special3: s[`special3${suf}`], 
-                  sup1: s[`sup1${suf}`], 
-                  sup2: s[`sup2${suf}`], 
-                  classroom: s.classroom, 
-                  driveLink: s[`driveLink${suf}`], 
-                  isInclusionGroup: false 
+                  name: groupKey, students: [], teacher: s[`teacher${suf}`], teacherId: s[`teacherId${suf}`], 
+                  teacher2: s[`teacher2${suf}`], aux: s[`aux${suf}`], special1: s[`special1${suf}`], 
+                  special2: s[`special2${suf}`], special3: s[`special3${suf}`], sup1: s[`sup1${suf}`], 
+                  sup2: s[`sup2${suf}`], classroom: s.classroom, driveLink: s[`driveLink${suf}`], isInclusionGroup: false 
               }; 
-          } else { 
-              if (!acc[groupKey].aux && s[`aux${suf}`]) acc[groupKey].aux = s[`aux${suf}`]; 
-              if (!acc[groupKey].teacher2 && s[`teacher2${suf}`]) acc[groupKey].teacher2 = s[`teacher2${suf}`]; 
-              if (!acc[groupKey].teacher && myTeacher) {
-                  acc[groupKey].teacher = myTeacher;
-                  acc[groupKey].teacherId = myTeacherId;
-              }
-              // ... el resto de tus verificaciones de especiales, sup, etc ...
-              if (!acc[groupKey].special1 && s[`special1${suf}`]) acc[groupKey].special1 = s[`special1${suf}`]; 
-              if (!acc[groupKey].special2 && s[`special2${suf}`]) acc[groupKey].special2 = s[`special2${suf}`]; 
-              if (!acc[groupKey].special3 && s[`special3${suf}`]) acc[groupKey].special3 = s[`special3${suf}`]; 
-              if (!acc[groupKey].sup1 && s[`sup1${suf}`]) acc[groupKey].sup1 = s[`sup1${suf}`]; 
-              if (!acc[groupKey].sup2 && s[`sup2${suf}`]) acc[groupKey].sup2 = s[`sup2${suf}`]; 
-              if (!acc[groupKey].classroom && s.classroom) acc[groupKey].classroom = s.classroom; 
-              if (!acc[groupKey].driveLink && s[`driveLink${suf}`]) acc[groupKey].driveLink = s[`driveLink${suf}`]; 
           }
           acc[groupKey].students.push(s); 
       }
@@ -3876,56 +3837,34 @@ function GroupsView({ user }) {
 
   let groups = Object.values(groupedData).sort((a, b) => a.name.localeCompare(b.name));
 
-// --- FILTRADO FINAL INFALIBLE (PARCHE CORRECTOR DE SINTAXIS) ---
   if (!isManagement) {
       const normalizeName = (name) => {
           if (!name) return "";
           return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
       };
-
       groups = groups.filter(g => {
           const uId = user.id;
           const legajoId = user.legajoId; 
           const uNameRaw = user.fullName || `${user.firstName} ${user.lastName}`;
           const uName = normalizeName(uNameRaw);
-
-          // 1. Identidad por ID
           if (g.teacherId === uId || g.teacherId === legajoId) return true;
-
-          // 2. Identidad por Nombre
           if (normalizeName(g.teacher) === uName || normalizeName(g.teacher2) === uName) return true;
-
-          // 3. Roles de apoyo
           const supportStaff = [g.aux, g.special1, g.special2, g.special3, g.sup1, g.sup2].map(normalizeName);
           if (supportStaff.includes(uName)) return true;
-
-          // 4. Inclusión: Revisamos alumno por alumno
           const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-          return g.students.some(s => 
-              s.daiId === uId || s.daiId === legajoId || 
-              normalizeName(s[`dai${suf}`]) === uName ||
-              normalizeName(s[`teacher${suf}`]) === uName ||
-              s[`teacherId${suf}`] === uId || s[`teacherId${suf}`] === legajoId
-          );
+          return g.students.some(s => s.daiId === uId || s.daiId === legajoId || normalizeName(s[`dai${suf}`]) === uName || normalizeName(s[`teacher${suf}`]) === uName || s[`teacherId${suf}`] === uId || s[`teacherId${suf}`] === legajoId);
       });
   } else {
-      if (viewFilter !== 'all') { 
-          groups = groups.filter(g => viewFilter === 'inclusion' ? g.isInclusionGroup : !g.isInclusionGroup); 
-      }
+      if (viewFilter !== 'all') { groups = groups.filter(g => viewFilter === 'inclusion' ? g.isInclusionGroup : !g.isInclusionGroup); }
   }
 
   const getSafeDate = (d) => { if(!d) return '-'; try { return new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('es-AR'); } catch(e) { return d; } };
 
-  // --- FUNCIÓN CENTRALIZADA DE IMPRESIÓN ---
-  // Esta función recibe "qué grupos imprimir" (uno o todos) y genera el PDF
   const printGroups = (groupsToPrint) => {
     const iframe = document.createElement('iframe'); 
     iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0'; 
     document.body.appendChild(iframe);
-    
     let fullHtml = `<html><head><title>Listado Institucional</title><style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap'); body{font-family:'Roboto', sans-serif; padding:20px; color:#333;} .main-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 5px solid #7c3aed; padding-bottom: 10px; margin-bottom: 20px; } .main-title { font-size: 24px; font-weight: 900; color: #4c1d95; text-transform: uppercase; margin: 0; } .group-section { margin-bottom: 30px; page-break-inside: avoid; } .group-header { background-color: #f3f4f6; border-left: 6px solid #7c3aed; padding: 10px 15px; margin-bottom: 10px; border-radius: 0 8px 8px 0; } .group-name { font-size: 18px; font-weight: 900; color: #5b21b6; margin: 0; } .group-staff { font-size: 10px; font-weight: bold; color: #555; margin-top: 4px; text-transform: uppercase; } table { width: 100%; border-collapse: collapse; font-size: 10px; } thead tr { background-color: #7c3aed !important; color: white !important; } th { padding: 5px; text-align: left; text-transform: uppercase; font-weight: bold; border: 1px solid #ddd; } td { border: 1px solid #e5e7eb; padding: 5px; color: #374151; } tr:nth-child(even) { background-color: #f9fafb !important; } .footer { margin-top: 30px; border-top: 1px solid #ddd; padding-top: 10px; text-align: right; font-size: 9px; color: #9ca3af; font-style: italic; }</style></head><body><div class="main-header"><div><h1 class="main-title">Listado Institucional</h1><p class="main-subtitle">Ciclo 2026 - Turno ${turn === 'morning' ? 'Mañana' : 'Tarde'}</p></div><img src="${LOGO_URL}" style="height: 50px; opacity: 0.9;" /></div>`;
-    
-    // Aquí iteramos sobre la lista que recibimos como parámetro (groupsToPrint)
     groupsToPrint.forEach(g => {
         const sorted = [...g.students].sort((a,b) => a.lastName.localeCompare(b.lastName));
         let supText = g.sup1 || '-'; if (g.sup2) supText += ` / ${g.sup2}`;
@@ -3934,98 +3873,52 @@ function GroupsView({ user }) {
         sorted.forEach((s, i) => { const flia = g.isInclusionGroup ? `Esc. Origen: ${s.originSchool} (${s.originGrade})` : `M: ${s.motherName||'-'} / P: ${s.fatherName||'-'}`; fullHtml += `<tr><td style="text-align:center;font-weight:bold;color:#7c3aed;">${i+1}</td><td style="font-weight:bold;text-transform:uppercase;">${s.lastName}, ${s.firstName}</td><td>${s.dni||'-'}</td><td>${getSafeDate(s.birthDate)}</td><td>${flia}</td></tr>`; });
         fullHtml += `</tbody></table></div>`;
     });
-    
     fullHtml += `<div class="footer">Generado el ${new Date().toLocaleDateString()}</div></body></html>`;
     const doc = iframe.contentWindow.document; doc.open(); doc.write(fullHtml); doc.close();
     setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
   };
 
-  // --- MANEJADOR: IMPRIMIR TODO ---
-  const handlePrintAll = () => {
-      printGroups(groups); // Le pasamos TODOS los grupos
-  };
-  
-  // --- MANEJADOR: IMPRIMIR UNO SOLO ---
-  const handlePrintSingleGroup = (g) => { 
-      printGroups([g]); // Le pasamos SOLO este grupo (dentro de un array)
-  };
+  const handlePrintAll = () => { printGroups(groups); };
+  const handlePrintSingleGroup = (g) => { printGroups([g]); };
 
-  // --- LÓGICA DE REPORTE DE AUSENTISMO ---
   const handleReportAbsenteeism = async () => {
       if(!selectedStudent) return;
       const details = prompt(`¿Desde cuándo falta ${selectedStudent.firstName} y qué observaste?`);
       if(!details) return;
-
-      const matchingUsers = usersList.filter(u => 
-          SOCIAL_TARGETS.includes(u.username) || 
-          SOCIAL_TARGETS.includes(u.email?.split('@')[0]) || 
-          SOCIAL_TARGETS.includes(`${u.firstName} ${u.lastName}`) || 
-          SOCIAL_TARGETS.includes(u.fullName)
-      );
-      
+      const matchingUsers = usersList.filter(u => SOCIAL_TARGETS.includes(u.username) || SOCIAL_TARGETS.includes(u.email?.split('@')[0]) || SOCIAL_TARGETS.includes(`${u.firstName} ${u.lastName}`) || SOCIAL_TARGETS.includes(u.fullName));
       let targetIds = matchingUsers.map(u => u.id);
-
-      if (targetIds.length === 0) {
-          const socialWorkers = usersList.filter(u => (u.role === 'Equipo Técnico' || u.role === 'Trabajadora Social' || u.role === 'Social'));
-          targetIds = socialWorkers.map(u => u.id);
-      }
-      
-      if (targetIds.length === 0) {
-          const admins = usersList.filter(u => u.rol === 'admin' || u.rol === 'super-admin');
-          targetIds = admins.map(u => u.id);
-          alert("⚠️ No encontré a 'mchancalay' ni a nadie del Equipo Técnico. Se enviará a Dirección.");
-      }
-
+      if (targetIds.length === 0) { const socialWorkers = usersList.filter(u => (u.role === 'Equipo Técnico' || u.role === 'Trabajadora Social' || u.role === 'Social')); targetIds = socialWorkers.map(u => u.id); }
+      if (targetIds.length === 0) { const admins = usersList.filter(u => u.rol === 'admin' || u.rol === 'super-admin'); targetIds = admins.map(u => u.id); alert("⚠️ No encontré a Trabajo Social. Se enviará a Dirección."); }
       try {
-          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), {
-              title: `⚠️ AUSENTISMO: ${selectedStudent.lastName}, ${selectedStudent.firstName}`,
-              description: `Reporte de ausentismo (+3 días). Detalles: ${details}`,
-              priority: 'high', status: 'pending', targetType: 'user', targetUserIds: targetIds, targetUserId: targetIds[0] || null, assignedToName: "Trabajo Social / Eq. Técnico",
-              createdById: user.id, createdBy: user.firstName, createdAt: serverTimestamp(), showDate: new Date().toISOString().split('T')[0], showTime: "08:00",
-              type: 'absenteeism' 
-          });
-
+          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { title: `⚠️ AUSENTISMO: ${selectedStudent.lastName}, ${selectedStudent.firstName}`, description: `Reporte de ausentismo (+3 días). Detalles: ${details}`, priority: 'high', status: 'pending', targetType: 'user', targetUserIds: targetIds, targetUserId: targetIds[0] || null, assignedToName: "Trabajo Social / Eq. Técnico", createdById: user.id, createdBy: user.firstName, createdAt: serverTimestamp(), showDate: new Date().toISOString().split('T')[0], showTime: "08:00", type: 'absenteeism' });
           const newInc = { date: new Date().toISOString(), type: "Ausentismo", severity: "high", text: `Protocolo Ausentismo iniciado: ${details}`, author: user.firstName };
           await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', selectedStudent.id), { incidents: arrayUnion(newInc) });
-
           alert("✅ Reporte enviado a Trabajo Social.");
       } catch (e) { alert("Error al reportar: " + e.message); }
   };
 
-  // --- BITÁCORA ---
   const addIncident = async (type, text = "") => { if (!showBitacoraModal) return; const newInc = { date: new Date().toISOString(), type: text ? "Nota" : type, severity: type, text: text || type, author: user.firstName }; try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id), { incidents: arrayUnion(newInc) }); setStudents(prev => prev.map(s => s.id === showBitacoraModal.id ? {...s, incidents: [...(s.incidents||[]), newInc]} : s)); setNewNote(""); setIsWriting(false); setShowBitacoraModal(null); alert("✅ Guardado."); } catch (e) { alert(e.message); } };
   const handleSaveIncident = async (type, severity) => { if (!showBitacoraModal) return; setSavingIncident(true); try { const incidentData = { type, severity, date: new Date().toISOString(), author: user.fullName || user.firstName, authorId: user.id }; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id), { incidents: arrayUnion(incidentData) }); alert("✅ Registro guardado"); setShowBitacoraModal(null); } catch (e) { console.error(e); } finally { setSavingIncident(false); } };
   const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
-  
-const handleUpdateGroup = async (e) => { 
+
+  const handleUpdateGroup = async (e) => { 
       e.preventDefault(); 
       if (!editingGroup) return; 
       if (editingGroup.isInclusionGroup && !confirm("⚠️ Estás editando un grupo de INCLUSIÓN. Esto cambiará la DAI para todos los alumnos de la lista.")) return; 
-      
       setUpdatingGroup(true); 
       const fd = new FormData(e.target); 
       const updates = {}; 
       const suf = turn === 'morning' ? 'Morning' : 'Afternoon'; 
-      
-      // 1. Obtenemos el ID del legajo desde el select
       const selectedStaffId = fd.get('teacher');
-      
-      // 2. Buscamos al profesional en staffList (que es la colección staff_records)
-      // Asegurate de que staffList esté disponible en el componente
-      const staffObj = staffList.find(st => st.id === selectedStaffId);
-      const teacherName = staffObj ? `${staffObj.lastName}, ${staffObj.firstName}` : "";
-
+      const staffObj = usersList.find(st => st.id === selectedStaffId);
+      const teacherName = staffObj ? staffObj.fullName : "";
       if (editingGroup.isInclusionGroup) { 
-          // Para Inclusión
-          updates['daiId'] = selectedStaffId; // Guardamos el vínculo real
+          updates['daiId'] = selectedStaffId; 
           updates['daiMorning'] = teacherName; 
           updates['daiAfternoon'] = teacherName;
       } else { 
-          // Para Sede
-          updates[`teacherId${suf}`] = selectedStaffId; // Guardamos el vínculo real
+          updates[`teacherId${suf}`] = selectedStaffId; 
           updates[`teacher${suf}`] = teacherName; 
-          
-          // El resto de los campos (los dejamos como texto por ahora para no romper todo de golpe)
           updates[`teacher2${suf}`] = fd.get('teacher2'); 
           updates[`aux${suf}`] = fd.get('aux'); 
           updates[`special1${suf}`] = fd.get('special1'); 
@@ -4036,38 +3929,28 @@ const handleUpdateGroup = async (e) => {
           updates[`group${suf}`] = fd.get('groupName'); 
           updates.classroom = fd.get('classroom'); 
       } 
-      
       updates[`driveLink${suf}`] = fd.get('driveLink'); 
-      
       try { 
           const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)); 
           await Promise.all(promises); 
-          alert("✅ Actualizado correctamente. Ahora el grupo está vinculado al legajo oficial."); 
+          alert("✅ Actualizado correctamente."); 
           setEditingGroup(null); 
-      } catch (err) { 
-          alert("Error al actualizar: " + err.message); 
-      } finally { 
-          setUpdatingGroup(false); 
-      } 
+      } catch (err) { alert(err.message); } finally { setUpdatingGroup(false); } 
   };
+
   const staffOptions = usersList.filter(u => ['Docente', 'Auxiliar/Preceptor', 'Equipo Técnico', 'Profes Especiales', 'DAI', 'Inclusión'].includes(u.role));
   const techOptions = usersList.filter(u => u.role === 'Equipo Técnico' || u.role === 'Equipo Técnico Inclusión' || u.role === 'Trabajadora Social');
   const specialOptions = usersList.filter(u => u.role === 'Profes Especiales' || u.role === 'Docente');
 
   return (
     <div className="flex flex-col h-full bg-slate-100 animate-in fade-in relative">
-     {/* CABECERA DE PERFIL IDENTIFICADA POR ID (Fix para Yaninas) */}
       {!isManagement && (
         <div className="bg-white px-6 py-4 border-b flex items-center gap-4 shrink-0">
-          <div className="w-12 h-12 bg-violet-100 rounded-2xl flex items-center justify-center text-violet-600 shadow-inner">
-            <User size={24} />
-          </div>
+          <div className="w-12 h-12 bg-violet-100 rounded-2xl flex items-center justify-center text-violet-600 shadow-inner"> <User size={24} /> </div>
           <div>
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Docente Identificada</p>
-            <h2 className="text-lg font-black text-violet-900 uppercase italic leading-none">
-              {user.fullName || `${user.firstName} ${user.lastName}`}
-            </h2>
-            <p className="text-[9px] font-bold text-orange-500 mt-1 uppercase">ID de seguridad: {user.id.substring(0,8)}...</p>
+            <h2 className="text-lg font-black text-violet-900 uppercase italic leading-none">{user.fullName || `${user.firstName} ${user.lastName}`}</h2>
+            <p className="text-[9px] font-bold text-orange-500 mt-1 uppercase">ID: {user.id.substring(0,8)}...</p>
           </div>
         </div>
       )}
@@ -4079,16 +3962,13 @@ const handleUpdateGroup = async (e) => {
               </div>
               {isManagement && <button onClick={handlePrintAll} className="bg-violet-100 text-violet-700 p-2 rounded-xl shadow-sm hover:bg-violet-200 transition" title="Imprimir Todo"><FileText size={24}/></button>}
           </div>
-          
           <div className={`flex gap-2 ${viewFilter === 'inclusion' ? 'justify-end' : ''}`}>
-              {/* Ocultamos los turnos si estamos viendo Inclusión */}
               {viewFilter !== 'inclusion' && (
                   <div className="flex bg-gray-100 p-1 rounded-xl flex-1">
                       <button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-400'}`}>☀️ Mañana</button>
                       <button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 Tarde</button>
                   </div>
               )}
-              
               {isManagement && (
                   <div className="flex bg-gray-100 p-1 rounded-xl">
                       <button onClick={() => setViewFilter('sede')} className={`px-4 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'sede' ? 'bg-white shadow text-blue-600' : 'text-gray-400'}`}>Sede</button>
@@ -4101,7 +3981,6 @@ const handleUpdateGroup = async (e) => {
       <div className="relative flex-1 overflow-hidden">
           <button onClick={() => scroll('left')} className="hidden md:flex absolute left-2 top-1/2 z-20 bg-white/90 text-violet-600 p-3 rounded-full shadow-xl border border-gray-100 hover:scale-110 transition -translate-y-1/2"><ChevronLeft size={24}/></button>
           <button onClick={() => scroll('right')} className="hidden md:flex absolute right-2 top-1/2 z-20 bg-white/90 text-violet-600 p-3 rounded-full shadow-xl border border-gray-100 hover:scale-110 transition -translate-y-1/2"><ChevronRight size={24}/></button>
-
           <div ref={scrollRef} className={`h-full overflow-x-auto p-6 scroll-smooth flex gap-6 items-start ${groups.length <= 2 ? 'justify-center' : ''}`}>
                 {groups.length === 0 && (<div className="m-auto text-center opacity-50"><p className="font-bold text-gray-400">No hay grupos visibles.</p></div>)} 
                 {groups.map((g) => (
@@ -4114,11 +3993,9 @@ const handleUpdateGroup = async (e) => {
                               {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"><Edit3 size={14}/></button>}
                           </div>
                           <div className="flex items-center gap-2 pr-24 flex-wrap">
-    <h3 className="font-black text-gray-800 text-lg leading-tight">{g.name}</h3>
-    <span className="bg-white/80 text-violet-700 px-2 py-0.5 rounded-md text-[9px] font-black shadow-sm border border-violet-100 shrink-0">
-        {g.students.length} ALUMNXS
-    </span>
-</div>
+                            <h3 className="font-black text-gray-800 text-lg leading-tight">{g.name}</h3>
+                            <span className="bg-white/80 text-violet-700 px-2 py-0.5 rounded-md text-[9px] font-black shadow-sm border border-violet-100 shrink-0">{g.students.length} ALUMNXS</span>
+                          </div>
                           <div className="mt-2 text-xs text-gray-500 font-medium space-y-1">
                               <p>DOC: <span className="font-bold text-violet-700 uppercase">{g.teacher || 'Sin asignar'}</span> {g.teacher2 && <span className="text-violet-500 font-bold">/ {g.teacher2}</span>}</p>
                               {g.aux && <p>AUX: <span className="font-bold uppercase">{g.aux}</span></p>}
@@ -4156,31 +4033,49 @@ const handleUpdateGroup = async (e) => {
         )}
       </div></div>)}
 
-      {editingGroup && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><form onSubmit={handleUpdateGroup} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto"><div className="flex justify-between items-center mb-6"><h3 className="text-xl font-black text-violet-900 uppercase italic">Editar Grupo</h3><button type="button" onClick={()=>setEditingGroup(null)}><X/></button></div><div className="space-y-4"><div className="bg-violet-50 p-3 rounded-xl border border-violet-100 text-center"><p className="text-xs text-violet-500 font-bold uppercase mb-1">{editingGroup.isInclusionGroup ? 'Editando Cartera DAI' : 'Editando Grupo Sede'}</p>{!editingGroup.isInclusionGroup && <input name="groupName" defaultValue={editingGroup.name} className="font-black text-2xl text-violet-900 bg-transparent text-center w-full outline-none border-b border-violet-200 focus:border-violet-500" placeholder="Nombre Grupo"/>}</div>
-       <div>
-        <label className="text-xs font-bold text-gray-500 ml-1">{editingGroup.isInclusionGroup ? 'DAI Responsable' : 'Docente a Cargo'}</label>
-        <div>
-    <label className="text-xs font-bold text-gray-500 ml-1">
-        {editingGroup.isInclusionGroup ? 'DAI Responsable' : 'Docente a Cargo'}
-    </label>
-    <select 
-        name="teacher" 
-        defaultValue={editingGroup.teacherId || editingGroup.teacher} 
-        className="w-full p-3 bg-white border-2 border-violet-100 rounded-xl outline-none font-bold text-xs focus:border-violet-500"
-    >
-        <option value="">Seleccionar Profesional...</option>
-        {/* Usamos la lista de staff_records que es la "verdad oficial" */}
-        {staffList.map(st => (
-            <option key={st.id} value={st.id}>
-                {st.lastName}, {st.firstName} ({getNormRole(st.cargo1_role)})
-            </option>
-        ))}
-    </select>
-</div>
-    </div>
-        {!editingGroup.isInclusionGroup && (<><div><label className="text-xs font-bold text-gray-500 ml-1">Docente 2 (Pareja)</label><select name="teacher2" defaultValue={editingGroup.teacher2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div><label className="text-xs font-bold text-gray-500 ml-1">Auxiliar</label><select name="aux" defaultValue={editingGroup.aux} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Sin asignar</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div><label className="text-xs font-bold text-gray-500 ml-1">Aula Física</label><input name="classroom" defaultValue={editingGroup.classroom} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" placeholder="Ej: 5"/></div><div className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="text-[10px] font-black text-gray-400 uppercase mb-2">Profes Especiales (Opcional)</p><div className="space-y-2"><select name="special1" defaultValue={editingGroup.special1} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 1...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="special2" defaultValue={editingGroup.special2} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 2...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select><select name="special3" defaultValue={editingGroup.special3} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 3...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div></div><div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-gray-500 ml-1">Sup. 1</label><select name="sup1" defaultValue={editingGroup.sup1} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div><div><label className="text-xs font-bold text-gray-500 ml-1">Sup. 2</label><select name="sup2" defaultValue={editingGroup.sup2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div></div></>)}<div><label className="text-xs font-bold text-green-600 ml-1">Enlace a Carpeta Drive</label><input name="driveLink" defaultValue={editingGroup.driveLink} className="w-full p-3 bg-green-50 border border-green-100 rounded-xl outline-none font-bold text-xs text-green-700" placeholder="https://drive.google.com/..."/></div><button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition flex justify-center items-center gap-2">{updatingGroup ? <RefreshCw className="animate-spin"/> : 'Aplicar Cambios'}</button></div></form></div>)}
+      {editingGroup && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+          <form onSubmit={handleUpdateGroup} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-black text-violet-900 uppercase italic">Editar Grupo</h3><button type="button" onClick={()=>setEditingGroup(null)}><X/></button></div>
+            <div className="space-y-4">
+              <div className="bg-violet-50 p-3 rounded-xl border border-violet-100 text-center">
+                <p className="text-xs text-violet-500 font-bold uppercase mb-1">{editingGroup.isInclusionGroup ? 'Editando Cartera DAI' : 'Editando Grupo Sede'}</p>
+                {!editingGroup.isInclusionGroup && <input name="groupName" defaultValue={editingGroup.name} className="font-black text-2xl text-violet-900 bg-transparent text-center w-full outline-none border-b border-violet-200 focus:border-violet-500" placeholder="Nombre Grupo"/>}
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500 ml-1">{editingGroup.isInclusionGroup ? 'DAI Responsable' : 'Docente a Cargo'}</label>
+                <select name="teacher" defaultValue={editingGroup.teacherId || editingGroup.teacher} className="w-full p-3 bg-white border-2 border-violet-100 rounded-xl outline-none font-bold text-xs focus:border-violet-500">
+                    <option value="">Seleccionar Profesional...</option>
+                    {staffOptions.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+                </select>
+              </div>
+              {!editingGroup.isInclusionGroup && (
+                <>
+                  <div><label className="text-xs font-bold text-gray-500 ml-1">Docente 2 (Pareja)</label><select name="teacher2" defaultValue={editingGroup.teacher2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
+                  <div><label className="text-xs font-bold text-gray-500 ml-1">Auxiliar</label><select name="aux" defaultValue={editingGroup.aux} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Sin asignar</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
+                  <div><label className="text-xs font-bold text-gray-500 ml-1">Aula Física</label><input name="classroom" defaultValue={editingGroup.classroom} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" placeholder="Ej: 5"/></div>
+                  <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                    <p className="text-[10px] font-black text-gray-400 uppercase mb-2">Profes Especiales (Opcional)</p>
+                    <div className="space-y-2">
+                      <select name="special1" defaultValue={editingGroup.special1} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 1...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select>
+                      <select name="special2" defaultValue={editingGroup.special2} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 2...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select>
+                      <select name="special3" defaultValue={editingGroup.special3} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 3...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className="text-xs font-bold text-gray-500 ml-1">Sup. 1</label><select name="sup1" defaultValue={editingGroup.sup1} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
+                    <div><label className="text-xs font-bold text-gray-500 ml-1">Sup. 2</label><select name="sup2" defaultValue={editingGroup.sup2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
+                  </div>
+                </>
+              )}
+              <div><label className="text-xs font-bold text-green-600 ml-1">Enlace Drive</label><input name="driveLink" defaultValue={editingGroup.driveLink} className="w-full p-3 bg-green-50 border border-green-100 rounded-xl outline-none font-bold text-xs text-green-700" placeholder="https://drive..."/></div>
+              <button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition flex justify-center items-center gap-2">{updatingGroup ? <RefreshCw className="animate-spin"/> : 'Aplicar Cambios'}</button>
+            </div>
+          </form>
+        </div>
+      )}
       
-      {groupStats && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[250] flex items-center justify-center p-4" onClick={() => setGroupStats(null)}><div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-6"><div><h3 className="text-xl font-black text-violet-900 uppercase italic">Análisis del Grupo</h3><p className="text-xs text-gray-500 font-bold">{groupStats.name} ({groupStats.students.length} alumnos)</p></div><button onClick={() => setGroupStats(null)}><X/></button></div>{(() => { const allIncidents = groupStats.students.flatMap(s => s.incidents || []); if (allIncidents.length === 0) return <p className="text-center text-gray-400 italic">No hay registros en la bitácora aún.</p>; const dimensions = { 'Pedagógico/Social': 0, 'Salud y Bienestar': 0, 'Conducta': 0, 'Rutina': 0 }; const tagsCount = {}; allIncidents.forEach(inc => { const type = inc.type; tagsCount[type] = (tagsCount[type] || 0) + 1; if (['Trabajó Muy Bien', 'Ayudó a un amigo', 'Logro de Aprendizaje', 'Buena Conducta'].includes(type)) dimensions['Pedagógico/Social']++; else if (['Convulsión / Salud', 'Higiene / Esfínter', 'Vómito', 'No comió'].includes(type)) dimensions['Salud y Bienestar']++; else if (['Agresión / Violencia', 'Brote / Gritos', 'Fuga / Intento', 'Crisis Llanto'].includes(type)) dimensions['Conducta']++; else dimensions['Rutina']++; }); const total = allIncidents.length; const topTags = Object.entries(tagsCount).sort((a, b) => b[1] - a[1]).slice(0, 4); return (<div className="space-y-6"><div><h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Dimensiones Registradas</h4><div className="space-y-3">{Object.entries(dimensions).map(([dim, count]) => { if (count === 0) return null; const pct = Math.round((count / total) * 100); const color = dim === 'Pedagógico/Social' ? 'bg-emerald-500' : dim === 'Salud y Bienestar' ? 'bg-blue-500' : dim === 'Conducta' ? 'bg-red-500' : 'bg-yellow-400'; return (<div key={dim}><div className="flex justify-between text-xs font-bold text-gray-600 mb-1"><span>{dim}</span><span>{count} ({pct}%)</span></div><div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div style={{width: `${pct}%`}} className={`h-full ${color}`}></div></div></div>); })}</div></div><div className="bg-gray-50 p-4 rounded-2xl border border-gray-100"><h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Lo que más sucede (Top 4)</h4><div className="space-y-2">{topTags.map(([tag, count]) => (<div key={tag} className="flex justify-between items-center bg-white p-2 rounded-lg border border-gray-200 shadow-sm"><span className="text-xs font-bold text-gray-700">{tag}</span><span className="text-xs font-black bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md">{count} veces</span></div>))}</div></div></div>); })()}</div></div>)}
+      {groupStats && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[250] flex items-center justify-center p-4" onClick={() => setGroupStats(null)}><div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-6"><div><h3 className="text-xl font-black text-violet-900 uppercase italic">Análisis del Grupo</h3><p className="text-xs text-gray-500 font-bold">{groupStats.name} ({groupStats.students.length} alumnos)</p></div><button onClick={() => setGroupStats(null)}><X/></button></div>{(() => { const allIncidents = groupStats.students.flatMap(s => s.incidents || []); if (allIncidents.length === 0) return <p className="text-center text-gray-400 italic">No hay registros.</p>; const dimensions = { 'Pedagógico/Social': 0, 'Salud y Bienestar': 0, 'Conducta': 0, 'Rutina': 0 }; const tagsCount = {}; allIncidents.forEach(inc => { const type = inc.type; tagsCount[type] = (tagsCount[type] || 0) + 1; if (['Trabajó Muy Bien', 'Ayudó a un amigo', 'Logro de Aprendizaje', 'Buena Conducta'].includes(type)) dimensions['Pedagógico/Social']++; else if (['Convulsión / Salud', 'Higiene / Esfínter', 'Vómito', 'No comió'].includes(type)) dimensions['Salud y Bienestar']++; else if (['Agresión / Violencia', 'Brote / Gritos', 'Fuga / Intento', 'Crisis Llanto'].includes(type)) dimensions['Conducta']++; else dimensions['Rutina']++; }); const total = allIncidents.length; const topTags = Object.entries(tagsCount).sort((a, b) => b[1] - a[1]).slice(0, 4); return (<div className="space-y-6"><div><h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Dimensiones Registradas</h4><div className="space-y-3">{Object.entries(dimensions).map(([dim, count]) => { if (count === 0) return null; const pct = Math.round((count / total) * 100); const color = dim === 'Pedagógico/Social' ? 'bg-emerald-500' : dim === 'Salud y Bienestar' ? 'bg-blue-500' : dim === 'Conducta' ? 'bg-red-500' : 'bg-yellow-400'; return (<div key={dim}><div className="flex justify-between text-xs font-bold text-gray-600 mb-1"><span>{dim}</span><span>{count} ({pct}%)</span></div><div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div style={{width: `${pct}%`}} className={`h-full ${color}`}></div></div></div>); })}</div></div><div className="bg-gray-50 p-4 rounded-2xl border border-gray-100"><h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Lo que más sucede (Top 4)</h4><div className="space-y-2">{topTags.map(([tag, count]) => (<div key={tag} className="flex justify-between items-center bg-white p-2 rounded-lg border border-gray-200 shadow-sm"><span className="text-xs font-bold text-gray-700">{tag}</span><span className="text-xs font-black bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md">{count} veces</span></div>))}</div></div></div>); })()}</div></div>)}
       {selectedStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"><div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0"><button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition"><X size={20}/></button><div className="flex items-center gap-4"><div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">{selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}</div><div><h2 className="text-2xl font-bold">{selectedStudent.lastName}, {selectedStudent.firstName}</h2><p className="opacity-90 flex gap-2 text-sm mt-1"><span className="bg-white/20 px-2 py-0.5 rounded">{calculateAge(selectedStudent.birthDate)} años</span></p></div></div><div className="flex gap-2 mt-6"><button onClick={() => setActiveTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'info' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Datos</button><button onClick={() => setActiveTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'history' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto space-y-6">
       {activeTab === 'info' ? (
           <div className="space-y-4">
