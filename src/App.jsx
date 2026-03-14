@@ -4104,8 +4104,7 @@ function GroupsView({ user }) {
 function PersonalView({ user }) {
   const [staffList, setStaffList] = useState([]);
   const [students, setStudents] = useState([]); // <-- AGREGÁ ESTO
-  const VALID_ROLES = ["Docente", "Preceptora", "Auxiliar", "Profe Especial", "Equipo Técnico", "Equipo Directivo", "Dirección Inclusión", "Equipo Técnico Inclusión", "DAI", "Cocina", "Limpieza", "Mantenimiento", "Administración"];
-const uniqueTurns = ["Mañana", "Tarde", "Alternado", "Vespertino", "Doble"];
+ const uniqueTurns = ["Mañana", "Tarde", "Alternado", "Vespertino", "Doble"];
   
   const [staffFilterText, setStaffFilterText] = useState('');
   // ROLES COMO ARRAY PARA MULTISELECCIÓN
@@ -4807,15 +4806,15 @@ const uniqueTurns = ["Mañana", "Tarde", "Alternado", "Vespertino", "Doble"];
                 <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
               </summary>
               <div className="p-4 pt-0 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input name="lastName" defaultValue={editingStaff?.lastName} placeholder="Apellido/s" required className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
-                <input name="firstName" defaultValue={editingStaff?.firstName} placeholder="Nombre/s" required className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
-                <input name="dni" defaultValue={editingStaff?.dni} placeholder="DNI sin puntos" className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
+                <input name="lastName" defaultValue={editingStaff?.lastName || ""} placeholder="Apellido/s" required className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
+                <input name="firstName" defaultValue={editingStaff?.firstName || ""} placeholder="Nombre/s" required className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
+                <input name="dni" defaultValue={editingStaff?.dni || ""} placeholder="DNI sin puntos" className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
                 <div className="flex flex-col">
                   <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Fecha Nacimiento</label>
-                  <input name="birthDate" type="date" defaultValue={editingStaff?.birthDate} className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
+                  <input name="birthDate" type="date" defaultValue={editingStaff?.birthDate || ""} className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
                 </div>
-                <input name="phone" defaultValue={editingStaff?.phone} placeholder="Celular" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
-                <input name="email" defaultValue={editingStaff?.email} placeholder="Email" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+                <input name="phone" defaultValue={editingStaff?.phone || ""} placeholder="Celular" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+                <input name="email" defaultValue={editingStaff?.email || ""} placeholder="Email" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
               </div>
             </details>
 
@@ -4840,27 +4839,27 @@ const uniqueTurns = ["Mañana", "Tarde", "Alternado", "Vespertino", "Doble"];
                   </select>
                 </div>
                 <div className="grid grid-cols-[1fr,2fr] gap-2">
-                  <input name="cargo1_numero" defaultValue={editingStaff?.cargo1_numero} placeholder="N° Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
-                  <input name="cargo1_name" defaultValue={editingStaff?.cargo1_name} placeholder="Nombre del Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+                  <input name="cargo1_numero" defaultValue={editingStaff?.cargo1_numero || ""} placeholder="N° Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+                  <input name="cargo1_name" defaultValue={editingStaff?.cargo1_name || ""} placeholder="Nombre del Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <select name="cargo1_role" defaultValue={editingStaff?.cargo1_role || editingStaff?.role} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+                  <select name="cargo1_role" defaultValue={editingStaff?.cargo1_role || editingStaff?.role || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
                     <option value="">Seleccionar Rol...</option>
-                    {VALID_ROLES?.map(r => <option key={r} value={r}>{r}</option>)}
+                    {(typeof VALID_ROLES !== 'undefined' ? VALID_ROLES : []).map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
-                  <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+                  <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
                     <option value="">Turno...</option>
-                    <option value="Mañana">Mañana</option><option value="Tarde">Tarde</option><option value="Vespertino">Vespertino</option><option value="Doble">Doble</option>
+                    {(typeof uniqueTurns !== 'undefined' ? uniqueTurns : ["Mañana", "Tarde", "Alternado"]).map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                   <select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+                   <select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
                     <option value="">Revista...</option>
                     <option value="Titular">Titular</option><option value="Provisional">Provisional</option><option value="Suplente">Suplente</option>
                   </select>
                   <div className="flex flex-col">
                     <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Alta Cargo</label>
-                    <input name="cargo1_ingreso" type="date" defaultValue={editingStaff?.cargo1_ingreso} className="p-2 bg-slate-50 rounded-xl border-none font-bold text-xs"/>
+                    <input name="cargo1_ingreso" type="date" defaultValue={editingStaff?.cargo1_ingreso || ""} className="p-2 bg-slate-50 rounded-xl border-none font-bold text-xs"/>
                   </div>
                 </div>
               </div>
@@ -4876,13 +4875,13 @@ const uniqueTurns = ["Mañana", "Tarde", "Alternado", "Vespertino", "Doble"];
               </summary>
               <div className="p-4 pt-0 space-y-3">
                 <div className="grid grid-cols-2 gap-2">
-                  <input name="cargo2_numero" defaultValue={editingStaff?.cargo2_numero} placeholder="N° Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm w-full"/>
-                  <input name="cargo2_name" defaultValue={editingStaff?.cargo2_name} placeholder="Nombre Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm w-full"/>
+                  <input name="cargo2_numero" defaultValue={editingStaff?.cargo2_numero || ""} placeholder="N° Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm w-full"/>
+                  <input name="cargo2_name" defaultValue={editingStaff?.cargo2_name || ""} placeholder="Nombre Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm w-full"/>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <select name="cargo2_role" defaultValue={editingStaff?.cargo2_role} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
+                  <select name="cargo2_role" defaultValue={editingStaff?.cargo2_role || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
                     <option value="">Rol Cargo 2...</option>
-                    {VALID_ROLES?.map(r => <option key={r} value={r}>{r}</option>)}
+                    {(typeof VALID_ROLES !== 'undefined' ? VALID_ROLES : []).map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
                   <select name="cargo2_subsidized" defaultValue={editingStaff?.cargo2_subsidized || 'false'} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
                     <option value="false">DENO (Sin Subvención)</option>
@@ -4903,16 +4902,16 @@ const uniqueTurns = ["Mañana", "Tarde", "Alternado", "Vespertino", "Doble"];
               <div className="p-4 pt-0 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Ingreso Institución</label>
-                  <input name="fechaIngreso" type="date" defaultValue={editingStaff?.fechaIngreso} className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm"/>
+                  <input name="fechaIngreso" type="date" defaultValue={editingStaff?.fechaIngreso || ""} className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm"/>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Años Anti.</label>
-                    <input name="antiguedadAnios" type="number" defaultValue={editingStaff?.antiguedadAnios} className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm text-center"/>
+                    <input name="antiguedadAnios" type="number" defaultValue={editingStaff?.antiguedadAnios || ""} className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm text-center"/>
                   </div>
                   <div>
                     <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Meses Anti.</label>
-                    <input name="antiguedadMeses" type="number" defaultValue={editingStaff?.antiguedadMeses} className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm text-center"/>
+                    <input name="antiguedadMeses" type="number" defaultValue={editingStaff?.antiguedadMeses || ""} className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm text-center"/>
                   </div>
                 </div>
                 <input name="antiguedadFechaRef" type="hidden" defaultValue={editingStaff?.antiguedadFechaRef || new Date().toISOString().split('T')[0]} />
@@ -4945,7 +4944,6 @@ const uniqueTurns = ["Mañana", "Tarde", "Alternado", "Vespertino", "Doble"];
   </div> // CIERRE DIV PRINCIPAL PersonalView
   ); // CIERRE RETURN
 } // CIERRE FUNCIÓN PersonalView
-
 // --- VISTA MÉDICA (HISTORIAS CLÍNICAS FORMALES, FIRMA Y LOGO) ---
 function MedicalView({ user }) {
   const [students, setStudents] = useState([]);
