@@ -4899,12 +4899,20 @@ function PersonalView({ user }) {
               </div>
 
               {editingStaff && (
-                <button type="button" onClick={async () => {if(confirm("¿Eliminar definitivamente?")) {await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); setShowStaffForm(false); setViewingStaff(null);}}} className="w-full py-2 text-red-400 font-bold text-[10px] uppercase hover:text-red-500 transition">Eliminar Personal del Sistema</button>
+                        <button type="button" onClick={async () => {if(confirm("¿Eliminar definitivamente?")) {await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); setShowStaffForm(false); setViewingStaff(null);}}} className="w-full py-2 text-red-400 font-bold text-[10px] uppercase hover:text-red-500 transition">Eliminar Personal del Sistema</button>
+                      )}
+                    </form>
+                  </div>
+                </div>
               )}
-            </form>
-          </div>
-        </div>
-      )}
+            </div> // <--- CIERRE DEL DIV PRINCIPAL DE PERSONALVIEW
+          ); // <--- CIERRE DEL RETURN
+        } // <--- CIERRE DE LA FUNCIÓN PERSONALVIEW
+
+// --- VISTA MÉDICA (HISTORIAS CLÍNICAS FORMALES, FIRMA Y LOGO) ---
+function MedicalView({ user }) {
+  const [students, setStudents] = useState([]);
+  // ... resto del código médico
 // --- VISTA MÉDICA (HISTORIAS CLÍNICAS FORMALES, FIRMA Y LOGO) ---
 function MedicalView({ user }) {
   const [students, setStudents] = useState([]);
