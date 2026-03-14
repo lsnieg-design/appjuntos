@@ -4777,117 +4777,121 @@ function PersonalView({ user }) {
     </div>
 )}
 
-        {/* MODAL EDICIÓN LEGAJO COMPLETO (RECONSTRUIDO) */}
-      {showStaffForm && (
-        <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4 backdrop-blur-sm animate-in zoom-in-95">
-          <div className="bg-white rounded-[40px] w-full max-w-xl p-8 shadow-2xl max-h-[90vh] overflow-y-auto border-t-8 border-violet-600 custom-scrollbar">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-black text-violet-900 uppercase italic">{editingStaff ? 'Editar Legajo' : 'Nuevo Legajo'}</h3>
-              <button type="button" onClick={()=>setShowStaffForm(false)} className="text-gray-400 hover:text-gray-600"><X size={24}/></button>
-            </div>
-            
-            <div className="flex justify-center mb-6">
-                <div className="relative group w-24 h-24">
-                    <div className="w-24 h-24 rounded-3xl overflow-hidden border-4 border-violet-100 bg-gray-50 shadow-inner flex items-center justify-center">
-                        {photoPreview || editingStaff?.photoUrl ? <img src={photoPreview || editingStaff?.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-gray-300"/>}
-                    </div>
-                    <label className="absolute -bottom-2 -right-2 bg-violet-600 text-white p-2 rounded-full cursor-pointer hover:bg-violet-700 shadow-lg border-2 border-white transition-transform hover:scale-110">
-                        <input type="file" className="hidden" accept="image/*" onChange={handlePhotoChange} />
-                        {uploading ? <RefreshCw className="animate-spin" size={14}/> : <Edit3 size={14}/>}
-                    </label>
-                </div>
-            </div>
-
-            <form id="staffForm" onSubmit={handleSaveStaff} className="space-y-4">
-              {/* DATOS PERSONALES */}
-              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-3">
-                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Datos Básicos</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <input name="firstName" defaultValue={editingStaff?.firstName} placeholder="Nombre" required className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
-                  <input name="lastName" defaultValue={editingStaff?.lastName} placeholder="Apellido" required className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <input name="dni" defaultValue={editingStaff?.dni} placeholder="DNI" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
-                  <input name="birthDate" type="date" defaultValue={editingStaff?.birthDate} className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-xs text-gray-500"/>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                    <input name="phone" defaultValue={editingStaff?.phone} placeholder="Celular" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
-                    <input name="email" defaultValue={editingStaff?.email} placeholder="Email" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
-                </div>
-                <input name="address" defaultValue={editingStaff?.address} placeholder="Dirección" className="p-3 bg-white rounded-xl w-full border border-gray-200 outline-none font-bold text-sm"/>
-              </div>
-
-              {/* CONTRATACIÓN Y ANTIGÜEDAD */}
-              <div className="bg-violet-50 p-4 rounded-2xl border border-violet-100 space-y-3">
-                <div className="flex justify-between items-center">
-                  <h4 className="text-[10px] font-black text-violet-500 uppercase tracking-widest">Institucional</h4>
-                  <select name="modality" defaultValue={editingStaff?.modality || 'Sede'} className="p-1 bg-white rounded-lg border border-violet-200 outline-none font-bold text-[10px] text-violet-900">
-                    <option value="Sede">Sede</option>
-                    <option value="Inclusión">Inclusión</option>
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Fecha Ingreso Inst.</label>
-                    <input name="fechaIngreso" type="date" defaultValue={editingStaff?.fechaIngreso} className="p-2 bg-white rounded-lg w-full border border-violet-100 outline-none font-bold text-xs"/>
-                  </div>
-                  <div className="grid grid-cols-2 gap-1">
-                    <div>
-                      <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Años Anti.</label>
-                      <input name="antiguedadAnios" type="number" defaultValue={editingStaff?.antiguedadAnios} className="p-2 bg-white rounded-lg w-full border border-violet-100 outline-none font-bold text-xs text-center"/>
-                    </div>
-                    <div>
-                      <label className="text-[8px] font-black text-gray-400 uppercase ml-1">Meses Anti.</label>
-                      <input name="antiguedadMeses" type="number" defaultValue={editingStaff?.antiguedadMeses} className="p-2 bg-white rounded-lg w-full border border-violet-100 outline-none font-bold text-xs text-center"/>
-                    </div>
-                  </div>
-                </div>
-                <input name="antiguedadFechaRef" type="hidden" defaultValue={editingStaff?.antiguedadFechaRef || new Date().toISOString().split('T')[0]} />
-              </div>
-{/* CARGO 2 */}
-              <div className="p-4 bg-white border-2 border-violet-100 rounded-2xl space-y-3 shadow-sm">
-                <h5 className="text-[10px] font-black text-violet-600 uppercase border-b pb-1">Detalle Cargo 2 (Opcional)</h5>
-                <div className="grid grid-cols-[1fr,2fr] gap-2">
-                  <input name="cargo2_numero" defaultValue={editingStaff?.cargo2_numero} placeholder="N° Cargo" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs border border-gray-200"/>
-                  <input name="cargo2_name" defaultValue={editingStaff?.cargo2_name} placeholder="Nombre Cargo" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs border border-gray-200"/>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <select name="cargo2_role" defaultValue={editingStaff?.cargo2_role} className="p-2 bg-white rounded-lg border border-gray-200 outline-none font-bold text-xs">
-                    <option value="">Seleccionar Rol...</option>
-                    {VALID_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                  <select name="cargo2_turn" defaultValue={editingStaff?.cargo2_turn} className="p-2 bg-white rounded-lg border border-gray-200 outline-none font-bold text-xs">
-                    <option value="">Turno...</option>
-                    {uniqueTurns.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              {/* ESTUDIOS */}
-              <div className="grid grid-cols-2 gap-2">
-                <select name="studyStatus" defaultValue={editingStaff?.studyStatus} className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900">
-                  <option value="">Estado Estudios...</option>
-                  <option value="Finalizado">Finalizado</option>
-                  <option value="En curso">En curso</option>
-                </select>
-                <input name="degree" defaultValue={editingStaff?.degree} placeholder="Título" className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900"/>
-              </div>
-
-              <div className="flex gap-2 pt-4">
-                <button type="button" onClick={()=>setShowStaffForm(false)} className="flex-1 py-4 text-gray-500 font-bold uppercase text-xs">Cancelar</button>
-                <button type="submit" className="flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-violet-700 transition">Guardar Legajo</button>
-              </div>
-
-              {editingStaff && (
-                <button type="button" onClick={async () => {if(confirm("¿Eliminar definitivamente?")) {await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); setShowStaffForm(false); setViewingStaff(null);}}} className="w-full py-2 text-red-400 font-bold text-[10px] uppercase hover:text-red-500 transition">Eliminar Personal del Sistema</button>
-              )}
-            </form>
-          </div>
+    {/* MODAL EDICIÓN LEGAJO - VERSIÓN PREMIUM RESPONSIVA */}
+{showStaffForm && (
+  <div className="fixed inset-0 bg-black/70 z-[150] flex items-center justify-center p-2 sm:p-4 backdrop-blur-md animate-in fade-in duration-300">
+    <div className="bg-slate-50 rounded-[30px] w-full max-w-xl shadow-2xl max-h-[95vh] overflow-hidden flex flex-col border border-white/20">
+      
+      {/* CABECERA FIJA */}
+      <div className="bg-violet-700 p-5 text-white flex justify-between items-center shrink-0">
+        <div>
+          <h3 className="text-lg font-black uppercase italic tracking-tighter">
+            {editingStaff ? 'Editar Legajo' : 'Nuevo Personal'}
+          </h3>
+          <p className="text-[10px] opacity-70 font-bold uppercase">Configuración de ficha técnica</p>
         </div>
-      )}
+        <button onClick={() => setShowStaffForm(false)} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition">
+          <X size={20} />
+        </button>
+      </div>
+
+      <form id="staffForm" onSubmit={handleSaveStaff} className="overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar">
+        
+        {/* SECCIÓN 1: IDENTIDAD */}
+        <details open className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
+            <span className="text-[11px] font-black text-violet-600 uppercase flex items-center gap-2">
+              <User size={14}/> Datos de Identidad
+            </span>
+            <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
+          </summary>
+          <div className="p-4 pt-0 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input name="lastName" defaultValue={editingStaff?.lastName} placeholder="Apellido/s" required className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
+            <input name="firstName" defaultValue={editingStaff?.firstName} placeholder="Nombre/s" required className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
+            <input name="dni" defaultValue={editingStaff?.dni} placeholder="DNI sin puntos" className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
+            <div className="flex flex-col">
+              <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Fecha Nacimiento</label>
+              <input name="birthDate" type="date" defaultValue={editingStaff?.birthDate} className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
+            </div>
+          </div>
+        </details>
+
+        {/* SECCIÓN 2: CARGO PRIMARIO (CON SUBVENCIÓN) */}
+        <details open className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition border-l-4 border-emerald-500">
+            <span className="text-[11px] font-black text-emerald-600 uppercase flex items-center gap-2">
+              <Briefcase size={14}/> Cargo Principal
+            </span>
+            <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
+          </summary>
+          <div className="p-4 pt-0 space-y-3">
+            <div className="grid grid-cols-[1fr,2fr] gap-2">
+              <input name="cargo1_numero" defaultValue={editingStaff?.cargo1_numero} placeholder="N°" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm focus:ring-2 ring-emerald-100"/>
+              <input name="cargo1_name" defaultValue={editingStaff?.cargo1_name} placeholder="Nombre del Cargo (Ej: MG 1° A)" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm focus:ring-2 ring-emerald-100"/>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <select name="cargo1_role" defaultValue={editingStaff?.cargo1_role || editingStaff?.role} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+                <option value="">Seleccionar Rol...</option>
+                {VALID_ROLES?.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+              <select name="cargo1_subsidized" defaultValue={editingStaff?.cargo1_subsidized || 'false'} className={`p-3 rounded-xl border-none font-black text-xs ${editingStaff?.cargo1_subsidized === 'true' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                <option value="false">DENO (Sin Subvención)</option>
+                <option value="true">MECA (Subvencionado)</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+                <option value="">Revista...</option>
+                <option value="Titular">Titular</option><option value="Provisional">Provisional</option><option value="Suplente">Suplente</option>
+              </select>
+              <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+                <option value="">Turno...</option>
+                <option value="Mañana">Mañana</option><option value="Tarde">Tarde</option><option value="Vespertino">Vespertino</option><option value="Doble">Doble</option>
+              </select>
+            </div>
+          </div>
+        </details>
+
+        {/* SECCIÓN 3: CARGO SECUNDARIO (ACORDEÓN CERRADO POR DEFECTO) */}
+        <details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
+            <span className="text-[11px] font-black text-slate-500 uppercase flex items-center gap-2">
+              <PlusCircle size={14}/> Cargo Secundario / Adicional
+            </span>
+            <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
+          </summary>
+          <div className="p-4 pt-0 space-y-3">
+             <div className="grid grid-cols-[1fr,2fr] gap-2">
+              <input name="cargo2_numero" defaultValue={editingStaff?.cargo2_numero} placeholder="N°" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+              <input name="cargo2_name" defaultValue={editingStaff?.cargo2_name} placeholder="Nombre Cargo 2" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <select name="cargo2_role" defaultValue={editingStaff?.cargo2_role} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+                <option value="">Rol Cargo 2...</option>
+                {VALID_ROLES?.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+              <select name="cargo2_subsidized" defaultValue={editingStaff?.cargo2_subsidized || 'false'} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+                <option value="false">DENO (Sin Subvención)</option>
+                <option value="true">MECA (Subvencionado)</option>
+              </select>
+            </div>
+          </div>
+        </details>
+
+      </form>
+
+      {/* BOTONERA FIJA INFERIOR */}
+      <div className="p-4 bg-white border-t flex flex-col sm:flex-row gap-2 shrink-0">
+        <button type="button" onClick={() => setShowStaffForm(false)} className="order-2 sm:order-1 flex-1 py-3 text-slate-500 font-bold uppercase text-[10px] tracking-widest">
+          Cancelar
+        </button>
+        <button type="submit" form="staffForm" className="order-1 sm:order-2 flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-violet-200 hover:bg-violet-700 transition active:scale-95">
+          Guardar Cambios
+        </button>
+      </div>
     </div>
-  );
-} 
+  </div>
+)}
 
 
 
