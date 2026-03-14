@@ -4670,70 +4670,82 @@ function PersonalView({ user }) {
             })}
         </div>
 
-{/* MODAL LECTURA LEGAJO */}
-        {viewingStaff && !showStaffForm && (
-            <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setViewingStaff(null)}>
-                <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
-                    <div className="bg-violet-800 p-6 text-white relative shrink-0">
-                        <button onClick={()=>setViewingStaff(null)} className="absolute top-4 right-4 bg-white/20 p-1.5 rounded-full hover:bg-white/40 transition"><X size={20}/></button>
-                        <div className="flex gap-5 items-center">
-                            <div className="w-20 h-20 rounded-2xl bg-white/20 border-4 border-white/10 overflow-hidden flex items-center justify-center">
-                                {viewingStaff.photoUrl ? <img src={viewingStaff.photoUrl} className="w-full h-full object-cover"/> : <div className="text-4xl font-black text-white/50">{viewingStaff.firstName?.charAt(0) || '👤'}</div>}
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-black uppercase leading-tight">{viewingStaff.lastName || 'S/A'}, {viewingStaff.firstName || 'S/N'}</h2>
-                                <p className="text-orange-300 font-bold text-xs uppercase tracking-widest mt-1">{viewingStaff.modality || 'Sede'}</p>
-                                <span className="bg-white/20 px-3 py-1 rounded-lg text-[10px] font-bold inline-block mt-2 uppercase tracking-widest">DNI: {viewingStaff.dni || '-'}</span>
-                            </div>
-                        </div>
+{/* MODAL LECTURA LEGAJO - PARCHE ANTI-ERROR */}
+{viewingStaff && !showStaffForm && (
+    <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setViewingStaff(null)}>
+        <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+            
+            {/* CABECERA CON PROTECCIÓN */}
+            <div className="bg-violet-800 p-6 text-white relative shrink-0">
+                <button onClick={()=>setViewingStaff(null)} className="absolute top-4 right-4 bg-white/20 p-1.5 rounded-full hover:bg-white/40 transition"><X size={20}/></button>
+                <div className="flex gap-5 items-center">
+                    <div className="w-20 h-20 rounded-2xl bg-white/20 border-4 border-white/10 overflow-hidden flex items-center justify-center">
+                        {viewingStaff.photoUrl ? (
+                            <img src={viewingStaff.photoUrl} className="w-full h-full object-cover" alt="Foto"/>
+                        ) : (
+                            <div className="text-4xl font-black text-white/50">{viewingStaff?.firstName?.charAt(0) || '👤'}</div>
+                        )}
                     </div>
-                    
-                    <div className="p-6 overflow-y-auto bg-gray-50 flex-1 space-y-4">
-                        <div className="space-y-2">
-                             <div className="bg-white p-3 rounded-xl border border-violet-200 text-xs shadow-sm">
-                                <p className="font-black text-violet-900 uppercase">
-                                    Cargo 1: {getNormRole(viewingStaff?.cargo1_role || viewingStaff?.role) || 'Sin asignar'}
-                                </p>
-                                <p className="text-gray-500 font-bold uppercase text-[10px]">{viewingStaff.cargo1_turn || 'S/D'} | {viewingStaff.cargo1_revista || 'S/D'}</p>
-                             </div>
-                             {(viewingStaff.cargo2_role || viewingStaff.cargo2_name) && (
-                                <div className="bg-white p-3 rounded-xl border border-violet-200 text-xs shadow-sm">
-                                    <p className="font-black text-violet-900 uppercase">Cargo 2: {getNormRole(viewingStaff.cargo2_role)}</p>
-                                    <p className="text-gray-500 font-bold uppercase text-[10px]">{viewingStaff.cargo2_turn || 'S/D'} | {viewingStaff.cargo2_revista || 'S/D'}</p>
-                                </div>
-                             )}
-                        </div>
-
-                        {/* GRUPOS ASIGNADOS AUTOMÁTICAMENTE */}
-                        <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
-                            <h4 className="text-[10px] font-black text-emerald-600 uppercase mb-3 flex items-center gap-2">📍 Grupos a Cargo (Ciclo 2026)</h4>
-                            <div className="grid grid-cols-2 gap-2">
-                                {(() => {
-                                    const myGroupsTM = [...new Set(students.filter(s => s.teacherIdMorning === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupMorning))].filter(Boolean);
-                                    const myGroupsTT = [...new Set(students.filter(s => s.teacherIdAfternoon === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupAfternoon))].filter(Boolean);
-                                    return (
-                                        <>
-                                            <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
-                                                <p className="text-[8px] font-black text-gray-400 uppercase">Turno Mañana</p>
-                                                <p className="font-bold text-emerald-700 text-xs">{myGroupsTM.length > 0 ? myGroupsTM.join(', ') : 'Sin grupo'}</p>
-                                            </div>
-                                            <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
-                                                <p className="text-[8px] font-black text-gray-400 uppercase">Turno Tarde</p>
-                                                <p className="font-bold text-emerald-700 text-xs">{myGroupsTT.length > 0 ? myGroupsTT.join(', ') : 'Sin grupo'}</p>
-                                            </div>
-                                        </>
-                                    );
-                                })()}
-                            </div>
-                        </div>
-                    </div>
-                    <div className="p-4 border-t bg-white flex justify-end gap-2 shrink-0">
-                        <button onClick={()=>imprimirFichasDocentes([viewingStaff])} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-slate-600 font-bold text-xs uppercase hover:bg-gray-50 flex gap-2 items-center shadow-sm"><FileText size={16}/> Imprimir</button>
-                        <button onClick={()=>{setEditingStaff(viewingStaff); setPhotoPreview(viewingStaff.photoUrl); setShowStaffForm(true);}} className="px-4 py-3 bg-violet-600 text-white rounded-xl font-bold text-xs uppercase hover:bg-violet-700 flex gap-2 items-center shadow-lg"><Edit3 size={16}/> Editar Ficha</button>
+                    <div>
+                        <h2 className="text-xl font-black uppercase leading-tight">{viewingStaff?.lastName || 'S/A'}, {viewingStaff?.firstName || 'S/N'}</h2>
+                        <p className="text-orange-300 font-bold text-xs uppercase tracking-widest mt-1">{viewingStaff?.modality || 'Sede'}</p>
+                        <span className="bg-white/20 px-3 py-1 rounded-lg text-[10px] font-bold inline-block mt-2 tracking-widest uppercase">DNI: {viewingStaff?.dni || '-'}</span>
                     </div>
                 </div>
             </div>
-        )}
+            
+            {/* CUERPO CON PROTECCIÓN */}
+            <div className="p-6 overflow-y-auto bg-gray-50 flex-1 space-y-4">
+                <div className="space-y-2">
+                     <div className="bg-white p-3 rounded-xl border border-violet-200 text-xs shadow-sm">
+                        <p className="font-black text-violet-900 uppercase">
+                            Cargo 1: {typeof getNormRole === 'function' ? getNormRole(viewingStaff?.cargo1_role || viewingStaff?.role) : (viewingStaff?.cargo1_role || 'Sin asignar')}
+                        </p>
+                        <p className="text-gray-500 font-bold uppercase text-[10px]">{viewingStaff?.cargo1_turn || 'S/D'} | {viewingStaff?.cargo1_revista || 'S/D'}</p>
+                     </div>
+                     {(viewingStaff?.cargo2_role || viewingStaff?.cargo2_name) && (
+                        <div className="bg-white p-3 rounded-xl border border-violet-200 text-xs shadow-sm">
+                            <p className="font-black text-violet-900 uppercase">Cargo 2: {typeof getNormRole === 'function' ? getNormRole(viewingStaff?.cargo2_role) : viewingStaff?.cargo2_role}</p>
+                            <p className="text-gray-500 font-bold uppercase text-[10px]">{viewingStaff?.cargo2_turn || 'S/D'} | {viewingStaff?.cargo2_revista || 'S/D'}</p>
+                        </div>
+                     )}
+                </div>
+
+                {/* GRUPOS AUTOMÁTICOS CON SALVAVIDAS */}
+                <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
+                    <h4 className="text-[10px] font-black text-emerald-600 uppercase mb-3 flex items-center gap-2">📍 Grupos a Cargo (Ciclo 2026)</h4>
+                    <div className="grid grid-cols-2 gap-2">
+                        {(() => {
+                            // Si students no existe, devolvemos un cartel de error en lugar de romper todo
+                            if (!Array.isArray(students)) return <p className="col-span-2 text-[10px] text-gray-400 italic">Cargando alumnos...</p>;
+                            
+                            const myGroupsTM = [...new Set(students.filter(s => s.teacherIdMorning === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupMorning))].filter(Boolean);
+                            const myGroupsTT = [...new Set(students.filter(s => s.teacherIdAfternoon === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupAfternoon))].filter(Boolean);
+                            
+                            return (
+                                <>
+                                    <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
+                                        <p className="text-[8px] font-black text-gray-400 uppercase">Mañana</p>
+                                        <p className="font-bold text-emerald-700 text-xs">{myGroupsTM.length > 0 ? myGroupsTM.join(', ') : 'Sin grupo'}</p>
+                                    </div>
+                                    <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
+                                        <p className="text-[8px] font-black text-gray-400 uppercase">Tarde</p>
+                                        <p className="font-bold text-emerald-700 text-xs">{myGroupsTT.length > 0 ? myGroupsTT.join(', ') : 'Sin grupo'}</p>
+                                    </div>
+                                </>
+                            );
+                        })()}
+                    </div>
+                </div>
+            </div>
+            
+            <div className="p-4 border-t bg-white flex justify-end gap-2 shrink-0">
+                <button onClick={() => typeof imprimirFichasDocentes === 'function' ? imprimirFichasDocentes([viewingStaff]) : alert('Función de impresión no disponible')} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-slate-600 font-bold text-xs uppercase hover:bg-gray-50 flex gap-2 items-center shadow-sm"><FileText size={16}/> Imprimir</button>
+                <button onClick={()=>{setEditingStaff(viewingStaff); setPhotoPreview(viewingStaff.photoUrl); setShowStaffForm(true);}} className="px-4 py-3 bg-violet-600 text-white rounded-xl font-bold text-xs uppercase hover:bg-violet-700 flex gap-2 items-center shadow-lg"><Edit3 size={16}/> Editar Ficha</button>
+            </div>
+        </div>
+    </div>
+)}
 
         {/* MODAL EDICIÓN LEGAJO */}
         {showStaffForm && (
