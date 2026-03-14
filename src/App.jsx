@@ -4104,6 +4104,8 @@ function GroupsView({ user }) {
 function PersonalView({ user }) {
   const [staffList, setStaffList] = useState([]);
   const [students, setStudents] = useState([]); // <-- AGREGÁ ESTO
+  const VALID_ROLES = ["Docente", "Preceptora", "Auxiliar", "Profe Especial", "Equipo Técnico", "Equipo Directivo", "Dirección Inclusión", "Equipo Técnico Inclusión", "DAI", "Cocina", "Limpieza", "Mantenimiento", "Administración"];
+const uniqueTurns = ["Mañana", "Tarde", "Alternado", "Vespertino", "Doble"];
   
   const [staffFilterText, setStaffFilterText] = useState('');
   // ROLES COMO ARRAY PARA MULTISELECCIÓN
