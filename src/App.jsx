@@ -20,7 +20,12 @@ import {
   updateDoc, deleteDoc, where, getDocs, serverTimestamp, arrayUnion, arrayRemove 
 } from 'firebase/firestore';
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
-
+const VALID_ROLES_OFFICIAL = [
+  "Docente", "Preceptora", "Auxiliar", "Profe Especial", "Equipo Técnico", "Equipo Directivo",
+  "Dirección Inclusión", "Equipo Técnico Inclusión", "DAI",
+  "Cocina", "Limpieza", "Mantenimiento", "Administración"
+];
+const TURNS_LIST = ["Mañana", "Tarde", "Alternado", "Vespertino", "Doble"];
 // --- CONSTANTES GLOBALES ---
 const LOGO_URL = "/icon-192.png";
 
@@ -4104,7 +4109,7 @@ function GroupsView({ user }) {
 function PersonalView({ user }) {
   const [staffList, setStaffList] = useState([]);
   const [students, setStudents] = useState([]); // <-- AGREGÁ ESTO
- const uniqueTurns = ["Mañana", "Tarde", "Alternado", "Vespertino", "Doble"];
+ 
   
   const [staffFilterText, setStaffFilterText] = useState('');
   // ROLES COMO ARRAY PARA MULTISELECCIÓN
@@ -4787,7 +4792,7 @@ function PersonalView({ user }) {
               <h3 className="text-lg font-black uppercase italic tracking-tighter">
                 {editingStaff ? 'Editar Legajo' : 'Nuevo Personal'}
               </h3>
-              {/* CARTEL DE ATENCIÓN SI FALTAN DATOS */}
+              {/* CARTEL DE ATENCIÓN DINÁMICO */}
               {editingStaff && (!editingStaff?.dni || !editingStaff?.cargo1_role || !editingStaff?.modality) ? (
                 <div className="bg-amber-400 text-amber-900 text-[8px] font-black px-2 py-0.5 rounded-full inline-flex items-center gap-1 animate-pulse mt-1 uppercase">
                   ⚠️ Atención: Ficha incompleta. Completar datos para vinculación.
@@ -4803,6 +4808,22 @@ function PersonalView({ user }) {
 
           <form id="staffForm" onSubmit={handleSaveStaff} className="overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar">
             
+            {/* SECCIÓN VINCULACIÓN DE SEGURIDAD (IMPORTANTE) */}
+            <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 space-y-2">
+                <p className="text-[10px] font-black text-blue-600 uppercase flex items-center gap-2">
+                   <Link size={14}/> Conexión de Seguridad y Grupos
+                </p>
+                <input 
+                    name="userId" 
+                    defaultValue={editingStaff?.userId || ""} 
+                    placeholder="ID de Usuario vinculado para login y grupos..." 
+                    className="p-3 bg-white rounded-xl w-full font-mono text-[10px] outline-none border border-blue-200 focus:ring-2 ring-blue-100"
+                />
+                <p className="text-[7px] text-blue-400 font-bold italic uppercase px-1">
+                  * Este ID conecta el legajo con el usuario y detecta automáticamente sus grupos asignados.
+                </p>
+            </div>
+
             {/* SECCIÓN 1: IDENTIDAD */}
             <details open className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
@@ -4851,11 +4872,11 @@ function PersonalView({ user }) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <select name="cargo1_role" defaultValue={editingStaff?.cargo1_role || editingStaff?.role || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
                     <option value="">Seleccionar Rol...</option>
-                    {(typeof VALID_ROLES !== 'undefined' ? VALID_ROLES : []).map(r => <option key={r} value={r}>{r}</option>)}
+                    {(typeof VALID_ROLES_OFFICIAL !== 'undefined' ? VALID_ROLES_OFFICIAL : []).map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
                   <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
                     <option value="">Turno...</option>
-                    {(typeof uniqueTurns !== 'undefined' ? uniqueTurns : []).map(t => <option key={t} value={t}>{t}</option>)}
+                    {(typeof TURNS_OFFICIAL !== 'undefined' ? TURNS_OFFICIAL : []).map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -4887,7 +4908,7 @@ function PersonalView({ user }) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <select name="cargo2_role" defaultValue={editingStaff?.cargo2_role || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
                     <option value="">Rol Cargo 2...</option>
-                    {(typeof VALID_ROLES !== 'undefined' ? VALID_ROLES : []).map(r => <option key={r} value={r}>{r}</option>)}
+                    {(typeof VALID_ROLES_OFFICIAL !== 'undefined' ? VALID_ROLES_OFFICIAL : []).map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
                   <select name="cargo2_subsidized" defaultValue={editingStaff?.cargo2_subsidized || 'false'} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
                     <option value="false">DENO (Sin Subvención)</option>
