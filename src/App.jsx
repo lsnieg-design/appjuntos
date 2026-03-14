@@ -4844,8 +4844,7 @@ function PersonalView({ user }) {
                 </div>
                 <input name="antiguedadFechaRef" type="hidden" defaultValue={editingStaff?.antiguedadFechaRef || new Date().toISOString().split('T')[0]} />
               </div>
-
-              {/* CARGO 1 */}
+{/* CARGO 1 */}
               <div className="p-4 bg-white border-2 border-violet-100 rounded-2xl space-y-3 shadow-sm">
                 <h5 className="text-[10px] font-black text-violet-600 uppercase border-b pb-1">Detalle Cargo 1</h5>
                 <div className="grid grid-cols-[1fr,2fr] gap-2">
@@ -4899,15 +4898,16 @@ function PersonalView({ user }) {
               </div>
 
               {editingStaff && (
-                        <button type="button" onClick={async () => {if(confirm("¿Eliminar definitivamente?")) {await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); setShowStaffForm(false); setViewingStaff(null);}}} className="w-full py-2 text-red-400 font-bold text-[10px] uppercase hover:text-red-500 transition">Eliminar Personal del Sistema</button>
-                      )}
-                    </form>
-                  </div>
-                </div>
+                <button type="button" onClick={async () => {if(confirm("¿Eliminar definitivamente?")) {await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); setShowStaffForm(false); setViewingStaff(null);}}} className="w-full py-2 text-red-400 font-bold text-[10px] uppercase hover:text-red-500 transition">Eliminar Personal del Sistema</button>
               )}
-            </div> // <--- CIERRA EL DIV PRINCIPAL DE PERSONALVIEW
-          ); // <--- CIERRA EL RETURN
-        } // <--- CIERRA LA FUNCIÓN PERSONALVIEW
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+            
 
 
 
