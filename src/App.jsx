@@ -4783,11 +4783,18 @@ function PersonalView({ user }) {
           
           {/* CABECERA FIJA */}
           <div className="bg-violet-700 p-5 text-white flex justify-between items-center shrink-0">
-            <div>
+            <div className="flex-1">
               <h3 className="text-lg font-black uppercase italic tracking-tighter">
                 {editingStaff ? 'Editar Legajo' : 'Nuevo Personal'}
               </h3>
-              <p className="text-[10px] opacity-70 font-bold uppercase">Configuración de ficha técnica</p>
+              {/* CARTEL DE ATENCIÓN SI FALTAN DATOS */}
+              {editingStaff && (!editingStaff?.dni || !editingStaff?.cargo1_role || !editingStaff?.modality) ? (
+                <div className="bg-amber-400 text-amber-900 text-[8px] font-black px-2 py-0.5 rounded-full inline-flex items-center gap-1 animate-pulse mt-1 uppercase">
+                  ⚠️ Atención: Ficha incompleta. Completar datos para vinculación.
+                </div>
+              ) : (
+                <p className="text-[10px] opacity-70 font-bold uppercase">Configuración de ficha técnica</p>
+              )}
             </div>
             <button onClick={() => setShowStaffForm(false)} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition">
               <X size={20} />
