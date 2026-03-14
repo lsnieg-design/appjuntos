@@ -4844,36 +4844,7 @@ function PersonalView({ user }) {
                 </div>
                 <input name="antiguedadFechaRef" type="hidden" defaultValue={editingStaff?.antiguedadFechaRef || new Date().toISOString().split('T')[0]} />
               </div>
-{/* CARGO 1 */}
-              <div className="p-4 bg-white border-2 border-violet-100 rounded-2xl space-y-3 shadow-sm">
-                <h5 className="text-[10px] font-black text-violet-600 uppercase border-b pb-1">Detalle Cargo 1</h5>
-                <div className="grid grid-cols-[1fr,2fr] gap-2">
-                  <input name="cargo1_numero" defaultValue={editingStaff?.cargo1_numero} placeholder="N° Cargo" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs border border-gray-200"/>
-                  <input name="cargo1_name" defaultValue={editingStaff?.cargo1_name} placeholder="Nombre (Ej: MG 1° A)" className="p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs border border-gray-200"/>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <select name="cargo1_role" defaultValue={editingStaff?.cargo1_role || editingStaff?.role} className="p-2 bg-white rounded-lg border border-gray-200 outline-none font-bold text-xs">
-                    <option value="">Seleccionar Rol...</option>
-                    {VALID_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                  <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn} className="p-2 bg-white rounded-lg border border-gray-200 outline-none font-bold text-xs">
-                    <option value="">Turno...</option>
-                    {uniqueTurns.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista} className="p-2 bg-white rounded-lg border border-gray-200 outline-none font-bold text-xs">
-                    <option value="">Revista...</option>
-                    <option value="Titular">Titular</option><option value="Provisional">Provisional</option><option value="Suplente">Suplente</option>
-                  </select>
-                  <select name="cargo1_subsidized" defaultValue={editingStaff?.cargo1_subsidized || 'false'} className="p-2 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-100 outline-none font-bold text-xs">
-                    <option value="false">Sin Subvención (DENO)</option>
-                    <option value="true">Subvencionado (MECA)</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* CARGO 2 */}
+{/* CARGO 2 */}
               <div className="p-4 bg-white border-2 border-violet-100 rounded-2xl space-y-3 shadow-sm">
                 <h5 className="text-[10px] font-black text-violet-600 uppercase border-b pb-1">Detalle Cargo 2 (Opcional)</h5>
                 <div className="grid grid-cols-[1fr,2fr] gap-2">
@@ -4892,6 +4863,16 @@ function PersonalView({ user }) {
                 </div>
               </div>
 
+              {/* ESTUDIOS */}
+              <div className="grid grid-cols-2 gap-2">
+                <select name="studyStatus" defaultValue={editingStaff?.studyStatus} className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900">
+                  <option value="">Estado Estudios...</option>
+                  <option value="Finalizado">Finalizado</option>
+                  <option value="En curso">En curso</option>
+                </select>
+                <input name="degree" defaultValue={editingStaff?.degree} placeholder="Título" className="p-3 bg-white rounded-xl w-full border border-violet-200 outline-none font-bold text-xs text-violet-900"/>
+              </div>
+
               <div className="flex gap-2 pt-4">
                 <button type="button" onClick={()=>setShowStaffForm(false)} className="flex-1 py-4 text-gray-500 font-bold uppercase text-xs">Cancelar</button>
                 <button type="submit" className="flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-violet-700 transition">Guardar Legajo</button>
@@ -4906,8 +4887,7 @@ function PersonalView({ user }) {
       )}
     </div>
   );
-}
-            
+} 
 
 
 
