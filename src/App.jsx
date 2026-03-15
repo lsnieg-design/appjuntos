@@ -363,48 +363,65 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const isInclusionStaff = INCLUSION_ROLES.includes(user.role);
   const isSedeStaff = SEDE_ROLES.includes(user.role);
 
-  // BASE DE DATOS DE 31 DESAFÍOS
+ // --- BASE DE DATOS DE DESAFÍOS (LÓGICA, CÁLCULO Y ATENCIÓN) ---
   const DESAFIOS = [
-      { q: "El padre de Clara tiene 5 hijas: Jana, Jena, Jina, Jona y...", a: ["clara"] },
-      { q: "Algunos meses tienen 31 días, otros 30. ¿Cuántos tienen 28?", a: ["12", "doce", "todos"] },
-      { q: "¿Qué tiene ciudades pero no casas, montañas pero no árboles, y agua pero no peces?", a: ["mapa", "mapas"] },
-      { q: "Soy alto cuando soy joven y bajo cuando soy viejo. ¿Qué soy?", a: ["vela", "lapiz", "lápiz"] },
-      { q: "¿Qué puedes encontrar una vez en un minuto, dos veces en un momento y ninguna vez en cien años?", a: ["m", "letra m"] },
-      { q: "¿De qué color son realmente las 'cajas negras' de los aviones comerciales?", a: ["naranja", "anaranjado"] },
-      { q: "Antes de que se descubriera el Monte Everest, ¿cuál era la montaña más alta del mundo?", a: ["everest", "el everest", "el mismo"] },
-      { q: "Si me nombras, me rompes. ¿Qué soy?", a: ["silencio", "el silencio"] },
-      { q: "Un hombre entra en un bar y pide agua. El camarero saca un arma y le apunta. El hombre dice 'gracias' y se va. ¿Qué tenía el hombre?", a: ["hipo", "un ataque de hipo"] },
-      { q: "Es tuyo, pero las demás personas lo usan mucho más que tú. ¿Qué es?", a: ["nombre", "mi nombre", "el nombre"] },
-      { q: "Cuanto más le quitas, más grande se hace. ¿Qué es?", a: ["agujero", "pozo", "hoyo"] },
-      { q: "Tengo agujas pero no sé coser, tengo números pero no sé leer. ¿Qué soy?", a: ["reloj", "el reloj"] },
-      { q: "Todos pasan por mí, yo no paso por nadie. Todos preguntan por mí, yo no pregunto por nadie.", a: ["calle", "avenida", "camino"] },
-      { q: "Oro parece, plata no es. Quien no lo adivine, bien tonto es.", a: ["platano", "plátano", "banana"] },
-      { q: "Vuelo sin alas, lloro sin ojos. ¿Qué soy?", a: ["nube", "la nube"] },
-      { q: "Te sigo de día, te abandono de noche. No tengo voz, pero siempre estoy contigo. ¿Qué soy?", a: ["sombra", "la sombra"] },
-      { q: "Tiene dientes y no come, tiene cabeza y no es hombre.", a: ["ajo", "un ajo", "el ajo"] },
-      { q: "¿Qué cosa es que cuanto más la secas, más se moja?", a: ["toalla", "la toalla"] },
-      { q: "¿Qué tiene cuello pero no tiene cabeza?", a: ["botella", "la botella", "camisa"] },
-      { q: "¿Qué tiene ojos pero no puede ver?", a: ["aguja", "la aguja", "ciego", "tormenta"] },
-      { q: "Estoy lleno de agujeros, pero aún así retengo el agua. ¿Qué soy?", a: ["esponja", "la esponja"] },
-      { q: "Si 3 niños cazan 3 moscas en 3 minutos. ¿Cuánto tardan 30 niños en cazar 30 moscas?", a: ["3", "tres"] },
-      { q: "¿Qué pesa más: un kilo de plomo o un kilo de plumas?", a: ["igual", "lo mismo", "pesan igual", "ninguno"] },
-      { q: "¿Qué no hace preguntas pero requiere muchas respuestas?", a: ["timbre", "telefono", "teléfono", "celular", "puerta"] },
-      { q: "¿Qué se rompe sin siquiera sostenerlo o tocarlo?", a: ["promesa", "la promesa", "secreto", "el secreto"] },
-      { q: "Siempre voy a mi destino y nunca vuelvo, pero no me muevo del sitio. ¿Qué soy?", a: ["camino", "carretera", "ruta", "calle"] },
-      { q: "Si estás participando en una carrera y adelantas al segundo, ¿en qué posición terminas?", a: ["segundo", "2", "2do"] },
-      { q: "Un tren eléctrico viaja hacia el norte a 100km/h. El viento sopla hacia el sur a 10km/h. ¿Hacia dónde va el humo?", a: ["ningun lado", "ninguno", "no hay", "a ningun lado", "electrico", "eléctrico"] },
-      { q: "Me pisas y no me quejo, me cepillas si me mancho, y con mi hermano gemelo, bajo tu cama descanso.", a: ["zapato", "zapatilla", "botin", "calzado"] },
-      { q: "Tengo copa pero no soy árbol, tengo alas pero no soy pájaro. ¿Qué soy?", a: ["sombrero", "el sombrero"] },
-      { q: "Solo hay una pregunta que no se puede contestar con un 'sí' sincero. ¿Cuál es?", a: ["estas dormido", "duermes", "estas durmiendo", "estas muerto"] }
-  ];
+      // LOGICA Y SERIES (Basados en tus imágenes)
+      { q: "Completá la serie: 4, 9, 20, 50, 120... ¿Cuál sigue?", a: ["300"] }, // Lógica: (x2 + 1, x2 + 2, x2 + 10...)
+      { q: "Si 3 gatos cazan 3 ratones en 3 minutos, ¿cuántos minutos tardan 100 gatos en cazar 100 ratones?", a: ["3", "tres"] },
+      { q: "Un reloj marca las 3:15. Si lo girás 90 grados a la derecha, ¿qué hora marcaría?", a: ["6:30", "seis y media"] },
+      { q: "¿Qué número falta? [4][5] -> [9]. [20][11] -> [31]. [50][30] -> [?]", a: ["80"] },
+      { q: "Si ayer fuera mañana, hoy sería viernes. ¿Qué día es hoy?", a: ["domingo"] },
+      
+      // ACERTIJOS VISUALES DESCRIPTIVOS
+      { q: "Un candado tiene 3 formas: Hexágono, Pentágono y Cuadrado. Si la suma de los 3 es 45, ¿cuánto vale el Pentágono solo?", a: ["15"] },
+      { q: "Hay 3 bananas en un racimo. Si 2 racimos + un hexágono suman 23, y el hexágono vale 15, ¿cuánto vale cada banana?", a: ["1", "uno", "1 punto"] },
+      { q: "En un reloj de agujas, ¿cuántas veces se cruzan la aguja de la hora y el minutero en 12 horas?", a: ["11", "once"] },
+      
+      // LÓGICA DE LETRAS
+      { q: "París empieza con P y termina con...", a: ["t", "la t"] }, // Juego de palabras: la palabra 'termina' empieza con T.
+      { q: "¿Qué palabra de 5 letras se escribe igual de izquierda a derecha que de derecha a izquierda?", a: ["radar", "reconocer", "somos"] },
+      { q: "Si 'A' es 1, 'B' es 2 y 'C' es 3... ¿Cuál es el resultado de (A + B) x C?", a: ["9", "nueve"] },
 
+      // CLÁSICOS DE ATENCIÓN
+      { q: "El padre de Clara tiene 5 hijas: Jana, Jena, Jina, Jona y...", a: ["clara"] },
+      { q: "Un tren eléctrico viaja al norte y el viento sopla al sur. ¿Hacia dónde va el humo?", a: ["ninguno", "no hay", "no tiene humo", "electrico"] },
+      { q: "Si estás en una carrera y adelantás al que va segundo, ¿en qué posición estás?", a: ["segundo", "2", "2do"] },
+      { q: "¿Cuántos meses tienen 28 días?", a: ["12", "doce", "todos"] },
+      { q: "¿Qué tiene manos pero no puede aplaudir?", a: ["reloj", "el reloj"] },
+      { q: "Si me tenés, querés compartirme. Si me compartís, ya no me tenés. ¿Qué soy?", a: ["secreto", "un secreto"] },
+      { q: "¿Qué es lo que sube pero nunca baja?", a: ["edad", "la edad"] },
+      { q: "Tenés 3 fósforos y entrás en una habitación oscura que tiene una vela, una lámpara de aceite y una estufa a leña. ¿Qué encendés primero?", a: ["fosforo", "el fosforo", "cerilla"] },
+      { q: "Si un médico te da 3 pastillas y te dice que tomes una cada media hora, ¿en cuánto tiempo te las tomás todas?", a: ["60", "1 hora", "una hora", "60 minutos"] },
+      { q: "¿Cuántos animales de cada especie llevó Moisés en el Arca?", a: ["ninguno", "0", "fue noe", "noe"] },
+      { q: "Si un hombre nace en 1950 y muere en 1950, pero tiene 80 años... ¿Cómo es posible?", a: ["hospital", "habitacion", "número de habitación", "habitación"] },
+      { q: "Tengo ciudades pero no casas, montañas pero no árboles... ¿Qué soy?", a: ["mapa", "el mapa"] },
+      { q: "¿Cuál es el día más largo de la semana?", a: ["miercoles", "miércoles"] }, // Por cantidad de letras
+      { q: "Si 5 máquinas hacen 5 artículos en 5 minutos, ¿cuánto tardan 100 máquinas en hacer 100 artículos?", a: ["5", "cinco"] },
+      { q: "¿Qué palabra se escribe mal en todos los diccionarios?", a: ["mal"] },
+      { q: "Aparezco una vez en un minuto, dos veces en un momento y ninguna en un siglo. ¿Quién soy?", a: ["m", "letra m"] },
+      { q: "Si un gallo pone un huevo en el límite entre Argentina y Chile, ¿para qué lado cae?", a: ["ninguno", "no pone", "el gallo no pone huevos"] },
+      { q: "¿Cuál es la pregunta que nadie puede contestar con un SÍ mientras duerme?", a: ["estas despierto", "estás despierto"] },
+      { q: "Si tengo 3 manzanas y me quitás 2, ¿cuántas manzanas tenés?", a: ["2", "dos"] },
+      { q: "El que lo hace no lo quiere, el que lo compra no lo usa y el que lo usa no lo ve. ¿Qué es?", a: ["ataud", "ataúd"] }
+  ];
   const todayDate = new Date();
   const challengeStartDate = new Date('2026-03-16T00:00:00'); 
   const dayOfWeek = todayDate.getDay(); 
   const monthStr = (todayDate.getMonth() + 1).toString().padStart(2, '0');
   const dayStr = todayDate.getDate().toString().padStart(2, '0');
   const dateString = `${monthStr}-${dayStr}`;
+// SEMILLA DIARIA: Sumamos Año+Mes+Día para que el índice sea el mismo hoy para todos
+  const seed = todayDate.getFullYear() + todayDate.getMonth() + todayDate.getDate();
+  const randomIdx = seed % DESAFIOS.length;
 
+  let currentChallenge;
+  if (todayDate < challengeStartDate) {
+      currentChallenge = { q: "¡Preparate! Mañana lunes 16 arrancan los desafíos diarios con sorpresas. 🚀", a: [], isComingSoon: true };
+  } else if (!isWorkingDay) {
+      currentChallenge = { q: "¡Hoy es día de descanso! Nos vemos el próximo día hábil. ☕", a: [], isRestDay: true };
+  } else {
+      currentChallenge = DESAFIOS[randomIdx]; // <--- ALEATORIO BASADO EN LA SEMILLA
+  }
   const feriadosDocentes2026 = [
       '01-01', '02-16', '02-17', '03-24', '04-02', '04-03', '05-01', '05-25', 
       '06-15', '06-20', '07-09', '08-17', '09-11', '10-12', '11-23', '12-08', '12-25',
@@ -536,7 +553,15 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
 
   return (
     <div className="space-y-4 animate-in fade-in pb-10">
-      
+           
+      {/* CARTEL GANADOR MENSUAL (Aparece solo el día 1) */}
+      {todayDate.getDate() === 1 && rankingData.length > 0 && (
+          <div className="bg-gradient-to-r from-yellow-400 to-orange-500 p-6 rounded-[35px] text-white shadow-xl animate-bounce mx-2">
+              <h3 className="font-black text-center text-xl uppercase italic tracking-tighter">🏆 ¡GANADOR DEL MES ANTERIOR! 🏆</h3>
+              <p className="text-center font-bold text-lg mt-2 uppercase">{rankingData[0].firstName} {rankingData[0].lastName}</p>
+              <p className="text-center text-[10px] uppercase font-black opacity-80 mt-1 tracking-widest">¡Vení a buscar tu premio a Dirección! 🎁</p>
+          </div>
+      )}
       {/* HEADER BIENVENIDA */}
       <div className="flex justify-between items-center px-2">
           <div><h2 className="text-2xl font-black text-slate-800 tracking-tighter italic">¡Hola, {user.firstName}! 👋</h2><p className="text-slate-500 font-medium text-xs">Panel de Control</p></div>
@@ -648,6 +673,55 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
                 </div>
               </div>
           </div>
+      {/* MODAL RANKING & SALÓN DE LA FAMA (Pegalo al final, antes del cierre del return) */}
+      {showRanking && (
+          <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowRanking(false)}>
+              <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
+                  <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-lg font-black text-emerald-600 uppercase italic tracking-tighter">Ranking Institucional</h3>
+                      <button onClick={() => setShowRanking(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20}/></button>
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto space-y-6 custom-scrollbar">
+                      {/* TOP ACTUAL */}
+                      <div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase mb-3 tracking-widest text-center">Mejores Puntajes de Marzo</p>
+                        <div className="space-y-2">
+                            {rankingData.length === 0 ? (
+                                <p className="text-center text-gray-400 text-xs py-4 italic">¡Mañana lunes arrancamos!</p>
+                            ) : (
+                                rankingData.map((u, index) => (
+                                    <div key={u.id} className={`flex items-center justify-between p-3 rounded-2xl border ${index === 0 ? 'bg-yellow-50 border-yellow-200 shadow-sm' : 'bg-gray-50 border-gray-100'}`}>
+                                        <div className="flex items-center gap-3">
+                                          <span className={`font-black text-lg ${index === 0 ? 'text-yellow-500' : 'text-gray-400'}`}>#{index + 1}</span>
+                                          <span className="font-bold text-gray-700 text-sm uppercase">{u.firstName} {u.lastName?.charAt(0)}.</span>
+                                        </div>
+                                        <div className="bg-white px-3 py-1 rounded-lg border border-gray-200 font-black text-emerald-600 text-xs">{u.score || 0} pts</div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                      </div>
+
+                      {/* SALÓN DE LA FAMA (HISTORIAL ANUAL) */}
+                      <div className="bg-violet-50 p-4 rounded-[25px] border border-violet-100">
+                        <h4 className="text-[9px] font-black text-violet-600 uppercase mb-3 text-center tracking-[3px]">🏆 Salón de la Fama 2026</h4>
+                        <div className="space-y-2">
+                            <div className="flex justify-between items-center text-[11px] font-bold text-slate-500 border-b border-violet-100 pb-1">
+                              <span>MARZO</span>
+                              <span className="text-violet-700 italic">En curso...</span>
+                            </div>
+                            <div className="flex justify-between items-center text-[11px] font-bold text-slate-300">
+                              <span>ABRIL</span>
+                              <span>---</span>
+                            </div>
+                        </div>
+                      </div>
+                  </div>
+                  <p className="text-[8px] text-center text-gray-400 mt-4 uppercase font-bold tracking-widest">Los puntos se reinician cada mes</p>
+              </div>
+          </div>
+      )}
       {/* MANUAL COMPLETO (SÍN RESÚMENES) */}
       {showTutorial && (
         <div className="fixed inset-0 bg-violet-900/95 z-[300] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in">
