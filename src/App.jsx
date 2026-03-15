@@ -4109,7 +4109,7 @@ function GroupsView({ user }) {
 function PersonalView({ user }) {
   const [staffList, setStaffList] = useState([]);
   const [students, setStudents] = useState([]); // <-- AGREGÁ ESTO
- 
+ const uniqueTurns = TURNS_LIST;
   
   const [staffFilterText, setStaffFilterText] = useState('');
   // ROLES COMO ARRAY PARA MULTISELECCIÓN
@@ -4619,10 +4619,13 @@ const c2IsUnassigned = hasC2 && !VALID_ROLES.includes(c2Role);
    {VALID_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
 </select>
 
-                <select value={filters.turn} onChange={e=>setFilters({...filters, turn: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
-                    <option value="all">Turno: Todos</option>
-                    {uniqueTurns.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
+               <select value={filters.turn} onChange={e=>setFilters({...filters, turn: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
+    <option value="all">Turno: Todos</option>
+    {/* Corregido: uniqueTurns cambiado por TURNS_LIST con blindaje */}
+    {(typeof TURNS_LIST !== 'undefined' ? TURNS_LIST : []).map(t => (
+        <option key={t} value={t}>{t}</option>
+    ))}
+</select>
                 <select value={filters.subsidized} onChange={e=>setFilters({...filters, subsidized: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
                     <option value="all">Subvención: Todas</option><option value="yes">Con Subvención</option><option value="no">Sin Subvención</option>
                 </select>
@@ -4877,13 +4880,13 @@ const c2IsUnassigned = hasC2 && !VALID_ROLES.includes(c2Role);
     {/* CAMBIO AQUÍ: VALID_ROLES_OFFICIAL */}
    {TURNS_LIST.map(t => <option key={t} value={t}>{t}</option>)}
 </select>
-  <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+ <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
     <option value="">Turno...</option>
-    {/* Blinda el mapeo con un chequeo de existencia */}
+    {/* Blinda el mapeo usando TURNS_LIST */}
     {(typeof TURNS_LIST !== 'undefined' ? TURNS_LIST : []).map(t => (
-      <option key={t} value={t}>{t}</option>
+        <option key={t} value={t}>{t}</option>
     ))}
-  </select>
+</select>
 </div>
                 <div className="grid grid-cols-2 gap-2">
                    <select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
