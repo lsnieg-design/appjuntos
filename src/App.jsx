@@ -1802,9 +1802,11 @@ function UsersAdminView() {
   const [processing, setProcessing] = useState(false);
   
   // ESTADOS PARA AUDITORÍA
+  const [staffList, setStaffList] = useState([]); // <--- EL QUE FALTABA
   const [showMissingUsers, setShowMissingUsers] = useState(false);
   const [missingUsersList, setMissingUsersList] = useState([]); 
   const [missingLegajosList, setMissingLegajosList] = useState([]);
+  const [manualLinks, setManualLinks] = useState({});
 
   // ESTADO PARA VINCULACIÓN MANUAL
   const [manualLinks, setManualLinks] = useState({});
@@ -1812,6 +1814,8 @@ function UsersAdminView() {
   useEffect(() => {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
     const unsub = onSnapshot(q, snap => setUsers(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+    const qStaff = query(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), orderBy('lastName', 'asc'));
+    const unsubStaff = onSnapshot(qStaff, snap => setStaffList(snap.docs.map(d => ({id: d.id, ...d.data()}))));
     return () => unsub();
   }, []);
 
