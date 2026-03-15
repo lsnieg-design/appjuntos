@@ -8,7 +8,7 @@ import {
   Send, Key, Filter, LayoutDashboard, Link as LinkIcon, ExternalLink, 
   AlertTriangle, Clock, Shield, Crown, Activity, Share, PlusSquare, 
   Smartphone, GraduationCap, Search, X, UploadCloud, PieChart, Eye, Edit3, 
-  Folder, MessageSquare, Globe, BookOpen, Lightbulb, Printer,
+  Folder, MessageSquare, Globe, BookOpen, Lightbulb, ChevronDown, Printer,
   // Iconos específicos para el formato de las notas
   AlignLeft, AlignCenter, AlignRight, AlignJustify, FileSquare
 } from 'lucide-react';
@@ -328,7 +328,7 @@ function LoginScreen({ onLogin }) {
 function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEvents = events.filter(e => e.date === todayStr);
-  
+  const [students, setStudents] = useState([]);
   const [showAnnounceModal, setShowAnnounceModal] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [showBirthdayModal, setShowBirthdayModal] = useState(false);
