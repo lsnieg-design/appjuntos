@@ -4644,18 +4644,19 @@ function PersonalView({ user }) {
 
         {/* LISTADO DE PERSONAL */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[65vh] overflow-y-auto pb-10 mt-2">
-            {filteredStaff.map(s => {
-                const tieneSub = s.cargo1_subsidized === 'true' || s.cargo2_subsidized === 'true' || s.isSubsidized === 'true';
-                
-                const c1Role = getNormRole(s.cargo1_role || s.role);
-                const c2Role = getNormRole(s.cargo2_role);
+          {filteredStaff.map(s => {
+    const tieneSub = s.cargo1_subsidized === 'true' || s.cargo2_subsidized === 'true' || s.isSubsidized === 'true';
+    
+    const c1Role = getNormRole(s.cargo1_role || s.role);
+    const c2Role = getNormRole(s.cargo2_role);
 
-                const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || (s.cargo1_turn && s.cargo1_turn.trim()));
-                const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || (s.cargo2_turn && s.cargo2_turn.trim()));
+    const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || (s.cargo1_turn && s.cargo1_turn.trim()));
+    const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || (s.cargo2_turn && s.cargo2_turn.trim()));
 
-                const c1NeedsFix = !hasC1 || !VALID_ROLES.includes(c1Role);
-                const c2NeedsFix = hasC2 && !VALID_ROLES.includes(c2Role);
-                const needsRoleFix = c1NeedsFix || c2NeedsFix;
+    {/* CAMBIO AQUÍ: Usamos VALID_ROLES_OFFICIAL */}
+    const c1NeedsFix = !hasC1 || !VALID_ROLES_OFFICIAL.includes(c1Role);
+    const c2NeedsFix = hasC2 && !VALID_ROLES_OFFICIAL.includes(c2Role);
+    const needsRoleFix = c1NeedsFix || c2NeedsFix;
                 
                 return (
                     <div key={s.id} onClick={() => setViewingStaff(s)} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all cursor-pointer group relative">
