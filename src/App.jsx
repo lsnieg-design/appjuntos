@@ -4151,7 +4151,7 @@ function PersonalView({ user }) {
   return () => { unsubStaff(); unsubStudents(); }; // Asegurate de cerrar ambos
 }, []);
 
-  const filteredStaff = staffList.filter(s => {
+ const filteredStaff = staffList.filter(s => {
       const txt = staffFilterText.toLowerCase();
       const matchesText = !txt || `${s.lastName} ${s.firstName} ${s.dni}`.toLowerCase().includes(txt);
       if (!matchesText) return false;
@@ -4177,17 +4177,17 @@ function PersonalView({ user }) {
       const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || c1Turn);
       const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || c2Turn);
 
-      const c1IsUnassigned = !hasC1 || !VALID_ROLES.includes(c1Role);
-      const c2IsUnassigned = hasC2 && !VALID_ROLES.includes(c2Role);
+      // CORRECCIÓN CRÍTICA: Usamos VALID_ROLES_OFFICIAL que es la que está afuera
+      const rolesValidos = typeof VALID_ROLES_OFFICIAL !== 'undefined' ? VALID_ROLES_OFFICIAL : [];
+      const c1IsUnassigned = !hasC1 || !rolesValidos.includes(c1Role);
+      const c2IsUnassigned = hasC2 && !rolesValidos.includes(c2Role);
 
-      // EVALUAR MÚLTIPLES ROLES
       let c1MatchesRole = filterRoles.length === 0;
       let c2MatchesRole = filterRoles.length === 0;
 
       if (filterRoles.length > 0) {
           if (filterRoles.includes('sin-asignar') && c1IsUnassigned) c1MatchesRole = true;
           if (filterRoles.includes(c1Role)) c1MatchesRole = true;
-
           if (filterRoles.includes('sin-asignar') && c2IsUnassigned) c2MatchesRole = true;
           if (filterRoles.includes(c2Role)) c2MatchesRole = true;
       }
