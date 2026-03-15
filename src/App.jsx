@@ -4869,16 +4869,22 @@ function PersonalView({ user }) {
                   <input name="cargo1_numero" defaultValue={editingStaff?.cargo1_numero || ""} placeholder="N° Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
                   <input name="cargo1_name" defaultValue={editingStaff?.cargo1_name || ""} placeholder="Nombre del Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <select name="cargo1_role" defaultValue={editingStaff?.cargo1_role || editingStaff?.role || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
-                    <option value="">Seleccionar Rol...</option>
-                    {(typeof VALID_ROLES_OFFICIAL !== 'undefined' ? VALID_ROLES_OFFICIAL : []).map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                  <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
-                    <option value="">Turno...</option>
-                    {(typeof TURNS_OFFICIAL !== 'undefined' ? TURNS_OFFICIAL : []).map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+  <select name="cargo1_role" defaultValue={editingStaff?.cargo1_role || editingStaff?.role || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+    <option value="">Seleccionar Rol...</option>
+    {/* Blinda el mapeo con un chequeo de existencia */}
+    {(typeof VALID_ROLES_OFFICIAL !== 'undefined' ? VALID_ROLES_OFFICIAL : []).map(r => (
+      <option key={r} value={r}>{r}</option>
+    ))}
+  </select>
+  <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+    <option value="">Turno...</option>
+    {/* Blinda el mapeo con un chequeo de existencia */}
+    {(typeof TURNS_LIST !== 'undefined' ? TURNS_LIST : []).map(t => (
+      <option key={t} value={t}>{t}</option>
+    ))}
+  </select>
+</div>
                 <div className="grid grid-cols-2 gap-2">
                    <select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
                     <option value="">Revista...</option>
@@ -4905,16 +4911,20 @@ function PersonalView({ user }) {
                   <input name="cargo2_numero" defaultValue={editingStaff?.cargo2_numero || ""} placeholder="N° Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm w-full"/>
                   <input name="cargo2_name" defaultValue={editingStaff?.cargo2_name || ""} placeholder="Nombre Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm w-full"/>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <select name="cargo2_role" defaultValue={editingStaff?.cargo2_role || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
-                    <option value="">Rol Cargo 2...</option>
-                    {(typeof VALID_ROLES_OFFICIAL !== 'undefined' ? VALID_ROLES_OFFICIAL : []).map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                  <select name="cargo2_subsidized" defaultValue={editingStaff?.cargo2_subsidized || 'false'} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
-                    <option value="false">DENO (Sin Subvención)</option>
-                    <option value="true">MECA (Subvencionado)</option>
-                  </select>
-                </div>
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+  <select name="cargo2_role" defaultValue={editingStaff?.cargo2_role || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
+    <option value="">Rol Cargo 2...</option>
+    {/* Blinda el mapeo con un chequeo de existencia */}
+    {(typeof VALID_ROLES_OFFICIAL !== 'undefined' ? VALID_ROLES_OFFICIAL : []).map(r => (
+      <option key={r} value={r}>{r}</option>
+    ))}
+  </select>
+  {/* Aseguramos que el selector de subvención tenga valor por defecto */}
+  <select name="cargo2_subsidized" defaultValue={editingStaff?.cargo2_subsidized || 'false'} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
+    <option value="false">DENO (Sin Subvención)</option>
+    <option value="true">MECA (Subvencionado)</option>
+  </select>
+</div>
               </div>
             </details>
 
@@ -4983,18 +4993,20 @@ function MedicalView({ user }) {
   // Permisos: Solo Salud, Directivos y Admins
   const canAccess = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión', 'Médico', 'Enfermería', 'Salud'].includes(user.role) || user.rol === 'admin';
 
- useEffect(() => {
-  const qS = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
-  const unsubS = onSnapshot(qS, (snap) => { setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
-  
-  // TRAEMOS EL PERSONAL REAL (staff_records)
-  const qStaff = query(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), orderBy('lastName', 'asc'));
-  const unsubStaff = onSnapshot(qStaff, (snap) => { 
-      setUsersList(snap.docs.map(d => ({ id: d.id, fullName: `${d.lastName}, ${d.firstName}`, ...d.data() }))); 
-  });
+ // --- DENTRO DE MEDICALVIEW ---
+  useEffect(() => {
+    const qS = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
+    const unsubS = onSnapshot(qS, (snap) => { setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
+    
+    // CORRECCIÓN: Borramos la referencia a setUsersList que no existe aquí
+    const qStaff = query(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), orderBy('lastName', 'asc'));
+    const unsubStaff = onSnapshot(qStaff, (snap) => { 
+        // Si necesitas el personal en esta vista, declará [staff, setStaff] arriba
+        // sino, simplemente borrá esta suscripción.
+    });
 
-  return () => { unsubS(); unsubStaff(); };
-}, []);
+    return () => { unsubS(); unsubStaff(); };
+  }, []);
 
   const getSafeDate = (d) => { if(!d) return '-'; try { return new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('es-AR'); } catch(e) { return d; } };
   const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
