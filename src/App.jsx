@@ -8,7 +8,7 @@ import {
   Send, Key, Filter, LayoutDashboard, Link as LinkIcon, ExternalLink, 
   AlertTriangle, Clock, Shield, Crown, Activity, Share, PlusSquare, 
   Smartphone, GraduationCap, Search, X, UploadCloud, PieChart, Eye, Edit3, 
-  Folder, MessageSquare, Globe, BookOpen, Lightbulb, ChevronDown, Printer,
+  Folder, MessageSquare, Globe, BookOpen, Lightbulb, ChevronDown, PlusCircle, Printer,
   // Iconos específicos para el formato de las notas
   AlignLeft, AlignCenter, AlignRight, AlignJustify, FileSquare
 } from 'lucide-react';
