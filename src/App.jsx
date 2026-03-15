@@ -571,22 +571,35 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
           )}
       </div>
 
-      {/* BLOQUE DESAFÍO */}
+     {/* BLOQUE DESAFÍO CON AYUDA Y RANKING */}
       <div className="bg-gradient-to-br from-emerald-400 to-teal-500 p-5 rounded-[30px] shadow-md text-white relative overflow-hidden">
           <div className="absolute -right-4 -top-4 opacity-10"><Crown size={120}/></div>
+          
+          {/* BOTÓN DE EXPLICACIÓN (Signo de pregunta) */}
+          <button 
+            onClick={() => alert("🚀 ¡BIENVENIDOS A LOS DESAFÍOS DIARIOS!\n\n• Todos los días hábiles aparecerá un nuevo acertijo aquí.\n• Si adivinás la respuesta, sumás 10 puntos a tu perfil.\n• Los puntos te hacen subir en el Ranking Institucional.\n• ¡Al final de cada mes, el sistema anunciará al ganador para su premio!\n\n¡A jugar!")}
+            className="absolute top-4 right-16 bg-white/20 hover:bg-white/30 p-1.5 rounded-full transition-colors z-20"
+            title="¿Cómo jugar?"
+          >
+            <HelpCircle size={16}/>
+          </button>
+
           <div className="flex justify-between items-start mb-2 relative z-10">
               <div className="flex-1 pr-4">
-                  <h3 className="text-[10px] font-black text-emerald-100 uppercase tracking-widest flex items-center gap-1"><HelpCircle size={12}/> Acertijo del Día</h3>
+                  <h3 className="text-[10px] font-black text-emerald-100 uppercase tracking-widest flex items-center gap-1">✨ Acertijo del Día</h3>
                   {currentChallenge.isComingSoon || currentChallenge.isRestDay ? (
-                      <div className="bg-white/20 p-3 rounded-xl mt-3 border border-white/30 border-dashed animate-in fade-in"><p className="font-bold text-white text-sm">{(currentChallenge.isComingSoon ? "⏳ " : "☕ ") + currentChallenge.q}</p></div>
+                      <div className="bg-white/20 p-3 rounded-xl mt-3 border border-white/30 border-dashed animate-in fade-in">
+                        <p className="font-bold text-white text-sm">{(currentChallenge.isComingSoon ? "⏳ " : "☕ ") + currentChallenge.q}</p>
+                      </div>
                   ) : (
                       <><p className="font-bold text-base mt-2 leading-tight">"{currentChallenge.q}"</p><p className="text-[9px] text-emerald-100 mt-1 uppercase font-bold opacity-80 tracking-widest">💡 Pensamiento Lateral</p></>
                   )}
               </div>
-              <div className="bg-white/20 p-2 rounded-xl text-center min-w-[50px] cursor-pointer hover:bg-white/30 transition" onClick={() => setShowRanking(true)}>
+              <div className="bg-white/20 p-2 rounded-xl text-center min-w-[50px] cursor-pointer hover:bg-white/30 transition shadow-inner" onClick={() => setShowRanking(true)}>
                   <span className="block text-lg font-black">{userScore}</span><span className="block text-[7px] font-bold uppercase">Puntos</span>
               </div>
           </div>
+          
           {!currentChallenge.isRestDay && !currentChallenge.isComingSoon && (
               showChallengeSuccess ? (
                   <div className="bg-white/20 p-3 rounded-xl mt-3 text-center animate-in zoom-in"><p className="font-black text-white text-sm">🎉 ¡Respuesta Correcta! Sumaste 10 pts.</p></div>
@@ -604,26 +617,37 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
       
       <div className="bg-gray-50 p-5 rounded-[35px] border border-gray-100 shadow-inner"><h3 className="font-black text-gray-400 uppercase text-[10px] mb-3 flex items-center gap-2"><Lock size={12}/> Tareas Personales</h3><form onSubmit={saveNote} className="flex gap-2 mb-3"><input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Nueva nota..." className="flex-1 p-3 rounded-xl border-none outline-none text-xs bg-white shadow-sm font-medium" /><button type="submit" className="bg-violet-600 text-white p-3 rounded-xl font-bold shadow-lg hover:bg-violet-700 transition"><Plus size={16}/></button></form><div className="space-y-2">{notes.map(n => (<div key={n.id} className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm group"><button onClick={() => toggleNote(n)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${n.done ? 'bg-violet-400 border-violet-400' : 'border-violet-200'}`}>{n.done && <Check size={10} className="text-white"/>}</button><span className={`text-xs flex-1 font-medium ${n.done ? 'line-through text-gray-300' : 'text-gray-600'}`}>{n.text}</span><button onClick={() => deleteNote(n.id)} className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"><Trash2 size={14}/></button></div>))}</div></div>
       
-      {/* MODAL RANKING */}
-      {showRanking && (
-          <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowRanking(false)}>
-              <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-yellow-400" onClick={e => e.stopPropagation()}>
-                  <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-black text-yellow-600 uppercase italic flex items-center gap-2"><Crown size={24}/> Ranking Top 5</h3><button onClick={() => setShowRanking(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20}/></button></div>
-                  <div className="space-y-3">
-                      {rankingData.length === 0 ? <p className="text-center text-gray-400 text-xs font-bold py-4 italic uppercase tracking-widest">Sin puntos aún.</p> : 
-                      rankingData.map((u, index) => (
-                          <div key={u.id} className={`flex items-center justify-between p-3 rounded-2xl border ${index === 0 ? 'bg-yellow-50 border-yellow-200 shadow-sm' : 'bg-gray-50 border-gray-100'}`}>
-                              <div className="flex items-center gap-3"><span className={`font-black text-lg ${index === 0 ? 'text-yellow-500' : index === 1 ? 'text-slate-400' : index === 2 ? 'text-amber-700' : 'text-gray-400'}`}>#{index + 1}</span><span className="font-bold text-gray-700 text-sm uppercase">{u.firstName} {u.lastName?.charAt(0) || ''}.</span></div>
-                              <div className="bg-white px-3 py-1 rounded-lg border border-gray-200 font-black text-emerald-600 text-xs shadow-sm">{u.score} pts</div>
-                          </div>
-                      ))}
-                  </div>
+   <div className="space-y-6">
+              {/* RANKING ACTUAL */}
+              <div>
+                <p className="text-[10px] font-black text-gray-400 uppercase mb-3 tracking-widest text-center">Top Actual</p>
+                <div className="space-y-2">
+                    {rankingData.length === 0 ? <p className="text-center text-gray-400 text-xs py-4 italic">Sin puntos aún.</p> : 
+                    rankingData.map((u, index) => (
+                        <div key={u.id} className={`flex items-center justify-between p-3 rounded-2xl border ${index === 0 ? 'bg-yellow-50 border-yellow-200 shadow-sm' : 'bg-gray-50 border-gray-100'}`}>
+                            <div className="flex items-center gap-3">
+                              <span className={`font-black text-lg ${index === 0 ? 'text-yellow-500' : 'text-gray-400'}`}>#{index + 1}</span>
+                              <span className="font-bold text-gray-700 text-sm uppercase">{u.firstName} {u.lastName?.charAt(0)}.</span>
+                            </div>
+                            <div className="bg-white px-3 py-1 rounded-lg border border-gray-200 font-black text-emerald-600 text-xs">{u.score} pts</div>
+                        </div>
+                    ))}
+                </div>
+              </div>
+
+              {/* SALÓN DE LA FAMA (GANADORES MENSUALES) */}
+              <div className="bg-violet-50 p-4 rounded-[25px] border border-violet-100">
+                <h4 className="text-[9px] font-black text-violet-600 uppercase mb-3 text-center tracking-[3px]">🏆 Ganadores Mensuales 2026</h4>
+                <div className="space-y-2">
+                    {/* El sistema mostrará aquí los nombres que vayas registrando cada mes */}
+                    <div className="flex justify-between items-center text-[11px] font-bold text-slate-500 border-b border-violet-100 pb-1">
+                      <span>MARZO</span>
+                      <span className="text-violet-700 italic">En curso...</span>
+                    </div>
+                    {/* Al final del mes, se puede automatizar o cargar manualmente */}
+                </div>
               </div>
           </div>
-      )}
-
-      {showAnnounceModal && (<div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm"><form onSubmit={handlePost} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95"><h3 className="text-lg font-black text-orange-500 mb-2 uppercase italic">Nuevo Aviso</h3><textarea name="message" className="w-full p-4 bg-orange-50 rounded-2xl outline-none text-sm h-32 resize-none border border-orange-100 focus:ring-2 ring-orange-200 text-gray-700" placeholder="Escribe aquí..." required></textarea><div className="mt-3"><label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">¿Quién puede ver esto?</label><select name="channel" className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200 outline-none focus:border-orange-300"><option value="general">🌍 Toda la Escuela</option><option value="sede">🏫 Solo Sede</option><option value="inclusion">💙 Solo Inclusión</option></select></div><div className="flex gap-2 mt-4"><button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 text-gray-400 font-bold text-xs uppercase tracking-widest">Cancelar</button><button type="submit" className="flex-1 bg-orange-500 text-white py-3 rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-orange-600 transition">Publicar</button></div></form></div>)}
-      
       {/* MANUAL COMPLETO (SÍN RESÚMENES) */}
       {showTutorial && (
         <div className="fixed inset-0 bg-violet-900/95 z-[300] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in">
