@@ -432,14 +432,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const isHoliday = feriadosDocentes2026.includes(dateString);
   const isWorkingDay = !isWeekend && !isHoliday;
 
-  let currentChallenge;
-  if (todayDate < challengeStartDate) {
-      currentChallenge = { q: "¡Preparate! A partir del lunes 16 arrancan los desafíos diarios con sorpresas y premios. ¡Andá calentando motores! 🚀", a: [], isComingSoon: true };
-  } else if (!isWorkingDay) {
-      currentChallenge = { q: "¡Hoy es día de descanso! El cerebro también necesita recargar energías. Nos vemos el próximo día hábil para un nuevo desafío.", a: [], isRestDay: true };
-  } else {
-      currentChallenge = DESAFIOS[(todayDate.getDate() - 1) % DESAFIOS.length];
-  }
+ 
 
   const myPendingTasksCount = tasks.filter(t => {
       if (t.status === 'completed') return false;
