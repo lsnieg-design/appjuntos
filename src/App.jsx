@@ -4602,21 +4602,22 @@ function PersonalView({ user }) {
                     <option value="all">Modalidad: Todas</option><option value="Sede">Sede</option><option value="Inclusión">Inclusión</option>
                 </select>
                 
-                {/* SELECTOR DE ROLES */}
-                <select 
-                    value="default" 
-                    onChange={e => {
-                        const val = e.target.value;
-                        if (val !== 'default' && !filters.roles.includes(val)) {
-                            setFilters({...filters, roles: [...filters.roles, val]});
-                        }
-                    }} 
-                    className="bg-white text-violet-700 text-xs p-2 rounded-lg font-bold min-w-[140px] border border-violet-200 shadow-sm outline-none cursor-pointer"
-                >
-                    <option value="default">+ Agregar Rol...</option>
-                    <option value="sin-asignar">⚠️ Sin Asignar / Error</option>
-                    {VALID_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
+               {/* SELECTOR DE ROLES EN BARRA DE FILTROS */}
+<select 
+    value="default" 
+    onChange={e => {
+        const val = e.target.value;
+        if (val !== 'default' && !filters.roles.includes(val)) {
+            setFilters({...filters, roles: [...filters.roles, val]});
+        }
+    }} 
+    className="bg-white text-violet-700 text-xs p-2 rounded-lg font-bold min-w-[140px] border border-violet-200 shadow-sm outline-none cursor-pointer"
+>
+    <option value="default">+ Agregar Rol...</option>
+    <option value="sin-asignar">⚠️ Sin Asignar / Error</option>
+    {/* CAMBIO AQUÍ: Usamos la constante de afuera */}
+    {VALID_ROLES_OFFICIAL.map(r => <option key={r} value={r}>{r}</option>)}
+</select>
 
                 <select value={filters.turn} onChange={e=>setFilters({...filters, turn: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
                     <option value="all">Turno: Todos</option>
