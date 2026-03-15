@@ -1962,29 +1962,34 @@ function UsersAdminView() {
 
     <div className="flex-1 overflow-y-auto space-y-2 pb-10">
       <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">{filteredUsers.length} Usuarios Encontrados</h3>
-      {filteredUsers.map(u => (
-      <div key={u.id} className="bg-white p-3 rounded-xl flex items-center justify-between group shadow-sm border border-gray-100">
-       <div className="flex items-center gap-3 overflow-hidden">
-        <div className="w-10 h-10 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center font-black text-sm shrink-0 relative">
-            {u.firstName?.[0]}
-            {u.rol === 'admin' && <div className="absolute -top-1 -right-1 bg-orange-500 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center"><Shield size={8} className="text-white"/></div>}
-        </div>
-        <div className="min-w-0">
-            <p className="font-bold text-sm text-gray-800 truncate">{u.fullName}</p>
-            <div className="flex flex-wrap gap-2 items-center mt-0.5">
-                <span className="text-[9px] text-white bg-violet-400 px-1.5 py-0.5 rounded font-bold uppercase">{u.role}</span>
-                <span className="text-[9px] text-gray-400 flex items-center gap-1"><Clock size={8}/> {formatLastLogin(u.lastLogin)}</span>
-                {u.legajoId && <span className="text-[8px] bg-green-100 text-green-700 px-1 rounded uppercase font-bold border border-green-200">Vinculado</span>}
-            </div>
-            <p className="text-[9px] font-bold text-gray-400 mt-1">Usuario: <span className="text-blue-500">{u.username}</span> | Clave: <span className="text-blue-500">{u.password}</span></p>
-        </div>
-       </div>
-       <div className="flex gap-2 shrink-0">
-           <button onClick={() => openEdit(u)} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"><Edit3 size={16}/></button>
-           {u.username !== 'admin' && <button onClick={() => deleteUser(u.id)} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Trash2 size={16}/></button>}
-       </div>
+    {/* BUSCA ESTE BLOQUE EN UsersAdminView Y REEMPLAZALO */}
+{filteredUsers.map(u => (
+  <div key={u.id} className="bg-white p-3 rounded-xl flex items-center justify-between group shadow-sm border border-gray-100">
+    <div className="flex items-center gap-3 overflow-hidden">
+      <div className="w-10 h-10 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center font-black text-sm shrink-0 relative">
+          {u.firstName?.[0]}
+          {u.rol === 'admin' && <div className="absolute -top-1 -right-1 bg-orange-500 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center"><Shield size={8} className="text-white"/></div>}
       </div>
-      ))}
+      <div className="min-w-0">
+          <p className="font-bold text-sm text-gray-800 truncate">{u.fullName}</p>
+          <div className="flex flex-wrap gap-2 items-center mt-0.5">
+              <span className="text-[9px] text-white bg-violet-400 px-1.5 py-0.5 rounded font-bold uppercase">{u.role}</span>
+              {/* ESTO ES LO NUEVO: MUESTRA EL ID PARA COPIAR */}
+              <span className="text-[8px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-mono border border-blue-100 select-all" title="Hacé triple clic para copiar el ID">
+                ID: {u.id}
+              </span>
+          </div>
+          <p className="text-[9px] font-bold text-gray-400 mt-1 italic">
+            User: <span className="text-slate-600">{u.username}</span> | Legajo: {u.legajoId ? <span className="text-green-600">✅ VINCULADO</span> : <span className="text-red-400">❌ NO VINCULADO</span>}
+          </p>
+      </div>
+    </div>
+    <div className="flex gap-2 shrink-0">
+        <button onClick={() => openEdit(u)} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"><Edit3 size={16}/></button>
+        {u.username !== 'admin' && <button onClick={() => deleteUser(u.id)} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Trash2 size={16}/></button>}
+    </div>
+  </div>
+))}
     </div>
 
     {/* MODAL AUDITORÍA BIDIRECCIONAL A DEMANDA */}
@@ -2040,29 +2045,73 @@ function UsersAdminView() {
                         )}
                     </div>
 
-                    {/* COLUMNA 2: TIENEN CUENTA APP, NO TIENEN LEGAJO */}
-                    <div>
-                        <h4 className="font-black text-violet-600 uppercase text-xs tracking-widest mb-3 flex items-center gap-1"><Smartphone size={16}/> Usuarios sin Legajo ({missingLegajosList.length})</h4>
-                        {missingLegajosList.length === 0 ? <p className="text-xs text-gray-400 italic">Todos tienen legajo oficial.</p> : (
-                            <div className="space-y-3">
-                                {missingLegajosList.map((m, i) => (
-                                    <div key={i} className="bg-violet-50 p-4 rounded-2xl border border-violet-200 flex justify-between items-center group">
-                                        <div>
-                                            <p className="font-bold text-sm text-gray-800 leading-tight">{m.lastName}, {m.firstName}</p>
-                                            <p className="text-[10px] text-violet-600 font-bold uppercase mt-0.5">{m.role || 'Usuario'}</p>
-                                        </div>
-                                        <button onClick={() => handleCreateSingleLegajo(m)} className="bg-white border-2 border-violet-300 text-violet-700 px-3 py-2 rounded-lg font-black text-[10px] uppercase shadow-sm hover:bg-violet-100 transition">
-                                            Crear Ficha
-                                        </button>
-                                    </div>
+                 {/* COLUMNA 2: TIENEN CUENTA APP, PERO NO TIENEN EL LEGAJO VINCULADO */}
+<div>
+    <h4 className="font-black text-violet-600 uppercase text-xs tracking-widest mb-3 flex items-center gap-1">
+        <Smartphone size={16}/> Usuarios por Vincular ({missingLegajosList.length})
+    </h4>
+    {missingLegajosList.length === 0 ? (
+        <p className="text-xs text-gray-400 italic">Todos los usuarios tienen su legajo conectado.</p>
+    ) : (
+        <div className="space-y-3">
+            {missingLegajosList.map((u, i) => (
+                <div key={i} className="bg-violet-50 p-4 rounded-2xl border border-violet-200 flex flex-col gap-3">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="font-bold text-sm text-gray-800 leading-tight">{u.fullName}</p>
+                            <p className="text-[10px] text-violet-600 font-bold uppercase mt-0.5">{u.role || 'Usuario'}</p>
+                        </div>
+                        <span className="text-[8px] bg-white px-2 py-1 rounded border border-violet-200 font-mono">ID: {u.id.substring(0,6)}...</span>
+                    </div>
+
+                    <div className="flex gap-2">
+                        {/* SELECTOR PARA VINCULAR CON UN LEGAJO EXISTENTE */}
+                        <div className="flex-1 flex gap-1">
+                            <select 
+                                onChange={(e) => setManualLinks({...manualLinks, [u.id]: e.target.value})}
+                                className="w-full text-[10px] p-2 rounded-lg border border-violet-300 outline-none bg-white font-bold text-gray-600"
+                            >
+                                <option value="">Vincular a Legajo...</option>
+                                {staffList.map(staff => (
+                                    <option key={staff.id} value={staff.id}>
+                                        {staff.lastName}, {staff.firstName} ({staff.dni || 'Sin DNI'})
+                                    </option>
                                 ))}
-                            </div>
-                        )}
+                            </select>
+                            {manualLinks[u.id] && (
+                                <button 
+                                    onClick={async () => {
+                                        if(confirm("¿Vincular este usuario con el legajo seleccionado?")) {
+                                            try {
+                                                // 1. Guardamos el ID del legajo en el Usuario
+                                                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', u.id), { legajoId: manualLinks[u.id] });
+                                                // 2. Guardamos el ID del usuario en el Legajo (userId) para doble vía
+                                                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', manualLinks[u.id]), { userId: u.id });
+                                                alert("🔗 ¡Vinculación exitosa!");
+                                                checkMissingData(); // Refrescar auditoría
+                                            } catch(e) { alert(e.message); }
+                                        }
+                                    }}
+                                    className="bg-violet-600 text-white px-3 rounded-lg font-black text-[10px]"
+                                >
+                                    UNIR
+                                </button>
+                            )}
+                        </div>
+
+                        {/* BOTÓN PARA CREAR DESDE CERO (SI REALMENTE NO EXISTE EL LEGAJO) */}
+                        <button 
+                            onClick={() => handleCreateSingleLegajo(u)} 
+                            className="bg-white border border-violet-300 text-violet-700 px-2 py-2 rounded-lg font-black text-[9px] uppercase hover:bg-violet-100 transition"
+                        >
+                            NUEVO LEGAJO
+                        </button>
                     </div>
                 </div>
-            </div>
+            ))}
         </div>
     )}
+</div>
 
     {showModal && (
       <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4">
