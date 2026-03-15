@@ -4814,20 +4814,21 @@ const c2IsUnassigned = hasC2 && !VALID_ROLES.includes(c2Role);
           <form id="staffForm" onSubmit={handleSaveStaff} className="overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar">
             
             {/* SECCIÓN VINCULACIÓN DE SEGURIDAD (IMPORTANTE) */}
-            <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 space-y-2">
-                <p className="text-[10px] font-black text-blue-600 uppercase flex items-center gap-2">
-                   <Link size={14}/> Conexión de Seguridad y Grupos
-                </p>
-                <input 
-                    name="userId" 
-                    defaultValue={editingStaff?.userId || ""} 
-                    placeholder="ID de Usuario vinculado para login y grupos..." 
-                    className="p-3 bg-white rounded-xl w-full font-mono text-[10px] outline-none border border-blue-200 focus:ring-2 ring-blue-100"
-                />
-                <p className="text-[7px] text-blue-400 font-bold italic uppercase px-1">
-                  * Este ID conecta el legajo con el usuario y detecta automáticamente sus grupos asignados.
-                </p>
-            </div>
+          <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 space-y-2">
+    <p className="text-[10px] font-black text-blue-600 uppercase flex items-center gap-2">
+        {/* CAMBIO AQUÍ: de Link a LinkIcon */}
+        <LinkIcon size={14}/> Conexión de Seguridad y Grupos
+    </p>
+    <input 
+        name="userId" 
+        defaultValue={editingStaff?.userId || ""} 
+        placeholder="ID de Usuario vinculado para login y grupos..." 
+        className="p-3 bg-white rounded-xl w-full font-mono text-[10px] outline-none border border-blue-200 focus:ring-2 ring-blue-100"
+    />
+    <p className="text-[7px] text-blue-400 font-bold italic uppercase px-1">
+      * Este ID conecta el legajo con el usuario y detecta automáticamente sus grupos asignados.
+    </p>
+</div>
 
             {/* SECCIÓN 1: IDENTIDAD */}
             <details open className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
