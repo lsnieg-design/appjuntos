@@ -4874,11 +4874,9 @@ function PersonalView({ user }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
   <select name="cargo1_role" defaultValue={editingStaff?.cargo1_role || editingStaff?.role || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
     <option value="">Seleccionar Rol...</option>
-    {/* Blinda el mapeo con un chequeo de existencia */}
-    {(typeof VALID_ROLES_OFFICIAL !== 'undefined' ? VALID_ROLES_OFFICIAL : []).map(r => (
-      <option key={r} value={r}>{r}</option>
-    ))}
-  </select>
+    {/* CAMBIO AQUÍ: VALID_ROLES_OFFICIAL */}
+    {VALID_ROLES_OFFICIAL.map(r => <option key={r} value={r}>{r}</option>)}
+</select>
   <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
     <option value="">Turno...</option>
     {/* Blinda el mapeo con un chequeo de existencia */}
