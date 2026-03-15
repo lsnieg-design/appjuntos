@@ -2005,8 +2005,7 @@ function UsersAdminView() {
                 </div>
 
                 <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-6 pr-2 mb-6">
-                    
-                    {/* COLUMNA 1: TIENEN LEGAJO, NO SABEMOS SU CUENTA */}
+                  {/* COLUMNA 1: TIENEN LEGAJO, NO SABEMOS SU CUENTA */}
                     <div>
                         <h4 className="font-black text-orange-600 uppercase text-xs tracking-widest mb-3 flex items-center gap-1"><FileText size={16}/> Legajos sin Usuario App ({missingUsersList.length})</h4>
                         {missingUsersList.length === 0 ? <p className="text-xs text-gray-400 italic">Todos tienen cuenta asignada.</p> : (
@@ -2017,10 +2016,7 @@ function UsersAdminView() {
                                             <p className="font-bold text-sm text-gray-800 leading-tight">{m.lastName}, {m.firstName}</p>
                                             <p className="text-[10px] text-orange-600 font-bold uppercase mt-0.5">{m.role || 'Docente'}</p>
                                         </div>
-                                        
-                                        {/* ACCIONES PARA ESTE LEGAJO */}
                                         <div className="flex gap-2">
-                                            {/* Si sabemos que la persona ya tiene cuenta con otro nombre, la vinculamos */}
                                             <div className="flex-1 flex gap-1">
                                                 <select 
                                                     onChange={(e) => setManualLinks({...manualLinks, [m.id]: e.target.value})} 
@@ -2033,8 +2029,6 @@ function UsersAdminView() {
                                                     <button onClick={() => handleLinkManual(m.id, manualLinks[m.id])} className="bg-orange-500 text-white px-2 rounded-lg font-bold">OK</button>
                                                 )}
                                             </div>
-                                            
-                                            {/* Si definitivamente no tiene cuenta, se la creamos de cero */}
                                             <button onClick={() => handleCreateSingleUser(m)} className="bg-white border-2 border-orange-300 text-orange-700 px-3 py-2 rounded-lg font-black text-[10px] uppercase shadow-sm hover:bg-orange-100 transition whitespace-nowrap">
                                                 Crear Nueva
                                             </button>
@@ -2045,104 +2039,104 @@ function UsersAdminView() {
                         )}
                     </div>
 
-                 {/* COLUMNA 2: TIENEN CUENTA APP, PERO NO TIENEN EL LEGAJO VINCULADO */}
-<div>
-    <h4 className="font-black text-violet-600 uppercase text-xs tracking-widest mb-3 flex items-center gap-1">
-        <Smartphone size={16}/> Usuarios por Vincular ({missingLegajosList.length})
-    </h4>
-    {missingLegajosList.length === 0 ? (
-        <p className="text-xs text-gray-400 italic">Todos los usuarios tienen su legajo conectado.</p>
-    ) : (
-        <div className="space-y-3">
-            {missingLegajosList.map((u, i) => (
-                <div key={i} className="bg-violet-50 p-4 rounded-2xl border border-violet-200 flex flex-col gap-3">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <p className="font-bold text-sm text-gray-800 leading-tight">{u.fullName}</p>
-                            <p className="text-[10px] text-violet-600 font-bold uppercase mt-0.5">{u.role || 'Usuario'}</p>
-                        </div>
-                        <span className="text-[8px] bg-white px-2 py-1 rounded border border-violet-200 font-mono">ID: {u.id.substring(0,6)}...</span>
-                    </div>
-
-                    <div className="flex gap-2">
-                        {/* SELECTOR PARA VINCULAR CON UN LEGAJO EXISTENTE */}
-                        <div className="flex-1 flex gap-1">
-                            <select 
-                                onChange={(e) => setManualLinks({...manualLinks, [u.id]: e.target.value})}
-                                className="w-full text-[10px] p-2 rounded-lg border border-violet-300 outline-none bg-white font-bold text-gray-600"
-                            >
-                                <option value="">Vincular a Legajo...</option>
-                                {staffList.map(staff => (
-                                    <option key={staff.id} value={staff.id}>
-                                        {staff.lastName}, {staff.firstName} ({staff.dni || 'Sin DNI'})
-                                    </option>
+                    {/* COLUMNA 2: TIENEN CUENTA APP, PERO NO TIENEN EL LEGAJO VINCULADO */}
+                    <div>
+                        <h4 className="font-black text-violet-600 uppercase text-xs tracking-widest mb-3 flex items-center gap-1">
+                            <Smartphone size={16}/> Usuarios por Vincular ({missingLegajosList.length})
+                        </h4>
+                        {missingLegajosList.length === 0 ? (
+                            <p className="text-xs text-gray-400 italic">Todos los usuarios tienen su legajo conectado.</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {missingLegajosList.map((u, i) => (
+                                    <div key={i} className="bg-violet-50 p-4 rounded-2xl border border-violet-200 flex flex-col gap-3">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <p className="font-bold text-sm text-gray-800 leading-tight">{u.fullName}</p>
+                                                <p className="text-[10px] text-violet-600 font-bold uppercase mt-0.5">{u.role || 'Usuario'}</p>
+                                            </div>
+                                            <span className="text-[8px] bg-white px-2 py-1 rounded border border-violet-200 font-mono">ID: {u.id.substring(0,6)}...</span>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <div className="flex-1 flex gap-1">
+                                                <select 
+                                                    onChange={(e) => setManualLinks({...manualLinks, [u.id]: e.target.value})}
+                                                    className="w-full text-[10px] p-2 rounded-lg border border-violet-300 outline-none bg-white font-bold text-gray-600"
+                                                >
+                                                    <option value="">Vincular a Legajo...</option>
+                                                    {staffList.map(staff => (
+                                                        <option key={staff.id} value={staff.id}>{staff.lastName}, {staff.firstName} ({staff.dni || 'S/D'})</option>
+                                                    ))}
+                                                </select>
+                                                {manualLinks[u.id] && (
+                                                    <button 
+                                                        onClick={async () => {
+                                                            if(confirm("¿Vincular?")) {
+                                                                try {
+                                                                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', u.id), { legajoId: manualLinks[u.id] });
+                                                                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', manualLinks[u.id]), { userId: u.id });
+                                                                    alert("🔗 Vinculado");
+                                                                    checkMissingData(); 
+                                                                } catch(e) { alert(e.message); }
+                                                            }
+                                                        }}
+                                                        className="bg-violet-600 text-white px-3 rounded-lg font-black text-[10px]"
+                                                    >UNIR</button>
+                                                )}
+                                            </div>
+                                            <button onClick={() => handleCreateSingleLegajo(u)} className="bg-white border border-violet-300 text-violet-700 px-2 py-2 rounded-lg font-black text-[9px] uppercase hover:bg-violet-100 transition">NUEVO LEGAJO</button>
+                                        </div>
+                                    </div>
                                 ))}
-                            </select>
-                            {manualLinks[u.id] && (
-                                <button 
-                                    onClick={async () => {
-                                        if(confirm("¿Vincular este usuario con el legajo seleccionado?")) {
-                                            try {
-                                                // 1. Guardamos el ID del legajo en el Usuario
-                                                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', u.id), { legajoId: manualLinks[u.id] });
-                                                // 2. Guardamos el ID del usuario en el Legajo (userId) para doble vía
-                                                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', manualLinks[u.id]), { userId: u.id });
-                                                alert("🔗 ¡Vinculación exitosa!");
-                                                checkMissingData(); // Refrescar auditoría
-                                            } catch(e) { alert(e.message); }
-                                        }
-                                    }}
-                                    className="bg-violet-600 text-white px-3 rounded-lg font-black text-[10px]"
-                                >
-                                    UNIR
-                                </button>
-                            )}
-                        </div>
-
-                        {/* BOTÓN PARA CREAR DESDE CERO (SI REALMENTE NO EXISTE EL LEGAJO) */}
-                        <button 
-                            onClick={() => handleCreateSingleLegajo(u)} 
-                            className="bg-white border border-violet-300 text-violet-700 px-2 py-2 rounded-lg font-black text-[9px] uppercase hover:bg-violet-100 transition"
-                        >
-                            NUEVO LEGAJO
-                        </button>
+                            </div>
+                        )}
                     </div>
                 </div>
-            ))}
-        </div>
-    )}
-</div>
-
-    {showModal && (
-      <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4">
-       <form onSubmit={handleSubmit} className="bg-white rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl animate-in zoom-in-95">
-        <h3 className="font-bold text-violet-900 text-xl">{editingUser ? 'Editar' : 'Nuevo'} Usuario</h3>
-        <div className="grid grid-cols-2 gap-2"><input name="firstName" defaultValue={editingUser?.firstName} placeholder="Nombre" className="p-3 bg-gray-50 rounded-xl text-sm border outline-none focus:border-violet-500" required/><input name="lastName" defaultValue={editingUser?.lastName} placeholder="Apellido" className="p-3 bg-gray-50 rounded-xl text-sm border outline-none focus:border-violet-500" required/></div>
-        <input name="username" defaultValue={editingUser?.username} placeholder="Usuario" className="w-full p-3 bg-gray-50 rounded-xl text-sm border outline-none focus:border-violet-500" required/>
-        <input name="password" defaultValue={editingUser?.password} placeholder="Contraseña" className="w-full p-3 bg-gray-50 rounded-xl text-sm border outline-none focus:border-violet-500" required/>
-        <select name="role" defaultValue={editingUser?.role || 'Docente'} className="w-full p-3 bg-gray-50 rounded-xl text-sm border outline-none focus:border-violet-500 font-bold text-gray-600">
-            {['Docente', 'Equipo Directivo', 'Equipo Técnico', 'Auxiliar/Preceptor', 'Inclusión', 'Profes Especiales', 'Administración', 'Médico', 'Dirección Inclusión', 'Equipo Técnico Inclusión', 'DAI'].map(r => <option key={r} value={r}>{r}</option>)}
-        </select>
-        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200"><input type="checkbox" name="isAdmin" defaultChecked={editingUser?.rol === 'admin'} className="w-5 h-5 accent-violet-600"/><div><span className="text-sm font-bold text-gray-700 block">Permisos de Administrador</span><span className="text-[10px] text-gray-400 block">Puede editar tareas y eventos globales</span></div></div>
-        <div className="flex gap-2 pt-2"><button type="button" onClick={()=>setShowModal(false)} className="flex-1 py-3 text-gray-400 text-xs font-bold uppercase hover:bg-gray-100 rounded-xl">Cancelar</button><button type="submit" className="flex-1 py-3 bg-violet-600 text-white rounded-xl text-xs font-bold uppercase shadow-lg hover:bg-violet-700">Guardar</button></div>
-       </form>
-      </div>
-    )}
-
-    {/* MODAL IMPORTAR */}
-    {showImport && (
-        <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4">
-                <h3 className="font-bold text-emerald-600 text-xl">Importación Masiva</h3>
-                <p className="text-xs text-gray-500">Pega los usuarios en formato CSV: <b>Nombre,Apellido,Usuario,Contraseña,Rol</b></p>
-                <textarea value={csvContent} onChange={e=>setCsvContent(e.target.value)} className="w-full h-40 p-3 border rounded-xl text-xs font-mono" placeholder="Juan,Perez,jperez,1234,Docente&#10;Maria,Gomez,mgomez,5678,Auxiliar"/>
-                <div className="flex gap-2"><button onClick={()=>setShowImport(false)} className="flex-1 py-3 text-gray-500 font-bold text-xs uppercase">Cancelar</button><button onClick={processBulkImport} disabled={processing} className="flex-1 py-3 bg-emerald-500 text-white font-bold text-xs uppercase rounded-xl shadow-lg">{processing ? 'Cargando...' : 'Procesar'}</button></div>
             </div>
         </div>
     )}
-   </div>
+
+    {showModal && (
+      <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4">
+        <form onSubmit={handleSubmit} className="bg-white rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl animate-in zoom-in-95">
+            <h3 className="font-bold text-violet-900 text-xl">{editingUser ? 'Editar' : 'Nuevo'} Usuario</h3>
+            <div className="grid grid-cols-2 gap-2">
+                <input name="firstName" defaultValue={editingUser?.firstName} placeholder="Nombre" className="p-3 bg-gray-50 rounded-xl text-sm border outline-none" required/>
+                <input name="lastName" defaultValue={editingUser?.lastName} placeholder="Apellido" className="p-3 bg-gray-50 rounded-xl text-sm border outline-none" required/>
+            </div>
+            <input name="username" defaultValue={editingUser?.username} placeholder="Usuario" className="w-full p-3 bg-gray-50 rounded-xl text-sm border outline-none" required/>
+            <input name="password" defaultValue={editingUser?.password} placeholder="Contraseña" className="w-full p-3 bg-gray-50 rounded-xl text-sm border outline-none" required/>
+            <select name="role" defaultValue={editingUser?.role || 'Docente'} className="w-full p-3 bg-gray-50 rounded-xl text-sm border outline-none font-bold text-gray-600">
+                {['Docente', 'Equipo Directivo', 'Equipo Técnico', 'Auxiliar/Preceptor', 'Inclusión', 'Profes Especiales', 'Administración', 'Médico', 'Dirección Inclusión', 'Equipo Técnico Inclusión', 'DAI'].map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                <input type="checkbox" name="isAdmin" defaultChecked={editingUser?.rol === 'admin'} className="w-5 h-5 accent-violet-600"/>
+                <div><span className="text-sm font-bold text-gray-700 block">Permisos Administrador</span></div>
+            </div>
+            <div className="flex gap-2 pt-2">
+                <button type="button" onClick={()=>setShowModal(false)} className="flex-1 py-3 text-gray-400 text-xs font-bold uppercase">Cancelar</button>
+                <button type="submit" className="flex-1 py-3 bg-violet-600 text-white rounded-xl font-bold text-xs uppercase shadow-lg">Guardar</button>
+            </div>
+        </form>
+      </div>
+    )}
+
+    {showImport && (
+      <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4">
+            <h3 className="font-bold text-emerald-600 text-xl">Importación Masiva</h3>
+            <textarea value={csvContent} onChange={e=>setCsvContent(e.target.value)} className="w-full h-40 p-3 border rounded-xl text-xs font-mono" placeholder="Juan,Perez,jperez,1234,Docente"/>
+            <div className="flex gap-2">
+                <button onClick={()=>setShowImport(false)} className="flex-1 py-3 text-gray-500 font-bold text-xs uppercase">Cancelar</button>
+                <button onClick={processBulkImport} disabled={processing} className="flex-1 py-3 bg-emerald-500 text-white font-bold text-xs uppercase rounded-xl shadow-lg">Procesar</button>
+            </div>
+        </div>
+      </div>
+    )}
+  </div>
   );
 }
+  
 // --- VISTA PROYECTO INSTITUCIONAL (FINAL: PAÍSES COMPLETOS + BANDERAS) ---
 function ProyectoView({ user }) {
   const [periods, setPeriods] = useState([]);
