@@ -4178,9 +4178,9 @@ function PersonalView({ user }) {
       const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || c2Turn);
 
       // CORRECCIÓN CRÍTICA: Usamos VALID_ROLES_OFFICIAL que es la que está afuera
-      const rolesValidos = typeof VALID_ROLES_OFFICIAL !== 'undefined' ? VALID_ROLES_OFFICIAL : [];
-      const c1IsUnassigned = !hasC1 || !rolesValidos.includes(c1Role);
-      const c2IsUnassigned = hasC2 && !rolesValidos.includes(c2Role);
+      const rolesValidos = typeof VALID_ROLES !== 'undefined' ? VALID_ROLES : [];
+     const c1IsUnassigned = !hasC1 || !VALID_ROLES.includes(c1Role);
+const c2IsUnassigned = hasC2 && !VALID_ROLES.includes(c2Role);
 
       let c1MatchesRole = filterRoles.length === 0;
       let c2MatchesRole = filterRoles.length === 0;
@@ -4616,7 +4616,7 @@ function PersonalView({ user }) {
     <option value="default">+ Agregar Rol...</option>
     <option value="sin-asignar">⚠️ Sin Asignar / Error</option>
     {/* CAMBIO AQUÍ: Usamos la constante de afuera */}
-    {VALID_ROLES_OFFICIAL.map(r => <option key={r} value={r}>{r}</option>)}
+   {VALID_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
 </select>
 
                 <select value={filters.turn} onChange={e=>setFilters({...filters, turn: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
@@ -4875,7 +4875,7 @@ function PersonalView({ user }) {
   <select name="cargo1_role" defaultValue={editingStaff?.cargo1_role || editingStaff?.role || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
     <option value="">Seleccionar Rol...</option>
     {/* CAMBIO AQUÍ: VALID_ROLES_OFFICIAL */}
-    {VALID_ROLES_OFFICIAL.map(r => <option key={r} value={r}>{r}</option>)}
+   {TURNS_LIST.map(t => <option key={t} value={t}>{t}</option>)}
 </select>
   <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
     <option value="">Turno...</option>
@@ -4978,9 +4978,9 @@ function PersonalView({ user }) {
         </div>
       </div>
     )}
-  </div> // CIERRE DIV PRINCIPAL PersonalView
-  ); // CIERRE RETURN
-} // CIERRE FUNCIÓN PersonalView
+  </div> 
+  ); 
+} 
 
 function MedicalView({ user }) {
   const [students, setStudents] = useState([]);
