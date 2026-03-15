@@ -1808,8 +1808,7 @@ function UsersAdminView() {
   const [missingLegajosList, setMissingLegajosList] = useState([]);
   const [manualLinks, setManualLinks] = useState({});
 
-  // ESTADO PARA VINCULACIÓN MANUAL
-  const [manualLinks, setManualLinks] = useState({});
+  
 
   useEffect(() => {
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('fullName', 'asc'));
