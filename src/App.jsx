@@ -600,10 +600,12 @@ useEffect(() => {
                   )}
               </div>
               {/* Busca este bloque dentro del cuadro verde de desafíos */}
-<div className="bg-white/20 p-2 rounded-xl text-center min-w-[50px] cursor-pointer hover:bg-white/30 transition shadow-inner" 
-     onClick={() => setShowRanking(true)}> {/* <--- Esto abre el modal */}
-    <span className="block text-lg font-black">{userScore}</span>
-    <span className="block text-[7px] font-bold uppercase">Puntos</span>
+<div 
+  className="bg-white/20 p-2 rounded-xl text-center min-w-[50px] cursor-pointer hover:bg-white/30 transition shadow-inner" 
+  onClick={() => setShowRanking(true)}
+>
+  <span className="block text-lg font-black">{userScore || 0}</span>
+  <span className="block text-[7px] font-bold uppercase">Puntos</span>
 </div>
           </div>
           
@@ -626,56 +628,7 @@ useEffect(() => {
       
    
              
-      {/* MODAL RANKING & SALÓN DE LA FAMA (Pegalo al final, antes del cierre del return) */}
-
-      {showRanking && (
-          <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowRanking(false)}>
-              <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
-                  <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-lg font-black text-emerald-600 uppercase italic tracking-tighter">Ranking Institucional</h3>
-                      <button onClick={() => setShowRanking(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20}/></button>
-                  </div>
-                  
-                  <div className="flex-1 overflow-y-auto space-y-6 custom-scrollbar pr-2">
-                      {/* TOP ACTUAL (Lo que antes estaba abajo de todo, ahora está aquí) */}
-                      <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase mb-3 tracking-widest text-center">Top de Marzo</p>
-                        <div className="space-y-2">
-                            {rankingData.length === 0 ? (
-                                <p className="text-center text-gray-400 text-xs py-4 italic">¡Aún no hay puntos sumados!</p>
-                            ) : (
-                                rankingData.map((u, index) => (
-                                    <div key={u.id} className={`flex items-center justify-between p-3 rounded-2xl border ${index === 0 ? 'bg-yellow-50 border-yellow-200 shadow-sm' : 'bg-gray-50 border-gray-100'}`}>
-                                        <div className="flex items-center gap-3">
-                                          <span className={`font-black text-lg ${index === 0 ? 'text-yellow-500' : 'text-gray-400'}`}>#{index + 1}</span>
-                                          <span className="font-bold text-gray-700 text-sm uppercase">{u.firstName} {u.lastName?.charAt(0)}.</span>
-                                        </div>
-                                        <div className="bg-white px-3 py-1 rounded-lg border border-gray-200 font-black text-emerald-600 text-xs">{u.score || 0} pts</div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                      </div>
-
-                      {/* SALÓN DE LA FAMA */}
-                      <div className="bg-violet-50 p-4 rounded-[25px] border border-violet-100">
-                        <h4 className="text-[9px] font-black text-violet-600 uppercase mb-3 text-center tracking-[3px]">🏆 Historial Ganadores 2026</h4>
-                        <div className="space-y-2">
-                            <div className="flex justify-between items-center text-[11px] font-bold text-slate-500 border-b border-violet-100 pb-1">
-                              <span>MARZO</span>
-                              <span className="text-violet-700 italic">En curso...</span>
-                            </div>
-                            <div className="flex justify-between items-center text-[11px] font-bold text-slate-300">
-                              <span>ABRIL</span>
-                              <span>---</span>
-                            </div>
-                        </div>
-                      </div>
-                  </div>
-                  <p className="text-[8px] text-center text-gray-400 mt-4 uppercase font-bold tracking-widest">Los puntos se reinician cada mes</p>
-              </div>
-          </div>
-      )}
+  
       
       {/* MANUAL COMPLETO (SÍN RESÚMENES) */}
       {showTutorial && (
@@ -766,6 +719,7 @@ useEffect(() => {
       )}
 
       {/* MODAL CUMPLES DINÁMICO */}
+     {/* --- MODAL CUMPLES DINÁMICO --- */}
       {showBirthdayModal && (
           <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowBirthdayModal(false)}>
               <div className={`bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl border-t-8 ${birthdayModalType === 'students' ? 'border-pink-500' : 'border-violet-500'} max-h-[85vh] flex flex-col`} onClick={e => e.stopPropagation()}>
@@ -783,9 +737,58 @@ useEffect(() => {
               </div>
           </div>
       )}
-    </div>
-  );
-}
+
+      {/* --- NUEVO: MODAL RANKING & SALÓN DE LA FAMA --- */}
+      {showRanking && (
+          <div className="fixed inset-0 bg-black/80 z-[500] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowRanking(false)}>
+              <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
+                  <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-lg font-black text-emerald-600 uppercase italic tracking-tighter">Ranking Institucional</h3>
+                      <button onClick={() => setShowRanking(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20}/></button>
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto space-y-6 custom-scrollbar pr-2">
+                      {/* TOP ACTUAL */}
+                      <div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase mb-3 tracking-widest text-center">Top de Marzo</p>
+                        <div className="space-y-2">
+                            {rankingData.length === 0 ? (
+                                <p className="text-center text-gray-400 text-xs py-4 italic">¡Aún no hay puntos sumados!</p>
+                            ) : (
+                                rankingData.map((u, index) => (
+                                    <div key={u.id} className={`flex items-center justify-between p-3 rounded-2xl border ${index === 0 ? 'bg-yellow-50 border-yellow-200 shadow-sm' : 'bg-gray-50 border-gray-100'}`}>
+                                        <div className="flex items-center gap-3">
+                                          <span className={`font-black text-lg ${index === 0 ? 'text-yellow-500' : 'text-gray-400'}`}>#{index + 1}</span>
+                                          <span className="font-bold text-gray-700 text-sm uppercase">{u.firstName} {u.lastName?.charAt(0)}.</span>
+                                        </div>
+                                        <div className="bg-white px-3 py-1 rounded-lg border border-gray-200 font-black text-emerald-600 text-xs">{(u.score || 0)} pts</div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                      </div>
+
+                      {/* SALÓN DE LA FAMA ANUAL */}
+                      <div className="bg-violet-50 p-4 rounded-[25px] border border-violet-100">
+                        <h4 className="text-[9px] font-black text-violet-600 uppercase mb-3 text-center tracking-[3px]">🏆 Salón de la Fama 2026</h4>
+                        <div className="space-y-2 text-center">
+                            <div className="flex justify-between items-center text-[11px] font-bold text-slate-500 border-b border-violet-100 pb-1">
+                              <span>MARZO</span>
+                              <span className="text-violet-700 italic">En curso...</span>
+                            </div>
+                        </div>
+                      </div>
+                  </div>
+                  <p className="text-[8px] text-center text-gray-400 mt-4 uppercase font-bold tracking-widest">Los puntos se reinician cada mes</p>
+              </div>
+          </div>
+      )}
+
+    </div> // Cierre del div principal
+  ); // Cierre del return
+} // Cierre de la función DashboardView
+
+
 // --- VISTA RECURSOS (VERSIÓN CON PLANTILLAS EN GENERADOR DE NOTAS) ---
 function ResourcesView({ resources, canEdit }) {
   const [folder, setFolder] = useState(null);
