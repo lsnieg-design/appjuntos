@@ -363,39 +363,32 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const isInclusionStaff = INCLUSION_ROLES.includes(user.role);
   const isSedeStaff = SEDE_ROLES.includes(user.role);
 
- // --- BASE DE DATOS DE DESAFÍOS (LÓGICA, CÁLCULO Y ATENCIÓN) ---
+ // --- BASE DE DATOS DE DESAFÍOS (RECUPERADA Y CORREGIDA) ---
   const DESAFIOS = [
-      // LOGICA Y SERIES (Basados en tus imágenes)
-      { q: "Completá la serie: 4, 9, 20, 50, 120... ¿Cuál sigue?", a: ["300"] }, // Lógica: (x2 + 1, x2 + 2, x2 + 10...)
+      { q: "Completá la serie: 4, 9, 20, 50, 120... ¿Cuál sigue?", a: ["300"] },
       { q: "Si 3 gatos cazan 3 ratones en 3 minutos, ¿cuántos minutos tardan 100 gatos en cazar 100 ratones?", a: ["3", "tres"] },
       { q: "Un reloj marca las 3:15. Si lo girás 90 grados a la derecha, ¿qué hora marcaría?", a: ["6:30", "seis y media"] },
-      { q: "¿Qué número falta? [4][5] -> [9]. [20][11] -> [31]. [50][30] -> [?]", a: ["80"] },
+      { q: "¿Qué número falta? [4][5] -> [9]. [20][11] -> [31]. [50][30] -> [80]", a: ["80"] },
       { q: "Si ayer fuera mañana, hoy sería viernes. ¿Qué día es hoy?", a: ["domingo"] },
-      
-      // ACERTIJOS VISUALES DESCRIPTIVOS
       { q: "Un candado tiene 3 formas: Hexágono, Pentágono y Cuadrado. Si la suma de los 3 es 45, ¿cuánto vale el Pentágono solo?", a: ["15"] },
-      { q: "Hay 3 bananas en un racimo. Si 2 racimos + un hexágono suman 23, y el hexágono vale 15, ¿cuánto vale cada banana?", a: ["1", "uno", "1 punto"] },
+      { q: "Hay 3 bananas en un racimo. Si 2 racimos + un hexágono suman 23, y el hexágono vale 15, ¿cuánto vale cada banana?", a: ["1", "uno", "un punto"] },
       { q: "En un reloj de agujas, ¿cuántas veces se cruzan la aguja de la hora y el minutero en 12 horas?", a: ["11", "once"] },
-      
-      // LÓGICA DE LETRAS
-     { q: "París empieza con P y termina con...", a: ["t", "la letra t", "termina con t"] },
+      { q: "París empieza con P y termina con...", a: ["t", "letra t", "la t"] },
       { q: "¿Qué palabra de 5 letras se escribe igual de izquierda a derecha que de derecha a izquierda?", a: ["radar", "reconocer", "somos"] },
       { q: "Si 'A' es 1, 'B' es 2 y 'C' es 3... ¿Cuál es el resultado de (A + B) x C?", a: ["9", "nueve"] },
-
-      // CLÁSICOS DE ATENCIÓN
       { q: "El padre de Clara tiene 5 hijas: Jana, Jena, Jina, Jona y...", a: ["clara"] },
       { q: "Un tren eléctrico viaja al norte y el viento sopla al sur. ¿Hacia dónde va el humo?", a: ["ninguno", "no hay", "no tiene humo", "electrico"] },
       { q: "Si estás en una carrera y adelantás al que va segundo, ¿en qué posición estás?", a: ["segundo", "2", "2do"] },
       { q: "¿Cuántos meses tienen 28 días?", a: ["12", "doce", "todos"] },
       { q: "¿Qué tiene manos pero no puede aplaudir?", a: ["reloj", "el reloj"] },
       { q: "Si me tenés, querés compartirme. Si me compartís, ya no me tenés. ¿Qué soy?", a: ["secreto", "un secreto"] },
-      { q: "¿Qué es lo que sube pero nunca baja?", a: ["edad", "la edad"] }, //
+      { q: "¿Qué es lo que sube pero nunca baja?", a: ["edad", "la edad"] },
       { q: "Tenés 3 fósforos y entrás en una habitación oscura que tiene una vela, una lámpara de aceite y una estufa a leña. ¿Qué encendés primero?", a: ["fosforo", "el fosforo", "cerilla"] },
       { q: "Si un médico te da 3 pastillas y te dice que tomes una cada media hora, ¿en cuánto tiempo te las tomás todas?", a: ["60", "1 hora", "una hora", "60 minutos"] },
       { q: "¿Cuántos animales de cada especie llevó Moisés en el Arca?", a: ["ninguno", "0", "fue noe", "noe"] },
       { q: "Si un hombre nace en 1950 y muere en 1950, pero tiene 80 años... ¿Cómo es posible?", a: ["hospital", "habitacion", "número de habitación", "habitación"] },
       { q: "Tengo ciudades pero no casas, montañas pero no árboles... ¿Qué soy?", a: ["mapa", "el mapa"] },
-      { q: "¿Cuál es el día más largo de la semana?", a: ["miercoles", "miércoles"] }, // Por cantidad de letras
+      { q: "¿Cuál es el día más largo de la semana?", a: ["miercoles", "miércoles"] },
       { q: "Si 5 máquinas hacen 5 artículos en 5 minutos, ¿cuánto tardan 100 máquinas en hacer 100 artículos?", a: ["5", "cinco"] },
       { q: "¿Qué palabra se escribe mal en todos los diccionarios?", a: ["mal"] },
       { q: "Aparezco una vez en un minuto, dos veces en un momento y ninguna en un siglo. ¿Quién soy?", a: ["m", "letra m"] },
