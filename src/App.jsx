@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 // Lista de iconos optimizada: Incluye los de alineación para el Generador de Notas
 import { 
   Calendar as CalendarIcon, CheckSquare, Settings, User, FileText, CheckCircle, 
-  Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, Trophy,
+  Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, 
   Lock, List, Grid, ChevronLeft, ChevronRight, Bell, Check, HelpCircle, Mail, 
   Send, Key, Filter, LayoutDashboard, Link as LinkIcon, ExternalLink, 
   AlertTriangle, Clock, Shield, Crown, Activity, Share, PlusSquare, 
@@ -515,17 +515,37 @@ useEffect(() => {
       } catch (err) { alert(err.message); }
   };
 
-  const checkChallenge = async (e) => {
-      e.preventDefault();
-      if(!challengeAnswer) return;
+ const checkChallenge = async (e) => {
+    if (e) e.preventDefault();
+    if (!challengeAnswer || !currentChallenge) return;
+
+    try {
       const cleanAnswer = challengeAnswer.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      const isCorrect = currentChallenge.a?.some(validAns => cleanAnswer.includes(validAns.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")));
+      const isCorrect = currentChallenge.a?.some(validAns => 
+        cleanAnswer.includes(validAns.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""))
+      );
+      
       if (isCorrect) {
-          setShowChallengeSuccess(true);
-          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { score: (userScore || 0) + 10 });
-          setChallengeAnswer('');
-          setTimeout(() => setShowChallengeSuccess(false), 4000);
-      } else { alert("🤔 ¡Casi! Intentá con otras palabras."); }
+        setShowChallengeSuccess(true);
+        // Guardar marca en el navegador
+        localStorage.setItem(`lastChallenge_${user.id}`, new Date().toDateString());
+        
+        // --- ACTUALIZACIÓN DE PUNTOS EN FIREBASE ---
+        // Usamos window.db, window.doc, etc., para asegurar que use las instancias globales si no están importadas
+        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+        await updateDoc(userRef, { 
+          score: (userScore || 0) + 10 
+        });
+
+        setChallengeAnswer('');
+        setTimeout(() => setShowChallengeSuccess(false), 4000);
+      } else { 
+        alert("🤔 ¡Casi! Intentá con otras palabras."); 
+      }
+    } catch (error) {
+      console.error("Error en el desafío:", error);
+      alert("Hubo un error al guardar tus puntos, pero no te preocupes, ¡seguí intentando!");
+    }
   };
 
   const visibleAnnouncements = announcements.filter(a => isSuperAdmin || a.authorId === user.id || !a.channel || a.channel === 'general' || (a.channel === 'inclusion' && isInclusionStaff) || (a.channel === 'sede' && isSedeStaff));
@@ -575,15 +595,13 @@ useEffect(() => {
           )}
       </div>
 
-     {/* BLOQUE DESAFÍO CON AYUDA Y RANKING */}
+   {/* BLOQUE DESAFÍO CON AYUDA Y RANKING */}
       <div className="bg-gradient-to-br from-emerald-400 to-teal-500 p-5 rounded-[30px] shadow-md text-white relative overflow-hidden">
           <div className="absolute -right-4 -top-4 opacity-10"><Crown size={120}/></div>
           
-          {/* BOTÓN DE EXPLICACIÓN (Signo de pregunta) */}
           <button 
-            onClick={() => alert("🚀 ¡BIENVENIDOS A LOS DESAFÍOS DIARIOS!\n\n• Todos los días hábiles aparecerá un nuevo acertijo aquí.\n• Si adivinás la respuesta, sumás 10 puntos a tu perfil.\n• Los puntos te hacen subir en el Ranking Institucional.\n• ¡Al final de cada mes, el sistema anunciará al ganador para su premio!\n\n¡A jugar!")}
-            className="absolute top-4 right-16 bg-white/20 hover:bg-white/30 p-1.5 rounded-full transition-colors z-20"
-            title="¿Cómo jugar?"
+            onClick={() => alert("🚀 ¡BIENVENIDOS!\n\n• Respondé el acertijo y sumá 10 puntos.\n• Tocá la Copa para ver el Ranking.\n• ¡A fin de mes hay premios!")}
+            className="absolute top-4 right-16 bg-white/20 hover:bg-white/30 p-1.5 rounded-full z-20"
           >
             <HelpCircle size={16}/>
           </button>
@@ -592,38 +610,45 @@ useEffect(() => {
               <div className="flex-1 pr-4">
                   <h3 className="text-[10px] font-black text-emerald-100 uppercase tracking-widest flex items-center gap-1">✨ Acertijo del Día</h3>
                   {currentChallenge.isComingSoon || currentChallenge.isRestDay ? (
-                      <div className="bg-white/20 p-3 rounded-xl mt-3 border border-white/30 border-dashed animate-in fade-in">
-                        <p className="font-bold text-white text-sm">{(currentChallenge.isComingSoon ? "⏳ " : "☕ ") + currentChallenge.q}</p>
-                      </div>
+                      <p className="font-bold text-white text-sm mt-2">⏳ {currentChallenge.q}</p>
                   ) : (
-                      <><p className="font-bold text-base mt-2 leading-tight">"{currentChallenge.q}"</p><p className="text-[9px] text-emerald-100 mt-1 uppercase font-bold opacity-80 tracking-widest">💡 Pensamiento Lateral</p></>
+                      <p className="font-bold text-base mt-2 leading-tight">"{currentChallenge.q}"</p>
                   )}
               </div>
-              {/* Busca este bloque dentro del cuadro verde de desafíos */}
-{/* REEMPLAZO DEL BOTÓN DE PUNTOS POR UNA COPA */}
-<div 
-  className="bg-white/20 p-2 rounded-xl text-center min-w-[50px] cursor-pointer hover:bg-white/30 transition shadow-inner relative z-50 group" 
-  onClick={() => {
-    console.log("Abriendo Ranking...");
-    setShowRanking(true);
-  }}
-  title="Ver Ranking Institucional"
->
-    {/* Icono de Copa Grande y Dorado */}
-    <div className="text-yellow-400 group-hover:scale-110 transition-transform">
-        <Trophy size={28} />
-    </div>
-    {/* Texto descriptivo abajo */}
-    <span className="block text-[7px] font-bold uppercase mt-1 text-emerald-100">Ranking</span>
-</div>
+
+              {/* BOTÓN COPA */}
+              <div 
+                className="bg-white/20 p-2 rounded-xl text-center min-w-[60px] cursor-pointer hover:bg-white/30 transition shadow-inner relative z-50 group" 
+                onClick={() => setShowRanking(true)}
+              >
+                  <div className="text-yellow-400 flex justify-center"><Trophy size={28} /></div>
+                  <span className="block text-[7px] font-bold uppercase mt-1">Ranking</span>
+              </div>
           </div>
           
+          {/* LÓGICA DE RESPUESTA */}
           {!currentChallenge.isRestDay && !currentChallenge.isComingSoon && (
-              showChallengeSuccess ? (
-                  <div className="bg-white/20 p-3 rounded-xl mt-3 text-center animate-in zoom-in"><p className="font-black text-white text-sm">🎉 ¡Respuesta Correcta! Sumaste 10 pts.</p></div>
+            <div className="mt-4 relative z-10">
+              {localStorage.getItem(`lastChallenge_${user.id}`) === new Date().toDateString() ? (
+                <div className="bg-white/20 p-3 rounded-xl border border-white/30 text-center italic">
+                  <p className="text-xs font-black">🚫 ¡Ya participaste hoy! Volvé mañana. 😉</p>
+                </div>
+              ) : showChallengeSuccess ? (
+                <div className="bg-white/20 p-3 rounded-xl text-center animate-bounce">
+                  <p className="font-black text-sm text-white">🎉 ¡Correcto! Sumaste 10 pts.</p>
+                </div>
               ) : (
-                  <form onSubmit={checkChallenge} className="flex gap-2 mt-4 relative z-10"><input value={challengeAnswer} onChange={e=>setChallengeAnswer(e.target.value)} placeholder="Tu respuesta secreta..." className="flex-1 bg-white/20 text-white placeholder-emerald-100 border border-white/30 p-2.5 rounded-xl outline-none font-bold text-xs focus:bg-white/30 transition"/><button type="submit" className="bg-white text-emerald-600 font-black px-4 rounded-xl text-xs uppercase hover:scale-105 transition shadow-lg">Jugar</button></form>
-              )
+                <form onSubmit={checkChallenge} className="flex gap-2">
+                  <input 
+                    value={challengeAnswer} 
+                    onChange={e => setChallengeAnswer(e.target.value)} 
+                    placeholder="Respuesta..." 
+                    className="flex-1 bg-white/20 text-white placeholder-emerald-100 border border-white/30 p-2.5 rounded-xl outline-none font-bold text-xs"
+                  />
+                  <button type="submit" className="bg-white text-emerald-600 font-black px-4 rounded-xl text-xs uppercase shadow-lg">Jugar</button>
+                </form>
+              )}
+            </div>
           )}
       </div>
       
@@ -5941,7 +5966,6 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
-
 
 
 
