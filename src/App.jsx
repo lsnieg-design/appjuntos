@@ -3136,129 +3136,170 @@ if (statFilters.gender !== 'all') {
         </div>
       )}
 
-      {/* 2. MODAL FORMULARIO DE EDICIÓN (COMPLETO) */}
+      {/* 2. MODAL FORMULARIO DE EDICIÓN (COMPLETO Y REVISADO) */}
       {showForm && (
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
             <div className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-                <h3 className="text-xl font-bold mb-4">{editingStudent?'Editar':'Nuevo'} Legajo</h3>
+                <h3 className="text-xl font-bold mb-4">{editingStudent ? 'Editar' : 'Nuevo'} Legajo</h3>
+                
+                {/* FOTO PERFIL */}
                 <div className="flex justify-center mb-6">
                     <div className="relative group w-24 h-24">
                         <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-violet-100 bg-gray-100 shadow-inner">
-                            {photoPreview || editingStudent?.photoUrl ? <img src={photoPreview || editingStudent?.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-gray-300 m-auto mt-6"/>}
+                            {photoPreview || editingStudent?.photoUrl ? (
+                                <img src={photoPreview || editingStudent?.photoUrl} className="w-full h-full object-cover" alt="Perfil" />
+                            ) : (
+                                <User size={40} className="text-gray-300 m-auto mt-6" />
+                            )}
                         </div>
                         <label className="absolute bottom-0 right-0 bg-violet-600 text-white p-2 rounded-full cursor-pointer hover:bg-violet-700 shadow-md">
                             <input type="file" className="hidden" accept="image/*" onChange={handlePhotoChange} />
-                            {uploading ? <RefreshCw className="animate-spin" size={14}/> : <Edit3 size={14}/>}
+                            {uploading ? <RefreshCw className="animate-spin" size={14} /> : <Edit3 size={14} />}
                         </label>
                     </div>
                 </div>
+
                 <form onSubmit={handleSave} className="space-y-4">
+                    {/* SELECTOR MODALIDAD */}
                     <div className="flex gap-2 mb-4 bg-gray-100 p-1 rounded-xl">
                         <button type="button" onClick={() => setFormModalidad('Sede')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${formModalidad === 'Sede' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>SEDE</button>
                         <button type="button" onClick={() => setFormModalidad('Inclusión')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition ${formModalidad === 'Inclusión' ? 'bg-white shadow text-indigo-700' : 'text-gray-400'}`}>INCLUSIÓN</button>
                     </div>
+
+                    {/* ESTADO ACTIVO/INACTIVO */}
                     <div className={`p-3 rounded-xl border mb-2 flex justify-between items-center ${editingStudent?.isActive === false ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
                         <div>
                             <label className="text-xs font-bold text-gray-700 uppercase">Estado Actual</label>
                             <p className="text-[10px] text-gray-500 font-bold flex items-center gap-1">
-  {editingStudent?.isActive === false ? (
-    <><AlertCircle size={12} className="text-red-500"/> BAJA / INACTIVO</>
-  ) : (
-    <><CheckCircle size={12} className="text-green-500"/> ACTIVO (CURSANDO)</>
-  )}
-</p>
+                                {editingStudent?.isActive === false ? (
+                                    <><AlertCircle size={12} className="text-red-500" /> BAJA / INACTIVO</>
+                                ) : (
+                                    <><CheckCircle size={12} className="text-green-500" /> ACTIVO (CURSANDO)</>
+                                )}
+                            </p>
                         </div>
                         <select name="isActive" defaultValue={editingStudent?.isActive === false ? 'false' : 'true'} className="p-2 rounded-lg border text-xs font-bold bg-white outline-none">
                             <option value="true">Activo</option>
                             <option value="false">Inactivo (Baja)</option>
                         </select>
                     </div>
+
+                    {/* NOMBRE Y APELLIDO */}
                     <div className="grid grid-cols-2 gap-3">
-                        <input name="firstName" defaultValue={editingStudent?.firstName} placeholder="Nombre" required className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/>
-                        <input name="lastName" defaultValue={editingStudent?.lastName} placeholder="Apellido" required className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/>
+                        <input name="firstName" defaultValue={editingStudent?.firstName} placeholder="Nombre" required className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm" />
+                        <input name="lastName" defaultValue={editingStudent?.lastName} placeholder="Apellido" required className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm" />
                     </div>
+
+                    {/* DNI Y NACIMIENTO */}
                     <div className="grid grid-cols-2 gap-3">
-                        <input name="d
-                          {/* AGREGAR ESTO EN EL FORMULARIO DE EDICIÓN */}
-<div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
-    <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">Género / Sexo</label>
-    <select 
-        name="gender" 
-        defaultValue={editingStudent?.gender || ""} 
-        className="w-full p-2 bg-gray-50 rounded-lg outline-none font-bold text-sm border border-gray-100"
-    >
-        <option value="">Sin definir / No especifica</option>
-        <option value="M">Varón</option>
-        <option value="F">Mujer</option>
-        <option value="X">No Binario / Otro</option>
-    </select>
-</div>ni" type="number" defaultValue={editingStudent?.dni} placeholder="DNI" className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/>
-                        <input name="birthDate" type="date" defaultValue={getSafeDate(editingStudent?.birthDate)} className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm text-gray-500"/>
+                        <input name="dni" type="number" defaultValue={editingStudent?.dni} placeholder="DNI" className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm" />
+                        <input name="birthDate" type="date" defaultValue={getSafeDate(editingStudent?.birthDate)} className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm text-gray-500" />
                     </div>
+
+                    {/* DATOS ESCOLARES Y GÉNERO */}
                     <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 space-y-3">
-                        <h4 className="font-bold text-blue-700 text-xs uppercase">Datos Escolares ({formModalidad})</h4>
-                        <div className="grid grid-cols-2 gap-2">
-                            <select name="level" defaultValue={editingStudent?.level} className="p-2 rounded-lg border text-xs font-bold w-full"><option value="">Nivel...</option><option value="INICIAL">INICIAL</option><option value="1° Ciclo">1° Ciclo</option><option value="2° Ciclo">2° Ciclo</option><option value="CFI">CFI</option><option value="SECUNDARIA">SECUNDARIA</option></select>
-                            <select name="dx" defaultValue={editingStudent?.dx} className="p-2 rounded-lg border text-xs font-bold w-full"><option value="">DX...</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select>
+                        <h4 className="font-bold text-blue-700 text-xs uppercase">Datos Escolares y Personales</h4>
+                        <div className="grid grid-cols-3 gap-2">
+                            <div>
+                                <label className="text-[9px] font-bold text-blue-400 uppercase ml-1">Nivel</label>
+                                <select name="level" defaultValue={editingStudent?.level} className="p-2 rounded-lg border text-xs font-bold w-full bg-white">
+                                    <option value="">Nivel...</option>
+                                    <option value="INICIAL">INICIAL</option>
+                                    <option value="1° Ciclo">1° Ciclo</option>
+                                    <option value="2° Ciclo">2° Ciclo</option>
+                                    <option value="CFI">CFI</option>
+                                    <option value="SECUNDARIA">SECUNDARIA</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-[9px] font-bold text-blue-400 uppercase ml-1">DX</label>
+                                <select name="dx" defaultValue={editingStudent?.dx} className="p-2 rounded-lg border text-xs font-bold w-full bg-white">
+                                    <option value="">DX...</option>
+                                    <option value="DI">DI</option>
+                                    <option value="TES">TES</option>
+                                    <option value="Otro">Otro</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-[9px] font-bold text-blue-400 uppercase ml-1">Género</label>
+                                <select name="gender" defaultValue={editingStudent?.gender || ""} className="p-2 rounded-lg border text-xs font-bold w-full bg-white">
+                                    <option value="">...</option>
+                                    <option value="M">Varón</option>
+                                    <option value="F">Mujer</option>
+                                    <option value="X">Otro</option>
+                                </select>
+                            </div>
                         </div>
+
+                        {/* SUB-SECCIÓN POR MODALIDAD */}
                         {formModalidad === 'Sede' ? (
                             <>
                                 <div className="grid grid-cols-2 gap-2">
-                                    <input name="groupMorning" defaultValue={editingStudent?.groupMorning} placeholder="Grupo TM" className="p-2 rounded-lg border text-xs w-full"/>
-                                    <input name="groupAfternoon" defaultValue={editingStudent?.groupAfternoon} placeholder="Grupo TT" className="p-2 rounded-lg border text-xs w-full"/>
+                                    <input name="groupMorning" defaultValue={editingStudent?.groupMorning} placeholder="Grupo TM" className="p-2 rounded-lg border text-xs w-full bg-white" />
+                                    <input name="groupAfternoon" defaultValue={editingStudent?.groupAfternoon} placeholder="Grupo TT" className="p-2 rounded-lg border text-xs w-full bg-white" />
                                 </div>
                                 <div className="grid grid-cols-2 gap-2">
-                                    <select name="teacherMorning" defaultValue={editingStudent?.teacherMorning} className="p-2 rounded-lg border text-xs w-full"><option value="">Docente TM...</option>{staffSede.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select>
-                                    <select name="teacherAfternoon" defaultValue={editingStudent?.teacherAfternoon} className="p-2 rounded-lg border text-xs w-full"><option value="">Docente TT...</option>{staffSede.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select>
+                                    <select name="teacherMorning" defaultValue={editingStudent?.teacherMorning} className="p-2 rounded-lg border text-xs w-full bg-white">
+                                        <option value="">Docente TM...</option>
+                                        {staffSede.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
+                                    </select>
+                                    <select name="teacherAfternoon" defaultValue={editingStudent?.teacherAfternoon} className="p-2 rounded-lg border text-xs w-full bg-white">
+                                        <option value="">Docente TT...</option>
+                                        {staffSede.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
+                                    </select>
                                 </div>
                             </>
                         ) : (
                             <>
-                                <input name="originSchool" defaultValue={editingStudent?.originSchool} placeholder="Escuela de Origen" className="w-full p-2 rounded-lg border text-xs font-bold"/>
-                                <input name="originGrade" defaultValue={editingStudent?.originGrade} placeholder="Grado/Año" className="w-full p-2 rounded-lg border text-xs"/>
-                               <div className="grid grid-cols-2 gap-2">
-        <select name="daiMorning" defaultValue={editingStudent?.daiMorning} className="p-2 rounded-lg border text-xs">
-            <option value="">DAI T. Mañana...</option>
-            {editingStudent?.daiMorning && !staffInclusion.find(u => u.fullName === editingStudent?.daiMorning) && <option value={editingStudent.daiMorning}>{editingStudent.daiMorning} (Nombre Viejo)</option>}
-            {staffInclusion.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}
-        </select>
-        <select name="daiAfternoon" defaultValue={editingStudent?.daiAfternoon} className="p-2 rounded-lg border text-xs">
-            <option value="">DAI T. Tarde...</option>
-            {editingStudent?.daiAfternoon && !staffInclusion.find(u => u.fullName === editingStudent?.daiAfternoon) && <option value={editingStudent.daiAfternoon}>{editingStudent.daiAfternoon} (Nombre Viejo)</option>}
-            {staffInclusion.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}
-        </select>
-    </div>
+                                <input name="originSchool" defaultValue={editingStudent?.originSchool} placeholder="Escuela de Origen" className="w-full p-2 rounded-lg border text-xs font-bold bg-white" />
+                                <input name="originGrade" defaultValue={editingStudent?.originGrade} placeholder="Grado/Año" className="w-full p-2 rounded-lg border text-xs bg-white" />
+                                <div className="grid grid-cols-2 gap-2">
+                                    <select name="daiMorning" defaultValue={editingStudent?.daiMorning} className="p-2 rounded-lg border text-xs bg-white">
+                                        <option value="">DAI T. Mañana...</option>
+                                        {editingStudent?.daiMorning && !staffInclusion.find(u => u.fullName === editingStudent?.daiMorning) && <option value={editingStudent.daiMorning}>{editingStudent.daiMorning} (Antiguo)</option>}
+                                        {staffInclusion.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
+                                    </select>
+                                    <select name="daiAfternoon" defaultValue={editingStudent?.daiAfternoon} className="p-2 rounded-lg border text-xs bg-white">
+                                        <option value="">DAI T. Tarde...</option>
+                                        {editingStudent?.daiAfternoon && !staffInclusion.find(u => u.fullName === editingStudent?.daiAfternoon) && <option value={editingStudent.daiAfternoon}>{editingStudent.daiAfternoon} (Antiguo)</option>}
+                                        {staffInclusion.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
+                                    </select>
+                                </div>
                                 <div className="bg-green-50 p-2 rounded-lg border border-green-100 mt-2">
                                     <label className="text-[10px] font-bold text-green-700 uppercase block mb-1">📂 Carpeta Drive Personal</label>
-                                    <input name="driveLink" defaultValue={editingStudent?.driveLink} placeholder="https://drive.google.com/..." className="w-full p-2 rounded-lg border text-xs text-green-800"/>
+                                    <input name="driveLink" defaultValue={editingStudent?.driveLink} placeholder="https://drive.google.com/..." className="w-full p-2 rounded-lg border text-xs text-green-800 bg-white" />
                                 </div>
                             </>
                         )}
                     </div>
+
+                    {/* SALUD Y FAMILIA */}
                     <div className="p-4 bg-green-50 rounded-2xl border border-green-100 space-y-3">
                         <h4 className="font-bold text-green-800 text-xs uppercase">Salud y Familia</h4>
                         <div className="grid grid-cols-2 gap-2">
-                            <input name="healthInsurance" defaultValue={editingStudent?.healthInsurance} placeholder="Obra Social" className="w-full p-2 rounded-lg border text-xs"/>
-                            <input name="cudExpiration" type="date" defaultValue={getSafeDate(editingStudent?.cudExpiration)} className="w-full p-2 rounded-lg border text-xs text-gray-500"/>
+                            <input name="healthInsurance" defaultValue={editingStudent?.healthInsurance} placeholder="Obra Social" className="w-full p-2 rounded-lg border text-xs bg-white" />
+                            <input name="cudExpiration" type="date" defaultValue={getSafeDate(editingStudent?.cudExpiration)} className="w-full p-2 rounded-lg border text-xs text-gray-500 bg-white" />
                         </div>
-                        <input name="address" defaultValue={editingStudent?.address} className="w-full p-2 rounded-lg border text-xs" placeholder="Dirección"/>
+                        <input name="address" defaultValue={editingStudent?.address} className="w-full p-2 rounded-lg border text-xs bg-white" placeholder="Dirección" />
                         <div className="grid grid-cols-2 gap-2">
-                            <input name="motherName" defaultValue={editingStudent?.motherName} placeholder="Madre" className="w-full p-2 rounded-lg border text-xs"/>
-                            <input name="motherContact" defaultValue={editingStudent?.motherContact} placeholder="Contacto Madre" className="w-full p-2 rounded-lg border text-xs"/>
+                            <input name="motherName" defaultValue={editingStudent?.motherName} placeholder="Madre" className="w-full p-2 rounded-lg border text-xs bg-white" />
+                            <input name="motherContact" defaultValue={editingStudent?.motherContact} placeholder="Contacto Madre" className="w-full p-2 rounded-lg border text-xs bg-white" />
                         </div>
                         <div className="grid grid-cols-2 gap-2">
-                            <input name="fatherName" defaultValue={editingStudent?.fatherName} placeholder="Padre" className="w-full p-2 rounded-lg border text-xs"/>
-                            <input name="fatherContact" defaultValue={editingStudent?.fatherContact} placeholder="Contacto Padre" className="w-full p-2 rounded-lg border text-xs"/>
+                            <input name="fatherName" defaultValue={editingStudent?.fatherName} placeholder="Padre" className="w-full p-2 rounded-lg border text-xs bg-white" />
+                            <input name="fatherContact" defaultValue={editingStudent?.fatherContact} placeholder="Contacto Padre" className="p-2 rounded-lg border text-xs bg-white" />
                         </div>
                         <div className="border-t border-green-200 pt-2">
                             <label className="text-[10px] font-bold text-green-700 uppercase block mb-1">Personas autorizadas a retirar</label>
-                            <textarea name="pickupInfo" defaultValue={editingStudent?.pickupInfo} className="w-full p-2 rounded-lg border text-xs h-16 resize-none" placeholder="Abuela Marta, Tía Juana..."/>
+                            <textarea name="pickupInfo" defaultValue={editingStudent?.pickupInfo} className="w-full p-2 rounded-lg border text-xs h-16 resize-none bg-white" placeholder="Abuela Marta, Tía Juana..." />
                         </div>
                     </div>
-                    <div className="flex gap-2 pt-4 border-t">
-                        <button type="button" onClick={()=>setShowForm(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs">Cancelar</button>
+
+                    {/* BOTONES DE ACCIÓN */}
+                    <div className="flex gap-2 pt-4 border-t sticky bottom-0 bg-white">
+                        <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs">Cancelar</button>
                         <button type="submit" className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg">Guardar</button>
-                        {editingStudent && <button type="button" onClick={() => handleDelete(editingStudent.id)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition border border-red-100"><Trash2 size={20}/></button>}
+                        {editingStudent && <button type="button" onClick={() => handleDelete(editingStudent.id)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition border border-red-100"><Trash2 size={20} /></button>}
                     </div>
                 </form>
             </div>
