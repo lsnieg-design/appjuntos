@@ -437,13 +437,13 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
       return false;
   }).length;
   useEffect(() => {
-    // 1. Suscripción a Notas Personales
+    // 1. NOTAS PERSONALES
     const qNotes = query(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), where('userId', '==', user.id));
     const unsubNotes = onSnapshot(qNotes, (snap) => {
         setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.done - b.done));
     });
     
-    // 2. Suscripción a Usuarios (Ranking y Puntos Propios)
+    // 2. RANKING Y PUNTAJE
     const qUsers = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
     const unsubUsers = onSnapshot(qUsers, (snap) => {
         const usersData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -452,7 +452,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
         setRankingData(usersData.filter(u => u.score > 0).sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 10));
     });
 
-    // 3. Suscripción a Configuración (Cuenta Regresiva)
+    // 3. CUENTA REGRESIVA
     const qSettings = query(collection(db, 'artifacts', appId, 'public', 'data', 'settings'));
     const unsubSettings = onSnapshot(qSettings, (snap) => {
         if (!snap.empty) {
@@ -466,7 +466,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
         }
     });
 
-    // 4. Suscripción a Estudiantes (Cumpleaños y Grupos)
+    // 4. ESTUDIANTES (Cumples y Alumnos sin grupo)
     const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
     const unsubStudents = onSnapshot(qStudents, (snap) => {
         const allStudents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -487,7 +487,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
         setUngroupedCount(allStudents.filter(s => !s.groupMorning && !s.groupAfternoon && !s.daiMorning && !s.daiAfternoon).length);
     });
 
-    // 5. Suscripción a Staff (Cumpleaños Profes)
+    // 5. PERSONAL (Cumples Profes)
     const qStaff = query(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'));
     const unsubStaff = onSnapshot(qStaff, (snap) => {
         const today = new Date(); today.setHours(0,0,0,0);
@@ -502,7 +502,6 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
         }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday));
     });
 
-    // Limpieza de todas las suscripciones al desmontar
     return () => { 
         unsubNotes(); 
         unsubStudents(); 
