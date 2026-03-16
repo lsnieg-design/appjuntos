@@ -435,7 +435,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
       return false;
   }).length;
 
-  useEffect(() => {
+useEffect(() => {
     // 1. Notas
     const qNotes = query(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), where('userId', '==', user.id));
     const unsubNotes = onSnapshot(qNotes, (snap) => setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.done - b.done)));
@@ -449,33 +449,30 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
         setRankingData(usersData.filter(u => (u.score || 0) > 0).sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 10));
     });
 
-    // 3. Estudiantes, Grupos y Cumpleaños
+    // 3. Estudiantes y Cumpleaños
     const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
     const unsubStudents = onSnapshot(qStudents, (snap) => {
         const allStudents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setStudents(allStudents);
-        
         const today = new Date(); today.setHours(0,0,0,0);
         const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7);
-        
-        const upcomingBdays = allStudents.map(data => {
+        const bdays = allStudents.map(data => {
             if(!data.birthDate) return null;
             const dob = new Date(data.birthDate + 'T00:00:00');
             const nextB = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
             if (nextB < today) nextB.setFullYear(today.getFullYear() + 1);
             return { ...data, nextBirthday: nextB };
         }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday);
-        
-        setStudentBirthdays(upcomingBdays);
+        setStudentBirthdays(bdays);
         setUngroupedCount(allStudents.filter(s => !s.groupMorning && !s.groupAfternoon && !s.daiMorning && !s.daiAfternoon).length);
     });
 
-    // 4. Staff y Cumpleaños Profes
+    // 4. Staff y Cumples Profes
     const qStaff = query(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'));
     const unsubStaff = onSnapshot(qStaff, (snap) => {
         const today = new Date(); today.setHours(0,0,0,0);
         const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7);
-        const staffBdays = snap.docs.map(d => {
+        const sBdays = snap.docs.map(d => {
             const data = d.data();
             if(!data.birthDate) return null;
             const dob = new Date(data.birthDate.includes('T') ? data.birthDate : data.birthDate + 'T00:00:00');
@@ -483,10 +480,10 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
             if (nextB < today) nextB.setFullYear(today.getFullYear() + 1);
             return { ...data, id: d.id, nextBirthday: nextB };
         }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday);
-        setStaffBirthdays(staffBdays);
+        setStaffBirthdays(sBdays);
     });
 
-    // 5. Configuración y Cuenta Regresiva
+    // 5. Configuración y Cuenta regresiva
     const qSettings = query(collection(db, 'artifacts', appId, 'public', 'data', 'settings'));
     const unsubSettings = onSnapshot(qSettings, (snap) => {
         if (!snap.empty) {
@@ -500,9 +497,9 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
         }
     });
 
-    return () => { unsubNotes(); unsubUsers(); unsubStudents(); unsubStaff(); unsubSettings(); };
-  }, [user.id]);
-
+    return () => { unsubNotes(); unsubUsers(); unsubSettings(); unsubStudents(); unsubStaff(); };
+  }, [user.id, appId]);
+  
   const handlePost = async (e) => { e.preventDefault(); try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), { message: e.target.message.value, author: user.fullName || user.firstName, authorId: user.id, role: user.role, channel: e.target.channel.value, createdAt: serverTimestamp() }); setShowAnnounceModal(false); } catch(e) { alert(e.message); } };
   const deleteAnnouncement = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'announcements', id)); };
   const saveNote = async (e) => { e.preventDefault(); if (!newNote.trim()) return; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), { text: newNote, userId: user.id, done: false, createdAt: serverTimestamp() }); setNewNote(''); };
@@ -602,9 +599,12 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
                       <><p className="font-bold text-base mt-2 leading-tight">"{currentChallenge.q}"</p><p className="text-[9px] text-emerald-100 mt-1 uppercase font-bold opacity-80 tracking-widest">💡 Pensamiento Lateral</p></>
                   )}
               </div>
-              <div className="bg-white/20 p-2 rounded-xl text-center min-w-[50px] cursor-pointer hover:bg-white/30 transition shadow-inner" onClick={() => setShowRanking(true)}>
-                  <span className="block text-lg font-black">{userScore}</span><span className="block text-[7px] font-bold uppercase">Puntos</span>
-              </div>
+              {/* Busca este bloque dentro del cuadro verde de desafíos */}
+<div className="bg-white/20 p-2 rounded-xl text-center min-w-[50px] cursor-pointer hover:bg-white/30 transition shadow-inner" 
+     onClick={() => setShowRanking(true)}> {/* <--- Esto abre el modal */}
+    <span className="block text-lg font-black">{userScore}</span>
+    <span className="block text-[7px] font-bold uppercase">Puntos</span>
+</div>
           </div>
           
           {!currentChallenge.isRestDay && !currentChallenge.isComingSoon && (
@@ -624,38 +624,10 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
       
       <div className="bg-gray-50 p-5 rounded-[35px] border border-gray-100 shadow-inner"><h3 className="font-black text-gray-400 uppercase text-[10px] mb-3 flex items-center gap-2"><Lock size={12}/> Tareas Personales</h3><form onSubmit={saveNote} className="flex gap-2 mb-3"><input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Nueva nota..." className="flex-1 p-3 rounded-xl border-none outline-none text-xs bg-white shadow-sm font-medium" /><button type="submit" className="bg-violet-600 text-white p-3 rounded-xl font-bold shadow-lg hover:bg-violet-700 transition"><Plus size={16}/></button></form><div className="space-y-2">{notes.map(n => (<div key={n.id} className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm group"><button onClick={() => toggleNote(n)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${n.done ? 'bg-violet-400 border-violet-400' : 'border-violet-200'}`}>{n.done && <Check size={10} className="text-white"/>}</button><span className={`text-xs flex-1 font-medium ${n.done ? 'line-through text-gray-300' : 'text-gray-600'}`}>{n.text}</span><button onClick={() => deleteNote(n.id)} className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"><Trash2 size={14}/></button></div>))}</div></div>
       
-   <div className="space-y-6">
-              {/* RANKING ACTUAL */}
-              <div>
-                <p className="text-[10px] font-black text-gray-400 uppercase mb-3 tracking-widest text-center">Top Actual</p>
-                <div className="space-y-2">
-                    {rankingData.length === 0 ? <p className="text-center text-gray-400 text-xs py-4 italic">Sin puntos aún.</p> : 
-                    rankingData.map((u, index) => (
-                        <div key={u.id} className={`flex items-center justify-between p-3 rounded-2xl border ${index === 0 ? 'bg-yellow-50 border-yellow-200 shadow-sm' : 'bg-gray-50 border-gray-100'}`}>
-                            <div className="flex items-center gap-3">
-                              <span className={`font-black text-lg ${index === 0 ? 'text-yellow-500' : 'text-gray-400'}`}>#{index + 1}</span>
-                              <span className="font-bold text-gray-700 text-sm uppercase">{u.firstName} {u.lastName?.charAt(0)}.</span>
-                            </div>
-                            <div className="bg-white px-3 py-1 rounded-lg border border-gray-200 font-black text-emerald-600 text-xs">{u.score} pts</div>
-                        </div>
-                    ))}
-                </div>
-              </div>
-
-              {/* SALÓN DE LA FAMA (GANADORES MENSUALES) */}
-              <div className="bg-violet-50 p-4 rounded-[25px] border border-violet-100">
-                <h4 className="text-[9px] font-black text-violet-600 uppercase mb-3 text-center tracking-[3px]">🏆 Ganadores Mensuales 2026</h4>
-                <div className="space-y-2">
-                    {/* El sistema mostrará aquí los nombres que vayas registrando cada mes */}
-                    <div className="flex justify-between items-center text-[11px] font-bold text-slate-500 border-b border-violet-100 pb-1">
-                      <span>MARZO</span>
-                      <span className="text-violet-700 italic">En curso...</span>
-                    </div>
-                    {/* Al final del mes, se puede automatizar o cargar manualmente */}
-                </div>
-              </div>
-          </div>
+   
+             
       {/* MODAL RANKING & SALÓN DE LA FAMA (Pegalo al final, antes del cierre del return) */}
+
       {showRanking && (
           <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowRanking(false)}>
               <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
@@ -664,13 +636,13 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
                       <button onClick={() => setShowRanking(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20}/></button>
                   </div>
                   
-                  <div className="flex-1 overflow-y-auto space-y-6 custom-scrollbar">
-                      {/* TOP ACTUAL */}
+                  <div className="flex-1 overflow-y-auto space-y-6 custom-scrollbar pr-2">
+                      {/* TOP ACTUAL (Lo que antes estaba abajo de todo, ahora está aquí) */}
                       <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase mb-3 tracking-widest text-center">Mejores Puntajes de Marzo</p>
+                        <p className="text-[10px] font-black text-gray-400 uppercase mb-3 tracking-widest text-center">Top de Marzo</p>
                         <div className="space-y-2">
                             {rankingData.length === 0 ? (
-                                <p className="text-center text-gray-400 text-xs py-4 italic">¡Mañana lunes arrancamos!</p>
+                                <p className="text-center text-gray-400 text-xs py-4 italic">¡Aún no hay puntos sumados!</p>
                             ) : (
                                 rankingData.map((u, index) => (
                                     <div key={u.id} className={`flex items-center justify-between p-3 rounded-2xl border ${index === 0 ? 'bg-yellow-50 border-yellow-200 shadow-sm' : 'bg-gray-50 border-gray-100'}`}>
@@ -685,9 +657,9 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
                         </div>
                       </div>
 
-                      {/* SALÓN DE LA FAMA (HISTORIAL ANUAL) */}
+                      {/* SALÓN DE LA FAMA */}
                       <div className="bg-violet-50 p-4 rounded-[25px] border border-violet-100">
-                        <h4 className="text-[9px] font-black text-violet-600 uppercase mb-3 text-center tracking-[3px]">🏆 Salón de la Fama 2026</h4>
+                        <h4 className="text-[9px] font-black text-violet-600 uppercase mb-3 text-center tracking-[3px]">🏆 Historial Ganadores 2026</h4>
                         <div className="space-y-2">
                             <div className="flex justify-between items-center text-[11px] font-bold text-slate-500 border-b border-violet-100 pb-1">
                               <span>MARZO</span>
@@ -704,6 +676,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
               </div>
           </div>
       )}
+      
       {/* MANUAL COMPLETO (SÍN RESÚMENES) */}
       {showTutorial && (
         <div className="fixed inset-0 bg-violet-900/95 z-[300] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in">
