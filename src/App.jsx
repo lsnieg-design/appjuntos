@@ -378,7 +378,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
       { q: "En un reloj de agujas, ¿cuántas veces se cruzan la aguja de la hora y el minutero en 12 horas?", a: ["11", "once"] },
       
       // LÓGICA DE LETRAS
-      { q: "París empieza con P y termina con...", a: ["t", "la t"] }, // Juego de palabras: la palabra 'termina' empieza con T.
+     { q: "París empieza con P y termina con...", a: ["t", "la letra t", "termina con t"] },
       { q: "¿Qué palabra de 5 letras se escribe igual de izquierda a derecha que de derecha a izquierda?", a: ["radar", "reconocer", "somos"] },
       { q: "Si 'A' es 1, 'B' es 2 y 'C' es 3... ¿Cuál es el resultado de (A + B) x C?", a: ["9", "nueve"] },
 
@@ -389,7 +389,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
       { q: "¿Cuántos meses tienen 28 días?", a: ["12", "doce", "todos"] },
       { q: "¿Qué tiene manos pero no puede aplaudir?", a: ["reloj", "el reloj"] },
       { q: "Si me tenés, querés compartirme. Si me compartís, ya no me tenés. ¿Qué soy?", a: ["secreto", "un secreto"] },
-      { q: "¿Qué es lo que sube pero nunca baja?", a: ["edad", "la edad"] },
+      { q: "¿Qué es lo que sube pero nunca baja?", a: ["edad", "la edad"] }, //
       { q: "Tenés 3 fósforos y entrás en una habitación oscura que tiene una vela, una lámpara de aceite y una estufa a leña. ¿Qué encendés primero?", a: ["fosforo", "el fosforo", "cerilla"] },
       { q: "Si un médico te da 3 pastillas y te dice que tomes una cada media hora, ¿en cuánto tiempo te las tomás todas?", a: ["60", "1 hora", "una hora", "60 minutos"] },
       { q: "¿Cuántos animales de cada especie llevó Moisés en el Arca?", a: ["ninguno", "0", "fue noe", "noe"] },
