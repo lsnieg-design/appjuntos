@@ -601,11 +601,14 @@ useEffect(() => {
               </div>
               {/* Busca este bloque dentro del cuadro verde de desafíos */}
 <div 
-  className="bg-white/20 p-2 rounded-xl text-center min-w-[50px] cursor-pointer hover:bg-white/30 transition shadow-inner" 
-  onClick={() => setShowRanking(true)}
+  className="bg-white/20 p-2 rounded-xl text-center min-w-[50px] cursor-pointer hover:bg-white/30 transition shadow-inner relative z-30" 
+  onClick={() => {
+    console.log("Abriendo Ranking...");
+    setShowRanking(true);
+  }}
 >
-  <span className="block text-lg font-black">{userScore || 0}</span>
-  <span className="block text-[7px] font-bold uppercase">Puntos</span>
+    <span className="block text-lg font-black leading-none">{userScore || 0}</span>
+    <span className="block text-[7px] font-bold uppercase mt-1">Puntos</span>
 </div>
           </div>
           
@@ -738,25 +741,34 @@ useEffect(() => {
           </div>
       )}
 
-      {/* --- NUEVO: MODAL RANKING & SALÓN DE LA FAMA --- */}
+    {/* --- MODAL RANKING & SALÓN DE LA FAMA (REEMPLAZO FINAL) --- */}
       {showRanking && (
-          <div className="fixed inset-0 bg-black/80 z-[500] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowRanking(false)}>
-              <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
+          <div 
+            className="fixed inset-0 z-[999] flex items-center justify-center p-4 backdrop-blur-md bg-black/80"
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+            onClick={() => setShowRanking(false)}
+          >
+              <div 
+                className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[85vh] relative z-[1000]" 
+                onClick={e => e.stopPropagation()}
+              >
                   <div className="flex justify-between items-center mb-6">
                       <h3 className="text-lg font-black text-emerald-600 uppercase italic tracking-tighter">Ranking Institucional</h3>
-                      <button onClick={() => setShowRanking(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20}/></button>
+                      <button onClick={() => setShowRanking(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition">
+                        <X size={20} className="text-gray-500"/>
+                      </button>
                   </div>
                   
                   <div className="flex-1 overflow-y-auto space-y-6 custom-scrollbar pr-2">
                       {/* TOP ACTUAL */}
                       <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase mb-3 tracking-widest text-center">Top de Marzo</p>
+                        <p className="text-[10px] font-black text-gray-400 uppercase mb-3 tracking-widest text-center italic">Mejores Puntajes de Marzo</p>
                         <div className="space-y-2">
                             {rankingData.length === 0 ? (
-                                <p className="text-center text-gray-400 text-xs py-4 italic">¡Aún no hay puntos sumados!</p>
+                                <p className="text-center text-gray-400 text-xs py-4 italic">¡Aún no hay puntos registrados!</p>
                             ) : (
                                 rankingData.map((u, index) => (
-                                    <div key={u.id} className={`flex items-center justify-between p-3 rounded-2xl border ${index === 0 ? 'bg-yellow-50 border-yellow-200 shadow-sm' : 'bg-gray-50 border-gray-100'}`}>
+                                    <div key={u.id || index} className={`flex items-center justify-between p-3 rounded-2xl border ${index === 0 ? 'bg-yellow-50 border-yellow-200 shadow-sm' : 'bg-gray-50 border-gray-100'}`}>
                                         <div className="flex items-center gap-3">
                                           <span className={`font-black text-lg ${index === 0 ? 'text-yellow-500' : 'text-gray-400'}`}>#{index + 1}</span>
                                           <span className="font-bold text-gray-700 text-sm uppercase">{u.firstName} {u.lastName?.charAt(0)}.</span>
@@ -779,7 +791,7 @@ useEffect(() => {
                         </div>
                       </div>
                   </div>
-                  <p className="text-[8px] text-center text-gray-400 mt-4 uppercase font-bold tracking-widest">Los puntos se reinician cada mes</p>
+                  <p className="text-[8px] text-center text-gray-400 mt-4 uppercase font-bold tracking-widest">Los puntos se reinician el 1 de cada mes</p>
               </div>
           </div>
       )}
