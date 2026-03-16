@@ -412,7 +412,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   // IMPORTANTE: Definimos esto ANTES de usarlo en el currentChallenge
   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
   const isHoliday = feriadosDocentes2026.includes(dateString);
-  const isWorkingDay = !isWeekend && !isHoliday;
+
 
   // LÓGICA ALEATORIA BASADA EN SEMILLA
   const seed = todayDate.getFullYear() + todayDate.getMonth() + todayDate.getDate();
