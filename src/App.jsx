@@ -362,7 +362,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const SEDE_ROLES = ['Docente', 'Equipo Directivo', 'Equipo Técnico', 'Auxiliar/Preceptor', 'Profes Especiales', 'Administración'];
   const isInclusionStaff = INCLUSION_ROLES.includes(user.role);
   const isSedeStaff = SEDE_ROLES.includes(user.role);
-// --- BASE DE DATOS DE DESAFÍOS (CORREGIDA) ---
+// --- BASE DE DATOS DE DESAFÍOS (SANEADA) ---
   const DESAFIOS = [
       { q: "Completá la serie: 4, 9, 20, 50, 120... ¿Cuál sigue?", a: ["300"] },
       { q: "Si 3 gatos cazan 3 ratones en 3 minutos, ¿cuántos minutos tardan 100 gatos en cazar 100 ratones?", a: ["3", "tres"] },
@@ -376,16 +376,16 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
       { q: "¿Qué palabra de 5 letras se escribe igual de izquierda a derecha?", a: ["radar", "somos"] },
       { q: "Si 'A' es 1, 'B' es 2 y 'C' es 3... ¿Cuál es el resultado de (A + B) x C?", a: ["9", "nueve"] },
       { q: "El padre de Clara tiene 5 hijas: Jana, Jena, Jina, Jona y...", a: ["clara"] },
-      { q: "Un tren eléctrico viaja al norte y el viento sopla al sur. ¿Hacia dónde va el humo?", a: ["ninguno", "no hay", "electrico"] },
+      { q: "Un tren eléctrico viaja al norte y el viento sopla al sur. ¿Hacia dónde va el humo?", a: ["ninguno", "no tiene humo", "electrico"] },
       { q: "Si estás en una carrera y adelantás al que va segundo, ¿en qué posición estás?", a: ["segundo", "2"] },
       { q: "¿Cuántos meses tienen 28 días?", a: ["12", "doce", "todos"] },
       { q: "¿Qué tiene manos pero no puede aplaudir?", a: ["reloj", "el reloj"] },
       { q: "Si me tenés, querés compartirme. Si me compartís, ya no me tenés. ¿Qué soy?", a: ["secreto", "un secreto"] },
       { q: "¿Qué es lo que sube pero nunca baja?", a: ["edad"] },
-      { q: "Tenés 3 fósforos y entrás en una habitación oscura que tiene una vela, una lámpara y una estufa. ¿Qué encendés primero?", a: ["fosforo", "cerilla"] },
-      { q: "Si un médico te da 3 pastillas y te dice que tomes una cada media hora, ¿en cuánto tiempo terminás?", a: ["60", "una hora", "1 hora"] },
+      { q: "Tenés 3 fósforos y entrás en una habitación oscura con vela, lámpara y estufa. ¿Qué encendés primero?", a: ["fosforo", "cerilla"] },
+      { q: "Si un médico te da 3 pastillas y te dice que tomes una cada media hora, ¿en cuánto tiempo terminás?", a: ["60", "una hora"] },
       { q: "¿Cuántos animales de cada especie llevó Moisés en el Arca?", a: ["ninguno", "0", "noe"] },
-      { q: "Si un hombre nace en 1950 y muere en 1950, pero tiene 80 años... ¿Cómo es posible?", a: ["hospital", "habitacion", "numero"] },
+      { q: "Si un hombre nace en 1950 y muere en 1950, pero tiene 80 años... ¿Cómo es posible?", a: ["hospital", "habitacion"] },
       { q: "Tengo ciudades pero no casas, montañas pero no árboles... ¿Qué soy?", a: ["mapa", "el mapa"] },
       { q: "¿Cuál es el día más largo de la semana?", a: ["miercoles", "miércoles"] },
       { q: "Si 5 máquinas hacen 5 artículos en 5 minutos, ¿cuánto tardan 100 máquinas en hacer 100 artículos?", a: ["5", "cinco"] },
@@ -397,7 +397,6 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
       { q: "El que lo hace no lo quiere, el que lo compra no lo usa y el que lo usa no lo ve. ¿Qué es?", a: ["ataud", "ataúd"] }
   ];
 
-  // --- LÓGICA DE TIEMPO, FERIADOS Y DESAFÍOS (UNIFICADA Y LIMPIA) ---
   const todayDate = new Date();
   const challengeStartDate = new Date('2026-03-16T00:00:00'); 
   const dayOfWeek = todayDate.getDay(); 
@@ -437,7 +436,6 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
       if (t.targetType === 'roles' && t.targetRoles?.some(r => r.toLowerCase() === user.role?.toLowerCase())) return true;
       return false;
   }).length;
-
   useEffect(() => {
     const qNotes = query(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), where('userId', '==', user.id));
     const unsubNotes = onSnapshot(qNotes, (snap) => setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.done - b.done)));
