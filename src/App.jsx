@@ -414,7 +414,6 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const isHoliday = feriadosDocentes2026.includes(dateString);
   const isWorkingDay = !isWeekend && !isHoliday;
 
-  // LÓGICA ALEATORIA BASADA EN SEMILLA DIARIA
   const seed = todayDate.getFullYear() + todayDate.getMonth() + todayDate.getDate();
   const randomIdx = seed % DESAFIOS.length;
 
@@ -427,7 +426,6 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
       currentChallenge = DESAFIOS[randomIdx];
   }
 
-  // --- CONTADOR DE TAREAS PENDIENTES ---
   const myPendingTasksCount = tasks.filter(t => {
       if (t.status === 'completed') return false;
       const scheduledTime = new Date(`${t.showDate || '2000-01-01'}T${t.showTime || '00:00'}`);
@@ -436,23 +434,59 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
       if (t.targetType === 'roles' && t.targetRoles?.some(r => r.toLowerCase() === user.role?.toLowerCase())) return true;
       return false;
   }).length;
-useEffect(() => {
-    // 1. NOTAS
+
+  useEffect(() => {
+    // 1. Notas
     const qNotes = query(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), where('userId', '==', user.id));
-    const unsubNotes = onSnapshot(qNotes, (snap) => {
-        setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.done - b.done));
-    });
+    const unsubNotes = onSnapshot(qNotes, (snap) => setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.done - b.done)));
     
-    // 2. USUARIOS Y RANKING
+    // 2. Usuarios y Ranking
     const qUsers = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
     const unsubUsers = onSnapshot(qUsers, (snap) => {
         const usersData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         const me = usersData.find(u => u.id === user.id);
         if (me) setUserScore(me.score || 0);
-        setRankingData(usersData.filter(u => u.score > 0).sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 10));
+        setRankingData(usersData.filter(u => (u.score || 0) > 0).sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 10));
     });
 
-    // 3. CONFIGURACIÓN
+    // 3. Estudiantes, Grupos y Cumpleaños
+    const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
+    const unsubStudents = onSnapshot(qStudents, (snap) => {
+        const allStudents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setStudents(allStudents);
+        
+        const today = new Date(); today.setHours(0,0,0,0);
+        const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7);
+        
+        const upcomingBdays = allStudents.map(data => {
+            if(!data.birthDate) return null;
+            const dob = new Date(data.birthDate + 'T00:00:00');
+            const nextB = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
+            if (nextB < today) nextB.setFullYear(today.getFullYear() + 1);
+            return { ...data, nextBirthday: nextB };
+        }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday);
+        
+        setStudentBirthdays(upcomingBdays);
+        setUngroupedCount(allStudents.filter(s => !s.groupMorning && !s.groupAfternoon && !s.daiMorning && !s.daiAfternoon).length);
+    });
+
+    // 4. Staff y Cumpleaños Profes
+    const qStaff = query(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'));
+    const unsubStaff = onSnapshot(qStaff, (snap) => {
+        const today = new Date(); today.setHours(0,0,0,0);
+        const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7);
+        const staffBdays = snap.docs.map(d => {
+            const data = d.data();
+            if(!data.birthDate) return null;
+            const dob = new Date(data.birthDate.includes('T') ? data.birthDate : data.birthDate + 'T00:00:00');
+            const nextB = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
+            if (nextB < today) nextB.setFullYear(today.getFullYear() + 1);
+            return { ...data, id: d.id, nextBirthday: nextB };
+        }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday);
+        setStaffBirthdays(staffBdays);
+    });
+
+    // 5. Configuración y Cuenta Regresiva
     const qSettings = query(collection(db, 'artifacts', appId, 'public', 'data', 'settings'));
     const unsubSettings = onSnapshot(qSettings, (snap) => {
         if (!snap.empty) {
@@ -466,82 +500,7 @@ useEffect(() => {
         }
     });
 
-    // 4. ESTUDIANTES
-    const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
-    const unsubStudents = onSnapshot(qStudents, (snap) => {
-        const allStudents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        setStudents(allStudents);
-        const today = new Date(); today.setHours(0,0,0,0);
-        const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7);
-        const bdays = allStudents.map(data => {
-            if(!data.birthDate) return null;
-            const dob = new Date(data.birthDate + 'T00:00:00');
-            const nextB = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
-            if (nextB < today) nextB.setFullYear(today.getFullYear() + 1);
-            return { ...data, nextBirthday: nextB };
-        }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday);
-        setStudentBirthdays(bdays);
-        setUngroupedCount(allStudents.filter(s => !s.groupMorning && !s.groupAfternoon && !s.daiMorning && !s.daiAfternoon).length);
-    });
-
-    // 5. STAFF
-    const qStaff = query(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'));
-    const unsubStaff = onSnapshot(qStaff, (snap) => {
-        const today = new Date(); today.setHours(0,0,0,0);
-        const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7);
-        const sBdays = snap.docs.map(d => {
-            const data = d.data();
-            if(!data.birthDate) return null;
-            const dob = new Date(data.birthDate.includes('T') ? data.birthDate : data.birthDate + 'T00:00:00');
-            const nextB = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
-            if (nextB < today) nextB.setFullYear(today.getFullYear() + 1);
-            return { ...data, id: d.id, nextBirthday: nextB };
-        }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday);
-        setStaffBirthdays(sBdays);
-    });
-
-    return () => { 
-        unsubNotes(); unsubUsers(); unsubSettings(); unsubStudents(); unsubStaff(); 
-    };
-  }, [user.id, appId]);
-        
-        // 1. Guardamos TODOS los alumnos (Esto es lo que usa la ficha del docente para mostrar sus grupos)
-        setStudents(allStudents); 
-
-        // 2. Calculamos los CUMPLEAÑOS aparte (Esto es por si lo usás en esta vista para algún indicador)
-        const today = new Date(); today.setHours(0,0,0,0);
-        const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7);
-        
-        const upcomingBirthdays = allStudents.map(data => {
-            if(!data.birthDate) return null;
-            const dob = new Date(data.birthDate + 'T00:00:00');
-            const nextB = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
-            if (nextB < today) nextB.setFullYear(today.getFullYear() + 1);
-            return { ...data, nextBirthday: nextB };
-        }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek)
-          .sort((a, b) => a.nextBirthday - b.nextBirthday);
-
-        // Si tenés el estado setStudentBirthdays lo usás acá, si no, lo borrás:
-        if (typeof setStudentBirthdays === 'function') setStudentBirthdays(upcomingBirthdays);
-
-        // 3. Contador de alumnos sin grupo
-        let noGroupCount = allStudents.filter(s => !s.groupMorning && !s.groupAfternoon && !s.daiMorning && !s.daiAfternoon).length;
-        if (typeof setUngroupedCount === 'function') setUngroupedCount(noGroupCount);
-    });
-
-    const qStaff = query(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'));
-    const unsubStaff = onSnapshot(qStaff, (snap) => {
-        setStaffBirthdays(snap.docs.map(d => {
-            const data = d.data();
-            if(!data.birthDate) return null;
-            const dob = new Date(data.birthDate.includes('T') ? data.birthDate : data.birthDate + 'T00:00:00');
-            const nextB = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
-            if (nextB < today) nextB.setFullYear(today.getFullYear() + 1);
-            return { ...data, id: d.id, nextBirthday: nextB };
-        }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday));
-    });
-
-    return () => { unsubNotes(); unsubStudents(); unsubStaff(); unsubUsers(); unsubSettings(); };
+    return () => { unsubNotes(); unsubUsers(); unsubStudents(); unsubStaff(); unsubSettings(); };
   }, [user.id]);
 
   const handlePost = async (e) => { e.preventDefault(); try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), { message: e.target.message.value, author: user.fullName || user.firstName, authorId: user.id, role: user.role, channel: e.target.channel.value, createdAt: serverTimestamp() }); setShowAnnounceModal(false); } catch(e) { alert(e.message); } };
