@@ -437,17 +437,22 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
       return false;
   }).length;
   useEffect(() => {
+    // 1. Suscripción a Notas Personales
     const qNotes = query(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), where('userId', '==', user.id));
-    const unsubNotes = onSnapshot(qNotes, (snap) => setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.done - b.done)));
+    const unsubNotes = onSnapshot(qNotes, (snap) => {
+        setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.done - b.done));
+    });
     
+    // 2. Suscripción a Usuarios (Ranking y Puntos Propios)
     const qUsers = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
     const unsubUsers = onSnapshot(qUsers, (snap) => {
         const usersData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         const me = usersData.find(u => u.id === user.id);
         if (me) setUserScore(me.score || 0);
-        setRankingData(usersData.filter(u => u.score > 0).sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 5));
+        setRankingData(usersData.filter(u => u.score > 0).sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 10));
     });
 
+    // 3. Suscripción a Configuración (Cuenta Regresiva)
     const qSettings = query(collection(db, 'artifacts', appId, 'public', 'data', 'settings'));
     const unsubSettings = onSnapshot(qSettings, (snap) => {
         if (!snap.empty) {
@@ -461,15 +466,50 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
         }
     });
 
-    const today = new Date(); today.setHours(0,0,0,0);
+    // 4. Suscripción a Estudiantes (Cumpleaños y Grupos)
     const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
     const unsubStudents = onSnapshot(qStudents, (snap) => {
         const allStudents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setStudents(allStudents);
-        // ... el resto de tu lógica de cumpleaños si la tienes
+        
+        const today = new Date(); today.setHours(0,0,0,0);
+        const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7);
+        
+        const upcomingBirthdays = allStudents.map(data => {
+            if(!data.birthDate) return null;
+            const dob = new Date(data.birthDate + 'T00:00:00');
+            const nextB = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
+            if (nextB < today) nextB.setFullYear(today.getFullYear() + 1);
+            return { ...data, nextBirthday: nextB };
+        }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday);
+        
+        setStudentBirthdays(upcomingBirthdays);
+        setUngroupedCount(allStudents.filter(s => !s.groupMorning && !s.groupAfternoon && !s.daiMorning && !s.daiAfternoon).length);
     });
 
-    return () => { unsubNotes(); unsubStudents(); unsubUsers(); unsubSettings(); };
+    // 5. Suscripción a Staff (Cumpleaños Profes)
+    const qStaff = query(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'));
+    const unsubStaff = onSnapshot(qStaff, (snap) => {
+        const today = new Date(); today.setHours(0,0,0,0);
+        const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7);
+        setStaffBirthdays(snap.docs.map(d => {
+            const data = d.data();
+            if(!data.birthDate) return null;
+            const dob = new Date(data.birthDate.includes('T') ? data.birthDate : data.birthDate + 'T00:00:00');
+            const nextB = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
+            if (nextB < today) nextB.setFullYear(today.getFullYear() + 1);
+            return { ...data, id: d.id, nextBirthday: nextB };
+        }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday));
+    });
+
+    // Limpieza de todas las suscripciones al desmontar
+    return () => { 
+        unsubNotes(); 
+        unsubStudents(); 
+        unsubStaff(); 
+        unsubUsers(); 
+        unsubSettings(); 
+    };
   }, [user.id]);
         
         // 1. Guardamos TODOS los alumnos (Esto es lo que usa la ficha del docente para mostrar sus grupos)
