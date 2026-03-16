@@ -397,6 +397,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
       { q: "El que lo hace no lo quiere, el que lo compra no lo usa y el que lo usa no lo ve. ¿Qué es?", a: ["ataud", "ataúd"] }
   ];
 
+  // --- LÓGICA DE TIEMPO, FERIADOS Y DESAFÍOS (UNIFICADA Y LIMPIA) ---
   const todayDate = new Date();
   const challengeStartDate = new Date('2026-03-16T00:00:00'); 
   const dayOfWeek = todayDate.getDay(); 
@@ -404,28 +405,6 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const dayStr = todayDate.getDate().toString().padStart(2, '0');
   const dateString = `${monthStr}-${dayStr}`;
 
-  const feriadosDocentes2026 = [
-      '01-01', '02-16', '02-17', '03-24', '04-02', '04-03', '05-01', '05-25', 
-      '06-15', '06-20', '07-09', '08-17', '09-11', '10-12', '11-23', '12-08', '12-25'
-  ];
-
-  // IMPORTANTE: Definimos esto ANTES de usarlo en el currentChallenge
-  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-  const isHoliday = feriadosDocentes2026.includes(dateString);
-
-
-  // LÓGICA ALEATORIA BASADA EN SEMILLA
-  const seed = todayDate.getFullYear() + todayDate.getMonth() + todayDate.getDate();
-  const randomIdx = seed % DESAFIOS.length;
-
-  let currentChallenge;
-  if (todayDate < challengeStartDate) {
-      currentChallenge = { q: "¡Preparate! Mañana lunes 16 arrancan los desafíos diarios con sorpresas. 🚀", a: [], isComingSoon: true };
-  } else if (!isWorkingDay) {
-      currentChallenge = { q: "¡Hoy es día de descanso! Nos vemos el próximo día hábil. ☕", a: [], isRestDay: true };
-  } else {
-      currentChallenge = DESAFIOS[randomIdx];
-  }
   const feriadosDocentes2026 = [
       '01-01', '02-16', '02-17', '03-24', '04-02', '04-03', '05-01', '05-25', 
       '06-15', '06-20', '07-09', '08-17', '09-11', '10-12', '11-23', '12-08', '12-25',
@@ -436,8 +415,20 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const isHoliday = feriadosDocentes2026.includes(dateString);
   const isWorkingDay = !isWeekend && !isHoliday;
 
- 
+  // LÓGICA ALEATORIA BASADA EN SEMILLA DIARIA
+  const seed = todayDate.getFullYear() + todayDate.getMonth() + todayDate.getDate();
+  const randomIdx = seed % DESAFIOS.length;
 
+  let currentChallenge;
+  if (todayDate < challengeStartDate) {
+      currentChallenge = { q: "¡Preparate! Muy pronto arrancan los desafíos diarios con sorpresas. 🚀", a: [], isComingSoon: true };
+  } else if (!isWorkingDay) {
+      currentChallenge = { q: "¡Hoy es día de descanso! Nos vemos el próximo día hábil. ☕", a: [], isRestDay: true };
+  } else {
+      currentChallenge = DESAFIOS[randomIdx];
+  }
+
+  // --- CONTADOR DE TAREAS PENDIENTES ---
   const myPendingTasksCount = tasks.filter(t => {
       if (t.status === 'completed') return false;
       const scheduledTime = new Date(`${t.showDate || '2000-01-01'}T${t.showTime || '00:00'}`);
@@ -473,11 +464,15 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
     });
 
     const today = new Date(); today.setHours(0,0,0,0);
-    const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7);
-    
     const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
     const unsubStudents = onSnapshot(qStudents, (snap) => {
         const allStudents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setStudents(allStudents);
+        // ... el resto de tu lógica de cumpleaños si la tienes
+    });
+
+    return () => { unsubNotes(); unsubStudents(); unsubUsers(); unsubSettings(); };
+  }, [user.id]);
         
         // 1. Guardamos TODOS los alumnos (Esto es lo que usa la ficha del docente para mostrar sus grupos)
         setStudents(allStudents); 
