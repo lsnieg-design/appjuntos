@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 // Lista de iconos optimizada: Incluye los de alineación para el Generador de Notas
 import { 
   Calendar as CalendarIcon, CheckSquare, Settings, User, FileText, CheckCircle, 
-  Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, 
+  Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, Trophy,
   Lock, List, Grid, ChevronLeft, ChevronRight, Bell, Check, HelpCircle, Mail, 
   Send, Key, Filter, LayoutDashboard, Link as LinkIcon, ExternalLink, 
   AlertTriangle, Clock, Shield, Crown, Activity, Share, PlusSquare, 
