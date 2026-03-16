@@ -2943,7 +2943,12 @@ const findDuplicates = () => {
       if (statFilters.level.length > 0 && !statFilters.level.includes(s.level)) return false;
       if (statFilters.modality.length > 0 && !statFilters.modality.includes(s.modality || 'Sede')) return false;
       if (statFilters.dx !== 'all' && s.dx !== statFilters.dx) return false;
-      if (statFilters.gender !== 'all' && s.gender !== statFilters.gender) return false;
+     // Busca esta línea dentro de statsResults y reemplazala:
+if (statFilters.gender !== 'all') {
+    // Si el filtro es 'all', pasan todos. 
+    // Si elegimos M o F, comparamos. Si no tiene nada, no pasará a menos que el filtro sea 'all'.
+    if ((s.gender || 'Sin definir') !== statFilters.gender) return false;
+}
       
       // NUEVOS FILTROS
       if (statFilters.journey !== 'all' && s.journey !== statFilters.journey) return false;
@@ -3173,7 +3178,21 @@ const findDuplicates = () => {
                         <input name="lastName" defaultValue={editingStudent?.lastName} placeholder="Apellido" required className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                        <input name="dni" type="number" defaultValue={editingStudent?.dni} placeholder="DNI" className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/>
+                        <input name="d
+                          {/* AGREGAR ESTO EN EL FORMULARIO DE EDICIÓN */}
+<div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+    <label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">Género / Sexo</label>
+    <select 
+        name="gender" 
+        defaultValue={editingStudent?.gender || ""} 
+        className="w-full p-2 bg-gray-50 rounded-lg outline-none font-bold text-sm border border-gray-100"
+    >
+        <option value="">Sin definir / No especifica</option>
+        <option value="M">Varón</option>
+        <option value="F">Mujer</option>
+        <option value="X">No Binario / Otro</option>
+    </select>
+</div>ni" type="number" defaultValue={editingStudent?.dni} placeholder="DNI" className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm"/>
                         <input name="birthDate" type="date" defaultValue={getSafeDate(editingStudent?.birthDate)} className="p-3 bg-gray-50 rounded-xl w-full border outline-none font-bold text-sm text-gray-500"/>
                     </div>
                     <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 space-y-3">
@@ -3387,58 +3406,67 @@ const findDuplicates = () => {
                 <button onClick={() => setStatFilters({ modality: [], level: [], dx: 'all', gender: 'all', turn: 'all', journey: 'all' })} className="w-full py-3 text-red-400 font-bold text-xs hover:bg-red-50 rounded-xl transition mt-4">Limpiar Filtros</button>  </div>
         </div>
       )}
-      {/* 6. MODAL SANEAMIENTO RÁPIDO */}
-      {showQuickFix && (
-        <div className="fixed inset-0 bg-black/70 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-[40px] w-full max-w-2xl p-8 shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h3 className="text-2xl font-black text-slate-800 uppercase italic italic">Saneamiento de Datos</h3>
-                <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Completar información faltante</p>
-              </div>
-              <button onClick={() => setShowQuickFix(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button>
-            </div>
+    {/* 6. MODAL SANEAMIENTO RÁPIDO (VERSIÓN CORREGIDA) */}
+      {showQuickFix && (
+        <div className="fixed inset-0 bg-black/70 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-[40px] w-full max-w-2xl p-8 shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-2xl font-black text-slate-800 uppercase italic">Saneamiento de Datos</h3>
+                <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Completar información faltante</p>
+              </div>
+              <button onClick={() => setShowQuickFix(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button>
+            </div>
 
-            <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-2xl">
-              <button onClick={() => setFixingField('gender')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition ${fixingField === 'gender' ? 'bg-white shadow text-blue-600' : 'text-gray-400'}`}>Falta Género</button>
-              <button onClick={() => setFixingField('dx')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition ${fixingField === 'dx' ? 'bg-white shadow text-purple-600' : 'text-gray-400'}`}>Falta Diagnóstico</button>
-            </div>
+            <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-2xl">
+              <button onClick={() => setFixingField('gender')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition ${fixingField === 'gender' ? 'bg-white shadow text-blue-600' : 'text-gray-400'}`}>Falta Género</button>
+              <button onClick={() => setFixingField('dx')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition ${fixingField === 'dx' ? 'bg-white shadow text-purple-600' : 'text-gray-400'}`}>Falta Diagnóstico</button>
+            </div>
 
-            <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-              {students.filter(s => s.isActive !== false && !s[fixingField]).length === 0 ? (
-                <div className="text-center py-20 text-gray-400 font-bold uppercase italic">✨ ¡Todo completo en esta categoría!</div>
-              ) : (
-                students.filter(s => s.isActive !== false && !s[fixingField]).map(s => (
-                  <div key={s.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100 group hover:bg-white hover:shadow-md transition">
-                    <div className="flex flex-col">
-                      <span className="font-black text-slate-700 uppercase text-sm">{s.lastName}, {s.firstName}</span>
-                      <span className="text-[10px] text-gray-400 font-bold uppercase">{s.modality || 'Sede'} - {s.level || 'Sin Nivel'}</span>
-                    </div>
-                    
-                    {fixingField === 'gender' ? (
-                      <div className="flex gap-2">
-                        <button onClick={() => handleQuickUpdate(s.id, 'gender', 'M')} className="px-4 py-2 bg-blue-100 text-blue-700 rounded-xl text-xs font-black hover:bg-blue-600 hover:text-white transition shadow-sm">VARÓN</button>
-                        <button onClick={() => handleQuickUpdate(s.id, 'gender', 'F')} className="px-4 py-2 bg-pink-100 text-pink-700 rounded-xl text-xs font-black hover:bg-pink-600 hover:text-white transition shadow-sm">MUJER</button>
-                    </div>
-                    ) : (
-                      <div className="flex gap-1">
-                        <button onClick={() => handleQuickUpdate(s.id, 'dx', 'TES')} className="px-3 py-2 bg-purple-100 text-purple-700 rounded-xl text-[10px] font-black hover:bg-purple-600 hover:text-white transition">TES</button>
-                        <button onClick={() => handleQuickUpdate(s.id, 'dx', 'DI')} className="px-3 py-2 bg-purple-100 text-purple-700 rounded-xl text-[10px] font-black hover:bg-purple-600 hover:text-white transition">DI</button>
-                        <input 
-                          onBlur={(e) => e.target.value && handleQuickUpdate(s.id, 'dx', e.target.value)}
-                          placeholder="Otro..." 
-                          className="w-20 p-2 bg-white border border-gray-200 rounded-xl text-[10px] font-bold outline-none focus:border-purple-400"
-                        />
-                    </div>
-                    )}
-                </div>
-                ))
-              )}
-            </div>
-            <p className="text-center text-[10px] text-gray-400 mt-6 font-bold uppercase tracking-widest">Los cambios se guardan automáticamente al hacer clic</p>
-          </div>
-        </div>
-      )}
+            <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+              {students.filter(s => {
+                  if (s.isActive === false) return false;
+                  const value = s[fixingField];
+                  // Si el campo no existe, es nulo, es un string vacío o solo espacios, lo mostramos para corregir
+                  return !value || (typeof value === 'string' && value.trim() === "");
+              }).length === 0 ? (
+                <div className="text-center py-20 text-gray-400 font-bold uppercase italic">✨ ¡Todo completo en esta categoría!</div>
+              ) : (
+                students.filter(s => {
+                    if (s.isActive === false) return false;
+                    const value = s[fixingField];
+                    return !value || (typeof value === 'string' && value.trim() === "");
+                }).map(s => (
+                  <div key={s.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100 group hover:bg-white hover:shadow-md transition">
+                    <div className="flex flex-col">
+                      <span className="font-black text-slate-700 uppercase text-sm">{s.lastName}, {s.firstName}</span>
+                      <span className="text-[10px] text-gray-400 font-bold uppercase">{s.modality || 'Sede'} - {s.level || 'Sin Nivel'}</span>
+                    </div>
+                    
+                    {fixingField === 'gender' ? (
+                      <div className="flex gap-2">
+                        <button onClick={() => handleQuickUpdate(s.id, 'gender', 'M')} className="px-4 py-2 bg-blue-100 text-blue-700 rounded-xl text-xs font-black hover:bg-blue-600 hover:text-white transition shadow-sm">VARÓN</button>
+                        <button onClick={() => handleQuickUpdate(s.id, 'gender', 'F')} className="px-4 py-2 bg-pink-100 text-pink-700 rounded-xl text-xs font-black hover:bg-pink-600 hover:text-white transition shadow-sm">MUJER</button>
+                    </div>
+                    ) : (
+                      <div className="flex gap-1">
+                        <button onClick={() => handleQuickUpdate(s.id, 'dx', 'TES')} className="px-3 py-2 bg-purple-100 text-purple-700 rounded-xl text-[10px] font-black hover:bg-purple-600 hover:text-white transition">TES</button>
+                        <button onClick={() => handleQuickUpdate(s.id, 'dx', 'DI')} className="px-3 py-2 bg-purple-100 text-purple-700 rounded-xl text-[10px] font-black hover:bg-purple-600 hover:text-white transition">DI</button>
+                        <input 
+                          onBlur={(e) => e.target.value && handleQuickUpdate(s.id, 'dx', e.target.value)}
+                          placeholder="Otro..." 
+                          className="w-20 p-2 bg-white border border-gray-200 rounded-xl text-[10px] font-bold outline-none focus:border-purple-400"
+                        />
+                    </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+            <p className="text-center text-[10px] text-gray-400 mt-6 font-bold uppercase tracking-widest">Los cambios se guardan automáticamente al hacer clic</p>
+          </div>
+        </div>
+      )}
       {/* 5. MODAL SIN GRUPO */}
       {showUnassigned && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[90]">
