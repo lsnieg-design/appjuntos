@@ -17,7 +17,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { 
   getFirestore, collection, addDoc, query, orderBy, onSnapshot, doc, 
-  updateDoc, deleteDoc, where, getDocs, serverTimestamp, arrayUnion, arrayRemove 
+  updateDoc, deleteDoc, where, getDocs, getDoc, serverTimestamp, arrayUnion, arrayRemove 
 } from 'firebase/firestore';
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 const VALID_ROLES_OFFICIAL = [
@@ -515,26 +515,28 @@ useEffect(() => {
       } catch (err) { alert(err.message); }
   };
 
- const checkChallenge = async (e) => {
+const checkChallenge = async (e) => {
     if (e) e.preventDefault();
-    if (!challengeAnswer || !currentChallenge) return;
+    if (!challengeAnswer || !currentChallenge || !user) return;
 
     try {
+      // 1. Limpiar respuesta
       const cleanAnswer = challengeAnswer.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      
+      // 2. Validar si es correcta
       const isCorrect = currentChallenge.a?.some(validAns => 
         cleanAnswer.includes(validAns.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""))
       );
       
       if (isCorrect) {
-        setShowChallengeSuccess(true);
-        // Guardar marca en el navegador
+        // Bloqueo local inmediato
         localStorage.setItem(`lastChallenge_${user.id}`, new Date().toDateString());
+        setShowChallengeSuccess(true);
         
-        // --- ACTUALIZACIÓN DE PUNTOS EN FIREBASE ---
-        // Usamos window.db, window.doc, etc., para asegurar que use las instancias globales si no están importadas
+        // 3. Actualizar en Firebase (Asegurate que appId, db, doc y updateDoc existan)
         const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
         await updateDoc(userRef, { 
-          score: (userScore || 0) + 10 
+          score: (Number(userScore) || 0) + 10 
         });
 
         setChallengeAnswer('');
@@ -542,9 +544,29 @@ useEffect(() => {
       } else { 
         alert("🤔 ¡Casi! Intentá con otras palabras."); 
       }
-    } catch (error) {
-      console.error("Error en el desafío:", error);
-      alert("Hubo un error al guardar tus puntos, pero no te preocupes, ¡seguí intentando!");
+    } catch (err) {
+      console.error("Error:", err);
+    }
+  };
+  const resetAllScores = async () => {
+    if (!isSuperAdmin) return;
+    if (!confirm("⚠️ ¿Estás segura? Esto pondrá los puntos de TODO EL PERSONAL en 0. Esta acción no se puede deshacer.")) return;
+
+    try {
+      const qUsers = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
+      const querySnapshot = await getDocs(qUsers);
+      
+      const promises = querySnapshot.docs.map(uDoc => {
+        return updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', uDoc.id), {
+          score: 0
+        });
+      });
+
+      await Promise.all(promises);
+      alert("✅ Ranking reseteado con éxito. ¡Todas vuelven a empezar de cero!");
+    } catch (err) {
+      console.error("Error al resetear:", err);
+      alert("Hubo un error técnico al intentar resetear.");
     }
   };
 
@@ -824,7 +846,15 @@ useEffect(() => {
                         </div>
                       </div>
                   </div>
-                  
+                  {/* BOTÓN DE RESET SOLO PARA SUPER ADMIN */}
+{isSuperAdmin && (
+    <button 
+        onClick={resetAllScores}
+        className="mt-4 w-full py-2 bg-red-50 text-red-500 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all shadow-sm"
+    >
+        🛑 Resetear Todo el Ranking
+    </button>
+)}
                   <p className="text-[8px] text-center text-gray-400 mt-4 uppercase font-bold tracking-widest shrink-0">Los puntos se reinician el 1 de cada mes</p>
               </div>
           </div>
