@@ -2581,7 +2581,7 @@ function MatriculaView({ user }) {
       turn: 'all',
       journey: 'all'
   });
-
+const [statOnlyPreTaller, setStatOnlyPreTaller] = useState(false);
   // Estados de Bitácora
   const [newNote, setNewNote] = useState("");
   const [isWriting, setIsWriting] = useState(false);
@@ -2937,20 +2937,25 @@ const findDuplicates = () => {
     }
   };
  // --- CÁLCULO DE ESTADÍSTICAS ---
- // --- CÁLCULO DE ESTADÍSTICAS ---
+// --- CÁLCULO DE ESTADÍSTICAS (FILTRADO ESTRICTO) ---
   const statsResults = students.filter(s => {
       if (s.isActive === false) return false;
       if (statFilters.level.length > 0 && !statFilters.level.includes(s.level)) return false;
       if (statFilters.modality.length > 0 && !statFilters.modality.includes(s.modality || 'Sede')) return false;
       if (statFilters.dx !== 'all' && s.dx !== statFilters.dx) return false;
-     // Busca esta línea dentro de statsResults y reemplazala:
-if (statFilters.gender !== 'all') {
-    // Si el filtro es 'all', pasan todos. 
-    // Si elegimos M o F, comparamos. Si no tiene nada, no pasará a menos que el filtro sea 'all'.
-    if ((s.gender || 'Sin definir') !== statFilters.gender) return false;
-}
+
+      // Filtro estricto de Género (Ignora X o vacíos si se elige M o F)
+      if (statFilters.gender !== 'all') {
+          if (s.gender !== statFilters.gender) return false;
+      }
+
+      // Filtro Especial: SOLO PRE TALLER (Busca en TM y TT)
+      if (statOnlyPreTaller) {
+          const nombreTM = (s.groupMorning || "").toUpperCase();
+          const nombreTT = (s.groupAfternoon || "").toUpperCase();
+          if (!nombreTM.includes("PRE TALLER") && !nombreTT.includes("PRE TALLER")) return false;
+      }
       
-      // NUEVOS FILTROS
       if (statFilters.journey !== 'all' && s.journey !== statFilters.journey) return false;
       if (statFilters.turn !== 'all') {
           if (statFilters.turn === 'Mañana' && !s.groupMorning && !s.daiMorning && s.turn !== 'Mañana') return false;
@@ -3393,58 +3398,89 @@ if (statFilters.gender !== 'all') {
         </div>
       )}
 
-      {/* 4. MODAL ESTADÍSTICAS */}
+  {/* 4. MODAL ESTADÍSTICAS (CON FILTRO PRE-TALLER Y CONTADORES) */}
       {showStats && (
-        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
             <div className="bg-white rounded-[40px] w-full max-w-lg p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600">
                 <div className="flex justify-between items-center mb-6">
                     <div>
                         <h3 className="text-2xl font-black text-violet-900 uppercase italic">Estadísticas</h3>
-                        <p className="text-xs text-gray-500">Filtrado Acumulativo</p>
+                        <p className="text-xs text-gray-500">Filtrado Acumulativo Preciso</p>
                     </div>
                     <button onClick={() => setShowStats(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button>
                 </div>
+
+                {/* RESULTADO GRANDE Y CONTADORES DIVIDIDOS */}
                 <div className="bg-violet-50 p-6 rounded-3xl text-center mb-6 border border-violet-100 shadow-inner">
-                    <span className="text-5xl font-black text-violet-600 block mb-2">{statsResults.length}</span>
-                    <span className="text-xs font-bold text-violet-400 uppercase tracking-[4px]">Coincidencias</span>
+                    <span className="text-5xl font-black text-violet-600 block mb-1">{statsResults.length}</span>
+                    <span className="text-[10px] font-bold text-violet-400 uppercase tracking-[4px] mb-4 block">Coincidencias</span>
+                    
+                    <div className="grid grid-cols-2 gap-3 mt-4">
+                        <div className="bg-white/60 p-2 rounded-2xl border border-blue-100">
+                            <span className="block text-xl font-black text-blue-600">{statsResults.filter(x => x.gender === 'M').length}</span>
+                            <span className="text-[8px] font-bold text-blue-400 uppercase">Varones</span>
+                        </div>
+                        <div className="bg-white/60 p-2 rounded-2xl border border-pink-100">
+                            <span className="block text-xl font-black text-pink-600">{statsResults.filter(x => x.gender === 'F').length}</span>
+                            <span className="text-[8px] font-bold text-pink-400 uppercase">Mujeres</span>
+                        </div>
+                    </div>
                 </div>
-                <div className="space-y-4">
+
+                <div className="space-y-4 max-h-[45vh] overflow-y-auto pr-2 custom-scrollbar">
+                    {/* BOTÓN FILTRO PRE-TALLER */}
+                    <div className="p-1 bg-gray-100 rounded-2xl">
+                        <button 
+                            onClick={() => setStatOnlyPreTaller(!statOnlyPreTaller)}
+                            className={`w-full py-3 rounded-xl font-black text-[10px] uppercase transition-all flex items-center justify-center gap-2 ${
+                                statOnlyPreTaller 
+                                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' 
+                                : 'bg-white text-gray-400 hover:text-emerald-500'
+                            }`}
+                        >
+                            {statOnlyPreTaller ? '✅ Solo viendo Pre Taller' : '🔍 Filtrar por Pre Taller'}
+                        </button>
+                    </div>
+
                     <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Niveles</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 ml-1">Niveles</p>
                         <div className="flex flex-wrap gap-2">
                             {['INICIAL', '1° Ciclo', '2° Ciclo', 'CFI', 'SECUNDARIA'].map(lvl => (
                                 <button key={lvl} onClick={() => toggleStatFilter('level', lvl)} className={`px-3 py-2 rounded-lg text-xs font-bold border transition ${statFilters.level.includes(lvl) ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-500 border-gray-200'}`}>{lvl}</button>
                             ))}
                         </div>
                     </div>
+
                     <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Modalidad</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 ml-1">Modalidad</p>
                         <div className="flex flex-wrap gap-2">
                             {['Sede', 'Inclusión'].map(mod => (
                                 <button key={mod} onClick={() => toggleStatFilter('modality', mod)} className={`px-3 py-2 rounded-lg text-xs font-bold border transition ${statFilters.modality.includes(mod) ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-500 border-gray-200'}`}>{mod}</button>
                             ))}
                         </div>
                     </div>
-                  <div className="grid grid-cols-2 gap-2">
-                        <select value={statFilters.dx} onChange={e => setStatFilters({...statFilters, dx: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">DX: Todos</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select>
-                        <select value={statFilters.gender} onChange={e => setStatFilters({...statFilters, gender: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Género: Todos</option><option value="M">Varón</option><option value="F">Mujer</option></select>
-                    </div>
-                    {/* NUEVOS SELECTORES DE TURNO Y JORNADA */}
+
                     <div className="grid grid-cols-2 gap-2">
-                        <select value={statFilters.turn} onChange={e => setStatFilters({...statFilters, turn: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200">
-                            <option value="all">Turno: Todos</option>
-                            <option value="Mañana">Mañana</option>
-                            <option value="Tarde">Tarde</option>
-                        </select>
-                        <select value={statFilters.journey} onChange={e => setStatFilters({...statFilters, journey: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200">
-                            <option value="all">Jornada: Todas</option>
-                            <option value="Simple Mañana">Simple Mañana</option>
-                            <option value="Simple Tarde">Simple Tarde</option>
-                            <option value="Doble">Doble</option>
-                        </select>
+                        <select value={statFilters.dx} onChange={e => setStatFilters({...statFilters, dx: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">DX: Todos</option><option value="DI">DI</option><option value="TES">TES</option><option value="Otro">Otro</option></select>
+                        <select value={statFilters.gender} onChange={e => setStatFilters({...statFilters, gender: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Género: Todos</option><option value="M">Varones (M)</option><option value="F">Mujeres (F)</option></select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                        <select value={statFilters.turn} onChange={e => setStatFilters({...statFilters, turn: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Turno: Todos</option><option value="Mañana">Mañana</option><option value="Tarde">Tarde</option></select>
+                        <select value={statFilters.journey} onChange={e => setStatFilters({...statFilters, journey: e.target.value})} className="p-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><option value="all">Jornada: Todas</option><option value="Simple Mañana">Simple Mañana</option><option value="Simple Tarde">Simple Tarde</option><option value="Doble">Doble</option></select>
                     </div>
                 </div>
-                <button onClick={() => setStatFilters({ modality: [], level: [], dx: 'all', gender: 'all', turn: 'all', journey: 'all' })} className="w-full py-3 text-red-400 font-bold text-xs hover:bg-red-50 rounded-xl transition mt-4">Limpiar Filtros</button>  </div>
+
+                <button 
+                    onClick={() => {
+                        setStatFilters({ modality: [], level: [], dx: 'all', gender: 'all', turn: 'all', journey: 'all' });
+                        setStatOnlyPreTaller(false);
+                    }} 
+                    className="w-full py-3 text-red-400 font-bold text-[10px] uppercase tracking-widest hover:bg-red-50 rounded-xl transition mt-6 border border-dashed border-red-100"
+                >
+                    Limpiar Filtros
+                </button>
+            </div>
         </div>
       )}
   {/* 6. MODAL SANEAMIENTO RÁPIDO (LÓGICA ESTRICTA M/F) */}
