@@ -362,8 +362,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const SEDE_ROLES = ['Docente', 'Equipo Directivo', 'Equipo Técnico', 'Auxiliar/Preceptor', 'Profes Especiales', 'Administración'];
   const isInclusionStaff = INCLUSION_ROLES.includes(user.role);
   const isSedeStaff = SEDE_ROLES.includes(user.role);
-
- // --- BASE DE DATOS DE DESAFÍOS (SANEAMIENTO TOTAL ANTI-ERRORES) ---
+// --- BASE DE DATOS DE DESAFÍOS (CORREGIDA) ---
   const DESAFIOS = [
       { q: "Completá la serie: 4, 9, 20, 50, 120... ¿Cuál sigue?", a: ["300"] },
       { q: "Si 3 gatos cazan 3 ratones en 3 minutos, ¿cuántos minutos tardan 100 gatos en cazar 100 ratones?", a: ["3", "tres"] },
@@ -397,13 +396,25 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
       { q: "Si tengo 3 manzanas y me quitás 2, ¿cuántas manzanas tenés?", a: ["2", "dos"] },
       { q: "El que lo hace no lo quiere, el que lo compra no lo usa y el que lo usa no lo ve. ¿Qué es?", a: ["ataud", "ataúd"] }
   ];
+
   const todayDate = new Date();
   const challengeStartDate = new Date('2026-03-16T00:00:00'); 
   const dayOfWeek = todayDate.getDay(); 
   const monthStr = (todayDate.getMonth() + 1).toString().padStart(2, '0');
   const dayStr = todayDate.getDate().toString().padStart(2, '0');
   const dateString = `${monthStr}-${dayStr}`;
-// SEMILLA DIARIA: Sumamos Año+Mes+Día para que el índice sea el mismo hoy para todos
+
+  const feriadosDocentes2026 = [
+      '01-01', '02-16', '02-17', '03-24', '04-02', '04-03', '05-01', '05-25', 
+      '06-15', '06-20', '07-09', '08-17', '09-11', '10-12', '11-23', '12-08', '12-25'
+  ];
+
+  // IMPORTANTE: Definimos esto ANTES de usarlo en el currentChallenge
+  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+  const isHoliday = feriadosDocentes2026.includes(dateString);
+  const isWorkingDay = !isWeekend && !isHoliday;
+
+  // LÓGICA ALEATORIA BASADA EN SEMILLA
   const seed = todayDate.getFullYear() + todayDate.getMonth() + todayDate.getDate();
   const randomIdx = seed % DESAFIOS.length;
 
@@ -413,7 +424,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   } else if (!isWorkingDay) {
       currentChallenge = { q: "¡Hoy es día de descanso! Nos vemos el próximo día hábil. ☕", a: [], isRestDay: true };
   } else {
-      currentChallenge = DESAFIOS[randomIdx]; // <--- ALEATORIO BASADO EN LA SEMILLA
+      currentChallenge = DESAFIOS[randomIdx];
   }
   const feriadosDocentes2026 = [
       '01-01', '02-16', '02-17', '03-24', '04-02', '04-03', '05-01', '05-25', 
