@@ -436,14 +436,14 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
       if (t.targetType === 'roles' && t.targetRoles?.some(r => r.toLowerCase() === user.role?.toLowerCase())) return true;
       return false;
   }).length;
-  useEffect(() => {
-    // 1. NOTAS PERSONALES
+useEffect(() => {
+    // 1. NOTAS
     const qNotes = query(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), where('userId', '==', user.id));
     const unsubNotes = onSnapshot(qNotes, (snap) => {
         setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.done - b.done));
     });
     
-    // 2. RANKING Y PUNTAJE
+    // 2. USUARIOS Y RANKING
     const qUsers = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
     const unsubUsers = onSnapshot(qUsers, (snap) => {
         const usersData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -452,7 +452,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
         setRankingData(usersData.filter(u => u.score > 0).sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 10));
     });
 
-    // 3. CUENTA REGRESIVA
+    // 3. CONFIGURACIÓN
     const qSettings = query(collection(db, 'artifacts', appId, 'public', 'data', 'settings'));
     const unsubSettings = onSnapshot(qSettings, (snap) => {
         if (!snap.empty) {
@@ -466,50 +466,44 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
         }
     });
 
-    // 4. ESTUDIANTES (Cumples y Alumnos sin grupo)
+    // 4. ESTUDIANTES
     const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
     const unsubStudents = onSnapshot(qStudents, (snap) => {
         const allStudents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setStudents(allStudents);
-        
         const today = new Date(); today.setHours(0,0,0,0);
         const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7);
-        
-        const upcomingBirthdays = allStudents.map(data => {
+        const bdays = allStudents.map(data => {
             if(!data.birthDate) return null;
             const dob = new Date(data.birthDate + 'T00:00:00');
             const nextB = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
             if (nextB < today) nextB.setFullYear(today.getFullYear() + 1);
             return { ...data, nextBirthday: nextB };
         }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday);
-        
-        setStudentBirthdays(upcomingBirthdays);
+        setStudentBirthdays(bdays);
         setUngroupedCount(allStudents.filter(s => !s.groupMorning && !s.groupAfternoon && !s.daiMorning && !s.daiAfternoon).length);
     });
 
-    // 5. PERSONAL (Cumples Profes)
+    // 5. STAFF
     const qStaff = query(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'));
     const unsubStaff = onSnapshot(qStaff, (snap) => {
         const today = new Date(); today.setHours(0,0,0,0);
         const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7);
-        setStaffBirthdays(snap.docs.map(d => {
+        const sBdays = snap.docs.map(d => {
             const data = d.data();
             if(!data.birthDate) return null;
             const dob = new Date(data.birthDate.includes('T') ? data.birthDate : data.birthDate + 'T00:00:00');
             const nextB = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
             if (nextB < today) nextB.setFullYear(today.getFullYear() + 1);
             return { ...data, id: d.id, nextBirthday: nextB };
-        }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday));
+        }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday);
+        setStaffBirthdays(sBdays);
     });
 
     return () => { 
-        unsubNotes(); 
-        unsubStudents(); 
-        unsubStaff(); 
-        unsubUsers(); 
-        unsubSettings(); 
+        unsubNotes(); unsubUsers(); unsubSettings(); unsubStudents(); unsubStaff(); 
     };
-  }, [user.id]);
+  }, [user.id, appId]);
         
         // 1. Guardamos TODOS los alumnos (Esto es lo que usa la ficha del docente para mostrar sus grupos)
         setStudents(allStudents); 
