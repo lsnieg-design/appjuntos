@@ -4730,94 +4730,87 @@ const c2IsUnassigned = hasC2 && !VALID_ROLES.includes(c2Role);
       setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
   };
 
-// --- FUNCIÓN DE IMPRESIÓN PROFESIONAL SANEADA ---
-  const imprimirPlanillaGeneral = (lista) => {
+const imprimirPlanillaGeneral = (lista) => {
     if (!lista || lista.length === 0) return alert("No hay personal para imprimir.");
     
-    const dateStr = new Date().toLocaleDateString('es-AR');
-    const timeStr = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    // Logo oficial de la App
+    const LOGO_APP = "https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png";
 
     let html = `<html><head><title>Planilla General de Personal</title>
-   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
-    @page { size: landscape; margin: 10mm; }
-    
-    /* Configuración Base Uniforme */
-    body { 
-        font-family: 'Roboto', sans-serif; 
-        padding: 0; 
-        color: #1e293b; 
-        font-size: 9px; /* Tamaño único para datos */
-        line-height: 1.2; 
-    }
-    
-    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-    
-    /* Encabezados de tabla */
-    th { 
-        background-color: #f8fafc; 
-        color: #475569; 
-        font-weight: 900; 
-        text-transform: uppercase; 
-        padding: 8px 4px; 
-        border: 1px solid #e2e8f0; 
-        font-size: 9px; /* Igual que el resto */
-        text-align: left; 
-    }
-    
-    /* Celdas de datos */
-    td { 
-        padding: 8px 4px; 
-        border: 1px solid #e2e8f0; 
-        vertical-align: top; 
-        font-size: 9px; /* Garantiza igualdad */
-    }
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
+        @page { size: landscape; margin: 10mm; }
+        
+        body { 
+            font-family: 'Roboto', sans-serif; 
+            padding: 0; 
+            color: #1e293b; 
+            font-size: 9px; 
+            line-height: 1.2; 
+        }
+        
+        /* ENCABEZADO UNIFORME */
+        .header-container { width: 100%; border-bottom: 2px solid #6d28d9; margin-bottom: 10px; padding-bottom: 5px; }
+        .header-table { width: 100%; border-collapse: collapse; border: none; }
+        .header-table td { border: none; padding: 0; vertical-align: middle; }
+        .logo-img { height: 45px; width: auto; }
+        .title-main { color: #6d28d9; font-size: 18px; font-weight: 900; text-transform: uppercase; margin: 0; }
+        .header-info { text-align: right; font-size: 9px; color: #64748b; font-weight: bold; text-transform: uppercase; }
 
-    /* Ajuste para Apellido y Nombre */
-    .name { 
-        font-weight: 700; 
-        text-transform: uppercase; 
-        font-size: 9px; /* Mismo tamaño para no desentonar */
-    }
-
-    /* Ajuste para Antigüedad (Eliminamos el violeta grande) */
-    .exact-antiquity { 
-        font-weight: 700; 
-        color: #1e293b; /* Volvemos al color normal o un gris oscuro */
-        font-size: 9px;
-    }
-
-    /* Normalización de Cargos */
-    .cargo-title { 
-        font-weight: 900; 
-        color: #4338ca; 
-        text-transform: uppercase; 
-        font-size: 9px; 
-    }
-
-    .badge { 
-        display: inline-block; 
-        padding: 1px 3px; 
-        border-radius: 3px; 
-        font-size: 8px; /* Ligeramente menor por ser etiqueta */
-        font-weight: 900; 
-        border: 1px solid #e2e8f0; 
-    }
-</style></head><body>
+        /* TABLA ESTANDARIZADA */
+        table.data-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 5px; }
+        .data-table th { 
+            background-color: #f8fafc; 
+            color: #475569; 
+            font-weight: 900; 
+            text-transform: uppercase; 
+            padding: 6px 4px; 
+            border: 1px solid #e2e8f0; 
+            font-size: 9px; 
+            text-align: left; 
+        }
+        .data-table td { 
+            padding: 6px 4px; 
+            border: 1px solid #e2e8f0; 
+            vertical-align: top; 
+            font-size: 9px; 
+            word-wrap: break-word; 
+        }
+        tr:nth-child(even) { background-color: #f1f5f9; }
+        
+        /* TIPOGRAFÍA DE DATOS */
+        .name-cell { font-weight: 700; text-transform: uppercase; color: #1e293b; }
+        .anti-cell { font-weight: 700; color: #4338ca; text-align: center; }
+        .cargo-role { font-weight: 900; color: #4338ca; text-transform: uppercase; font-size: 8px; margin-bottom: 2px; }
+        .cargo-name { font-weight: 700; color: #334155; }
+        .cargo-detail { color: #64748b; font-size: 8px; }
+        
+        .badge { 
+            display: inline-block; 
+            padding: 1px 3px; 
+            border-radius: 3px; 
+            font-size: 7px; 
+            font-weight: 900; 
+            margin-top: 3px; 
+            border: 1px solid #bbf7d0;
+            background: #dcfce7; 
+            color: #166534;
+        }
+        
+        .footer { text-align: right; font-size: 8px; color: #94a3b8; margin-top: 10px; font-style: italic; }
+    </style></head><body>
     
     <div class="header-container">
       <table class="header-table">
           <tr>
-              <td style="width: 70px;">
-                  <img src="https://i.ibb.co/vzB7pGZ/logo-escuela.png" class="logo-img">
-              </td>
-              <td style="padding-left: 15px;">
-                  <div style="font-size: 10px; color: #7c3aed; font-weight: 900; text-transform: uppercase;">Institución Educativa</div>
+              <td style="width: 60px;"><img src="${LOGO_APP}" class="logo-img"></td>
+              <td style="padding-left: 10px;">
+                  <div style="font-size: 8px; color: #7c3aed; font-weight: 900; text-transform: uppercase;">Institución Educativa</div>
                   <h1 class="title-main">Personal Juntos a la Par</h1>
               </td>
-              <td style="text-align: right;">
-                  <div class="subtitle-main">Ciclo Lectivo 2026</div>
-                  <div style="font-size: 9px; color: #94a3b8; font-weight: bold;">PLANILLA DE PERSONAL GENERAL</div>
+              <td class="header-info">
+                  Ciclo Lectivo 2026<br/>
+                  <span style="font-size: 7px;">Planilla de Personal General</span>
               </td>
           </tr>
       </table>
@@ -4827,52 +4820,46 @@ const c2IsUnassigned = hasC2 && !VALID_ROLES.includes(c2Role);
         <thead>
             <tr>
                 <th style="width: 18%;">Apellido y Nombre</th>
-                <th style="width: 10%; text-align: center;">Antigüedad</th>
-                <th style="width: 12%;">CUIL / Cat.</th>
-                <th style="width: 25%;">Cargo Primario</th>
-                <th style="width: 25%;">Cargo Secundario</th>
+                <th style="width: 8%; text-align: center;">Antigüedad</th>
+                <th style="width: 10%;">CUIL / Cat.</th>
+                <th style="width: 27%;">Cargo Primario</th>
+                <th style="width: 27%;">Cargo Secundario</th>
                 <th style="width: 10%;">Modalidad</th>
             </tr>
         </thead>
         <tbody>`;
     
     lista.forEach(s => {
-        // Lógica de antigüedad inteligente
-        let displayAntiguedad = "---";
-        if (s.antiquity) {
-            displayAntiguedad = s.antiquity.replace('/', 'a, ') + 'm';
-        } else if (s.antiguedadAnios || s.antiguedadMeses) {
-            displayAntiguedad = (s.antiguedadAnios || 0) + "a, " + (s.antiguedadMeses || 0) + "m";
-        }
-
+        let displayAntiguedad = s.antiquity ? s.antiquity.replace('/', 'a, ') + 'm' : (s.antiguedadAnios ? s.antiguedadAnios + "a, " + (s.antiguedadMeses || 0) + "m" : "---");
+        
         const renderCargo = (num) => {
-            const role = s["cargo" + num + "_role"] || (num === 1 ? s.role : '');
-            const name = s["cargo" + num + "_name"];
-            const turn = s["cargo" + num + "_turn"];
-            const rev = s["cargo" + num + "_revista"];
-            const sub = s["cargo" + num + "_subsidized"] === 'true';
+            const role = s[`cargo${num}_role`] || (num === 1 ? s.role : '');
+            const name = s[`cargo${num}_name`];
+            const turn = s[`cargo${num}_turn`];
+            const rev = s[`cargo${num}_revista`];
+            const sub = s[`cargo${num}_subsidized`] === 'true';
 
             if (!name && !role) return '<span style="color:#cbd5e1">-</span>';
-            return '<div>' +
-                '<div style="font-weight:900; color:#4338ca; text-transform:uppercase; font-size:7px;">' + (role || '') + '</div>' +
-                '<div style="font-weight:bold">' + (name || '') + '</div>' +
-                '<div style="color:#64748b; font-size:7px;">' + (turn || '') + ' | ' + (rev || '') + '</div>' +
-                (sub ? '<span class="badge sub">SUBVENCIONADO</span>' : '') +
-            '</div>';
+            return `
+                <div class="cargo-role">${role || ''}</div>
+                <div class="cargo-name">${name || ''}</div>
+                <div class="cargo-detail">${turn || ''} | ${rev || ''}</div>
+                ${sub ? '<span class="badge">SUBVENCIONADO</span>' : ''}
+            `;
         };
 
         html += `<tr>
-            <td class="name">${s.lastName ? s.lastName.toUpperCase() : ''}, ${s.firstName || ''}</td>
-            <td style="text-align:center" class="exact-antiquity">${displayAntiguedad}</td>
-            <td><b>${s.cuil || s.dni || ''}</b><br/><span style="font-size:7px; color:#64748b">${s.category || ''}</span></td>
+            <td class="name-cell">${s.lastName ? s.lastName.toUpperCase() : ''}, ${s.firstName || ''}</td>
+            <td class="anti-cell">${displayAntiguedad}</td>
+            <td><b>${s.cuil || s.dni || ''}</b><br/><span style="font-size: 8px; color: #64748b;">${s.category || ''}</span></td>
             <td>${renderCargo(1)}</td>
             <td>${renderCargo(2)}</td>
-            <td style="font-weight:bold; color:#475569">${s.modality || 'Sede'}</td>
+            <td style="font-weight: 700;">${s.modality || 'Sede'}</td>
         </tr>`;
     });
 
     html += `</tbody></table>
-    <div class="footer">Generado el ${dateStr} a las ${timeStr} - Sistema de Gestión Juntos a la Par</div>
+    <div class="footer">Sistema de Gestión Juntos a la Par - Generado el ${new Date().toLocaleDateString('es-AR')}</div>
     </body></html>`;
 
     const iframe = document.createElement('iframe'); 
