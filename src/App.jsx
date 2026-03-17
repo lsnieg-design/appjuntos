@@ -5231,19 +5231,33 @@ const c2IsUnassigned = hasC2 && !VALID_ROLES.includes(c2Role);
                   <input name="cargo1_numero" defaultValue={editingStaff?.cargo1_numero || ""} placeholder="N° Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
                   <input name="cargo1_name" defaultValue={editingStaff?.cargo1_name || ""} placeholder="Nombre del Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
                 </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-  <select name="cargo1_role" defaultValue={editingStaff?.cargo1_role || editingStaff?.role || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
-    <option value="">Seleccionar Rol...</option>
-    {/* CAMBIO AQUÍ: VALID_ROLES_OFFICIAL */}
-   {TURNS_LIST.map(t => <option key={t} value={t}>{t}</option>)}
-</select>
- <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
-    <option value="">Turno...</option>
-    {/* Blinda el mapeo usando TURNS_LIST */}
-    {(typeof TURNS_LIST !== 'undefined' ? TURNS_LIST : []).map(t => (
-        <option key={t} value={t}>{t}</option>
-    ))}
-</select>
+         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+  <div className="flex flex-col">
+    <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Función / Rol</label>
+    <select 
+      name="cargo1_role" 
+      defaultValue={editingStaff?.cargo1_role || editingStaff?.role || ""} 
+      className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs"
+      required
+    >
+      <option value="">Seleccionar Rol...</option>
+      {/* CORRECCIÓN: Ahora usa VALID_ROLES_OFFICIAL */}
+      {(typeof VALID_ROLES_OFFICIAL !== 'undefined' ? VALID_ROLES_OFFICIAL : []).map(r => (
+        <option key={r} value={r}>{r}</option>
+      ))}
+    </select>
+  </div>
+  <div className="flex flex-col">
+    <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Turno Horario</label>
+    <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+      <option value="">Turno...</option>
+      <option value="Mañana">Mañana</option>
+      <option value="Tarde">Tarde</option>
+      <option value="Alternado">Alternado</option>
+      <option value="Vespertino">Vespertino</option>
+      <option value="Doble">Doble</option>
+    </select>
+  </div>
 </div>
                 <div className="grid grid-cols-2 gap-2">
                    <select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
