@@ -4738,32 +4738,72 @@ const c2IsUnassigned = hasC2 && !VALID_ROLES.includes(c2Role);
     const timeStr = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 
     let html = `<html><head><title>Planilla General de Personal</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
-        @page { size: landscape; margin: 10mm; }
-        body { font-family: 'Roboto', sans-serif; padding: 0; color: #1e293b; font-size: 9px; line-height: 1.2; }
-        
-        /* ENCABEZADO INSTITUCIONAL */
-        .header-container { width: 100%; border-bottom: 4px solid #6d28d9; margin-bottom: 15px; padding-bottom: 10px; }
-        .header-table { width: 100%; border-collapse: collapse; border: none; }
-        .header-table td { border: none; padding: 0; vertical-align: middle; }
-        .logo-img { height: 60px; width: auto; }
-        .title-main { color: #6d28d9; font-size: 22px; font-weight: 900; text-transform: uppercase; margin: 0; line-height: 1; }
-        .subtitle-main { font-size: 11px; color: #64748b; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
-        
-        /* DISEÑO DE TABLA */
-        table.data-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        .data-table th { background-color: #f8fafc; color: #475569; font-weight: 900; text-transform: uppercase; padding: 8px 4px; border: 1px solid #e2e8f0; font-size: 8px; text-align: left; }
-        .data-table td { padding: 6px 4px; border: 1px solid #e2e8f0; vertical-align: top; word-wrap: break-word; }
-        tr:nth-child(even) { background-color: #f1f5f9; }
-        
-        .name { font-weight: 900; color: #1e293b; font-size: 10px; }
-        .exact-antiquity { font-weight: bold; color: #7c3aed; }
-        .badge { display: inline-block; padding: 2px 4px; border-radius: 4px; font-size: 7px; font-weight: 900; margin-top: 2px; border: 1px solid #e2e8f0; }
-        .sub { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
-        
-        .footer { text-align: right; font-size: 8px; color: #94a3b8; margin-top: 15px; border-top: 1px solid #eee; padding-top: 5px; font-style: italic; }
-    </style></head><body>
+   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
+    @page { size: landscape; margin: 10mm; }
+    
+    /* Configuración Base Uniforme */
+    body { 
+        font-family: 'Roboto', sans-serif; 
+        padding: 0; 
+        color: #1e293b; 
+        font-size: 9px; /* Tamaño único para datos */
+        line-height: 1.2; 
+    }
+    
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    
+    /* Encabezados de tabla */
+    th { 
+        background-color: #f8fafc; 
+        color: #475569; 
+        font-weight: 900; 
+        text-transform: uppercase; 
+        padding: 8px 4px; 
+        border: 1px solid #e2e8f0; 
+        font-size: 9px; /* Igual que el resto */
+        text-align: left; 
+    }
+    
+    /* Celdas de datos */
+    td { 
+        padding: 8px 4px; 
+        border: 1px solid #e2e8f0; 
+        vertical-align: top; 
+        font-size: 9px; /* Garantiza igualdad */
+    }
+
+    /* Ajuste para Apellido y Nombre */
+    .name { 
+        font-weight: 700; 
+        text-transform: uppercase; 
+        font-size: 9px; /* Mismo tamaño para no desentonar */
+    }
+
+    /* Ajuste para Antigüedad (Eliminamos el violeta grande) */
+    .exact-antiquity { 
+        font-weight: 700; 
+        color: #1e293b; /* Volvemos al color normal o un gris oscuro */
+        font-size: 9px;
+    }
+
+    /* Normalización de Cargos */
+    .cargo-title { 
+        font-weight: 900; 
+        color: #4338ca; 
+        text-transform: uppercase; 
+        font-size: 9px; 
+    }
+
+    .badge { 
+        display: inline-block; 
+        padding: 1px 3px; 
+        border-radius: 3px; 
+        font-size: 8px; /* Ligeramente menor por ser etiqueta */
+        font-weight: 900; 
+        border: 1px solid #e2e8f0; 
+    }
+</style></head><body>
     
     <div class="header-container">
       <table class="header-table">
