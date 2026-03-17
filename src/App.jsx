@@ -4733,10 +4733,9 @@ const c2IsUnassigned = hasC2 && !VALID_ROLES.includes(c2Role);
 const imprimirPlanillaGeneral = (lista) => {
     if (!lista || lista.length === 0) return alert("No hay personal para imprimir.");
     
-    // Logo oficial de la App
     const LOGO_APP = "https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png";
 
-    let html = `<html><head><title>Planilla General de Personal</title>
+    let html = `<html><head><title>Planilla de Personal</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
         @page { size: landscape; margin: 10mm; }
@@ -4745,72 +4744,51 @@ const imprimirPlanillaGeneral = (lista) => {
             font-family: 'Roboto', sans-serif; 
             padding: 0; 
             color: #1e293b; 
-            font-size: 9px; 
-            line-height: 1.2; 
+            font-size: 10px; 
+            line-height: 1.3; 
         }
         
-        /* ENCABEZADO UNIFORME */
-        .header-container { width: 100%; border-bottom: 2px solid #6d28d9; margin-bottom: 10px; padding-bottom: 5px; }
-        .header-table { width: 100%; border-collapse: collapse; border: none; }
-        .header-table td { border: none; padding: 0; vertical-align: middle; }
-        .logo-img { height: 45px; width: auto; }
-        .title-main { color: #6d28d9; font-size: 18px; font-weight: 900; text-transform: uppercase; margin: 0; }
-        .header-info { text-align: right; font-size: 9px; color: #64748b; font-weight: bold; text-transform: uppercase; }
-
-        /* TABLA ESTANDARIZADA */
-        table.data-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 5px; }
+        .header-container { width: 100%; border-bottom: 2px solid #6d28d9; margin-bottom: 15px; padding-bottom: 8px; }
+        .header-table { width: 100%; border-collapse: collapse; }
+        .logo-img { height: 50px; width: auto; }
+        .title-main { color: #6d28d9; font-size: 20px; font-weight: 900; text-transform: uppercase; margin: 0; }
+        
+        table.data-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         .data-table th { 
             background-color: #f8fafc; 
             color: #475569; 
             font-weight: 900; 
             text-transform: uppercase; 
-            padding: 6px 4px; 
+            padding: 10px 6px; 
             border: 1px solid #e2e8f0; 
-            font-size: 9px; 
+            font-size: 10px; 
             text-align: left; 
         }
         .data-table td { 
-            padding: 6px 4px; 
+            padding: 10px 6px; 
             border: 1px solid #e2e8f0; 
-            vertical-align: top; 
-            font-size: 9px; 
-            word-wrap: break-word; 
+            vertical-align: middle; 
+            font-size: 10px; 
         }
         tr:nth-child(even) { background-color: #f1f5f9; }
         
-        /* TIPOGRAFÍA DE DATOS */
-        .name-cell { font-weight: 700; text-transform: uppercase; color: #1e293b; }
-        .anti-cell { font-weight: 700; color: #4338ca; text-align: center; }
-        .cargo-role { font-weight: 900; color: #4338ca; text-transform: uppercase; font-size: 8px; margin-bottom: 2px; }
-        .cargo-name { font-weight: 700; color: #334155; }
-        .cargo-detail { color: #64748b; font-size: 8px; }
-        
-        .badge { 
-            display: inline-block; 
-            padding: 1px 3px; 
-            border-radius: 3px; 
-            font-size: 7px; 
-            font-weight: 900; 
-            margin-top: 3px; 
-            border: 1px solid #bbf7d0;
-            background: #dcfce7; 
-            color: #166534;
-        }
-        
-        .footer { text-align: right; font-size: 8px; color: #94a3b8; margin-top: 10px; font-style: italic; }
+        .name-cell { font-weight: 700; text-transform: uppercase; }
+        .cargo-role { font-weight: 900; color: #4338ca; text-transform: uppercase; font-size: 9px; }
+        .date-cell { font-weight: 700; color: #64748b; text-align: center; }
+
+        .footer { text-align: right; font-size: 9px; color: #94a3b8; margin-top: 15px; font-style: italic; }
     </style></head><body>
     
     <div class="header-container">
       <table class="header-table">
           <tr>
-              <td style="width: 60px;"><img src="${LOGO_APP}" class="logo-img"></td>
-              <td style="padding-left: 10px;">
-                  <div style="font-size: 8px; color: #7c3aed; font-weight: 900; text-transform: uppercase;">Institución Educativa</div>
+              <td style="width: 70px;"><img src="${LOGO_APP}" class="logo-img"></td>
+              <td>
+                  <div style="font-size: 9px; color: #7c3aed; font-weight: 900; text-transform: uppercase;">Institución Educativa</div>
                   <h1 class="title-main">Personal Juntos a la Par</h1>
               </td>
-              <td class="header-info">
-                  Ciclo Lectivo 2026<br/>
-                  <span style="font-size: 7px;">Planilla de Personal General</span>
+              <td style="text-align: right; vertical-align: bottom;">
+                  <div style="font-size: 11px; color: #64748b; font-weight: bold;">Ciclo Lectivo 2026</div>
               </td>
           </tr>
       </table>
@@ -4819,47 +4797,38 @@ const imprimirPlanillaGeneral = (lista) => {
     <table class="data-table">
         <thead>
             <tr>
-                <th style="width: 18%;">Apellido y Nombre</th>
-                <th style="width: 8%; text-align: center;">Antigüedad</th>
-                <th style="width: 10%;">CUIL / Cat.</th>
-                <th style="width: 27%;">Cargo Primario</th>
-                <th style="width: 27%;">Cargo Secundario</th>
-                <th style="width: 10%;">Modalidad</th>
+                <th style="width: 25%;">Apellido y Nombre</th>
+                <th style="width: 30%;">Cargo 1</th>
+                <th style="width: 30%;">Cargo 2</th>
+                <th style="width: 15%; text-align: center;">Alta Institución</th>
             </tr>
         </thead>
         <tbody>`;
     
     lista.forEach(s => {
-        let displayAntiguedad = s.antiquity ? s.antiquity.replace('/', 'a, ') + 'm' : (s.antiguedadAnios ? s.antiguedadAnios + "a, " + (s.antiguedadMeses || 0) + "m" : "---");
-        
         const renderCargo = (num) => {
             const role = s[`cargo${num}_role`] || (num === 1 ? s.role : '');
             const name = s[`cargo${num}_name`];
-            const turn = s[`cargo${num}_turn`];
-            const rev = s[`cargo${num}_revista`];
-            const sub = s[`cargo${num}_subsidized`] === 'true';
-
             if (!name && !role) return '<span style="color:#cbd5e1">-</span>';
             return `
                 <div class="cargo-role">${role || ''}</div>
-                <div class="cargo-name">${name || ''}</div>
-                <div class="cargo-detail">${turn || ''} | ${rev || ''}</div>
-                ${sub ? '<span class="badge">SUBVENCIONADO</span>' : ''}
+                <div style="font-weight:500">${name || ''}</div>
             `;
         };
 
+        // Formateo de la fecha de alta
+        let fechaAlta = s.fechaIngreso ? new Date(s.fechaIngreso + 'T12:00:00').toLocaleDateString('es-AR') : '---';
+
         html += `<tr>
-            <td class="name-cell">${s.lastName ? s.lastName.toUpperCase() : ''}, ${s.firstName || ''}</td>
-            <td class="anti-cell">${displayAntiguedad}</td>
-            <td><b>${s.cuil || s.dni || ''}</b><br/><span style="font-size: 8px; color: #64748b;">${s.category || ''}</span></td>
+            <td class="name-cell">${s.lastName || ''}, ${s.firstName || ''}</td>
             <td>${renderCargo(1)}</td>
             <td>${renderCargo(2)}</td>
-            <td style="font-weight: 700;">${s.modality || 'Sede'}</td>
+            <td class="date-cell">${fechaAlta}</td>
         </tr>`;
     });
 
     html += `</tbody></table>
-    <div class="footer">Sistema de Gestión Juntos a la Par - Generado el ${new Date().toLocaleDateString('es-AR')}</div>
+    <div class="footer">Documento Oficial - Generado el ${new Date().toLocaleDateString('es-AR')}</div>
     </body></html>`;
 
     const iframe = document.createElement('iframe'); 
@@ -4867,7 +4836,7 @@ const imprimirPlanillaGeneral = (lista) => {
     document.body.appendChild(iframe); 
     const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close(); 
     setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
-  };
+};
   const handleImportStaff = async (e) => {
       const file = e.target.files[0];
       if (!file || !confirm("⚠️ ¿Importar archivo CSV completo?")) return;
