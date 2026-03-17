@@ -4730,74 +4730,101 @@ const c2IsUnassigned = hasC2 && !VALID_ROLES.includes(c2Role);
       setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
   };
 
-  // IMPRIMIR PLANILLA GENERAL (TABLA)
   const imprimirPlanillaGeneral = (lista) => {
-      if (!lista || lista.length === 0) return alert("No hay docentes para imprimir.");
+      if (!lista || lista.length === 0) return alert("No hay personal para imprimir.");
+      
       let html = `<html><head><title>Planilla General de Personal</title>
       <style>
           @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
-          @page { size: landscape; margin: 15mm; }
-          body { font-family: 'Roboto', sans-serif; padding: 0; color: #333; font-size: 10px; }
-          h1 { color: #5b21b6; font-size: 18px; margin: 0 0 15px 0; text-transform: uppercase; text-align: center; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-          th { background-color: #ede9fe; color: #5b21b6; font-weight: 900; text-transform: uppercase; padding: 8px; border: 1px solid #c4b5fd; font-size: 9px; text-align: left; }
-          td { padding: 6px 8px; border: 1px solid #e5e7eb; vertical-align: middle; }
-          tr:nth-child(even) { background-color: #f9fafb; }
-          .cargo-sub { color: #059669; font-weight: bold; font-size: 8px; }
-          .cargo-papeles { color: #6b7280; font-weight: bold; font-size: 8px; background: #e5e7eb; padding: 2px 4px; border-radius: 4px; }
-          .footer { text-align: center; font-size: 9px; color: #aaa; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px; }
+          @page { size: landscape; margin: 10mm; }
+          body { font-family: 'Roboto', sans-serif; padding: 0; color: #1e293b; font-size: 9px; line-height: 1.2; }
+          
+          /* DISEÑO DEL ENCABEZADO */
+          .header-container { width: 100%; border-bottom: 4px solid #6d28d9; margin-bottom: 15px; padding-bottom: 10px; }
+          .header-table { width: 100%; border-collapse: collapse; border: none; }
+          .header-table td { border: none; padding: 0; vertical-align: middle; }
+          .logo-img { height: 60px; width: auto; object-fit: contain; }
+          .inst-info { text-align: right; }
+          .title-main { color: #6d28d9; font-size: 22px; font-weight: 900; text-transform: uppercase; margin: 0; line-height: 1; }
+          .subtitle-main { font-size: 11px; color: #64748b; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
+          
+          /* DISEÑO DE TABLA */
+          table.data-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+          .data-table th { background-color: #f8fafc; color: #475569; font-weight: 900; text-transform: uppercase; padding: 8px 4px; border: 1px solid #e2e8f0; font-size: 8px; text-align: left; }
+          .data-table td { padding: 6px 4px; border: 1px solid #e2e8f0; vertical-align: top; word-wrap: break-word; }
+          tr:nth-child(even) { background-color: #f1f5f9; }
+          
+          .name { font-weight: 900; color: #1e293b; font-size: 10px; }
+          .exact-antiquity { font-weight: bold; color: #7c3aed; }
+          .badge { display: inline-block; padding: 2px 4px; border-radius: 4px; font-size: 7px; font-weight: 900; margin-top: 2px; border: 1px solid #e2e8f0; }
+          .sub { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+          
+          .footer { text-align: center; font-size: 8px; color: #94a3b8; margin-top: 15px; border-top: 1px solid #eee; padding-top: 5px; }
       </style></head><body>
       
-      <h1>Planilla General de Personal - Juntos a la Par</h1>
+      <div class="header-container">
+        <table class="header-table">
+            <tr>
+                <td style="width: 70px;">
+                    <img src="https://i.ibb.co/vzB7pGZ/logo-escuela.png" class="logo-img" alt="Logo">
+                </td>
+                <td style="padding-left: 15px;">
+                    <div style="font-size: 10px; color: #7c3aed; font-weight: 900; text-transform: uppercase;">Institución Educativa</div>
+                    <h1 class="title-main">Personal Juntos a la Par</h1>
+                </td>
+                <td class="inst-info">
+                    <div class="subtitle-main">Ciclo Lectivo 2026</div>
+                    <div style="font-size: 9px; color: #94a3b8; font-weight: bold;">REGISTRO DE PERSONAL GENERAL</div>
+                </td>
+            </tr>
+        </table>
+      </div>
       
-      <table>
+      <table class="data-table">
           <thead>
               <tr>
-                  <th style="width: 15%;">Apellido y Nombre</th>
-                  <th style="width: 8%;">Antigüedad</th>
-                  <th style="width: 33%;">Cargo 1</th>
-                  <th style="width: 33%;">Cargo 2</th>
-                  <th style="width: 11%;">Modalidad</th>
+                  <th style="width: 18%;">Apellido y Nombre</th>
+                  <th style="width: 10%;">Antigüedad (AA/MM)</th>
+                  <th style="width: 12%;">CUIL / Cat.</th>
+                  <th style="width: 25%;">Cargo Primario</th>
+                  <th style="width: 25%;">Cargo Secundario</th>
+                  <th style="width: 10%;">Modalidad</th>
               </tr>
           </thead>
           <tbody>`;
       
       lista.forEach(s => {
-          let antiguedad = calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef);
+          let displayAntiguedad = s.antiquity ? `<span class="exact-antiquity">${s.antiquity.replace('/', 'a, ')}m</span>` : "---";
           
-          let c1Role = getNormRole(s.cargo1_role || s.role);
-          let c2Role = getNormRole(s.cargo2_role);
+          const renderCargo = (num) => {
+              const role = s[`cargo${num}_role`] || (num === 1 ? s.role : '');
+              const name = s[`cargo${num}_name`];
+              const turn = s[`cargo${num}_turn`];
+              const rev = s[`cargo${num}_revista`];
+              const sub = s[`cargo${num}_subsidized`] === 'true';
 
-          const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || (s.cargo1_turn && s.cargo1_turn.trim()));
-          const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || (s.cargo2_turn && s.cargo2_turn.trim()));
-
-          let c1Text = 'NO TRABAJA';
-          if (hasC1) {
-              let extras = [];
-              if (s.cargo1_subsidized === 'true' || s.isSubsidized === 'true') extras.push('<span class="cargo-sub">SUBV</span>');
-              if (s.cargo1_en_papeles === 'true') extras.push('<span class="cargo-papeles">EN PAPELES</span>');
-              c1Text = `<b>${c1Role || '-'}</b>: ${s.cargo1_name || '-'} (${s.cargo1_type || '-'})<br/>Turno: ${s.cargo1_turn || '-'} | Rev: ${s.cargo1_revista || '-'}<br/>${extras.join(' ')}`;
-          }
-
-          let c2Text = 'NO TRABAJA';
-          if (hasC2) {
-              let extras = [];
-              if (s.cargo2_subsidized === 'true') extras.push('<span class="cargo-sub">SUBV</span>');
-              if (s.cargo2_en_papeles === 'true') extras.push('<span class="cargo-papeles">EN PAPELES</span>');
-              c2Text = `<b>${c2Role || '-'}</b>: ${s.cargo2_name || '-'} (${s.cargo2_type || '-'})<br/>Turno: ${s.cargo2_turn || '-'} | Rev: ${s.cargo2_revista || '-'}<br/>${extras.join(' ')}`;
-          }
+              if (!name && !role) return '<span style="color:#cbd5e1">-</span>';
+              return `
+                <div style="margin-bottom:3px;">
+                    <div style="font-weight:900; color:#4338ca; text-transform:uppercase; font-size:7px;">${role || ''}</div>
+                    <div style="font-weight:bold">${name || ''}</div>
+                    <div style="color:#64748b; font-size:7px;">${turn || ''} | ${rev || ''}</div>
+                    ${sub ? '<span class="badge sub">SUBVENCIONADO</span>' : ''}
+                </div>`;
+          };
 
           html += `<tr>
-              <td><strong>${s.lastName.toUpperCase()}</strong>, ${s.firstName}</td>
-              <td>${antiguedad}</td>
-              <td>${c1Text}</td>
-              <td>${c2Text}</td>
-              <td>${s.modality || 'Sede'}</td>
+              <td class="name">${s.lastName.toUpperCase()}, ${s.firstName}</td>
+              <td style="text-align:center">${displayAntiguedad}</td>
+              <td><b>${s.cuil || s.dni || ''}</b><br/><span style="font-size:7px; color:#64748b">${s.category || ''}</span></td>
+              <td>${renderCargo(1)}</td>
+              <td>${renderCargo(2)}</td>
+              <td style="font-weight:bold; color:#475569">${s.modality || 'Sede'}</td>
           </tr>`;
       });
 
       html += `</tbody></table>
-      <div class="footer">Impreso el ${new Date().toLocaleDateString('es-AR')} a las ${new Date().toLocaleTimeString('es-AR', {hour: '2-digit', minute:'2-digit'})}</div>
+      <div class="footer">Sistema de Gestión Institucional - Página 1 de 1 - Generado el ${new Date().toLocaleDateString('es-AR')}</div>
       </body></html>`;
 
       const iframe = document.createElement('iframe'); 
@@ -4806,114 +4833,6 @@ const c2IsUnassigned = hasC2 && !VALID_ROLES.includes(c2Role);
       const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close(); 
       setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
   };
-
-  const handleImportStaff = async (e) => {
-      const file = e.target.files[0];
-      if (!file || !confirm("⚠️ ¿Importar archivo CSV completo?")) return;
-      setProcessing(true);
-      const reader = new FileReader();
-      reader.onload = async (evt) => {
-          try {
-              const rows = evt.target.result.split('\n').slice(1).filter(r => r.trim() !== '');
-              const promises = rows.map(row => {
-                  const cols = row.split(';');
-                  let bDate = "";
-                  if (cols[3]?.trim()) {
-                      const parts = cols[3].trim().split('/');
-                      if (parts.length === 3) bDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                  }
-                  return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), {
-                      lastName: cols[0]?.trim() || '', firstName: cols[1]?.trim() || '', dni: cols[2]?.trim() || '',
-                      birthDate: bDate, address: cols[4]?.trim() || '', phone: cols[5]?.trim() || '',
-                      emergencyContact: cols[6]?.trim() || '', email: cols[7]?.trim() || '',
-                      studyStatus: cols[8]?.trim() || '', degree: cols[9]?.trim() || '',
-                      modality: cols[11]?.trim() || 'Sede',
-                      cargo1_role: cols[10]?.trim() || '', 
-                      cargo1_subsidized: cols[12]?.trim() === 'SI' ? 'true' : 'false',
-                      cargo1_en_papeles: 'false',
-                      cargo1_name: cols[13]?.trim() || '', cargo1_type: cols[14]?.trim() || '', cargo1_turn: cols[15]?.trim() || '', cargo1_revista: cols[16]?.trim() || '',
-                      cargo2_name: cols[17]?.trim() || '', cargo2_type: cols[18]?.trim() || '', cargo2_turn: cols[19]?.trim() || '', cargo2_revista: cols[20]?.trim() || '',
-                      cargo2_en_papeles: 'false',
-                      createdAt: serverTimestamp()
-                  });
-              });
-              await Promise.all(promises);
-              alert("✅ Personal importado correctamente.");
-          } catch (err) { alert("Error: " + err.message); } finally { setProcessing(false); }
-      };
-      reader.readAsText(file);
-  };
-
-  const handleSaveStaff = async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const d = Object.fromEntries(fd.entries());
-    d.photoUrl = photoPreview || editingStaff?.photoUrl || '';
-    
-    if(!d.cargo2_name || d.cargo2_name.trim() === '') { 
-        d.cargo2_role = ''; d.cargo2_turn = ''; d.cargo2_type = ''; 
-        d.cargo2_revista = ''; d.cargo2_ingreso = ''; d.cargo2_name = ''; 
-        d.cargo2_subsidized = 'false'; d.cargo2_en_papeles = 'false';
-    }
-
-    try {
-        if (editingStaff) {
-            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id), d);
-            if (viewingStaff?.id === editingStaff.id) setViewingStaff({ ...editingStaff, ...d });
-        } else {
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), { ...d, createdAt: serverTimestamp() });
-        }
-        setShowStaffForm(false); setEditingStaff(null); setPhotoPreview(null);
-    } catch (err) { alert(err.message); }
-  };
-
-  const calculateStats = () => {
-      const stats = {
-          cargos: { simple: 0, doble: 0 },
-      };
-
-      filteredStaff.forEach(s => {
-          const c1Role = getNormRole(s.cargo1_role || s.role);
-          const c2Role = getNormRole(s.cargo2_role);
-          const c1Turn = (s.cargo1_turn || '').toLowerCase();
-          const c2Turn = (s.cargo2_turn || '').toLowerCase();
-          
-          const filterRoles = filters.roles || [];
-          const filterTurn = filters.turn.toLowerCase();
-
-          const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || c1Turn);
-          const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || c2Turn);
-
-          const c1IsUnassigned = !hasC1 || !VALID_ROLES.includes(c1Role);
-          const c2IsUnassigned = hasC2 && !VALID_ROLES.includes(c2Role);
-
-          let c1MatchesRole = filterRoles.length === 0 || (filterRoles.includes('sin-asignar') && c1IsUnassigned) || filterRoles.includes(c1Role);
-          let c2MatchesRole = filterRoles.length === 0 || (filterRoles.includes('sin-asignar') && c2IsUnassigned) || filterRoles.includes(c2Role);
-
-          const c1Matches = hasC1 && c1MatchesRole && (filterTurn === 'all' || c1Turn.includes(filterTurn));
-          const c2Matches = hasC2 && c2MatchesRole && (filterTurn === 'all' || c2Turn.includes(filterTurn));
-
-          const isC1Papeles = s.cargo1_en_papeles === 'true';
-          const isC2Papeles = s.cargo2_en_papeles === 'true';
-
-          let activeCargosCount = 0;
-          if (c1Matches && !isC1Papeles && s.cargo1_name) activeCargosCount++;
-          if (c2Matches && !isC2Papeles && s.cargo2_name) activeCargosCount++;
-
-          if (activeCargosCount === 2) stats.cargos.doble++;
-          else if (activeCargosCount === 1) stats.cargos.simple++;
-      });
-      return stats;
-  };
-
-  if (!canAccess) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido.</div>;
-
-  const currentStats = calculateStats();
-  const totalCargosReales = currentStats.cargos.simple + (currentStats.cargos.doble * 2);
-
-  return (
-    <div className="space-y-4 animate-in fade-in pb-20 px-2 md:px-4 pt-4">
-        
         {/* ENCABEZADO CON CONTADOR EN VIVO (PERSONAS Y CARGOS) */}
         <div className="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-3xl border border-violet-100 shadow-sm gap-4">
             <div className="flex items-center gap-4 flex-wrap">
