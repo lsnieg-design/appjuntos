@@ -324,7 +324,7 @@ function LoginScreen({ onLogin }) {
     </div>
   );
 }
-// --- VISTA DASHBOARD (VERSIÓN RECUPERADA COMPLETA: CUMPLES, DESAFÍOS Y MANUAL DETALLADO) ---
+// --- VISTA DASHBOARD (VERSIÓN INTEGRAL: DESAFÍOS GITHUB + CUMPLES + MANUAL + RANKING) ---
 function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEvents = events.filter(e => e.date === todayStr);
@@ -342,6 +342,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const [tutorialTab, setTutorialTab] = useState('inicio'); 
 
   // ESTADOS DEL JUEGO
+  const [currentChallenge, setCurrentChallenge] = useState({ q: "Cargando desafío...", isRestDay: false, url: "", answer: "" });
   const [challengeAnswer, setChallengeAnswer] = useState('');
   const [showChallengeSuccess, setShowChallengeSuccess] = useState(false);
   const [userScore, setUserScore] = useState(0);
@@ -355,6 +356,11 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const [newCountdownTitle, setNewCountdownTitle] = useState('');
   const [newCountdownDate, setNewCountdownDate] = useState('');
 
+  // CONFIGURACIÓN GITHUB PARA DESAFÍOS
+ const GITHUB_USER = "lsnieg-design"; // CAMBIAR ESTO
+const GITHUB_REPO = "appjuntos";           // CAMBIAR ESTO
+const GITHUB_FOLDER = "desafios";
+
   const canPost = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión'].includes(user.rol || user.role);
   const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración', 'Dirección Inclusión'].includes(user.role) || user.rol === 'admin';
   const isSuperAdmin = user.rol === 'admin' || user.rol === 'super-admin';
@@ -362,43 +368,8 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const SEDE_ROLES = ['Docente', 'Equipo Directivo', 'Equipo Técnico', 'Auxiliar/Preceptor', 'Profes Especiales', 'Administración'];
   const isInclusionStaff = INCLUSION_ROLES.includes(user.role);
   const isSedeStaff = SEDE_ROLES.includes(user.role);
-// --- BASE DE DATOS DE DESAFÍOS (SANEADA) ---
-  const DESAFIOS = [
-      { q: "Completá la serie: 4, 9, 20, 50, 120... ¿Cuál sigue?", a: ["300"] },
-      { q: "Si 3 gatos cazan 3 ratones en 3 minutos, ¿cuántos minutos tardan 100 gatos en cazar 100 ratones?", a: ["3", "tres"] },
-      { q: "Un reloj marca las 3:15. Si lo girás 90 grados a la derecha, ¿qué hora marcaría?", a: ["6:30", "seis y media"] },
-      { q: "¿Qué número falta? [4][5] -> [9]. [20][11] -> [31]. [50][30] -> [80]", a: ["80"] },
-      { q: "Si ayer fuera mañana, hoy sería viernes. ¿Qué día es hoy?", a: ["domingo"] },
-      { q: "Un candado tiene 3 formas: Hexágono, Pentágono y Cuadrado. Si la suma de los 3 es 45, ¿cuánto vale el Pentágono solo?", a: ["15"] },
-      { q: "Hay 3 bananas en un racimo. Si 2 racimos + un hexágono suman 23, y el hexágono vale 15, ¿cuánto vale cada banana?", a: ["1", "uno"] },
-      { q: "En un reloj de agujas, ¿cuántas veces se cruzan la aguja de la hora y el minutero en 12 horas?", a: ["11", "once"] },
-      { q: "París empieza con P y termina con...", a: ["t", "letra t"] },
-      { q: "¿Qué palabra de 5 letras se escribe igual de izquierda a derecha?", a: ["radar", "somos"] },
-      { q: "Si 'A' es 1, 'B' es 2 y 'C' es 3... ¿Cuál es el resultado de (A + B) x C?", a: ["9", "nueve"] },
-      { q: "El padre de Clara tiene 5 hijas: Jana, Jena, Jina, Jona y...", a: ["clara"] },
-      { q: "Un tren eléctrico viaja al norte y el viento sopla al sur. ¿Hacia dónde va el humo?", a: ["ninguno", "no tiene humo", "electrico"] },
-      { q: "Si estás en una carrera y adelantás al que va segundo, ¿en qué posición estás?", a: ["segundo", "2"] },
-      { q: "¿Cuántos meses tienen 28 días?", a: ["12", "doce", "todos"] },
-      { q: "¿Qué tiene manos pero no puede aplaudir?", a: ["reloj", "el reloj"] },
-      { q: "Si me tenés, querés compartirme. Si me compartís, ya no me tenés. ¿Qué soy?", a: ["secreto", "un secreto"] },
-      { q: "¿Qué es lo que sube pero nunca baja?", a: ["edad"] },
-      { q: "Tenés 3 fósforos y entrás en una habitación oscura con vela, lámpara y estufa. ¿Qué encendés primero?", a: ["fosforo", "cerilla"] },
-      { q: "Si un médico te da 3 pastillas y te dice que tomes una cada media hora, ¿en cuánto tiempo terminás?", a: ["60", "una hora"] },
-      { q: "¿Cuántos animales de cada especie llevó Moisés en el Arca?", a: ["ninguno", "0", "noe"] },
-      { q: "Si un hombre nace en 1950 y muere en 1950, pero tiene 80 años... ¿Cómo es posible?", a: ["hospital", "habitacion"] },
-      { q: "Tengo ciudades pero no casas, montañas pero no árboles... ¿Qué soy?", a: ["mapa", "el mapa"] },
-      { q: "¿Cuál es el día más largo de la semana?", a: ["miercoles", "miércoles"] },
-      { q: "Si 5 máquinas hacen 5 artículos en 5 minutos, ¿cuánto tardan 100 máquinas en hacer 100 artículos?", a: ["5", "cinco"] },
-      { q: "¿Qué palabra se escribe mal en todos los diccionarios?", a: ["mal"] },
-      { q: "Aparezco una vez en un minuto, dos veces en un momento y ninguna en un siglo. ¿Quién soy?", a: ["m", "letra m"] },
-      { q: "Si un gallo pone un huevo en el límite entre Argentina y Chile, ¿para qué lado cae?", a: ["ninguno", "no pone"] },
-      { q: "¿Cuál es la pregunta que nadie puede contestar con un SÍ mientras duerme?", a: ["estas despierto", "estás despierto"] },
-      { q: "Si tengo 3 manzanas y me quitás 2, ¿cuántas manzanas tenés?", a: ["2", "dos"] },
-      { q: "El que lo hace no lo quiere, el que lo compra no lo usa y el que lo usa no lo ve. ¿Qué es?", a: ["ataud", "ataúd"] }
-  ];
 
   const todayDate = new Date();
-  const challengeStartDate = new Date('2026-03-16T00:00:00'); 
   const dayOfWeek = todayDate.getDay(); 
   const monthStr = (todayDate.getMonth() + 1).toString().padStart(2, '0');
   const dayStr = todayDate.getDate().toString().padStart(2, '0');
@@ -406,25 +377,12 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
 
   const feriadosDocentes2026 = [
       '01-01', '02-16', '02-17', '03-24', '04-02', '04-03', '05-01', '05-25', 
-      '06-15', '06-20', '07-09', '08-17', '09-11', '10-12', '11-23', '12-08', '12-25',
-      '07-20', '07-21', '07-22', '07-23', '07-24', '07-27', '07-28', '07-29', '07-30', '07-31'
+      '06-15', '06-20', '07-09', '08-17', '09-11', '10-12', '11-23', '12-08', '12-25'
   ];
 
   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
   const isHoliday = feriadosDocentes2026.includes(dateString);
   const isWorkingDay = !isWeekend && !isHoliday;
-
-  const seed = todayDate.getFullYear() + todayDate.getMonth() + todayDate.getDate();
-  const randomIdx = seed % DESAFIOS.length;
-
-  let currentChallenge;
-  if (todayDate < challengeStartDate) {
-      currentChallenge = { q: "¡Preparate! Muy pronto arrancan los desafíos diarios con sorpresas. 🚀", a: [], isComingSoon: true };
-  } else if (!isWorkingDay) {
-      currentChallenge = { q: "¡Hoy es día de descanso! Nos vemos el próximo día hábil. ☕", a: [], isRestDay: true };
-  } else {
-      currentChallenge = DESAFIOS[randomIdx];
-  }
 
   const myPendingTasksCount = tasks.filter(t => {
       if (t.status === 'completed') return false;
@@ -435,7 +393,7 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
       return false;
   }).length;
 
-useEffect(() => {
+  useEffect(() => {
     // 1. Notas
     const qNotes = query(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), where('userId', '==', user.id));
     const unsubNotes = onSnapshot(qNotes, (snap) => setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.done - b.done)));
@@ -497,9 +455,34 @@ useEffect(() => {
         }
     });
 
+    // 6. Cargar Desafío desde Github (LÓGICA AUTOMÁTICA)
+    const loadGithubChallenge = async () => {
+        try {
+            if (!isWorkingDay) {
+                setCurrentChallenge({ q: "¡Hoy es día de descanso! Nos vemos el próximo día hábil. ☕", isRestDay: true });
+                return;
+            }
+            const res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${GITHUB_FOLDER}`);
+            const files = await res.json();
+            const images = files.filter(f => f.name.match(/\.(jpg|jpeg|png|webp)$/i));
+
+            if (images.length > 0) {
+                const seed = todayDate.getFullYear() + todayDate.getMonth() + todayDate.getDate();
+                const idx = seed % images.length;
+                const file = images[idx];
+                setCurrentChallenge({
+                    url: file.download_url,
+                    answer: file.name.split('.')[0],
+                    isRestDay: false
+                });
+            }
+        } catch (e) { console.error("Error Github:", e); }
+    };
+    loadGithubChallenge();
+
     return () => { unsubNotes(); unsubUsers(); unsubSettings(); unsubStudents(); unsubStaff(); };
-  }, [user.id, appId]);
-  
+  }, [user.id, appId, isWorkingDay]);
+
   const handlePost = async (e) => { e.preventDefault(); try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), { message: e.target.message.value, author: user.fullName || user.firstName, authorId: user.id, role: user.role, channel: e.target.channel.value, createdAt: serverTimestamp() }); setShowAnnounceModal(false); } catch(e) { alert(e.message); } };
   const deleteAnnouncement = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'announcements', id)); };
   const saveNote = async (e) => { e.preventDefault(); if (!newNote.trim()) return; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), { text: newNote, userId: user.id, done: false, createdAt: serverTimestamp() }); setNewNote(''); };
@@ -515,59 +498,37 @@ useEffect(() => {
       } catch (err) { alert(err.message); }
   };
 
-const checkChallenge = async (e) => {
+  const checkChallenge = async (e) => {
     if (e) e.preventDefault();
-    if (!challengeAnswer || !currentChallenge || !user) return;
+    if (!challengeAnswer || !currentChallenge.url || !user) return;
 
     try {
-      // 1. Limpiar respuesta
-      const cleanAnswer = challengeAnswer.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const cleanUser = challengeAnswer.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const cleanCorrect = currentChallenge.answer.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       
-      // 2. Validar si es correcta
-      const isCorrect = currentChallenge.a?.some(validAns => 
-        cleanAnswer.includes(validAns.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""))
-      );
-      
-      if (isCorrect) {
-        // Bloqueo local inmediato
+      if (cleanUser === cleanCorrect) {
         localStorage.setItem(`lastChallenge_${user.id}`, new Date().toDateString());
         setShowChallengeSuccess(true);
-        
-        // 3. Actualizar en Firebase (Asegurate que appId, db, doc y updateDoc existan)
         const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-        await updateDoc(userRef, { 
-          score: (Number(userScore) || 0) + 10 
-        });
-
+        await updateDoc(userRef, { score: (Number(userScore) || 0) + 10 });
         setChallengeAnswer('');
         setTimeout(() => setShowChallengeSuccess(false), 4000);
       } else { 
-        alert("🤔 ¡Casi! Intentá con otras palabras."); 
+        alert("🤔 ¡Casi! Intentá de nuevo."); 
       }
-    } catch (err) {
-      console.error("Error:", err);
-    }
+    } catch (err) { console.error("Error:", err); }
   };
+
   const resetAllScores = async () => {
     if (!isSuperAdmin) return;
-    if (!confirm("⚠️ ¿Estás segura? Esto pondrá los puntos de TODO EL PERSONAL en 0. Esta acción no se puede deshacer.")) return;
-
+    if (!confirm("⚠️ ¿Estás segura? Esto pondrá los puntos de TODO EL PERSONAL en 0.")) return;
     try {
       const qUsers = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
       const querySnapshot = await getDocs(qUsers);
-      
-      const promises = querySnapshot.docs.map(uDoc => {
-        return updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', uDoc.id), {
-          score: 0
-        });
-      });
-
+      const promises = querySnapshot.docs.map(uDoc => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', uDoc.id), { score: 0 }));
       await Promise.all(promises);
-      alert("✅ Ranking reseteado con éxito. ¡Todas vuelven a empezar de cero!");
-    } catch (err) {
-      console.error("Error al resetear:", err);
-      alert("Hubo un error técnico al intentar resetear.");
-    }
+      alert("✅ Ranking reseteado con éxito.");
+    } catch (err) { alert("Error técnico al resetear."); }
   };
 
   const visibleAnnouncements = announcements.filter(a => isSuperAdmin || a.authorId === user.id || !a.channel || a.channel === 'general' || (a.channel === 'inclusion' && isInclusionStaff) || (a.channel === 'sede' && isSedeStaff));
@@ -575,7 +536,7 @@ const checkChallenge = async (e) => {
   return (
     <div className="space-y-4 animate-in fade-in pb-10">
            
-      {/* CARTEL GANADOR MENSUAL (Aparece solo el día 1) */}
+      {/* CARTEL GANADOR MENSUAL */}
       {todayDate.getDate() === 1 && rankingData.length > 0 && (
           <div className="bg-gradient-to-r from-yellow-400 to-orange-500 p-6 rounded-[35px] text-white shadow-xl animate-bounce mx-2">
               <h3 className="font-black text-center text-xl uppercase italic tracking-tighter">🏆 ¡GANADOR DEL MES ANTERIOR! 🏆</h3>
@@ -583,6 +544,7 @@ const checkChallenge = async (e) => {
               <p className="text-center text-[10px] uppercase font-black opacity-80 mt-1 tracking-widest">¡Vení a buscar tu premio a Dirección! 🎁</p>
           </div>
       )}
+
       {/* HEADER BIENVENIDA */}
       <div className="flex justify-between items-center px-2">
           <div><h2 className="text-2xl font-black text-slate-800 tracking-tighter italic">¡Hola, {user.firstName}! 👋</h2><p className="text-slate-500 font-medium text-xs">Panel de Control</p></div>
@@ -617,12 +579,12 @@ const checkChallenge = async (e) => {
           )}
       </div>
 
-   {/* BLOQUE DESAFÍO CON AYUDA Y RANKING */}
+      {/* BLOQUE DESAFÍO VISUAL (NUEVA LÓGICA GITHUB) */}
       <div className="bg-gradient-to-br from-emerald-400 to-teal-500 p-5 rounded-[30px] shadow-md text-white relative overflow-hidden">
           <div className="absolute -right-4 -top-4 opacity-10"><Crown size={120}/></div>
           
           <button 
-            onClick={() => alert("🚀 ¡BIENVENIDOS!\n\n• Respondé el acertijo y sumá 10 puntos.\n• Tocá la Copa para ver el Ranking.\n• ¡A fin de mes hay premios!")}
+            onClick={() => alert("🚀 ¡BIENVENIDOS!\n\n• Respondé el acertijo visual y sumá 10 puntos.\n• Tocá la Copa para ver el Ranking.")}
             className="absolute top-4 right-16 bg-white/20 hover:bg-white/30 p-1.5 rounded-full z-20"
           >
             <HelpCircle size={16}/>
@@ -630,15 +592,16 @@ const checkChallenge = async (e) => {
 
           <div className="flex justify-between items-start mb-2 relative z-10">
               <div className="flex-1 pr-4">
-                  <h3 className="text-[10px] font-black text-emerald-100 uppercase tracking-widest flex items-center gap-1">✨ Acertijo del Día</h3>
-                  {currentChallenge.isComingSoon || currentChallenge.isRestDay ? (
+                  <h3 className="text-[10px] font-black text-emerald-100 uppercase tracking-widest flex items-center gap-1">✨ Desafío del Día</h3>
+                  {currentChallenge.isRestDay ? (
                       <p className="font-bold text-white text-sm mt-2">⏳ {currentChallenge.q}</p>
                   ) : (
-                      <p className="font-bold text-base mt-2 leading-tight">"{currentChallenge.q}"</p>
+                      <div className="mt-3 rounded-2xl overflow-hidden border-2 border-white/20 bg-white/10 shadow-inner">
+                          <img src={currentChallenge.url} alt="Desafío" className="w-full h-auto object-contain max-h-48 mx-auto" />
+                      </div>
                   )}
               </div>
 
-              {/* BOTÓN COPA */}
               <div 
                 className="bg-white/20 p-2 rounded-xl text-center min-w-[60px] cursor-pointer hover:bg-white/30 transition shadow-inner relative z-50 group" 
                 onClick={() => setShowRanking(true)}
@@ -648,8 +611,7 @@ const checkChallenge = async (e) => {
               </div>
           </div>
           
-          {/* LÓGICA DE RESPUESTA */}
-          {!currentChallenge.isRestDay && !currentChallenge.isComingSoon && (
+          {!currentChallenge.isRestDay && (
             <div className="mt-4 relative z-10">
               {localStorage.getItem(`lastChallenge_${user.id}`) === new Date().toDateString() ? (
                 <div className="bg-white/20 p-3 rounded-xl border border-white/30 text-center italic">
@@ -682,11 +644,7 @@ const checkChallenge = async (e) => {
       
       <div className="bg-gray-50 p-5 rounded-[35px] border border-gray-100 shadow-inner"><h3 className="font-black text-gray-400 uppercase text-[10px] mb-3 flex items-center gap-2"><Lock size={12}/> Tareas Personales</h3><form onSubmit={saveNote} className="flex gap-2 mb-3"><input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Nueva nota..." className="flex-1 p-3 rounded-xl border-none outline-none text-xs bg-white shadow-sm font-medium" /><button type="submit" className="bg-violet-600 text-white p-3 rounded-xl font-bold shadow-lg hover:bg-violet-700 transition"><Plus size={16}/></button></form><div className="space-y-2">{notes.map(n => (<div key={n.id} className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm group"><button onClick={() => toggleNote(n)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${n.done ? 'bg-violet-400 border-violet-400' : 'border-violet-200'}`}>{n.done && <Check size={10} className="text-white"/>}</button><span className={`text-xs flex-1 font-medium ${n.done ? 'line-through text-gray-300' : 'text-gray-600'}`}>{n.text}</span><button onClick={() => deleteNote(n.id)} className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"><Trash2 size={14}/></button></div>))}</div></div>
       
-   
-             
-  
-      
-      {/* MANUAL COMPLETO (SÍN RESÚMENES) */}
+      {/* MANUAL COMPLETO */}
       {showTutorial && (
         <div className="fixed inset-0 bg-violet-900/95 z-[300] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in">
             <div className="bg-white rounded-[40px] w-full max-w-lg p-6 shadow-2xl max-h-[85vh] flex flex-col relative">
@@ -718,11 +676,11 @@ const checkChallenge = async (e) => {
                         <>
                             <div className="bg-green-50 p-4 rounded-2xl border border-green-100">
                                 <h4 className="font-bold text-green-800 mb-1 flex items-center gap-2"><GraduationCap size={16}/> Buscador Institucional</h4>
-                                <p>Busca cualquier alumno de la escuela. Usa los filtros (Turno, Docente, DX) para refinar. Al entrar a un alumno, verás su ficha completa.</p>
+                                <p>Busca cualquier alumno de la escuela. Usa los filtros (Turno, Docente, DX) para refinar.</p>
                             </div>
                             <div className="bg-white p-4 rounded-2xl border border-gray-200">
                                 <h4 className="font-bold text-gray-800 mb-1 flex items-center gap-2"><UploadCloud size={16}/> La Nube (Gestión)</h4>
-                                <p>Solo directivos: Herramientas para descargar copias de seguridad (Backup) y herramientas avanzadas de administración.</p>
+                                <p>Solo directivos: Herramientas para descargar copias de seguridad (Backup).</p>
                             </div>
                         </>
                     )}
@@ -730,11 +688,11 @@ const checkChallenge = async (e) => {
                         <>
                             <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
                                 <h4 className="font-bold text-indigo-800 mb-1 flex items-center gap-2"><Grid size={16}/> Gestión de Clases</h4>
-                                <p>Aquí ves a los grupos armados. Puedes filtrar por Mañana/Tarde y Sede/Inclusión. Usa el botón de imprimir arriba para sacar la lista de asistencia.</p>
+                                <p>Aquí ves a los grupos armados. Usa el botón de imprimir arriba para sacar la lista de asistencia.</p>
                             </div>
                             <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-100">
                                 <h4 className="font-bold text-yellow-800 mb-1 flex items-center gap-2">⚡ Bitácora Express</h4>
-                                <p>Toca el rayo en un alumno para registrar rápidamente una conducta, logro o incidente de salud. Queda guardado en su historia.</p>
+                                <p>Toca el rayo en un alumno para registrar rápidamente una conducta o incidente.</p>
                             </div>
                         </>
                     )}
@@ -742,30 +700,26 @@ const checkChallenge = async (e) => {
                         <>
                             <div className="bg-purple-50 p-4 rounded-2xl border border-purple-100">
                                 <h4 className="font-bold text-purple-800 mb-1 flex items-center gap-2"><CheckSquare size={16}/> Pedidos y Organización</h4>
-                                <p>Crea tareas para solicitar materiales o informes. Puedes asignarlas a una persona o a un rol (ej: Mantenimiento).</p>
-                            </div>
-                            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200">
-                                <h4 className="font-bold text-gray-800 mb-1 flex items-center gap-2"><Eye size={16}/> Privacidad</h4>
-                                <p>Las tareas solo las ven el creador, el destinatario y los directivos. Son privadas.</p>
+                                <p>Crea tareas para solicitar materiales o informes.</p>
                             </div>
                         </>
                     )}
                     {tutorialTab === 'agenda' && (
                          <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
                              <h4 className="font-bold text-red-800 mb-1 flex items-center gap-2"><CalendarIcon size={16}/> Calendario</h4>
-                             <p>Visualiza actos, feriados y reuniones. Toca un día para ver detalles. Los directivos pueden usar el rayo para carga rápida de fechas.</p>
+                             <p>Visualiza actos, feriados y reuniones. Toca un día para ver detalles.</p>
                          </div>
                     )}
                     {tutorialTab === 'recursos' && (
                          <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
                              <h4 className="font-bold text-emerald-800 mb-1 flex items-center gap-2"><LinkIcon size={16}/> Biblioteca Digital</h4>
-                             <p>Encuentra documentos institucionales, actas y planillas organizadas por carpetas. Toca para abrir o descargar.</p>
+                             <p>Encuentra documentos institucionales, actas y planillas organizadas por carpetas.</p>
                          </div>
                     )}
                     {tutorialTab === 'proyecto' && (
                          <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
                              <h4 className="font-bold text-blue-800 mb-1 flex items-center gap-2"><PieChart size={16}/> Proyecto 2026</h4>
-                             <p>Accede a la planificación anual "La Vuelta al Mundo". Puedes ver las estaciones, actividades y descargar el PDF completo.</p>
+                             <p>Accede a la planificación anual "La Vuelta al Mundo".</p>
                          </div>
                     )}
                 </div>
@@ -774,8 +728,7 @@ const checkChallenge = async (e) => {
         </div>
       )}
 
-      {/* MODAL CUMPLES DINÁMICO */}
-     {/* --- MODAL CUMPLES DINÁMICO --- */}
+      {/* MODAL CUMPLES */}
       {showBirthdayModal && (
           <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowBirthdayModal(false)}>
               <div className={`bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl border-t-8 ${birthdayModalType === 'students' ? 'border-pink-500' : 'border-violet-500'} max-h-[85vh] flex flex-col`} onClick={e => e.stopPropagation()}>
@@ -794,75 +747,43 @@ const checkChallenge = async (e) => {
           </div>
       )}
 
-{/* --- MODAL RANKING INSTITUCIONAL (UBICACIÓN FINAL) --- */}
+      {/* MODAL RANKING */}
       {showRanking && (
-          <div 
-            className="fixed inset-0 bg-slate-900/90 flex items-center justify-center p-4 backdrop-blur-md" 
-            style={{ zIndex: 9999, position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
-            onClick={() => setShowRanking(false)}
-          >
-              <div 
-                className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[85vh] relative" 
-                onClick={e => e.stopPropagation()}
-              >
+          <div className="fixed inset-0 bg-slate-900/90 z-[9999] flex items-center justify-center p-4 backdrop-blur-md" onClick={() => setShowRanking(false)}>
+              <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[85vh] relative" onClick={e => e.stopPropagation()}>
                   <div className="flex justify-between items-center mb-6 shrink-0">
                       <h3 className="text-lg font-black text-emerald-600 uppercase italic tracking-tighter">Ranking Institucional</h3>
-                      <button onClick={() => setShowRanking(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition">
-                        <X size={20} className="text-gray-500"/>
-                      </button>
+                      <button onClick={() => setShowRanking(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20} className="text-gray-500"/></button>
                   </div>
-                  
                   <div className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar">
-                      {/* 1. SUS PUNTAJES (Top Actual) */}
                       <div>
                         <p className="text-[10px] font-black text-gray-400 uppercase mb-3 tracking-widest text-center italic border-b pb-1">Top de Marzo</p>
                         <div className="space-y-2">
-                            {rankingData.length === 0 ? (
-                                <p className="text-center text-gray-400 text-xs py-4 italic">¡Aún no hay puntos registrados!</p>
-                            ) : (
+                            {rankingData.length === 0 ? (<p className="text-center text-gray-400 text-xs py-4 italic">¡Aún no hay puntos registrados!</p>) : (
                                 rankingData.map((u, index) => (
                                     <div key={u.id || index} className={`flex items-center justify-between p-3 rounded-2xl border ${index === 0 ? 'bg-yellow-50 border-yellow-200 shadow-sm' : 'bg-gray-50 border-gray-100'}`}>
                                         <div className="flex items-center gap-3">
                                           <span className={`font-black text-lg ${index === 0 ? 'text-yellow-500' : 'text-gray-400'}`}>#{index + 1}</span>
                                           <span className="font-bold text-gray-700 text-sm uppercase">{u.firstName} {u.lastName?.charAt(0)}.</span>
                                         </div>
-                                        {/* Aquí siguen apareciendo sus números (puntos) */}
                                         <div className="bg-white px-3 py-1 rounded-lg border border-gray-200 font-black text-emerald-600 text-xs">{(u.score || 0)} pts</div>
                                     </div>
                                 ))
                             )}
                         </div>
                       </div>
-
-                      {/* 2. RANKING ANUAL (Salón de la Fama) */}
-                      <div className="bg-violet-50 p-4 rounded-[25px] border border-violet-100 mt-4 shrink-0">
-                        <h4 className="text-[9px] font-black text-violet-600 uppercase mb-3 text-center tracking-[3px]">🏆 Salón de la Fama 2026</h4>
-                        <div className="space-y-2 text-center">
-                            <div className="flex justify-between items-center text-[11px] font-bold text-slate-500 border-b border-violet-100 pb-1 px-2">
-                              <span>MARZO</span>
-                              <span className="text-violet-700 italic">En curso...</span>
-                            </div>
-                            {/* Aquí irán apareciendo los ganadores de cada mes */}
-                        </div>
-                      </div>
                   </div>
-                  {/* BOTÓN DE RESET SOLO PARA SUPER ADMIN */}
-{isSuperAdmin && (
-    <button 
-        onClick={resetAllScores}
-        className="mt-4 w-full py-2 bg-red-50 text-red-500 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all shadow-sm"
-    >
-        🛑 Resetear Todo el Ranking
-    </button>
-)}
+                  {isSuperAdmin && (
+                    <button onClick={resetAllScores} className="mt-4 w-full py-2 bg-red-50 text-red-500 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all shadow-sm">🛑 Resetear Todo el Ranking</button>
+                  )}
                   <p className="text-[8px] text-center text-gray-400 mt-4 uppercase font-bold tracking-widest shrink-0">Los puntos se reinician el 1 de cada mes</p>
               </div>
           </div>
       )}
 
-    </div> // Cierre del div principal
-  ); // Cierre del return
-} // Cierre de la función DashboardView
+    </div>
+  );
+}
 
 
 // --- VISTA RECURSOS (VERSIÓN CON PLANTILLAS EN GENERADOR DE NOTAS) ---
