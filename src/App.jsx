@@ -398,14 +398,14 @@ const GITHUB_FOLDER = "desafios";
     const qNotes = query(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), where('userId', '==', user.id));
     const unsubNotes = onSnapshot(qNotes, (snap) => setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.done - b.done)));
     
-    // 2. Usuarios y Ranking
-    const qUsers = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
-    const unsubUsers = onSnapshot(qUsers, (snap) => {
-        const usersData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        const me = usersData.find(u => u.id === user.id);
-        if (me) setUserScore(me.score || 0);
-        setRankingData(usersData.filter(u => (u.score || 0) > 0).sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 10));
-    });
+   // 2. Usuarios y Ranking
+const qUsers = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
+const unsubUsers = onSnapshot(qUsers, (snap) => {
+    const usersData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const me = usersData.find(u => u.id === user.id);
+    if (me) setUserScore(me.score || 0); // Esto mantiene tus puntos actuales
+    setRankingData(usersData.filter(u => (u.score || 0) > 0).sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 10));
+});
 
     // 3. Estudiantes y Cumpleaños
     const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
