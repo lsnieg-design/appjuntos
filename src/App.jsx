@@ -532,7 +532,12 @@ const unsubUsers = onSnapshot(qUsers, (snap) => {
   };
 
   const visibleAnnouncements = announcements.filter(a => isSuperAdmin || a.authorId === user.id || !a.channel || a.channel === 'general' || (a.channel === 'inclusion' && isInclusionStaff) || (a.channel === 'sede' && isSedeStaff));
-
+const resetMyDailyChallenge = () => {
+    localStorage.removeItem(`lastChallenge_${user.id}`);
+    setShowChallengeSuccess(false);
+    setChallengeAnswer('');
+    alert("🔄 Participación diaria reseteada. ¡Podés volver a jugar!");
+  };
   return (
     <div className="space-y-4 animate-in fade-in pb-10">
            
@@ -592,7 +597,20 @@ const unsubUsers = onSnapshot(qUsers, (snap) => {
 
           <div className="flex justify-between items-start mb-2 relative z-10">
               <div className="flex-1 pr-4">
-                  <h3 className="text-[10px] font-black text-emerald-100 uppercase tracking-widest flex items-center gap-1">✨ Desafío del Día</h3>
+                  <div className="flex items-center gap-2">
+                      <h3 className="text-[10px] font-black text-emerald-100 uppercase tracking-widest flex items-center gap-1">✨ Desafío del Día</h3>
+                      {/* BOTÓN SECRETO DE RESET PARA ADMINS */}
+                      {(user.rol === 'admin' || user.rol === 'super-admin') && (
+                          <button 
+                              onClick={resetMyDailyChallenge}
+                              className="p-1 bg-white/10 hover:bg-white/20 rounded-md transition-colors text-white/50 hover:text-white"
+                              title="Resetear mi participación (Solo Admin)"
+                          >
+                              <RefreshCw size={10} />
+                          </button>
+                      )}
+                  </div>
+
                   {currentChallenge.isRestDay ? (
                       <p className="font-bold text-white text-sm mt-2">⏳ {currentChallenge.q}</p>
                   ) : (
