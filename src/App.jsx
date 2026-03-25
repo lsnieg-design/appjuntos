@@ -5400,8 +5400,8 @@ const imprimirPlanillaGeneral = (lista) => {
               </button>
             )}
           </div>
-        </div> {/* Cierre del max-w-xl */}
-      </div> {/* Cierre del overlay bg-black/70 */}
+        </div> 
+      </div>
     )}
   </div> 
   ); 
