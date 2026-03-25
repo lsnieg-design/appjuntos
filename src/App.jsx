@@ -5365,8 +5365,7 @@ const imprimirPlanillaGeneral = (lista) => {
 
             <div className="h-4"></div>
           </form>
-
-          {/* BOTONERA FIJA INFERIOR */}
+{/* BOTONERA FIJA INFERIOR */}
           <div className="p-4 bg-white border-t space-y-3 shrink-0">
             <div className="flex flex-col sm:flex-row gap-2">
               <button type="button" onClick={() => setShowStaffForm(false)} className="order-2 sm:order-1 flex-1 py-3 text-slate-500 font-bold uppercase text-[10px] tracking-widest">
@@ -5381,10 +5380,6 @@ const imprimirPlanillaGeneral = (lista) => {
                 {processing ? <RefreshCw className="animate-spin" size={16}/> : 'Guardar Cambios'}
               </button>
             </div>
-              <button type="submit" form="staffForm" className="order-1 sm:order-2 flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-violet-200 hover:bg-violet-700 transition active:scale-95">
-                Guardar Cambios
-              </button>
-            </div>
             
             {editingStaff && (
               <button type="button" onClick={async () => {if(confirm("¿Eliminar definitivamente?")) {await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); setShowStaffForm(false); setViewingStaff(null);}}} className="w-full py-2 text-red-400 font-bold text-[9px] uppercase hover:text-red-500 transition tracking-tighter">
@@ -5397,8 +5392,7 @@ const imprimirPlanillaGeneral = (lista) => {
     )}
   </div> 
   ); 
-} 
-
+}
 function MedicalView({ user }) {
   const [students, setStudents] = useState([]);
   const [filterText, setFilterText] = useState('');
