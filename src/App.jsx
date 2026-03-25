@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Calendar as CalendarIcon, CheckSquare, Settings, User, FileText, CheckCircle, 
   Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, 
-  Lock, List, Grid, ChevronLeft, ChevronRight, Bell, Check, HelpCircle, Mail, 
+  Lock, List, Grid, ChevronLeft, ChevronRight, Bell, Check, HelpCircle, Mail, Camera, MapPin, LinkIcon,
   Send, Key, Filter, LayoutDashboard, Link as LinkIcon, ExternalLink, 
   AlertTriangle, Clock, Shield, Crown, Activity, Share, PlusSquare, 
   Smartphone, GraduationCap, Search, X, UploadCloud, PieChart, Eye, Edit3, Trophy,
@@ -5368,7 +5368,7 @@ const imprimirPlanillaGeneral = (lista) => {
 
             <div className="h-4"></div>
           </form>
-{/* BOTONERA FIJA INFERIOR */}
+{/* BOTONERA FIJA INFERIOR CORREGIDA */}
           <div className="p-4 bg-white border-t space-y-3 shrink-0">
             <div className="flex flex-col sm:flex-row gap-2">
               <button type="button" onClick={() => setShowStaffForm(false)} className="order-2 sm:order-1 flex-1 py-3 text-slate-500 font-bold uppercase text-[10px] tracking-widest">
@@ -5385,13 +5385,23 @@ const imprimirPlanillaGeneral = (lista) => {
             </div>
             
             {editingStaff && (
-              <button type="button" onClick={async () => {if(confirm("¿Eliminar definitivamente?")) {await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); setShowStaffForm(false); setViewingStaff(null);}}} className="w-full py-2 text-red-400 font-bold text-[9px] uppercase hover:text-red-500 transition tracking-tighter">
+              <button 
+                type="button" 
+                onClick={async () => {
+                  if(confirm("¿Eliminar definitivamente?")) {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); 
+                    setShowStaffForm(false); 
+                    setViewingStaff(null);
+                  }
+                }} 
+                className="w-full py-2 text-red-400 font-bold text-[9px] uppercase hover:text-red-500 transition tracking-tighter"
+              >
                 Eliminar Personal del Sistema
               </button>
             )}
           </div>
-        </div>
-      </div>
+        </div> {/* Cierre del max-w-xl */}
+      </div> {/* Cierre del overlay bg-black/70 */}
     )}
   </div> 
   ); 
