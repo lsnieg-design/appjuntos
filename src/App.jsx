@@ -4850,8 +4850,11 @@ const imprimirPlanillaGeneral = (lista) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const d = Object.fromEntries(fd.entries());
+    
+    // Inyectamos la foto del preview o la que ya tenía
     d.photoUrl = photoPreview || editingStaff?.photoUrl || '';
     
+    // Limpieza de Cargo 2 si no hay nombre
     if(!d.cargo2_name || d.cargo2_name.trim() === '') { 
         d.cargo2_role = ''; d.cargo2_turn = ''; d.cargo2_type = ''; 
         d.cargo2_revista = ''; d.cargo2_ingreso = ''; d.cargo2_name = ''; 
@@ -4859,16 +4862,24 @@ const imprimirPlanillaGeneral = (lista) => {
     }
 
     try {
-        if (editingStaff) {
+        setProcessing(true);
+        if (editingStaff?.id) {
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id), d);
+            // Actualizamos la vista de la ficha si está abierta
             if (viewingStaff?.id === editingStaff.id) setViewingStaff({ ...editingStaff, ...d });
         } else {
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), { ...d, createdAt: serverTimestamp() });
         }
-        setShowStaffForm(false); setEditingStaff(null); setPhotoPreview(null);
-    } catch (err) { alert(err.message); }
+        setShowStaffForm(false); 
+        setEditingStaff(null); 
+        setPhotoPreview(null);
+        alert("✅ Legajo actualizado correctamente");
+    } catch (err) { 
+        alert("Error al guardar: " + err.message); 
+    } finally {
+        setProcessing(false);
+    }
   };
-
   const calculateStats = () => {
       const stats = {
           cargos: { simple: 0, doble: 0 },
@@ -5208,7 +5219,28 @@ const imprimirPlanillaGeneral = (lista) => {
                 <input name="email" defaultValue={editingStaff?.email || ""} placeholder="Email" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
               </div>
             </details>
-
+{/* SECCIÓN NUEVA: DATOS PERSONALES Y FORMACIÓN */}
+            <details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
+                <span className="text-[11px] font-black text-blue-600 uppercase flex items-center gap-2">
+                  <GraduationCap size={14}/> Datos Personales y Formación
+                </span>
+                <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
+              </summary>
+              <div className="p-4 pt-0 space-y-3">
+                <input name="address" defaultValue={editingStaff?.address || ""} placeholder="Dirección Completa" className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm"/>
+                <input name="emergencyContact" defaultValue={editingStaff?.emergencyContact || ""} placeholder="Contacto de Emergencia (Nombre y Tel)" className="p-3 bg-red-50 text-red-700 rounded-xl border-none w-full font-bold text-sm placeholder:text-red-300"/>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input name="degree" defaultValue={editingStaff?.degree || ""} placeholder="Título Obtenido" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+                    <select name="studyStatus" defaultValue={editingStaff?.studyStatus || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+                        <option value="">Estado de estudios...</option>
+                        <option value="Completo">Completo</option>
+                        <option value="En curso">En curso</option>
+                        <option value="Incompleto">Incompleto</option>
+                    </select>
+                </div>
+              </div>
+            </details>
             {/* SECCIÓN 2: CARGO PRIMARIO (CON SUBVENCIÓN) */}
             <details open className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition border-l-4 border-emerald-500">
@@ -5340,6 +5372,15 @@ const imprimirPlanillaGeneral = (lista) => {
               <button type="button" onClick={() => setShowStaffForm(false)} className="order-2 sm:order-1 flex-1 py-3 text-slate-500 font-bold uppercase text-[10px] tracking-widest">
                 Cancelar
               </button>
+              <button 
+                type="submit" 
+                form="staffForm" 
+                disabled={processing}
+                className="order-1 sm:order-2 flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-violet-200 hover:bg-violet-700 transition active:scale-95 flex justify-center items-center gap-2"
+              >
+                {processing ? <RefreshCw className="animate-spin" size={16}/> : 'Guardar Cambios'}
+              </button>
+            </div>
               <button type="submit" form="staffForm" className="order-1 sm:order-2 flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-violet-200 hover:bg-violet-700 transition active:scale-95">
                 Guardar Cambios
               </button>
