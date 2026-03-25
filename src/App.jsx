@@ -4851,10 +4851,10 @@ const imprimirPlanillaGeneral = (lista) => {
     const fd = new FormData(e.target);
     const d = Object.fromEntries(fd.entries());
     
-    // Inyectamos la foto del preview o la que ya tenía
+    // ESTA LÍNEA ES CLAVE: Guarda la foto nueva o mantiene la vieja
     d.photoUrl = photoPreview || editingStaff?.photoUrl || '';
     
-    // Limpieza de Cargo 2 si no hay nombre
+    // Limpieza automática de Cargo 2 si está vacío
     if(!d.cargo2_name || d.cargo2_name.trim() === '') { 
         d.cargo2_role = ''; d.cargo2_turn = ''; d.cargo2_type = ''; 
         d.cargo2_revista = ''; d.cargo2_ingreso = ''; d.cargo2_name = ''; 
@@ -4865,17 +4865,15 @@ const imprimirPlanillaGeneral = (lista) => {
         setProcessing(true);
         if (editingStaff?.id) {
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id), d);
-            // Actualizamos la vista de la ficha si está abierta
+            // Si tenías abierta la ficha, que se actualice solita
             if (viewingStaff?.id === editingStaff.id) setViewingStaff({ ...editingStaff, ...d });
         } else {
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), { ...d, createdAt: serverTimestamp() });
         }
-        setShowStaffForm(false); 
-        setEditingStaff(null); 
-        setPhotoPreview(null);
-        alert("✅ Legajo actualizado correctamente");
+        setShowStaffForm(false); setEditingStaff(null); setPhotoPreview(null);
+        alert("✅ Legajo actualizado con éxito");
     } catch (err) { 
-        alert("Error al guardar: " + err.message); 
+        alert("Error: " + err.message); 
     } finally {
         setProcessing(false);
     }
@@ -5199,48 +5197,53 @@ const imprimirPlanillaGeneral = (lista) => {
     </p>
 </div>
 
-            {/* SECCIÓN 1: IDENTIDAD */}
-            <details open className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
-                <span className="text-[11px] font-black text-violet-600 uppercase flex items-center gap-2">
-                  <User size={14}/> Datos de Identidad
-                </span>
-                <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
-              </summary>
-              <div className="p-4 pt-0 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input name="lastName" defaultValue={editingStaff?.lastName || ""} placeholder="Apellido/s" required className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
-                <input name="firstName" defaultValue={editingStaff?.firstName || ""} placeholder="Nombre/s" required className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
-                <input name="dni" defaultValue={editingStaff?.dni || ""} placeholder="DNI sin puntos" className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
-                <div className="flex flex-col">
-                  <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Fecha Nacimiento</label>
-                  <input name="birthDate" type="date" defaultValue={editingStaff?.birthDate || ""} className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
-                </div>
-                <input name="phone" defaultValue={editingStaff?.phone || ""} placeholder="Celular" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
-                <input name="email" defaultValue={editingStaff?.email || ""} placeholder="Email" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
-              </div>
-            </details>
-{/* SECCIÓN NUEVA: DATOS PERSONALES Y FORMACIÓN */}
-            <details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
-                <span className="text-[11px] font-black text-blue-600 uppercase flex items-center gap-2">
-                  <GraduationCap size={14}/> Datos Personales y Formación
-                </span>
-                <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
-              </summary>
-              <div className="p-4 pt-0 space-y-3">
-                <input name="address" defaultValue={editingStaff?.address || ""} placeholder="Dirección Completa" className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm"/>
-                <input name="emergencyContact" defaultValue={editingStaff?.emergencyContact || ""} placeholder="Contacto de Emergencia (Nombre y Tel)" className="p-3 bg-red-50 text-red-700 rounded-xl border-none w-full font-bold text-sm placeholder:text-red-300"/>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <input name="degree" defaultValue={editingStaff?.degree || ""} placeholder="Título Obtenido" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
-                    <select name="studyStatus" defaultValue={editingStaff?.studyStatus || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
-                        <option value="">Estado de estudios...</option>
-                        <option value="Completo">Completo</option>
-                        <option value="En curso">En curso</option>
-                        <option value="Incompleto">Incompleto</option>
-                    </select>
-                </div>
-              </div>
-            </details>
+           {/* SECCIÓN 1: IDENTIDAD Y FOTO (ACTUALIZADA) */}
+<div className="flex flex-col items-center mb-6">
+    <div className="w-24 h-24 rounded-3xl bg-violet-100 border-4 border-white shadow-md overflow-hidden relative group">
+        {photoPreview ? <img src={photoPreview} className="w-full h-full object-cover"/> : (editingStaff?.photoUrl ? <img src={editingStaff.photoUrl} className="w-full h-full object-cover"/> : <div className="flex items-center justify-center h-full text-violet-300"><User size={40}/></div>)}
+        <label className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer">
+            <Camera className="text-white" size={24}/>
+            <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange}/>
+        </label>
+    </div>
+    <p className="text-[9px] font-black text-violet-400 uppercase mt-2">Tocar para cambiar foto</p>
+</div>
+
+<details open className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+  <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
+    <span className="text-[11px] font-black text-violet-600 uppercase flex items-center gap-2"><User size={14}/> Datos de Identidad</span>
+    <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
+  </summary>
+  <div className="p-4 pt-0 grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <input name="lastName" defaultValue={editingStaff?.lastName || ""} placeholder="Apellido/s" required className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
+    <input name="firstName" defaultValue={editingStaff?.firstName || ""} placeholder="Nombre/s" required className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
+    <input name="dni" defaultValue={editingStaff?.dni || ""} placeholder="DNI sin puntos" className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
+    <input name="birthDate" type="date" defaultValue={editingStaff?.birthDate || ""} className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm"/>
+    <input name="phone" defaultValue={editingStaff?.phone || ""} placeholder="Celular" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+    <input name="email" defaultValue={editingStaff?.email || ""} placeholder="Email" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+  </div>
+</details>
+
+{/* SECCIÓN NUEVA: DOMICILIO Y FORMACIÓN */}
+<details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-3">
+  <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
+    <span className="text-[11px] font-black text-blue-600 uppercase flex items-center gap-2"><MapPin size={14}/> Domicilio y Título</span>
+    <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
+  </summary>
+  <div className="p-4 pt-0 space-y-3">
+    <input name="address" defaultValue={editingStaff?.address || ""} placeholder="Dirección completa" className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm"/>
+    <input name="emergencyContact" defaultValue={editingStaff?.emergencyContact || ""} placeholder="Contacto Emergencia (Nombre y Tel)" className="p-3 bg-red-50 text-red-700 rounded-xl border-none w-full font-bold text-sm placeholder:text-red-300"/>
+    <div className="grid grid-cols-2 gap-2">
+        <input name="degree" defaultValue={editingStaff?.degree || ""} placeholder="Título Obtenido" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+        <select name="studyStatus" defaultValue={editingStaff?.studyStatus || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+            <option value="">Estado estudios...</option>
+            <option value="Completo">Completo</option>
+            <option value="Incompleto">Incompleto</option>
+            <option value="En curso">En curso</option>
+        </select>
+    </div>
+  </div>
+</details>
             {/* SECCIÓN 2: CARGO PRIMARIO (CON SUBVENCIÓN) */}
             <details open className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition border-l-4 border-emerald-500">
