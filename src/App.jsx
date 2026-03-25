@@ -455,30 +455,66 @@ const unsubUsers = onSnapshot(qUsers, (snap) => {
         }
     });
 
-    // 6. Cargar Desafío desde Github (LÓGICA AUTOMÁTICA)
-    const loadGithubChallenge = async () => {
-        try {
-            if (!isWorkingDay) {
-                setCurrentChallenge({ q: "¡Hoy es día de descanso! Nos vemos el próximo día hábil. ☕", isRestDay: true });
-                return;
-            }
-            const res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${GITHUB_FOLDER}`);
-            const files = await res.json();
-            const images = files.filter(f => f.name.match(/\.(jpg|jpeg|png|webp)$/i));
+// Buscá esta parte dentro de loadGithubChallenge y reemplazala:
+const loadGithubChallenge = async () => {
+    try {
+        if (!isWorkingDay) {
+            setCurrentChallenge({ q: "¡Hoy es día de descanso! Nos vemos pronto. ☕", isRestDay: true });
+            return;
+        }
+        const res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${GITHUB_FOLDER}`);
+        const files = await res.json();
+        
+        // Acepta cualquier extensión de imagen común
+        const images = files.filter(f => f.name.match(/\.(jpg|jpeg|png|webp|gif|bmp)$/i));
 
-            if (images.length > 0) {
-                const seed = todayDate.getFullYear() + todayDate.getMonth() + todayDate.getDate();
-                const idx = seed % images.length;
-                const file = images[idx];
-                setCurrentChallenge({
-                    url: file.download_url,
-                    answer: file.name.split('.')[0],
-                    isRestDay: false
-                });
-            }
-        } catch (e) { console.error("Error Github:", e); }
+        if (images.length > 0) {
+            const seed = todayDate.getFullYear() + todayDate.getMonth() + todayDate.getDate();
+            const idx = seed % images.length;
+            const file = images[idx];
+            
+            // NORMALIZACIÓN DEL NOMBRE DEL ARCHIVO: 
+            // Quitamos la extensión y lo pasamos a minúsculas sin acentos de entrada
+            const rawName = file.name.substring(0, file.name.lastIndexOf('.')); 
+            
+            setCurrentChallenge({
+                url: file.download_url,
+                answer: rawName, 
+                isRestDay: false
+            });
+        }
+    } catch (e) { console.error("Error Github:", e); }
+};
+    const checkChallenge = async (e) => {
+    if (e) e.preventDefault();
+    if (!challengeAnswer || !currentChallenge.url || !user) return;
+
+    // Función interna para limpiar textos (acentos, mayúsculas, espacios)
+    const normalizar = (texto) => {
+        return texto
+            .trim()                             // Quita espacios adelante y atrás
+            .toLowerCase()                      // Todo a minúsculas
+            .normalize("NFD")                   // Descompone caracteres con acento
+            .replace(/[\u0300-\u036f]/g, "")    // Borra los acentos/tildes
+            .replace(/[^a-z0-9]/g, "");         // Deja solo letras y números (borra puntos, comas, etc)
     };
-    loadGithubChallenge();
+
+    try {
+      const cleanUser = normalizar(challengeAnswer);
+      const cleanCorrect = normalizar(currentChallenge.answer);
+      
+      if (cleanUser === cleanCorrect) {
+        localStorage.setItem(`lastChallenge_${user.id}`, new Date().toDateString());
+        setShowChallengeSuccess(true);
+        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+        await updateDoc(userRef, { score: (Number(userScore) || 0) + 10 });
+        setChallengeAnswer('');
+        setTimeout(() => setShowChallengeSuccess(false), 4000);
+      } else { 
+        alert("🤔 ¡Casi! Intentá de nuevo. Revisá si escribiste bien el número o la palabra."); 
+      }
+    } catch (err) { console.error("Error validando:", err); }
+  };
 
     return () => { unsubNotes(); unsubUsers(); unsubSettings(); unsubStudents(); unsubStaff(); };
   }, [user.id, appId, isWorkingDay]);
