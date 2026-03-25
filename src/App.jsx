@@ -455,36 +455,37 @@ const unsubUsers = onSnapshot(qUsers, (snap) => {
         }
     });
 
-// Buscá esta parte dentro de loadGithubChallenge y reemplazala:
-const loadGithubChallenge = async () => {
-    try {
-        if (!isWorkingDay) {
-            setCurrentChallenge({ q: "¡Hoy es día de descanso! Nos vemos pronto. ☕", isRestDay: true });
-            return;
-        }
-        const res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${GITHUB_FOLDER}`);
-        const files = await res.json();
-        
-        // Acepta cualquier extensión de imagen común
-        const images = files.filter(f => f.name.match(/\.(jpg|jpeg|png|webp|gif|bmp)$/i));
+// 6. Cargar Desafío desde Github (LÓGICA AUTOMÁTICA MEJORADA)
+    const loadGithubChallenge = async () => {
+        try {
+            if (!isWorkingDay) {
+                setCurrentChallenge({ q: "¡Hoy es día de descanso! Nos vemos pronto. ☕", isRestDay: true });
+                return;
+            }
+            const res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${GITHUB_FOLDER}`);
+            const files = await res.json();
+            if (!Array.isArray(files)) return;
 
-        if (images.length > 0) {
-            const seed = todayDate.getFullYear() + todayDate.getMonth() + todayDate.getDate();
-            const idx = seed % images.length;
-            const file = images[idx];
-            
-            // NORMALIZACIÓN DEL NOMBRE DEL ARCHIVO: 
-            // Quitamos la extensión y lo pasamos a minúsculas sin acentos de entrada
-            const rawName = file.name.substring(0, file.name.lastIndexOf('.')); 
-            
-            setCurrentChallenge({
-                url: file.download_url,
-                answer: rawName, 
-                isRestDay: false
-            });
-        }
-    } catch (e) { console.error("Error Github:", e); }
-};
+            // Acepta cualquier extensión común
+            const images = files.filter(f => f.name.match(/\.(jpg|jpeg|png|webp|gif|bmp)$/i));
+
+            if (images.length > 0) {
+                const seed = todayDate.getFullYear() + todayDate.getMonth() + todayDate.getDate();
+                const idx = seed % images.length;
+                const file = images[idx];
+                
+                // Extrae el nombre quitando TODO después del último punto (ej: "5.png" -> "5")
+                const fileNameOnly = file.name.substring(0, file.name.lastIndexOf('.'));
+                
+                setCurrentChallenge({
+                    url: file.download_url,
+                    answer: fileNameOnly, 
+                    isRestDay: false
+                });
+            }
+        } catch (e) { console.error("Error Github:", e); }
+    };
+    loadGithubChallenge();
     const checkChallenge = async (e) => {
     if (e) e.preventDefault();
     if (!challengeAnswer || !currentChallenge.url || !user) return;
@@ -534,27 +535,37 @@ const loadGithubChallenge = async () => {
       } catch (err) { alert(err.message); }
   };
 
-  const checkChallenge = async (e) => {
+const checkChallenge = async (e) => {
     if (e) e.preventDefault();
     if (!challengeAnswer || !currentChallenge.url || !user) return;
 
+    // Función mágica para limpiar textos (acentos, mayúsculas, espacios, puntos)
+    const normalizar = (texto) => {
+        if (!texto) return "";
+        return texto.toString().trim().toLowerCase().normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "") // Quita acentos
+            .replace(/[^a-z0-9]/g, "");      // Quita puntos, comas y símbolos
+    };
+
     try {
-      const cleanUser = challengeAnswer.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      const cleanCorrect = currentChallenge.answer.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const cleanUser = normalizar(challengeAnswer);
+      const cleanCorrect = normalizar(currentChallenge.answer);
       
       if (cleanUser === cleanCorrect) {
+        // RECIÉN AQUÍ guardamos el éxito en el celular
         localStorage.setItem(`lastChallenge_${user.id}`, new Date().toDateString());
         setShowChallengeSuccess(true);
+        
         const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
         await updateDoc(userRef, { score: (Number(userScore) || 0) + 10 });
+        
         setChallengeAnswer('');
         setTimeout(() => setShowChallengeSuccess(false), 4000);
       } else { 
-        alert("🤔 ¡Casi! Intentá de nuevo."); 
+        alert("🤔 ¡Casi! Intentá de nuevo. Revisá si es un número o palabra."); 
       }
-    } catch (err) { console.error("Error:", err); }
+    } catch (err) { console.error("Error validando:", err); }
   };
-
   const resetAllScores = async () => {
     if (!isSuperAdmin) return;
     if (!confirm("⚠️ ¿Estás segura? Esto pondrá los puntos de TODO EL PERSONAL en 0.")) return;
@@ -620,28 +631,17 @@ const resetMyDailyChallenge = () => {
           )}
       </div>
 
-      {/* BLOQUE DESAFÍO VISUAL (NUEVA LÓGICA GITHUB) */}
+   {/* BLOQUE DESAFÍO VISUAL (GITHUB INTEGRADO) */}
       <div className="bg-gradient-to-br from-emerald-400 to-teal-500 p-5 rounded-[30px] shadow-md text-white relative overflow-hidden">
           <div className="absolute -right-4 -top-4 opacity-10"><Crown size={120}/></div>
           
-          <button 
-            onClick={() => alert("🚀 ¡BIENVENIDOS!\n\n• Respondé el acertijo visual y sumá 10 puntos.\n• Tocá la Copa para ver el Ranking.")}
-            className="absolute top-4 right-16 bg-white/20 hover:bg-white/30 p-1.5 rounded-full z-20"
-          >
-            <HelpCircle size={16}/>
-          </button>
-
           <div className="flex justify-between items-start mb-2 relative z-10">
               <div className="flex-1 pr-4">
                   <div className="flex items-center gap-2">
                       <h3 className="text-[10px] font-black text-emerald-100 uppercase tracking-widest flex items-center gap-1">✨ Desafío del Día</h3>
-                      {/* BOTÓN SECRETO DE RESET PARA ADMINS */}
+                      {/* BOTÓN SECRETO PARA VOS */}
                       {(user.rol === 'admin' || user.rol === 'super-admin') && (
-                          <button 
-                              onClick={resetMyDailyChallenge}
-                              className="p-1 bg-white/10 hover:bg-white/20 rounded-md transition-colors text-white/50 hover:text-white"
-                              title="Resetear mi participación (Solo Admin)"
-                          >
+                          <button onClick={resetMyDailyChallenge} className="p-1 bg-white/10 hover:bg-white/20 rounded-md transition-colors text-white/50 hover:text-white">
                               <RefreshCw size={10} />
                           </button>
                       )}
@@ -651,15 +651,16 @@ const resetMyDailyChallenge = () => {
                       <p className="font-bold text-white text-sm mt-2">⏳ {currentChallenge.q}</p>
                   ) : (
                       <div className="mt-3 rounded-2xl overflow-hidden border-2 border-white/20 bg-white/10 shadow-inner">
-                          <img src={currentChallenge.url} alt="Desafío" className="w-full h-auto object-contain max-h-48 mx-auto" />
+                          {currentChallenge.url ? (
+                              <img src={currentChallenge.url} alt="Desafío" className="w-full h-auto object-contain max-h-48 mx-auto" />
+                          ) : (
+                              <div className="p-10 text-center text-xs animate-pulse opacity-50">Cargando desafío...</div>
+                          )}
                       </div>
                   )}
               </div>
 
-              <div 
-                className="bg-white/20 p-2 rounded-xl text-center min-w-[60px] cursor-pointer hover:bg-white/30 transition shadow-inner relative z-50 group" 
-                onClick={() => setShowRanking(true)}
-              >
+              <div className="bg-white/20 p-2 rounded-xl text-center min-w-[60px] cursor-pointer hover:bg-white/30 transition shadow-inner relative z-50" onClick={() => setShowRanking(true)}>
                   <div className="text-yellow-400 flex justify-center"><Trophy size={28} /></div>
                   <span className="block text-[7px] font-bold uppercase mt-1">Ranking</span>
               </div>
@@ -667,23 +668,19 @@ const resetMyDailyChallenge = () => {
           
           {!currentChallenge.isRestDay && (
             <div className="mt-4 relative z-10">
-              {localStorage.getItem(`lastChallenge_${user.id}`) === new Date().toDateString() ? (
+              {/* LÓGICA DE BLOQUEO: Solo si la fecha de hoy coincide Y NO acabas de ganar */}
+              {localStorage.getItem(`lastChallenge_${user.id}`) === new Date().toDateString() && !showChallengeSuccess ? (
                 <div className="bg-white/20 p-3 rounded-xl border border-white/30 text-center italic">
-                  <p className="text-xs font-black">🚫 ¡Ya participaste hoy! Volvé mañana. 😉</p>
+                  <p className="text-xs font-black">🚫 ¡Ya sumaste tus puntos de hoy! Volvé mañana. 😉</p>
                 </div>
               ) : showChallengeSuccess ? (
-                <div className="bg-white/20 p-3 rounded-xl text-center animate-bounce">
+                <div className="bg-white/20 p-3 rounded-xl text-center animate-bounce border-2 border-white">
                   <p className="font-black text-sm text-white">🎉 ¡Correcto! Sumaste 10 pts.</p>
                 </div>
               ) : (
                 <form onSubmit={checkChallenge} className="flex gap-2">
-                  <input 
-                    value={challengeAnswer} 
-                    onChange={e => setChallengeAnswer(e.target.value)} 
-                    placeholder="Respuesta..." 
-                    className="flex-1 bg-white/20 text-white placeholder-emerald-100 border border-white/30 p-2.5 rounded-xl outline-none font-bold text-xs"
-                  />
-                  <button type="submit" className="bg-white text-emerald-600 font-black px-4 rounded-xl text-xs uppercase shadow-lg">Jugar</button>
+                  <input value={challengeAnswer} onChange={e => setChallengeAnswer(e.target.value)} placeholder="Respuesta..." className="flex-1 bg-white/20 text-white placeholder-emerald-100 border border-white/30 p-2.5 rounded-xl outline-none font-bold text-xs focus:bg-white/40 transition-all"/>
+                  <button type="submit" className="bg-white text-emerald-600 font-black px-4 rounded-xl text-xs uppercase shadow-lg hover:scale-105 active:scale-95 transition-all">Jugar</button>
                 </form>
               )}
             </div>
