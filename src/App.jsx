@@ -1647,34 +1647,40 @@ function CalendarView({ events, canEdit, user }) {
       }
   };
 
-  const handleSaveEvent = async (e) => {
+const handleSaveEvent = async (e) => {
       e.preventDefault(); 
       const fd = new FormData(e.target);
       const formType = fd.get('type');
       const finalType = (calendarMode === 'technical') ? 'TECNICO' : formType;
 
+      // ASEGURAMOS QUE imageUrl SEA SIEMPRE UN STRING
+      const imgUrl = photoPreview || editingEvent?.imageUrl || '';
+
       const data = { 
-          title: fd.get('title'), 
+          title: fd.get('title') || 'Sin título', 
           date: fd.get('date'), 
-          type: finalType, 
-          description: fd.get('description'), 
-          author: user.firstName,
-          imageUrl: photoPreview || editingEvent?.imageUrl || '' // Se guarda la imagen
+          type: finalType || 'GENERAL', 
+          description: fd.get('description') || '', 
+          author: user.firstName || 'Usuario',
+          imageUrl: String(imgUrl) 
       };
       
       try {
-          if (editingEvent) {
+          setProcessing(true); // Bloqueamos para evitar doble clic
+          if (editingEvent?.id) {
               await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', editingEvent.id), data);
-              // Actualizamos visualmente el día seleccionado para no tener que cerrar y abrir
               if (selectedDayEvents) {
                   const updatedEvents = selectedDayEvents.events.map(ev => ev.id === editingEvent.id ? { ...ev, ...data } : ev);
                   setSelectedDayEvents({ ...selectedDayEvents, events: updatedEvents });
               }
           } else {
-              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), { ...data, createdAt: serverTimestamp() });
-              // Si agregamos un evento estando dentro del día, recargamos la data manual para verlo rápido
+              const docRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), { 
+                ...data, 
+                createdAt: serverTimestamp() 
+              });
+              
               if (selectedDayEvents) {
-                 const newEventLocal = { id: Date.now().toString(), ...data };
+                 const newEventLocal = { id: docRef.id, ...data };
                  setSelectedDayEvents({ ...selectedDayEvents, events: [...selectedDayEvents.events, newEventLocal] });
               }
           }
@@ -1682,43 +1688,67 @@ function CalendarView({ events, canEdit, user }) {
           setEditingEvent(null);
           setPhotoPreview(null);
       } catch (err) {
+          console.error("Error detallado:", err);
           alert("Error al guardar: " + err.message);
+      } finally {
+          setProcessing(false);
       }
   };
 
-  const handleQuickSave = async () => {
+const handleQuickSave = async () => {
       if (!quickText.trim()) return;
       setProcessing(true);
       try {
           const lines = quickText.split('\n').filter(line => line.trim() !== '');
           const validTypes = Object.keys(EVENT_TYPES); 
 
-          const promises = lines.map(line => {
+          // Filtramos primero las líneas válidas para que el array de promesas no tenga NULLs
+          const validLines = lines.map(line => {
               const match = line.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})\s+(.+)$/);
-              if (match) {
-                  let [_, day, month, year, rawText] = match;
-                  if (year.length === 2) year = "20" + year;
-                  const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-                  let finalType = 'GENERAL';
-                  let finalTitle = rawText.trim();
-                  for (const type of validTypes) {
-                      if (finalTitle.toUpperCase().includes(type)) {
-                          finalType = type;
-                          finalTitle = finalTitle.replace(new RegExp(`\\(?\\b${type}\\b\\)?`, 'i'), '').trim();
-                          finalTitle = finalTitle.replace(/^[:\-\s]+|[:\-\s]+$/g, '');
-                          break; 
-                      }
+              if (!match) return null;
+              return { match, line };
+          }).filter(Boolean);
+
+          const promises = validLines.map(item => {
+              let [_, day, month, year, rawText] = item.match;
+              if (year.length === 2) year = "20" + year;
+              const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+              
+              let finalType = 'GENERAL';
+              let finalTitle = rawText.trim();
+
+              for (const type of validTypes) {
+                  // Verificamos que finalTitle exista antes de usar includes/indexOf
+                  if (finalTitle && finalTitle.toUpperCase().includes(type)) {
+                      finalType = type;
+                      finalTitle = finalTitle.replace(new RegExp(`\\(?\\b${type}\\b\\)?`, 'i'), '').trim();
+                      finalTitle = finalTitle.replace(/^[:\-\s]+|[:\-\s]+$/g, '');
+                      break; 
                   }
-                  if (!finalTitle) finalTitle = rawText.replace(new RegExp(`\\(?\\b${finalType}\\b\\)?`, 'i'), '').trim() || finalType;
-                  return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), { title: finalTitle, date: isoDate, type: finalType, description: 'Carga masiva', author: user.firstName, imageUrl: '', createdAt: serverTimestamp() });
               }
-              return null; 
+              
+              if (!finalTitle) finalTitle = finalType;
+
+              return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), { 
+                title: String(finalTitle), 
+                date: isoDate, 
+                type: finalType, 
+                description: 'Carga masiva', 
+                author: String(user.firstName), 
+                imageUrl: '', 
+                createdAt: serverTimestamp() 
+              });
           });
-          const results = await Promise.all(promises);
-          const added = results.filter(r => r !== null).length;
-          alert(`✅ Se agregaron ${added} eventos.`);
-          setShowQuickLoad(false); setQuickText("");
-      } catch (e) { alert("Error: " + e.message); } finally { setProcessing(false); }
+
+          await Promise.all(promises);
+          alert(`✅ Se agregaron ${promises.length} eventos.`);
+          setShowQuickLoad(false); 
+          setQuickText("");
+      } catch (e) { 
+          alert("Error en carga masiva: " + e.message); 
+      } finally { 
+          setProcessing(false); 
+      }
   };
   
   const openNew = () => { setEditingEvent(null); setPhotoPreview(null); setShowModal(true); };
