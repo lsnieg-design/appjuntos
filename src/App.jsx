@@ -520,7 +520,22 @@ const unsubUsers = onSnapshot(qUsers, (snap) => {
     return () => { unsubNotes(); unsubUsers(); unsubSettings(); unsubStudents(); unsubStaff(); };
   }, [user.id, appId, isWorkingDay]);
 
-  const handlePost = async (e) => { e.preventDefault(); try { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), { message: e.target.message.value, author: user.fullName || user.firstName, authorId: user.id, role: user.role, channel: e.target.channel.value, createdAt: serverTimestamp() }); setShowAnnounceModal(false); } catch(e) { alert(e.message); } };
+  const handlePost = async (e) => { 
+    e.preventDefault(); 
+    try { 
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), { 
+        message: e.target.message.value, 
+        author: user.fullName || user.firstName, 
+        authorId: user.id, 
+        role: user.role, 
+        channel: e.target.channel.value, 
+        createdAt: serverTimestamp() 
+      }); 
+      setShowAnnounceModal(false); 
+    } catch(err) { 
+      alert("Error al publicar: " + err.message); 
+    } 
+  };
   const deleteAnnouncement = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'announcements', id)); };
   const saveNote = async (e) => { e.preventDefault(); if (!newNote.trim()) return; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), { text: newNote, userId: user.id, done: false, createdAt: serverTimestamp() }); setNewNote(''); };
   const toggleNote = async (note) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', note.id), { done: !note.done });
@@ -824,6 +839,38 @@ const resetMyDailyChallenge = () => {
                         </div>
                       </div>
                   </div>
+                {/* --- MODAL PARA CREAR AVISOS (RECONSTRUIDO) --- */}
+      {showAnnounceModal && (
+        <div className="fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-4 backdrop-blur-sm">
+          <form onSubmit={handlePost} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-orange-500">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-violet-900 uppercase italic">Nuevo Aviso</h3>
+              <button type="button" onClick={() => setShowAnnounceModal(false)}><X size={20} className="text-gray-400"/></button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase ml-2 mb-1 block">Canal de difusión</label>
+                <select name="channel" className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold border-none outline-none focus:ring-2 ring-orange-200">
+                  <option value="general">📢 Todo el Personal (General)</option>
+                  <option value="sede">🏫 Solo Sede</option>
+                  <option value="inclusion">📍 Solo Inclusión</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase ml-2 mb-1 block">Mensaje</label>
+                <textarea name="message" required placeholder="Escribí el aviso aquí..." className="w-full h-32 p-4 bg-gray-50 rounded-2xl border-none outline-none text-sm font-medium focus:ring-2 ring-orange-200 resize-none"></textarea>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 py-3 text-gray-400 font-bold uppercase text-xs">Cancelar</button>
+                <button type="submit" className="flex-[2] py-4 bg-orange-500 text-white rounded-2xl font-black uppercase text-xs shadow-lg shadow-orange-200 hover:bg-orange-600 transition active:scale-95">Publicar Aviso</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
                   {isSuperAdmin && (
                     <button onClick={resetAllScores} className="mt-4 w-full py-2 bg-red-50 text-red-500 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all shadow-sm">🛑 Resetear Todo el Ranking</button>
                   )}
