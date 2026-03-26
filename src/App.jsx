@@ -819,7 +819,7 @@ const resetMyDailyChallenge = () => {
           </div>
       )}
 
-      {/* MODAL RANKING */}
+    {/* MODAL RANKING */}
       {showRanking && (
           <div className="fixed inset-0 bg-slate-900/90 z-[9999] flex items-center justify-center p-4 backdrop-blur-md" onClick={() => setShowRanking(false)}>
               <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[85vh] relative" onClick={e => e.stopPropagation()}>
@@ -845,9 +845,17 @@ const resetMyDailyChallenge = () => {
                         </div>
                       </div>
                   </div>
-                {/* --- MODAL PARA CREAR AVISOS (RECONSTRUIDO) --- */}
+                  {isSuperAdmin && (
+                    <button onClick={resetAllScores} className="mt-4 w-full py-2 bg-red-50 text-red-500 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all shadow-sm">🛑 Resetear Todo el Ranking</button>
+                  )}
+                  <p className="text-[8px] text-center text-gray-400 mt-4 uppercase font-bold tracking-widest shrink-0">Los puntos se reinician el 1 de cada mes</p>
+              </div>
+          </div>
+      )}
+
+      {/* --- MODAL PARA CREAR AVISOS (UBICACIÓN CORRECTA) --- */}
       {showAnnounceModal && (
-        <div className="fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-black/60 z-[500] flex items-center justify-center p-4 backdrop-blur-sm">
           <form onSubmit={handlePost} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-orange-500">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-black text-violet-900 uppercase italic">Nuevo Aviso</h3>
@@ -877,17 +885,10 @@ const resetMyDailyChallenge = () => {
           </form>
         </div>
       )}
-                  {isSuperAdmin && (
-                    <button onClick={resetAllScores} className="mt-4 w-full py-2 bg-red-50 text-red-500 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all shadow-sm">🛑 Resetear Todo el Ranking</button>
-                  )}
-                  <p className="text-[8px] text-center text-gray-400 mt-4 uppercase font-bold tracking-widest shrink-0">Los puntos se reinician el 1 de cada mes</p>
-              </div>
-          </div>
-      )}
 
-    </div>
+    </div> // Fin del DashboardView contenedor principal
   );
-}
+} // Fin de la función
 
 
 // --- VISTA RECURSOS (VERSIÓN CON PLANTILLAS EN GENERADOR DE NOTAS) ---
