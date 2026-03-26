@@ -361,7 +361,9 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
 const GITHUB_REPO = "appjuntos";           // CAMBIAR ESTO
 const GITHUB_FOLDER = "desafios";
 
-  const canPost = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión'].includes(user.rol || user.role);
+ const canPost = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión'].some(r => 
+  [user.rol, user.role].includes(r)
+);
   const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración', 'Dirección Inclusión'].includes(user.role) || user.rol === 'admin';
   const isSuperAdmin = user.rol === 'admin' || user.rol === 'super-admin';
   const INCLUSION_ROLES = ['DAI', 'Inclusión', 'Dirección Inclusión', 'Equipo Técnico Inclusión'];
@@ -522,18 +524,22 @@ const unsubUsers = onSnapshot(qUsers, (snap) => {
 
   const handlePost = async (e) => { 
     e.preventDefault(); 
+    const msg = e.target.message.value;
+    const chan = e.target.channel.value;
+    if (!msg.trim()) return;
+
     try { 
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), { 
-        message: e.target.message.value, 
-        author: user.fullName || user.firstName, 
+        message: msg, 
+        author: user.fullName || `${user.firstName} ${user.lastName}`, 
         authorId: user.id, 
-        role: user.role, 
-        channel: e.target.channel.value, 
+        role: user.role || user.rol, 
+        channel: chan, 
         createdAt: serverTimestamp() 
       }); 
       setShowAnnounceModal(false); 
     } catch(err) { 
-      alert("Error al publicar: " + err.message); 
+      alert("Error al publicar aviso: " + err.message); 
     } 
   };
   const deleteAnnouncement = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'announcements', id)); };
