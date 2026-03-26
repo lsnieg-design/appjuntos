@@ -5599,6 +5599,10 @@ function MedicalView({ user }) {
       const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close(); 
       setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
   };
+  const filteredStudents = students.filter(s => {
+    const fullName = `${s.lastName || ''} ${s.firstName || ''}`.toLowerCase();
+    return fullName.includes(filterText.toLowerCase());
+  }).sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
 
   if (!canAccess) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido al Departamento Médico.</div>;
 
