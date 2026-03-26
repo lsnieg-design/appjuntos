@@ -4534,6 +4534,16 @@ function PersonalView({ user }) {
   const [processing, setProcessing] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [showPrintOptions, setShowPrintOptions] = useState(false);
+  const [printColumns, setPrintColumns] = useState({
+      dni: true,
+      cargo1: true,
+      cargo2: true,
+      alta: false,
+      domicilio: false,
+      telefono: false,
+      titulo: false
+  });
 
   const canAccess = ['admin', 'super-admin', 'Administración', 'Equipo Directivo'].includes(user.role) || user.rol === 'admin';
 
@@ -4791,107 +4801,55 @@ const imprimirPlanillaGeneral = (lista) => {
     
     const LOGO_APP = "https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png";
 
-    let html = `<html><head><title>Planilla de Personal</title>
+    let html = `<html><head><title>Planilla Personalizada</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
         @page { size: landscape; margin: 10mm; }
-        
-        body { 
-            font-family: 'Roboto', sans-serif; 
-            padding: 0; 
-            color: #1e293b; 
-            font-size: 10px; 
-            line-height: 1.3; 
-        }
-        
-        .header-container { width: 100%; border-bottom: 2px solid #6d28d9; margin-bottom: 15px; padding-bottom: 8px; }
-        .header-table { width: 100%; border-collapse: collapse; }
-        .logo-img { height: 50px; width: auto; }
-        .title-main { color: #6d28d9; font-size: 20px; font-weight: 900; text-transform: uppercase; margin: 0; }
-        
-        table.data-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        .data-table th { 
-            background-color: #f8fafc; 
-            color: #475569; 
-            font-weight: 900; 
-            text-transform: uppercase; 
-            padding: 10px 6px; 
-            border: 1px solid #e2e8f0; 
-            font-size: 10px; 
-            text-align: left; 
-        }
-        .data-table td { 
-            padding: 10px 6px; 
-            border: 1px solid #e2e8f0; 
-            vertical-align: middle; 
-            font-size: 10px; 
-        }
+        body { font-family: 'Roboto', sans-serif; padding: 0; color: #1e293b; font-size: 9px; }
+        .header-table { width: 100%; border-bottom: 2px solid #6d28d9; margin-bottom: 15px; }
+        table.data-table { width: 100%; border-collapse: collapse; }
+        .data-table th { background: #f8fafc; padding: 8px; border: 1px solid #e2e8f0; text-transform: uppercase; font-weight: 900; text-align: left; }
+        .data-table td { padding: 8px; border: 1px solid #e2e8f0; vertical-align: middle; }
         tr:nth-child(even) { background-color: #f1f5f9; }
-        
-        .name-cell { font-weight: 700; text-transform: uppercase; }
-        .cargo-role { font-weight: 900; color: #4338ca; text-transform: uppercase; font-size: 9px; }
-        .date-cell { font-weight: 700; color: #64748b; text-align: center; }
-
-        .footer { text-align: right; font-size: 9px; color: #94a3b8; margin-top: 15px; font-style: italic; }
+        .cargo-role { font-weight: 900; color: #4338ca; font-size: 8px; text-transform: uppercase; }
     </style></head><body>
-    
-    <div class="header-container">
-      <table class="header-table">
-          <tr>
-              <td style="width: 70px;"><img src="${LOGO_APP}" class="logo-img"></td>
-              <td>
-                  <div style="font-size: 9px; color: #7c3aed; font-weight: 900; text-transform: uppercase;">Institución Educativa</div>
-                  <h1 class="title-main">Personal Juntos a la Par</h1>
-              </td>
-              <td style="text-align: right; vertical-align: bottom;">
-                  <div style="font-size: 11px; color: #64748b; font-weight: bold;">Ciclo Lectivo 2026</div>
-              </td>
-          </tr>
-      </table>
-    </div>
-    
+    <table class="header-table"><tr>
+        <td><img src="${LOGO_APP}" style="height:40px;"></td>
+        <td style="text-align:center;"><h1 style="margin:0; font-size:18px; color:#6d28d9;">Planilla de Personal Institucional</h1></td>
+        <td style="text-align:right; font-weight:bold;">Ciclo 2026</td>
+    </tr></table>
     <table class="data-table">
-        <thead>
-            <tr>
-                <th style="width: 25%;">Apellido y Nombre</th>
-                <th style="width: 30%;">Cargo 1</th>
-                <th style="width: 30%;">Cargo 2</th>
-                <th style="width: 15%; text-align: center;">Alta Institución</th>
-            </tr>
-        </thead>
-        <tbody>`;
+        <thead><tr>
+            <th>Apellido y Nombre</th>
+            ${printColumns.dni ? '<th>DNI</th>' : ''}
+            ${printColumns.cargo1 ? '<th>Cargo 1</th>' : ''}
+            ${printColumns.cargo2 ? '<th>Cargo 2</th>' : ''}
+            ${printColumns.alta ? '<th>Ingreso Inst.</th>' : ''}
+            ${printColumns.domicilio ? '<th>Dirección</th>' : ''}
+            ${printColumns.telefono ? '<th>Teléfono</th>' : ''}
+            ${printColumns.titulo ? '<th>Título</th>' : ''}
+        </tr></thead><tbody>`;
     
     lista.forEach(s => {
-        const renderCargo = (num) => {
-            const role = s[`cargo${num}_role`] || (num === 1 ? s.role : '');
-            const name = s[`cargo${num}_name`];
-            if (!name && !role) return '<span style="color:#cbd5e1">-</span>';
-            return `
-                <div class="cargo-role">${role || ''}</div>
-                <div style="font-weight:500">${name || ''}</div>
-            `;
-        };
-
-        // Formateo de la fecha de alta
-        let fechaAlta = s.fechaIngreso ? new Date(s.fechaIngreso + 'T12:00:00').toLocaleDateString('es-AR') : '---';
-
         html += `<tr>
-            <td class="name-cell">${s.lastName || ''}, ${s.firstName || ''}</td>
-            <td>${renderCargo(1)}</td>
-            <td>${renderCargo(2)}</td>
-            <td class="date-cell">${fechaAlta}</td>
+            <td style="font-weight:700; text-transform:uppercase;">${s.lastName}, ${s.firstName}</td>
+            ${printColumns.dni ? `<td>${s.dni || '-'}</td>` : ''}
+            ${printColumns.cargo1 ? `<td><div class="cargo-role">${s.cargo1_role || s.role || ''}</div>${s.cargo1_name || ''}</td>` : ''}
+            ${printColumns.cargo2 ? `<td><div class="cargo-role">${s.cargo2_role || ''}</div>${s.cargo2_name || ''}</td>` : ''}
+            ${printColumns.alta ? `<td>${s.fechaIngreso ? new Date(s.fechaIngreso+'T12:00:00').toLocaleDateString('es-AR') : '-'}</td>` : ''}
+            ${printColumns.domicilio ? `<td>${s.address || '-'}</td>` : ''}
+            ${printColumns.telefono ? `<td>${s.phone || '-'}</td>` : ''}
+            ${printColumns.titulo ? `<td>${s.degree || '-'}</td>` : ''}
         </tr>`;
     });
 
-    html += `</tbody></table>
-    <div class="footer">Documento Oficial - Generado el ${new Date().toLocaleDateString('es-AR')}</div>
-    </body></html>`;
+    html += `</tbody></table><p style="text-align:right; font-size:8px; margin-top:10px;">Generado el ${new Date().toLocaleString('es-AR')}</p></body></html>`;
 
-    const iframe = document.createElement('iframe'); 
-    iframe.style.position = 'fixed'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0'; 
-    document.body.appendChild(iframe); 
-    const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close(); 
-    setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+    const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close();
+    setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); document.body.removeChild(iframe); }, 500);
 };
   const handleImportStaff = async (e) => {
       const file = e.target.files[0];
@@ -5028,8 +4986,14 @@ const imprimirPlanillaGeneral = (lista) => {
             </div>
             
             <div className="flex gap-2">
-                <button onClick={() => imprimirPlanillaGeneral(filteredStaff)} className="bg-white text-blue-600 border border-blue-200 p-3 rounded-2xl shadow-sm hover:bg-blue-50 transition" title="Imprimir Planilla General (Tabla)"><Grid size={20}/></button>
-                <button onClick={() => imprimirFichasDocentes(filteredStaff)} className="bg-white text-violet-600 border border-violet-200 p-3 rounded-2xl shadow-sm hover:bg-violet-50 transition" title="Imprimir Fichas Individuales"><Printer size={20}/></button>
+                <button 
+    onClick={() => setShowPrintOptions(true)} 
+    className="bg-white text-blue-600 border border-blue-200 p-3 rounded-2xl shadow-sm hover:bg-blue-50 transition" 
+    title="Configurar Planilla"
+>
+    <Grid size={20}/>
+</button>
+              <button onClick={() => imprimirFichasDocentes(filteredStaff)} className="bg-white text-violet-600 border border-violet-200 p-3 rounded-2xl shadow-sm hover:bg-violet-50 transition" title="Imprimir Fichas Individuales"><Printer size={20}/></button>
                 
                 <label className="p-3 bg-emerald-100 text-emerald-700 rounded-2xl cursor-pointer hover:bg-emerald-200 transition flex items-center justify-center">
                     {processing ? <RefreshCw className="animate-spin" size={20}/> : <UploadCloud size={20}/>}
@@ -5487,9 +5451,43 @@ const imprimirPlanillaGeneral = (lista) => {
         </div> 
       </div>
     )}
-  </div> 
+
+    {/* PARCHE PUNTO 3: MODAL DE OPCIONES DE IMPRESIÓN (FUERA DEL FORM) */}
+    {showPrintOptions && (
+        <div className="fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95">
+                <h3 className="text-xl font-black text-violet-900 uppercase italic mb-4 text-center">¿Qué info imprimir?</h3>
+                <div className="grid grid-cols-1 gap-2 mb-6">
+                    {Object.keys(printColumns).map(col => (
+                        <label key={col} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl cursor-pointer hover:bg-violet-50 transition border border-transparent hover:border-violet-200">
+                            <span className="text-[10px] font-black text-gray-600 uppercase">
+                                {col === 'alta' ? 'Fecha Ingreso' : col.replace('cargo', 'Cargo ')}
+                            </span>
+                            <input 
+                                type="checkbox" 
+                                checked={printColumns[col]} 
+                                onChange={() => setPrintColumns({...printColumns, [col]: !printColumns[col]})}
+                                className="w-5 h-5 accent-violet-600"
+                            />
+                        </label>
+                    ))}
+                </div>
+                <div className="flex gap-2">
+                    <button onClick={() => setShowPrintOptions(false)} className="flex-1 py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
+                    <button 
+                        onClick={() => { imprimirPlanillaGeneral(filteredStaff); setShowPrintOptions(false); }} 
+                        className="flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg hover:bg-violet-700 transition"
+                    >
+                        Generar Planilla
+                    </button>
+                </div>
+            </div>
+        </div>
+    )}
+
+  </div> // Fin del contenedor principal PersonalView
   ); 
-}
+} // Fin de la función
 function MedicalView({ user }) {
   const [students, setStudents] = useState([]);
   const [filterText, setFilterText] = useState('');
