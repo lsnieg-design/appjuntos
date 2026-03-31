@@ -342,7 +342,9 @@ function DashboardView({ user, tasks, events, announcements, setActiveTab }) {
   const [tutorialTab, setTutorialTab] = useState('inicio'); 
 
   // ESTADOS DEL JUEGO
-  const [currentChallenge, setCurrentChallenge] = useState({ q: "Cargando desafío...", isRestDay: false, url: "", answer: "" });
+const [currentChallenge, setCurrentChallenge] = useState({ q: "Cargando desafío...", isRestDay: false, url: "", answer: "" });
+  const [timeLeft, setTimeLeft] = useState(""); // Para la cuenta regresiva
+  const [isGameOver, setIsGameOver] = useState(false); // Para el corte de las 19hs
   const [challengeAnswer, setChallengeAnswer] = useState('');
   const [showChallengeSuccess, setShowChallengeSuccess] = useState(false);
   const [userScore, setUserScore] = useState(0);
@@ -442,6 +444,25 @@ const unsubUsers = onSnapshot(qUsers, (snap) => {
         }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday);
         setStaffBirthdays(sBdays);
     });
+    const timer = setInterval(() => {
+      const now = new Date();
+      const deadline = new Date();
+      deadline.setHours(19, 0, 0, 0); // Hora de corte: 19:00hs
+
+      if (now >= deadline) {
+        setIsGameOver(true);
+        setTimeLeft("00:00:00");
+      } else {
+        setIsGameOver(false);
+        const diff = deadline - now;
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        setTimeLeft(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
     // 5. Configuración y Cuenta regresiva
     const qSettings = query(collection(db, 'artifacts', appId, 'public', 'data', 'settings'));
@@ -458,35 +479,24 @@ const unsubUsers = onSnapshot(qUsers, (snap) => {
     });
 
 // 6. Cargar Desafío desde Github (LÓGICA AUTOMÁTICA MEJORADA)
-    const loadGithubChallenge = async () => {
-        try {
-            if (!isWorkingDay) {
-                setCurrentChallenge({ q: "¡Hoy es día de descanso! Nos vemos pronto. ☕", isRestDay: true });
-                return;
-            }
-            const res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${GITHUB_FOLDER}`);
-            const files = await res.json();
-            if (!Array.isArray(files)) return;
-
-            // Acepta cualquier extensión común
-            const images = files.filter(f => f.name.match(/\.(jpg|jpeg|png|webp|gif|bmp)$/i));
-
-            if (images.length > 0) {
-                const seed = todayDate.getFullYear() + todayDate.getMonth() + todayDate.getDate();
-                const idx = seed % images.length;
-                const file = images[idx];
-                
-                // Extrae el nombre quitando TODO después del último punto (ej: "5.png" -> "5")
-                const fileNameOnly = file.name.substring(0, file.name.lastIndexOf('.'));
-                
-                setCurrentChallenge({
-                    url: file.download_url,
-                    answer: fileNameOnly, 
-                    isRestDay: false
-                });
-            }
-        } catch (e) { console.error("Error Github:", e); }
-    };
+  const loadGithubChallenge = async () => {
+    try {
+      if (!isWorkingDay) {
+        setCurrentChallenge({ q: "¡Hoy es día de descanso!", isRestDay: true });
+        return;
+      }
+      const res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${GITHUB_FOLDER}`);
+      const files = await res.json();
+      const images = files.filter(f => f.name.match(/\.(jpg|jpeg|png|webp|gif|bmp)$/i));
+      if (images.length > 0) {
+        const seed = todayDate.getFullYear() + todayDate.getMonth() + todayDate.getDate();
+        const idx = seed % images.length;
+        const file = images[idx];
+        const fileNameOnly = file.name.substring(0, file.name.lastIndexOf('.'));
+        setCurrentChallenge({ url: file.download_url, answer: fileNameOnly, isRestDay: false });
+      }
+    } catch (e) { console.error("Error Github:", e); }
+  };
     loadGithubChallenge();
     const checkChallenge = async (e) => {
     if (e) e.preventDefault();
@@ -652,7 +662,7 @@ const resetMyDailyChallenge = () => {
           )}
       </div>
 
-   {/* BLOQUE DESAFÍO VISUAL (GITHUB INTEGRADO) */}
+{/* BLOQUE DESAFÍO VISUAL CON CORTE A LAS 19HS */}
       <div className="bg-gradient-to-br from-emerald-400 to-teal-500 p-5 rounded-[30px] shadow-md text-white relative overflow-hidden">
           <div className="absolute -right-4 -top-4 opacity-10"><Crown size={120}/></div>
           
@@ -660,11 +670,11 @@ const resetMyDailyChallenge = () => {
               <div className="flex-1 pr-4">
                   <div className="flex items-center gap-2">
                       <h3 className="text-[10px] font-black text-emerald-100 uppercase tracking-widest flex items-center gap-1">✨ Desafío del Día</h3>
-                      {/* BOTÓN SECRETO PARA VOS */}
-                      {(user.rol === 'admin' || user.rol === 'super-admin') && (
-                          <button onClick={resetMyDailyChallenge} className="p-1 bg-white/10 hover:bg-white/20 rounded-md transition-colors text-white/50 hover:text-white">
-                              <RefreshCw size={10} />
-                          </button>
+                      {/* CUENTA REGRESIVA AL LADO DEL TÍTULO */}
+                      {!isGameOver && !currentChallenge.isRestDay && (
+                        <span className="bg-black/20 px-2 py-0.5 rounded-lg text-[9px] font-mono font-bold animate-pulse">
+                          ⏳ Cierra en: {timeLeft}
+                        </span>
                       )}
                   </div>
 
@@ -689,18 +699,29 @@ const resetMyDailyChallenge = () => {
           
           {!currentChallenge.isRestDay && (
             <div className="mt-4 relative z-10">
-              {/* LÓGICA DE BLOQUEO: Solo si la fecha de hoy coincide Y NO acabas de ganar */}
-              {localStorage.getItem(`lastChallenge_${user.id}`) === new Date().toDateString() && !showChallengeSuccess ? (
+              {/* CASO 1: YA PASARON LAS 19HS (MUESTRA RESPUESTA) */}
+              {isGameOver ? (
+                <div className="bg-white/20 p-4 rounded-xl border border-white/30 text-center">
+                  <p className="text-[9px] uppercase font-black opacity-70">El tiempo terminó. La respuesta era:</p>
+                  <p className="text-lg font-black tracking-widest uppercase italic">✨ {currentChallenge.answer} ✨</p>
+                  <p className="text-[8px] mt-2 italic opacity-60">¡Mañana hay un nuevo desafío!</p>
+                </div>
+              ) : 
+              /* CASO 2: YA PARTICIPÓ HOY */
+              localStorage.getItem(`lastChallenge_${user.id}`) === new Date().toDateString() && !showChallengeSuccess ? (
                 <div className="bg-white/20 p-3 rounded-xl border border-white/30 text-center italic">
                   <p className="text-xs font-black">🚫 ¡Ya sumaste tus puntos de hoy! Volvé mañana. 😉</p>
                 </div>
-              ) : showChallengeSuccess ? (
+              ) : 
+              /* CASO 3: GANÓ RECIÉN */
+              showChallengeSuccess ? (
                 <div className="bg-white/20 p-3 rounded-xl text-center animate-bounce border-2 border-white">
                   <p className="font-black text-sm text-white">🎉 ¡Correcto! Sumaste 10 pts.</p>
                 </div>
               ) : (
+                /* CASO 4: FORMULARIO ACTIVO */
                 <form onSubmit={checkChallenge} className="flex gap-2">
-                  <input value={challengeAnswer} onChange={e => setChallengeAnswer(e.target.value)} placeholder="Respuesta..." className="flex-1 bg-white/20 text-white placeholder-emerald-100 border border-white/30 p-2.5 rounded-xl outline-none font-bold text-xs focus:bg-white/40 transition-all"/>
+                  <input value={challengeAnswer} onChange={e => setChallengeAnswer(e.target.value)} placeholder="¿Qué ves?..." className="flex-1 bg-white/20 text-white placeholder-emerald-100 border border-white/30 p-2.5 rounded-xl outline-none font-bold text-xs focus:bg-white/40 transition-all"/>
                   <button type="submit" className="bg-white text-emerald-600 font-black px-4 rounded-xl text-xs uppercase shadow-lg hover:scale-105 active:scale-95 transition-all">Jugar</button>
                 </form>
               )}
