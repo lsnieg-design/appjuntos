@@ -4440,12 +4440,12 @@ const imprimirSeguimientoSocial = (c) => {
       >
         Cerrar Legajo
       </button>
+   </div>
+          </div>
+        </div>
+      )}
     </div>
-  </div> {/* Cierra div del modal blanco */}
-</div> 
-)}
-</div> 
-);
+  );
 }
 // --- APP PRINCIPAL (FINAL: CON ADMIN INTEGRADO + MANTENIMIENTO + NOTIFS) ---
 function MainApp({ user, onLogout }) {
