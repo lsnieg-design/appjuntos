@@ -4276,16 +4276,13 @@ function SocialView({ user }) {
             </div>
             
             <div className="p-4 bg-white border-t flex justify-center">
-               <button onClick={() => setViewingStudent(null)} className="w-full py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-200 transition">Cerrar Legajo</button>
+     <button onClick={() => setViewingStudent(null)} className="w-full py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-200 transition">Cerrar Legajo</button>
             </div>
           </div>
         </div>
       )}
-
-// Sub-componente para limpiar el código de la vista principal
-function CardActiva({ c, user, updateStep, handleAddComment, imprimir }) {
-  // Aquí pegas el diseño de la tarjeta grande que hicimos antes para los casos activos
-  // (El que tiene el checklist grande y el chat a la derecha)
+    </div> // Este cierra el div principal de SocialView
+  );
 }
 // --- APP PRINCIPAL (FINAL: CON ADMIN INTEGRADO + MANTENIMIENTO + NOTIFS) ---
 function MainApp({ user, onLogout }) {
