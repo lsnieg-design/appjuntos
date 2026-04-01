@@ -3930,7 +3930,8 @@ function EquipoTecnicoView({ user }) {
 }
 function SocialView({ user }) {
   const [cases, setCases] = useState([]);
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState('all'); // all, primeros, segundos
+  const [viewMode, setViewMode] = useState('active'); // active, archived
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState({});
 
@@ -3938,7 +3939,7 @@ function SocialView({ user }) {
 
   useEffect(() => {
     if (!isAllowed) return;
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'), where('status', '!=', 'Reincorporado'));
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'));
     const unsub = onSnapshot(q, (snap) => {
       setCases(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
       setLoading(false);
@@ -3954,7 +3955,7 @@ function SocialView({ user }) {
     const field = stepName === 'continuidad' ? 'sent' : 'done';
     const newSteps = { 
       ...c.steps, 
-      [stepName]: { ...c.steps[stepName], [field]: !currentValue, date: !currentValue ? new Date().toLocaleDateString() : null, author: user.firstName } 
+      [stepName]: { ...c.steps[stepName], [field]: !currentValue, date: !currentValue ? new Date().toLocaleDateString('es-AR') : null, author: user.firstName } 
     };
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', caseId), { steps: newSteps });
   };
@@ -3967,7 +3968,60 @@ function SocialView({ user }) {
     setNewComment({ ...newComment, [caseId]: "" });
   };
 
+  // --- FUNCIÓN DE IMPRESIÓN OFICIAL ---
+  const imprimirSeguimientoSocial = (c) => {
+    const html = `<html><head><title>Informe Social - ${c.studentName}</title>
+      <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1e293b; line-height: 1.5; }
+        .header { border-bottom: 4px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
+        .logo { height: 80px; }
+        .title-area h1 { margin: 0; color: #1e3a8a; font-size: 22px; text-transform: uppercase; letter-spacing: 1px; }
+        .student-box { background: #f1f5f9; padding: 20px; border-radius: 15px; margin-bottom: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .label { font-size: 10px; font-weight: 900; color: #64748b; text-transform: uppercase; }
+        .value { font-size: 14px; font-weight: bold; color: #0f172a; }
+        .section-title { font-size: 14px; font-weight: 900; color: #2563eb; text-transform: uppercase; margin: 30px 0 15px 0; border-left: 5px solid #2563eb; padding-left: 10px; }
+        .step-pill { display: inline-block; padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; margin-bottom: 10px; border: 1px solid #ddd; }
+        .done { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+        .pending { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+        .history-item { margin-bottom: 15px; padding: 10px; border-bottom: 1px solid #e2e8f0; }
+        .history-meta { font-size: 10px; color: #64748b; font-weight: bold; margin-bottom: 4px; }
+        .footer { position: fixed; bottom: 20px; left: 40px; right: 40px; text-align: center; font-size: 9px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+      </style></head><body>
+      <div class="header">
+        <img src="/icon-192.png" class="logo" />
+        <div class="title-area" style="text-align:right">
+          <h1>Registro de Intervención Social</h1>
+          <p style="margin:5px 0 0 0; font-weight:bold; color:#64748b;">Escuela Especial Juntos a la Par</p>
+        </div>
+      </div>
+      <div class="student-box">
+        <div><span class="label">Estudiante</span><div class="value">${c.studentName}</div></div>
+        <div><span class="label">Nivel / Grupo</span><div class="value">${c.level} - ${c.group || 'Sin Grupo'}</div></div>
+        <div style="grid-column: span 2;"><span class="label">Motivo del Reporte</span><div class="value">${c.reason}</div></div>
+      </div>
+      <div class="section-title">Estado de Hoja de Ruta</div>
+      <div class="step-pill ${c.steps?.llamada?.done ? 'done' : 'pending'}">Llamada Familia: ${c.steps?.llamada?.done ? 'REALIZADA ('+c.steps.llamada.date+')' : 'PENDIENTE'}</div>
+      <div class="step-pill ${c.steps?.continuidad?.sent ? 'done' : 'pending'}">Continuidad Pedagógica: ${c.steps?.continuidad?.sent ? 'ENVIADA ('+c.steps.continuidad.date+')' : 'PENDIENTE'}</div>
+      <div class="section-title">Cronología de Intervenciones</div>
+      ${c.history?.map(h => `
+        <div class="history-item">
+          <div class="history-meta">${new Date(h.date).toLocaleString('es-AR')} - Registro de: ${h.author}</div>
+          <div style="font-size: 12px;">${h.text}</div>
+        </div>
+      `).join('')}
+      <div class="footer">Documento oficial de uso interno - Generado el ${new Date().toLocaleString()}</div>
+    </body></html>`;
+    const win = window.open('', '_blank');
+    win.document.write(html); win.document.close();
+    setTimeout(() => { win.print(); }, 500);
+  };
+
   const filteredCases = cases.filter(c => {
+    // Primero filtramos por modo Archivo o Activo
+    const matchStatus = viewMode === 'archived' ? c.status === 'Reincorporado' : c.status !== 'Reincorporado';
+    if (!matchStatus) return false;
+
+    // Luego aplicamos el filtro de Ciclo
     if (filter === 'primeros') return (c.level || '').includes('INICIAL') || (c.level || '').includes('1°');
     if (filter === 'segundos') return (c.level || '').includes('2°') || (c.level || '').includes('CFI');
     return true;
@@ -3976,129 +4030,142 @@ function SocialView({ user }) {
   return (
     <div className="space-y-6 animate-in fade-in pb-24 px-2 max-w-5xl mx-auto">
       
-      {/* HEADER DE SECCIÓN */}
-      <div className="bg-white p-6 rounded-[35px] shadow-sm border border-blue-100 flex flex-col md:flex-row justify-between items-center gap-4 mt-2">
-        <div className="flex items-center gap-4">
-          <div className="bg-blue-600 p-3 rounded-2xl text-white shadow-lg shadow-blue-100"><Users size={28}/></div>
-          <div>
-            <h2 className="text-2xl font-black text-slate-800 uppercase italic leading-none">Seguimiento Social</h2>
-            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mt-1">Casos de Ausentismo y Conflictos</p>
+      {/* HEADER DE SECCIÓN MEJORADO */}
+      <div className="bg-white p-6 rounded-[35px] shadow-sm border border-blue-100 mt-2">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-4">
+            <div className={`p-3 rounded-2xl text-white shadow-lg ${viewMode === 'active' ? 'bg-blue-600 shadow-blue-100' : 'bg-slate-600 shadow-slate-100'}`}>
+              {viewMode === 'active' ? <Users size={28}/> : <Folder size={28}/>}
+            </div>
+            <div>
+              <h2 className="text-2xl font-black text-slate-800 uppercase italic leading-none">
+                {viewMode === 'active' ? 'Seguimiento Social' : 'Archivero Social'}
+              </h2>
+              <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mt-1">
+                {viewMode === 'active' ? 'Gestión de casos en curso' : 'Historial de casos cerrados'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-2 w-full md:w-auto">
+            <select value={filter} onChange={(e) => setFilter(e.target.value)} className="flex-1 md:w-48 bg-blue-50 text-blue-700 font-black text-[10px] p-3 rounded-2xl outline-none border border-blue-100 uppercase">
+              <option value="all">📁 Todos los Ciclos</option>
+              <option value="primeros">👶 Inicial / 1° Ciclo</option>
+              <option value="segundos">🎒 2° Ciclo / CFI</option>
+            </select>
+            <button 
+              onClick={() => setViewMode(viewMode === 'active' ? 'archived' : 'active')}
+              className={`px-4 py-3 rounded-2xl font-black text-[10px] uppercase transition-all shadow-md ${viewMode === 'active' ? 'bg-slate-800 text-white' : 'bg-blue-600 text-white'}`}
+            >
+              {viewMode === 'active' ? 'Ver Archivo' : 'Ver Activos'}
+            </button>
           </div>
         </div>
-        <select value={filter} onChange={(e) => setFilter(e.target.value)} className="bg-blue-50 text-blue-700 font-black text-xs p-3 rounded-2xl outline-none border border-blue-100 shadow-inner w-full md:w-auto">
-          <option value="all">📁 TODOS LOS CASOS</option>
-          <option value="primeros">👶 INICIAL / 1° CICLO</option>
-          <option value="segundos">🎒 2° CICLO / CFI</option>
-        </select>
       </div>
 
       {/* LISTADO DE TARJETAS */}
-      <div className="grid gap-8">
+      <div className="grid gap-6">
         {loading ? (
           <div className="p-20 text-center"><RefreshCw className="animate-spin mx-auto text-blue-300" size={40}/></div>
+        ) : filteredCases.length === 0 ? (
+          <div className="bg-white p-16 rounded-[45px] text-center border-2 border-dashed border-gray-100">
+            <p className="text-gray-400 font-black uppercase text-xs tracking-widest italic">No se encontraron casos {viewMode === 'active' ? 'activos' : 'archivados'}</p>
+          </div>
         ) : filteredCases.map(c => (
-          <div key={c.id} className="bg-white rounded-[45px] shadow-xl shadow-slate-200/50 border border-gray-100 overflow-hidden flex flex-col relative transition-all hover:shadow-2xl">
+          <div key={c.id} className={`bg-white rounded-[45px] shadow-xl shadow-slate-200/40 border border-gray-100 overflow-hidden flex flex-col transition-all ${viewMode === 'archived' ? 'opacity-90 grayscale-[0.3]' : ''}`}>
             
-            {/* LÍNEA SUPERIOR DE ESTADO */}
-            <div className={`h-2 w-full ${c.steps?.llamada?.done && c.steps?.continuidad?.sent ? 'bg-emerald-500' : 'bg-orange-400'}`}></div>
+            <div className={`h-2 w-full ${viewMode === 'archived' ? 'bg-slate-400' : (c.steps?.llamada?.done && c.steps?.continuidad?.sent ? 'bg-emerald-500' : 'bg-orange-400')}`}></div>
 
             <div className="p-6 md:p-8">
-              {/* ENCABEZADO DEL ALUMNO */}
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">{c.studentName}</h3>
                   <div className="flex gap-2 mt-1">
-                    <span className="bg-blue-100 text-blue-700 text-[10px] font-black px-2 py-0.5 rounded-full uppercase italic">{c.level}</span>
-                    <span className="bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Ref: {c.reportedBy}</span>
+                    <span className="bg-blue-50 text-blue-600 text-[10px] font-black px-2 py-0.5 rounded-full uppercase italic border border-blue-100">{c.level}</span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase py-0.5">Inicio: {new Date(c.createdAt?.seconds * 1000).toLocaleDateString()}</span>
                   </div>
                 </div>
-                <button onClick={() => alert("Función de impresión en desarrollo")} className="p-3 bg-slate-50 text-slate-400 rounded-2xl hover:bg-blue-50 hover:text-blue-600 transition"><Printer size={20}/></button>
+                <div className="flex gap-2">
+                  <button onClick={() => imprimirSeguimientoSocial(c)} className="p-3 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-600 hover:text-white transition shadow-sm" title="Imprimir Informe"><Printer size={20}/></button>
+                </div>
               </div>
 
-              {/* MOTIVO (CARD DENTRO DE CARD) */}
-              <div className="bg-slate-50 p-5 rounded-3xl mb-8 border-l-4 border-blue-500 relative">
+              <div className="bg-slate-50 p-5 rounded-3xl mb-8 border-l-4 border-blue-500">
                 <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Motivo del Reporte:</p>
-                <p className="text-sm font-bold text-slate-700 leading-relaxed italic">"{c.reason}"</p>
-                <FileText size={40} className="absolute right-4 top-4 text-slate-200" strokeWidth={1}/>
+                <p className="text-sm font-bold text-slate-700">"{c.reason}"</p>
+                <p className="text-[9px] font-black text-slate-400 mt-2 uppercase tracking-tighter">Docente: {c.reportedBy}</p>
               </div>
 
-              {/* CUERPO CENTRAL: CHECKLIST Y CHAT */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                
-                {/* COLUMNA IZQUIERDA: PASOS */}
-                <div className="space-y-4">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[3px] ml-1">Hoja de Ruta</h4>
-                  
-                  {/* Item: Llamada */}
-                  <button onClick={() => updateStep(c.id, 'llamada')} className={`w-full flex items-center gap-4 p-5 rounded-3xl border-2 transition-all ${c.steps?.llamada?.done ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-100 hover:border-slate-200'}`}>
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 shrink-0 ${c.steps?.llamada?.done ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-200 text-slate-300'}`}>
-                      {c.steps?.llamada?.done ? <Check size={20} strokeWidth={4}/> : <Phone size={18}/>}
-                    </div>
-                    <div className="text-left">
-                      <p className={`text-sm font-black uppercase ${c.steps?.llamada?.done ? 'text-emerald-700' : 'text-slate-400'}`}>Llamada a Familia</p>
-                      <p className="text-[10px] font-bold text-slate-400">{c.steps?.llamada?.done ? `Hecho por ${c.steps.llamada.author} el ${c.steps.llamada.date}` : 'Pendiente de contacto'}</p>
-                    </div>
-                  </button>
-
-                  {/* Item: Continuidad */}
-                  <button onClick={() => updateStep(c.id, 'continuidad')} className={`w-full flex items-center gap-4 p-5 rounded-3xl border-2 transition-all ${c.steps?.continuidad?.sent ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-100 hover:border-slate-200'}`}>
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 shrink-0 ${c.steps?.continuidad?.sent ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-200 text-slate-300'}`}>
-                      {c.steps?.continuidad?.sent ? <Check size={20} strokeWidth={4}/> : <BookOpen size={18}/>}
-                    </div>
-                    <div className="text-left">
-                      <p className={`text-sm font-black uppercase ${c.steps?.continuidad?.sent ? 'text-indigo-700' : 'text-slate-400'}`}>Continuidad Pedagógica</p>
-                      <p className="text-[10px] font-bold text-slate-400">{c.steps?.continuidad?.sent ? `Enviada por ${c.steps.continuidad.author} el ${c.steps.continuidad.date}` : 'Pendiente de envío'}</p>
-                    </div>
-                  </button>
+                {/* CHECKLIST */}
+                <div className="space-y-3">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Pasos de Gestión</p>
+                  {['llamada', 'continuidad'].map(step => {
+                    const isDone = step === 'continuidad' ? c.steps?.[step]?.sent : c.steps?.[step]?.done;
+                    return (
+                      <button key={step} onClick={() => updateStep(c.id, step)} disabled={viewMode === 'archived'} className={`w-full flex items-center gap-4 p-4 rounded-3xl border-2 transition-all ${isDone ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-50 opacity-60'}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 shrink-0 ${isDone ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-200 text-slate-300'}`}>
+                          <Check size={18} strokeWidth={4}/>
+                        </div>
+                        <div className="text-left">
+                          <p className={`text-[11px] font-black uppercase ${isDone ? 'text-emerald-700' : 'text-slate-400'}`}>{step === 'llamada' ? 'Llamada Familia' : 'Continuidad Pedagógica'}</p>
+                          {isDone && <p className="text-[8px] font-bold text-emerald-600/60 uppercase">Hecho por {c.steps?.[step]?.author} el {c.steps?.[step]?.date}</p>}
+                        </div>
+                      </button>
+                    )
+                  })}
                 </div>
 
-                {/* COLUMNA DERECHA: CHAT */}
-                <div className="flex flex-col h-full">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[3px] ml-1 mb-4 flex items-center gap-2">
-                    <MessageSquare size={14}/> Comentarios del Equipo
-                  </h4>
-                  <div className="bg-slate-50 rounded-[35px] p-5 flex-1 flex flex-col border border-slate-100">
-                    <div className="flex-1 space-y-3 max-h-64 overflow-y-auto mb-4 pr-2 custom-scrollbar">
-                      {c.history?.length > 0 ? c.history.map((h, i) => {
-                        const isMe = h.author === user.firstName;
-                        return (
-                          <div key={i} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                            <div className={`max-w-[90%] p-3 rounded-2xl text-xs font-bold shadow-sm ${isMe ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-slate-700 border border-slate-200 rounded-tl-none'}`}>
-                              <p className="text-[8px] font-black uppercase opacity-60 mb-1">{h.author} • {new Date(h.date).toLocaleDateString()}</p>
-                              {h.text}
-                            </div>
-                          </div>
-                        );
-                      }) : <p className="text-center text-[10px] text-slate-400 font-bold uppercase py-10">Sin mensajes aún</p>}
-                    </div>
-                    
-                    {/* INPUT DEL CHAT */}
+                {/* CHAT */}
+                <div className="flex flex-col bg-slate-50 rounded-[35px] p-5 border border-slate-100">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-1">Bitácora de Avances</p>
+                  <div className="flex-1 space-y-3 max-h-48 overflow-y-auto mb-4 pr-2 custom-scrollbar">
+                    {c.history?.length > 0 ? c.history.map((h, i) => (
+                      <div key={i} className={`flex flex-col ${h.author === user.firstName ? 'items-end' : 'items-start'}`}>
+                        <div className={`max-w-[90%] p-3 rounded-2xl text-[11px] font-bold shadow-sm ${h.author === user.firstName ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-slate-700 border border-slate-200 rounded-tl-none'}`}>
+                          <span className="text-[8px] opacity-60 block mb-1 uppercase">{h.author} • {new Date(h.date).toLocaleDateString()}</span>
+                          {h.text}
+                        </div>
+                      </div>
+                    )) : <p className="text-center text-[10px] text-slate-300 font-black uppercase py-10">Sin comentarios</p>}
+                  </div>
+                  
+                  {viewMode === 'active' && (
                     <div className="flex gap-2">
                       <input 
                         value={newComment[c.id] || ""}
                         onChange={(e) => setNewComment({ ...newComment, [c.id]: e.target.value })}
                         onKeyDown={(e) => e.key === 'Enter' && handleAddComment(c.id)}
                         placeholder="Escribir avance..." 
-                        className="flex-1 bg-white p-3 rounded-2xl text-xs font-bold border border-slate-200 outline-none focus:ring-2 ring-blue-200 shadow-inner"
+                        className="flex-1 bg-white p-3 rounded-2xl text-xs font-bold border border-slate-200 outline-none"
                       />
                       <button onClick={() => handleAddComment(c.id)} className="bg-blue-600 text-white p-3 rounded-2xl shadow-lg hover:bg-blue-700 active:scale-95 transition flex-shrink-0">
                         <Send size={18}/>
                       </button>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
-              {/* BOTÓN FINAL DE CIERRE */}
-              <div className="mt-10 pt-6 border-t border-slate-100 flex justify-end">
-                <button 
-                  onClick={async () => { if(confirm("¿El alumno se reincorporó? El caso se cerrará.")) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', c.id), { status: 'Reincorporado' }); }}
-                  className="bg-emerald-500 text-white px-8 py-4 rounded-3xl font-black text-xs uppercase shadow-xl shadow-emerald-100 hover:bg-emerald-600 active:scale-95 transition-all flex items-center gap-3"
-                >
-                  <CheckCircle size={20}/> Alumno Reincorporado
-                </button>
+              {/* BOTÓN FINAL */}
+              <div className="mt-8 pt-6 border-t border-slate-100 flex justify-between items-center">
+                <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full ${c.status === 'Reincorporado' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
+                   Estado: {c.status || 'Activo'}
+                </span>
+                {viewMode === 'active' ? (
+                  <button 
+                    onClick={async () => { if(confirm("¿Archivar caso por reincorporación?")) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', c.id), { status: 'Reincorporado' }); }}
+                    className="bg-emerald-500 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase shadow-lg shadow-emerald-100 hover:bg-emerald-600 active:scale-95 transition-all flex items-center gap-2"
+                  >
+                    <CheckCircle2 size={16}/> Finalizar y Archivar
+                  </button>
+                ) : (
+                  <button 
+                    onClick={async () => { if(confirm("¿Reabrir este caso?")) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', c.id), { status: 'Pendiente' }); }}
+                    className="bg-orange-500 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase shadow-lg shadow-orange-100 hover:bg-orange-600 active:scale-95 transition-all"
+                  >Reabrir Caso</button>
+                )}
               </div>
-
             </div>
           </div>
         ))}
