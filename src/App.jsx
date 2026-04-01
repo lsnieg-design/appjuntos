@@ -4398,8 +4398,7 @@ const imprimirSeguimientoSocial = (c) => {
   );
 }
 
-// --- APP PRINCIPAL (FINAL: CON ADMIN INTEGRADO + MANTENIMIENTO + NOTIFS) ---
-function MainApp({ user, onLogout }) {
+
 // --- APP PRINCIPAL (FINAL: CON ADMIN INTEGRADO + MANTENIMIENTO + NOTIFS) ---
 function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -4544,7 +4543,7 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={isSuperAdmin} user={user} />}
         {activeTab === 'equipo' && <EquipoTecnicoView user={user} />}
         {/* --- NUEVO: VISTA ADMIN (SOLO RENDERIZA SI EL TAB ES 'ADMIN') --- */}
-        {activeTab === 'admin' && <ew user={user} />}
+        {activeTab === 'admin' && <AdministracionView user={user} />}
         {/* ----------------------------------------------------------------- */}
         {activeTab === 'users' && isSuperAdmin && <UsersAdminView />}
         {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={isSuperAdmin} user={user} />}
