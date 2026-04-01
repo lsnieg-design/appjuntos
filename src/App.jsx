@@ -396,20 +396,19 @@ const GITHUB_FOLDER = "desafios";
       if (t.targetType === 'roles' && t.targetRoles?.some(r => r.toLowerCase() === user.role?.toLowerCase())) return true;
       return false;
   }).length;
-
-  useEffect(() => {
+useEffect(() => {
     // 1. Notas
     const qNotes = query(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), where('userId', '==', user.id));
     const unsubNotes = onSnapshot(qNotes, (snap) => setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.done - b.done)));
     
-   // 2. Usuarios y Ranking
-const qUsers = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
-const unsubUsers = onSnapshot(qUsers, (snap) => {
-    const usersData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    const me = usersData.find(u => u.id === user.id);
-    if (me) setUserScore(me.score || 0); // Esto mantiene tus puntos actuales
-    setRankingData(usersData.filter(u => (u.score || 0) > 0).sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 10));
-});
+    // 2. Usuarios y Ranking
+    const qUsers = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
+    const unsubUsers = onSnapshot(qUsers, (snap) => {
+        const usersData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const me = usersData.find(u => u.id === user.id);
+        if (me) setUserScore(me.score || 0);
+        setRankingData(usersData.filter(u => (u.score || 0) > 0).sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 10));
+    });
 
     // 3. Estudiantes y Cumpleaños
     const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
@@ -444,26 +443,65 @@ const unsubUsers = onSnapshot(qUsers, (snap) => {
         }).filter(s => s && s.nextBirthday >= today && s.nextBirthday <= nextWeek).sort((a, b) => a.nextBirthday - b.nextBirthday);
         setStaffBirthdays(sBdays);
     });
+
+    // LÓGICA DEL RELOJ PARA EL CORTE DE LAS 19HS
     const timer = setInterval(() => {
-      const now = new Date();
-      const deadline = new Date();
-      deadline.setHours(19, 0, 0, 0); // Hora de corte: 19:00hs
-
-      if (now >= deadline) {
-        setIsGameOver(true);
-        setTimeLeft("00:00:00");
-      } else {
-        setIsGameOver(false);
-        const diff = deadline - now;
-        const h = Math.floor(diff / 3600000);
-        const m = Math.floor((diff % 3600000) / 60000);
-        const s = Math.floor((diff % 60000) / 1000);
-        setTimeLeft(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
-      }
+        const now = new Date();
+        const deadline = new Date();
+        deadline.setHours(19, 0, 0, 0); 
+        if (now >= deadline) {
+            setIsGameOver(true);
+            setTimeLeft("00:00:00");
+        } else {
+            setIsGameOver(false);
+            const diff = deadline - now;
+            const h = Math.floor(diff / 3600000);
+            const m = Math.floor((diff % 3600000) / 60000);
+            const s = Math.floor((diff % 60000) / 1000);
+            setTimeLeft(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+        }
     }, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
+    // 6. Carga de Desafío
+    const loadGithubChallenge = async () => {
+        try {
+            if (!isWorkingDay) {
+                setCurrentChallenge({ q: "¡Hoy es día de descanso!", isRestDay: true });
+                return;
+            }
+            const res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${GITHUB_FOLDER}`);
+            const files = await res.json();
+            const images = files.filter(f => f.name.match(/\.(jpg|jpeg|png|webp|gif|bmp)$/i));
+            if (images.length > 0) {
+                const seed = todayDate.getFullYear() + todayDate.getMonth() + todayDate.getDate();
+                const idx = seed % images.length;
+                const file = images[idx];
+                const fileNameOnly = file.name.substring(0, file.name.lastIndexOf('.'));
+                setCurrentChallenge({ url: file.download_url, answer: fileNameOnly, isRestDay: false });
+            }
+        } catch (e) { console.error("Error Github:", e); }
+    };
+    loadGithubChallenge();
+
+    // 5. Configuración de Cuenta Regresiva
+    const qSettings = query(collection(db, 'artifacts', appId, 'public', 'data', 'settings'));
+    const unsubSettings = onSnapshot(qSettings, (snap) => {
+        if (!snap.empty) {
+            const docSnap = snap.docs.find(d => d.data().title || d.data().date);
+            if (docSnap) {
+                setCountdownDocId(docSnap.id);
+                const data = docSnap.data();
+                const diffDays = Math.ceil((new Date(data.date + 'T00:00:00') - new Date()) / (1000 * 60 * 60 * 24));
+                setCountdown({ title: data.title || '', date: data.date, daysLeft: diffDays > 0 ? diffDays : 0 });
+            }
+        }
+    });
+
+    return () => { 
+      unsubNotes(); unsubUsers(); unsubSettings(); unsubStudents(); unsubStaff(); 
+      clearInterval(timer);
+    };
+  }, [user.id, appId, isWorkingDay]);
     // 5. Configuración y Cuenta regresiva
     const qSettings = query(collection(db, 'artifacts', appId, 'public', 'data', 'settings'));
     const unsubSettings = onSnapshot(qSettings, (snap) => {
