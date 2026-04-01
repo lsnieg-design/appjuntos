@@ -4243,46 +4243,80 @@ function SocialView({ user }) {
                 </div>
               </div>
 
-              {/* BITÁCORA COMPLETA */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-center px-1">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[3px]">Bitácora Histórica Completa</h4>
-                  <span className="text-[9px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full font-bold">{viewingStudent.incidents?.length || 0} Registros</span>
+         {/* BITÁCORA UNIFICADA (Aula + Reportes Sociales) */}
+      <div className="space-y-3">
+        <div className="flex justify-between items-center px-1">
+          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[3px]">Historial Unificado Completo</h4>
+          <span className="text-[9px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-bold italic">Aula + Gestión Social</span>
+        </div>
+        
+        <div className="space-y-3">
+          {(() => {
+            // 1. Extraer incidentes de la bitácora normal
+            const normalIncidents = (viewingStudent.incidents || []).map(inc => ({
+              ...inc,
+              source: 'aula'
+            }));
+
+            // 2. Buscar reportes sociales de este alumno en la colección social_cases
+            const socialReports = cases
+              .filter(c => c.studentId === viewingStudent.id || c.studentName === `${viewingStudent.lastName}, ${viewingStudent.firstName}`)
+              .map(c => ({
+                date: c.createdAt?.seconds ? new Date(c.createdAt.seconds * 1000).toISOString() : new Date().toISOString(),
+                text: `⚠️ REPORTE SOCIAL: ${c.reason}`,
+                type: 'Gestión Social',
+                author: c.reportedBy || 'Gabinete',
+                severity: 'high',
+                source: 'social'
+              }));
+
+            // 3. Unificar y ordenar por fecha (más reciente arriba)
+            const combinedTimeline = [...normalIncidents, ...socialReports].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            if (combinedTimeline.length === 0) {
+              return (
+                <div className="text-center py-10 bg-white rounded-3xl border border-dashed border-gray-200">
+                  <p className="text-gray-400 text-xs font-bold uppercase italic">Sin registros históricos</p>
                 </div>
-                
-                <div className="space-y-3">
-                  {viewingStudent.incidents && viewingStudent.incidents.length > 0 ? (
-                    viewingStudent.incidents.slice().reverse().map((inc, i) => (
-                      <div key={i} className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
-                        <div className="flex justify-between items-center mb-2 border-b border-gray-50 pb-1">
-                          <span className="font-black text-blue-600 text-[9px] uppercase tracking-wider">{new Date(inc.date).toLocaleDateString('es-AR')}</span>
-                          <span className="text-[8px] font-bold text-gray-400 uppercase italic">Por: {inc.author}</span>
-                        </div>
-                        <p className="text-xs font-bold text-slate-700 leading-relaxed mb-1">{inc.text || inc.type}</p>
-                        {inc.severity && (
-                          <span className={`text-[7px] font-black px-1.5 py-0.5 rounded uppercase ${inc.severity === 'high' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
-                            Prioridad {inc.severity}
-                          </span>
-                        )}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-10 bg-white rounded-3xl border border-dashed border-gray-200">
-                      <p className="text-gray-400 text-xs font-bold uppercase italic">Sin registros en la bitácora</p>
-                    </div>
-                  )}
+              );
+            }
+
+            return combinedTimeline.map((inc, i) => (
+              <div key={i} className={`p-4 rounded-2xl border shadow-sm transition-all ${inc.source === 'social' ? 'bg-red-50 border-red-200 ring-2 ring-red-50' : 'bg-white border-gray-200'}`}>
+                <div className="flex justify-between items-center mb-2 border-b border-gray-50 pb-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`font-black text-[9px] uppercase tracking-wider ${inc.source === 'social' ? 'text-red-600' : 'text-blue-600'}`}>
+                      {new Date(inc.date).toLocaleDateString('es-AR')}
+                    </span>
+                    {inc.source === 'social' && (
+                      <span className="bg-red-600 text-white text-[7px] px-1.5 py-0.5 rounded-md font-black animate-pulse uppercase">Urgente</span>
+                    )}
+                  </div>
+                  <span className="text-[8px] font-bold text-gray-400 uppercase italic">Por: {inc.author}</span>
+                </div>
+                <p className="text-xs font-bold text-slate-700 leading-relaxed mb-1">{inc.text || inc.type}</p>
+                <div className="flex justify-between items-center mt-2">
+                   <span className="text-[7px] font-black px-1.5 py-0.5 rounded uppercase bg-gray-100 text-gray-500">
+                     Origen: {inc.source === 'social' ? 'Gabinete Social' : 'Bitácora de Aula'}
+                   </span>
                 </div>
               </div>
-            </div>
-            
-            <div className="p-4 bg-white border-t flex justify-center">
-     <button onClick={() => setViewingStudent(null)} className="w-full py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-200 transition">Cerrar Legajo</button>
-            </div>
-          </div>
+            ));
+          })()}
         </div>
-      )}
-    </div> // Este cierra el div principal de SocialView
-  );
+      </div>
+    </div> {/* Cierra el div del contenido del modal (p-6 overflow-y-auto) */}
+    
+    <div className="p-4 bg-white border-t flex justify-center shrink-0">
+      <button onClick={() => setViewingStudent(null)} className="w-full py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-200 transition">
+        Cerrar Legajo
+      </button>
+    </div>
+  </div> {/* Cierra el modal blanco (bg-white rounded-[40px]) */}
+</div> 
+)}
+</div> 
+);
 }
 // --- APP PRINCIPAL (FINAL: CON ADMIN INTEGRADO + MANTENIMIENTO + NOTIFS) ---
 function MainApp({ user, onLogout }) {
