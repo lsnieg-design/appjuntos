@@ -584,8 +584,8 @@ const resetMyDailyChallenge = () => {
   return (
     <div className="space-y-4 animate-in fade-in pb-10">
            
-      {/* CARTEL GANADOR MENSUAL */}
-      {todayDate.getDate() === 1 && rankingData.length > 0 && (
+     {/* CARTEL GANADOR MENSUAL (CON FILTRO DE PUNTAJE) */}
+      {todayDate.getDate() === 1 && rankingData.length > 0 && rankingData[0].score > 50 && (
           <div className="bg-gradient-to-r from-yellow-400 to-orange-500 p-6 rounded-[35px] text-white shadow-xl animate-bounce mx-2">
               <h3 className="font-black text-center text-xl uppercase italic tracking-tighter">🏆 ¡GANADOR DEL MES ANTERIOR! 🏆</h3>
               <p className="text-center font-bold text-lg mt-2 uppercase">{rankingData[0].firstName} {rankingData[0].lastName}</p>
