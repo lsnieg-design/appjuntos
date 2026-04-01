@@ -4261,11 +4261,7 @@ function MainApp({ user, onLogout }) {
                       <button onClick={() => { setActiveTab('matricula'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
                           <GraduationCap size={18} className="text-violet-500"/> Legajos
                       </button>
-                {canAccessSocial && (
-  <button onClick={() => { setActiveTab('social'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
-      <Users size={18} className="text-blue-500"/> Trabajo Social
-  </button>
-)}
+               
                       <button onClick={() => { setActiveTab('resources'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
                           <LinkIcon size={18} className="text-green-500"/> Recursos
                       </button>
@@ -4294,6 +4290,11 @@ function MainApp({ user, onLogout }) {
                                       </button>
                                   </>
                               )}
+                             {canAccessSocial && (
+  <button onClick={() => { setActiveTab('social'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
+      <Users size={18} className="text-blue-500"/> Trabajo Social
+  </button>
+)}
 
                               {isMedicalRole && (
                                   <button onClick={() => { setActiveTab('medical'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-red-50 flex items-center gap-3 text-sm font-bold text-red-600 transition">
