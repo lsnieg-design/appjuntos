@@ -4422,7 +4422,7 @@ const imprimirSeguimientoSocial = (c) => {
                 })()}
               </div>
             </div>
-          </div> {/* Cierra div p-6 scrollable */}
+          </div> {/* Cierra div p-6 */}
 
           <div className="p-4 bg-white border-t flex justify-center shrink-0">
             <button 
@@ -4432,12 +4432,15 @@ const imprimirSeguimientoSocial = (c) => {
               Cerrar Legajo
             </button>
           </div>
-        </div> {/* Cierra div blanco del modal */}
+        </div> {/* Cierra modal blanco */}
       </div> 
       )}
     </div>
   );
 }
+
+// --- APP PRINCIPAL (FINAL: CON ADMIN INTEGRADO + MANTENIMIENTO + NOTIFS) ---
+function MainApp({ user, onLogout }) {
 // --- APP PRINCIPAL (FINAL: CON ADMIN INTEGRADO + MANTENIMIENTO + NOTIFS) ---
 function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
