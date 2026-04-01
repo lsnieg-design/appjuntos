@@ -3990,26 +3990,104 @@ function SocialView({ user }) {
     setNewComment({ ...newComment, [caseId]: "" });
   };
 
- const imprimirSeguimientoSocial = (c) => {
+const imprimirSeguimientoSocial = (c) => {
     const docHtml = `
-      <html><head><title>Informe - ${c.studentName}</title>
-      <style>
-        body { font-family: sans-serif; padding: 40px; color: #334155; }
-        .header { border-bottom: 3px solid #2563eb; padding-bottom: 10px; margin-bottom: 20px; }
-        .title { color: #1e3a8a; text-transform: uppercase; font-size: 20px; font-weight: bold; }
-        .info { background: #f8fafc; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
-        .label { font-size: 10px; font-weight: bold; color: #64748b; text-transform: uppercase; }
-        .item { margin-bottom: 10px; padding: 10px; border-bottom: 1px solid #f1f5f9; font-size: 12px; }
-      </style></head><body>
-      <div class="header"><div class="title">Seguimiento Social - Juntos a la Par</div></div>
-      <div class="info">
-        <p><span class="label">Estudiante:</span> ${c.studentName}</p>
-        <p><span class="label">Nivel:</span> ${c.level}</p>
-        <p><span class="label">Motivo:</span> ${c.reason}</p>
-      </div>
-      <h3>Historial de Intervención</h3>
-      ${c.history?.map(h => `<div class="item"><strong>${new Date(h.date).toLocaleDateString()} - ${h.author}:</strong> ${h.text}</div>`).join('')}
-      </body></html>`;
+      <html>
+        <head>
+          <title>Informe Social - ${c.studentName}</title>
+          <style>
+            @media print {
+              body { padding: 0; margin: 0; }
+              .no-print { display: none; }
+            }
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1e293b; background: white; }
+            .header { border-bottom: 4px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
+            .logo-area { display: flex; align-items: center; gap: 15px; }
+            .logo-img { width: 60px; height: 60px; object-fit: contain; }
+            .school-name { font-size: 18px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; margin: 0; }
+            .school-sub { font-size: 10px; font-weight: bold; color: #64748b; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+            
+            .report-title { text-align: right; }
+            .report-title h1 { font-size: 22px; margin: 0; color: #1e3a8a; text-transform: uppercase; italic; }
+            .report-date { font-size: 10px; color: #64748b; font-weight: bold; }
+
+            .main-card { border: 2px solid #e2e8f0; border-radius: 20px; padding: 25px; margin-bottom: 30px; background: #f8fafc; }
+            .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+            .label { font-size: 9px; font-weight: 900; color: #2563eb; text-transform: uppercase; margin-bottom: 4px; display: block; }
+            .value { font-size: 14px; font-weight: bold; color: #0f172a; }
+
+            .section-title { font-size: 12px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; border-left: 5px solid #2563eb; padding-left: 10px; margin: 30px 0 15px 0; }
+            
+            .history-list { border-top: 1px solid #e2e8f0; }
+            .history-item { padding: 15px 0; border-bottom: 1px solid #f1f5f9; page-break-inside: avoid; }
+            .history-meta { font-size: 10px; font-weight: 800; color: #64748b; margin-bottom: 5px; display: flex; justify-content: space-between; }
+            .history-text { font-size: 12px; color: #334155; line-height: 1.6; }
+            
+            .footer { position: fixed; bottom: 20px; left: 40px; right: 40px; border-top: 1px solid #e2e8f0; padding-top: 10px; text-align: center; font-size: 9px; color: #94a3b8; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="logo-area">
+              <img src="/icon-192.png" class="logo-img" onerror="this.style.display='none'" />
+              <div>
+                <p class="school-name">Juntos a la Par</p>
+                <p class="school-sub">Escuela de Educación Especial</p>
+              </div>
+            </div>
+            <div class="report-title">
+              <h1>Informe de Seguimiento</h1>
+              <p class="report-date">Generado el: ${new Date().toLocaleString('es-AR')}</p>
+            </div>
+          </div>
+
+          <div class="main-card">
+            <div class="info-grid">
+              <div>
+                <span class="label">Estudiante</span>
+                <div class="value">${c.studentName}</div>
+              </div>
+              <div>
+                <span class="label">Nivel / Ciclo</span>
+                <div class="value">${c.level || 'S/D'}</div>
+              </div>
+              <div style="grid-column: span 2; margin-top: 10px; border-top: 1px solid #e2e8f0; pt-10;">
+                <span class="label" style="margin-top: 15px;">Motivo del Reporte</span>
+                <div class="value" style="font-style: italic; color: #334155;">"${c.reason}"</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-title">Bitácora de Intervención Social</div>
+          <div class="history-list">
+            ${c.history && c.history.length > 0 
+              ? c.history.map(h => `
+                  <div class="history-item">
+                    <div class="history-meta">
+                      <span>FECHA: ${new Date(h.date).toLocaleDateString('es-AR')}</span>
+                      <span>AUTOR: ${h.author.toUpperCase()}</span>
+                    </div>
+                    <div class="history-text">${h.text}</div>
+                  </div>
+                `).join('')
+              : '<p style="font-size:12px; color:#94a3b8; padding:20px; text-align:center;">No hay comentarios registrados en este caso.</p>'
+            }
+          </div>
+
+          <div class="footer">
+            Documento de uso interno - Gestión de Trabajo Social - Escuela Juntos a la Par
+          </div>
+        </body>
+      </html>
+    `;
+    const win = window.open('', '_blank');
+    win.document.write(docHtml);
+    win.document.close();
+    // Damos un tiempo para que cargue el logo antes de abrir el cuadro de impresión
+    setTimeout(() => {
+      win.print();
+    }, 800);
+  };
     const win = window.open('', '_blank');
     win.document.write(docHtml);
     win.document.close();
