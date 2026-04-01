@@ -4175,62 +4175,112 @@ function SocialView({ user }) {
         )}
       </div>
 
-      {/* --- MODAL LEGAJO RÁPIDO DESDE SOCIAL --- */}
+      {/* MODAL LEGAJO RÁPIDO CON BITÁCORA COMPLETA Y REPORTE */}
       {viewingStudent && (
         <div className="fixed inset-0 bg-black/80 z-[600] flex items-center justify-center p-4 backdrop-blur-md" onClick={() => setViewingStudent(null)}>
-          <div className="bg-white rounded-[40px] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-[40px] w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] animate-in zoom-in-95 border-t-8 border-slate-900" onClick={e => e.stopPropagation()}>
+            
+            {/* CABECERA */}
             <div className="bg-slate-900 p-6 text-white flex justify-between items-center shrink-0">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-white/20 rounded-2xl overflow-hidden flex items-center justify-center font-black">
-                  {viewingStudent.photoUrl ? <img src={viewingStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={24}/>}
+                <div className="w-14 h-14 bg-white/20 rounded-2xl overflow-hidden flex items-center justify-center font-black border-2 border-white/10 shadow-lg">
+                  {viewingStudent.photoUrl ? <img src={viewingStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={28}/>}
                 </div>
                 <div>
-                  <h2 className="font-black uppercase tracking-tight leading-none text-lg">{viewingStudent.lastName}, {viewingStudent.firstName}</h2>
-                  <p className="text-blue-400 text-[10px] font-bold uppercase mt-1">Legajo: {viewingStudent.dni || '-'}</p>
+                  <h2 className="font-black uppercase tracking-tight leading-none text-xl">{viewingStudent.lastName}, {viewingStudent.firstName}</h2>
+                  <div className="flex gap-2 mt-2">
+                    <span className="bg-blue-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase italic">DNI: {viewingStudent.dni || '-'}</span>
+                    <span className="bg-orange-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase italic">{calculateAge(viewingStudent.birthDate)} años</span>
+                  </div>
                 </div>
               </div>
-              <button onClick={() => setViewingStudent(null)} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition"><X size={20}/></button>
+              <button onClick={() => setViewingStudent(null)} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition"><X size={24}/></button>
             </div>
 
-            <div className="p-6 overflow-y-auto space-y-6 bg-gray-50 flex-1">
-              <div className="bg-red-50 p-5 rounded-3xl border border-red-100">
-                <h4 className="text-red-700 font-black text-[10px] uppercase mb-3 flex items-center gap-2 tracking-widest"><Phone size={14}/> Contactos Urgentes</h4>
+            <div className="p-6 overflow-y-auto space-y-6 bg-gray-50 flex-1 custom-scrollbar">
+              
+              {/* BOTÓN RÁPIDO DE AUSENTISMO (Directo desde el legajo) */}
+              <button 
+                onClick={() => {
+                   setViewingStudent(null); // Cerramos este para ir al prompt
+                   // Aquí disparamos la misma lógica de GroupsView si la tenés global o la replicamos
+                   const details = prompt(`¿Motivo del ausentismo o conflicto de ${viewingStudent.firstName}?`);
+                   if(details) {
+                      const caseData = {
+                          studentId: viewingStudent.id,
+                          studentName: `${viewingStudent.lastName}, ${viewingStudent.firstName}`,
+                          level: viewingStudent.level || 'Sin Nivel',
+                          group: viewingStudent.groupMorning || viewingStudent.groupAfternoon || 'Sin Grupo',
+                          reason: details,
+                          reportedBy: user.firstName,
+                          status: 'Pendiente',
+                          steps: { llamada: { done: false }, continuidad: { sent: false } },
+                          history: [{ date: new Date().toISOString(), text: `Reporte desde legajo: ${details}`, author: user.firstName }],
+                          createdAt: serverTimestamp(),
+                          cycle: '2026'
+                      };
+                      addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'), caseData);
+                      alert("✅ Caso derivado a Trabajo Social.");
+                   }
+                }}
+                className="w-full py-4 bg-red-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg shadow-red-100 flex items-center justify-center gap-2 hover:bg-red-700 active:scale-95 transition-all"
+              >
+                <AlertTriangle size={18}/> Reportar Inasistencia / Conflicto
+              </button>
+
+              {/* CONTACTOS */}
+              <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-3">
+                <h4 className="text-blue-600 font-black text-[10px] uppercase tracking-widest flex items-center gap-2 mb-2"><Phone size={14}/> Familia y Contacto</h4>
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl">
+                    <span className="text-xs font-bold text-slate-500 uppercase">Madre: {viewingStudent.motherName || '-'}</span>
+                    <a href={`tel:${viewingStudent.motherContact}`} className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs font-black shadow-md">{viewingStudent.motherContact || '-'}</a>
+                  </div>
+                  <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl">
+                    <span className="text-xs font-bold text-slate-500 uppercase">Padre: {viewingStudent.fatherName || '-'}</span>
+                    <a href={`tel:${viewingStudent.fatherContact}`} className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs font-black shadow-md">{viewingStudent.fatherContact || '-'}</a>
+                  </div>
+                </div>
+              </div>
+
+              {/* BITÁCORA COMPLETA */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center px-1">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[3px]">Bitácora Histórica Completa</h4>
+                  <span className="text-[9px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full font-bold">{viewingStudent.incidents?.length || 0} Registros</span>
+                </div>
+                
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-gray-500 uppercase">Madre: {viewingStudent.motherName || '-'}</span>
-                    <a href={`tel:${viewingStudent.motherContact}`} className="bg-white text-red-600 px-3 py-1 rounded-full text-xs font-black border border-red-200 shadow-sm">{viewingStudent.motherContact || '-'}</a>
-                  </div>
-                  <div className="flex justify-between items-center border-t border-red-100 pt-3">
-                    <span className="text-xs font-bold text-gray-500 uppercase">Padre: {viewingStudent.fatherName || '-'}</span>
-                    <a href={`tel:${viewingStudent.fatherContact}`} className="bg-white text-red-600 px-3 py-1 rounded-full text-xs font-black border border-red-200 shadow-sm">{viewingStudent.fatherContact || '-'}</a>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white p-4 rounded-3xl border border-gray-200 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase mb-1">Obra Social</p><p className="font-bold text-slate-800 text-xs">{viewingStudent.healthInsurance || 'S/D'}</p></div>
-                <div className="bg-white p-4 rounded-3xl border border-gray-200 shadow-sm"><p className="text-[9px] font-black text-gray-400 uppercase mb-1">Vence CUD</p><p className="font-bold text-red-500 text-xs">{viewingStudent.cudExpiration || 'S/D'}</p></div>
-              </div>
-
-              <div className="space-y-2">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[3px] ml-1">Última Bitácora</h4>
-                <div className="space-y-2">
-                  {viewingStudent.incidents?.slice(-3).reverse().map((inc, i) => (
-                    <div key={i} className="bg-white p-3 rounded-2xl border border-gray-100 text-[11px] leading-tight">
-                      <span className="font-black text-blue-600 block mb-1 uppercase text-[8px]">{new Date(inc.date).toLocaleDateString()}:</span>
-                      <p className="text-slate-600 font-medium">{inc.text || inc.type}</p>
+                  {viewingStudent.incidents && viewingStudent.incidents.length > 0 ? (
+                    viewingStudent.incidents.slice().reverse().map((inc, i) => (
+                      <div key={i} className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
+                        <div className="flex justify-between items-center mb-2 border-b border-gray-50 pb-1">
+                          <span className="font-black text-blue-600 text-[9px] uppercase tracking-wider">{new Date(inc.date).toLocaleDateString('es-AR')}</span>
+                          <span className="text-[8px] font-bold text-gray-400 uppercase italic">Por: {inc.author}</span>
+                        </div>
+                        <p className="text-xs font-bold text-slate-700 leading-relaxed mb-1">{inc.text || inc.type}</p>
+                        {inc.severity && (
+                          <span className={`text-[7px] font-black px-1.5 py-0.5 rounded uppercase ${inc.severity === 'high' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
+                            Prioridad {inc.severity}
+                          </span>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-10 bg-white rounded-3xl border border-dashed border-gray-200">
+                      <p className="text-gray-400 text-xs font-bold uppercase italic">Sin registros en la bitácora</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>
-            <div className="p-4 bg-white border-t"><button onClick={() => setViewingStudent(null)} className="w-full py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px] tracking-widest">Cerrar Legajo</button></div>
+            
+            <div className="p-4 bg-white border-t flex justify-center">
+               <button onClick={() => setViewingStudent(null)} className="w-full py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-200 transition">Cerrar Legajo</button>
+            </div>
           </div>
         </div>
       )}
-    </div>
-  );
-}
 
 // Sub-componente para limpiar el código de la vista principal
 function CardActiva({ c, user, updateStep, handleAddComment, imprimir }) {
