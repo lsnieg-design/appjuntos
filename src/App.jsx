@@ -3990,8 +3990,30 @@ function SocialView({ user }) {
     setNewComment({ ...newComment, [caseId]: "" });
   };
 
-  const imprimirSeguimientoSocial = (c) => {
-      // (Aquí va tu lógica de impresión anterior que ya tienes)
+ const imprimirSeguimientoSocial = (c) => {
+    const docHtml = `
+      <html><head><title>Informe - ${c.studentName}</title>
+      <style>
+        body { font-family: sans-serif; padding: 40px; color: #334155; }
+        .header { border-bottom: 3px solid #2563eb; padding-bottom: 10px; margin-bottom: 20px; }
+        .title { color: #1e3a8a; text-transform: uppercase; font-size: 20px; font-weight: bold; }
+        .info { background: #f8fafc; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
+        .label { font-size: 10px; font-weight: bold; color: #64748b; text-transform: uppercase; }
+        .item { margin-bottom: 10px; padding: 10px; border-bottom: 1px solid #f1f5f9; font-size: 12px; }
+      </style></head><body>
+      <div class="header"><div class="title">Seguimiento Social - Juntos a la Par</div></div>
+      <div class="info">
+        <p><span class="label">Estudiante:</span> ${c.studentName}</p>
+        <p><span class="label">Nivel:</span> ${c.level}</p>
+        <p><span class="label">Motivo:</span> ${c.reason}</p>
+      </div>
+      <h3>Historial de Intervención</h3>
+      ${c.history?.map(h => `<div class="item"><strong>${new Date(h.date).toLocaleDateString()} - ${h.author}:</strong> ${h.text}</div>`).join('')}
+      </body></html>`;
+    const win = window.open('', '_blank');
+    win.document.write(docHtml);
+    win.document.close();
+    setTimeout(() => win.print(), 500);
   };
 
   const filteredCases = cases.filter(c => {
@@ -4129,23 +4151,39 @@ function SocialView({ user }) {
               );
             }
 
-            // --- RENDER MODO ARCHIVO (LISTA COMPACTA) ---
+// --- RENDER MODO ARCHIVO (LISTA COMPACTA CON BOTÓN DE BORRAR) ---
             return (
-              <div key={c.id} className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden transition-all">
+              <div key={c.id} className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden transition-all text-left">
                 <div onClick={() => setExpandedId(isExpanded ? null : c.id)} className={`p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors ${isExpanded ? 'bg-slate-50 border-b border-slate-100' : ''}`}>
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center"><CheckCircle2 size={20}/></div>
-                    <div>
-                      {/* NOMBRE TAMBIÉN CLIQUEABLE EN ARCHIVO */}
-                      <button onClick={(e) => { e.stopPropagation(); handleOpenStudentFile(c.studentId, c.studentName); }} className="font-black text-slate-700 uppercase text-sm leading-none hover:text-blue-600">{c.studentName}</button>
+                  <div className="flex items-center gap-4 flex-1">
+                    <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shrink-0"><CheckCircle2 size={20}/></div>
+                    <div className="min-w-0">
+                      <button onClick={(e) => { e.stopPropagation(); handleOpenStudentFile(c.studentId, c.studentName); }} className="font-black text-slate-700 uppercase text-sm leading-none hover:text-blue-600 block truncate">{c.studentName}</button>
                       <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">Finalizado el {new Date(c.createdAt?.seconds * 1000).toLocaleDateString()}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <button onClick={(e) => { e.stopPropagation(); imprimirSeguimientoSocial(c); }} className="p-2 text-slate-400 hover:text-blue-600"><Printer size={18}/></button>
-                    {isExpanded ? <ChevronUp size={20} className="text-slate-300"/> : <ChevronDown size={20} className="text-slate-300"/>}
+                  
+                  <div className="flex items-center gap-2">
+                    {/* BOTÓN BORRAR: EXCLUSIVO SUPER ADMI */}
+                    {(user.rol === 'admin' || user.rol === 'super-admin') && (
+                      <button 
+                        onClick={async (e) => { 
+                          e.stopPropagation(); 
+                          if(confirm(`⚠️ ¿ELIMINAR DEFINITIVAMENTE a ${c.studentName}?\nEsta acción no se puede deshacer.`)) {
+                            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', c.id));
+                          }
+                        }} 
+                        className="p-2 text-red-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition"
+                      >
+                        <Trash2 size={18}/>
+                      </button>
+                    )}
+
+                    <button onClick={(e) => { e.stopPropagation(); imprimirSeguimientoSocial(c); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition"><Printer size={18}/></button>
+                    <div className="text-slate-300 ml-1">{isExpanded ? <ChevronUp size={20}/> : <ChevronDown size={20}/>}</div>
                   </div>
                 </div>
+
                 {isExpanded && (
                   <div className="p-6 bg-white animate-in slide-in-from-top-2 duration-300">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -4165,7 +4203,7 @@ function SocialView({ user }) {
                       </div>
                     </div>
                     <div className="mt-6 flex justify-end">
-                       <button onClick={async () => { if(confirm("¿Reabrir caso?")) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', c.id), { status: 'Pendiente' }); }} className="text-[10px] font-black uppercase text-blue-600 hover:underline">Reabrir Caso</button>
+                       <button onClick={async () => { if(confirm("¿Reabrir este caso?")) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', c.id), { status: 'Pendiente' }); }} className="text-[10px] font-black uppercase text-blue-600 hover:underline">Reabrir Caso</button>
                     </div>
                   </div>
                 )}
