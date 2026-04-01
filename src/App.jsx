@@ -4999,18 +4999,19 @@ const handleReportAbsenteeism = async () => {
   <label className="text-xs font-bold text-gray-500 ml-1">
     {editingGroup.isInclusionGroup ? 'DAI Responsable' : 'Docente a Cargo'}
   </label>
-  <select 
-    name="teacher" 
-    defaultValue={editingGroup.teacherId || ""} 
-    className="w-full p-3 bg-white border-2 border-violet-100 rounded-xl outline-none font-bold text-xs focus:border-violet-500"
-  >
-    <option value="">Seleccionar del Legajo...</option>
-    {usersList.map(st => (
-      <option key={st.id} value={st.id}>
-        {st.lastName}, {st.firstName} ({st.cargo1_role || 'Sin Rol'})
-      </option>
-    ))}
-  </select>
+<select 
+  name="teacher" 
+  defaultValue={editingGroup.teacherId || ""} 
+  className="w-full p-3 bg-white border-2 border-violet-100 rounded-xl outline-none font-bold text-xs focus:border-violet-500"
+>
+  <option value="">Seleccionar del Legajo...</option>
+  {usersList.map(st => (
+    <option key={st.id} value={st.id}>
+      {/* CAMBIO AQUÍ: Usamos st.role en lugar de st.cargo1_role */}
+      {st.lastName}, {st.firstName} ({st.role || 'Sin Rol'})
+    </option>
+  ))}
+</select>
 </div>
               {!editingGroup.isInclusionGroup && (
                 <>
