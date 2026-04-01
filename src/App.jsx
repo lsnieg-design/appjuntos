@@ -3930,6 +3930,155 @@ function EquipoTecnicoView({ user }) {
         </div>
     );
 }
+function SocialView({ user }) {
+  const [cases, setCases] = useState([]);
+  const [filter, setFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+
+  // Verificación de seguridad extra al renderizar
+  const isAllowed = ['admin', 'super-admin', 'Docente', 'Auxiliar/Preceptor', 'Equipo Directivo', 'Equipo Técnico'].includes(user.role) || user.rol === 'admin';
+
+  useEffect(() => {
+    if (!isAllowed) return;
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'), where('status', '!=', 'Reincorporado'));
+    const unsub = onSnapshot(q, (snap) => {
+      setCases(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    });
+    return () => unsub();
+  }, [isAllowed]);
+
+  if (!isAllowed) return <div className="p-10 text-center text-gray-400 font-bold">⛔ No tienes permisos para acceder a Seguimiento Social.</div>;
+
+  const updateStep = async (caseId, stepName, data) => {
+    const c = cases.find(x => x.id === caseId);
+    const newSteps = { ...c.steps, [stepName]: { ...c.steps[stepName], ...data } };
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', caseId), { steps: newSteps });
+  };
+
+  const addHistory = async (caseId, text) => {
+    if (!text.trim()) return;
+    const entry = { date: new Date().toISOString(), text, author: user.firstName };
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', caseId), { 
+      history: arrayUnion(entry) 
+    });
+  };
+
+  const imprimirSeguimiento = (c) => {
+    const html = `<html><head><title>Intervención - ${c.studentName}</title>
+      <style>
+        body { font-family: 'Arial', sans-serif; padding: 40px; color: #333; }
+        .header { border-bottom: 3px solid #1e40af; padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .logo { height: 60px; }
+        .title-box h2 { margin: 0; color: #1e40af; font-size: 20px; text-transform: uppercase; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: #f8fafc; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
+        .step-tag { display: inline-block; padding: 4px 8px; border-radius: 5px; font-size: 10px; font-weight: bold; background: #dcfce7; color: #166534; margin-right: 5px; }
+        .history-item { margin-bottom: 15px; padding-left: 15px; border-left: 3px solid #3b82f6; }
+        .footer { margin-top: 50px; text-align: center; font-size: 10px; color: #94a3b8; }
+      </style></head><body>
+      <div class="header">
+        <img src="${LOGO_URL}" class="logo" />
+        <div class="title-box"><h2>Hoja de Ruta - Trabajo Social</h2><p>Escuela Especial Juntos a la Par</p></div>
+      </div>
+      <div class="info-grid">
+        <div><strong>Alumno:</strong> ${c.studentName}</div>
+        <div><strong>Nivel/Grupo:</strong> ${c.level} - ${c.group}</div>
+        <div><strong>Motivo Reporte:</strong> ${c.reason}</div>
+        <div><strong>Fecha Inicio:</strong> ${new Date(c.createdAt?.seconds * 1000).toLocaleDateString()}</div>
+      </div>
+      <h3>Cronología de Intervenciones:</h3>
+      ${c.history.map(h => `<div class="history-item">
+        <strong>${new Date(h.date).toLocaleString()} - ${h.author}:</strong><br/>
+        ${h.text}
+      </div>`).join('')}
+      <div class="footer">Documento Institucional Confidencial - Generado el ${new Date().toLocaleString()}</div>
+    </body></html>`;
+    const win = window.open('', '_blank');
+    win.document.write(html); win.document.close(); win.print();
+  };
+
+  const filteredCases = cases.filter(c => {
+    if (filter === 'primeros') return (c.level || '').includes('INICIAL') || (c.level || '').includes('1°');
+    if (filter === 'segundos') return (c.level || '').includes('2°') || (c.level || '').includes('CFI');
+    return true;
+  });
+
+  return (
+    <div className="space-y-4 animate-in fade-in pb-20">
+      <div className="bg-white p-6 rounded-[35px] shadow-sm border border-blue-100 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-black text-blue-900 uppercase italic flex items-center gap-2"><Users className="text-blue-500" size={26}/> Trabajo Social</h2>
+          <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mt-1">Sede: Seguimiento de Ausentismo y Conflictos</p>
+        </div>
+        <select value={filter} onChange={(e) => setFilter(e.target.value)} className="bg-blue-50 text-blue-700 font-black text-xs p-3 rounded-2xl outline-none border border-blue-100 shadow-inner">
+          <option value="all">📁 TODOS LOS CASOS</option>
+          <option value="primeros">👶 INICIAL / 1° CICLO</option>
+          <option value="segundos">🎒 2° CICLO / CFI</option>
+        </select>
+      </div>
+
+      <div className="grid gap-4 px-1">
+        {loading ? (
+          <div className="p-20 text-center"><RefreshCw className="animate-spin mx-auto text-blue-300" size={40}/></div>
+        ) : filteredCases.length === 0 ? (
+          <div className="bg-white p-10 rounded-[35px] text-center border-2 border-dashed border-gray-100">
+            <p className="text-gray-400 font-bold uppercase italic text-sm">No hay casos activos en este sector</p>
+          </div>
+        ) : filteredCases.map(c => (
+          <div key={c.id} className="bg-white rounded-[30px] p-5 shadow-sm border border-gray-100 group relative">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="font-black text-slate-800 uppercase text-base">{c.studentName}</h3>
+                <div className="flex gap-2 mt-1">
+                  <span className="text-[9px] font-black bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full uppercase italic">{c.level}</span>
+                  <span className="text-[9px] font-bold text-gray-400 uppercase">Ref: {c.reportedBy}</span>
+                </div>
+              </div>
+              <button onClick={() => imprimirSeguimiento(c)} className="p-3 bg-gray-50 text-gray-400 rounded-2xl hover:bg-blue-50 hover:text-blue-600 transition"><Printer size={20}/></button>
+            </div>
+
+            <div className="bg-blue-50/50 p-3 rounded-2xl mb-4 border border-blue-100/50">
+              <p className="text-xs font-bold text-blue-800"><span className="opacity-50 uppercase text-[9px] block">Motivo:</span> {c.reason}</p>
+            </div>
+
+            {/* BOTONES DE ESTADO TIPO CHECKLIST */}
+            <div className="grid grid-cols-2 gap-2 mb-4">
+               <button onClick={() => updateStep(c.id, 'llamada', { done: !c.steps?.llamada?.done, date: new Date().toLocaleDateString() })}
+                className={`p-3 rounded-2xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 border-2 ${c.steps?.llamada?.done ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-gray-100 text-gray-400'}`}>
+                {c.steps?.llamada?.done ? '✅ Llamada realizada' : '📞 Llamar familia'}
+               </button>
+               <button onClick={() => updateStep(c.id, 'continuidad', { sent: !c.steps?.continuidad?.sent, date: new Date().toLocaleDateString() })}
+                className={`p-3 rounded-2xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 border-2 ${c.steps?.continuidad?.sent ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-100 text-gray-400'}`}>
+                {c.steps?.continuidad?.sent ? '✅ Continuidad OK' : '📚 Enviar Continuidad'}
+               </button>
+            </div>
+
+            {/* REGISTRO DE HISTORIAL */}
+            <div className="space-y-2 mb-4 max-h-32 overflow-y-auto pr-2 custom-scrollbar">
+              {c.history?.map((h, i) => (
+                <div key={i} className="text-[10px] bg-gray-50 p-2 rounded-lg border border-gray-100">
+                  <span className="font-black text-blue-600">{h.author}:</span> {h.text}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-2">
+              <input 
+                onKeyDown={(e) => { if(e.key === 'Enter') { addHistory(c.id, e.target.value); e.target.value = ''; } }}
+                placeholder="Escribir avance y presionar Enter..." 
+                className="flex-1 bg-gray-100 p-3 rounded-2xl text-xs font-bold outline-none focus:ring-2 ring-blue-200"
+              />
+              <button 
+                onClick={async () => { if(confirm("¿El alumno se reincorporó? El caso se archivará.")) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', c.id), { status: 'Reincorporado' }); }}
+                className="bg-emerald-500 text-white px-5 rounded-2xl font-black text-[10px] uppercase shadow-lg shadow-emerald-100"
+              >Reincorporado</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 // --- APP PRINCIPAL (FINAL: CON ADMIN INTEGRADO + MANTENIMIENTO + NOTIFS) ---
 function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -4081,6 +4230,7 @@ function MainApp({ user, onLogout }) {
         {/* PEGAR ESTA LÍNEA NUEVA: */}
         {activeTab === 'personal' && <PersonalView user={user} />}
         {activeTab === 'medical' && <MedicalView user={user} />}
+        {activeTab === 'social' && <SocialView user={user} />}
     
       </main>
 
@@ -4110,6 +4260,11 @@ function MainApp({ user, onLogout }) {
                       <button onClick={() => { setActiveTab('matricula'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
                           <GraduationCap size={18} className="text-violet-500"/> Legajos
                       </button>
+                {canAccessSocial && (
+  <button onClick={() => { setActiveTab('social'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
+      <Users size={18} className="text-blue-500"/> Trabajo Social
+  </button>
+)}
                       <button onClick={() => { setActiveTab('resources'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
                           <LinkIcon size={18} className="text-green-500"/> Recursos
                       </button>
@@ -4290,20 +4445,34 @@ function GroupsView({ user }) {
   const handlePrintAll = () => { printGroups(groups); };
   const handlePrintSingleGroup = (g) => { printGroups([g]); };
 
-  const handleReportAbsenteeism = async () => {
+const handleReportAbsenteeism = async () => {
       if(!selectedStudent) return;
-      const details = prompt(`¿Desde cuándo falta ${selectedStudent.firstName} y qué observaste?`);
+      const details = prompt(`¿Motivo del ausentismo o conflicto de ${selectedStudent.firstName}?`);
       if(!details) return;
-      const matchingUsers = usersList.filter(u => SOCIAL_TARGETS.includes(u.username) || SOCIAL_TARGETS.includes(u.email?.split('@')[0]) || SOCIAL_TARGETS.includes(`${u.firstName} ${u.lastName}`) || SOCIAL_TARGETS.includes(u.fullName));
-      let targetIds = matchingUsers.map(u => u.id);
-      if (targetIds.length === 0) { const socialWorkers = usersList.filter(u => (u.role === 'Equipo Técnico' || u.role === 'Trabajadora Social' || u.role === 'Social')); targetIds = socialWorkers.map(u => u.id); }
-      if (targetIds.length === 0) { const admins = usersList.filter(u => u.rol === 'admin' || u.rol === 'super-admin'); targetIds = admins.map(u => u.id); alert("⚠️ No encontré a Trabajo Social. Se enviará a Dirección."); }
+
       try {
-          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), { title: `⚠️ AUSENTISMO: ${selectedStudent.lastName}, ${selectedStudent.firstName}`, description: `Reporte de ausentismo (+3 días). Detalles: ${details}`, priority: 'high', status: 'pending', targetType: 'user', targetUserIds: targetIds, targetUserId: targetIds[0] || null, assignedToName: "Trabajo Social / Eq. Técnico", createdById: user.id, createdBy: user.firstName, createdAt: serverTimestamp(), showDate: new Date().toISOString().split('T')[0], showTime: "08:00", type: 'absenteeism' });
-          const newInc = { date: new Date().toISOString(), type: "Ausentismo", severity: "high", text: `Protocolo Ausentismo iniciado: ${details}`, author: user.firstName };
-          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', selectedStudent.id), { incidents: arrayUnion(newInc) });
-          alert("✅ Reporte enviado a Trabajo Social.");
-      } catch (e) { alert("Error al reportar: " + e.message); }
+          const caseData = {
+              studentId: selectedStudent.id,
+              studentName: `${selectedStudent.lastName}, ${selectedStudent.firstName}`,
+              level: selectedStudent.level || 'Sin Nivel',
+              group: turn === 'morning' ? selectedStudent.groupMorning : selectedStudent.groupAfternoon,
+              reason: details,
+              reportedBy: user.firstName,
+              status: 'Pendiente', // Pendiente, En Proceso, Reincorporado
+              steps: {
+                  llamada: { done: false, date: null, obs: '' },
+                  continuidad: { sent: false, date: null },
+                  entrevista: { done: false, date: null }
+              },
+              history: [{ date: new Date().toISOString(), text: `Reporte inicial: ${details}`, author: user.firstName }],
+              createdAt: serverTimestamp(),
+              cycle: '2026'
+          };
+          
+          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'), caseData);
+          alert("✅ Caso derivado a Trabajo Social.");
+          setActiveTab('social'); // Redirige a la nueva sección
+      } catch (e) { alert("Error: " + e.message); }
   };
 
   const addIncident = async (type, text = "") => { if (!showBitacoraModal) return; const newInc = { date: new Date().toISOString(), type: text ? "Nota" : type, severity: type, text: text || type, author: user.firstName }; try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id), { incidents: arrayUnion(newInc) }); setStudents(prev => prev.map(s => s.id === showBitacoraModal.id ? {...s, incidents: [...(s.incidents||[]), newInc]} : s)); setNewNote(""); setIsWriting(false); setShowBitacoraModal(null); alert("✅ Guardado."); } catch (e) { alert(e.message); } };
