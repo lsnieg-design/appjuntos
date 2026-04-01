@@ -8,7 +8,8 @@ import {
   AlertTriangle, Clock, Shield, Crown, Activity, Share, PlusSquare, 
   Smartphone, GraduationCap, Search, X, UploadCloud, PieChart, Eye, Edit3, Trophy,
   Folder, MessageSquare, Globe, BookOpen, Lightbulb, ChevronDown, PlusCircle, Printer,
-  AlignLeft, AlignCenter, AlignRight, AlignJustify, Phone, CheckCircle2, Clock3, UserCheck
+  AlignLeft, AlignCenter, AlignRight, AlignJustify, Phone, CheckCircle2, Clock3, UserCheck,
+  ChevronUp // <--- ESTE ES EL QUE FALTABA
 } from 'lucide-react';
 
 import { initializeApp } from 'firebase/app';
@@ -4055,12 +4056,73 @@ function SocialView({ user }) {
           filteredCases.map(c => {
             const isExpanded = expandedId === c.id;
             
-            // MODO ACTIVO: Tarjetas grandes
+           // MODO ACTIVO: Tarjetas grandes con diseño accesible
             if (viewMode === 'active') {
               return (
-                /* ... AQUÍ VA EL CÓDIGO DE LA TARJETA GRANDE QUE YA TENÍAMOS (el de antes) ... */
-                /* Para no alargar el mensaje, asumo que mantenemos el diseño de la tarjeta activa */
-                <CardActiva key={c.id} c={c} user={user} updateStep={updateStep} handleAddComment={handleAddComment} imprimir={imprimirSeguimientoSocial} />
+                <div key={c.id} className="bg-white rounded-[45px] shadow-xl shadow-slate-200/50 border border-gray-100 overflow-hidden flex flex-col relative transition-all hover:shadow-2xl">
+                  <div className={`h-2 w-full ${c.steps?.llamada?.done && c.steps?.continuidad?.sent ? 'bg-emerald-500' : 'bg-orange-400'}`}></div>
+                  <div className="p-6 md:p-8">
+                    <div className="flex justify-between items-start mb-6">
+                      <div>
+                        <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">{c.studentName}</h3>
+                        <div className="flex gap-2 mt-1">
+                          <span className="bg-blue-100 text-blue-700 text-[10px] font-black px-2 py-0.5 rounded-full uppercase italic">{c.level}</span>
+                          <span className="bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Ref: {c.reportedBy}</span>
+                        </div>
+                      </div>
+                      <button onClick={() => imprimirSeguimientoSocial(c)} className="p-3 bg-slate-50 text-slate-400 rounded-2xl hover:bg-blue-50 hover:text-blue-600 transition"><Printer size={20}/></button>
+                    </div>
+
+                    <div className="bg-slate-50 p-5 rounded-3xl mb-8 border-l-4 border-blue-500 relative">
+                      <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Motivo del Reporte:</p>
+                      <p className="text-sm font-bold text-slate-700 leading-relaxed italic">"{c.reason}"</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      <div className="space-y-4">
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[3px] ml-1">Hoja de Ruta</h4>
+                        {/* BOTÓN LLAMADA */}
+                        <button onClick={() => updateStep(c.id, 'llamada')} className={`w-full flex items-center gap-4 p-5 rounded-3xl border-2 transition-all ${c.steps?.llamada?.done ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-100'}`}>
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 shrink-0 ${c.steps?.llamada?.done ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-200 text-slate-300'}`}>
+                            <Check size={20} strokeWidth={4}/>
+                          </div>
+                          <div className="text-left"><p className={`text-sm font-black uppercase ${c.steps?.llamada?.done ? 'text-emerald-700' : 'text-slate-400'}`}>Llamada Familia</p></div>
+                        </button>
+                        {/* BOTÓN CONTINUIDAD */}
+                        <button onClick={() => updateStep(c.id, 'continuidad')} className={`w-full flex items-center gap-4 p-5 rounded-3xl border-2 transition-all ${c.steps?.continuidad?.sent ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-100'}`}>
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 shrink-0 ${c.steps?.continuidad?.sent ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-200 text-slate-300'}`}>
+                            <Check size={20} strokeWidth={4}/>
+                          </div>
+                          <div className="text-left"><p className={`text-sm font-black uppercase ${c.steps?.continuidad?.sent ? 'text-indigo-700' : 'text-slate-400'}`}>Continuidad Pedagógica</p></div>
+                        </button>
+                      </div>
+
+                      {/* CHAT */}
+                      <div className="flex flex-col h-full bg-slate-50 rounded-[35px] p-5 border border-slate-100">
+                        <div className="flex-1 space-y-3 max-h-64 overflow-y-auto mb-4 pr-2 custom-scrollbar">
+                          {c.history?.map((h, i) => (
+                            <div key={i} className={`flex flex-col ${h.author === user.firstName ? 'items-end' : 'items-start'}`}>
+                              <div className={`max-w-[90%] p-3 rounded-2xl text-xs font-bold shadow-sm ${h.author === user.firstName ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-slate-700 border border-slate-200 rounded-tl-none'}`}>
+                                <p className="text-[8px] font-black uppercase opacity-60 mb-1">{h.author} • {new Date(h.date).toLocaleDateString()}</p>
+                                {h.text}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <input value={newComment[c.id] || ""} onChange={(e) => setNewComment({ ...newComment, [c.id]: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && handleAddComment(c.id)} placeholder="Escribir avance..." className="flex-1 bg-white p-3 rounded-2xl text-xs font-bold border border-slate-200 outline-none"/>
+                          <button onClick={() => handleAddComment(c.id)} className="bg-blue-600 text-white p-3 rounded-2xl shadow-lg hover:bg-blue-700 active:scale-95 transition flex-shrink-0"><Send size={18}/></button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-10 pt-6 border-t border-slate-100 flex justify-end">
+                      <button onClick={async () => { if(confirm("¿Archivar caso?")) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', c.id), { status: 'Reincorporado' }); }} className="bg-emerald-500 text-white px-8 py-4 rounded-3xl font-black text-xs uppercase shadow-xl flex items-center gap-3 hover:bg-emerald-600 active:scale-95 transition-all">
+                        <CheckCircle2 size={20}/> Alumno Reincorporado
+                      </button>
+                    </div>
+                  </div>
+                </div>
               );
             }
 
