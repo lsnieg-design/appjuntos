@@ -4317,8 +4317,7 @@ const imprimirSeguimientoSocial = (c) => {
                   </div>
                 </div>
               </div>
-
-   {/* BITÁCORA UNIFICADA (Aula + Gestión Social Histórica Completa) */}
+{/* BITÁCORA UNIFICADA (Aula + Gestión Social) */}
             <div className="space-y-3">
               <div className="flex justify-between items-center px-1">
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[3px]">Historial Unificado Completo</h4>
@@ -4327,14 +4326,7 @@ const imprimirSeguimientoSocial = (c) => {
               
               <div className="space-y-3">
                 {(() => {
-                  // 1. Extraer incidentes de la bitácora normal del alumno
-                  const normalIncidents = (viewingStudent.incidents || []).map(inc => ({ 
-                    ...inc, 
-                    source: 'aula' 
-                  }));
-
-                  // 2. BUSCAR EN TODOS LOS CASOS SOCIALES (Activos y Archivados)
-                  // Filtramos por ID de estudiante O por Nombre exacto para no perder datos viejos
+                  const normalIncidents = (viewingStudent.incidents || []).map(inc => ({ ...inc, source: 'aula' }));
                   const socialReports = cases
                     .filter(c => 
                       (c.studentId && c.studentId === viewingStudent.id) || 
@@ -4350,7 +4342,6 @@ const imprimirSeguimientoSocial = (c) => {
                       isClosed: c.status === 'Reincorporado'
                     }));
 
-                  // 3. Unificar ambos arrays y ordenar por fecha (más reciente arriba)
                   const combinedTimeline = [...normalIncidents, ...socialReports].sort((a, b) => new Date(b.date) - new Date(a.date));
 
                   if (combinedTimeline.length === 0) {
@@ -4392,6 +4383,7 @@ const imprimirSeguimientoSocial = (c) => {
                 })()}
               </div>
             </div>
+          </div> 
 
           <div className="p-4 bg-white border-t flex justify-center shrink-0">
             <button 
@@ -4401,13 +4393,12 @@ const imprimirSeguimientoSocial = (c) => {
               Cerrar Legajo
             </button>
           </div>
-        </div> {/* Cierra modal blanco */}
+        </div>
       </div> 
       )}
     </div>
   );
 }
-
 
 // --- APP PRINCIPAL (FINAL: CON ADMIN INTEGRADO + MANTENIMIENTO + NOTIFS) ---
 function MainApp({ user, onLogout }) {
