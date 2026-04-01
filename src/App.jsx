@@ -4359,7 +4359,7 @@ const imprimirSeguimientoSocial = (c) => {
                 </div>
               </div>
 
-     {/* BITÁCORA UNIFICADA (Aula + Gestión Social Histórica Completa) */}
+    {/* BITÁCORA UNIFICADA (Aula + Gestión Social Histórica Completa) */}
       <div className="space-y-3">
         <div className="flex justify-between items-center px-1">
           <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[3px]">Historial Unificado Completo</h4>
@@ -4368,13 +4368,7 @@ const imprimirSeguimientoSocial = (c) => {
         
         <div className="space-y-3">
           {(() => {
-            // 1. Extraer incidentes de la bitácora normal
-            const normalIncidents = (viewingStudent.incidents || []).map(inc => ({
-              ...inc,
-              source: 'aula'
-            }));
-
-            // 2. BUSCAMOS TODOS LOS REPORTES (Activos y Archivados/Reincorporados)
+            const normalIncidents = (viewingStudent.incidents || []).map(inc => ({ ...inc, source: 'aula' }));
             const socialReports = cases
               .filter(c => c.studentId === viewingStudent.id || c.studentName === `${viewingStudent.lastName}, ${viewingStudent.firstName}`)
               .map(c => ({
@@ -4387,7 +4381,6 @@ const imprimirSeguimientoSocial = (c) => {
                 isClosed: c.status === 'Reincorporado'
               }));
 
-            // 3. Unificar y ordenar por fecha (más reciente arriba)
             const combinedTimeline = [...normalIncidents, ...socialReports].sort((a, b) => new Date(b.date) - new Date(a.date));
 
             if (combinedTimeline.length === 0) {
@@ -4421,9 +4414,7 @@ const imprimirSeguimientoSocial = (c) => {
                      Origen: {inc.source === 'social' ? 'Gabinete Social' : 'Bitácora de Aula'}
                    </span>
                    {inc.source === 'social' && inc.isClosed && (
-                     <span className="text-[7px] font-bold text-emerald-600 italic flex items-center gap-1">
-                       ✓ Alumno Reincorporado
-                     </span>
+                     <span className="text-[7px] font-bold text-emerald-600 italic flex items-center gap-1">✓ Alumno Reincorporado</span>
                    )}
                 </div>
               </div>
@@ -4440,12 +4431,12 @@ const imprimirSeguimientoSocial = (c) => {
       >
         Cerrar Legajo
       </button>
-   </div>
-          </div>
-        </div>
-      )}
     </div>
-  );
+  </div> {/* Cierra div del modal blanco */}
+</div> 
+)}
+</div> 
+);
 }
 // --- APP PRINCIPAL (FINAL: CON ADMIN INTEGRADO + MANTENIMIENTO + NOTIFS) ---
 function MainApp({ user, onLogout }) {
