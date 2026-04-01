@@ -4762,28 +4762,39 @@ function GroupsView({ user }) {
       }
       return acc;
   }, {});
+let groups = Object.values(groupedData).sort((a, b) => a.name.localeCompare(b.name));
 
-  let groups = Object.values(groupedData).sort((a, b) => a.name.localeCompare(b.name));
-
+  // --- LÓGICA DE FILTRADO DEFINITIVA (SOLO POR ID) ---
   if (!isManagement) {
-      const normalizeName = (name) => {
-          if (!name) return "";
-          return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-      };
       groups = groups.filter(g => {
+          // IDs de la docente conectada
           const uId = user.id;
           const legajoId = user.legajoId; 
-          const uNameRaw = user.fullName || `${user.firstName} ${user.lastName}`;
-          const uName = normalizeName(uNameRaw);
-          if (g.teacherId === uId || g.teacherId === legajoId) return true;
-          if (normalizeName(g.teacher) === uName || normalizeName(g.teacher2) === uName) return true;
-          const supportStaff = [g.aux, g.special1, g.special2, g.special3, g.sup1, g.sup2].map(normalizeName);
-          if (supportStaff.includes(uName)) return true;
+
+          // 1. Chequeo directo: ¿Es la titular del grupo?
+          if (g.teacherId === uId || (legajoId && g.teacherId === legajoId)) return true;
+
+          // 2. Chequeo de Inclusión: ¿Es la DAI de alguno de los alumnos de este grupo?
           const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-          return g.students.some(s => s.daiId === uId || s.daiId === legajoId || normalizeName(s[`dai${suf}`]) === uName || normalizeName(s[`teacher${suf}`]) === uName || s[`teacherId${suf}`] === uId || s[`teacherId${suf}`] === legajoId);
+          const esMiAlumnoInclusion = g.students.some(s => 
+              s.daiId === uId || (legajoId && s.daiId === legajoId)
+          );
+          if (esMiAlumnoInclusion) return true;
+
+          // 3. Chequeo de Sede: ¿Está asignada como docente en la ficha de algún alumno?
+          const soyDocenteDeAlumno = g.students.some(s => 
+              s[`teacherId${suf}`] === uId || (legajoId && s[`teacherId${suf}`] === legajoId) ||
+              s[`teacherId2${suf}`] === uId || (legajoId && s[`teacherId2${suf}`] === legajoId)
+          );
+          if (soyDocenteDeAlumno) return true;
+
+          return false;
       });
   } else {
-      if (viewFilter !== 'all') { groups = groups.filter(g => viewFilter === 'inclusion' ? g.isInclusionGroup : !g.isInclusionGroup); }
+      // Si es directivo, filtramos por la pestaña Sede/Inclusión
+      if (viewFilter !== 'all') { 
+          groups = groups.filter(g => viewFilter === 'inclusion' ? g.isInclusionGroup : !g.isInclusionGroup); 
+      }
   }
 
   const getSafeDate = (d) => { if(!d) return '-'; try { return new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('es-AR'); } catch(e) { return d; } };
