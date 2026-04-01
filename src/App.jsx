@@ -4359,7 +4359,7 @@ const imprimirSeguimientoSocial = (c) => {
                 </div>
               </div>
 
-       {/* BITÁCORA UNIFICADA (Aula + Gestión Social Histórica Completa) */}
+     {/* BITÁCORA UNIFICADA (Aula + Gestión Social Histórica Completa) */}
       <div className="space-y-3">
         <div className="flex justify-between items-center px-1">
           <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[3px]">Historial Unificado Completo</h4>
@@ -4431,21 +4431,21 @@ const imprimirSeguimientoSocial = (c) => {
           })()}
         </div>
       </div>
-    </div> {/* Cierra el div del contenido del modal (p-6 overflow-y-auto) */}
+    </div> {/* Cierra div p-6 del contenido del modal */}
     
     <div className="p-4 bg-white border-t flex justify-center shrink-0">
-     <button 
-                onClick={() => setViewingStudent(null)} 
-                className="w-full py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-200 transition"
-              >
-                Cerrar Legajo
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <button 
+        onClick={() => setViewingStudent(null)} 
+        className="w-full py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-200 transition"
+      >
+        Cerrar Legajo
+      </button>
     </div>
-  );
+  </div> {/* Cierra div del modal blanco */}
+</div> 
+)}
+</div> 
+);
 }
 // --- APP PRINCIPAL (FINAL: CON ADMIN INTEGRADO + MANTENIMIENTO + NOTIFS) ---
 function MainApp({ user, onLogout }) {
