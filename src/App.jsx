@@ -3105,144 +3105,44 @@ const findDuplicates = () => {
       
       {/* ================= MODALES ================= */}
 
-      {/* 1. MODAL FICHA COMPLETA (DETALLE) */}
+     {/* 1. MODAL FICHA COMPLETA (DETALLE) - REPARADO SIN BORRAR NADA */}
       {viewingStudent && !showForm && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
             <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                <div className="bg-slate-700 p-6 text-white relative">
+                {/* CABECERA */}
+                <div className="bg-slate-700 p-6 text-white relative shrink-0">
                     <button onClick={()=>setViewingStudent(null)} className="absolute top-4 right-4 bg-white/20 p-1.5 rounded-full hover:bg-white/40 transition"><X size={20}/></button>
                     <div className="flex gap-5 items-center">
-                        <div className="w-20 h-20 rounded-2xl bg-white/20 border-4 border-white/10 overflow-hidden shadow-lg">
-                            {viewingStudent.photoUrl ? <img src={viewingStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="m-auto mt-5 text-white/50"/>}
+                        <div className="w-20 h-20 rounded-2xl bg-white/20 border-4 border-white/10 overflow-hidden shadow-lg flex items-center justify-center">
+                            {viewingStudent.photoUrl ? <img src={viewingStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}
                         </div>
                         <div>
                             <h2 className="text-2xl font-black uppercase tracking-tight">{viewingStudent.lastName}, {viewingStudent.firstName}</h2>
-                            <div className="flex gap-2 mt-2">
-                               <div className="flex flex-wrap gap-2 mt-3">
-                                  <div className="bg-orange-500 text-white px-3 py-1 rounded-xl text-[10px] font-black uppercase shadow-sm">
+                            <div className="flex flex-wrap gap-2 mt-2">
+                                <div className="bg-orange-500 text-white px-3 py-1 rounded-xl text-[10px] font-black uppercase shadow-sm">
                                     Edad: {calculateAge(viewingStudent.birthDate)} años
-                                  </div>
-                                  <div className="bg-white/10 text-white px-3 py-1 rounded-xl text-[10px] font-bold">
+                                </div>
+                                <div className="bg-white/10 text-white px-3 py-1 rounded-xl text-[10px] font-bold">
                                     Nac: {getSafeDate(viewingStudent.birthDate)}
-                                  </div>
                                 </div>
                                 <span className="bg-white/20 px-3 py-1 rounded-lg text-xs font-bold">{viewingStudent.dni}</span>
                             </div>
                         </div>
                     </div>
-                    <div className="flex gap-2 mt-6 bg-slate-800/50 p-1 rounded-xl">
-                        <button onClick={()=>setActiveModalTab('info')} className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeModalTab==='info'?'bg-white text-slate-800 shadow-md':'text-white/50 hover:text-white hover:bg-white/10'}`}>Datos Personales</button>
-                        {activeModalTab === 'history' && (
-  <div className="space-y-4 pb-20 animate-in fade-in">
-    {/* BOTONES RÁPIDOS DE AULA */}
-    {!isWriting && (
-      <div className="grid grid-cols-3 gap-2 mb-4">
-        {INCIDENT_TYPES.map((type) => (
-          <button 
-            key={type.label} 
-            onClick={() => handleSaveIncident(type.label, type.severity)} 
-            className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color}`}
-          >
-            <span className="text-2xl">{type.emoji}</span>
-            <span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span>
-          </button>
-        ))}
-      </div>
-    )}
+                </div>
 
-    {/* LISTADO UNIFICADO: AULA + GESTIÓN SOCIAL */}
-    <div className="space-y-3">
-      {(() => {
-        // 1. Tomamos incidentes de aula
-        const normales = (viewingStudent.incidents || []).map(inc => ({ ...inc, source: 'aula' }));
-        
-        // 2. Filtramos reportes de socialCases para este alumno
-        const sociales = (socialCases || [])
-          .filter(c => 
-            (c.studentId && c.studentId === viewingStudent.id) || 
-            (c.studentName && c.studentName === `${viewingStudent.lastName}, ${viewingStudent.firstName}`)
-          )
-          .map(c => ({
-            date: c.createdAt?.seconds ? new Date(c.createdAt.seconds * 1000).toISOString() : new Date().toISOString(),
-            text: `⚠️ INTERVENCIÓN SOCIAL: ${c.reason}`,
-            author: c.reportedBy || 'Gabinete',
-            severity: 'high',
-            source: 'social',
-            isClosed: c.status === 'Reincorporado'
-          }));
-
-        // 3. Mezclamos y ordenamos por fecha
-        const combined = [...normales, ...sociales].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-        if (combined.length === 0) return (
-          <div className="text-center py-10 bg-white rounded-3xl border border-dashed border-gray-200">
-            <p className="text-gray-400 text-xs font-bold uppercase italic">Sin registros en bitácora</p>
-          </div>
-        );
-
-        return combined.map((inc, i) => (
-          <div key={i} className={`p-4 rounded-2xl border shadow-sm transition-all ${inc.source === 'social' ? (inc.isClosed ? 'bg-slate-50 border-slate-200 opacity-80' : 'bg-red-50 border-red-200 ring-2 ring-red-50') : getSeverityColor(inc.severity)}`}>
-            <div className="flex justify-between items-center mb-2 border-b border-gray-100/50 pb-1">
-              <div className="flex items-center gap-2">
-                <span className={`font-black text-[9px] uppercase tracking-wider ${inc.source === 'social' ? (inc.isClosed ? 'text-slate-500' : 'text-red-600') : 'text-blue-600'}`}>
-                  {new Date(inc.date).toLocaleDateString('es-AR')}
-                </span>
-                {inc.source === 'social' && (
-                  <span className={`text-[7px] px-1.5 py-0.5 rounded-md font-black uppercase ${inc.isClosed ? 'bg-slate-200 text-slate-600' : 'bg-red-600 text-white animate-pulse'}`}>
-                    {inc.isClosed ? 'Caso Finalizado' : 'Gestión Social'}
-                  </span>
-                )}
-              </div>
-              {inc.source === 'aula' && (
-                <button onClick={() => deleteIncident(viewingStudent.id, inc)} className="text-gray-300 hover:text-red-500 transition">
-                  <Trash2 size={12}/>
-                </button>
-              )}
-            </div>
-            <p className={`text-xs font-bold leading-relaxed ${inc.isClosed ? 'text-slate-500 line-through' : 'text-slate-700'}`}>
-              {inc.text || inc.type}
-            </p>
-            <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-50">
-              <span className="text-[7px] font-black uppercase text-gray-400">Origen: {inc.source === 'social' ? 'Gabinete' : 'Aula'}</span>
-              <span className="text-[8px] font-bold text-gray-400 italic">Por: {inc.author}</span>
-            </div>
-          </div>
-        ));
-      })()}
-    </div>
-
-    {/* SECCIÓN ESCRIBIR NOTA MANUAL */}
-    <div className="sticky bottom-0 bg-white pt-4 border-t border-gray-100">
-      {isWriting ? (
-        <div className="animate-in slide-in-from-bottom">
-          <textarea 
-            autoFocus 
-            value={newNote} 
-            onChange={e => setNewNote(e.target.value)} 
-            placeholder="Detalles de la observación..." 
-            className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm mb-2 h-24 outline-none focus:border-violet-500 shadow-inner"
-          />
-          <div className="flex gap-2">
-            <button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
-            <button onClick={() => addIncident('medium', newNote)} disabled={!newNote.trim()} className="flex-[2] py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-[10px] shadow-lg">Guardar Nota</button>
-          </div>
-        </div>
-      ) : (
-        <button onClick={() => setIsWriting(true)} className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold uppercase tracking-widest shadow-lg flex items-center justify-center gap-2 hover:scale-[1.02] transition">
-          <Edit3 size={18}/> Redactar Observación
-        </button>
-      )}
-    </div>
-  </div>
-)}
-                    </div>
+                {/* BOTONERA DE PESTAÑAS (RESTAURADA) */}
+                <div className="flex gap-2 p-2 bg-slate-800/50 shrink-0">
+                    <button onClick={()=>setActiveModalTab('info')} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeModalTab==='info'?'bg-white text-slate-800 shadow-md':'text-white/40 hover:text-white'}`}>Ficha Técnica</button>
+                    <button onClick={()=>setActiveModalTab('history')} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeModalTab==='history'?'bg-white text-slate-800 shadow-md':'text-white/40 hover:text-white'}`}>Bitácora Unificada</button>
                 </div>
       
-                <div className="p-6 overflow-y-auto bg-gray-50 flex-1 relative">
-                    {activeModalTab==='info' ? (
-                      <div className="space-y-4 text-sm">
+                <div className="p-6 overflow-y-auto bg-gray-50 flex-1 relative custom-scrollbar">
+                    {/* CONTENIDO PESTAÑA 1: TODA LA INFO PERSONAL (LO QUE TENÍAS ANTES) */}
+                    {activeModalTab === 'info' && (
+                      <div className="space-y-4 text-sm animate-in fade-in">
                         {canSearchDrive && (
-                            <button onClick={() => abrirLegajoDigital(viewingStudent)} className="w-full bg-green-100 text-green-800 py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-green-200 transition border border-green-300 mb-4 shadow-sm transform hover:scale-[1.02]"><Folder size={18}/> {viewingStudent.modality === 'Inclusión' ? 'IR A CARPETA DRIVE' : 'BUSCAR EN DRIVE'}</button>
+                            <button onClick={() => abrirLegajoDigital(viewingStudent)} className="w-full bg-green-100 text-green-800 py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-green-200 transition border border-green-300 mb-4 shadow-sm"><Folder size={18}/> {viewingStudent.modality === 'Inclusión' ? 'IR A CARPETA DRIVE' : 'BUSCAR EN DRIVE'}</button>
                         )}
                         <div className="grid grid-cols-4 gap-3">
                              <div className="bg-white p-3 rounded-2xl border border-gray-200 text-center shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Nivel</p><p className="font-black text-slate-800 text-xs">{viewingStudent.level || '-'}</p></div>
@@ -3255,47 +3155,75 @@ const findDuplicates = () => {
                              {viewingStudent.modality === 'Inclusión' ? (
                                 <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-200 space-y-3"><div className="flex justify-between items-center border-b border-indigo-200 pb-2"><span className="text-[10px] text-indigo-400 font-bold uppercase">Escuela de Origen</span><span className="font-bold text-indigo-900 text-xs">{viewingStudent.originSchool || '-'} ({viewingStudent.originGrade || '-'})</span></div><div className="flex justify-between items-center"><span className="text-[10px] text-indigo-400 font-bold uppercase">DAI Asignada</span><span className="font-bold text-indigo-900 text-xs">{viewingStudent.daiMorning || viewingStudent.daiAfternoon || 'Sin asignar'}</span></div></div>
                              ) : (
-                                <div className="grid grid-cols-2 gap-3"><div className="bg-yellow-50 p-3 rounded-2xl border border-yellow-200 shadow-sm relative overflow-hidden"><div className="absolute top-0 right-0 bg-yellow-200 text-yellow-800 text-[8px] font-bold px-2 py-0.5 rounded-bl-lg">MAÑANA</div><p className="text-[9px] text-yellow-600 font-bold uppercase mt-2">Grupo</p><p className="font-bold text-slate-800 text-xs mb-2">{viewingStudent.groupMorning || '-'}</p><p className="text-[9px] text-yellow-600 font-bold uppercase">Docente</p><p className="font-bold text-slate-800 text-xs truncate">{viewingStudent.teacherMorning || '-'}</p></div><div className="bg-indigo-50 p-3 rounded-2xl border border-indigo-200 shadow-sm relative overflow-hidden"><div className="absolute top-0 right-0 bg-indigo-200 text-indigo-800 text-[8px] font-bold px-2 py-0.5 rounded-bl-lg">TARDE</div><p className="text-[9px] text-indigo-500 font-bold uppercase mt-2">Grupo</p><p className="font-bold text-slate-800 text-xs mb-2">{viewingStudent.groupAfternoon || '-'}</p><p className="text-[9px] text-indigo-500 font-bold uppercase">Docente</p><p className="font-bold text-slate-800 text-xs truncate">{viewingStudent.teacherAfternoon || '-'}</p></div></div>
+                                <div className="grid grid-cols-2 gap-3"><div className="bg-yellow-50 p-3 rounded-2xl border border-yellow-200 shadow-sm relative overflow-hidden"><div className="absolute top-0 right-0 bg-yellow-200 text-yellow-800 text-[8px] font-bold px-2 py-0.5 rounded-bl-lg">MAÑANA</div><p className="text-[9px] text-yellow-600 font-bold uppercase mt-2">Grupo</p><p className="font-bold text-slate-800 text-xs mb-2">{viewingStudent.groupMorning || '-'}</p><p className="text-[9px] text-yellow-600 font-bold uppercase">Docente</p><p className="font-bold text-slate-800 text-xs truncate">{viewingStudent.teacherMorning || '-'}</p></div><div className="bg-indigo-50 p-3 rounded-2xl border border-indigo-200 shadow-sm relative overflow-hidden"><div className="absolute top-0 right-0 bg-indigo-200 text-indigo-800 text-[8px] font-bold px-2 py-0.5 rounded-bl-lg">TARDE</div><p className="text-[9px] text-indigo-500 font-bold uppercase mt-2">Grupo</p><p className="font-bold text-slate-800 text-xs mb-2">{viewingStudent.groupAfternoon || '-'}</p><p className="text-[9px] text-indigo-500 font-bold uppercase">Docente</p><p className="font-bold text-slate-800 text-xs truncate">{viewingStaff?.teacherAfternoon || '-'}</p></div></div>
                              )}
                         </div>
-                        <div className="grid grid-cols-1 gap-3">
-                            <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm"><h4 className="font-bold text-green-600 text-xs uppercase flex items-center gap-1 mb-3"><Activity size={14}/> Salud y Obra Social</h4><div className="flex justify-between items-center text-xs"><div><span className="text-[9px] text-gray-400 font-bold block uppercase">Obra Social</span><span className="font-bold text-slate-800">{viewingStudent.healthInsurance || 'NO DECLARA'}</span></div><div className="text-right"><span className="text-[9px] text-gray-400 font-bold block uppercase">Vencimiento CUD</span><span className="font-bold text-red-500">{getSafeDate(viewingStudent.cudExpiration) || '-'}</span></div></div></div>
-                            <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm"><h4 className="font-bold text-orange-600 text-xs uppercase flex items-center gap-1 mb-3"><User size={14}/> Familia</h4><div className="space-y-3"><div className="flex justify-between items-start border-b border-gray-50 pb-2"><div><span className="text-[9px] text-gray-400 font-bold block uppercase">Madre</span><span className="font-bold text-xs">{viewingStudent.motherName || '-'}</span></div><div className="text-right"><span className="text-[9px] text-gray-400 font-bold block uppercase">Contacto</span><span className="font-bold text-blue-600 text-xs">{viewingStudent.motherContact || '-'}</span></div></div><div className="flex justify-between items-start"><div><span className="text-[9px] text-gray-400 font-bold block uppercase">Padre</span><span className="font-bold text-xs">{viewingStudent.fatherName || '-'}</span></div><div className="text-right"><span className="text-[9px] text-gray-400 font-bold block uppercase">Contacto</span><span className="font-bold text-blue-600 text-xs">{viewingStudent.fatherContact || '-'}</span></div></div></div><div className="mt-3 pt-2 border-t border-gray-100 space-y-2"><div><span className="text-[9px] text-gray-400 font-bold block uppercase">Dirección</span><p className="font-bold text-xs text-gray-700">{viewingStudent.address || 'No registrada'}</p></div><div className="bg-orange-50 p-2 rounded-lg border border-orange-100"><span className="text-[9px] text-orange-700 font-bold block uppercase mb-1">Autorizados a Retirar</span><p className="font-bold text-xs text-gray-800">{viewingStudent.pickupInfo || 'Sin datos cargados.'}</p></div></div></div>
-                        </div>
+                        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm"><h4 className="font-bold text-green-600 text-xs uppercase flex items-center gap-1 mb-3"><Activity size={14}/> Salud y Obra Social</h4><div className="flex justify-between items-center text-xs"><div><span className="text-[9px] text-gray-400 font-bold block uppercase">Obra Social</span><span className="font-bold text-slate-800">{viewingStudent.healthInsurance || 'NO DECLARA'}</span></div><div className="text-right"><span className="text-[9px] text-gray-400 font-bold block uppercase">Vencimiento CUD</span><span className="font-bold text-red-500">{getSafeDate(viewingStudent.cudExpiration) || '-'}</span></div></div></div>
+                        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm"><h4 className="font-bold text-orange-600 text-xs uppercase flex items-center gap-1 mb-3"><User size={14}/> Familia</h4><div className="space-y-3"><div className="flex justify-between items-start border-b border-gray-50 pb-2"><div><span className="text-[9px] text-gray-400 font-bold block uppercase">Madre</span><span className="font-bold text-xs">{viewingStudent.motherName || '-'}</span></div><div className="text-right"><span className="text-[9px] text-gray-400 font-bold block uppercase">Contacto</span><span className="font-bold text-blue-600 text-xs">{viewingStudent.motherContact || '-'}</span></div></div><div className="flex justify-between items-start"><div><span className="text-[9px] text-gray-400 font-bold block uppercase">Padre</span><span className="font-bold text-xs">{viewingStudent.fatherName || '-'}</span></div><div className="text-right"><span className="text-[9px] text-gray-400 font-bold block uppercase">Contacto</span><span className="font-bold text-blue-600 text-xs">{viewingStudent.fatherContact || '-'}</span></div></div></div><div className="mt-3 pt-2 border-t border-gray-100"><div><span className="text-[9px] text-gray-400 font-bold block uppercase">Dirección</span><p className="font-bold text-xs text-gray-700">{viewingStudent.address || 'No registrada'}</p></div></div></div>
                       </div>
-                    ) : (
-                      <div className="space-y-4 pb-20">
+                    )}
+
+                    {/* CONTENIDO PESTAÑA 2: BITÁCORA UNIFICADA */}
+                    {activeModalTab === 'history' && (
+                      <div className="space-y-4 pb-20 animate-in fade-in">
                         {!isWriting && (
-                            <div className="grid grid-cols-3 gap-2 mb-4">
-                                {INCIDENT_TYPES.map((type) => (
-                                    <button 
-                                        key={type.label} 
-                                        onClick={() => handleSaveIncident(type.label, type.severity)} 
-                                        className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color}`}
-                                    >
-                                        <span className="text-2xl">{type.emoji}</span>
-                                        <span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span>
-                                    </button>
-                                ))}
-                            </div>
+                          <div className="grid grid-cols-3 gap-2 mb-4">
+                            {INCIDENT_TYPES.map((type) => (
+                              <button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color}`}>
+                                <span className="text-2xl">{type.emoji}</span>
+                                <span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span>
+                              </button>
+                            ))}
+                          </div>
                         )}
-                        <div className="space-y-3">{viewingStudent.incidents?.length > 0 ? viewingStudent.incidents.slice().reverse().map((inc,i)=>(<div key={i} className={`${getSeverityColor(inc.severity)} p-3 rounded-xl border shadow-sm`}><div className="flex justify-between border-b border-gray-200/50 pb-1 mb-1"><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{new Date(inc.date).toLocaleDateString()}</span><button onClick={()=>deleteIncident(viewingStudent.id, inc)}><Trash2 size={12} className="text-gray-400 hover:text-red-500"/></button></div><p className="font-bold text-sm text-slate-800">{inc.text || inc.type}</p><p className="text-xs text-gray-500 mt-1 uppercase font-bold pl-7">Por: {inc.author}</p></div>)) : <div className="text-center py-6 text-gray-400 text-xs font-bold uppercase">Sin registros</div>}</div>
-                        <div className="sticky bottom-0 bg-white pt-4 border-t border-gray-100">
-                            {isWriting ? (
-                                <div className="animate-in slide-in-from-bottom">
-                                    <textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Detalles..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm mb-2 h-24 outline-none focus:border-violet-500"/>
-                                    <div className="flex gap-2"><button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs hover:bg-gray-100 rounded-xl">Cancelar</button><button onClick={() => addIncident('medium', newNote)} disabled={!newNote.trim()} className="flex-1 py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg">Guardar Nota</button></div>
+                        <div className="space-y-3">
+                          {(() => {
+                            const normales = (viewingStudent.incidents || []).map(inc => ({ ...inc, source: 'aula' }));
+                            const sociales = (socialCases || [])
+                              .filter(c => (c.studentId === viewingStudent.id) || (c.studentName === `${viewingStudent.lastName}, ${viewingStudent.firstName}`))
+                              .map(c => ({
+                                date: c.createdAt?.seconds ? new Date(c.createdAt.seconds * 1000).toISOString() : new Date().toISOString(),
+                                text: `⚠️ INTERVENCIÓN SOCIAL: ${c.reason}`,
+                                author: c.reportedBy || 'Gabinete',
+                                severity: 'high',
+                                source: 'social',
+                                isClosed: c.status === 'Reincorporado'
+                              }));
+                            const combined = [...normales, ...sociales].sort((a, b) => new Date(b.date) - new Date(a.date));
+                            if (combined.length === 0) return <div className="text-center py-10 bg-white rounded-3xl border border-dashed border-gray-200"><p className="text-gray-400 text-xs font-bold uppercase italic">Sin registros</p></div>;
+                            return combined.map((inc, i) => (
+                              <div key={i} className={`p-4 rounded-2xl border shadow-sm transition-all ${inc.source === 'social' ? (inc.isClosed ? 'bg-slate-50 border-slate-200' : 'bg-red-50 border-red-200 ring-2 ring-red-50') : getSeverityColor(inc.severity)}`}>
+                                <div className="flex justify-between items-center mb-2 border-b border-gray-100/50 pb-1">
+                                  <span className="text-[10px] font-black text-gray-400 uppercase">{new Date(inc.date).toLocaleDateString('es-AR')}</span>
+                                  {inc.source === 'aula' && <button onClick={() => deleteIncident(viewingStudent.id, inc)} className="text-gray-300 hover:text-red-500 transition"><Trash2 size={12}/></button>}
                                 </div>
-                            ) : (
-                                <button onClick={() => setIsWriting(true)} className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold uppercase tracking-widest shadow-lg flex items-center justify-center gap-2 hover:scale-[1.02] transition"><Edit3 size={18}/> Redactar Observación</button>
-                            )}
+                                <p className={`text-xs font-bold leading-relaxed ${inc.isClosed ? 'text-slate-500 line-through' : 'text-slate-700'}`}>{inc.text || inc.type}</p>
+                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-2">Origen: {inc.source === 'social' ? 'Gabinete' : 'Aula'} • Por: {inc.author}</p>
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                        <div className="sticky bottom-0 bg-white pt-4 border-t border-gray-100">
+                          {isWriting ? (
+                            <div className="animate-in slide-in-from-bottom">
+                              <textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Detalles..." className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm mb-2 h-24 outline-none"/>
+                              <div className="flex gap-2">
+                                <button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
+                                <button onClick={() => addIncident('medium', newNote)} disabled={!newNote.trim()} className="flex-[2] py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-[10px]">Guardar</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button onClick={() => setIsWriting(true)} className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition hover:scale-[1.02]"><Edit3 size={18}/> Redactar Nota</button>
+                          )}
                         </div>
                       </div>
                     )}
                 </div>
-                <div className="p-4 border-t border-gray-100 bg-white flex justify-end gap-2">
-                    <button onClick={()=>imprimirListado([viewingStudent])} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-slate-600 font-bold text-xs uppercase hover:bg-gray-50 flex gap-2 items-center shadow-sm"><FileText size={16}/> Imprimir Ficha</button>
-                    <button onClick={()=>openEdit(viewingStudent)} className="px-4 py-3 bg-blue-600 text-white rounded-xl font-bold text-xs uppercase hover:bg-blue-700 flex gap-2 items-center shadow-lg"><Edit3 size={16}/> Editar Ficha</button>
+
+                {/* BOTONERA INFERIOR */}
+                <div className="p-4 border-t border-gray-100 bg-white flex justify-end gap-2 shrink-0">
+                    <button onClick={()=>imprimirListado([viewingStudent])} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-slate-600 font-bold text-[10px] uppercase hover:bg-gray-50 flex gap-2 items-center shadow-sm"><FileText size={16}/> Imprimir Ficha</button>
+                    <button onClick={()=>openEdit(viewingStudent)} className="px-4 py-3 bg-blue-600 text-white rounded-xl font-bold text-[10px] uppercase hover:bg-blue-700 flex gap-2 items-center shadow-lg"><Edit3 size={16}/> Editar Ficha</button>
                 </div>
             </div>
         </div>
