@@ -462,7 +462,7 @@ useEffect(() => {
         }
     }, 1000);
 
-    // 6. Carga de Desafío
+    // 6. Cargar Desafío desde Github
     const loadGithubChallenge = async () => {
         try {
             if (!isWorkingDay) {
@@ -501,70 +501,20 @@ useEffect(() => {
       unsubNotes(); unsubUsers(); unsubSettings(); unsubStudents(); unsubStaff(); 
       clearInterval(timer);
     };
-  }, [user.id, appId, isWorkingDay]);
-    // 5. Configuración y Cuenta regresiva
-    const qSettings = query(collection(db, 'artifacts', appId, 'public', 'data', 'settings'));
-    const unsubSettings = onSnapshot(qSettings, (snap) => {
-        if (!snap.empty) {
-            const docSnap = snap.docs.find(d => d.data().title || d.data().date);
-            if (docSnap) {
-                setCountdownDocId(docSnap.id);
-                const data = docSnap.data();
-                const diffDays = Math.ceil((new Date(data.date + 'T00:00:00') - new Date()) / (1000 * 60 * 60 * 24));
-                setCountdown({ title: data.title || '', date: data.date, daysLeft: diffDays > 0 ? diffDays : 0 });
-            }
-        }
-    });
+  }, [user.id, appId, isWorkingDay]); 
 
-// 6. Cargar Desafío desde Github
-    const loadGithubChallenge = async () => {
-        try {
-            if (!isWorkingDay) {
-                setCurrentChallenge({ q: "¡Hoy es día de descanso!", isRestDay: true });
-                return;
-            }
-            const res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${GITHUB_FOLDER}`);
-            const files = await res.json();
-            const images = files.filter(f => f.name.match(/\.(jpg|jpeg|png|webp|gif|bmp)$/i));
-            if (images.length > 0) {
-                const seed = todayDate.getFullYear() + todayDate.getMonth() + todayDate.getDate();
-                const idx = seed % images.length;
-                const file = images[idx];
-                const fileNameOnly = file.name.substring(0, file.name.lastIndexOf('.'));
-                setCurrentChallenge({ url: file.download_url, answer: fileNameOnly, isRestDay: false });
-            }
-        } catch (e) { console.error("Error Github:", e); }
-    };
-    loadGithubChallenge();
-
-    return () => { 
-      unsubNotes(); 
-      unsubUsers(); 
-      unsubSettings(); 
-      unsubStudents(); 
-      unsubStaff(); 
-    };
-  }, [user.id, appId, isWorkingDay]); // Esta es la línea 533 corregida
-
+  // --- EL RANKING AHORA MUESTRA A TODOS (Quité el slice) ---
   const handlePost = async (e) => { 
     e.preventDefault(); 
     const msg = e.target.message.value;
     const chan = e.target.channel.value;
     if (!msg.trim()) return;
-
     try { 
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), { 
-        message: msg, 
-        author: user.fullName || `${user.firstName} ${user.lastName}`, 
-        authorId: user.id, 
-        role: user.role || user.rol, 
-        channel: chan, 
-        createdAt: serverTimestamp() 
+        message: msg, author: user.fullName || `${user.firstName} ${user.lastName}`, authorId: user.id, role: user.role || user.rol, channel: chan, createdAt: serverTimestamp() 
       }); 
       setShowAnnounceModal(false); 
-    } catch(err) { 
-      alert("Error al publicar aviso: " + err.message); 
-    } 
+    } catch(err) { alert("Error: " + err.message); } 
   };
   const deleteAnnouncement = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'announcements', id)); };
   const saveNote = async (e) => { e.preventDefault(); if (!newNote.trim()) return; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), { text: newNote, userId: user.id, done: false, createdAt: serverTimestamp() }); setNewNote(''); };
