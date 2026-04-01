@@ -407,7 +407,8 @@ useEffect(() => {
         const usersData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         const me = usersData.find(u => u.id === user.id);
         if (me) setUserScore(me.score || 0);
-        setRankingData(usersData.filter(u => (u.score || 0) > 0).sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 10));
+       const sortedRanking = usersData.sort((a, b) => (b.score || 0) - (a.score || 0));
+    setRankingData(sortedRanking);
     });
 
     // 3. Estudiantes y Cumpleaños
@@ -804,7 +805,7 @@ const resetMyDailyChallenge = () => {
           </div>
       )}
 
-    {/* MODAL RANKING */}
+   {/* MODAL RANKING ACTUALIZADO */}
       {showRanking && (
           <div className="fixed inset-0 bg-slate-900/90 z-[9999] flex items-center justify-center p-4 backdrop-blur-md" onClick={() => setShowRanking(false)}>
               <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[85vh] relative" onClick={e => e.stopPropagation()}>
@@ -814,9 +815,15 @@ const resetMyDailyChallenge = () => {
                   </div>
                   <div className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar">
                       <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase mb-3 tracking-widest text-center italic border-b pb-1">Top de Marzo</p>
+                        {/* NOMBRE DEL MES DINÁMICO */}
+                        <p className="text-[10px] font-black text-gray-400 uppercase mb-3 tracking-widest text-center italic border-b pb-1">
+                            Top de {new Date().toLocaleDateString('es-AR', { month: 'long' })}
+                        </p>
+                        
                         <div className="space-y-2">
-                            {rankingData.length === 0 ? (<p className="text-center text-gray-400 text-xs py-4 italic">¡Aún no hay puntos registrados!</p>) : (
+                            {rankingData.length === 0 ? (
+                                <p className="text-center text-gray-400 text-xs py-4 italic">¡Aún no hay puntos registrados este mes!</p>
+                            ) : (
                                 rankingData.map((u, index) => (
                                     <div key={u.id || index} className={`flex items-center justify-between p-3 rounded-2xl border ${index === 0 ? 'bg-yellow-50 border-yellow-200 shadow-sm' : 'bg-gray-50 border-gray-100'}`}>
                                         <div className="flex items-center gap-3">
