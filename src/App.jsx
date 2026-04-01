@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-// Lista de iconos optimizada: Incluye los de alineación para el Generador de Notas
 import { 
   Calendar as CalendarIcon, CheckSquare, Settings, User, FileText, CheckCircle, 
   Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, 
@@ -8,12 +7,8 @@ import {
   Send, Key, Filter, LayoutDashboard, Link as LinkIcon, ExternalLink, 
   AlertTriangle, Clock, Shield, Crown, Activity, Share, PlusSquare, 
   Smartphone, GraduationCap, Search, X, UploadCloud, PieChart, Eye, Edit3, Trophy,
-  Folder, MessageSquare, Globe, BookOpen, Lightbulb, ChevronDown, PlusCircle, Printer,Phone, 
-  BookOpen, 
-  CheckCircle2,
-  Check
-  // Iconos específicos para el formato de las notas
-  AlignLeft, AlignCenter, AlignRight, AlignJustify, FileSquare
+  Folder, MessageSquare, Globe, BookOpen, Lightbulb, ChevronDown, PlusCircle, Printer,
+  AlignLeft, AlignCenter, AlignRight, AlignJustify, Phone, CheckCircle2, Clock3, UserCheck
 } from 'lucide-react';
 
 import { initializeApp } from 'firebase/app';
