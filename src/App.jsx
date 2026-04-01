@@ -4243,7 +4243,7 @@ function SocialView({ user }) {
                 </div>
               </div>
 
-         {/* BITÁCORA UNIFICADA (Aula + Reportes Sociales) */}
+       {/* BITÁCORA UNIFICADA (Aula + Gestión Social Histórica Completa) */}
       <div className="space-y-3">
         <div className="flex justify-between items-center px-1">
           <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[3px]">Historial Unificado Completo</h4>
@@ -4258,16 +4258,17 @@ function SocialView({ user }) {
               source: 'aula'
             }));
 
-            // 2. Buscar reportes sociales de este alumno en la colección social_cases
+            // 2. BUSCAMOS TODOS LOS REPORTES (Activos y Archivados/Reincorporados)
             const socialReports = cases
               .filter(c => c.studentId === viewingStudent.id || c.studentName === `${viewingStudent.lastName}, ${viewingStudent.firstName}`)
               .map(c => ({
                 date: c.createdAt?.seconds ? new Date(c.createdAt.seconds * 1000).toISOString() : new Date().toISOString(),
-                text: `⚠️ REPORTE SOCIAL: ${c.reason}`,
+                text: `⚠️ INTERVENCIÓN SOCIAL: ${c.reason}`,
                 type: 'Gestión Social',
                 author: c.reportedBy || 'Gabinete',
                 severity: 'high',
-                source: 'social'
+                source: 'social',
+                isClosed: c.status === 'Reincorporado'
               }));
 
             // 3. Unificar y ordenar por fecha (más reciente arriba)
@@ -4282,23 +4283,32 @@ function SocialView({ user }) {
             }
 
             return combinedTimeline.map((inc, i) => (
-              <div key={i} className={`p-4 rounded-2xl border shadow-sm transition-all ${inc.source === 'social' ? 'bg-red-50 border-red-200 ring-2 ring-red-50' : 'bg-white border-gray-200'}`}>
+              <div key={i} className={`p-4 rounded-2xl border shadow-sm transition-all ${inc.source === 'social' ? (inc.isClosed ? 'bg-slate-50 border-slate-200 opacity-80' : 'bg-red-50 border-red-200 ring-2 ring-red-50') : 'bg-white border-gray-200'}`}>
                 <div className="flex justify-between items-center mb-2 border-b border-gray-50 pb-1">
                   <div className="flex items-center gap-2">
-                    <span className={`font-black text-[9px] uppercase tracking-wider ${inc.source === 'social' ? 'text-red-600' : 'text-blue-600'}`}>
+                    <span className={`font-black text-[9px] uppercase tracking-wider ${inc.source === 'social' ? (inc.isClosed ? 'text-slate-500' : 'text-red-600') : 'text-blue-600'}`}>
                       {new Date(inc.date).toLocaleDateString('es-AR')}
                     </span>
                     {inc.source === 'social' && (
-                      <span className="bg-red-600 text-white text-[7px] px-1.5 py-0.5 rounded-md font-black animate-pulse uppercase">Urgente</span>
+                      <span className={`text-[7px] px-1.5 py-0.5 rounded-md font-black uppercase ${inc.isClosed ? 'bg-slate-200 text-slate-600' : 'bg-red-600 text-white animate-pulse'}`}>
+                        {inc.isClosed ? 'Caso Cerrado' : 'Urgente / Activo'}
+                      </span>
                     )}
                   </div>
                   <span className="text-[8px] font-bold text-gray-400 uppercase italic">Por: {inc.author}</span>
                 </div>
-                <p className="text-xs font-bold text-slate-700 leading-relaxed mb-1">{inc.text || inc.type}</p>
+                <p className={`text-xs font-bold leading-relaxed mb-1 ${inc.isClosed ? 'text-slate-500 line-through' : 'text-slate-700'}`}>
+                  {inc.text || inc.type}
+                </p>
                 <div className="flex justify-between items-center mt-2">
                    <span className="text-[7px] font-black px-1.5 py-0.5 rounded uppercase bg-gray-100 text-gray-500">
                      Origen: {inc.source === 'social' ? 'Gabinete Social' : 'Bitácora de Aula'}
                    </span>
+                   {inc.source === 'social' && inc.isClosed && (
+                     <span className="text-[7px] font-bold text-emerald-600 italic flex items-center gap-1">
+                       ✓ Alumno Reincorporado
+                     </span>
+                   )}
                 </div>
               </div>
             ));
