@@ -4434,15 +4434,18 @@ const imprimirSeguimientoSocial = (c) => {
     </div> {/* Cierra el div del contenido del modal (p-6 overflow-y-auto) */}
     
     <div className="p-4 bg-white border-t flex justify-center shrink-0">
-      <button onClick={() => setViewingStudent(null)} className="w-full py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-200 transition">
-        Cerrar Legajo
-      </button>
+     <button 
+                onClick={() => setViewingStudent(null)} 
+                className="w-full py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-200 transition"
+              >
+                Cerrar Legajo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  </div> {/* Cierra el modal blanco (bg-white rounded-[40px]) */}
-</div> 
-)}
-</div> 
-);
+  );
 }
 // --- APP PRINCIPAL (FINAL: CON ADMIN INTEGRADO + MANTENIMIENTO + NOTIFS) ---
 function MainApp({ user, onLogout }) {
