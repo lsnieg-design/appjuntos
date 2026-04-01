@@ -4327,9 +4327,19 @@ const imprimirSeguimientoSocial = (c) => {
               
               <div className="space-y-3">
                 {(() => {
-                  const normalIncidents = (viewingStudent.incidents || []).map(inc => ({ ...inc, source: 'aula' }));
+                  // 1. Extraer incidentes de la bitácora normal del alumno
+                  const normalIncidents = (viewingStudent.incidents || []).map(inc => ({ 
+                    ...inc, 
+                    source: 'aula' 
+                  }));
+
+                  // 2. BUSCAR EN TODOS LOS CASOS SOCIALES (Activos y Archivados)
+                  // Filtramos por ID de estudiante O por Nombre exacto para no perder datos viejos
                   const socialReports = cases
-                    .filter(c => c.studentId === viewingStudent.id || c.studentName === `${viewingStudent.lastName}, ${viewingStudent.firstName}`)
+                    .filter(c => 
+                      (c.studentId && c.studentId === viewingStudent.id) || 
+                      (c.studentName && c.studentName === `${viewingStudent.lastName}, ${viewingStudent.firstName}`)
+                    )
                     .map(c => ({
                       date: c.createdAt?.seconds ? new Date(c.createdAt.seconds * 1000).toISOString() : new Date().toISOString(),
                       text: `⚠️ INTERVENCIÓN SOCIAL: ${c.reason}`,
@@ -4340,6 +4350,7 @@ const imprimirSeguimientoSocial = (c) => {
                       isClosed: c.status === 'Reincorporado'
                     }));
 
+                  // 3. Unificar ambos arrays y ordenar por fecha (más reciente arriba)
                   const combinedTimeline = [...normalIncidents, ...socialReports].sort((a, b) => new Date(b.date) - new Date(a.date));
 
                   if (combinedTimeline.length === 0) {
@@ -4369,7 +4380,7 @@ const imprimirSeguimientoSocial = (c) => {
                         {inc.text || inc.type}
                       </p>
                       <div className="flex justify-between items-center mt-2">
-                         <span className="text-[7px] font-black px-1.5 py-0.5 rounded uppercase bg-gray-100 text-gray-500">
+                         <span className="text-[7px] font-black px-1.5 py-0.5 rounded uppercase bg-gray-100 text-gray-400">
                            Origen: {inc.source === 'social' ? 'Gabinete Social' : 'Bitácora de Aula'}
                          </span>
                          {inc.source === 'social' && inc.isClosed && (
@@ -4381,7 +4392,6 @@ const imprimirSeguimientoSocial = (c) => {
                 })()}
               </div>
             </div>
-          </div> {/* Cierra div p-6 */}
 
           <div className="p-4 bg-white border-t flex justify-center shrink-0">
             <button 
