@@ -2592,6 +2592,7 @@ function MatriculaView({ user }) {
   const [usersList, setUsersList] = useState([]); 
   const [showQuickFix, setShowQuickFix] = useState(false);
   const [fixingField, setFixingField] = useState('gender'); // 'gender' o 'dx'
+  const [socialCases, setSocialCases] = useState([])
   
   // Estados de visualización y edición
   const [viewingStudent, setViewingStudent] = useState(null);
@@ -2675,8 +2676,18 @@ const [statOnlyPreTaller, setStatOnlyPreTaller] = useState(false);
     const uS = onSnapshot(qS, (snap) => setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const qU = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('lastName', 'asc'));
     const uU = onSnapshot(qU, (snap) => setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-    return () => { uS(); uU(); };
-  }, []);
+    const qSocial = query(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'));
+    const uSocial = onSnapshot(qSocial, (snap) => {
+        // Guardamos los casos en un estado temporal o lo usamos directamente. 
+        // Para no romper nada, lo ideal es crear un estado [socialCases, setSocialCases] arriba.
+        setSocialCases(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+   return () => { 
+        uS(); 
+        uU(); 
+        if (typeof uSocial === 'function') uSocial(); 
+    };
+  }, [appId]);
 
   // Listas auxiliares para selects
   const staffSede = (usersList||[]).filter(u => ['Docente', 'Auxiliar/Preceptor', 'Equipo Técnico'].includes(u.role));
@@ -2983,7 +2994,7 @@ const findDuplicates = () => {
       setShowDataManagement(false); // Cierra el modal de la Nube para mostrar los duplicados
     }
   };
- // --- CÁLCULO DE ESTADÍSTICAS ---
+
 // --- CÁLCULO DE ESTADÍSTICAS (FILTRADO ESTRICTO) ---
   const statsResults = students.filter(s => {
       if (s.isActive === false) return false;
@@ -3121,7 +3132,109 @@ const findDuplicates = () => {
                     </div>
                     <div className="flex gap-2 mt-6 bg-slate-800/50 p-1 rounded-xl">
                         <button onClick={()=>setActiveModalTab('info')} className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeModalTab==='info'?'bg-white text-slate-800 shadow-md':'text-white/50 hover:text-white hover:bg-white/10'}`}>Datos Personales</button>
-                        <button onClick={()=>setActiveModalTab('history')} className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest transition ${activeModalTab==='history'?'bg-white text-slate-800 shadow-md':'text-white/50 hover:text-white hover:bg-white/10'}`}>Bitácora</button>
+                        {activeModalTab === 'history' && (
+  <div className="space-y-4 pb-20 animate-in fade-in">
+    {/* BOTONES RÁPIDOS DE AULA */}
+    {!isWriting && (
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        {INCIDENT_TYPES.map((type) => (
+          <button 
+            key={type.label} 
+            onClick={() => handleSaveIncident(type.label, type.severity)} 
+            className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color}`}
+          >
+            <span className="text-2xl">{type.emoji}</span>
+            <span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span>
+          </button>
+        ))}
+      </div>
+    )}
+
+    {/* LISTADO UNIFICADO: AULA + GESTIÓN SOCIAL */}
+    <div className="space-y-3">
+      {(() => {
+        // 1. Tomamos incidentes de aula
+        const normales = (viewingStudent.incidents || []).map(inc => ({ ...inc, source: 'aula' }));
+        
+        // 2. Filtramos reportes de socialCases para este alumno
+        const sociales = (socialCases || [])
+          .filter(c => 
+            (c.studentId && c.studentId === viewingStudent.id) || 
+            (c.studentName && c.studentName === `${viewingStudent.lastName}, ${viewingStudent.firstName}`)
+          )
+          .map(c => ({
+            date: c.createdAt?.seconds ? new Date(c.createdAt.seconds * 1000).toISOString() : new Date().toISOString(),
+            text: `⚠️ INTERVENCIÓN SOCIAL: ${c.reason}`,
+            author: c.reportedBy || 'Gabinete',
+            severity: 'high',
+            source: 'social',
+            isClosed: c.status === 'Reincorporado'
+          }));
+
+        // 3. Mezclamos y ordenamos por fecha
+        const combined = [...normales, ...sociales].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        if (combined.length === 0) return (
+          <div className="text-center py-10 bg-white rounded-3xl border border-dashed border-gray-200">
+            <p className="text-gray-400 text-xs font-bold uppercase italic">Sin registros en bitácora</p>
+          </div>
+        );
+
+        return combined.map((inc, i) => (
+          <div key={i} className={`p-4 rounded-2xl border shadow-sm transition-all ${inc.source === 'social' ? (inc.isClosed ? 'bg-slate-50 border-slate-200 opacity-80' : 'bg-red-50 border-red-200 ring-2 ring-red-50') : getSeverityColor(inc.severity)}`}>
+            <div className="flex justify-between items-center mb-2 border-b border-gray-100/50 pb-1">
+              <div className="flex items-center gap-2">
+                <span className={`font-black text-[9px] uppercase tracking-wider ${inc.source === 'social' ? (inc.isClosed ? 'text-slate-500' : 'text-red-600') : 'text-blue-600'}`}>
+                  {new Date(inc.date).toLocaleDateString('es-AR')}
+                </span>
+                {inc.source === 'social' && (
+                  <span className={`text-[7px] px-1.5 py-0.5 rounded-md font-black uppercase ${inc.isClosed ? 'bg-slate-200 text-slate-600' : 'bg-red-600 text-white animate-pulse'}`}>
+                    {inc.isClosed ? 'Caso Finalizado' : 'Gestión Social'}
+                  </span>
+                )}
+              </div>
+              {inc.source === 'aula' && (
+                <button onClick={() => deleteIncident(viewingStudent.id, inc)} className="text-gray-300 hover:text-red-500 transition">
+                  <Trash2 size={12}/>
+                </button>
+              )}
+            </div>
+            <p className={`text-xs font-bold leading-relaxed ${inc.isClosed ? 'text-slate-500 line-through' : 'text-slate-700'}`}>
+              {inc.text || inc.type}
+            </p>
+            <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-50">
+              <span className="text-[7px] font-black uppercase text-gray-400">Origen: {inc.source === 'social' ? 'Gabinete' : 'Aula'}</span>
+              <span className="text-[8px] font-bold text-gray-400 italic">Por: {inc.author}</span>
+            </div>
+          </div>
+        ));
+      })()}
+    </div>
+
+    {/* SECCIÓN ESCRIBIR NOTA MANUAL */}
+    <div className="sticky bottom-0 bg-white pt-4 border-t border-gray-100">
+      {isWriting ? (
+        <div className="animate-in slide-in-from-bottom">
+          <textarea 
+            autoFocus 
+            value={newNote} 
+            onChange={e => setNewNote(e.target.value)} 
+            placeholder="Detalles de la observación..." 
+            className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm mb-2 h-24 outline-none focus:border-violet-500 shadow-inner"
+          />
+          <div className="flex gap-2">
+            <button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
+            <button onClick={() => addIncident('medium', newNote)} disabled={!newNote.trim()} className="flex-[2] py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-[10px] shadow-lg">Guardar Nota</button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={() => setIsWriting(true)} className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold uppercase tracking-widest shadow-lg flex items-center justify-center gap-2 hover:scale-[1.02] transition">
+          <Edit3 size={18}/> Redactar Observación
+        </button>
+      )}
+    </div>
+  </div>
+)}
                     </div>
                 </div>
       
