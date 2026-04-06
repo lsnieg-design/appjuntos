@@ -4863,7 +4863,49 @@ const printGroups = (groupsList) => {
     const doc = iframe.contentWindow.document; doc.open(); doc.write(fullHtml); doc.close();
     setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
   };
+const printStaffOrganization = (groupsList) => {
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
+    document.body.appendChild(iframe);
 
+    let html = `<html><head><title>Planilla de Organización</title><style>
+      @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
+      body{font-family:'Roboto', sans-serif; padding:20px; color:#333;}
+      h1 { text-align: center; color: #4c1d95; text-transform: uppercase; font-size: 20px; margin-bottom: 20px; border-bottom: 3px solid #7c3aed; padding-bottom: 10px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+      th { background-color: #7c3aed; color: white; text-transform: uppercase; font-size: 10px; padding: 10px; border: 1px solid #ddd; }
+      td { padding: 10px; border: 1px solid #ddd; font-size: 11px; font-weight: bold; text-align: center; text-transform: uppercase; }
+      tr:nth-child(even) { background-color: #f3f4f6; }
+      .footer { margin-top: 20px; text-align: right; font-size: 9px; color: #aaa; font-style: italic; }
+    </style></head><body>
+    <h1>Planilla de Organización de Personal - Turno ${turn === 'morning' ? 'Mañana' : 'Tarde'}</h1>
+    <table>
+      <thead>
+        <tr>
+          <th>Nivel</th>
+          <th>Grupo</th>
+          <th>Docente / DAI</th>
+          <th>Auxiliar</th>
+          <th>Aula Física</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+    groupsList.forEach(g => {
+        html += `<tr>
+          <td>${g.students[0]?.level || '-'}</td>
+          <td style="color: #7c3aed;">${g.name}</td>
+          <td>${g.teacher || 'VACANTE'} ${g.teacher2 ? `/ ${g.teacher2}` : ''}</td>
+          <td>${g.aux || '-'}</td>
+          <td>${g.classroom || '-'}</td>
+        </tr>`;
+    });
+
+    html += `</tbody></table><p class="footer">Generado el ${new Date().toLocaleDateString()}</p></body></html>`;
+    
+    const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close();
+    setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); document.body.removeChild(iframe); }, 500);
+  };
   const handlePrintAll = () => { printGroups(groups); };
   const handlePrintSingleGroup = (g) => { printGroups([g]); };
 
@@ -5085,14 +5127,15 @@ const handleReportAbsenteeism = async () => {
           </form>
         </div>
       )}
-      {/* MODAL CONFIGURACIÓN DE IMPRESIÓN */}
+     {/* MODAL CONFIGURACIÓN DE IMPRESIÓN ACTUALIZADO */}
       {showPrintOptions && (
         <div className="fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600">
             <h3 className="text-xl font-black text-violet-900 uppercase italic mb-4 text-center">Info a Imprimir</h3>
-            <p className="text-[10px] text-gray-400 font-bold uppercase text-center mb-6 tracking-widest">Selecciona los datos que quieres ver</p>
             
-            <div className="grid grid-cols-1 gap-2 mb-8">
+            {/* OPCIONES PARA LISTADO DE ALUMNOS */}
+            <p className="text-[10px] text-gray-400 font-bold uppercase text-center mb-4 tracking-widest">Listado de Estudiantes</p>
+            <div className="grid grid-cols-1 gap-2 mb-6">
               {[
                 {id: 'photo', label: '📸 Foto del Alumno'},
                 {id: 'dni', label: '🪪 DNI'},
@@ -5112,13 +5155,27 @@ const handleReportAbsenteeism = async () => {
               ))}
             </div>
 
+            {/* SEPARADOR VISUAL */}
+            <div className="relative h-px bg-gray-100 my-6">
+              <span className="absolute left-1/2 -translate-x-1/2 -top-2 bg-white px-3 text-[8px] font-black text-gray-300 uppercase tracking-widest">Otras Plantillas</span>
+            </div>
+
+            {/* BOTÓN ESPECÍFICO PARA ORGANIZACIÓN DE PERSONAL */}
+            <button 
+              onClick={() => { printStaffOrganization(groupsToPrint); setShowPrintOptions(false); }}
+              className="w-full py-4 bg-teal-50 text-teal-700 border-2 border-teal-100 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-teal-100 transition active:scale-95 flex items-center justify-center gap-2 mb-6"
+            >
+              <Users size={16}/> Solo Organización (Cargos)
+            </button>
+
+            {/* BOTONES DE ACCIÓN FINAL */}
             <div className="flex gap-2">
               <button type="button" onClick={() => setShowPrintOptions(false)} className="flex-1 py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
               <button 
                 onClick={() => { printGroups(groupsToPrint); setShowPrintOptions(false); }} 
                 className="flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg hover:bg-violet-700 transition"
               >
-                Mandar a Imprimir
+                Imprimir Alumnos
               </button>
             </div>
           </div>
