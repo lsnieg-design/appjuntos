@@ -4966,20 +4966,26 @@ const handleUpdateGroup = async (e) => {
 
       try {
           if (!editingGroup.isInclusionGroup) { 
+              // Docente 1
               const tId = fd.get('teacher');
               updates[`teacherId${suf}`] = tId; 
               updates[`teacher${suf}`] = getName(tId);
 
+              // Docente 2 (Pareja)
+              const t2Id = fd.get('teacher2Id');
+              updates[`teacherId2${suf}`] = t2Id;
+              updates[`teacher2${suf}`] = getName(t2Id);
+
+              // Auxiliar
               const aId = fd.get('auxId');
               updates[`auxId${suf}`] = aId;
               updates[`aux${suf}`] = getName(aId);
 
-              [1, 2].forEach(num => {
+              // Especiales (1, 2 y 3)
+              [1, 2, 3].forEach(num => {
                 const specId = fd.get(`special${num}Id`);
-                if (specId) {
-                  updates[`special${num}Id${suf}`] = specId;
-                  updates[`special${num}${suf}`] = getName(specId);
-                }
+                updates[`special${num}Id${suf}`] = specId || "";
+                updates[`special${num}${suf}`] = getName(specId);
               });
 
               updates[`group${suf}`] = fd.get('groupName'); 
@@ -4995,7 +5001,6 @@ const handleUpdateGroup = async (e) => {
       
           const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)); 
           await Promise.all(promises); 
-          alert("Exito: Actualizado por ID"); 
           setEditingGroup(null); 
       } catch (err) { 
           alert("Error: " + err.message); 
@@ -5113,36 +5118,31 @@ const handleUpdateGroup = async (e) => {
                   {editingGroup.isInclusionGroup ? "Editando Inclusión" : "Editando Sede"}
                 </p>
                 {!editingGroup.isInclusionGroup && (
-                  <input 
-                    name="groupName" 
-                    defaultValue={editingGroup.name} 
-                    className="font-black text-2xl text-violet-900 bg-transparent text-center w-full outline-none border-b border-violet-200" 
-                    placeholder="Nombre Grupo"
-                  />
+                  <input name="groupName" defaultValue={editingGroup.name} className="font-black text-2xl text-violet-900 bg-transparent text-center w-full outline-none border-b border-violet-200" placeholder="Nombre Grupo" />
                 )}
               </div>
 
               <div>
-                <label className="text-xs font-bold text-gray-500 ml-1">
-                  {editingGroup.isInclusionGroup ? "DAI Responsable" : "Docente a Cargo"}
-                </label>
-                <select 
-                  name="teacher" 
-                  defaultValue={editingGroup.teacherId || ""} 
-                  className="w-full p-3 bg-white border-2 border-violet-100 rounded-xl outline-none font-bold text-xs"
-                >
+                <label className="text-xs font-bold text-gray-500 ml-1">Docente Titular (1)</label>
+                <select name="teacher" defaultValue={editingGroup.teacherId || ""} className="w-full p-3 bg-white border-2 border-violet-100 rounded-xl outline-none font-bold text-xs">
                   <option value="">Seleccionar...</option>
-                  {usersList.map(st => (
-                    <option key={st.id} value={st.id}>{st.lastName}, {st.firstName} ({st.role || "S/R"})</option>
-                  ))}
+                  {usersList.map(u => <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>)}
                 </select>
               </div>
 
               {!editingGroup.isInclusionGroup && (
                 <div className="space-y-4">
                   <div>
+                    <label className="text-xs font-bold text-gray-500 ml-1">Docente Pareja (2)</label>
+                    <select name="teacher2Id" defaultValue={editingGroup.teacherId2 || ""} className="w-full p-3 bg-white border-2 border-violet-100 rounded-xl outline-none font-bold text-xs">
+                      <option value="">Ninguno / Vacante</option>
+                      {usersList.map(u => <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>)}
+                    </select>
+                  </div>
+
+                  <div>
                     <label className="text-xs font-bold text-gray-500 ml-1">Auxiliar / Preceptora</label>
-                    <select name="auxId" defaultValue={editingGroup.auxId || ""} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs border border-transparent focus:border-violet-200">
+                    <select name="auxId" defaultValue={editingGroup.auxId || ""} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs">
                       <option value="">Sin asignar</option>
                       {usersList.filter(u => ["Auxiliar/Preceptor", "Preceptora", "Auxiliar"].includes(u.role)).map(u => (
                         <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>
@@ -5152,43 +5152,33 @@ const handleUpdateGroup = async (e) => {
 
                   <div className="bg-violet-50/50 p-4 rounded-2xl border border-violet-100 space-y-3">
                     <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest ml-1">Profesores Especiales</p>
-                    <select name="special1Id" defaultValue={editingGroup.special1Id || ""} className="w-full p-2 bg-white rounded-lg border border-violet-100 text-xs font-bold outline-none">
+                    <select name="special1Id" defaultValue={editingGroup.special1Id || ""} className="w-full p-2 bg-white rounded-lg border border-violet-100 text-xs font-bold">
                       <option value="">Especial 1...</option>
-                      {usersList.filter(u => u.role === "Profes Especiales").map(u => (
-                        <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>
-                      ))}
+                      {usersList.filter(u => u.role === "Profes Especiales").map(u => <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>)}
                     </select>
-                    <select name="special2Id" defaultValue={editingGroup.special2Id || ""} className="w-full p-2 bg-white rounded-lg border border-violet-100 text-xs font-bold outline-none">
+                    <select name="special2Id" defaultValue={editingGroup.special2Id || ""} className="w-full p-2 bg-white rounded-lg border border-violet-100 text-xs font-bold">
                       <option value="">Especial 2...</option>
-                      {usersList.filter(u => u.role === "Profes Especiales").map(u => (
-                        <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>
-                      ))}
+                      {usersList.filter(u => u.role === "Profes Especiales").map(u => <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>)}
                     </select>
-                    <select name="special3Id" defaultValue={editingGroup.special3Id || ""} className="w-full p-2 bg-white rounded-lg border border-violet-100 text-xs font-bold outline-none">
-    <option value="">Especial 3...</option>
-    {usersList.filter(u => u.role === "Profes Especiales").map(u => (
-      <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>
-    ))}
-  </select>
+                    <select name="special3Id" defaultValue={editingGroup.special3Id || ""} className="w-full p-2 bg-white rounded-lg border border-violet-100 text-xs font-bold">
+                      <option value="">Especial 3...</option>
+                      {usersList.filter(u => u.role === "Profes Especiales").map(u => <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>)}
+                    </select>
                   </div>
 
                   <div>
                     <label className="text-xs font-bold text-gray-500 ml-1">Aula Física</label>
-                    <input name="classroom" defaultValue={editingGroup.classroom || ""} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs border border-transparent focus:border-violet-200" placeholder="Ej: Aula 4"/>
+                    <input name="classroom" defaultValue={editingGroup.classroom || ""} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" placeholder="Ej: 4"/>
                   </div>
                 </div>
               )}
 
               <div>
                 <label className="text-xs font-bold text-green-600 ml-1">Drive del Grupo</label>
-                <input name="driveLink" defaultValue={editingGroup.driveLink || ""} className="w-full p-3 bg-green-50 border border-green-100 rounded-xl outline-none font-bold text-xs text-green-700" placeholder="https://drive..."/>
+                <input name="driveLink" defaultValue={editingGroup.driveLink || ""} className="w-full p-3 bg-green-50 border border-green-100 rounded-xl outline-none font-bold text-xs text-green-700" placeholder="https://..." />
               </div>
 
-              <button 
-                type="submit" 
-                disabled={updatingGroup} 
-                className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition flex justify-center items-center gap-2 mt-4"
-              >
+              <button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs mt-4">
                 {updatingGroup ? <span>Cargando...</span> : <span>Aplicar Cambios</span>}
               </button>
             </div>
