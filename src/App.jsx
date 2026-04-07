@@ -5186,7 +5186,12 @@ const handleReportAbsenteeism = async () => {
       {activeTab === 'info' ? (
           <div className="space-y-4">
               <div className="bg-orange-50 p-4 rounded-xl border border-orange-100"><h3 className="font-bold text-orange-800 text-xs uppercase mb-2">Contacto</h3><p className="text-sm">Madre: <b>{selectedStudent.motherName}</b> ({selectedStudent.motherContact})</p><p className="text-sm">Padre: <b>{selectedStudent.fatherName}</b> ({selectedStudent.fatherContact})</p></div>
-              <button onClick={handleReportAbsenteeism} className="w-full bg-red-50 text-red-700 font-bold py-4 rounded-xl border border-red-200 flex items-center justify-center gap-2 hover:bg-red-100 transition animate-in zoom-in shadow-sm"><AlertTriangle size={20}/> REPORTAR AUSENTISMO (+3 días)</button>
+              <button 
+  onClick={handleReportAbsenteeism} 
+  className="w-full py-4 bg-red-50 text-red-700 font-black rounded-2xl border border-red-200 flex items-center justify-center gap-2 hover:bg-red-100 transition animate-in zoom-in shadow-sm uppercase text-[10px] tracking-widest"
+>
+  <AlertTriangle size={18}/> Reportar Ausentismo (+3 días)
+</button>
               <div className="bg-gray-50 p-4 rounded-xl border border-gray-100"><h3 className="font-bold text-gray-500 text-xs uppercase mb-2">Ubicación</h3><p className="text-sm">TM: <b>{selectedStudent.groupMorning}</b></p><p className="text-sm">TT: <b>{selectedStudent.groupAfternoon}</b></p></div>
           </div>
       ) : (
