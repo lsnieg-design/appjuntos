@@ -5230,9 +5230,18 @@ const handleUpdateGroup = async (e) => {
                 </>
               )}
               <div><label className="text-xs font-bold text-green-600 ml-1">Enlace Drive</label><input name="driveLink" defaultValue={editingGroup.driveLink} className="w-full p-3 bg-green-50 border border-green-100 rounded-xl outline-none font-bold text-xs text-green-700" placeholder="https://drive..."/></div>
-             <button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition flex justify-center items-center gap-2">
-                  {updatingGroup ? <RefreshCw className="animate-spin" size={18}/> : 'Aplicar Cambios'}
-                </button> </div>
+             <button 
+                type="submit" 
+                disabled={updatingGroup} 
+                className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition flex justify-center items-center gap-2 mt-4"
+              >
+                {updatingGroup ? (
+                  <span className="animate-spin inline-block">↻</span>
+                ) : (
+                  <span>Aplicar Cambios</span>
+                )}
+              </button>
+            </div>
           </form>
         </div>
       )}
