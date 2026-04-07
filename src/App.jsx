@@ -5099,34 +5099,43 @@ const handleUpdateGroup = async (e) => {
         )}
       </div></div>)}
 
-      {editingGroup && (
+     {editingGroup && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
           <form onSubmit={handleUpdateGroup} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-black text-violet-900 uppercase italic">Editar Grupo</h3><button type="button" onClick={()=>setEditingGroup(null)}><X/></button></div>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-violet-900 uppercase italic">Editar Grupo</h3>
+              <button type="button" onClick={() => setEditingGroup(null)}><X size={20}/></button>
+            </div>
             <div className="space-y-4">
               <div className="bg-violet-50 p-3 rounded-xl border border-violet-100 text-center">
-                <p className="text-xs text-violet-500 font-bold uppercase mb-1">{editingGroup.isInclusionGroup ? 'Editando Cartera DAI' : 'Editando Grupo Sede'}</p>
-                {!editingGroup.isInclusionGroup && <input name="groupName" defaultValue={editingGroup.name} className="font-black text-2xl text-violet-900 bg-transparent text-center w-full outline-none border-b border-violet-200 focus:border-violet-500" placeholder="Nombre Grupo"/>}
+                <p className="text-xs text-violet-500 font-bold uppercase mb-1">
+                  {editingGroup.isInclusionGroup ? 'Editando Inclusión' : 'Editando Sede'}
+                </p>
+                {!editingGroup.isInclusionGroup && (
+                  <input 
+                    name="groupName" 
+                    defaultValue={editingGroup.name} 
+                    className="font-black text-2xl text-violet-900 bg-transparent text-center w-full outline-none border-b border-violet-200" 
+                    placeholder="Nombre Grupo"
+                  />
+                )}
               </div>
               <div>
-  <label className="text-xs font-bold text-gray-500 ml-1">
-    {editingGroup.isInclusionGroup ? 'DAI Responsable' : 'Docente a Cargo'}
-  </label>
-<select 
-  name="teacher" 
-  defaultValue={editingGroup.teacherId || ""} 
-  className="w-full p-3 bg-white border-2 border-violet-100 rounded-xl outline-none font-bold text-xs focus:border-violet-500"
->
-  <option value="">Seleccionar del Legajo...</option>
-  {usersList.map(st => (
-    <option key={st.id} value={st.id}>
-      {/* CAMBIO AQUÍ: Usamos st.role en lugar de st.cargo1_role */}
-      {st.lastName}, {st.firstName} ({st.role || 'Sin Rol'})
-    </option>
-  ))}
-</select>
-</div>
-              {/* --- CAMPOS DE AUXILIAR Y ESPECIALES (POR ID) --- */}
+                <label className="text-xs font-bold text-gray-500 ml-1">
+                  {editingGroup.isInclusionGroup ? 'DAI Responsable' : 'Docente a Cargo'}
+                </label>
+                <select 
+                  name="teacher" 
+                  defaultValue={editingGroup.teacherId || ""} 
+                  className="w-full p-3 bg-white border-2 border-violet-100 rounded-xl outline-none font-bold text-xs"
+                >
+                  <option value="">Seleccionar...</option>
+                  {usersList.map(st => (
+                    <option key={st.id} value={st.id}>{st.lastName}, {st.firstName} ({st.role || 'S/R'})</option>
+                  ))}
+                </select>
+              </div>
+
               {!editingGroup.isInclusionGroup && (
                 <>
                   <div>
@@ -5134,7 +5143,7 @@ const handleUpdateGroup = async (e) => {
                     <select 
                       name="auxId" 
                       defaultValue={editingGroup.auxId || ""} 
-                      className="w-full p-3 bg-gray-50 rounded-xl border-2 border-transparent focus:border-violet-200 outline-none font-bold text-xs transition-all"
+                      className="w-full p-3 bg-gray-50 rounded-xl border-2 border-transparent focus:border-violet-200 outline-none font-bold text-xs"
                     >
                       <option value="">Sin asignar</option>
                       {usersList
@@ -5154,7 +5163,7 @@ const handleUpdateGroup = async (e) => {
                           key={num} 
                           name={`special${num}Id`} 
                           defaultValue={editingGroup[`special${num}Id`] || ""} 
-                          className="w-full p-2 bg-white rounded-lg border border-violet-100 text-xs font-bold outline-none focus:border-violet-400"
+                          className="w-full p-2 bg-white rounded-lg border border-violet-100 text-xs font-bold outline-none"
                         >
                           <option value="">Especial {num}...</option>
                           {usersList
@@ -5181,12 +5190,12 @@ const handleUpdateGroup = async (e) => {
               )}
 
               <div>
-                <label className="text-xs font-bold text-green-600 ml-1">Enlace Drive del Grupo</label>
+                <label className="text-xs font-bold text-green-600 ml-1">Drive</label>
                 <input 
                   name="driveLink" 
                   defaultValue={editingGroup.driveLink || ""} 
                   className="w-full p-3 bg-green-50 border border-green-100 rounded-xl outline-none font-bold text-xs text-green-700" 
-                  placeholder="https://drive.google.com/..."
+                  placeholder="https://drive..."
                 />
               </div>
 
@@ -5195,7 +5204,7 @@ const handleUpdateGroup = async (e) => {
                 disabled={updatingGroup} 
                 className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition flex justify-center items-center gap-2 mt-4"
               >
-                {updatingGroup ? <RefreshCw className="animate-spin" size={18}/> : 'Aplicar Cambios'}
+                {updatingGroup ? <RefreshCw className="animate-spin" size={18}/> : <span>Aplicar Cambios</span>}
               </button>
             </div>
           </form>
