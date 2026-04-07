@@ -4950,41 +4950,58 @@ const handleReportAbsenteeism = async () => {
   const handleSaveIncident = async (type, severity) => { if (!showBitacoraModal) return; setSavingIncident(true); try { const incidentData = { type, severity, date: new Date().toISOString(), author: user.fullName || user.firstName, authorId: user.id }; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id), { incidents: arrayUnion(incidentData) }); alert("✅ Registro guardado"); setShowBitacoraModal(null); } catch (e) { console.error(e); } finally { setSavingIncident(false); } };
   const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
 
-  const handleUpdateGroup = async (e) => { 
+const handleUpdateGroup = async (e) => { 
       e.preventDefault(); 
       if (!editingGroup) return; 
-      if (editingGroup.isInclusionGroup && !confirm("⚠️ Estás editando un grupo de INCLUSIÓN. Esto cambiará la DAI para todos los alumnos de la lista.")) return; 
       setUpdatingGroup(true); 
       const fd = new FormData(e.target); 
       const updates = {}; 
       const suf = turn === 'morning' ? 'Morning' : 'Afternoon'; 
-      const selectedStaffId = fd.get('teacher');
-      const staffObj = usersList.find(st => st.id === selectedStaffId);
-      const teacherName = staffObj ? staffObj.fullName : "";
-      if (editingGroup.isInclusionGroup) { 
-          updates['daiId'] = selectedStaffId; 
-          updates['daiMorning'] = teacherName; 
-          updates['daiAfternoon'] = teacherName;
-      } else { 
-          updates[`teacherId${suf}`] = selectedStaffId; 
-          updates[`teacher${suf}`] = teacherName; 
-          updates[`teacher2${suf}`] = fd.get('teacher2'); 
-          updates[`aux${suf}`] = fd.get('aux'); 
-          updates[`special1${suf}`] = fd.get('special1'); 
-          updates[`special2${suf}`] = fd.get('special2'); 
-          updates[`special3${suf}`] = fd.get('special3'); 
-          updates[`sup1${suf}`] = fd.get('sup1'); 
-          updates[`sup2${suf}`] = fd.get('sup2'); 
-          updates[`group${suf}`] = fd.get('groupName'); 
-          updates.classroom = fd.get('classroom'); 
-      } 
-      updates[`driveLink${suf}`] = fd.get('driveLink'); 
-      try { 
+
+      const getName = (id) => {
+        if (!id) return "";
+        const found = usersList.find(u => u.id === id);
+        return found ? found.fullName : "";
+      };
+
+      try {
+          if (!editingGroup.isInclusionGroup) { 
+              const tId = fd.get('teacher');
+              updates[`teacherId${suf}`] = tId; 
+              updates[`teacher${suf}`] = getName(tId);
+
+              const aId = fd.get('auxId');
+              updates[`auxId${suf}`] = aId;
+              updates[`aux${suf}`] = getName(aId);
+
+              [1, 2].forEach(num => {
+                const specId = fd.get(`special${num}Id`);
+                if (specId) {
+                  updates[`special${num}Id${suf}`] = specId;
+                  updates[`special${num}${suf}`] = getName(specId);
+                }
+              });
+
+              updates[`group${suf}`] = fd.get('groupName'); 
+              updates.classroom = fd.get('classroom'); 
+              updates[`driveLink${suf}`] = fd.get('driveLink');
+          } else { 
+              const dId = fd.get('teacher');
+              updates['daiId'] = dId; 
+              updates['daiMorning'] = getName(dId); 
+              updates['daiAfternoon'] = getName(dId);
+              updates[`driveLink${suf}`] = fd.get('driveLink');
+          } 
+      
           const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)); 
           await Promise.all(promises); 
-          alert("✅ Actualizado correctamente."); 
+          alert("Exito: Actualizado por ID"); 
           setEditingGroup(null); 
-      } catch (err) { alert(err.message); } finally { setUpdatingGroup(false); } 
+      } catch (err) { 
+          alert("Error: " + err.message); 
+      } finally { 
+          setUpdatingGroup(false); 
+      } 
   };
 
   const staffOptions = usersList.filter(u => ['Docente', 'Auxiliar/Preceptor', 'Equipo Técnico', 'Profes Especiales', 'DAI', 'Inclusión'].includes(u.role));
