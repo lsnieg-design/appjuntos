@@ -4772,29 +4772,36 @@ function GroupsView({ user }) {
   }, {});
 let groups = Object.values(groupedData).sort((a, b) => a.name.localeCompare(b.name));
 
-  // --- LÓGICA DE FILTRADO DEFINITIVA (SOLO POR ID) ---
+ // --- LÓGICA DE FILTRADO DEFINITIVA (SÓLO POR ID - UNIFICADA) ---
   if (!isManagement) {
       groups = groups.filter(g => {
-          // IDs de la docente conectada
           const uId = user.id;
-          const legajoId = user.legajoId; 
-
-          // 1. Chequeo directo: ¿Es la titular del grupo?
-          if (g.teacherId === uId || (legajoId && g.teacherId === legajoId)) return true;
-
-          // 2. Chequeo de Inclusión: ¿Es la DAI de alguno de los alumnos de este grupo?
+          const legajoId = user.legajoId;
           const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-          const esMiAlumnoInclusion = g.students.some(s => 
-              s.daiId === uId || (legajoId && s.daiId === legajoId)
-          );
-          if (esMiAlumnoInclusion) return true;
 
-          // 3. Chequeo de Sede: ¿Está asignada como docente en la ficha de algún alumno?
-          const soyDocenteDeAlumno = g.students.some(s => 
+          // 1. Chequeo de Equipo del Grupo (Titular, Auxiliar, Especiales)
+          // Buscamos tu ID en cualquiera de estos campos del grupo
+          const groupStaffIds = [
+            g.teacherId, 
+            g.auxId, 
+            g.special1Id, 
+            g.special2Id, 
+            g.special3Id,
+            g.sup1Id,
+            g.sup2Id
+          ];
+          
+          if (groupStaffIds.includes(uId) || (legajoId && groupStaffIds.includes(legajoId))) return true;
+
+          // 2. Chequeo por Alumno (DAI o Docentes específicos en ficha)
+          const vinculadoAAlumnx = g.students.some(s => 
+              s.daiId === uId || (legajoId && s.daiId === legajoId) ||
               s[`teacherId${suf}`] === uId || (legajoId && s[`teacherId${suf}`] === legajoId) ||
-              s[`teacherId2${suf}`] === uId || (legajoId && s[`teacherId2${suf}`] === legajoId)
+              s[`teacherId2${suf}`] === uId || (legajoId && s[`teacherId2${suf}`] === legajoId) ||
+              s[`auxId${suf}`] === uId || (legajoId && s[`auxId${suf}`] === legajoId)
           );
-          if (soyDocenteDeAlumno) return true;
+          
+          if (vinculadoAAlumnx) return true;
 
           return false;
       });
@@ -5102,6 +5109,81 @@ const handleReportAbsenteeism = async () => {
   ))}
 </select>
 </div>
+              {/* --- CAMPOS DE AUXILIAR Y ESPECIALES (POR ID) --- */}
+              {!editingGroup.isInclusionGroup && (
+                <>
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 ml-1">Auxiliar / Preceptora</label>
+                    <select 
+                      name="auxId" 
+                      defaultValue={editingGroup.auxId || ""} 
+                      className="w-full p-3 bg-gray-50 rounded-xl border-2 border-transparent focus:border-violet-200 outline-none font-bold text-xs transition-all"
+                    >
+                      <option value="">Sin asignar</option>
+                      {usersList
+                        .filter(u => ['Auxiliar/Preceptor', 'Preceptora', 'Auxiliar'].includes(u.role))
+                        .map(u => (
+                          <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>
+                        ))
+                      }
+                    </select>
+                  </div>
+
+                  <div className="bg-violet-50/50 p-4 rounded-2xl border border-violet-100 space-y-3">
+                    <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest ml-1">Profesores Especiales</p>
+                    <div className="space-y-2">
+                      {[1, 2].map(num => (
+                        <select 
+                          key={num} 
+                          name={`special${num}Id`} 
+                          defaultValue={editingGroup[`special${num}Id`] || ""} 
+                          className="w-full p-2 bg-white rounded-lg border border-violet-100 text-xs font-bold outline-none focus:border-violet-400"
+                        >
+                          <option value="">Especial {num}...</option>
+                          {usersList
+                            .filter(u => u.role === 'Profes Especiales')
+                            .map(u => (
+                              <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>
+                            ))
+                          }
+                        </select>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 ml-1">Aula Física</label>
+                    <input 
+                      name="classroom" 
+                      defaultValue={editingGroup.classroom || ""} 
+                      className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs border-2 border-transparent focus:border-violet-200" 
+                      placeholder="Ej: Aula 4"
+                    />
+                  </div>
+                </>
+              )}
+
+              <div>
+                <label className="text-xs font-bold text-green-600 ml-1">Enlace Drive del Grupo</label>
+                <input 
+                  name="driveLink" 
+                  defaultValue={editingGroup.driveLink || ""} 
+                  className="w-full p-3 bg-green-50 border border-green-100 rounded-xl outline-none font-bold text-xs text-green-700" 
+                  placeholder="https://drive.google.com/..."
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                disabled={updatingGroup} 
+                className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition flex justify-center items-center gap-2 mt-4"
+              >
+                {updatingGroup ? <RefreshCw className="animate-spin" size={18}/> : 'Aplicar Cambios'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
               {!editingGroup.isInclusionGroup && (
                 <>
                   <div><label className="text-xs font-bold text-gray-500 ml-1">Docente 2 (Pareja)</label><select name="teacher2" defaultValue={editingGroup.teacher2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
