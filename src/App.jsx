@@ -5164,6 +5164,12 @@ const handleUpdateGroup = async (e) => {
                         <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>
                       ))}
                     </select>
+                    <select name="special3Id" defaultValue={editingGroup.special3Id || ""} className="w-full p-2 bg-white rounded-lg border border-violet-100 text-xs font-bold outline-none">
+    <option value="">Especial 3...</option>
+    {usersList.filter(u => u.role === "Profes Especiales").map(u => (
+      <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>
+    ))}
+  </select>
                   </div>
 
                   <div>
