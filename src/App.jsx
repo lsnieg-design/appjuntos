@@ -4770,7 +4770,19 @@ function GroupsView({ user }) {
       }
       return acc;
   }, {});
-let groups = Object.values(groupedData).sort((a, b) => a.name.localeCompare(b.name));
+// Ordenamos los grupos: INICIAL siempre primero, el resto por nombre alfabético
+  let groups = Object.values(groupedData).sort((a, b) => {
+      const nameA = a.name.toUpperCase();
+      const nameB = b.name.toUpperCase();
+      
+      // Si el grupo A es inicial y el B no, A va primero
+      if (nameA.includes("INICIAL") && !nameB.includes("INICIAL")) return -1;
+      // Si el grupo B es inicial y el A no, B va primero
+      if (!nameA.includes("INICIAL") && nameB.includes("INICIAL")) return 1;
+      
+      // Si ambos son iniciales o ninguno lo es, ordenamos alfabéticamente normal
+      return nameA.localeCompare(nameB);
+  });
 
  // --- LÓGICA DE FILTRADO DEFINITIVA (SÓLO POR ID - UNIFICADA) ---
   if (!isManagement) {
@@ -5140,15 +5152,25 @@ const handleUpdateGroup = async (e) => {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="text-xs font-bold text-gray-500 ml-1">Auxiliar / Preceptora</label>
-                    <select name="auxId" defaultValue={editingGroup.auxId || ""} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs">
-                      <option value="">Sin asignar</option>
-                      {usersList.filter(u => ["Auxiliar/Preceptor", "Preceptora", "Auxiliar"].includes(u.role)).map(u => (
-                        <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>
-                      ))}
-                    </select>
-                  </div>
+                 <div>
+  <label className="text-xs font-bold text-gray-500 ml-1">Auxiliar / Preceptora</label>
+  <select 
+    name="auxId" 
+    defaultValue={editingGroup.auxId || ""} 
+    className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs border border-transparent focus:border-violet-200"
+  >
+    <option value="">Sin asignar</option>
+    {/* Filtro ampliado: Aparecen Docentes, Auxiliares, Preceptores e Inclusión */}
+    {usersList
+      .filter(u => ['Docente', 'Auxiliar/Preceptor', 'Preceptora', 'Auxiliar', 'Inclusión'].includes(u.role))
+      .map(u => (
+        <option key={u.id} value={u.id}>
+          {u.lastName}, {u.firstName} ({u.role})
+        </option>
+      ))
+    }
+  </select>
+</div>
 
                   <div className="bg-violet-50/50 p-4 rounded-2xl border border-violet-100 space-y-3">
                     <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest ml-1">Profesores Especiales</p>
