@@ -5106,10 +5106,11 @@ const handleUpdateGroup = async (e) => {
               <h3 className="text-xl font-black text-violet-900 uppercase italic">Editar Grupo</h3>
               <button type="button" onClick={() => setEditingGroup(null)}><X size={20}/></button>
             </div>
+
             <div className="space-y-4">
               <div className="bg-violet-50 p-3 rounded-xl border border-violet-100 text-center">
                 <p className="text-xs text-violet-500 font-bold uppercase mb-1">
-                  {editingGroup.isInclusionGroup ? 'Editando Inclusión' : 'Editando Sede'}
+                  {editingGroup.isInclusionGroup ? "Editando Inclusión" : "Editando Sede"}
                 </p>
                 {!editingGroup.isInclusionGroup && (
                   <input 
@@ -5120,9 +5121,10 @@ const handleUpdateGroup = async (e) => {
                   />
                 )}
               </div>
+
               <div>
                 <label className="text-xs font-bold text-gray-500 ml-1">
-                  {editingGroup.isInclusionGroup ? 'DAI Responsable' : 'Docente a Cargo'}
+                  {editingGroup.isInclusionGroup ? "DAI Responsable" : "Docente a Cargo"}
                 </label>
                 <select 
                   name="teacher" 
@@ -5131,72 +5133,49 @@ const handleUpdateGroup = async (e) => {
                 >
                   <option value="">Seleccionar...</option>
                   {usersList.map(st => (
-                    <option key={st.id} value={st.id}>{st.lastName}, {st.firstName} ({st.role || 'S/R'})</option>
+                    <option key={st.id} value={st.id}>{st.lastName}, {st.firstName} ({st.role || "S/R"})</option>
                   ))}
                 </select>
               </div>
 
               {!editingGroup.isInclusionGroup && (
-                <>
+                <div className="space-y-4">
                   <div>
                     <label className="text-xs font-bold text-gray-500 ml-1">Auxiliar / Preceptora</label>
-                    <select 
-                      name="auxId" 
-                      defaultValue={editingGroup.auxId || ""} 
-                      className="w-full p-3 bg-gray-50 rounded-xl border-2 border-transparent focus:border-violet-200 outline-none font-bold text-xs"
-                    >
+                    <select name="auxId" defaultValue={editingGroup.auxId || ""} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs border border-transparent focus:border-violet-200">
                       <option value="">Sin asignar</option>
-                      {usersList
-                        .filter(u => ['Auxiliar/Preceptor', 'Preceptora', 'Auxiliar'].includes(u.role))
-                        .map(u => (
-                          <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>
-                        ))
-                      }
+                      {usersList.filter(u => ["Auxiliar/Preceptor", "Preceptora", "Auxiliar"].includes(u.role)).map(u => (
+                        <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>
+                      ))}
                     </select>
                   </div>
 
                   <div className="bg-violet-50/50 p-4 rounded-2xl border border-violet-100 space-y-3">
                     <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest ml-1">Profesores Especiales</p>
-                    <div className="space-y-2">
-                      {[1, 2].map(num => (
-                        <select 
-                          key={num} 
-                          name={`special${num}Id`} 
-                          defaultValue={editingGroup[`special${num}Id`] || ""} 
-                          className="w-full p-2 bg-white rounded-lg border border-violet-100 text-xs font-bold outline-none"
-                        >
-                          <option value="">Especial {num}...</option>
-                          {usersList
-                            .filter(u => u.role === 'Profes Especiales')
-                            .map(u => (
-                              <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>
-                            ))
-                          }
-                        </select>
+                    <select name="special1Id" defaultValue={editingGroup.special1Id || ""} className="w-full p-2 bg-white rounded-lg border border-violet-100 text-xs font-bold outline-none">
+                      <option value="">Especial 1...</option>
+                      {usersList.filter(u => u.role === "Profes Especiales").map(u => (
+                        <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>
                       ))}
-                    </div>
+                    </select>
+                    <select name="special2Id" defaultValue={editingGroup.special2Id || ""} className="w-full p-2 bg-white rounded-lg border border-violet-100 text-xs font-bold outline-none">
+                      <option value="">Especial 2...</option>
+                      {usersList.filter(u => u.role === "Profes Especiales").map(u => (
+                        <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>
                     <label className="text-xs font-bold text-gray-500 ml-1">Aula Física</label>
-                    <input 
-                      name="classroom" 
-                      defaultValue={editingGroup.classroom || ""} 
-                      className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs border-2 border-transparent focus:border-violet-200" 
-                      placeholder="Ej: Aula 4"
-                    />
+                    <input name="classroom" defaultValue={editingGroup.classroom || ""} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs border border-transparent focus:border-violet-200" placeholder="Ej: Aula 4"/>
                   </div>
-                </>
+                </div>
               )}
 
               <div>
-                <label className="text-xs font-bold text-green-600 ml-1">Drive</label>
-                <input 
-                  name="driveLink" 
-                  defaultValue={editingGroup.driveLink || ""} 
-                  className="w-full p-3 bg-green-50 border border-green-100 rounded-xl outline-none font-bold text-xs text-green-700" 
-                  placeholder="https://drive..."
-                />
+                <label className="text-xs font-bold text-green-600 ml-1">Drive del Grupo</label>
+                <input name="driveLink" defaultValue={editingGroup.driveLink || ""} className="w-full p-3 bg-green-50 border border-green-100 rounded-xl outline-none font-bold text-xs text-green-700" placeholder="https://drive..."/>
               </div>
 
               <button 
@@ -5204,62 +5183,25 @@ const handleUpdateGroup = async (e) => {
                 disabled={updatingGroup} 
                 className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition flex justify-center items-center gap-2 mt-4"
               >
-                {updatingGroup ? <RefreshCw className="animate-spin" size={18}/> : <span>Aplicar Cambios</span>}
+                {updatingGroup ? <span>Cargando...</span> : <span>Aplicar Cambios</span>}
               </button>
             </div>
           </form>
         </div>
       )}
-              {!editingGroup.isInclusionGroup && (
-                <>
-                  <div><label className="text-xs font-bold text-gray-500 ml-1">Docente 2 (Pareja)</label><select name="teacher2" defaultValue={editingGroup.teacher2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
-                  <div><label className="text-xs font-bold text-gray-500 ml-1">Auxiliar</label><select name="aux" defaultValue={editingGroup.aux} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Sin asignar</option>{staffOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
-                  <div><label className="text-xs font-bold text-gray-500 ml-1">Aula Física</label><input name="classroom" defaultValue={editingGroup.classroom} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" placeholder="Ej: 5"/></div>
-                  <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                    <p className="text-[10px] font-black text-gray-400 uppercase mb-2">Profes Especiales (Opcional)</p>
-                    <div className="space-y-2">
-                      <select name="special1" defaultValue={editingGroup.special1} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 1...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select>
-                      <select name="special2" defaultValue={editingGroup.special2} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 2...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select>
-                      <select name="special3" defaultValue={editingGroup.special3} className="w-full p-2 bg-white rounded-lg border text-xs"><option value="">Especial 3...</option>{specialOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div><label className="text-xs font-bold text-gray-500 ml-1">Sup. 1</label><select name="sup1" defaultValue={editingGroup.sup1} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
-                    <div><label className="text-xs font-bold text-gray-500 ml-1">Sup. 2</label><select name="sup2" defaultValue={editingGroup.sup2} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs"><option value="">Ninguno</option>{techOptions.map(u=><option key={u.id} value={u.fullName}>{u.fullName}</option>)}</select></div>
-                  </div>
-                </>
-              )}
-              <div><label className="text-xs font-bold text-green-600 ml-1">Enlace Drive</label><input name="driveLink" defaultValue={editingGroup.driveLink} className="w-full p-3 bg-green-50 border border-green-100 rounded-xl outline-none font-bold text-xs text-green-700" placeholder="https://drive..."/></div>
-             <button 
-                type="submit" 
-                disabled={updatingGroup} 
-                className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition flex justify-center items-center gap-2 mt-4"
-              >
-                {updatingGroup ? (
-                  <span className="animate-spin inline-block">↻</span>
-                ) : (
-                  <span>Aplicar Cambios</span>
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-     {/* MODAL CONFIGURACIÓN DE IMPRESIÓN ACTUALIZADO */}
+
       {showPrintOptions && (
         <div className="fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600">
             <h3 className="text-xl font-black text-violet-900 uppercase italic mb-4 text-center">Info a Imprimir</h3>
-            
-            {/* OPCIONES PARA LISTADO DE ALUMNOS */}
             <p className="text-[10px] text-gray-400 font-bold uppercase text-center mb-4 tracking-widest">Listado de Estudiantes</p>
             <div className="grid grid-cols-1 gap-2 mb-6">
               {[
-                {id: 'photo', label: '📸 Foto del Alumno'},
-                {id: 'dni', label: '🪪 DNI'},
-                {id: 'birthDate', label: '📅 Fecha Nacimiento'},
-                {id: 'healthInsurance', label: '🏥 Obra Social'},
-                {id: 'contacts', label: '📞 Contactos Familia'},
+                {id: "photo", label: "📸 Foto del Alumno"},
+                {id: "dni", label: "🪪 DNI"},
+                {id: "birthDate", label: "📅 Fecha Nacimiento"},
+                {id: "healthInsurance", label: "🏥 Obra Social"},
+                {id: "contacts", label: "📞 Contactos Familia"},
               ].map(col => (
                 <label key={col.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl cursor-pointer hover:bg-violet-50 transition border border-transparent hover:border-violet-200">
                   <span className="text-xs font-bold text-gray-600 uppercase">{col.label}</span>
@@ -5273,12 +5215,10 @@ const handleUpdateGroup = async (e) => {
               ))}
             </div>
 
-            {/* SEPARADOR VISUAL */}
             <div className="relative h-px bg-gray-100 my-6">
               <span className="absolute left-1/2 -translate-x-1/2 -top-2 bg-white px-3 text-[8px] font-black text-gray-300 uppercase tracking-widest">Otras Plantillas</span>
             </div>
 
-            {/* BOTÓN ESPECÍFICO PARA ORGANIZACIÓN DE PERSONAL */}
             <button 
               onClick={() => { printStaffOrganization(groupsToPrint); setShowPrintOptions(false); }}
               className="w-full py-4 bg-teal-50 text-teal-700 border-2 border-teal-100 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-teal-100 transition active:scale-95 flex items-center justify-center gap-2 mb-6"
@@ -5286,7 +5226,6 @@ const handleUpdateGroup = async (e) => {
               <Users size={16}/> Solo Organización (Cargos)
             </button>
 
-            {/* BOTONES DE ACCIÓN FINAL */}
             <div className="flex gap-2">
               <button type="button" onClick={() => setShowPrintOptions(false)} className="flex-1 py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
               <button 
@@ -5299,23 +5238,12 @@ const handleUpdateGroup = async (e) => {
           </div>
         </div>
       )}
-      {groupStats && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[250] flex items-center justify-center p-4" onClick={() => setGroupStats(null)}><div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-6"><div><h3 className="text-xl font-black text-violet-900 uppercase italic">Análisis del Grupo</h3><p className="text-xs text-gray-500 font-bold">{groupStats.name} ({groupStats.students.length} alumnos)</p></div><button onClick={() => setGroupStats(null)}><X/></button></div>{(() => { const allIncidents = groupStats.students.flatMap(s => s.incidents || []); if (allIncidents.length === 0) return <p className="text-center text-gray-400 italic">No hay registros.</p>; const dimensions = { 'Pedagógico/Social': 0, 'Salud y Bienestar': 0, 'Conducta': 0, 'Rutina': 0 }; const tagsCount = {}; allIncidents.forEach(inc => { const type = inc.type; tagsCount[type] = (tagsCount[type] || 0) + 1; if (['Trabajó Muy Bien', 'Ayudó a un amigo', 'Logro de Aprendizaje', 'Buena Conducta'].includes(type)) dimensions['Pedagógico/Social']++; else if (['Convulsión / Salud', 'Higiene / Esfínter', 'Vómito', 'No comió'].includes(type)) dimensions['Salud y Bienestar']++; else if (['Agresión / Violencia', 'Brote / Gritos', 'Fuga / Intento', 'Crisis Llanto'].includes(type)) dimensions['Conducta']++; else dimensions['Rutina']++; }); const total = allIncidents.length; const topTags = Object.entries(tagsCount).sort((a, b) => b[1] - a[1]).slice(0, 4); return (<div className="space-y-6"><div><h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Dimensiones Registradas</h4><div className="space-y-3">{Object.entries(dimensions).map(([dim, count]) => { if (count === 0) return null; const pct = Math.round((count / total) * 100); const color = dim === 'Pedagógico/Social' ? 'bg-emerald-500' : dim === 'Salud y Bienestar' ? 'bg-blue-500' : dim === 'Conducta' ? 'bg-red-500' : 'bg-yellow-400'; return (<div key={dim}><div className="flex justify-between text-xs font-bold text-gray-600 mb-1"><span>{dim}</span><span>{count} ({pct}%)</span></div><div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div style={{width: `${pct}%`}} className={`h-full ${color}`}></div></div></div>); })}</div></div><div className="bg-gray-50 p-4 rounded-2xl border border-gray-100"><h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Lo que más sucede (Top 4)</h4><div className="space-y-2">{topTags.map(([tag, count]) => (<div key={tag} className="flex justify-between items-center bg-white p-2 rounded-lg border border-gray-200 shadow-sm"><span className="text-xs font-bold text-gray-700">{tag}</span><span className="text-xs font-black bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md">{count} veces</span></div>))}</div></div></div>); })()}</div></div>)}
-      {selectedStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"><div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0"><button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition"><X size={20}/></button><div className="flex items-center gap-4"><div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">{selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}</div><div><h2 className="text-2xl font-bold">{selectedStudent.lastName}, {selectedStudent.firstName}</h2><p className="opacity-90 flex gap-2 text-sm mt-1"><span className="bg-white/20 px-2 py-0.5 rounded">{calculateAge(selectedStudent.birthDate)} años</span></p></div></div><div className="flex gap-2 mt-6"><button onClick={() => setActiveTab('info')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'info' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Datos</button><button onClick={() => setActiveTab('history')} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === 'history' ? 'bg-white text-blue-600' : 'bg-black/20 text-white/70'}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto space-y-6">
-      {activeTab === 'info' ? (
-          <div className="space-y-4">
-              <div className="bg-orange-50 p-4 rounded-xl border border-orange-100"><h3 className="font-bold text-orange-800 text-xs uppercase mb-2">Contacto</h3><p className="text-sm">Madre: <b>{selectedStudent.motherName}</b> ({selectedStudent.motherContact})</p><p className="text-sm">Padre: <b>{selectedStudent.fatherName}</b> ({selectedStudent.fatherContact})</p></div>
-              <button 
-  onClick={handleReportAbsenteeism} 
-  className="w-full py-4 bg-red-50 text-red-700 font-black rounded-2xl border border-red-200 flex items-center justify-center gap-2 hover:bg-red-100 transition animate-in zoom-in shadow-sm uppercase text-[10px] tracking-widest"
->
-  <AlertTriangle size={18}/> Reportar Ausentismo (+3 días)
-</button>
-              <div className="bg-gray-50 p-4 rounded-xl border border-gray-100"><h3 className="font-bold text-gray-500 text-xs uppercase mb-2">Ubicación</h3><p className="text-sm">TM: <b>{selectedStudent.groupMorning}</b></p><p className="text-sm">TT: <b>{selectedStudent.groupAfternoon}</b></p></div>
-          </div>
-      ) : (
-          <div className="space-y-2">{selectedStudent.incidents?.map((inc, i) => (<div key={i} className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="font-bold text-sm">{inc.text || inc.type}</p><p className="text-xs text-gray-500">{new Date(inc.date).toLocaleDateString()} - {inc.author}</p></div>))}</div>
-      )}
-      </div></div></div>)}
+
+      {groupStats && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[250] flex items-center justify-center p-4" onClick={() => setGroupStats(null)}><div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-6"><div><h3 className="text-xl font-black text-violet-900 uppercase italic">Análisis del Grupo</h3><p className="text-xs text-gray-500 font-bold">{groupStats.name}</p></div><button onClick={() => setGroupStats(null)}><X size={20}/></button></div></div></div>)}
+
+      {selectedStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"><div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0"><button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition"><X size={20}/></button><div className="flex items-center gap-4"><div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">{selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}</div><div><h2 className="text-2xl font-bold">{selectedStudent.lastName}, {selectedStudent.firstName}</h2><p className="opacity-90 flex gap-2 text-sm mt-1"><span className="bg-white/20 px-2 py-0.5 rounded">{calculateAge(selectedStudent.birthDate)} años</span></p></div></div><div className="flex gap-2 mt-6"><button onClick={() => setActiveTab("info")} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === "info" ? "bg-white text-blue-600" : "bg-black/20 text-white/70"}`}>Datos</button><button onClick={() => setActiveTab("history")} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === "history" ? "bg-white text-blue-600" : "bg-black/20 text-white/70"}`}>Bitácora</button></div></div><div className="p-6 overflow-y-auto space-y-6">{activeTab === "info" ? (<div className="space-y-4"><div className="bg-orange-50 p-4 rounded-xl border border-orange-100"><h3 className="font-bold text-orange-800 text-xs uppercase mb-2">Contacto</h3><p className="text-sm">Madre: <b>{selectedStudent.motherName}</b> ({selectedStudent.motherContact})</p><p className="text-sm">Padre: <b>{selectedStudent.fatherName}</b> ({selectedStudent.fatherContact})</p></div><button onClick={handleReportAbsenteeism} className="w-full py-4 bg-red-50 text-red-700 font-black rounded-2xl border border-red-200 flex items-center justify-center gap-2 hover:bg-red-100 transition animate-in zoom-in shadow-sm uppercase text-[10px] tracking-widest"><AlertTriangle size={18}/> Reportar Ausentismo (+3 días)</button><div className="bg-gray-50 p-4 rounded-xl border border-gray-100"><h3 className="font-bold text-gray-500 text-xs uppercase mb-2">Ubicación</h3><p className="text-sm">TM: <b>{selectedStudent.groupMorning}</b></p><p className="text-sm">TT: <b>{selectedStudent.groupAfternoon}</b></p></div></div>) : (<div className="space-y-2">{selectedStudent.incidents?.map((inc, i) => (<div key={i} className="bg-gray-50 p-3 rounded-xl border border-gray-100"><p className="font-bold text-sm">{inc.text || inc.type}</p><p className="text-xs text-gray-500">{new Date(inc.date).toLocaleDateString()} - {inc.author}</p></div>))}</div>)}</div></div></div>)}
+
+      {showBitacoraModal && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-emerald-500"><div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3><p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p></div><button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button></div>{!isWriting ? (<><div className="grid grid-cols-2 gap-3 mb-4 max-h-[50vh] overflow-y-auto">{INCIDENT_TYPES.map((type) => (<button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? "opacity-50" : "hover:brightness-95"}`}><span className="text-2xl">{type.emoji}</span><span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span></button>))}</div><button onClick={() => setIsWriting(true)} className="w-full py-3 bg-gray-900 text-white rounded-2xl font-bold uppercase text-xs flex items-center justify-center gap-2"><Edit3 size={16}/> Escribir Nota</button></>) : (<div className="animate-in slide-in-from-bottom"><textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Detalles..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm mb-2 h-24 outline-none focus:border-violet-500"/><div className="flex gap-2"><button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs hover:bg-gray-100 rounded-xl">Volver</button><button onClick={() => addIncident("medium", newNote)} disabled={!newNote.trim()} className="flex-1 py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg">Guardar</button></div></div>)}</div></div>)}
     </div>
   );
 }
