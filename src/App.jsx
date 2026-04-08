@@ -4466,15 +4466,21 @@ function MainApp({ user, onLogout }) {
   const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin'; 
   const canManageContent = user.rol === 'admin' || isSuperAdmin || user.role === 'Equipo Directivo';
   
-  // PERMISO ADMIN (PARA EL BOTÓN)
-  // --- DEFINICIÓN DE PERMISOS GLOBALES ---
-  const isAdminRole = ['admin', 'super-admin', 'Administración', 'Equipo Directivo', 'Dirección Inclusión'].includes(user.role) || user.rol === 'admin';
-  const isTechTeamRole = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión', 'Equipo Técnico', 'Equipo Técnico Inclusión'].includes(user.role) || user.rol === 'admin';
-  const isMedicalRole = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión', 'Médico', 'Enfermería', 'Salud'].includes(user.role) || user.rol === 'admin';
-const showPrivateMenu = isAdminRole || isTechTeamRole || isMedicalRole || canAccessSocial;
-  const isWideTab = ['groups', 'calendar', 'matricula', 'resources', 'users', 'admin'].includes(activeTab);
-const canAccessSocial = ['admin', 'super-admin', 'docente', 'auxiliar/preceptor', 'equipo directivo', 'equipo técnico', 'inclusion', 'dai'].includes(user.role?.toLowerCase()) || user.rol === 'admin';
+  // --- DEFINICIÓN DE PERMISOS GLOBALES (ORDEN CORREGIDO) ---
+  
+  // 1. Primero definimos los permisos específicos (con ? para que sea seguro)
+  const isAdminRole = ['admin', 'super-admin', 'Administración', 'Equipo Directivo', 'Dirección Inclusión'].includes(user?.role) || user?.rol === 'admin';
+  const isTechTeamRole = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión', 'Equipo Técnico', 'Equipo Técnico Inclusión'].includes(user?.role) || user?.rol === 'admin';
+  const isMedicalRole = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión', 'Médico', 'Enfermería', 'Salud'].includes(user?.role) || user?.rol === 'admin';
+  
+  // 2. Definimos el permiso Social (usando el texto exacto como está en Firebase)
+  const canAccessSocial = ['admin', 'super-admin', 'Docente', 'Auxiliar/Preceptor', 'Equipo Directivo', 'Equipo Técnico', 'Inclusión', 'DAI'].includes(user?.role) || user?.rol === 'admin';
 
+  // 3. Ahora que canAccessSocial EXISTE, definimos si mostramos el menú privado
+  const showPrivateMenu = isAdminRole || isTechTeamRole || isMedicalRole || canAccessSocial;
+
+  // 4. Otros estados de la interfaz
+  const isWideTab = ['groups', 'calendar', 'matricula', 'resources', 'users', 'admin'].includes(activeTab);
   useEffect(() => {
     if (user?.id) updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { lastLogin: serverTimestamp() }).catch(()=>{});
     const unsubTasks = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('dueDate', 'asc')), (snap) => setTasks(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
