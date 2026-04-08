@@ -6308,20 +6308,19 @@ function MedicalView({ user }) {
   const getSafeDate = (d) => { if(!d) return '-'; try { return new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('es-AR'); } catch(e) { return d; } };
   const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
 
+ // --- FUNCIÓN PARA VERIFICAR ESTADO DE CUD (AGREGAR ESTA) ---
   const checkCudStatus = (cudDate) => {
-      // Si no tiene fecha cargada, devolvemos 'none' y no hace nada
-      if (!cudDate || cudDate === "") return { status: 'none', text: 'Sin fecha' };
-      
-      const today = new Date();
-      const exp = new Date(cudDate + 'T00:00:00');
-      const diffTime = exp - today;
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
-      if (diffDays < 0) return { status: 'expired', text: 'Vencido' };
-      // Alerta si falta menos de 90 días (3 meses)
-      if (diffDays <= 90) return { status: 'warning', text: `Vence en ${diffDays} días` };
-      
-      return { status: 'ok', text: 'Vigente' };
+    if (!cudDate || cudDate === "") return { status: 'none', text: 'Sin fecha' };
+    
+    const today = new Date();
+    const exp = new Date(cudDate + 'T00:00:00');
+    const diffTime = exp - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) return { status: 'expired', text: 'Vencido' };
+    if (diffDays <= 90) return { status: 'warning', text: `Vence en ${diffDays} días` }; // Alerta 3 meses antes
+    
+    return { status: 'ok', text: 'Vigente' };
   };
   const handleSaveMedicalData = async (e) => {
       e.preventDefault();
