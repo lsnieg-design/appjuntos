@@ -6106,7 +6106,8 @@ const imprimirPlanillaGeneral = (lista) => {
             </details>
 
             {/* SECCIÓN 3: CARGO SECUNDARIO */}
-            <details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            {/* SECCIÓN 3: CARGO SECUNDARIO (CORREGIDA CON REVISTA Y ALTA) */}
+            <details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-3">
               <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
                 <span className="text-[11px] font-black text-slate-500 uppercase flex items-center gap-2">
                   <PlusCircle size={14}/> Cargo Secundario / Adicional
@@ -6118,20 +6119,35 @@ const imprimirPlanillaGeneral = (lista) => {
                   <input name="cargo2_numero" defaultValue={editingStaff?.cargo2_numero || ""} placeholder="N° Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm w-full"/>
                   <input name="cargo2_name" defaultValue={editingStaff?.cargo2_name || ""} placeholder="Nombre Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm w-full"/>
                 </div>
-               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-  <select name="cargo2_role" defaultValue={editingStaff?.cargo2_role || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
-    <option value="">Rol Cargo 2...</option>
-    {/* Blinda el mapeo con un chequeo de existencia */}
-    {(typeof VALID_ROLES_OFFICIAL !== 'undefined' ? VALID_ROLES_OFFICIAL : []).map(r => (
-      <option key={r} value={r}>{r}</option>
-    ))}
-  </select>
-  {/* Aseguramos que el selector de subvención tenga valor por defecto */}
-  <select name="cargo2_subsidized" defaultValue={editingStaff?.cargo2_subsidized || 'false'} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
-    <option value="false">DENO (Sin Subvención)</option>
-    <option value="true">MECA (Subvencionado)</option>
-  </select>
-</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <select name="cargo2_role" defaultValue={editingStaff?.cargo2_role || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
+                    <option value="">Rol Cargo 2...</option>
+                    {VALID_ROLES.map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                  <select name="cargo2_subsidized" defaultValue={editingStaff?.cargo2_subsidized || 'false'} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
+                    <option value="false">DENO (Sin Subvención)</option>
+                    <option value="true">MECA (Subvencionado)</option>
+                  </select>
+                </div>
+                {/* --- NUEVOS CAMPOS AGREGADOS AQUÍ --- */}
+                <div className="grid grid-cols-2 gap-2">
+                   <select name="cargo2_revista" defaultValue={editingStaff?.cargo2_revista || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+                    <option value="">Revista...</option>
+                    <option value="Titular">Titular</option>
+                    <option value="Provisional">Provisional</option>
+                    <option value="Suplente">Suplente</option>
+                  </select>
+                  <div className="flex flex-col">
+                    <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Alta Cargo 2</label>
+                    <input name="cargo2_ingreso" type="date" defaultValue={editingStaff?.cargo2_ingreso || ""} className="p-2 bg-slate-50 rounded-xl border-none font-bold text-xs"/>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 px-2">
+                   <input type="checkbox" name="cargo2_en_papeles" defaultChecked={editingStaff?.cargo2_en_papeles === 'true'} value="true" className="w-4 h-4 accent-violet-600"/>
+                   <span className="text-[10px] font-bold text-gray-500 uppercase">¿Este cargo figura solo en papeles?</span>
+                </div>
               </div>
             </details>
 
