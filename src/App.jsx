@@ -4653,10 +4653,13 @@ function MainApp({ user, onLogout }) {
                                   </>
                               )}
                              {canAccessSocial && (
-  <button onClick={() => { setActiveTab('social'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
-      <Users size={18} className="text-blue-500"/> Trabajo Social
-  </button>
-)}
+            <button 
+                onClick={() => { setActiveTab('social'); setShowMoreMenu(false); }} 
+                className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition"
+            >
+                <Users size={18} className="text-blue-500"/> Trabajo Social
+            </button>
+        )}
 
                               {isMedicalRole && (
                                   <button onClick={() => { setActiveTab('medical'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-red-50 flex items-center gap-3 text-sm font-bold text-red-600 transition">
