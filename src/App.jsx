@@ -2698,25 +2698,30 @@ const [statOnlyPreTaller, setStatOnlyPreTaller] = useState(false);
   // ==========================================
   // 3. LÓGICA DE FILTRADO
   // ==========================================
- const filteredStudents = students.filter(s => {
-      // 1. BUSCADOR UNIVERSAL (Nombre, Apellido, DNI)
+const filteredStudents = students.filter(s => {
+      // 1. Filtro de Estado (Activos vs Bajas)
+      // Si showArchived es true, mostramos solo los s.isActive === false
+      // Si showArchived es false, mostramos solo los s.isActive !== false
+      const isStudentActive = s.isActive !== false;
+      if (showArchived && isStudentActive) return false;
+      if (!showArchived && !isStudentActive) return false;
+
+      // 2. BUSCADOR UNIVERSAL (Nombre, Apellido, DNI)
       const textToSearch = `${s.lastName || ''} ${s.firstName || ''} ${s.dni || ''}`.toLowerCase();
-      const searchTxt = (filterText || '').toLowerCase(); // Usamos filterText
-      
+      const searchTxt = (filterText || '').toLowerCase();
       if (searchTxt && !textToSearch.includes(searchTxt)) return false;
 
-      // 2. FILTROS DE SELECTORES (Modalidad y Nivel)
-      // Validamos que 'filters' exista antes de leerlo para que no se rompa
-      if (filters) {
+      // 3. FILTROS DE SELECTORES (Solo si no estamos viendo bajas, para no romper la vista)
+      if (!showArchived && filters) {
           if (filters.modality && filters.modality !== 'all') {
               const mod = s.modality || 'Sede';
               if (mod !== filters.modality) return false;
           }
           if (filters.level && filters.level !== 'all' && s.level !== filters.level) return false;
+          if (filters.dx && filters.dx !== 'all' && s.dx !== filters.dx) return false;
+          if (filters.gender && filters.gender !== 'all' && s.gender !== filters.gender) return false;
+          if (filters.journey && filters.journey !== 'all' && s.journey !== filters.journey) return false;
       }
-
-      // 3. OCULTAR INACTIVOS (Por defecto)
-      if (s.isActive === false) return false;
 
       return true;
   });
