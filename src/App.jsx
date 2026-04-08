@@ -2667,6 +2667,19 @@ const [statOnlyPreTaller, setStatOnlyPreTaller] = useState(false);
       { label: "Fuga / Intento", emoji: "🏃", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
       { label: "Convulsión / Salud", emoji: "🚑", severity: "high", color: "bg-indigo-100 border-indigo-300 text-indigo-800" }, 
   ];
+  const checkCudStatus = (cudDate) => {
+    if (!cudDate || cudDate === "") return { status: 'none', text: 'Sin fecha' };
+    
+    const today = new Date();
+    const exp = new Date(cudDate + 'T00:00:00');
+    const diffTime = exp - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) return { status: 'expired', text: 'Vencido' };
+    if (diffDays <= 90) return { status: 'warning', text: `Vence en ${diffDays} días` }; // Alerta 3 meses
+    
+    return { status: 'ok', text: 'Vigente' };
+  };
 
   // ==========================================
   // 2. CARGA DE DATOS (FIREBASE)
