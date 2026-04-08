@@ -3072,16 +3072,24 @@ const findDuplicates = () => {
          )}
       </div>
       
-      {/* LISTA DE TARJETAS DE ALUMNOS */}
+     {/* LISTA DE TARJETAS DE ALUMNOS */}
       <div className="space-y-3">
         {filteredStudents.map(s => { 
-          const alert = getAlertStatus(s.incidents); 
+          const cudInfo = checkCudStatus(s.cudExpiration); // Nueva lógica de CUD
+          const incidentAlert = getAlertStatus(s.incidents); 
+          
+          // Se activa la alerta si: el CUD venció/está por vencer O si hay incidentes graves
+          const hasCriticalAlert = cudInfo.status === 'expired' || cudInfo.status === 'warning' || incidentAlert.status === 'danger';
+
           return ( 
-            <div key={s.id} onClick={()=>{setViewingStudent(s); setActiveModalTab('info'); setIsWriting(false);}} className={`bg-white p-4 rounded-2xl shadow-sm border flex justify-between items-center cursor-pointer active:scale-[0.99] transition ${!s.isActive?'border-red-400 opacity-60':alert.status==='danger'?'border-red-500 border-l-4':'border-gray-100'}`}>
+            <div key={s.id} onClick={()=>{setViewingStudent(s); setActiveModalTab('info'); setIsWriting(false);}} 
+                 className={`bg-white p-4 rounded-2xl shadow-sm border flex justify-between items-center cursor-pointer active:scale-[0.99] transition 
+                 ${!s.isActive ? 'border-red-400 opacity-60' : hasCriticalAlert ? 'border-red-500 border-l-8' : 'border-gray-100'}`}>
                 <div className="flex gap-4 items-center">
                     <div className="w-12 h-12 bg-gray-200 rounded-xl overflow-hidden relative border border-gray-100">
-                        {s.photoUrl?<img src={s.photoUrl} className="w-full h-full object-cover"/>:<div className="w-full h-full flex items-center justify-center font-bold text-gray-400">{s.firstName[0]}</div>}
-                        {alert.status!=='ok' && <div className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border border-white"></div>}
+                        {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center font-bold text-gray-400">{s.firstName[0]}</div>}
+                        {/* Puntito rojo sobre la foto si hay alerta */}
+                        {hasCriticalAlert && <div className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border border-white animate-pulse"></div>}
                     </div>
                     <div>
                         <div className="flex items-center gap-2">
@@ -3096,18 +3104,23 @@ const findDuplicates = () => {
                               : 'bg-gray-100 text-gray-500'
                             }`}>
                                 {s.modality === 'Inclusión' 
-                                    ? (s.daiMorning || s.daiAfternoon ? `DAI: ${s.daiMorning || s.daiAfternoon}` : '<><AlertTriangle size={10} className="inline mr-1 mb-0.5"/> Sin DAI</>') 
-                                    : (s.groupMorning || s.groupAfternoon ? `Grupo: ${s.groupMorning || s.groupAfternoon}` : '<><AlertTriangle size={10} className="inline mr-1 mb-0.5"/> Sin grupo</>')}
+                                    ? (s.daiMorning || s.daiAfternoon ? `DAI: ${s.daiMorning || s.daiAfternoon}` : <span>⚠️ Sin DAI</span>) 
+                                    : (s.groupMorning || s.groupAfternoon ? `Grupo: ${s.groupMorning || s.groupAfternoon}` : <span>⚠️ Sin grupo</span>)}
                             </span>
+                            {/* Pequeño aviso de CUD si está por vencer */}
+                            {cudInfo.status === 'warning' && (
+                                <span className="text-[8px] bg-amber-100 text-amber-700 px-1.5 py-1 rounded font-black animate-pulse border border-amber-200">
+                                    CUD PRÓX. VENCER
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>
-                <Eye className="text-gray-300"/>
+                <Eye className={hasCriticalAlert ? "text-red-500" : "text-gray-300"}/>
             </div> 
           ); 
         })}
       </div>
-      
       {/* ================= MODALES ================= */}
 
      {/* 1. MODAL FICHA COMPLETA (DETALLE) - REPARADO SIN BORRAR NADA */}
@@ -6296,17 +6309,20 @@ function MedicalView({ user }) {
   const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
 
   const checkCudStatus = (cudDate) => {
-      if (!cudDate) return { status: 'none', text: 'Sin CUD cargado' };
+      // Si no tiene fecha cargada, devolvemos 'none' y no hace nada
+      if (!cudDate || cudDate === "") return { status: 'none', text: 'Sin fecha' };
+      
       const today = new Date();
       const exp = new Date(cudDate + 'T00:00:00');
       const diffTime = exp - today;
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       
-      if (diffDays < 0) return { status: 'expired', text: 'CUD Vencido' };
-      if (diffDays <= 30) return { status: 'warning', text: `Vence en ${diffDays} días` };
-      return { status: 'ok', text: 'CUD Vigente' };
+      if (diffDays < 0) return { status: 'expired', text: 'Vencido' };
+      // Alerta si falta menos de 90 días (3 meses)
+      if (diffDays <= 90) return { status: 'warning', text: `Vence en ${diffDays} días` };
+      
+      return { status: 'ok', text: 'Vigente' };
   };
-
   const handleSaveMedicalData = async (e) => {
       e.preventDefault();
       setSaving(true);
