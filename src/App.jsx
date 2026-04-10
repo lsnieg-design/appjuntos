@@ -4115,87 +4115,84 @@ function SocialView({ user }) {
     }
   };
 
- const imprimirSeguimientoSocial = (c) => {
-    // 1. Generamos el HTML del reporte
+const imprimirSeguimientoSocial = (c) => {
+    // 1. HTML del reporte (incluyendo el logo)
     const docHtml = `
       <html>
         <head>
           <title>Informe - ${c.studentName}</title>
           <style>
-            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; color: #1e293b; background: white; }
-            .header { border-bottom: 4px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
-            .logo-img { height: 70px; width: auto; }
-            .main-card { border: 2px solid #e2e8f0; border-radius: 20px; padding: 25px; margin-bottom: 30px; background: #f8fafc; }
-            .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-            .label { font-size: 9px; font-weight: 900; color: #2563eb; text-transform: uppercase; display: block; margin-bottom: 4px; }
-            .value { font-size: 14px; font-weight: bold; color: #0f172a; }
-            .history-item { padding: 12px 0; border-bottom: 1px solid #f1f5f9; page-break-inside: avoid; }
-            .history-meta { font-size: 10px; font-weight: 800; color: #64748b; display: flex; justify-content: space-between; margin-bottom: 4px; }
-            .history-text { font-size: 12px; line-height: 1.6; color: #334155; }
-            .footer-sign { margin-top: 60px; display: flex; justify-content: space-around; text-align: center; font-size: 10px; font-weight: bold; }
-            @media print { 
-              body { padding: 0; } 
-              .no-print { display: none; }
-            }
+            body { font-family: sans-serif; padding: 20px; color: #1e293b; background: white; }
+            .header { border-bottom: 4px solid #2563eb; padding-bottom: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
+            .logo-img { height: 60px; width: auto; }
+            .main-card { border: 2px solid #e2e8f0; border-radius: 20px; padding: 20px; margin-bottom: 25px; background: #f8fafc; }
+            .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+            .label { font-size: 9px; font-weight: 900; color: #2563eb; text-transform: uppercase; display: block; }
+            .value { font-size: 13px; font-weight: bold; color: #0f172a; }
+            .history-item { padding: 10px 0; border-bottom: 1px solid #f1f5f9; page-break-inside: avoid; }
+            .history-meta { font-size: 10px; font-weight: 800; color: #64748b; display: flex; justify-content: space-between; }
+            .history-text { font-size: 11px; line-height: 1.5; color: #334155; margin-top: 4px; }
+            @media print { body { padding: 0; } .no-print { display: none; } }
           </style>
         </head>
         <body>
           <div class="header">
             <img src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" class="logo-img" />
             <div style="text-align: right;">
-              <h1 style="margin:0; font-size: 22px; color: #1e3a8a;">JUNTOS A LA PAR</h1>
-              <p style="margin:0; font-size: 11px; font-weight: 900; color: #64748b;">INFORME SOCIAL INSTITUCIONAL</p>
+              <h1 style="margin:0; font-size: 18px; color: #1e3a8a;">JUNTOS A LA PAR</h1>
+              <p style="margin:0; font-size: 10px; font-weight: 900; color: #64748b;">INFORME SOCIAL</p>
             </div>
           </div>
           <div class="main-card">
             <div class="info-grid">
               <div><span class="label">Estudiante</span><div class="value">${c.studentName}</div></div>
-              <div><span class="label">Nivel / Ciclo</span><div class="value">${c.level}</div></div>
-              <div style="grid-column: span 2; margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px;">
-                <span class="label">Motivo del Reporte</span>
+              <div><span class="label">Ciclo</span><div class="value">${c.level}</div></div>
+              <div style="grid-column: span 2; border-top: 1px solid #eee; padding-top: 10px;">
+                <span class="label">Motivo</span>
                 <div class="value" style="font-style: italic;">"${c.reason}"</div>
               </div>
             </div>
           </div>
-          <h2 style="font-size: 13px; text-transform: uppercase; color: #1e3a8a; border-left: 5px solid #2563eb; padding-left: 10px; margin-bottom: 20px;">Evolución y Seguimiento</h2>
+          <div style="border-left: 4px solid #2563eb; padding-left: 10px; margin-bottom: 15px;">
+            <h2 style="font-size: 12px; text-transform: uppercase; color: #1e3a8a; margin: 0;">Seguimiento</h2>
+          </div>
           <div>
             ${c.history?.map(h => `
               <div class="history-item">
                 <div class="history-meta">
-                  <span>FECHA: ${new Date(h.date).toLocaleDateString('es-AR')}</span>
-                  <span>AUTOR: ${h.author.toUpperCase()}</span>
+                  <span>${new Date(h.date).toLocaleDateString('es-AR')}</span>
+                  <span>${h.author.toUpperCase()}</span>
                 </div>
                 <div class="history-text">${h.text}</div>
               </div>
-            `).join('') || '<p style="text-align:center; color:#94a3b8;">Sin intervenciones registradas.</p>'}
-          </div>
-          <div class="footer-sign">
-            <div style="border-top: 1.5px solid #000; width: 200px; padding-top: 8px;">FIRMA Y SELLO DOCENTE</div>
-            <div style="border-top: 1.5px solid #000; width: 200px; padding-top: 8px;">FIRMA Y SELLO GABINETE</div>
+            `).join('') || '<p>Sin registros.</p>'}
           </div>
         </body>
       </html>
     `;
 
-    // 2. Creamos un iframe temporal (esto dispara la vista previa nativa)
+    // 2. TÉCNICA DE BLOB (Para engañar a Android)
+    const blob = new Blob([docHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+
+    // 3. CREAMOS EL IFRAME APUNTANDO A ESA URL
     const iframe = document.createElement('iframe');
-    iframe.style.display = 'none'; // No se ve en la pantalla
+    iframe.style.display = 'none';
+    iframe.src = url;
     document.body.appendChild(iframe);
 
-    const pri = iframe.contentWindow;
-    pri.document.open();
-    pri.document.write(docHtml);
-    pri.document.close();
-
-    // 3. Al cargar todo (incluido el logo), disparamos la vista previa
-    iframe.onload = function() {
-      // Pequeño delay para asegurar renderizado en móviles
+    // 4. DISPARAMOS LA IMPRESIÓN
+    iframe.onload = () => {
       setTimeout(() => {
-        pri.focus();
-        pri.print();
-        // Limpiamos el iframe después de cerrar el menú de impresión
-        setTimeout(() => { document.body.removeChild(iframe); }, 500);
-      }, 300);
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        
+        // Limpieza
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+          URL.revokeObjectURL(url);
+        }, 1000);
+      }, 500);
     };
   };
 
