@@ -4116,86 +4116,71 @@ function SocialView({ user }) {
   };
 
 const imprimirSeguimientoSocial = (c) => {
-    // 1. HTML del reporte (incluyendo el logo)
+    const userFullName = user.fullName || `${user.firstName} ${user.lastName}`;
+    
+    // 1. Definimos el contenido HTML
     const docHtml = `
+      <!DOCTYPE html>
       <html>
         <head>
           <title>Informe - ${c.studentName}</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body { font-family: sans-serif; padding: 20px; color: #1e293b; background: white; }
-            .header { border-bottom: 4px solid #2563eb; padding-bottom: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
-            .logo-img { height: 60px; width: auto; }
-            .main-card { border: 2px solid #e2e8f0; border-radius: 20px; padding: 20px; margin-bottom: 25px; background: #f8fafc; }
-            .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-            .label { font-size: 9px; font-weight: 900; color: #2563eb; text-transform: uppercase; display: block; }
-            .value { font-size: 13px; font-weight: bold; color: #0f172a; }
-            .history-item { padding: 10px 0; border-bottom: 1px solid #f1f5f9; page-break-inside: avoid; }
-            .history-meta { font-size: 10px; font-weight: 800; color: #64748b; display: flex; justify-content: space-between; }
-            .history-text { font-size: 11px; line-height: 1.5; color: #334155; margin-top: 4px; }
-            @media print { body { padding: 0; } .no-print { display: none; } }
+            body { font-family: sans-serif; padding: 20px; color: #1e293b; line-height: 1.4; }
+            .header { border-bottom: 4px solid #2563eb; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+            .logo-img { height: 50px; width: auto; }
+            .main-card { border: 2px solid #e2e8f0; border-radius: 15px; padding: 15px; margin-bottom: 20px; background: #f8fafc; }
+            .label { font-size: 9px; font-weight: 900; color: #2563eb; text-transform: uppercase; }
+            .value { font-size: 13px; font-weight: bold; }
+            .history-item { padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+            .history-meta { font-size: 9px; font-weight: 800; color: #64748b; display: flex; justify-content: space-between; }
+            @media print { .no-print { display: none; } body { padding: 0; } }
           </style>
         </head>
         <body>
           <div class="header">
             <img src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" class="logo-img" />
             <div style="text-align: right;">
-              <h1 style="margin:0; font-size: 18px; color: #1e3a8a;">JUNTOS A LA PAR</h1>
-              <p style="margin:0; font-size: 10px; font-weight: 900; color: #64748b;">INFORME SOCIAL</p>
+              <h1 style="margin:0; font-size: 18px;">JUNTOS A LA PAR</h1>
+              <p style="margin:0; font-size: 10px;">INFORME SOCIAL</p>
             </div>
           </div>
           <div class="main-card">
-            <div class="info-grid">
-              <div><span class="label">Estudiante</span><div class="value">${c.studentName}</div></div>
-              <div><span class="label">Ciclo</span><div class="value">${c.level}</div></div>
-              <div style="grid-column: span 2; border-top: 1px solid #eee; padding-top: 10px;">
-                <span class="label">Motivo</span>
-                <div class="value" style="font-style: italic;">"${c.reason}"</div>
-              </div>
+            <span class="label">Estudiante</span><div class="value">${c.studentName}</div>
+            <span class="label">Motivo</span><div class="value">${c.reason}</div>
+          </div>
+          <h3>Seguimiento</h3>
+          ${c.history?.map(h => `
+            <div class="history-item">
+              <div class="history-meta"><span>${new Date(h.date).toLocaleDateString()}</span><span>${h.author}</span></div>
+              <div style="font-size:11px;">${h.text}</div>
             </div>
-          </div>
-          <div style="border-left: 4px solid #2563eb; padding-left: 10px; margin-bottom: 15px;">
-            <h2 style="font-size: 12px; text-transform: uppercase; color: #1e3a8a; margin: 0;">Seguimiento</h2>
-          </div>
-          <div>
-            ${c.history?.map(h => `
-              <div class="history-item">
-                <div class="history-meta">
-                  <span>${new Date(h.date).toLocaleDateString('es-AR')}</span>
-                  <span>${h.author.toUpperCase()}</span>
-                </div>
-                <div class="history-text">${h.text}</div>
-              </div>
-            `).join('') || '<p>Sin registros.</p>'}
-          </div>
+          `).join('')}
+          <script>
+            // Este script se ejecuta apenas abre la ventana
+            window.onload = function() {
+              setTimeout(() => {
+                window.print();
+                // Opcional: window.close(); // Algunos Android fallan si se cierra solo, mejor dejarlo abierto
+              }, 500);
+            };
+          </script>
         </body>
       </html>
     `;
 
-    // 2. TÉCNICA DE BLOB (Para engañar a Android)
-    const blob = new Blob([docHtml], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-
-    // 3. CREAMOS EL IFRAME APUNTANDO A ESA URL
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = url;
-    document.body.appendChild(iframe);
-
-    // 4. DISPARAMOS LA IMPRESIÓN
-    iframe.onload = () => {
-      setTimeout(() => {
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-        
-        // Limpieza
-        setTimeout(() => {
-          document.body.removeChild(iframe);
-          URL.revokeObjectURL(url);
-        }, 1000);
-      }, 500);
-    };
+    // 2. ABRIR EN VENTANA NUEVA (La forma que Android no puede bloquear si es por click)
+    const printWindow = window.open('', '_blank');
+    
+    if (printWindow) {
+      printWindow.document.open();
+      printWindow.document.write(docHtml);
+      printWindow.document.close();
+    } else {
+      // Si el bloqueador de popups es muy agresivo
+      alert("⚠️ El navegador bloqueó la ventana de impresión. Por favor, permití los 'pop-ups' para esta página.");
+    }
   };
-
   const filteredCases = cases.filter(c => {
     const matchStatus = viewMode === 'archived' ? c.status === 'Reincorporado' : c.status !== 'Reincorporado';
     if (!matchStatus) return false;
