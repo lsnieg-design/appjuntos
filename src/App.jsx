@@ -4118,19 +4118,19 @@ function SocialView({ user }) {
 const imprimirSeguimientoSocial = (c) => {
     const userFullName = user.fullName || `${user.firstName} ${user.lastName}`;
     
-    // 1. Definimos el contenido HTML
     const docHtml = `
       <!DOCTYPE html>
       <html>
         <head>
           <title>Informe - ${c.studentName}</title>
+          <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body { font-family: sans-serif; padding: 20px; color: #1e293b; line-height: 1.4; }
+            body { font-family: sans-serif; padding: 20px; color: #1e293b; line-height: 1.4; background: white; }
             .header { border-bottom: 4px solid #2563eb; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
             .logo-img { height: 50px; width: auto; }
             .main-card { border: 2px solid #e2e8f0; border-radius: 15px; padding: 15px; margin-bottom: 20px; background: #f8fafc; }
-            .label { font-size: 9px; font-weight: 900; color: #2563eb; text-transform: uppercase; }
+            .label { font-size: 9px; font-weight: 900; color: #2563eb; text-transform: uppercase; display: block; }
             .value { font-size: 13px; font-weight: bold; }
             .history-item { padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
             .history-meta { font-size: 9px; font-weight: 800; color: #64748b; display: flex; justify-content: space-between; }
@@ -4141,33 +4141,47 @@ const imprimirSeguimientoSocial = (c) => {
           <div class="header">
             <img src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" class="logo-img" />
             <div style="text-align: right;">
-              <h1 style="margin:0; font-size: 18px;">JUNTOS A LA PAR</h1>
-              <p style="margin:0; font-size: 10px;">INFORME SOCIAL</p>
+              <h1 style="margin:0; font-size: 18px; color: #1e3a8a;">JUNTOS A LA PAR</h1>
+              <p style="margin:0; font-size: 10px; font-weight: bold; color: #64748b;">INFORME SOCIAL</p>
             </div>
           </div>
           <div class="main-card">
-            <span class="label">Estudiante</span><div class="value">${c.studentName}</div>
-            <span class="label">Motivo</span><div class="value">${c.reason}</div>
+            <div><span class="label">Estudiante</span><div class="value">${c.studentName}</div></div>
+            <div style="margin-top:10px;"><span class="label">Motivo del Reporte</span><div class="value" style="font-style:italic;">"${c.reason}"</div></div>
           </div>
-          <h3>Seguimiento</h3>
+          <h3 style="font-size: 14px; color: #1e3a8a; border-left: 4px solid #2563eb; padding-left: 10px;">Seguimiento</h3>
           ${c.history?.map(h => `
             <div class="history-item">
-              <div class="history-meta"><span>${new Date(h.date).toLocaleDateString()}</span><span>${h.author}</span></div>
-              <div style="font-size:11px;">${h.text}</div>
+              <div class="history-meta"><span>${new Date(h.date).toLocaleDateString('es-AR')}</span><span>${h.author.toUpperCase()}</span></div>
+              <div style="font-size:11px; margin-top:4px;">${h.text}</div>
             </div>
-          `).join('')}
+          `).join('') || '<p>Sin registros.</p>'}
+          
           <script>
-            // Este script se ejecuta apenas abre la ventana
+            // Forzamos la apertura del menú de impresión apenas cargue el contenido
             window.onload = function() {
               setTimeout(() => {
                 window.print();
-                // Opcional: window.close(); // Algunos Android fallan si se cierra solo, mejor dejarlo abierto
-              }, 500);
+              }, 800);
             };
           </script>
         </body>
       </html>
     `;
+
+    // --- EL TRUCO PARA ANDROID ---
+    // En lugar de window.open, creamos un link temporal y simulamos un click
+    const blob = new Blob([docHtml], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    
+    // Abrimos en una pestaña nueva, pero Android ahora reconocerá el archivo
+    const win = window.open(url, '_blank');
+    
+    // Si la pestaña no abre (bloqueada), usamos el mismo link para navegar
+    if (!win) {
+      window.location.href = url;
+    }
+  };
 
     // 2. ABRIR EN VENTANA NUEVA (La forma que Android no puede bloquear si es por click)
     const printWindow = window.open('', '_blank');
