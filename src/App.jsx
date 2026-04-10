@@ -4121,6 +4121,38 @@ function SocialView({ user }) {
     win.document.write(docHtml); win.document.close();
     setTimeout(() => { win.print(); }, 800);
   };
+  const compartirSeguimientoSocial = async (c) => {
+    const userFullName = user.fullName || `${user.firstName} ${user.lastName}`;
+    const pasos = [
+      c.steps?.llamada?.done ? "✅ Llamada a familia realizada" : "❌ Llamada pendiente",
+      c.steps?.continuidad?.sent ? "✅ Continuidad pedagógica enviada" : "❌ Continuidad pendiente"
+    ].join('\n');
+
+    const textoCompartir = `📋 *INFORME DE SEGUIMIENTO SOCIAL*\n\n` +
+      `👤 *Estudiante:* ${c.studentName}\n` +
+      `🏫 *Nivel:* ${c.level}\n` +
+      `⚠️ *Motivo:* ${c.reason}\n\n` +
+      `📍 *ESTADO ACTUAL:*\n${pasos}\n\n` +
+      `💬 *ÚLTIMA NOVEDAD:* ${c.history && c.history.length > 0 ? c.history[c.history.length - 1].text : 'Sin mensajes'}\n\n` +
+      `👤 *Responsable:* ${userFullName}\n` +
+      `📅 *Fecha:* ${new Date().toLocaleDateString('es-AR')}\n\n` +
+      `_Enviado desde App Juntos a la Par_`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Seguimiento - ${c.studentName}`,
+          text: textoCompartir,
+        });
+      } catch (err) {
+        console.log("Error al compartir:", err);
+      }
+    } else {
+      // Si el navegador no soporta compartir (PC), copia al portapapeles
+      navigator.clipboard.writeText(textoCompartir);
+      alert("Resumen copiado al portapapeles para pegar en WhatsApp.");
+    }
+  };
 
   const filteredCases = cases.filter(c => {
     const matchStatus = viewMode === 'archived' ? c.status === 'Reincorporado' : c.status !== 'Reincorporado';
