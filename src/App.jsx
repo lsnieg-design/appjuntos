@@ -4156,33 +4156,20 @@ const imprimirSeguimientoSocial = (c) => {
               <div style="font-size:11px; margin-top:4px;">${h.text}</div>
             </div>
           `).join('') || '<p>Sin registros.</p>'}
-          
           <script>
-            // Forzamos la apertura del menú de impresión apenas cargue el contenido
             window.onload = function() {
-              setTimeout(() => {
-                window.print();
-              }, 800);
+              setTimeout(() => { window.print(); }, 800);
             };
           </script>
         </body>
       </html>
     `;
 
-    // --- EL TRUCO PARA ANDROID ---
-    // En lugar de window.open, creamos un link temporal y simulamos un click
     const blob = new Blob([docHtml], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    
-    // Abrimos en una pestaña nueva, pero Android ahora reconocerá el archivo
     const win = window.open(url, '_blank');
-    
-    // Si la pestaña no abre (bloqueada), usamos el mismo link para navegar
-    if (!win) {
-      window.location.href = url;
-    }
-  };
-
+    if (!win) { window.location.href = url; }
+  }; // <--- REVISÁ QUE ESTA LLAVE ESTÉ ASÍ, CON PUNTO Y COMA.
     // 2. ABRIR EN VENTANA NUEVA (La forma que Android no puede bloquear si es por click)
     const printWindow = window.open('', '_blank');
     
