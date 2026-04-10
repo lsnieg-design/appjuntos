@@ -4115,40 +4115,88 @@ function SocialView({ user }) {
     }
   };
 
-  const imprimirSeguimientoSocial = (c) => {
-    const docHtml = `<html><head><title>Informe - ${c.studentName}</title><style>body{font-family:sans-serif;padding:40px;color:#1e293b}.header{border-bottom:4px solid #2563eb;padding-bottom:20px;margin-bottom:30px;display:flex;justify-content:space-between;align-items:center}.logo-img{height:70px;width:auto}.main-card{border:2px solid #e2e8f0;border-radius:20px;padding:25px;margin-bottom:30px;background:#f8fafc}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.label{font-size:9px;font-weight:900;color:#2563eb;text-transform:uppercase;display:block}.value{font-size:14px;font-weight:bold}.history-item{padding:10px 0;border-bottom:1px solid #f1f5f9;page-break-inside:avoid}.history-meta{font-size:10px;font-weight:800;color:#64748b;display:flex;justify-content:space-between}</style></head><body><div class="header"><img src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" class="logo-img" /><div><h1>JUNTOS A LA PAR</h1><p>INFORME SOCIAL: ${new Date().toLocaleDateString()}</p></div></div><div class="main-card"><div class="info-grid"><div><span class="label">Estudiante</span><div class="value">${c.studentName}</div></div><div><span class="label">Ciclo</span><div class="value">${c.level}</div></div><div style="grid-column:span 2;margin-top:10px;border-top:1px solid #eee;padding-top:10px;"><span class="label">Motivo</span><div class="value">"${c.reason}"</div></div></div></div><h2>Evolución</h2><div>${c.history?.map(h=>`<div class="history-item"><div class="history-meta"><span>${new Date(h.date).toLocaleDateString()}</span><span>${h.author.toUpperCase()}</span></div><p>${h.text}</p></div>`).join('')}</div></body></html>`;
-    const win = window.open('', '_blank');
-    win.document.write(docHtml); win.document.close();
-    setTimeout(() => { win.print(); }, 800);
-  };
- const compartirSeguimientoSocial = async (c) => {
-    const userFullName = user.fullName || `${user.firstName} ${user.lastName}`;
-    
-    // 1. Preparamos el texto prolijo para el cuerpo del mensaje
-    const textoMensaje = `📋 *INFORME SOCIAL - JUNTOS A LA PAR*\n\n` +
-      `👤 *Estudiante:* ${c.studentName}\n` +
-      `⚠️ *Motivo:* ${c.reason}\n` +
-      `👤 *Responsable:* ${userFullName}\n` +
-      `📅 *Fecha:* ${new Date().toLocaleDateString('es-AR')}\n\n` +
-      `_Se adjunta el detalle de intervenciones._`;
+ const imprimirSeguimientoSocial = (c) => {
+    // 1. Generamos el HTML del reporte
+    const docHtml = `
+      <html>
+        <head>
+          <title>Informe - ${c.studentName}</title>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; color: #1e293b; background: white; }
+            .header { border-bottom: 4px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
+            .logo-img { height: 70px; width: auto; }
+            .main-card { border: 2px solid #e2e8f0; border-radius: 20px; padding: 25px; margin-bottom: 30px; background: #f8fafc; }
+            .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+            .label { font-size: 9px; font-weight: 900; color: #2563eb; text-transform: uppercase; display: block; margin-bottom: 4px; }
+            .value { font-size: 14px; font-weight: bold; color: #0f172a; }
+            .history-item { padding: 12px 0; border-bottom: 1px solid #f1f5f9; page-break-inside: avoid; }
+            .history-meta { font-size: 10px; font-weight: 800; color: #64748b; display: flex; justify-content: space-between; margin-bottom: 4px; }
+            .history-text { font-size: 12px; line-height: 1.6; color: #334155; }
+            .footer-sign { margin-top: 60px; display: flex; justify-content: space-around; text-align: center; font-size: 10px; font-weight: bold; }
+            @media print { 
+              body { padding: 0; } 
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <img src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" class="logo-img" />
+            <div style="text-align: right;">
+              <h1 style="margin:0; font-size: 22px; color: #1e3a8a;">JUNTOS A LA PAR</h1>
+              <p style="margin:0; font-size: 11px; font-weight: 900; color: #64748b;">INFORME SOCIAL INSTITUCIONAL</p>
+            </div>
+          </div>
+          <div class="main-card">
+            <div class="info-grid">
+              <div><span class="label">Estudiante</span><div class="value">${c.studentName}</div></div>
+              <div><span class="label">Nivel / Ciclo</span><div class="value">${c.level}</div></div>
+              <div style="grid-column: span 2; margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px;">
+                <span class="label">Motivo del Reporte</span>
+                <div class="value" style="font-style: italic;">"${c.reason}"</div>
+              </div>
+            </div>
+          </div>
+          <h2 style="font-size: 13px; text-transform: uppercase; color: #1e3a8a; border-left: 5px solid #2563eb; padding-left: 10px; margin-bottom: 20px;">Evolución y Seguimiento</h2>
+          <div>
+            ${c.history?.map(h => `
+              <div class="history-item">
+                <div class="history-meta">
+                  <span>FECHA: ${new Date(h.date).toLocaleDateString('es-AR')}</span>
+                  <span>AUTOR: ${h.author.toUpperCase()}</span>
+                </div>
+                <div class="history-text">${h.text}</div>
+              </div>
+            `).join('') || '<p style="text-align:center; color:#94a3b8;">Sin intervenciones registradas.</p>'}
+          </div>
+          <div class="footer-sign">
+            <div style="border-top: 1.5px solid #000; width: 200px; padding-top: 8px;">FIRMA Y SELLO DOCENTE</div>
+            <div style="border-top: 1.5px solid #000; width: 200px; padding-top: 8px;">FIRMA Y SELLO GABINETE</div>
+          </div>
+        </body>
+      </html>
+    `;
 
-    // 2. Intentamos usar la API Nativa del Celular
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `Informe Social - ${c.studentName}`,
-          text: textoMensaje,
-          // Si quisieras mandar un link directo a la app podrías sumarlo aquí:
-          // url: window.location.href 
-        });
-      } catch (err) {
-        console.log("Compartir cancelado o error:", err);
-      }
-    } else {
-      // 3. Fallback para PC: WhatsApp Web directo
-      const phoneMsg = encodeURIComponent(textoMensaje);
-      window.open(`https://wa.me/?text=${phoneMsg}`, '_blank');
-    }
+    // 2. Creamos un iframe temporal (esto dispara la vista previa nativa)
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none'; // No se ve en la pantalla
+    document.body.appendChild(iframe);
+
+    const pri = iframe.contentWindow;
+    pri.document.open();
+    pri.document.write(docHtml);
+    pri.document.close();
+
+    // 3. Al cargar todo (incluido el logo), disparamos la vista previa
+    iframe.onload = function() {
+      // Pequeño delay para asegurar renderizado en móviles
+      setTimeout(() => {
+        pri.focus();
+        pri.print();
+        // Limpiamos el iframe después de cerrar el menú de impresión
+        setTimeout(() => { document.body.removeChild(iframe); }, 500);
+      }, 300);
+    };
   };
 
   const filteredCases = cases.filter(c => {
