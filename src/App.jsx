@@ -4029,7 +4029,6 @@ function SocialView({ user }) {
     return () => { unsub(); unsubStudents(); };
   }, [isAllowed]);
 
-  // Detector de novedades
   const hasNews = (c) => {
     const lastSeenCount = parseInt(localStorage.getItem(`lastSeenSocial_${c.id}_${user.id}`) || "0");
     return (c.history?.length || 0) > lastSeenCount;
@@ -4045,15 +4044,14 @@ function SocialView({ user }) {
     const c = cases.find(x => x.id === caseId);
     const field = stepName === 'continuidad' ? 'sent' : 'done';
     const currentValue = c.steps?.[stepName]?.[field] || false;
-    const label = stepName === 'continuidad' ? 'ENVÍO DE CONTINUIDAD PEDAGÓGICA' : 'LLAMADA A LA FAMILIA';
-    
-    // Solo registramos en el chat cuando se MARCA como hecho (no cuando se desmarca)
+    const label = stepName === 'continuidad' ? 'CONTINUIDAD PEDAGÓGICA' : 'LLAMADA A LA FAMILIA';
+    const userFullName = user.fullName || `${user.firstName} ${user.lastName}`;
+
     if (!currentValue) {
       const autoNote = { 
         date: new Date().toISOString(), 
-        text: `📢 REGISTRO AUTOMÁTICO: Se realizó la acción de "${label}".`, 
-        author: user.firstName,
-        isAuto: true // Marca para darle un estilo distinto si querés
+        text: `📢 REGISTRO AUTOMÁTICO: ${userFullName} marcó como REALIZADA la acción de "${label}".`, 
+        author: userFullName
       };
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', caseId), { 
         history: arrayUnion(autoNote) 
@@ -4062,41 +4060,41 @@ function SocialView({ user }) {
 
     const newSteps = { 
       ...c.steps, 
-      [stepName]: { 
-        ...c.steps?.[stepName], 
-        [field]: !currentValue, 
-        date: !currentValue ? new Date().toLocaleDateString('es-AR') : null, 
-        author: user.firstName 
-      } 
+      [stepName]: { ...c.steps?.[stepName], [field]: !currentValue, date: !currentValue ? new Date().toLocaleDateString('es-AR') : null, author: userFullName } 
     };
     
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', caseId), { steps: newSteps });
-    if (selectedCase) setSelectedCase(prev => ({ ...prev, steps: newSteps }));
+    if (selectedCase) setSelectedCase(prev => ({ ...prev, steps: newSteps, history: !currentValue ? [...(prev.history || []), { text: `📢 REGISTRO AUTOMÁTICO: Marcaron como realizada "${label}".`, author: userFullName, date: new Date().toISOString() }] : prev.history }));
   };
 
   const handleAddComment = async (caseId) => {
     const text = newComment[caseId];
     if (!text || !text.trim()) return;
-    const entry = { date: new Date().toISOString(), text: text.trim(), author: user.firstName };
+    const userFullName = user.fullName || `${user.firstName} ${user.lastName}`;
+    const entry = { date: new Date().toISOString(), text: text.trim(), author: userFullName };
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', caseId), { history: arrayUnion(entry) });
     setNewComment({ ...newComment, [caseId]: "" });
-    // Actualizar visto
     localStorage.setItem(`lastSeenSocial_${caseId}_${user.id}`, (selectedCase.history?.length || 0) + 1);
   };
 
   const handleArchiveCase = async (c) => {
-    const confirmMsg = "❗ ¿Imprimiste el reporte para el legajo físico?\n\nRecordá que es obligatorio guardar el informe firmado y sellado antes de cerrar el caso.";
+    const confirmMsg = "❗ ¿Imprimiste el reporte para el legajo físico?\n\nRecordá que debe ir firmado y sellado antes de cerrar el caso.";
     if (confirm(confirmMsg)) {
         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', c.id), { status: 'Reincorporado' });
         setSelectedCase(null);
     }
   };
 
+  const handleOpenStudentFile = (studentId, studentName) => {
+    const found = students.find(s => s.id === studentId || `${s.lastName}, ${s.firstName}` === studentName);
+    if (found) setViewingStudent(found);
+    else alert("No se encontró el legajo detallado.");
+  };
+
   const imprimirSeguimientoSocial = (c) => {
-    const docHtml = `<html><head><title>Informe - ${c.studentName}</title><style>body{font-family:sans-serif;padding:40px;color:#1e293b}.header{border-bottom:4px solid #2563eb;padding-bottom:20px;margin-bottom:30px;display:flex;justify-content:space-between;align-items:center}.main-card{border:2px solid #e2e8f0;border-radius:20px;padding:25px;margin-bottom:30px;background:#f8fafc}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.label{font-size:9px;font-weight:900;color:#2563eb;text-transform:uppercase;display:block}.value{font-size:14px;font-weight:bold}.history-item{padding:10px 0;border-bottom:1px solid #f1f5f9;page-break-inside:avoid}.history-meta{font-size:10px;font-weight:800;color:#64748b;display:flex;justify-content:space-between}</style></head><body><div class="header"><h1>JUNTOS A LA PAR</h1><p>INFORME SOCIAL: ${new Date().toLocaleDateString()}</p></div><div class="main-card"><div class="info-grid"><div><span class="label">Estudiante</span><div class="value">${c.studentName}</div></div><div><span class="label">Ciclo</span><div class="value">${c.level}</div></div><div style="grid-column:span 2;margin-top:10px;border-top:1px solid #eee;padding-top:10px;"><span class="label">Motivo</span><div class="value">"${c.reason}"</div></div></div></div><h2>Evolución</h2><div>${c.history?.map(h=>`<div class="history-item"><div class="history-meta"><span>${new Date(h.date).toLocaleDateString()}</span><span>${h.author}</span></div><p>${h.text}</p></div>`).join('')}</div></body></html>`;
+    const docHtml = `<html><head><title>Informe - ${c.studentName}</title><style>body{font-family:sans-serif;padding:40px;color:#1e293b}.header{border-bottom:4px solid #2563eb;padding-bottom:20px;margin-bottom:30px;display:flex;justify-content:space-between;align-items:center}.logo-img{height:70px;width:auto}.main-card{border:2px solid #e2e8f0;border-radius:20px;padding:25px;margin-bottom:30px;background:#f8fafc}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.label{font-size:9px;font-weight:900;color:#2563eb;text-transform:uppercase;display:block}.value{font-size:14px;font-weight:bold}.history-item{padding:10px 0;border-bottom:1px solid #f1f5f9;page-break-inside:avoid}.history-meta{font-size:10px;font-weight:800;color:#64748b;display:flex;justify-content:space-between}</style></head><body><div class="header"><img src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" class="logo-img" /><div><h1>JUNTOS A LA PAR</h1><p>INFORME SOCIAL: ${new Date().toLocaleDateString()}</p></div></div><div class="main-card"><div class="info-grid"><div><span class="label">Estudiante</span><div class="value">${c.studentName}</div></div><div><span class="label">Ciclo</span><div class="value">${c.level}</div></div><div style="grid-column:span 2;margin-top:10px;border-top:1px solid #eee;padding-top:10px;"><span class="label">Motivo</span><div class="value">"${c.reason}"</div></div></div></div><h2>Evolución</h2><div>${c.history?.map(h=>`<div class="history-item"><div class="history-meta"><span>${new Date(h.date).toLocaleDateString()}</span><span>${h.author.toUpperCase()}</span></div><p>${h.text}</p></div>`).join('')}</div></body></html>`;
     const win = window.open('', '_blank');
-    win.document.write(docHtml);
-    win.document.close();
+    win.document.write(docHtml); win.document.close();
     setTimeout(() => { win.print(); }, 800);
   };
 
@@ -4112,12 +4110,10 @@ function SocialView({ user }) {
 
   return (
     <div className="h-full flex flex-col space-y-4 animate-in fade-in pb-20">
-      
-      {/* HEADER PRINCIPAL */}
       <div className="bg-white p-4 md:p-6 rounded-b-[40px] shadow-sm border-b border-blue-100 flex flex-col md:flex-row justify-between items-center gap-4 shrink-0">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-blue-600 rounded-xl text-white"><Users size={24}/></div>
-          <h2 className="text-xl font-black text-slate-800 uppercase italic tracking-tighter">Trabajo Social</h2>
+          <h2 className="text-xl font-black text-slate-800 uppercase italic">Trabajo Social</h2>
         </div>
         <div className="flex gap-2 w-full md:w-auto">
           <select value={filter} onChange={(e) => setFilter(e.target.value)} className="flex-1 md:flex-none bg-slate-100 text-slate-600 font-bold text-[10px] p-3 rounded-xl uppercase outline-none">
@@ -4131,21 +4127,17 @@ function SocialView({ user }) {
         </div>
       </div>
 
-      {/* LISTA VERTICAL */}
       <div className="flex-1 overflow-y-auto px-4 space-y-3 custom-scrollbar">
-        {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 opacity-20"><RefreshCw className="animate-spin mb-2" size={40}/><p className="font-black uppercase text-xs">Cargando...</p></div>
-        ) : filteredCases.map(c => {
+        {loading ? <p className="text-center py-20 opacity-20 font-black">CARGANDO...</p> : filteredCases.map(c => {
             const caseHasNews = hasNews(c);
             return (
               <div key={c.id} onClick={() => handleOpenCase(c)} className={`bg-white p-4 rounded-[28px] border-2 flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer ${caseHasNews ? 'border-orange-400 ring-4 ring-orange-50 shadow-lg' : 'border-transparent shadow-sm hover:border-blue-100'}`}>
                 <div className="flex items-center gap-4 min-w-0">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black shrink-0 ${caseHasNews ? 'bg-orange-500 animate-pulse' : 'bg-blue-600 shadow-inner'}`}>
-                    {caseHasNews ? '!' : c.studentName[0]}
-                  </div>
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black shrink-0 ${caseHasNews ? 'bg-orange-500 animate-pulse' : 'bg-blue-600 shadow-inner'}`}>{c.studentName[0]}</div>
                   <div className="truncate">
-                    <h4 className="font-black text-slate-700 text-sm uppercase truncate leading-tight">{c.studentName}</h4>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">{c.level}</p>
+                    <h4 className="font-black text-slate-700 text-sm uppercase truncate">{c.studentName}</h4>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">{c.level}</p>
+                    {caseHasNews && <p className="text-[8px] font-black text-orange-600 uppercase mt-1 animate-bounce">● Mensaje nuevo</p>}
                   </div>
                 </div>
                 <ChevronRight size={20} className="text-slate-300"/>
@@ -4154,128 +4146,103 @@ function SocialView({ user }) {
         })}
       </div>
 
-      {/* FICHA PANTALLA COMPLETA ESTRATÉGICA */}
       {selectedCase && (
-        <div className="fixed inset-0 bg-slate-50 z-[100] flex flex-col animate-in slide-in-from-right duration-300">
-          
-          {/* HEADER DE LA FICHA */}
+        <div className="fixed inset-0 bg-white z-[100] flex flex-col animate-in slide-in-from-right duration-300">
           <div className="bg-slate-900 p-4 sm:p-6 text-white flex justify-between items-center shrink-0 shadow-2xl">
             <button onClick={() => setSelectedCase(null)} className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-xl hover:bg-white/20 transition">
               <ChevronLeft size={20}/> <span className="text-xs font-black uppercase tracking-tighter">Volver</span>
             </button>
-            <div className="text-center">
-              <h3 className="font-black uppercase tracking-widest text-[10px] text-blue-400">Seguimiento de Caso</h3>
-              <h2 className="text-sm font-black uppercase">{selectedCase.studentName}</h2>
+            <div className="text-center"><h2 className="text-sm font-black uppercase truncate px-4">{selectedCase.studentName}</h2></div>
+            <div className="flex gap-2">
+              <button onClick={() => imprimirSeguimientoSocial(selectedCase)} className="p-3 bg-white/10 rounded-xl hover:bg-blue-600 transition"><Printer size={20}/></button>
             </div>
-            <button onClick={() => imprimirSeguimientoSocial(selectedCase)} className="p-3 bg-white/10 rounded-xl hover:bg-blue-600 transition"><Printer size={20}/></button>
           </div>
 
-          <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-            
-            {/* COLUMNA IZQUIERDA: TODA LA INFO DEL ALUMNO (ESTRATÉGICA) */}
-            <div className="w-full lg:w-80 bg-white border-r border-slate-200 overflow-y-auto p-6 space-y-6 shrink-0 custom-scrollbar">
-              
+          <div className="flex-1 overflow-y-auto bg-slate-50 flex flex-col lg:flex-row h-full">
+            <div className="w-full lg:w-80 bg-white border-b lg:border-r border-slate-200 p-6 space-y-6 shrink-0">
               <div className="bg-blue-50 p-4 rounded-3xl border border-blue-100">
-                <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 flex items-center gap-1"><Smartphone size={14}/> Contactos Familia</h4>
-                <div className="space-y-3">
-                  <div className="bg-white p-3 rounded-2xl shadow-sm border border-blue-50">
-                    <p className="text-[8px] font-black text-slate-400 uppercase">Madre / Tutor 1</p>
-                    <p className="text-xs font-bold text-slate-700 truncate">{selectedCase.fullInfo?.motherName || 'S/D'}</p>
-                    <a href={`tel:${selectedCase.fullInfo?.motherContact}`} className="text-blue-600 text-[11px] font-black mt-1 flex items-center gap-1 hover:underline"><Phone size={12}/> {selectedCase.fullInfo?.motherContact || 'Sin número'}</a>
+                <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 flex items-center gap-1"><Smartphone size={14}/> Familia</h4>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-[8px] font-black text-slate-400 uppercase">Madre: {selectedCase.fullInfo?.motherName || 'S/D'}</p>
+                    <a href={`tel:${selectedCase.fullInfo?.motherContact}`} className="text-blue-600 text-sm font-black flex items-center gap-1 hover:underline"><Phone size={14}/> {selectedCase.fullInfo?.motherContact || 'Sin número'}</a>
                   </div>
-                  <div className="bg-white p-3 rounded-2xl shadow-sm border border-blue-50">
-                    <p className="text-[8px] font-black text-slate-400 uppercase">Padre / Tutor 2</p>
-                    <p className="text-xs font-bold text-slate-700 truncate">{selectedCase.fullInfo?.fatherName || 'S/D'}</p>
-                    <a href={`tel:${selectedCase.fullInfo?.fatherContact}`} className="text-blue-600 text-[11px] font-black mt-1 flex items-center gap-1 hover:underline"><Phone size={12}/> {selectedCase.fullInfo?.fatherContact || 'Sin número'}</a>
+                  <div>
+                    <p className="text-[8px] font-black text-slate-400 uppercase">Padre: {selectedCase.fullInfo?.fatherName || 'S/D'}</p>
+                    <a href={`tel:${selectedCase.fullInfo?.fatherContact}`} className="text-blue-600 text-sm font-black flex items-center gap-1 hover:underline"><Phone size={14}/> {selectedCase.fullInfo?.fatherContact || 'Sin número'}</a>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-orange-50 p-4 rounded-3xl border border-orange-100">
-                <h4 className="text-[10px] font-black text-orange-600 uppercase tracking-widest mb-3 flex items-center gap-1"><Grid size={14}/> Ubicación Escolar</h4>
-                <div className="space-y-2 text-xs">
-                  <p className="flex justify-between font-bold"><span>Jornada:</span> <span className="text-orange-700">{selectedCase.fullInfo?.journey || 'S/D'}</span></p>
-                  <p className="flex justify-between font-bold"><span>Modalidad:</span> <span className="text-orange-700">{selectedCase.fullInfo?.modality || 'Sede'}</span></p>
-                  <div className="pt-2 mt-2 border-t border-orange-200 space-y-2">
-                    <div className="bg-white/50 p-2 rounded-xl">
-                      <p className="text-[8px] font-black text-orange-400 uppercase">T. Mañana</p>
-                      <p className="font-bold text-slate-700">{selectedCase.fullInfo?.groupMorning || 'Sin Grupo'}</p>
-                      <p className="text-[9px] text-slate-400 font-bold">Doc: {selectedCase.fullInfo?.teacherMorning || '-'}</p>
-                    </div>
-                    <div className="bg-white/50 p-2 rounded-xl">
-                      <p className="text-[8px] font-black text-orange-400 uppercase">T. Tarde</p>
-                      <p className="font-bold text-slate-700">{selectedCase.fullInfo?.groupAfternoon || 'Sin Grupo'}</p>
-                      <p className="text-[9px] text-slate-400 font-bold">Doc: {selectedCase.fullInfo?.teacherAfternoon || '-'}</p>
-                    </div>
-                  </div>
-                </div>
+              <div className="bg-orange-50 p-4 rounded-3xl border border-orange-100 text-xs font-bold space-y-2">
+                <p className="text-[10px] font-black text-orange-600 uppercase mb-2">🏫 Ubicación</p>
+                <div className="bg-white/50 p-2 rounded-xl"><p className="text-[8px] font-black text-orange-400 uppercase">Mañana</p><p>{selectedCase.fullInfo?.groupMorning || '-'}</p></div>
+                <div className="bg-white/50 p-2 rounded-xl"><p className="text-[8px] font-black text-orange-400 uppercase">Tarde</p><p>{selectedCase.fullInfo?.groupAfternoon || '-'}</p></div>
               </div>
 
-              <div className="bg-slate-50 p-4 rounded-3xl border border-slate-200">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">Motivo del Reporte</h4>
-                <p className="text-xs font-bold text-slate-600 leading-relaxed italic">"{selectedCase.reason}"</p>
+              <div className="bg-slate-100 p-4 rounded-3xl text-xs italic text-slate-600 leading-relaxed border border-slate-200">
+                <span className="text-[9px] font-black text-slate-400 uppercase block mb-1">Motivo Reporte</span>
+                "{selectedCase.reason}"
               </div>
 
-              <button onClick={() => handleArchiveCase(selectedCase)} className="w-full py-4 bg-emerald-500 text-white rounded-2xl font-black uppercase text-[10px] shadow-lg hover:bg-emerald-600 active:scale-95 transition-all">
-                Finalizar Intervención
-              </button>
+              <button onClick={() => handleArchiveCase(selectedCase)} className="w-full py-4 bg-emerald-500 text-white rounded-2xl font-black uppercase text-[10px] shadow-lg hover:bg-emerald-600 active:scale-95 transition-all">Finalizar Intervención</button>
             </div>
 
-            {/* SECCIÓN DERECHA: PROTOCOLO Y CHAT */}
-            <div className="flex-1 flex flex-col p-4 sm:p-6 space-y-4 overflow-hidden">
+            <div className="flex-1 flex flex-col p-4 sm:p-6 space-y-4 h-full min-h-[600px]">
+              <div className="bg-blue-600 p-5 rounded-[30px] text-white shadow-lg">
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-2">Instrucción para el equipo:</p>
+                <p className="text-xs font-bold leading-tight">Pulsa los botones de abajo para confirmar la acción. Se registrará en el chat con tu nombre y apellido.</p>
+              </div>
               
-              {/* BOTONES PROTOCOLO */}
-            {/* SECCIÓN DE BOTONES CON INSTRUCCIONES */}
-      <div className="space-y-3 shrink-0">
-        <div className="bg-blue-600 p-4 rounded-3xl text-white shadow-lg mb-2">
-            <p className="text-[10px] font-black uppercase tracking-widest opacity-80 italic">Instrucción para el equipo:</p>
-            <p className="text-xs font-bold leading-tight">Pulsá los botones de abajo para confirmar que realizaste la acción. Se notificará al chat automáticamente.</p>
-        </div>
-        
-        <div className="grid grid-cols-2 gap-3">
-          <button onClick={() => updateStep(selectedCase.id, 'llamada')} className={`flex flex-col items-center gap-2 p-5 rounded-[35px] border-2 transition-all ${selectedCase.steps?.llamada?.done ? 'bg-emerald-500 border-emerald-600 text-white shadow-emerald-100 shadow-lg' : 'bg-white border-slate-200 text-slate-400 hover:border-blue-400'}`}>
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 ${selectedCase.steps?.llamada?.done ? 'bg-white text-emerald-600 border-white' : 'border-slate-100 text-slate-200'}`}>
-              {selectedCase.steps?.llamada?.done ? <CheckCircle2 size={28} strokeWidth={3}/> : <Phone size={24}/>}
-            </div>
-            <span className="text-[11px] font-black uppercase">{selectedCase.steps?.llamada?.done ? 'Llamada OK' : 'Marcar Llamada'}</span>
-          </button>
+              <div className="grid grid-cols-2 gap-3 shrink-0">
+                <button onClick={() => updateStep(selectedCase.id, 'llamada')} className={`flex flex-col items-center gap-2 p-5 rounded-[35px] border-2 transition-all ${selectedCase.steps?.llamada?.done ? 'bg-emerald-500 border-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white border-slate-200 text-slate-400'}`}>
+                  {selectedCase.steps?.llamada?.done ? <CheckCircle2 size={28}/> : <Phone size={24}/>}
+                  <span className="text-[11px] font-black uppercase">Llamada</span>
+                </button>
+                <button onClick={() => updateStep(selectedCase.id, 'continuidad')} className={`flex flex-col items-center gap-2 p-5 rounded-[35px] border-2 transition-all ${selectedCase.steps?.continuidad?.sent ? 'bg-indigo-600 border-indigo-700 text-white shadow-lg shadow-indigo-100' : 'bg-white border-slate-200 text-slate-400'}`}>
+                  {selectedCase.steps?.continuidad?.sent ? <CheckCircle2 size={28}/> : <BookOpen size={24}/>}
+                  <span className="text-[11px] font-black uppercase">Continuidad</span>
+                </button>
+              </div>
 
-          <button onClick={() => updateStep(selectedCase.id, 'continuidad')} className={`flex flex-col items-center gap-2 p-5 rounded-[35px] border-2 transition-all ${selectedCase.steps?.continuidad?.sent ? 'bg-indigo-600 border-indigo-700 text-white shadow-indigo-100 shadow-lg' : 'bg-white border-slate-200 text-slate-400 hover:border-blue-400'}`}>
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 ${selectedCase.steps?.continuidad?.sent ? 'bg-white text-indigo-600 border-white' : 'border-slate-100 text-slate-200'}`}>
-              {selectedCase.steps?.continuidad?.sent ? <CheckCircle2 size={28} strokeWidth={3}/> : <BookOpen size={24}/>}
-            </div>
-            <span className="text-[11px] font-black uppercase">{selectedCase.steps?.continuidad?.sent ? 'Enviado OK' : 'Marcar Envío'}</span>
-          </button>
-        </div>
-      </div>
-
-              {/* CHAT INTERVENCIONES */}
-              <div className="flex-1 flex flex-col bg-white rounded-[40px] border border-slate-200 shadow-xl overflow-hidden relative">
-                <div className="bg-slate-100 p-2 text-center border-b"><span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Muro de Intervenciones</span></div>
-                <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar">
+              <div className="flex-1 flex flex-col bg-white rounded-[45px] border border-slate-200 shadow-xl overflow-hidden min-h-[400px]">
+                <div className="bg-slate-100 p-2 text-center border-b"><span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Intervenciones</span></div>
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 no-scrollbar">
                   {selectedCase.history?.map((h, i) => (
-                    <div key={i} className={`flex flex-col ${h.author === user.firstName ? 'items-end' : 'items-start'}`}>
-                      <div className={`max-w-[85%] p-3 rounded-2xl text-sm font-bold shadow-sm ${h.author === user.firstName ? 'bg-blue-600 text-white rounded-br-none' : 'bg-slate-100 text-slate-700 border border-slate-200 rounded-tl-none'}`}>
-                        <p className="text-[8px] font-black uppercase opacity-60 mb-1">{h.author} • {new Date(h.date).toLocaleDateString()}</p>
+                    <div key={i} className={`flex flex-col ${h.author.includes(user.firstName) ? 'items-end' : 'items-start'}`}>
+                      <div className={`max-w-[85%] p-4 rounded-[25px] text-sm font-bold shadow-sm ${h.author.includes(user.firstName) ? 'bg-blue-600 text-white rounded-br-none' : 'bg-slate-100 text-slate-700 rounded-tl-none border border-slate-200'}`}>
+                        <p className="text-[8px] font-black uppercase opacity-60 mb-2">{h.author} • {new Date(h.date).toLocaleDateString()}</p>
                         {h.text}
                       </div>
                     </div>
                   ))}
                 </div>
                 <div className="p-4 bg-slate-50 border-t flex gap-2">
-                  <input 
-                    value={newComment[selectedCase.id] || ""} 
-                    onChange={(e) => setNewComment({ ...newComment, [selectedCase.id]: e.target.value })} 
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddComment(selectedCase.id)}
-                    placeholder="Registrar avance o respuesta..." 
-                    className="flex-1 bg-white p-3 rounded-2xl text-sm font-bold border border-slate-200 outline-none focus:ring-2 ring-blue-500"
-                  />
+                  <input value={newComment[selectedCase.id] || ""} onChange={(e) => setNewComment({ ...newComment, [selectedCase.id]: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && handleAddComment(selectedCase.id)} placeholder="Registrar novedad..." className="flex-1 bg-white p-3 rounded-2xl text-sm font-bold border border-slate-200 outline-none focus:ring-2 ring-blue-500"/>
                   <button onClick={() => handleAddComment(selectedCase.id)} className="bg-blue-600 text-white p-3 rounded-2xl shadow-lg active:scale-95 transition-all flex-shrink-0"><Send size={20}/></button>
                 </div>
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {viewingStudent && (
+          <div className="fixed inset-0 bg-slate-900/95 z-[200] flex items-center justify-center p-4 backdrop-blur-md animate-in zoom-in-95">
+              <div className="bg-white rounded-[45px] w-full max-w-lg p-8 relative shadow-2xl">
+                  <button onClick={() => setViewingStudent(null)} className="absolute top-8 right-8 text-slate-300 hover:text-slate-500 transition"><X size={28}/></button>
+                  <h3 className="font-black text-2xl text-slate-800 uppercase tracking-tighter leading-none mb-8">{viewingStudent.lastName}, {viewingStudent.firstName}</h3>
+                  <div className="space-y-4">
+                      <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100 grid grid-cols-2 gap-6">
+                          <div><label className="text-[9px] font-black text-slate-400 uppercase block mb-1">DNI</label><p className="font-bold text-slate-800">{viewingStudent.dni || '-'}</p></div>
+                          <div><label className="text-[9px] font-black text-slate-400 uppercase block mb-1">F. Nac</label><p className="font-bold text-slate-800">{viewingStudent.birthDate || '-'}</p></div>
+                          <div className="col-span-2"><label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Obra Social</label><p className="font-bold text-slate-800 uppercase">{viewingStudent.healthInsurance || 'S/D'}</p></div>
+                          <div className="col-span-2"><label className="text-[9px] font-black text-slate-400 uppercase block mb-1">CUD</label><p className="font-bold text-red-600 uppercase">{viewingStudent.cudExpiration || 'Sin cargar'}</p></div>
+                      </div>
+                  </div>
+                  <button onClick={() => setViewingStudent(null)} className="w-full mt-8 py-5 bg-slate-900 text-white rounded-[25px] font-black uppercase text-xs tracking-widest shadow-xl">Cerrar Ficha</button>
+              </div>
+          </div>
       )}
     </div>
   );
