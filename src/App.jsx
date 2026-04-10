@@ -4121,36 +4121,33 @@ function SocialView({ user }) {
     win.document.write(docHtml); win.document.close();
     setTimeout(() => { win.print(); }, 800);
   };
-  const compartirSeguimientoSocial = async (c) => {
+ const compartirSeguimientoSocial = async (c) => {
     const userFullName = user.fullName || `${user.firstName} ${user.lastName}`;
-    const pasos = [
-      c.steps?.llamada?.done ? "✅ Llamada a familia realizada" : "❌ Llamada pendiente",
-      c.steps?.continuidad?.sent ? "✅ Continuidad pedagógica enviada" : "❌ Continuidad pendiente"
-    ].join('\n');
-
-    const textoCompartir = `📋 *INFORME DE SEGUIMIENTO SOCIAL*\n\n` +
+    
+    // 1. Preparamos el texto prolijo para el cuerpo del mensaje
+    const textoMensaje = `📋 *INFORME SOCIAL - JUNTOS A LA PAR*\n\n` +
       `👤 *Estudiante:* ${c.studentName}\n` +
-      `🏫 *Nivel:* ${c.level}\n` +
-      `⚠️ *Motivo:* ${c.reason}\n\n` +
-      `📍 *ESTADO ACTUAL:*\n${pasos}\n\n` +
-      `💬 *ÚLTIMA NOVEDAD:* ${c.history && c.history.length > 0 ? c.history[c.history.length - 1].text : 'Sin mensajes'}\n\n` +
+      `⚠️ *Motivo:* ${c.reason}\n` +
       `👤 *Responsable:* ${userFullName}\n` +
       `📅 *Fecha:* ${new Date().toLocaleDateString('es-AR')}\n\n` +
-      `_Enviado desde App Juntos a la Par_`;
+      `_Se adjunta el detalle de intervenciones._`;
 
+    // 2. Intentamos usar la API Nativa del Celular
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `Seguimiento - ${c.studentName}`,
-          text: textoCompartir,
+          title: `Informe Social - ${c.studentName}`,
+          text: textoMensaje,
+          // Si quisieras mandar un link directo a la app podrías sumarlo aquí:
+          // url: window.location.href 
         });
       } catch (err) {
-        console.log("Error al compartir:", err);
+        console.log("Compartir cancelado o error:", err);
       }
     } else {
-      // Si el navegador no soporta compartir (PC), copia al portapapeles
-      navigator.clipboard.writeText(textoCompartir);
-      alert("Resumen copiado al portapapeles para pegar en WhatsApp.");
+      // 3. Fallback para PC: WhatsApp Web directo
+      const phoneMsg = encodeURIComponent(textoMensaje);
+      window.open(`https://wa.me/?text=${phoneMsg}`, '_blank');
     }
   };
 
