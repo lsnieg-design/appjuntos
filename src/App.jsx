@@ -4045,13 +4045,33 @@ function SocialView({ user }) {
     const c = cases.find(x => x.id === caseId);
     const field = stepName === 'continuidad' ? 'sent' : 'done';
     const currentValue = c.steps?.[stepName]?.[field] || false;
+    const label = stepName === 'continuidad' ? 'ENVÍO DE CONTINUIDAD PEDAGÓGICA' : 'LLAMADA A LA FAMILIA';
+    
+    // Solo registramos en el chat cuando se MARCA como hecho (no cuando se desmarca)
+    if (!currentValue) {
+      const autoNote = { 
+        date: new Date().toISOString(), 
+        text: `📢 REGISTRO AUTOMÁTICO: Se realizó la acción de "${label}".`, 
+        author: user.firstName,
+        isAuto: true // Marca para darle un estilo distinto si querés
+      };
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', caseId), { 
+        history: arrayUnion(autoNote) 
+      });
+    }
+
     const newSteps = { 
       ...c.steps, 
-      [stepName]: { ...c.steps?.[stepName], [field]: !currentValue, date: !currentValue ? new Date().toLocaleDateString('es-AR') : null, author: user.firstName } 
+      [stepName]: { 
+        ...c.steps?.[stepName], 
+        [field]: !currentValue, 
+        date: !currentValue ? new Date().toLocaleDateString('es-AR') : null, 
+        author: user.firstName 
+      } 
     };
+    
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', caseId), { steps: newSteps });
-    // Actualizamos el estado local del modal
-    setSelectedCase(prev => ({ ...prev, steps: newSteps }));
+    if (selectedCase) setSelectedCase(prev => ({ ...prev, steps: newSteps }));
   };
 
   const handleAddComment = async (caseId) => {
@@ -4205,16 +4225,29 @@ function SocialView({ user }) {
             <div className="flex-1 flex flex-col p-4 sm:p-6 space-y-4 overflow-hidden">
               
               {/* BOTONES PROTOCOLO */}
-              <div className="grid grid-cols-2 gap-3 shrink-0">
-                <button onClick={() => updateStep(selectedCase.id, 'llamada')} className={`flex items-center gap-4 p-4 rounded-3xl border-2 transition-all ${selectedCase.steps?.llamada?.done ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white border-slate-100 text-slate-400'}`}>
-                  {selectedCase.steps?.llamada?.done ? <CheckCircle2 size={24}/> : <Phone size={24}/>}
-                  <div className="text-left"><p className="font-black uppercase text-[10px]">Llamada</p><p className="text-[7px] opacity-70 font-bold">{selectedCase.steps?.llamada?.done ? 'Realizada' : 'Pendiente'}</p></div>
-                </button>
-                <button onClick={() => updateStep(selectedCase.id, 'continuidad')} className={`flex items-center gap-4 p-4 rounded-3xl border-2 transition-all ${selectedCase.steps?.continuidad?.sent ? 'bg-indigo-600 border-indigo-700 text-white' : 'bg-white border-slate-100 text-slate-400'}`}>
-                  {selectedCase.steps?.continuidad?.sent ? <CheckCircle2 size={24}/> : <BookOpen size={24}/>}
-                  <div className="text-left"><p className="font-black uppercase text-[10px]">Continuidad</p><p className="text-[7px] opacity-70 font-bold">{selectedCase.steps?.continuidad?.sent ? 'Enviada' : 'Pendiente'}</p></div>
-                </button>
-              </div>
+            {/* SECCIÓN DE BOTONES CON INSTRUCCIONES */}
+      <div className="space-y-3 shrink-0">
+        <div className="bg-blue-600 p-4 rounded-3xl text-white shadow-lg mb-2">
+            <p className="text-[10px] font-black uppercase tracking-widest opacity-80 italic">Instrucción para el equipo:</p>
+            <p className="text-xs font-bold leading-tight">Pulsá los botones de abajo para confirmar que realizaste la acción. Se notificará al chat automáticamente.</p>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-3">
+          <button onClick={() => updateStep(selectedCase.id, 'llamada')} className={`flex flex-col items-center gap-2 p-5 rounded-[35px] border-2 transition-all ${selectedCase.steps?.llamada?.done ? 'bg-emerald-500 border-emerald-600 text-white shadow-emerald-100 shadow-lg' : 'bg-white border-slate-200 text-slate-400 hover:border-blue-400'}`}>
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 ${selectedCase.steps?.llamada?.done ? 'bg-white text-emerald-600 border-white' : 'border-slate-100 text-slate-200'}`}>
+              {selectedCase.steps?.llamada?.done ? <CheckCircle2 size={28} strokeWidth={3}/> : <Phone size={24}/>}
+            </div>
+            <span className="text-[11px] font-black uppercase">{selectedCase.steps?.llamada?.done ? 'Llamada OK' : 'Marcar Llamada'}</span>
+          </button>
+
+          <button onClick={() => updateStep(selectedCase.id, 'continuidad')} className={`flex flex-col items-center gap-2 p-5 rounded-[35px] border-2 transition-all ${selectedCase.steps?.continuidad?.sent ? 'bg-indigo-600 border-indigo-700 text-white shadow-indigo-100 shadow-lg' : 'bg-white border-slate-200 text-slate-400 hover:border-blue-400'}`}>
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 ${selectedCase.steps?.continuidad?.sent ? 'bg-white text-indigo-600 border-white' : 'border-slate-100 text-slate-200'}`}>
+              {selectedCase.steps?.continuidad?.sent ? <CheckCircle2 size={28} strokeWidth={3}/> : <BookOpen size={24}/>}
+            </div>
+            <span className="text-[11px] font-black uppercase">{selectedCase.steps?.continuidad?.sent ? 'Enviado OK' : 'Marcar Envío'}</span>
+          </button>
+        </div>
+      </div>
 
               {/* CHAT INTERVENCIONES */}
               <div className="flex-1 flex flex-col bg-white rounded-[40px] border border-slate-200 shadow-xl overflow-hidden relative">
