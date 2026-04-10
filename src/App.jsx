@@ -4075,11 +4075,37 @@ function SocialView({ user }) {
   const handleAddComment = async (caseId) => {
     const text = newComment[caseId];
     if (!text || !text.trim()) return;
+    
     const userFullName = user.fullName || `${user.firstName} ${user.lastName}`;
-    const entry = { date: new Date().toISOString(), text: text.trim(), author: userFullName };
-    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', caseId), { history: arrayUnion(entry) });
-    setNewComment({ ...newComment, [caseId]: "" });
-    localStorage.setItem(`lastSeenSocial_${caseId}_${user.id}`, (selectedCase.history?.length || 0) + 1);
+    const entry = { 
+      date: new Date().toISOString(), 
+      text: text.trim(), 
+      author: userFullName 
+    };
+
+    try {
+      // 1. Guardamos en Firebase (Nube)
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', caseId), { 
+        history: arrayUnion(entry) 
+      });
+
+      // 2. ACTUALIZACIÓN INMEDIATA EN PANTALLA (Estado Local)
+      // Esto hace que el mensaje aparezca apenas apretás el botón
+      if (selectedCase && selectedCase.id === caseId) {
+        setSelectedCase(prev => ({
+          ...prev,
+          history: [...(prev.history || []), entry]
+        }));
+      }
+
+      // 3. Limpiamos el input y actualizamos el visto
+      setNewComment({ ...newComment, [caseId]: "" });
+      localStorage.setItem(`lastSeenSocial_${caseId}_${user.id}`, (selectedCase.history?.length || 0) + 1);
+      
+    } catch (error) {
+      console.error("Error al enviar mensaje:", error);
+      alert("No se pudo enviar el mensaje. Revisá tu conexión.");
+    }
   };
 
   const handleArchiveCase = async (c) => {
