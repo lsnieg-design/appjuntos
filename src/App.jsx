@@ -4003,8 +4003,8 @@ function EquipoTecnicoView({ user }) {
 }
 function SocialView({ user }) {
   const [cases, setCases] = useState([]);
-  const [students, setStudents] = useState([]); // <-- Nuevo: Para el legajo rápido
-  const [viewingStudent, setViewingStudent] = useState(null); // <-- Nuevo: Para el modal
+  const [students, setStudents] = useState([]);
+  const [viewingStudent, setViewingStudent] = useState(null);
   const [filter, setFilter] = useState('all');
   const [viewMode, setViewMode] = useState('active'); 
   const [loading, setLoading] = useState(true);
@@ -4017,39 +4017,37 @@ function SocialView({ user }) {
 
   useEffect(() => {
     if (!isAllowed) return;
-    
-    // 1. Carga de Casos Sociales
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'));
     const unsub = onSnapshot(q, (snap) => {
       setCases(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
       setLoading(false);
     });
-
-    // 2. Carga de Alumnos para consulta rápida (solo activos)
     const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
     const unsubStudents = onSnapshot(qStudents, (snap) => {
       setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
-
     return () => { unsub(); unsubStudents(); };
   }, [isAllowed]);
 
-  // Función para abrir el legajo buscando por ID o Nombre
+  // Función para saber si hay mensajes nuevos para el usuario actual
+  const hasNews = (c) => {
+    const lastSeenCount = parseInt(localStorage.getItem(`lastSeenSocial_${c.id}_${user.id}`) || "0");
+    return (c.history?.length || 0) > lastSeenCount;
+  };
+
   const handleOpenStudentFile = (studentId, studentName) => {
     const found = students.find(s => s.id === studentId || `${s.lastName}, ${s.firstName}` === studentName);
     if (found) setViewingStudent(found);
-    else alert("No se encontró el legajo detallado de este estudiante.");
+    else alert("No se encontró el legajo detallado.");
   };
-
-  if (!isAllowed) return <div className="p-16 text-center text-gray-400 font-black flex flex-col items-center gap-4"><AlertCircle size={48}/> ⛔ ACCESO RESTRINGIDO</div>;
 
   const updateStep = async (caseId, stepName) => {
     const c = cases.find(x => x.id === caseId);
-    const currentValue = c.steps?.[stepName]?.done || c.steps?.[stepName]?.sent || false;
     const field = stepName === 'continuidad' ? 'sent' : 'done';
+    const currentValue = c.steps?.[stepName]?.[field] || false;
     const newSteps = { 
       ...c.steps, 
-      [stepName]: { ...c.steps[stepName], [field]: !currentValue, date: !currentValue ? new Date().toLocaleDateString('es-AR') : null, author: user.firstName } 
+      [stepName]: { ...c.steps?.[stepName], [field]: !currentValue, date: !currentValue ? new Date().toLocaleDateString('es-AR') : null, author: user.firstName } 
     };
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', caseId), { steps: newSteps });
   };
@@ -4058,80 +4056,36 @@ function SocialView({ user }) {
     const text = newComment[caseId];
     if (!text || !text.trim()) return;
     const entry = { date: new Date().toISOString(), text: text.trim(), author: user.firstName };
+    const targetCase = cases.find(x => x.id === caseId);
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', caseId), { history: arrayUnion(entry) });
     setNewComment({ ...newComment, [caseId]: "" });
+    // Al comentar, actualizamos automáticamente nuestro propio "visto"
+    localStorage.setItem(`lastSeenSocial_${caseId}_${user.id}`, (targetCase.history?.length || 0) + 1);
   };
 
-const imprimirSeguimientoSocial = (c) => {
-    const docHtml = `
-      <html>
-        <head>
-          <title>Informe Social - ${c.studentName}</title>
-          <style>
-            @media print { body { padding: 0; margin: 0; } .no-print { display: none; } }
-            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1e293b; background: white; }
-            .header { border-bottom: 4px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
-            .logo-area { display: flex; align-items: center; gap: 15px; }
-            .logo-img { width: 60px; height: 60px; object-fit: contain; }
-            .school-name { font-size: 18px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; margin: 0; }
-            .school-sub { font-size: 10px; font-weight: bold; color: #64748b; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
-            .report-title { text-align: right; }
-            .report-title h1 { font-size: 22px; margin: 0; color: #1e3a8a; text-transform: uppercase; }
-            .report-date { font-size: 10px; color: #64748b; font-weight: bold; }
-            .main-card { border: 2px solid #e2e8f0; border-radius: 20px; padding: 25px; margin-bottom: 30px; background: #f8fafc; }
-            .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-            .label { font-size: 9px; font-weight: 900; color: #2563eb; text-transform: uppercase; margin-bottom: 4px; display: block; }
-            .value { font-size: 14px; font-weight: bold; color: #0f172a; }
-            .section-title { font-size: 12px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; border-left: 5px solid #2563eb; padding-left: 10px; margin: 30px 0 15px 0; }
-            .history-list { border-top: 1px solid #e2e8f0; }
-            .history-item { padding: 15px 0; border-bottom: 1px solid #f1f5f9; page-break-inside: avoid; }
-            .history-meta { font-size: 10px; font-weight: 800; color: #64748b; margin-bottom: 5px; display: flex; justify-content: space-between; }
-            .history-text { font-size: 12px; color: #334155; line-height: 1.6; }
-            .footer { position: fixed; bottom: 20px; left: 40px; right: 40px; border-top: 1px solid #e2e8f0; padding-top: 10px; text-align: center; font-size: 9px; color: #94a3b8; font-weight: bold; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div class="logo-area">
-              <img src="/icon-192.png" class="logo-img" onerror="this.style.display='none'" />
-              <div><p class="school-name">Juntos a la Par</p><p class="school-sub">Escuela de Educación Especial</p></div>
-            </div>
-            <div class="report-title"><h1>Informe de Seguimiento</h1><p class="report-date">Generado el: ${new Date().toLocaleString('es-AR')}</p></div>
-          </div>
-          <div class="main-card">
-            <div class="info-grid">
-              <div><span class="label">Estudiante</span><div class="value">${c.studentName}</div></div>
-              <div><span class="label">Nivel / Ciclo</span><div class="value">${c.level || 'S/D'}</div></div>
-              <div style="grid-column: span 2; margin-top: 10px; border-top: 1px solid #e2e8f0; padding-top: 10px;">
-                <span class="label">Motivo del Reporte</span><div class="value" style="font-style: italic;">"${c.reason}"</div>
-              </div>
-            </div>
-          </div>
-          <div class="section-title">Bitácora de Intervención Social</div>
-          <div class="history-list">
-            ${c.history && c.history.length > 0 ? c.history.map(h => `
-              <div class="history-item">
-                <div class="history-meta"><span>FECHA: ${new Date(h.date).toLocaleDateString('es-AR')}</span><span>AUTOR: ${h.author.toUpperCase()}</span></div>
-                <div class="history-text">${h.text}</div>
-              </div>`).join('') : '<p style="font-size:12px; color:#94a3b8; text-align:center;">Sin comentarios.</p>'}
-          </div>
-          <div class="footer">Documento institucional - Escuela Juntos a la Par</div>
-        </body>
-      </html>
-    `;
+  const handleArchiveCase = async (c) => {
+    const confirmMsg = "❗ ATENCIÓN: Antes de archivar, ¿imprimiste el reporte para el legajo físico?\n\nRecordá que es obligatorio guardar el informe firmado y sellado por los intervinientes.\n\n¿Deseas dar por cerrado este caso en el sistema?";
+    if (confirm(confirmMsg)) {
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', c.id), { status: 'Reincorporado' });
+        setExpandedId(null);
+    }
+  };
+
+  const imprimirSeguimientoSocial = (c) => {
+    const docHtml = `<html><head><title>Informe Social - ${c.studentName}</title><style>@media print { body { padding: 0; margin: 0; } } body { font-family: sans-serif; padding: 40px; color: #1e293b; } .header { border-bottom: 4px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; } .main-card { border: 2px solid #e2e8f0; border-radius: 20px; padding: 25px; margin-bottom: 30px; background: #f8fafc; } .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; } .label { font-size: 9px; font-weight: 900; color: #2563eb; text-transform: uppercase; margin-bottom: 4px; display: block; } .value { font-size: 14px; font-weight: bold; color: #0f172a; } .section-title { font-size: 12px; font-weight: 900; color: #1e3a8a; text-transform: uppercase; border-left: 5px solid #2563eb; padding-left: 10px; margin: 30px 0 15px 0; } .history-item { padding: 15px 0; border-bottom: 1px solid #f1f5f9; page-break-inside: avoid; } .history-meta { font-size: 10px; font-weight: 800; color: #64748b; margin-bottom: 5px; display: flex; justify-content: space-between; } .history-text { font-size: 12px; color: #334155; line-height: 1.6; }</style></head><body><div class="header"><div><h1 style="margin:0;color:#1e3a8a">JUNTOS A LA PAR</h1><p style="margin:0;font-size:12px;font-weight:bold;color:#64748b">INFORME DE SEGUIMIENTO SOCIAL</p></div><div style="text-align:right"><p style="margin:0;font-size:10px;color:#64748b">Fecha: ${new Date().toLocaleDateString()}</p></div></div><div class="main-card"><div class="info-grid"><div><span class="label">Estudiante</span><div class="value">${c.studentName}</div></div><div><span class="label">Ciclo / Nivel</span><div class="value">${c.level || 'S/D'}</div></div><div style="grid-column: span 2; margin-top:10px; border-top:1px solid #eee; padding-top:10px;"><span class="label">Motivo de Intervención</span><div class="value" style="font-style:italic">"${c.reason}"</div></div></div></div><div class="section-title">Evolución del Caso</div><div>${c.history?.map(h => `<div class="history-item"><div class="history-meta"><span>${new Date(h.date).toLocaleDateString()}</span><span>${h.author.toUpperCase()}</span></div><div class="history-text">${h.text}</div></div>`).join('') || '<p>Sin registros.</p>'}</div><div style="margin-top:50px; display:flex; justify-content:space-around; text-align:center; font-size:10px; font-weight:bold"><div style="border-top:1px solid #000; width:200px; padding-top:5px">FIRMA Y SELLO DOCENTE</div><div style="border-top:1px solid #000; width:200px; padding-top:5px">FIRMA Y SELLO GABINETE</div></div></body></html>`;
     const win = window.open('', '_blank');
     win.document.write(docHtml);
     win.document.close();
     setTimeout(() => { win.print(); }, 800);
-  }; // <--- ESTA LLAVE CIERRA LA FUNCIÓN UNA SOLA VEZ.
+  };
 
   const filteredCases = cases.filter(c => {
     const matchStatus = viewMode === 'archived' ? c.status === 'Reincorporado' : c.status !== 'Reincorporado';
     if (!matchStatus) return false;
-    const matchCiclo = filter === 'all' || 
-      (filter === 'primeros' && ((c.level || '').includes('INICIAL') || (c.level || '').includes('1°'))) ||
-      (filter === 'segundos' && ((c.level || '').includes('2°') || (c.level || '').includes('CFI')));
-    if (!matchCiclo) return false;
+    if (filter === 'all') return true;
+    const level = (c.level || '').toUpperCase();
+    if (filter === 'primeros') return level.includes('INICIAL') || level.includes('1°');
+    if (filter === 'segundos') return level.includes('2°') || level.includes('CFI');
     if (viewMode === 'archived') {
       const date = new Date(c.createdAt?.seconds * 1000);
       return date.getMonth() === parseInt(selectedMonth) && date.getFullYear() === parseInt(selectedYear);
@@ -4144,329 +4098,154 @@ const imprimirSeguimientoSocial = (c) => {
   return (
     <div className="space-y-6 animate-in fade-in pb-24 px-2 max-w-6xl mx-auto">
       
-      {/* HEADER PRINCIPAL */}
+      {/* HEADER DINÁMICO */}
       <div className="bg-white p-6 rounded-[35px] shadow-sm border border-blue-100 flex flex-col md:flex-row justify-between items-center gap-4 mt-2">
         <div className="flex items-center gap-4">
           <div className={`p-3 rounded-2xl text-white ${viewMode === 'active' ? 'bg-blue-600' : 'bg-slate-700'}`}>
             {viewMode === 'active' ? <Users size={28}/> : <Folder size={28}/>}
           </div>
           <div>
-            <h2 className="text-2xl font-black text-slate-800 uppercase italic leading-none">
-              {viewMode === 'active' ? 'Casos Activos' : 'Archivo Histórico'}
-            </h2>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gabinete Social</p>
+            <h2 className="text-2xl font-black text-slate-800 uppercase italic leading-none">{viewMode === 'active' ? 'Casos Activos' : 'Archivo Histórico'}</h2>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Trabajo Social</p>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2 justify-center">
-          <select value={filter} onChange={(e) => setFilter(e.target.value)} className="bg-slate-50 text-slate-600 font-black text-[10px] p-3 rounded-xl border-none uppercase">
+          <select value={filter} onChange={(e) => setFilter(e.target.value)} className="bg-slate-50 text-slate-600 font-black text-[10px] p-3 rounded-xl border-none uppercase outline-none">
             <option value="all">Todos los Niveles</option>
             <option value="primeros">Inicial / 1° Ciclo</option>
             <option value="segundos">2° Ciclo / CFI</option>
           </select>
-          {viewMode === 'archived' && (
-            <>
-              <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="bg-blue-50 text-blue-700 font-black text-[10px] p-3 rounded-xl border-none uppercase">
-                {meses.map((m, i) => <option key={i} value={i}>{m}</option>)}
-              </select>
-              <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="bg-blue-50 text-blue-700 font-black text-[10px] p-3 rounded-xl border-none uppercase">
-                <option value="2026">2026</option>
-                <option value="2027">2027</option>
-              </select>
-            </>
-          )}
           <button onClick={() => { setViewMode(viewMode === 'active' ? 'archived' : 'active'); setExpandedId(null); }}
-            className={`px-6 py-3 rounded-xl font-black text-[10px] uppercase transition-all ${viewMode === 'active' ? 'bg-slate-800 text-white' : 'bg-blue-600 text-white'}`}>
-            {viewMode === 'active' ? 'Ver Archivero' : 'Volver a Activos'}
+            className={`px-6 py-3 rounded-xl font-black text-[10px] uppercase transition-all ${viewMode === 'active' ? 'bg-slate-800 text-white shadow-lg' : 'bg-blue-600 text-white shadow-lg'}`}>
+            {viewMode === 'active' ? 'Ver Archivo' : 'Volver a Activos'}
           </button>
         </div>
       </div>
 
-      <div className="grid gap-4">
+      {/* LISTA COMPACTA DE ESTUDIANTES */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {loading ? (
-          <div className="p-20 text-center"><RefreshCw className="animate-spin mx-auto text-blue-300" size={40}/></div>
-        ) : filteredCases.length === 0 ? (
-          <div className="bg-white p-20 rounded-[40px] text-center border-2 border-dashed border-slate-100">
-             <p className="text-slate-300 font-black uppercase text-xs">No hay registros.</p>
-          </div>
-        ) : (
-          filteredCases.map(c => {
+            <div className="col-span-full text-center py-20"><RefreshCw className="animate-spin mx-auto text-blue-200" size={48}/></div>
+        ) : filteredCases.map(c => {
+            const caseHasNews = hasNews(c);
             const isExpanded = expandedId === c.id;
-            
-            // --- RENDER MODO ACTIVO (TARJETA GRANDE) ---
-            if (viewMode === 'active') {
-              return (
-                <div key={c.id} className="bg-white rounded-[45px] shadow-xl shadow-slate-200/50 border border-gray-100 overflow-hidden flex flex-col relative transition-all hover:shadow-2xl">
-                  <div className={`h-2 w-full ${c.steps?.llamada?.done && c.steps?.continuidad?.sent ? 'bg-emerald-500' : 'bg-orange-400'}`}></div>
-                  <div className="p-6 md:p-8">
-                    <div className="flex justify-between items-start mb-6">
-                      {/* NOMBRE CLIQUEABLE */}
-                      <button onClick={() => handleOpenStudentFile(c.studentId, c.studentName)} className="text-left group/name">
-                        <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter group-hover/name:text-blue-600 transition-colors leading-tight">{c.studentName}</h3>
-                        <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-1 opacity-60 group-hover/name:opacity-100">
-                          <Eye size={10}/> Ver Legajo Completo
-                        </span>
-                      </button>
-                      <button onClick={() => imprimirSeguimientoSocial(c)} className="p-3 bg-slate-50 text-slate-400 rounded-2xl hover:bg-blue-50 transition"><Printer size={20}/></button>
-                    </div>
-
-                    <div className="bg-slate-50 p-5 rounded-3xl mb-8 border-l-4 border-blue-500">
-                      <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Motivo del Reporte:</p>
-                      <p className="text-sm font-bold text-slate-700 italic">"{c.reason}"</p>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                      <div className="space-y-4">
-                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[3px] ml-1">Hoja de Ruta</h4>
-                        <button onClick={() => updateStep(c.id, 'llamada')} className={`w-full flex items-center gap-4 p-5 rounded-3xl border-2 transition-all ${c.steps?.llamada?.done ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-100'}`}>
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 shrink-0 ${c.steps?.llamada?.done ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-200 text-slate-300'}`}>
-                            {c.steps?.llamada?.done ? <Check size={20} strokeWidth={4}/> : <Phone size={18}/>}
-                          </div>
-                          <div className="text-left"><p className={`text-sm font-black uppercase ${c.steps?.llamada?.done ? 'text-emerald-700' : 'text-slate-400'}`}>Llamada Familia</p></div>
-                        </button>
-                        <button onClick={() => updateStep(c.id, 'continuidad')} className={`w-full flex items-center gap-4 p-5 rounded-3xl border-2 transition-all ${c.steps?.continuidad?.sent ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-100'}`}>
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 shrink-0 ${c.steps?.continuidad?.sent ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-200 text-slate-300'}`}>
-                            {c.steps?.continuidad?.sent ? <Check size={20} strokeWidth={4}/> : <BookOpen size={18}/>}
-                          </div>
-                          <div className="text-left"><p className={`text-sm font-black uppercase ${c.steps?.continuidad?.sent ? 'text-indigo-700' : 'text-slate-400'}`}>Continuidad Pedagógica</p></div>
-                        </button>
-                      </div>
-
-                      <div className="flex flex-col h-full bg-slate-50 rounded-[35px] p-5 border border-slate-100 shadow-inner">
-                        <div className="flex-1 space-y-3 max-h-64 overflow-y-auto mb-4 pr-2 custom-scrollbar">
-                          {c.history?.map((h, i) => (
-                            <div key={i} className={`flex flex-col ${h.author === user.firstName ? 'items-end' : 'items-start'}`}>
-                              <div className={`max-w-[90%] p-3 rounded-2xl text-xs font-bold shadow-sm ${h.author === user.firstName ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-slate-700 border border-slate-200 rounded-tl-none'}`}>
-                                <p className="text-[8px] font-black uppercase opacity-60 mb-1">{h.author} • {new Date(h.date).toLocaleDateString()}</p>
-                                {h.text}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="flex gap-2">
-                          <input value={newComment[c.id] || ""} onChange={(e) => setNewComment({ ...newComment, [c.id]: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && handleAddComment(c.id)} placeholder="Escribir avance..." className="flex-1 bg-white p-3 rounded-2xl text-xs font-bold border border-slate-200 outline-none"/>
-                          <button onClick={() => handleAddComment(c.id)} className="bg-blue-600 text-white p-3 rounded-2xl shadow-lg active:scale-95 transition flex-shrink-0"><Send size={18}/></button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-10 pt-6 border-t border-slate-100 flex justify-end">
-                      <button onClick={async () => { if(confirm("¿Archivar caso?")) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', c.id), { status: 'Reincorporado' }); }} className="bg-emerald-500 text-white px-8 py-4 rounded-3xl font-black text-xs uppercase shadow-xl flex items-center gap-3 hover:bg-emerald-600 active:scale-95 transition-all">
-                        <CheckCircle2 size={20}/> Alumno Reincorporado
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            }
-
-// --- RENDER MODO ARCHIVO (LISTA COMPACTA CON BOTÓN DE BORRAR) ---
             return (
-              <div key={c.id} className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden transition-all text-left">
-                <div onClick={() => setExpandedId(isExpanded ? null : c.id)} className={`p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors ${isExpanded ? 'bg-slate-50 border-b border-slate-100' : ''}`}>
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shrink-0"><CheckCircle2 size={20}/></div>
-                    <div className="min-w-0">
-                      <button onClick={(e) => { e.stopPropagation(); handleOpenStudentFile(c.studentId, c.studentName); }} className="font-black text-slate-700 uppercase text-sm leading-none hover:text-blue-600 block truncate">{c.studentName}</button>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">Finalizado el {new Date(c.createdAt?.seconds * 1000).toLocaleDateString()}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    {/* BOTÓN BORRAR: EXCLUSIVO SUPER ADMI */}
-                    {(user.rol === 'admin' || user.rol === 'super-admin') && (
-                      <button 
-                        onClick={async (e) => { 
-                          e.stopPropagation(); 
-                          if(confirm(`⚠️ ¿ELIMINAR DEFINITIVAMENTE a ${c.studentName}?\nEsta acción no se puede deshacer.`)) {
-                            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', c.id));
-                          }
-                        }} 
-                        className="p-2 text-red-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition"
-                      >
-                        <Trash2 size={18}/>
-                      </button>
-                    )}
-
-                    <button onClick={(e) => { e.stopPropagation(); imprimirSeguimientoSocial(c); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition"><Printer size={18}/></button>
-                    <div className="text-slate-300 ml-1">{isExpanded ? <ChevronUp size={20}/> : <ChevronDown size={20}/>}</div>
-                  </div>
-                </div>
-
-                {isExpanded && (
-                  <div className="p-6 bg-white animate-in slide-in-from-top-2 duration-300">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="bg-slate-50 p-4 rounded-2xl">
-                        <p className="text-[9px] font-black text-blue-500 uppercase mb-2 tracking-widest">Resumen del Caso:</p>
-                        <p className="text-xs font-bold text-slate-600 italic">"{c.reason}"</p>
-                      </div>
-                      <div className="md:col-span-2 border-t border-slate-50 pt-4">
-                        <p className="text-[9px] font-black text-slate-300 uppercase mb-3">Historial Completo:</p>
-                        <div className="space-y-2 max-h-40 overflow-y-auto">
-                          {c.history?.map((h, i) => (
-                            <div key={i} className="text-[10px] border-l-2 border-slate-200 pl-3 py-1">
-                              <span className="font-black text-slate-400 uppercase">{h.author}:</span> <span className="text-slate-600 font-medium">{h.text}</span>
+                <div key={c.id} 
+                    className={`bg-white rounded-[30px] shadow-sm border-2 transition-all cursor-pointer relative ${isExpanded ? 'border-blue-500 ring-4 ring-blue-50' : caseHasNews ? 'border-orange-400 ring-4 ring-orange-50 animate-in zoom-in-95' : 'border-transparent hover:border-slate-200'}`}
+                    onClick={() => {
+                        setExpandedId(isExpanded ? null : c.id);
+                        if (!isExpanded) localStorage.setItem(`lastSeenSocial_${c.id}_${user.id}`, c.history?.length || 0);
+                    }}
+                >
+                    <div className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-black shrink-0 ${caseHasNews ? 'bg-orange-500 animate-pulse' : 'bg-blue-600'}`}>
+                                {caseHasNews ? '!' : c.studentName[0]}
                             </div>
-                          ))}
+                            <div className="truncate">
+                                <h4 className="font-black text-slate-700 text-sm uppercase truncate">{c.studentName}</h4>
+                                {caseHasNews ? (
+                                    <p className="text-[9px] font-black text-orange-600 uppercase animate-bounce">✨ Novedades en chat</p>
+                                ) : (
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase">{c.level}</p>
+                                )}
+                            </div>
                         </div>
-                      </div>
+                        {isExpanded ? <ChevronUp size={20} className="text-blue-500"/> : <ChevronDown size={20} className="text-slate-300"/>}
                     </div>
-                    <div className="mt-6 flex justify-end">
-                       <button onClick={async () => { if(confirm("¿Reabrir este caso?")) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', c.id), { status: 'Pendiente' }); }} className="text-[10px] font-black uppercase text-blue-600 hover:underline">Reabrir Caso</button>
-                    </div>
-                  </div>
-                )}
-              </div>
+
+                    {/* CONTENIDO EXPANDIDO (VENTANA DE DETALLE) */}
+                    {isExpanded && (
+                        <div className="p-5 border-t border-slate-100 bg-slate-50/50 space-y-6 animate-in slide-in-from-top-2" onClick={e => e.stopPropagation()}>
+                            <div className="flex justify-between items-start gap-4">
+                                <div className="bg-white p-4 rounded-2xl border border-blue-100 shadow-sm flex-1">
+                                    <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Motivo:</p>
+                                    <p className="text-xs font-bold text-slate-700 italic leading-relaxed">"{c.reason}"</p>
+                                </div>
+                                <button onClick={() => imprimirSeguimientoSocial(c)} className="p-4 bg-white text-slate-400 rounded-2xl shadow-sm hover:text-blue-600 transition" title="Imprimir"><Printer size={20}/></button>
+                            </div>
+
+                            {/* ACCIONES REQUERIDAS */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <button onClick={() => updateStep(c.id, 'llamada')} className={`flex flex-col items-center gap-2 p-4 rounded-3xl border-2 transition-all ${c.steps?.llamada?.done ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-white border-slate-200 text-slate-400'}`}>
+                                    {c.steps?.llamada?.done ? <CheckCircle2 size={24}/> : <Phone size={24}/>}
+                                    <span className="text-[10px] font-black uppercase">Llamada</span>
+                                </button>
+                                <button onClick={() => updateStep(c.id, 'continuidad')} className={`flex flex-col items-center gap-2 p-4 rounded-3xl border-2 transition-all ${c.steps?.continuidad?.sent ? 'bg-indigo-600 border-indigo-700 text-white' : 'bg-white border-slate-200 text-slate-400'}`}>
+                                    {c.steps?.continuidad?.sent ? <CheckCircle2 size={24}/> : <BookOpen size={24}/>}
+                                    <span className="text-[10px] font-black uppercase">Continuidad</span>
+                                </button>
+                            </div>
+                            <p className="text-[8px] text-center text-gray-400 font-bold uppercase tracking-widest px-4 leading-tight">Pulsa el botón una vez que hayas realizado la acción para dar aviso al equipo.</p>
+
+                            {/* CHAT / HISTORIAL */}
+                            <div className="bg-white rounded-[30px] border border-slate-200 overflow-hidden flex flex-col shadow-inner">
+                                <div className="bg-slate-100 p-2 text-center border-b"><span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Intervenciones / Chat</span></div>
+                                <div className="p-4 space-y-3 max-h-60 overflow-y-auto no-scrollbar">
+                                    {c.history?.map((h, i) => (
+                                        <div key={i} className={`flex flex-col ${h.author === user.firstName ? 'items-end' : 'items-start'}`}>
+                                            <div className={`max-w-[90%] p-3 rounded-2xl text-xs font-bold shadow-sm ${h.author === user.firstName ? 'bg-blue-600 text-white rounded-br-none' : 'bg-slate-100 text-slate-700 rounded-tl-none border border-slate-200'}`}>
+                                                <p className="text-[8px] font-black uppercase opacity-60 mb-1">{h.author} • {new Date(h.date).toLocaleDateString()}</p>
+                                                {h.text}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {(!c.history || c.history.length === 0) && <p className="text-center text-[10px] text-gray-400 italic py-4">Sin mensajes registrados.</p>}
+                                </div>
+                                <div className="p-3 bg-slate-50 border-t flex gap-2">
+                                    <input value={newComment[c.id] || ""} onChange={(e) => setNewComment({ ...newComment, [c.id]: e.target.value })} placeholder="Escribir..." className="flex-1 bg-white p-2 rounded-xl text-xs font-bold border border-slate-200 outline-none"/>
+                                    <button onClick={() => handleAddComment(c.id)} className="bg-blue-600 text-white p-2 rounded-xl shadow-lg"><Send size={16}/></button>
+                                </div>
+                            </div>
+
+                            {/* PIE DE TARJETA EXPANDIDA */}
+                            <div className="flex flex-col gap-2 pt-2">
+                                <button onClick={() => handleOpenStudentFile(c.studentId, c.studentName)} className="w-full py-3 bg-slate-800 text-white rounded-2xl font-black uppercase text-[10px] shadow-lg flex items-center justify-center gap-2">
+                                    <User size={14}/> Ver Legajo Completo
+                                </button>
+                                {viewMode === 'active' && (
+                                    <button onClick={() => handleArchiveCase(c)} className="w-full py-3 bg-emerald-500 text-white rounded-2xl font-black uppercase text-[10px] shadow-lg flex items-center justify-center gap-2 hover:bg-emerald-600 transition-all">
+                                        <CheckCircle size={14}/> Alumno Reincorporado
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
             );
-          })
-        )}
+        })}
       </div>
 
-      {/* MODAL LEGAJO RÁPIDO CON BITÁCORA COMPLETA Y REPORTE */}
+      {/* MODAL DETALLE ESTUDIANTE (REUTILIZADO) */}
       {viewingStudent && (
-        <div className="fixed inset-0 bg-black/80 z-[600] flex items-center justify-center p-4 backdrop-blur-md" onClick={() => setViewingStudent(null)}>
-          <div className="bg-white rounded-[40px] w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] animate-in zoom-in-95 border-t-8 border-slate-900" onClick={e => e.stopPropagation()}>
-            
-            {/* CABECERA */}
-            <div className="bg-slate-900 p-6 text-white flex justify-between items-center shrink-0">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-white/20 rounded-2xl overflow-hidden flex items-center justify-center font-black border-2 border-white/10 shadow-lg">
-                  {viewingStudent.photoUrl ? <img src={viewingStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={28}/>}
-                </div>
-                <div>
-                  <h2 className="font-black uppercase tracking-tight leading-none text-xl">{viewingStudent.lastName}, {viewingStudent.firstName}</h2>
-                  <div className="flex gap-2 mt-2">
-                    <span className="bg-blue-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase italic">DNI: {viewingStudent.dni || '-'}</span>
-                    <span className="bg-orange-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase italic">{calculateAge(viewingStudent.birthDate)} años</span>
-                  </div>
-                </div>
-              </div>
-              <button onClick={() => setViewingStudent(null)} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition"><X size={24}/></button>
-            </div>
-
-            <div className="p-6 overflow-y-auto space-y-6 bg-gray-50 flex-1 custom-scrollbar">
-              
-              {/* BOTÓN RÁPIDO DE AUSENTISMO (Directo desde el legajo) */}
-              <button 
-                onClick={() => {
-                   setViewingStudent(null); // Cerramos este para ir al prompt
-                   // Aquí disparamos la misma lógica de GroupsView si la tenés global o la replicamos
-                   const details = prompt(`¿Motivo del ausentismo o conflicto de ${viewingStudent.firstName}?`);
-                   if(details) {
-                      const caseData = {
-                          studentId: viewingStudent.id,
-                          studentName: `${viewingStudent.lastName}, ${viewingStudent.firstName}`,
-                          level: viewingStudent.level || 'Sin Nivel',
-                          group: viewingStudent.groupMorning || viewingStudent.groupAfternoon || 'Sin Grupo',
-                          reason: details,
-                          reportedBy: user.firstName,
-                          status: 'Pendiente',
-                          steps: { llamada: { done: false }, continuidad: { sent: false } },
-                          history: [{ date: new Date().toISOString(), text: `Reporte desde legajo: ${details}`, author: user.firstName }],
-                          createdAt: serverTimestamp(),
-                          cycle: '2026'
-                      };
-                      addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'), caseData);
-                      alert("✅ Caso derivado a Trabajo Social.");
-                   }
-                }}
-                className="w-full py-4 bg-red-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg shadow-red-100 flex items-center justify-center gap-2 hover:bg-red-700 active:scale-95 transition-all"
-              >
-                <AlertTriangle size={18}/> Reportar Inasistencia / Conflicto
-              </button>
-
-              {/* CONTACTOS */}
-              <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-3">
-                <h4 className="text-blue-600 font-black text-[10px] uppercase tracking-widest flex items-center gap-2 mb-2"><Phone size={14}/> Familia y Contacto</h4>
-                <div className="grid grid-cols-1 gap-3">
-                  <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl">
-                    <span className="text-xs font-bold text-slate-500 uppercase">Madre: {viewingStudent.motherName || '-'}</span>
-                    <a href={`tel:${viewingStudent.motherContact}`} className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs font-black shadow-md">{viewingStudent.motherContact || '-'}</a>
-                  </div>
-                  <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl">
-                    <span className="text-xs font-bold text-slate-500 uppercase">Padre: {viewingStudent.fatherName || '-'}</span>
-                    <a href={`tel:${viewingStudent.fatherContact}`} className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs font-black shadow-md">{viewingStudent.fatherContact || '-'}</a>
-                  </div>
-                </div>
-              </div>
-{/* BITÁCORA UNIFICADA (Aula + Gestión Social) */}
-            <div className="space-y-3">
-              <div className="flex justify-between items-center px-1">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[3px]">Historial Unificado Completo</h4>
-                <span className="text-[9px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-bold italic">Aula + Gestión Social</span>
-              </div>
-              
-              <div className="space-y-3">
-                {(() => {
-                  const normalIncidents = (viewingStudent.incidents || []).map(inc => ({ ...inc, source: 'aula' }));
-                  const socialReports = cases
-                    .filter(c => 
-                      (c.studentId && c.studentId === viewingStudent.id) || 
-                      (c.studentName && c.studentName === `${viewingStudent.lastName}, ${viewingStudent.firstName}`)
-                    )
-                    .map(c => ({
-                      date: c.createdAt?.seconds ? new Date(c.createdAt.seconds * 1000).toISOString() : new Date().toISOString(),
-                      text: `⚠️ INTERVENCIÓN SOCIAL: ${c.reason}`,
-                      type: 'Gestión Social',
-                      author: c.reportedBy || 'Gabinete',
-                      severity: 'high',
-                      source: 'social',
-                      isClosed: c.status === 'Reincorporado'
-                    }));
-
-                  const combinedTimeline = [...normalIncidents, ...socialReports].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-                  if (combinedTimeline.length === 0) {
-                    return (
-                      <div className="text-center py-10 bg-white rounded-3xl border border-dashed border-gray-200">
-                        <p className="text-gray-400 text-xs font-bold uppercase italic">Sin registros históricos</p>
+          <div className="fixed inset-0 bg-black/90 z-[700] flex items-center justify-center p-4 backdrop-blur-md" onClick={() => setViewingStudent(null)}>
+              <div className="bg-white rounded-[40px] w-full max-w-lg p-8 relative animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+                  <button onClick={() => setViewingStudent(null)} className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full"><X/></button>
+                  <div className="flex items-center gap-4 mb-6">
+                      <div className="w-16 h-16 bg-blue-100 rounded-2xl overflow-hidden border-2 border-blue-50 flex items-center justify-center">
+                          {viewingStudent.photoUrl ? <img src={viewingStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={32} className="text-blue-300"/>}
                       </div>
-                    );
-                  }
-
-                  return combinedTimeline.map((inc, i) => (
-                    <div key={i} className={`p-4 rounded-2xl border shadow-sm transition-all ${inc.source === 'social' ? (inc.isClosed ? 'bg-slate-50 border-slate-200 opacity-80' : 'bg-red-50 border-red-200 ring-2 ring-red-50') : 'bg-white border-gray-200'}`}>
-                      <div className="flex justify-between items-center mb-2 border-b border-gray-50 pb-1">
-                        <div className="flex items-center gap-2">
-                          <span className={`font-black text-[9px] uppercase tracking-wider ${inc.source === 'social' ? (inc.isClosed ? 'text-slate-500' : 'text-red-600') : 'text-blue-600'}`}>
-                            {new Date(inc.date).toLocaleDateString('es-AR')}
-                          </span>
-                          {inc.source === 'social' && (
-                            <span className={`text-[7px] px-1.5 py-0.5 rounded-md font-black uppercase ${inc.isClosed ? 'bg-slate-200 text-slate-600' : 'bg-red-600 text-white animate-pulse'}`}>
-                              {inc.isClosed ? 'Caso Cerrado' : 'Urgente / Activo'}
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-[8px] font-bold text-gray-400 uppercase italic">Por: {inc.author}</span>
+                      <div>
+                          <h3 className="font-black text-2xl text-slate-800 uppercase tracking-tighter leading-none">{viewingStudent.lastName}, {viewingStudent.firstName}</h3>
+                          <p className="text-xs font-bold text-blue-600 uppercase mt-1 italic">Legajo Institucional</p>
                       </div>
-                      <p className={`text-xs font-bold leading-relaxed mb-1 ${inc.isClosed ? 'text-slate-500 line-through' : 'text-slate-700'}`}>
-                        {inc.text || inc.type}
-                      </p>
-                      <div className="flex justify-between items-center mt-2">
-                         <span className="text-[7px] font-black px-1.5 py-0.5 rounded uppercase bg-gray-100 text-gray-400">
-                           Origen: {inc.source === 'social' ? 'Gabinete Social' : 'Bitácora de Aula'}
-                         </span>
-                         {inc.source === 'social' && inc.isClosed && (
-                           <span className="text-[7px] font-bold text-emerald-600 italic flex items-center gap-1">✓ Alumno Reincorporado</span>
-                         )}
+                  </div>
+                  <div className="space-y-4">
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 grid grid-cols-2 gap-4">
+                          <div><label className="text-[9px] font-black text-slate-400 uppercase">DNI</label><p className="font-bold text-slate-700">{viewingStudent.dni || '-'}</p></div>
+                          <div><label className="text-[9px] font-black text-slate-400 uppercase">Nacimiento</label><p className="font-bold text-slate-700">{viewingStudent.birthDate || '-'}</p></div>
+                          <div className="col-span-2"><label className="text-[9px] font-black text-slate-400 uppercase">Obra Social</label><p className="font-bold text-slate-700">{viewingStudent.healthInsurance || 'S/D'}</p></div>
+                          <div className="col-span-2"><label className="text-[9px] font-black text-slate-400 uppercase">Diagnóstico</label><p className="font-bold text-slate-700">{viewingStudent.dx || '-'}</p></div>
                       </div>
-                    </div>
-                  ));
-                })()}
+                      <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100">
+                           <label className="text-[9px] font-black text-orange-600 uppercase mb-2 block">Autorizados a Retirar:</label>
+                           <p className="text-xs font-bold text-orange-800 leading-relaxed">{viewingStudent.pickupInfo || 'Sin datos cargados.'}</p>
+                      </div>
+                  </div>
+                  <button onClick={() => setViewingStudent(null)} className="w-full mt-8 py-4 bg-slate-900 text-white rounded-[20px] font-black uppercase text-xs tracking-widest shadow-xl">Cerrar</button>
               </div>
-            </div>
-          </div> 
-
-          <div className="p-4 bg-white border-t flex justify-center shrink-0">
-            <button 
-              onClick={() => setViewingStudent(null)} 
-              className="w-full py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-200 transition"
-            >
-              Cerrar Legajo
-            </button>
           </div>
-        </div>
-      </div> 
       )}
     </div>
   );
