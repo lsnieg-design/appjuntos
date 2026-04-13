@@ -5243,6 +5243,23 @@ function PersonalView({ user }) {
 
   return () => { unsubStaff(); unsubStudents(); }; // Asegurate de cerrar ambos
 }, []);
+  // --- FUNCIÓN PARA DETECTAR GRUPOS AUTOMÁTICAMENTE (UBICACIÓN CORRECTA) ---
+  const obtenerGruposAutomaticos = (staffId) => {
+    if (!students || students.length === 0 || !staffId) return { mañana: [], tarde: [] };
+    const gruposMañana = new Set();
+    const gruposTarde = new Set();
+    students.forEach(s => {
+      if (s.teacherIdMorning === staffId || s.teacherId2Morning === staffId || s.daiId === staffId) {
+        if (s.groupMorning) gruposMañana.add(s.groupMorning);
+        else if (s.modality === 'Inclusión') gruposMañana.add("Inclusión (DAI)");
+      }
+      if (s.teacherIdAfternoon === staffId || s.teacherId2Afternoon === staffId || s.daiId === staffId) {
+        if (s.groupAfternoon) gruposTarde.add(s.groupAfternoon);
+        else if (s.modality === 'Inclusión') gruposTarde.add("Inclusión (DAI)");
+      }
+    });
+    return { mañana: Array.from(gruposMañana), tarde: Array.from(gruposTarde) };
+  };
 
 const filteredStaff = staffList.filter(s => {
       // 1. Buscador y Modalidad (se mantienen)
@@ -5727,93 +5744,62 @@ const imprimirPlanillaGeneral = (lista) => {
             )}
         </div>
 
-        {/* LISTADO DE PERSONAL */}
+      {/* LISTADO DE PERSONAL */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[65vh] overflow-y-auto pb-10 mt-2">
           {filteredStaff.map(s => {
-    const tieneSub = s.cargo1_subsidized === 'true' || s.cargo2_subsidized === 'true' || s.isSubsidized === 'true';
-    
-    const c1Role = getNormRole(s.cargo1_role || s.role);
-    const c2Role = getNormRole(s.cargo2_role);
+            const tieneSub = s.cargo1_subsidized === 'true' || s.cargo2_subsidized === 'true' || s.isSubsidized === 'true';
+            const c1Role = getNormRole(s.cargo1_role || s.role);
+            const c2Role = getNormRole(s.cargo2_role);
+            const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || (s.cargo1_turn && s.cargo1_turn.trim()));
+            const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || (s.cargo2_turn && s.cargo2_turn.trim()));
+            const c1NeedsFix = !hasC1 || !VALID_ROLES_OFFICIAL.includes(c1Role);
+            const c2NeedsFix = hasC2 && !VALID_ROLES_OFFICIAL.includes(c2Role);
+            const needsRoleFix = c1NeedsFix || c2NeedsFix;
 
-    const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || (s.cargo1_turn && s.cargo1_turn.trim()));
-    const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || (s.cargo2_turn && s.cargo2_turn.trim()));
-
-    {/* CAMBIO AQUÍ: Usamos VALID_ROLES_OFFICIAL */}
-    const c1NeedsFix = !hasC1 || !VALID_ROLES_OFFICIAL.includes(c1Role);
-    const c2NeedsFix = hasC2 && !VALID_ROLES_OFFICIAL.includes(c2Role);
-    const needsRoleFix = c1NeedsFix || c2NeedsFix;
-      // --- FUNCIÓN PARA DETECTAR GRUPOS DESDE MI AULA AUTOMÁTICAMENTE ---
-  const obtenerGruposAutomaticos = (staffId) => {
-    if (!students || students.length === 0 || !staffId) return { mañana: [], tarde: [] };
-
-    const gruposMañana = new Set();
-    const gruposTarde = new Set();
-
-    students.forEach(s => {
-      // Chequeo Turno Mañana (Docente titular, Pareja o DAI)
-      if (s.teacherIdMorning === staffId || s.teacherId2Morning === staffId || s.daiId === staffId) {
-        if (s.groupMorning) gruposMañana.add(s.groupMorning);
-        else if (s.modality === 'Inclusión') gruposMañana.add("Inclusión (DAI)");
-      }
-      
-      // Chequeo Turno Tarde (Docente titular, Pareja o DAI)
-      if (s.teacherIdAfternoon === staffId || s.teacherId2Afternoon === staffId || s.daiId === staffId) {
-        if (s.groupAfternoon) gruposTarde.add(s.groupAfternoon);
-        else if (s.modality === 'Inclusión') gruposTarde.add("Inclusión (DAI)");
-      }
-    });
-
-    return {
-      mañana: Array.from(gruposMañana),
-      tarde: Array.from(gruposTarde)
-    };
-  };
-                
-               return (
-    <div key={s.id} onClick={() => setViewingStaff(s)} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all cursor-pointer group relative">
-        <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100 shrink-0 relative">
-            {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName?.[0]}
-            {tieneSub && <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white shadow-sm" title="Subvencionada"></div>}
-        </div>
-        <div className="flex-1 min-w-0">
-            <div className="flex gap-2 items-center flex-wrap">
-                <h4 className="font-bold text-gray-800 text-sm uppercase truncate">{s.lastName}, {s.firstName}</h4>
-                <span className={`text-[8px] px-2 py-0.5 rounded-md font-black uppercase ${s.modality === 'Inclusión' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}`}>{s.modality || 'Sede'}</span>
-                {needsRoleFix && <span className="bg-red-100 text-red-700 text-[9px] font-black px-2 py-0.5 rounded-lg border border-red-200 animate-pulse">⚠️ ASIGNAR ROL</span>}
-            </div>
-            <div className="flex gap-2 text-[10px] mt-1 text-gray-500 font-bold">
-                {s.dni && <span>DNI: {s.dni}</span>}
-                <span className="text-violet-500">Anti: {calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef)}</span>
-            </div>
-            
-            {/* ETIQUETAS VISUALES TRIPLES: MECA, PAPELES, DENO */}
-            <p className="text-[10px] font-black uppercase mt-1 truncate">
-                {hasC1 ? (
-                    <span className={s.cargo1_subsidized === 'true' ? 'text-emerald-600' : s.cargo1_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
-                        C1: {getNormRole(s.cargo1_role || s.role)} ({s.cargo1_turn || '-'}) 
-                        {s.cargo1_subsidized === 'true' ? ' (MECA)' : s.cargo1_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
-                    </span>
-                ) : (
-                    <span className="text-gray-300">NO TRABAJA (C1)</span>
-                )} 
-                
-                {hasC2 ? (
-                    <>
-                        <span className="text-gray-300 mx-1">|</span>
-                        <span className={s.cargo2_subsidized === 'true' ? 'text-emerald-600' : s.cargo2_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
-                            C2: {getNormRole(s.cargo2_role)} ({s.cargo2_turn || '-'}) 
-                            {s.cargo2_subsidized === 'true' ? ' (MECA)' : s.cargo2_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
-                        </span>
-                    </>
-                ) : (
-                    <span className="text-gray-300"> | NO TRABAJA (C2)</span>
-                )}
-            </p>
-        </div>
-                        <Eye className="text-gray-300 group-hover:text-violet-500 transition-colors shrink-0" />
+            return (
+                <div key={s.id} onClick={() => setViewingStaff(s)} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all cursor-pointer group relative">
+                    <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100 shrink-0 relative">
+                        {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName?.[0]}
+                        {tieneSub && <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white shadow-sm" title="Subvencionada"></div>}
                     </div>
-                )
-            })}
+                    <div className="flex-1 min-w-0">
+                        <div className="flex gap-2 items-center flex-wrap">
+                            <h4 className="font-bold text-gray-800 text-sm uppercase truncate">{s.lastName}, {s.firstName}</h4>
+                            <span className={`text-[8px] px-2 py-0.5 rounded-md font-black uppercase ${s.modality === 'Inclusión' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}`}>{s.modality || 'Sede'}</span>
+                            {needsRoleFix && <span className="bg-red-100 text-red-700 text-[9px] font-black px-2 py-0.5 rounded-lg border border-red-200 animate-pulse">⚠️ ASIGNAR ROL</span>}
+                        </div>
+                        <div className="flex gap-2 text-[10px] mt-1 text-gray-500 font-bold">
+                            {s.dni && <span>DNI: {s.dni}</span>}
+                            <span className="text-violet-500">Anti: {calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef)}</span>
+                        </div>
+                        
+                        <p className="text-[10px] font-black uppercase mt-1 truncate">
+                            {hasC1 ? (
+                                <span className={s.cargo1_subsidized === 'true' ? 'text-emerald-600' : s.cargo1_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
+                                    C1: {getNormRole(s.cargo1_role || s.role)} ({s.cargo1_turn || '-'}) 
+                                    {s.cargo1_subsidized === 'true' ? ' (MECA)' : s.cargo1_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
+                                </span>
+                            ) : (
+                                <span className="text-gray-300">NO TRABAJA (C1)</span>
+                            )} 
+                            
+                            {hasC2 ? (
+                                <>
+                                    <span className="text-gray-300 mx-1">|</span>
+                                    <span className={s.cargo2_subsidized === 'true' ? 'text-emerald-600' : s.cargo2_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
+                                        C2: {getNormRole(s.cargo2_role)} ({s.cargo2_turn || '-'}) 
+                                        {s.cargo2_subsidized === 'true' ? ' (MECA)' : s.cargo2_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
+                                    </span>
+                                </>
+                            ) : (
+                                <span className="text-gray-300"> | NO TRABAJA (C2)</span>
+                            )}
+                        </p>
+                    </div>
+                    <Eye className="text-gray-300 group-hover:text-violet-500 transition-colors shrink-0" />
+                </div>
+            );
+          })}
         </div>
 
 {/* MODAL LECTURA LEGAJO - VERSIÓN COMPLETA RECONSTRUIDA */}
@@ -6176,8 +6162,8 @@ const imprimirPlanillaGeneral = (lista) => {
       </div>
     )}
 
-    {/* PARCHE PUNTO 3: MODAL DE OPCIONES DE IMPRESIÓN (FUERA DEL FORM) */}
-  {/* PARCHE PUNTO 3: MODAL DE OPCIONES DE IMPRESIÓN (FUERA DEL FORM) */}
+  
+{/* MODAL DE OPCIONES DE IMPRESIÓN */}
     {showPrintOptions && (
         <div className="fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-4 backdrop-blur-sm">
             <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95">
@@ -6210,13 +6196,10 @@ const imprimirPlanillaGeneral = (lista) => {
         </div>
     )}
 
-  </div> // Cierra el div principal del return
-  ); 
-} // <--- ESTA LLAVE CIERRA LA FUNCIÓN PERSONALVIEW (EL ERROR ESTABA ACÁ)
+    </div> // Cierre del div principal del return
+  ); // Cierre del return
+} // Cierre definitivo de PersonalView
 
-
- {
-  // ... resto del código
 function MedicalView({ user }) {
   const [students, setStudents] = useState([]);
   const [filterText, setFilterText] = useState('');
