@@ -6177,6 +6177,7 @@ const imprimirPlanillaGeneral = (lista) => {
     )}
 
     {/* PARCHE PUNTO 3: MODAL DE OPCIONES DE IMPRESIÓN (FUERA DEL FORM) */}
+  {/* PARCHE PUNTO 3: MODAL DE OPCIONES DE IMPRESIÓN (FUERA DEL FORM) */}
     {showPrintOptions && (
         <div className="fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-4 backdrop-blur-sm">
             <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95">
@@ -6209,9 +6210,13 @@ const imprimirPlanillaGeneral = (lista) => {
         </div>
     )}
 
-  </div> // Fin del contenedor principal PersonalView
+  </div> // Cierra el div principal del return
   ); 
-} // Fin de la función
+} // <--- ESTA LLAVE CIERRA LA FUNCIÓN PERSONALVIEW (EL ERROR ESTABA ACÁ)
+
+
+ {
+  // ... resto del código
 function MedicalView({ user }) {
   const [students, setStudents] = useState([]);
   const [filterText, setFilterText] = useState('');
