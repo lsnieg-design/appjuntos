@@ -5201,27 +5201,37 @@ function PersonalView({ user }) {
   return () => { unsubStaff(); unsubStudents(); }; // Asegurate de cerrar ambos
 }, []);
 
- const filteredStaff = staffList.filter(s => {
+const filteredStaff = staffList.filter(s => {
+      // 1. Filtro de Búsqueda por Texto
       const txt = staffFilterText.toLowerCase();
       const matchesText = !txt || `${s.lastName || ''} ${s.firstName || ''} ${s.dni || ''}`.toLowerCase().includes(txt);
       if (!matchesText) return false;
       
+      // 2. Filtro de Modalidad
       if (filters.modality !== 'all' && (s.modality || 'Sede') !== filters.modality) return false;
       
-      // --- LÓGICA DE SUBVENCIÓN CORREGIDA Y ESTRICTA ---
+      // --- LÓGICA DE CATEGORÍAS DE CARGO ---
+      // Verificamos el estado real de los cargos
+      const isSub1 = s.cargo1_subsidized === 'true' || s.isSubsidized === 'true';
+      const isSub2 = s.cargo2_subsidized === 'true';
+      const isPapeles1 = s.cargo1_en_papeles === 'true';
+      const isPapeles2 = s.cargo2_en_papeles === 'true';
+      
+      const hasAnySub = isSub1 || isSub2; // Al menos un cargo mecanizado
+      const isFueraDePlanta = (isPapeles1 || isPapeles2); // Al menos un cargo "solo papeles"
+      
+      // 3. Filtro de Subvención (Actualizado a 3 opciones)
       if (filters.subsidized !== 'all') {
-          // Detectamos si tiene CUALQUIER tipo de subvención en sus cargos
-          const hasSubC1 = s.cargo1_subsidized === 'true';
-          const hasSubC2 = s.cargo2_subsidized === 'true';
-          const isSubGeneral = s.isSubsidized === 'true'; // Por compatibilidad con datos antiguos
-          
-          const hasAnySub = hasSubC1 || hasSubC2 || isSubGeneral;
-
-          if (filters.subsidized === 'yes' && !hasAnySub) return false;
-          if (filters.subsidized === 'no' && hasAnySub) return false;
+          if (filters.subsidized === 'yes' && !hasAnySub) return false; // Solo Mecanizados
+          if (filters.subsidized === 'no') {
+              // El caso de Belgieri: Si tiene cargos pero NINGUNO es true en sub, es NO SUBVENCIONADO
+              if (hasAnySub) return false; 
+              if (isFueraDePlanta) return false; // Si es papeles, no es DENO puro
+          }
+          if (filters.subsidized === 'fuera' && !isFueraDePlanta) return false; // Solo Fuera de Planta
       }
 
-      // Normalización de Roles y Turnos
+      // 4. Normalización para filtros de Rol y Turno
       const c1Role = getNormRole(s.cargo1_role || s.role); 
       const c2Role = getNormRole(s.cargo2_role);
       const c1Turn = (s.cargo1_turn || '').trim().toLowerCase();
@@ -5233,14 +5243,12 @@ function PersonalView({ user }) {
       const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || c1Turn);
       const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || c2Turn);
 
-      // Lógica de Roles (Multiselección)
       let c1MatchesRole = filterRoles.length === 0;
       let c2MatchesRole = filterRoles.length === 0;
 
       if (filterRoles.length > 0) {
           const c1IsUnassigned = !hasC1 || !VALID_ROLES.includes(c1Role);
           const c2IsUnassigned = hasC2 && !VALID_ROLES.includes(c2Role);
-
           if (filterRoles.includes('sin-asignar')) {
               if (c1IsUnassigned) c1MatchesRole = true;
               if (c2IsUnassigned) c2MatchesRole = true;
@@ -5249,20 +5257,16 @@ function PersonalView({ user }) {
           if (filterRoles.includes(c2Role)) c2MatchesRole = true;
       }
 
-      // Lógica de Turnos
       const c1MatchesTurn = filterTurn === 'all' || c1Turn.includes(filterTurn);
       const c2MatchesTurn = filterTurn === 'all' || c2Turn.includes(filterTurn);
 
-      // Validación final de cargos
       const c1IsValid = hasC1 && c1MatchesRole && c1MatchesTurn;
       const c2IsValid = hasC2 && c2MatchesRole && c2MatchesTurn;
 
-      // Si no hay filtros específicos de rol o turno, ya pasó el filtro de texto y subvención
       if (filterRoles.length === 0 && filterTurn === 'all') return true;
 
       return c1IsValid || c2IsValid;
   });
-
 
   const handlePhotoChange = (e) => {
       const f = e.target.files[0]; if(!f) return;
