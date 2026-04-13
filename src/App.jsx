@@ -5202,42 +5202,31 @@ function PersonalView({ user }) {
 }, []);
 
 const filteredStaff = staffList.filter(s => {
+      // 1. Buscador y Modalidad (se mantienen)
       const txt = staffFilterText.toLowerCase();
       const matchesText = !txt || `${s.lastName || ''} ${s.firstName || ''} ${s.dni || ''}`.toLowerCase().includes(txt);
       if (!matchesText) return false;
-      
       if (filters.modality !== 'all' && (s.modality || 'Sede') !== filters.modality) return false;
       
-    // --- LÓGICA DE CATEGORÍAS TRIPLES (CORREGIDA) ---
-const hasMeca1 = s.cargo1_subsidized === 'true' || s.isSubsidized === 'true';
-const hasMeca2 = s.cargo2_subsidized === 'true';
+      // 2. LÓGICA DE CATEGORÍAS (REINICIADA DESDE CERO)
+      // Solo miramos los cargos específicos, ignoramos campos generales viejos
+      const c1Sub = s.cargo1_subsidized;
+      const c2Sub = s.cargo2_subsidized;
 
-// Consideramos "Fuera de Planta" si está marcado explícitamente como 'fuera' 
-// o si el switch de 'papeles' está en true.
-const isFuera1 = s.cargo1_subsidized === 'fuera' || s.cargo1_en_papeles === 'true';
-const isFuera2 = s.cargo2_subsidized === 'fuera' || s.cargo2_en_papeles === 'true';
+      // Definimos los estados puros
+      const isMecanizada = (c1Sub === 'true' || c2Sub === 'true');
+      const isFueraDePlanta = (c1Sub === 'fuera' || c2Sub === 'fuera' || s.cargo1_en_papeles === 'true' || s.cargo2_en_papeles === 'true');
+      // Es DENO solo si NO es mecanizada y NO es fuera de planta
+      const isDeno = !isMecanizada && !isFueraDePlanta;
 
-const hasAnyMeca = hasMeca1 || hasMeca2;
-const hasAnyFuera = isFuera1 || isFuera2;
+      // 3. APLICACIÓN DEL FILTRO ESTRICTO
+      if (filters.subsidized !== 'all') {
+          if (filters.subsidized === 'yes' && !isMecanizada) return false;
+          if (filters.subsidized === 'fuera' && !isFueraDePlanta) return false;
+          if (filters.subsidized === 'no' && !isDeno) return false;
+      }
 
-if (filters.subsidized !== 'all') {
-    // 1. Si buscamos MECANIZADA: 
-    // Debe tener al menos uno MECA y NINGUNO puede ser Fuera de Planta
-    if (filters.subsidized === 'yes') {
-        if (!hasAnyMeca || hasAnyFuera) return false;
-    }
-    
-    // 2. Si buscamos NO SUBVENCIONADA (DENO): 
-    // No debe ser ni MECA ni FUERA DE PLANTA
-    if (filters.subsidized === 'no') {
-        if (hasAnyMeca || hasAnyFuera) return false;
-    }
-    
-    // 3. Si buscamos FUERA DE PLANTA: 
-    // Solo entran los que tienen esa marca específica
-    if (filters.subsidized === 'fuera' && !hasAnyFuera) return false;
-}
-      // Resto de la lógica de Roles y Turnos (se mantiene igual)
+      // --- El resto de la función (Roles y Turnos) sigue igual ---
       const c1Role = getNormRole(s.cargo1_role || s.role); 
       const c2Role = getNormRole(s.cargo2_role);
       const c1Turn = (s.cargo1_turn || '').trim().toLowerCase();
