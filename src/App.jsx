@@ -4010,8 +4010,7 @@ function SocialView({ user }) {
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState({});
   const [selectedCase, setSelectedCase] = useState(null); 
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [searchTerm, setSearchTerm] = useState(''); // <--- NUEVO ESTADO
 
   const isAllowed = ['admin', 'super-admin', 'Docente', 'Auxiliar/Preceptor', 'Equipo Directivo', 'Equipo Técnico'].includes(user.role) || user.rol === 'admin';
 
@@ -4089,8 +4088,13 @@ function SocialView({ user }) {
   };
 
   const handleArchiveCase = async (c) => {
-    if (confirm("❗ ¿Imprimiste el reporte para el legajo físico?")) {
-        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', c.id), { status: 'Reincorporado' });
+    const confirmMsg = c.status === 'Reincorporado' 
+      ? "¿Deseas reactivar este caso?" 
+      : "❗ ¿Imprimiste el reporte para el legajo físico? El caso pasará al archivo.";
+    
+    if (confirm(confirmMsg)) {
+        const newStatus = c.status === 'Reincorporado' ? 'Pendiente' : 'Reincorporado';
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', c.id), { status: newStatus });
         setSelectedCase(null);
     }
   };
@@ -4143,45 +4147,78 @@ function SocialView({ user }) {
   };
 
   const filteredCases = cases.filter(c => {
-    const matchStatus = viewMode === 'archived' ? c.status === 'Reincorporado' : c.status !== 'Reincorporado';
-    if (!matchStatus) return false;
+    // 1. Filtro por búsqueda de texto (ignora el modo de vista si se está buscando)
+    const isSearching = searchTerm.trim().length > 0;
+    const matchesSearch = !isSearching || 
+      c.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.fullInfo?.dni && c.fullInfo.dni.includes(searchTerm));
+
+    if (!matchesSearch) return false;
+
+    // 2. Filtro de vista (Activo vs Archivados) - Sólo se aplica si NO estamos buscando
+    if (!isSearching) {
+      const matchStatus = viewMode === 'archived' ? c.status === 'Reincorporado' : c.status !== 'Reincorporado';
+      if (!matchStatus) return false;
+    }
+
+    // 3. Filtros por ciclo
     const level = (c.level || '').toUpperCase();
-    if (filter === 'all') return true;
-    if (filter === 'primeros') return level.includes('INICIAL') || level.includes('1°');
-    if (filter === 'segundos') return level.includes('2°') || level.includes('CFI');
+    if (filter === 'primeros' && !(level.includes('INICIAL') || level.includes('1°'))) return false;
+    if (filter === 'segundos' && !(level.includes('2°') || level.includes('CFI'))) return false;
+    
     return true;
   });
 
   return (
     <div className="h-full flex flex-col space-y-4 animate-in fade-in pb-20">
-      <div className="bg-white p-4 md:p-6 rounded-b-[40px] shadow-sm border-b border-blue-100 flex flex-col md:flex-row justify-between items-center gap-4 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-600 rounded-xl text-white"><Users size={24}/></div>
-          <h2 className="text-xl font-black text-slate-800 uppercase italic">Seguimiento Social</h2>
+      {/* HEADER PRINCIPAL */}
+      <div className="bg-white p-4 md:p-6 rounded-b-[40px] shadow-sm border-b border-blue-100 space-y-4 shrink-0">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-600 rounded-xl text-white"><Users size={24}/></div>
+            <h2 className="text-xl font-black text-slate-800 uppercase italic">Seguimiento Social</h2>
+          </div>
+          <button onClick={() => setViewMode(viewMode === 'active' ? 'archived' : 'active')} className={`px-4 py-2 rounded-xl font-black text-[10px] uppercase shadow-sm transition-all ${viewMode === 'active' ? 'bg-slate-800 text-white' : 'bg-blue-600 text-white'}`}>
+            {viewMode === 'active' ? 'Ver Archivo' : 'Ver Activos'}
+          </button>
         </div>
-        <div className="flex gap-2 w-full md:w-auto">
-          <select value={filter} onChange={(e) => setFilter(e.target.value)} className="flex-1 md:flex-none bg-slate-100 text-slate-600 font-bold text-[10px] p-3 rounded-xl uppercase outline-none">
+
+        {/* BUSCADOR Y FILTRO CICLO */}
+        <div className="flex flex-col md:flex-row gap-2">
+          <div className="flex-1 bg-slate-100 rounded-xl flex items-center px-3 border border-transparent focus-within:border-blue-400 focus-within:bg-white transition-all">
+            <Search size={18} className="text-slate-400"/>
+            <input 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)} 
+              placeholder="Buscar por nombre, apellido o DNI..." 
+              className="w-full p-3 bg-transparent outline-none text-sm font-bold"
+            />
+            {searchTerm && <button onClick={() => setSearchTerm('')}><X size={16} className="text-slate-400"/></button>}
+          </div>
+          <select value={filter} onChange={(e) => setFilter(e.target.value)} className="bg-slate-100 text-slate-600 font-bold text-[10px] p-3 rounded-xl uppercase outline-none border-none">
             <option value="all">Todos los Ciclos</option>
             <option value="primeros">Inicial / 1° Ciclo</option>
             <option value="segundos">2° Ciclo / CFI</option>
           </select>
-          <button onClick={() => setViewMode(viewMode === 'active' ? 'archived' : 'active')} className={`flex-1 md:flex-none px-4 py-3 rounded-xl font-black text-[10px] uppercase shadow-sm transition-all ${viewMode === 'active' ? 'bg-slate-800 text-white' : 'bg-blue-600 text-white'}`}>
-            {viewMode === 'active' ? 'Archivo' : 'Activos'}
-          </button>
         </div>
       </div>
 
+      {/* LISTA VERTICAL */}
       <div className="flex-1 overflow-y-auto px-4 space-y-3 custom-scrollbar">
         {loading ? <p className="text-center py-20 opacity-20 font-black">CARGANDO...</p> : filteredCases.map(c => {
             const caseHasNews = hasNews(c);
+            const isArchived = c.status === 'Reincorporado';
             return (
-              <div key={c.id} onClick={() => handleOpenCase(c)} className={`bg-white p-5 rounded-[30px] border-2 flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer ${caseHasNews ? 'border-orange-400 ring-4 ring-orange-50 shadow-lg' : 'border-transparent shadow-sm hover:border-blue-100'}`}>
+              <div key={c.id} onClick={() => handleOpenCase(c)} className={`bg-white p-5 rounded-[30px] border-2 flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer ${isArchived ? 'opacity-60 grayscale' : ''} ${caseHasNews ? 'border-orange-400 ring-4 ring-orange-50 shadow-lg' : 'border-transparent shadow-sm hover:border-blue-100'}`}>
                 <div className="flex items-center gap-4 min-w-0">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black shrink-0 ${caseHasNews ? 'bg-orange-500 animate-pulse' : 'bg-blue-600 shadow-inner'}`}>{c.studentName[0]}</div>
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black shrink-0 ${isArchived ? 'bg-slate-400' : caseHasNews ? 'bg-orange-500 animate-pulse' : 'bg-blue-600 shadow-inner'}`}>{c.studentName[0]}</div>
                   <div className="truncate">
                     <h4 className="font-black text-slate-700 text-sm uppercase truncate leading-tight">{c.studentName}</h4>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">{c.level}</p>
-                    {caseHasNews && <p className="text-[8px] font-black text-orange-600 uppercase mt-1 animate-bounce">● Mensaje nuevo</p>}
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase">{c.level}</p>
+                      {isArchived && <span className="bg-slate-100 text-slate-500 text-[8px] font-black px-1.5 py-0.5 rounded uppercase">Archivado</span>}
+                    </div>
+                    {caseHasNews && !isArchived && <p className="text-[8px] font-black text-orange-600 uppercase mt-1 animate-bounce">● Mensaje nuevo</p>}
                   </div>
                 </div>
                 <ChevronRight size={20} className="text-slate-300"/>
@@ -4196,8 +4233,13 @@ function SocialView({ user }) {
             <button onClick={() => setSelectedCase(null)} className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-xl hover:bg-white/20 transition">
               <ChevronLeft size={20}/> <span className="text-xs font-black uppercase tracking-tighter">Volver</span>
             </button>
-            <div className="text-center"><h2 className="text-sm font-black uppercase truncate px-4">{selectedCase.studentName}</h2></div>
-            <button onClick={() => imprimirSeguimientoSocial(selectedCase)} className="p-3 bg-white/10 rounded-xl hover:bg-blue-600 transition"><Printer size={20}/></button>
+            <div className="text-center flex-1 min-w-0"><h2 className="text-sm font-black uppercase truncate px-4">{selectedCase.studentName}</h2></div>
+            <div className="flex gap-2">
+              <button onClick={() => imprimirSeguimientoSocial(selectedCase)} className="p-3 bg-white/10 rounded-xl hover:bg-blue-600 transition" title="Imprimir"><Printer size={20}/></button>
+              <button onClick={() => handleArchiveCase(selectedCase)} className={`p-3 rounded-xl transition ${selectedCase.status === 'Reincorporado' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-white/10 hover:bg-emerald-600'}`} title={selectedCase.status === 'Reincorporado' ? "Reactivar" : "Archivar"}>
+                {selectedCase.status === 'Reincorporado' ? <RefreshCw size={20}/> : <Folder size={20}/>}
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto bg-slate-50 flex flex-col lg:flex-row h-full">
@@ -4277,6 +4319,7 @@ function SocialView({ user }) {
         </div>
       )}
 
+      {/* MODAL DETALLE ESTUDIANTE (BITÁCORA DE AULA) */}
       {viewingStudent && (
           <div className="fixed inset-0 bg-slate-900/95 z-[200] flex items-center justify-center p-4 backdrop-blur-md animate-in zoom-in-95">
               <div className="bg-white rounded-[45px] w-full max-w-lg p-8 relative shadow-2xl flex flex-col max-h-[90vh]">
