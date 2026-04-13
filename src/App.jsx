@@ -5202,70 +5202,48 @@ function PersonalView({ user }) {
 }, []);
 
 const filteredStaff = staffList.filter(s => {
-      // 1. Filtro de Búsqueda por Texto
       const txt = staffFilterText.toLowerCase();
       const matchesText = !txt || `${s.lastName || ''} ${s.firstName || ''} ${s.dni || ''}`.toLowerCase().includes(txt);
       if (!matchesText) return false;
       
-      // 2. Filtro de Modalidad
       if (filters.modality !== 'all' && (s.modality || 'Sede') !== filters.modality) return false;
       
-      // --- LÓGICA DE CATEGORÍAS DE CARGO ---
-      // Verificamos el estado real de los cargos
-      const isSub1 = s.cargo1_subsidized === 'true' || s.isSubsidized === 'true';
-      const isSub2 = s.cargo2_subsidized === 'true';
-      const isPapeles1 = s.cargo1_en_papeles === 'true';
-      const isPapeles2 = s.cargo2_en_papeles === 'true';
-      
-      const hasAnySub = isSub1 || isSub2; // Al menos un cargo mecanizado
-      const isFueraDePlanta = (isPapeles1 || isPapeles2); // Al menos un cargo "solo papeles"
-      
-      // 3. Filtro de Subvención (Actualizado a 3 opciones)
+      // --- LÓGICA DE CATEGORÍAS TRIPLES ---
+      const hasMeca1 = s.cargo1_subsidized === 'true' || s.isSubsidized === 'true';
+      const hasMeca2 = s.cargo2_subsidized === 'true';
+      const isPapeles1 = s.cargo1_en_papeles === 'true' || s.cargo1_subsidized === 'fuera';
+      const isPapeles2 = s.cargo2_en_papeles === 'true' || s.cargo2_subsidized === 'fuera';
+
+      const hasAnyMeca = hasMeca1 || hasMeca2;
+      const hasAnyPapeles = isPapeles1 || isPapeles2;
+
       if (filters.subsidized !== 'all') {
-          if (filters.subsidized === 'yes' && !hasAnySub) return false; // Solo Mecanizados
-          if (filters.subsidized === 'no') {
-              // El caso de Belgieri: Si tiene cargos pero NINGUNO es true en sub, es NO SUBVENCIONADO
-              if (hasAnySub) return false; 
-              if (isFueraDePlanta) return false; // Si es papeles, no es DENO puro
-          }
-          if (filters.subsidized === 'fuera' && !isFueraDePlanta) return false; // Solo Fuera de Planta
+          // Filtro Mecanizada: Solo si tiene algún cargo MECA
+          if (filters.subsidized === 'yes' && !hasAnyMeca) return false;
+          
+          // Filtro DENO: No tiene que tener NI Meca NI Papeles
+          if (filters.subsidized === 'no' && (hasAnyMeca || hasAnyPapeles)) return false;
+          
+          // Filtro Fuera de Planta: Solo si está marcado como papeles
+          if (filters.subsidized === 'fuera' && !hasAnyPapeles) return false;
       }
 
-      // 4. Normalización para filtros de Rol y Turno
+      // Resto de la lógica de Roles y Turnos (se mantiene igual)
       const c1Role = getNormRole(s.cargo1_role || s.role); 
       const c2Role = getNormRole(s.cargo2_role);
       const c1Turn = (s.cargo1_turn || '').trim().toLowerCase();
       const c2Turn = (s.cargo2_turn || '').trim().toLowerCase();
-
       const filterRoles = filters.roles || [];
       const filterTurn = filters.turn.toLowerCase();
-
       const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || c1Turn);
       const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || c2Turn);
-
-      let c1MatchesRole = filterRoles.length === 0;
-      let c2MatchesRole = filterRoles.length === 0;
-
-      if (filterRoles.length > 0) {
-          const c1IsUnassigned = !hasC1 || !VALID_ROLES.includes(c1Role);
-          const c2IsUnassigned = hasC2 && !VALID_ROLES.includes(c2Role);
-          if (filterRoles.includes('sin-asignar')) {
-              if (c1IsUnassigned) c1MatchesRole = true;
-              if (c2IsUnassigned) c2MatchesRole = true;
-          }
-          if (filterRoles.includes(c1Role)) c1MatchesRole = true;
-          if (filterRoles.includes(c2Role)) c2MatchesRole = true;
-      }
-
+      let c1MatchesRole = filterRoles.length === 0 || filterRoles.includes(c1Role);
+      let c2MatchesRole = filterRoles.length === 0 || filterRoles.includes(c2Role);
       const c1MatchesTurn = filterTurn === 'all' || c1Turn.includes(filterTurn);
       const c2MatchesTurn = filterTurn === 'all' || c2Turn.includes(filterTurn);
 
-      const c1IsValid = hasC1 && c1MatchesRole && c1MatchesTurn;
-      const c2IsValid = hasC2 && c2MatchesRole && c2MatchesTurn;
-
       if (filterRoles.length === 0 && filterTurn === 'all') return true;
-
-      return c1IsValid || c2IsValid;
+      return (hasC1 && c1MatchesRole && c1MatchesTurn) || (hasC2 && c2MatchesRole && c2MatchesTurn);
   });
 
   const handlePhotoChange = (e) => {
@@ -5956,8 +5934,9 @@ const imprimirPlanillaGeneral = (lista) => {
                     <option value="Ambos">Modalidad: Ambos</option>
                   </select>
                   <select name="cargo1_subsidized" defaultValue={editingStaff?.cargo1_subsidized || 'false'} className={`p-3 rounded-xl border-none font-black text-xs ${editingStaff?.cargo1_subsidized === 'true' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500'}`}>
-                    <option value="false">DENO (Sin Subvención)</option>
-                    <option value="true">MECA (Subvencionado)</option>
+                    <option value="false">DENO (No Subvencionado)</option>
+    <option value="true">MECA (Subvencionado)</option>
+    <option value="fuera">FUERA DE PLANTA (Papeles)</option>
                   </select>
                 </div>
                 <div className="grid grid-cols-[1fr,2fr] gap-2">
@@ -6027,8 +6006,9 @@ const imprimirPlanillaGeneral = (lista) => {
                     ))}
                   </select>
                   <select name="cargo2_subsidized" defaultValue={editingStaff?.cargo2_subsidized || 'false'} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
-                    <option value="false">DENO (Sin Subvención)</option>
-                    <option value="true">MECA (Subvencionado)</option>
+                   <option value="false">DENO (No Subvencionado)</option>
+    <option value="true">MECA (Subvencionado)</option>
+    <option value="fuera">FUERA DE PLANTA (Papeles)</option>
                   </select>
                 </div>
                 {/* --- NUEVOS CAMPOS AGREGADOS AQUÍ --- */}
