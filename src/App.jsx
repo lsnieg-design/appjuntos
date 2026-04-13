@@ -5243,23 +5243,6 @@ function PersonalView({ user }) {
 
   return () => { unsubStaff(); unsubStudents(); }; // Asegurate de cerrar ambos
 }, []);
-  // --- FUNCIÓN PARA DETECTAR GRUPOS AUTOMÁTICAMENTE (UBICACIÓN CORRECTA) ---
-  const obtenerGruposAutomaticos = (staffId) => {
-    if (!students || students.length === 0 || !staffId) return { mañana: [], tarde: [] };
-    const gruposMañana = new Set();
-    const gruposTarde = new Set();
-    students.forEach(s => {
-      if (s.teacherIdMorning === staffId || s.teacherId2Morning === staffId || s.daiId === staffId) {
-        if (s.groupMorning) gruposMañana.add(s.groupMorning);
-        else if (s.modality === 'Inclusión') gruposMañana.add("Inclusión (DAI)");
-      }
-      if (s.teacherIdAfternoon === staffId || s.teacherId2Afternoon === staffId || s.daiId === staffId) {
-        if (s.groupAfternoon) gruposTarde.add(s.groupAfternoon);
-        else if (s.modality === 'Inclusión') gruposTarde.add("Inclusión (DAI)");
-      }
-    });
-    return { mañana: Array.from(gruposMañana), tarde: Array.from(gruposTarde) };
-  };
 
 const filteredStaff = staffList.filter(s => {
       // 1. Buscador y Modalidad (se mantienen)
@@ -5744,62 +5727,67 @@ const imprimirPlanillaGeneral = (lista) => {
             )}
         </div>
 
-      {/* LISTADO DE PERSONAL */}
+        {/* LISTADO DE PERSONAL */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[65vh] overflow-y-auto pb-10 mt-2">
           {filteredStaff.map(s => {
-            const tieneSub = s.cargo1_subsidized === 'true' || s.cargo2_subsidized === 'true' || s.isSubsidized === 'true';
-            const c1Role = getNormRole(s.cargo1_role || s.role);
-            const c2Role = getNormRole(s.cargo2_role);
-            const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || (s.cargo1_turn && s.cargo1_turn.trim()));
-            const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || (s.cargo2_turn && s.cargo2_turn.trim()));
-            const c1NeedsFix = !hasC1 || !VALID_ROLES_OFFICIAL.includes(c1Role);
-            const c2NeedsFix = hasC2 && !VALID_ROLES_OFFICIAL.includes(c2Role);
-            const needsRoleFix = c1NeedsFix || c2NeedsFix;
+    const tieneSub = s.cargo1_subsidized === 'true' || s.cargo2_subsidized === 'true' || s.isSubsidized === 'true';
+    
+    const c1Role = getNormRole(s.cargo1_role || s.role);
+    const c2Role = getNormRole(s.cargo2_role);
 
-            return (
-                <div key={s.id} onClick={() => setViewingStaff(s)} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all cursor-pointer group relative">
-                    <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100 shrink-0 relative">
-                        {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName?.[0]}
-                        {tieneSub && <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white shadow-sm" title="Subvencionada"></div>}
+    const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || (s.cargo1_turn && s.cargo1_turn.trim()));
+    const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || (s.cargo2_turn && s.cargo2_turn.trim()));
+
+    {/* CAMBIO AQUÍ: Usamos VALID_ROLES_OFFICIAL */}
+    const c1NeedsFix = !hasC1 || !VALID_ROLES_OFFICIAL.includes(c1Role);
+    const c2NeedsFix = hasC2 && !VALID_ROLES_OFFICIAL.includes(c2Role);
+    const needsRoleFix = c1NeedsFix || c2NeedsFix;
+                
+               return (
+    <div key={s.id} onClick={() => setViewingStaff(s)} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all cursor-pointer group relative">
+        <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100 shrink-0 relative">
+            {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName?.[0]}
+            {tieneSub && <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white shadow-sm" title="Subvencionada"></div>}
+        </div>
+        <div className="flex-1 min-w-0">
+            <div className="flex gap-2 items-center flex-wrap">
+                <h4 className="font-bold text-gray-800 text-sm uppercase truncate">{s.lastName}, {s.firstName}</h4>
+                <span className={`text-[8px] px-2 py-0.5 rounded-md font-black uppercase ${s.modality === 'Inclusión' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}`}>{s.modality || 'Sede'}</span>
+                {needsRoleFix && <span className="bg-red-100 text-red-700 text-[9px] font-black px-2 py-0.5 rounded-lg border border-red-200 animate-pulse">⚠️ ASIGNAR ROL</span>}
+            </div>
+            <div className="flex gap-2 text-[10px] mt-1 text-gray-500 font-bold">
+                {s.dni && <span>DNI: {s.dni}</span>}
+                <span className="text-violet-500">Anti: {calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef)}</span>
+            </div>
+            
+            {/* ETIQUETAS VISUALES TRIPLES: MECA, PAPELES, DENO */}
+            <p className="text-[10px] font-black uppercase mt-1 truncate">
+                {hasC1 ? (
+                    <span className={s.cargo1_subsidized === 'true' ? 'text-emerald-600' : s.cargo1_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
+                        C1: {getNormRole(s.cargo1_role || s.role)} ({s.cargo1_turn || '-'}) 
+                        {s.cargo1_subsidized === 'true' ? ' (MECA)' : s.cargo1_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
+                    </span>
+                ) : (
+                    <span className="text-gray-300">NO TRABAJA (C1)</span>
+                )} 
+                
+                {hasC2 ? (
+                    <>
+                        <span className="text-gray-300 mx-1">|</span>
+                        <span className={s.cargo2_subsidized === 'true' ? 'text-emerald-600' : s.cargo2_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
+                            C2: {getNormRole(s.cargo2_role)} ({s.cargo2_turn || '-'}) 
+                            {s.cargo2_subsidized === 'true' ? ' (MECA)' : s.cargo2_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
+                        </span>
+                    </>
+                ) : (
+                    <span className="text-gray-300"> | NO TRABAJA (C2)</span>
+                )}
+            </p>
+        </div>
+                        <Eye className="text-gray-300 group-hover:text-violet-500 transition-colors shrink-0" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="flex gap-2 items-center flex-wrap">
-                            <h4 className="font-bold text-gray-800 text-sm uppercase truncate">{s.lastName}, {s.firstName}</h4>
-                            <span className={`text-[8px] px-2 py-0.5 rounded-md font-black uppercase ${s.modality === 'Inclusión' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}`}>{s.modality || 'Sede'}</span>
-                            {needsRoleFix && <span className="bg-red-100 text-red-700 text-[9px] font-black px-2 py-0.5 rounded-lg border border-red-200 animate-pulse">⚠️ ASIGNAR ROL</span>}
-                        </div>
-                        <div className="flex gap-2 text-[10px] mt-1 text-gray-500 font-bold">
-                            {s.dni && <span>DNI: {s.dni}</span>}
-                            <span className="text-violet-500">Anti: {calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef)}</span>
-                        </div>
-                        
-                        <p className="text-[10px] font-black uppercase mt-1 truncate">
-                            {hasC1 ? (
-                                <span className={s.cargo1_subsidized === 'true' ? 'text-emerald-600' : s.cargo1_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
-                                    C1: {getNormRole(s.cargo1_role || s.role)} ({s.cargo1_turn || '-'}) 
-                                    {s.cargo1_subsidized === 'true' ? ' (MECA)' : s.cargo1_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
-                                </span>
-                            ) : (
-                                <span className="text-gray-300">NO TRABAJA (C1)</span>
-                            )} 
-                            
-                            {hasC2 ? (
-                                <>
-                                    <span className="text-gray-300 mx-1">|</span>
-                                    <span className={s.cargo2_subsidized === 'true' ? 'text-emerald-600' : s.cargo2_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
-                                        C2: {getNormRole(s.cargo2_role)} ({s.cargo2_turn || '-'}) 
-                                        {s.cargo2_subsidized === 'true' ? ' (MECA)' : s.cargo2_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
-                                    </span>
-                                </>
-                            ) : (
-                                <span className="text-gray-300"> | NO TRABAJA (C2)</span>
-                            )}
-                        </p>
-                    </div>
-                    <Eye className="text-gray-300 group-hover:text-violet-500 transition-colors shrink-0" />
-                </div>
-            );
-          })}
+                )
+            })}
         </div>
 
 {/* MODAL LECTURA LEGAJO - VERSIÓN COMPLETA RECONSTRUIDA */}
@@ -5863,36 +5851,43 @@ const imprimirPlanillaGeneral = (lista) => {
                     ) : null}
                 </div>
 
-               {/* SECCIÓN INTELIGENTE: GRUPOS A CARGO (AUTOMÁTICA DESDE MI AULA) */}
-                <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
-                    <h4 className="text-[10px] font-black text-emerald-600 uppercase mb-3 flex items-center gap-2">
-                        📍 Grupos Asignados (En Vivo)
-                    </h4>
-                    <div className="grid grid-cols-2 gap-2">
-                        {(() => {
-                            const misGrupos = obtenerGruposAutomaticos(viewingStaff.id || viewingStaff.userId);
-                            return (
-                                <>
-                                    <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center shadow-sm">
-                                        <p className="text-[8px] font-black text-gray-400 uppercase">T. Mañana</p>
-                                        <p className="font-bold text-emerald-700 text-xs">
-                                            {misGrupos.mañana.length > 0 ? misGrupos.mañana.join(', ') : 'Ninguno'}
-                                        </p>
-                                    </div>
-                                    <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center shadow-sm">
-                                        <p className="text-[8px] font-black text-gray-400 uppercase">T. Tarde</p>
-                                        <p className="font-bold text-emerald-700 text-xs">
-                                            {misGrupos.tarde.length > 0 ? misGrupos.tarde.join(', ') : 'Ninguno'}
-                                        </p>
-                                    </div>
-                                </>
-                            );
-                        })()}
+                {/* SECCIÓN INTELIGENTE: GRUPOS A CARGO (SOLO PARA DOCENTES/AUX/PREC/DAI) */}
+                {['Docente', 'Auxiliar', 'Preceptora', 'DAI', 'Inclusión'].some(role => 
+                    (viewingStaff.cargo1_role || viewingStaff.role || '').includes(role) || 
+                    (viewingStaff.cargo2_role || '').includes(role)
+                ) && (
+                    <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
+                        <h4 className="text-[10px] font-black text-emerald-600 uppercase mb-3 flex items-center gap-2">📍 Alumnos y Grupos Asignados</h4>
+                        <div className="grid grid-cols-2 gap-2">
+                            {(() => {
+                                const myGroupsTM = [...new Set(students.filter(s => s.teacherIdMorning === viewingStaff.id || s.teacherId2Morning === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupMorning))].filter(Boolean);
+                                const myGroupsTT = [...new Set(students.filter(s => s.teacherIdAfternoon === viewingStaff.id || s.teacherId2Afternoon === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupAfternoon))].filter(Boolean);
+                                return (
+                                    <>
+                                        <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
+                                            <p className="text-[8px] font-black text-gray-400 uppercase">T. Mañana</p>
+                                            <p className="font-bold text-emerald-700 text-xs">{myGroupsTM.length > 0 ? myGroupsTM.join(', ') : 'Ninguno'}</p>
+                                        </div>
+                                        <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
+                                            <p className="text-[8px] font-black text-gray-400 uppercase">T. Tarde</p>
+                                            <p className="font-bold text-emerald-700 text-xs">{myGroupsTT.length > 0 ? myGroupsTT.join(', ') : 'Ninguno'}</p>
+                                        </div>
+                                    </>
+                                );
+                            })()}
+                        </div>
+                        <p className="text-[7px] text-emerald-400 mt-2 italic text-center">* Información vinculada por ID de seguridad</p>
                     </div>
-                    <p className="text-[7px] text-emerald-400 mt-2 italic text-center">
-                        * Sincronizado automáticamente con la sección "Mi Aula"
-                    </p>
-                </div>
+                )}
+            </div>
+            
+            <div className="p-4 border-t bg-white flex justify-end gap-2 shrink-0">
+                <button onClick={()=>imprimirFichasDocentes([viewingStaff])} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-slate-600 font-bold text-xs uppercase hover:bg-gray-50 flex gap-2 items-center shadow-sm"><FileText size={16}/> Imprimir</button>
+                <button onClick={()=>{setEditingStaff(viewingStaff); setPhotoPreview(viewingStaff.photoUrl); setShowStaffForm(true);}} className="px-4 py-3 bg-violet-600 text-white rounded-xl font-bold text-xs uppercase hover:bg-violet-700 flex gap-2 items-center shadow-lg"><Edit3 size={16}/> Editar Legajo</button>
+            </div>
+        </div>
+    </div>
+)}
 {/* MODAL EDICIÓN LEGAJO - VERSIÓN PREMIUM RESPONSIVA DEFINITIVA */}
     {showStaffForm && (
       <div className="fixed inset-0 bg-black/70 z-[150] flex items-center justify-center p-2 sm:p-4 backdrop-blur-md animate-in fade-in duration-300">
@@ -6162,8 +6157,7 @@ const imprimirPlanillaGeneral = (lista) => {
       </div>
     )}
 
-  
-{/* MODAL DE OPCIONES DE IMPRESIÓN */}
+    {/* PARCHE PUNTO 3: MODAL DE OPCIONES DE IMPRESIÓN (FUERA DEL FORM) */}
     {showPrintOptions && (
         <div className="fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-4 backdrop-blur-sm">
             <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95">
@@ -6196,9 +6190,9 @@ const imprimirPlanillaGeneral = (lista) => {
         </div>
     )}
 
-    </div> // Cierre del div principal del return
-  ); // Cierre del return
-} // Cierre definitivo de PersonalView
+  </div> // Fin del contenedor principal PersonalView
+  ); 
+} // Fin de la función
 
 function MedicalView({ user }) {
   const [students, setStudents] = useState([]);
