@@ -5742,6 +5742,32 @@ const imprimirPlanillaGeneral = (lista) => {
     const c1NeedsFix = !hasC1 || !VALID_ROLES_OFFICIAL.includes(c1Role);
     const c2NeedsFix = hasC2 && !VALID_ROLES_OFFICIAL.includes(c2Role);
     const needsRoleFix = c1NeedsFix || c2NeedsFix;
+      // --- FUNCIÓN PARA DETECTAR GRUPOS DESDE MI AULA AUTOMÁTICAMENTE ---
+  const obtenerGruposAutomaticos = (staffId) => {
+    if (!students || students.length === 0 || !staffId) return { mañana: [], tarde: [] };
+
+    const gruposMañana = new Set();
+    const gruposTarde = new Set();
+
+    students.forEach(s => {
+      // Chequeo Turno Mañana (Docente titular, Pareja o DAI)
+      if (s.teacherIdMorning === staffId || s.teacherId2Morning === staffId || s.daiId === staffId) {
+        if (s.groupMorning) gruposMañana.add(s.groupMorning);
+        else if (s.modality === 'Inclusión') gruposMañana.add("Inclusión (DAI)");
+      }
+      
+      // Chequeo Turno Tarde (Docente titular, Pareja o DAI)
+      if (s.teacherIdAfternoon === staffId || s.teacherId2Afternoon === staffId || s.daiId === staffId) {
+        if (s.groupAfternoon) gruposTarde.add(s.groupAfternoon);
+        else if (s.modality === 'Inclusión') gruposTarde.add("Inclusión (DAI)");
+      }
+    });
+
+    return {
+      mañana: Array.from(gruposMañana),
+      tarde: Array.from(gruposTarde)
+    };
+  };
                 
                return (
     <div key={s.id} onClick={() => setViewingStaff(s)} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all cursor-pointer group relative">
@@ -5851,43 +5877,36 @@ const imprimirPlanillaGeneral = (lista) => {
                     ) : null}
                 </div>
 
-                {/* SECCIÓN INTELIGENTE: GRUPOS A CARGO (SOLO PARA DOCENTES/AUX/PREC/DAI) */}
-                {['Docente', 'Auxiliar', 'Preceptora', 'DAI', 'Inclusión'].some(role => 
-                    (viewingStaff.cargo1_role || viewingStaff.role || '').includes(role) || 
-                    (viewingStaff.cargo2_role || '').includes(role)
-                ) && (
-                    <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
-                        <h4 className="text-[10px] font-black text-emerald-600 uppercase mb-3 flex items-center gap-2">📍 Alumnos y Grupos Asignados</h4>
-                        <div className="grid grid-cols-2 gap-2">
-                            {(() => {
-                                const myGroupsTM = [...new Set(students.filter(s => s.teacherIdMorning === viewingStaff.id || s.teacherId2Morning === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupMorning))].filter(Boolean);
-                                const myGroupsTT = [...new Set(students.filter(s => s.teacherIdAfternoon === viewingStaff.id || s.teacherId2Afternoon === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupAfternoon))].filter(Boolean);
-                                return (
-                                    <>
-                                        <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
-                                            <p className="text-[8px] font-black text-gray-400 uppercase">T. Mañana</p>
-                                            <p className="font-bold text-emerald-700 text-xs">{myGroupsTM.length > 0 ? myGroupsTM.join(', ') : 'Ninguno'}</p>
-                                        </div>
-                                        <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
-                                            <p className="text-[8px] font-black text-gray-400 uppercase">T. Tarde</p>
-                                            <p className="font-bold text-emerald-700 text-xs">{myGroupsTT.length > 0 ? myGroupsTT.join(', ') : 'Ninguno'}</p>
-                                        </div>
-                                    </>
-                                );
-                            })()}
-                        </div>
-                        <p className="text-[7px] text-emerald-400 mt-2 italic text-center">* Información vinculada por ID de seguridad</p>
+               {/* SECCIÓN INTELIGENTE: GRUPOS A CARGO (AUTOMÁTICA DESDE MI AULA) */}
+                <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
+                    <h4 className="text-[10px] font-black text-emerald-600 uppercase mb-3 flex items-center gap-2">
+                        📍 Grupos Asignados (En Vivo)
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2">
+                        {(() => {
+                            const misGrupos = obtenerGruposAutomaticos(viewingStaff.id || viewingStaff.userId);
+                            return (
+                                <>
+                                    <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center shadow-sm">
+                                        <p className="text-[8px] font-black text-gray-400 uppercase">T. Mañana</p>
+                                        <p className="font-bold text-emerald-700 text-xs">
+                                            {misGrupos.mañana.length > 0 ? misGrupos.mañana.join(', ') : 'Ninguno'}
+                                        </p>
+                                    </div>
+                                    <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center shadow-sm">
+                                        <p className="text-[8px] font-black text-gray-400 uppercase">T. Tarde</p>
+                                        <p className="font-bold text-emerald-700 text-xs">
+                                            {misGrupos.tarde.length > 0 ? misGrupos.tarde.join(', ') : 'Ninguno'}
+                                        </p>
+                                    </div>
+                                </>
+                            );
+                        })()}
                     </div>
-                )}
-            </div>
-            
-            <div className="p-4 border-t bg-white flex justify-end gap-2 shrink-0">
-                <button onClick={()=>imprimirFichasDocentes([viewingStaff])} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-slate-600 font-bold text-xs uppercase hover:bg-gray-50 flex gap-2 items-center shadow-sm"><FileText size={16}/> Imprimir</button>
-                <button onClick={()=>{setEditingStaff(viewingStaff); setPhotoPreview(viewingStaff.photoUrl); setShowStaffForm(true);}} className="px-4 py-3 bg-violet-600 text-white rounded-xl font-bold text-xs uppercase hover:bg-violet-700 flex gap-2 items-center shadow-lg"><Edit3 size={16}/> Editar Legajo</button>
-            </div>
-        </div>
-    </div>
-)}
+                    <p className="text-[7px] text-emerald-400 mt-2 italic text-center">
+                        * Sincronizado automáticamente con la sección "Mi Aula"
+                    </p>
+                </div>
 {/* MODAL EDICIÓN LEGAJO - VERSIÓN PREMIUM RESPONSIVA DEFINITIVA */}
     {showStaffForm && (
       <div className="fixed inset-0 bg-black/70 z-[150] flex items-center justify-center p-2 sm:p-4 backdrop-blur-md animate-in fade-in duration-300">
