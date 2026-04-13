@@ -5203,19 +5203,25 @@ function PersonalView({ user }) {
 
  const filteredStaff = staffList.filter(s => {
       const txt = staffFilterText.toLowerCase();
-      const matchesText = !txt || `${s.lastName} ${s.firstName} ${s.dni}`.toLowerCase().includes(txt);
+      const matchesText = !txt || `${s.lastName || ''} ${s.firstName || ''} ${s.dni || ''}`.toLowerCase().includes(txt);
       if (!matchesText) return false;
       
       if (filters.modality !== 'all' && (s.modality || 'Sede') !== filters.modality) return false;
       
+      // --- LÓGICA DE SUBVENCIÓN CORREGIDA Y ESTRICTA ---
       if (filters.subsidized !== 'all') {
-          const isSub1 = s.cargo1_subsidized === 'true' || (s.isSubsidized === 'true' && s.cargo1_name);
-          const isSub2 = s.cargo2_subsidized === 'true';
-          const hasAnySub = isSub1 || isSub2;
+          // Detectamos si tiene CUALQUIER tipo de subvención en sus cargos
+          const hasSubC1 = s.cargo1_subsidized === 'true';
+          const hasSubC2 = s.cargo2_subsidized === 'true';
+          const isSubGeneral = s.isSubsidized === 'true'; // Por compatibilidad con datos antiguos
+          
+          const hasAnySub = hasSubC1 || hasSubC2 || isSubGeneral;
+
           if (filters.subsidized === 'yes' && !hasAnySub) return false;
           if (filters.subsidized === 'no' && hasAnySub) return false;
       }
 
+      // Normalización de Roles y Turnos
       const c1Role = getNormRole(s.cargo1_role || s.role); 
       const c2Role = getNormRole(s.cargo2_role);
       const c1Turn = (s.cargo1_turn || '').trim().toLowerCase();
@@ -5227,31 +5233,34 @@ function PersonalView({ user }) {
       const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || c1Turn);
       const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || c2Turn);
 
-      // CORRECCIÓN CRÍTICA: Usamos VALID_ROLES_OFFICIAL que es la que está afuera
-      const rolesValidos = typeof VALID_ROLES !== 'undefined' ? VALID_ROLES : [];
-     const c1IsUnassigned = !hasC1 || !VALID_ROLES.includes(c1Role);
-const c2IsUnassigned = hasC2 && !VALID_ROLES.includes(c2Role);
-
+      // Lógica de Roles (Multiselección)
       let c1MatchesRole = filterRoles.length === 0;
       let c2MatchesRole = filterRoles.length === 0;
 
       if (filterRoles.length > 0) {
-          if (filterRoles.includes('sin-asignar') && c1IsUnassigned) c1MatchesRole = true;
+          const c1IsUnassigned = !hasC1 || !VALID_ROLES.includes(c1Role);
+          const c2IsUnassigned = hasC2 && !VALID_ROLES.includes(c2Role);
+
+          if (filterRoles.includes('sin-asignar')) {
+              if (c1IsUnassigned) c1MatchesRole = true;
+              if (c2IsUnassigned) c2MatchesRole = true;
+          }
           if (filterRoles.includes(c1Role)) c1MatchesRole = true;
-          if (filterRoles.includes('sin-asignar') && c2IsUnassigned) c2MatchesRole = true;
           if (filterRoles.includes(c2Role)) c2MatchesRole = true;
       }
 
+      // Lógica de Turnos
       const c1MatchesTurn = filterTurn === 'all' || c1Turn.includes(filterTurn);
       const c2MatchesTurn = filterTurn === 'all' || c2Turn.includes(filterTurn);
 
+      // Validación final de cargos
       const c1IsValid = hasC1 && c1MatchesRole && c1MatchesTurn;
       const c2IsValid = hasC2 && c2MatchesRole && c2MatchesTurn;
 
+      // Si no hay filtros específicos de rol o turno, ya pasó el filtro de texto y subvención
       if (filterRoles.length === 0 && filterTurn === 'all') return true;
-      if (!c1IsValid && !c2IsValid) return false;
 
-      return true;
+      return c1IsValid || c2IsValid;
   });
 
 
