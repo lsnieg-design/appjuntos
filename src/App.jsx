@@ -5682,9 +5682,16 @@ const imprimirPlanillaGeneral = (lista) => {
         <option key={t} value={t}>{t}</option>
     ))}
 </select>
-                <select value={filters.subsidized} onChange={e=>setFilters({...filters, subsidized: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
-                    <option value="all">Subvención: Todas</option><option value="yes">Con Subvención</option><option value="no">Sin Subvención</option>
-                </select>
+               <select 
+  value={filters.subsidized} 
+  onChange={e => setFilters({...filters, subsidized: e.target.value})} 
+  className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none cursor-pointer"
+>
+    <option value="all">Subvención: Todas</option>
+    <option value="yes">Mecanizada (Subv.)</option>
+    <option value="no">No Subvencionada (DENO)</option>
+    <option value="fuera">Fuera de Planta / Papeles</option>
+</select>
                 <button onClick={() => setFilters({ modality: 'all', roles: [], turn: 'all', subsidized: 'all' })} className="bg-red-50 text-red-600 text-xs px-3 py-2 rounded-lg font-bold min-w-[80px] border border-red-100 shadow-sm hover:bg-red-100 transition">Limpiar</button>
             </div>
 
