@@ -5743,27 +5743,47 @@ const imprimirPlanillaGeneral = (lista) => {
     const c2NeedsFix = hasC2 && !VALID_ROLES_OFFICIAL.includes(c2Role);
     const needsRoleFix = c1NeedsFix || c2NeedsFix;
                 
-                return (
-                    <div key={s.id} onClick={() => setViewingStaff(s)} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all cursor-pointer group relative">
-                        <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100 shrink-0 relative">
-                            {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName?.[0]}
-                            {tieneSub && <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white shadow-sm" title="Subvencionada"></div>}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="flex gap-2 items-center flex-wrap">
-                                <h4 className="font-bold text-gray-800 text-sm uppercase truncate">{s.lastName}, {s.firstName}</h4>
-                                <span className={`text-[8px] px-2 py-0.5 rounded-md font-black uppercase ${s.modality === 'Inclusión' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}`}>{s.modality || 'Sede'}</span>
-                                {needsRoleFix && <span className="bg-red-100 text-red-700 text-[9px] font-black px-2 py-0.5 rounded-lg border border-red-200 animate-pulse">⚠️ ASIGNAR ROL</span>}
-                            </div>
-                            <div className="flex gap-2 text-[10px] mt-1 text-gray-500 font-bold">
-                                {s.dni && <span>DNI: {s.dni}</span>}
-                                <span className="text-violet-500">Anti: {calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef)}</span>
-                            </div>
-                            <p className="text-[10px] font-black text-violet-600 uppercase mt-1 truncate">
-                                {hasC1 ? `C1: ${c1Role || 'S/D'} (${s.cargo1_turn || '-'}) ${s.cargo1_en_papeles === 'true' ? '📝' : ''}` : <span className="text-gray-400">NO TRABAJA (C1)</span>} 
-                                {hasC2 ? ` | C2: ${c2Role || 'S/D'} (${s.cargo2_turn || '-'}) ${s.cargo2_en_papeles === 'true' ? '📝' : ''}` : <span className="text-gray-400"> | NO TRABAJA (C2)</span>}
-                            </p>
-                        </div>
+               return (
+    <div key={s.id} onClick={() => setViewingStaff(s)} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all cursor-pointer group relative">
+        <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100 shrink-0 relative">
+            {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName?.[0]}
+            {tieneSub && <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white shadow-sm" title="Subvencionada"></div>}
+        </div>
+        <div className="flex-1 min-w-0">
+            <div className="flex gap-2 items-center flex-wrap">
+                <h4 className="font-bold text-gray-800 text-sm uppercase truncate">{s.lastName}, {s.firstName}</h4>
+                <span className={`text-[8px] px-2 py-0.5 rounded-md font-black uppercase ${s.modality === 'Inclusión' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}`}>{s.modality || 'Sede'}</span>
+                {needsRoleFix && <span className="bg-red-100 text-red-700 text-[9px] font-black px-2 py-0.5 rounded-lg border border-red-200 animate-pulse">⚠️ ASIGNAR ROL</span>}
+            </div>
+            <div className="flex gap-2 text-[10px] mt-1 text-gray-500 font-bold">
+                {s.dni && <span>DNI: {s.dni}</span>}
+                <span className="text-violet-500">Anti: {calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef)}</span>
+            </div>
+            
+            {/* ETIQUETAS VISUALES TRIPLES: MECA, PAPELES, DENO */}
+            <p className="text-[10px] font-black uppercase mt-1 truncate">
+                {hasC1 ? (
+                    <span className={s.cargo1_subsidized === 'true' ? 'text-emerald-600' : s.cargo1_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
+                        C1: {getNormRole(s.cargo1_role || s.role)} ({s.cargo1_turn || '-'}) 
+                        {s.cargo1_subsidized === 'true' ? ' (MECA)' : s.cargo1_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
+                    </span>
+                ) : (
+                    <span className="text-gray-300">NO TRABAJA (C1)</span>
+                )} 
+                
+                {hasC2 ? (
+                    <>
+                        <span className="text-gray-300 mx-1">|</span>
+                        <span className={s.cargo2_subsidized === 'true' ? 'text-emerald-600' : s.cargo2_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
+                            C2: {getNormRole(s.cargo2_role)} ({s.cargo2_turn || '-'}) 
+                            {s.cargo2_subsidized === 'true' ? ' (MECA)' : s.cargo2_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
+                        </span>
+                    </>
+                ) : (
+                    <span className="text-gray-300"> | NO TRABAJA (C2)</span>
+                )}
+            </p>
+        </div>
                         <Eye className="text-gray-300 group-hover:text-violet-500 transition-colors shrink-0" />
                     </div>
                 )
