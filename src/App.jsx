@@ -534,12 +534,11 @@ const checkChallenge = async (e) => {
     if (e) e.preventDefault();
     if (!challengeAnswer || !currentChallenge.url || !user) return;
 
-    // Función mágica para limpiar textos (acentos, mayúsculas, espacios, puntos)
     const normalizar = (texto) => {
         if (!texto) return "";
         return texto.toString().trim().toLowerCase().normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "") // Quita acentos
-            .replace(/[^a-z0-9]/g, "");      // Quita puntos, comas y símbolos
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9]/g, "");
     };
 
     try {
@@ -547,19 +546,23 @@ const checkChallenge = async (e) => {
       const cleanCorrect = normalizar(currentChallenge.answer);
       
       if (cleanUser === cleanCorrect) {
-        // RECIÉN AQUÍ guardamos el éxito en el celular
         localStorage.setItem(`lastChallenge_${user.id}`, new Date().toDateString());
         setShowChallengeSuccess(true);
         
         const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-        await updateDoc(userRef, { score: (Number(userScore) || 0) + 10 });
+        await updateDoc(userRef, { 
+            score: increment(10), 
+            lastWin: serverTimestamp() 
+        });
         
         setChallengeAnswer('');
         setTimeout(() => setShowChallengeSuccess(false), 4000);
       } else { 
         alert("🤔 ¡Casi! Intentá de nuevo. Revisá si es un número o palabra."); 
       }
-    } catch (err) { console.error("Error validando:", err); }
+    } catch (err) { 
+      console.error("Error validando:", err); 
+    }
   };
   const resetAllScores = async () => {
     if (!isSuperAdmin) return;
@@ -5548,15 +5551,17 @@ const imprimirPlanillaGeneral = (lista) => {
       reader.readAsText(file);
   };
 
-  const handleSaveStaff = async (e) => {
+ const handleSaveStaff = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const d = Object.fromEntries(fd.entries());
     
-    // ESTA LÍNEA ES CLAVE: Guarda la foto nueva o mantiene la vieja
+    // Bloqueamos el score para que no se pise al editar el legajo
+    delete d.score;
+    delete d.id; 
+
     d.photoUrl = photoPreview || editingStaff?.photoUrl || '';
     
-    // Limpieza automática de Cargo 2 si está vacío
     if(!d.cargo2_name || d.cargo2_name.trim() === '') { 
         d.cargo2_role = ''; d.cargo2_turn = ''; d.cargo2_type = ''; 
         d.cargo2_revista = ''; d.cargo2_ingreso = ''; d.cargo2_name = ''; 
@@ -5567,12 +5572,18 @@ const imprimirPlanillaGeneral = (lista) => {
         setProcessing(true);
         if (editingStaff?.id) {
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id), d);
-            // Si tenías abierta la ficha, que se actualice solita
-            if (viewingStaff?.id === editingStaff.id) setViewingStaff({ ...editingStaff, ...d });
+            if (viewingStaff?.id === editingStaff.id) {
+                setViewingStaff({ ...viewingStaff, ...d });
+            }
         } else {
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), { ...d, createdAt: serverTimestamp() });
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), { 
+                ...d, 
+                createdAt: serverTimestamp() 
+            });
         }
-        setShowStaffForm(false); setEditingStaff(null); setPhotoPreview(null);
+        setShowStaffForm(false); 
+        setEditingStaff(null); 
+        setPhotoPreview(null);
         alert("✅ Legajo actualizado con éxito");
     } catch (err) { 
         alert("Error: " + err.message); 
