@@ -5184,8 +5184,7 @@ const handleUpdateGroup = async (e) => {
       )}
 
       {groupStats && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[250] flex items-center justify-center p-4" onClick={() => setGroupStats(null)}><div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-6"><div><h3 className="text-xl font-black text-violet-900 uppercase italic">Análisis del Grupo</h3><p className="text-xs text-gray-500 font-bold">{groupStats.name}</p></div><button onClick={() => setGroupStats(null)}><X size={20}/></button></div></div></div>)}
-
-   {selectedStudent && (
+{selectedStudent && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
             
@@ -5213,9 +5212,9 @@ const handleUpdateGroup = async (e) => {
 
             <div className="p-6 overflow-y-auto space-y-6">
               {activeTab === "info" ? (
+                /* --- PESTAÑA DATOS (DNI, EDAD, FAMILIA) --- */
                 <div className="space-y-5 animate-in fade-in">
                   
-                  {/* --- NUEVA SECCIÓN DE DATOS PERSONALES --- */}
                   <div className="grid grid-cols-3 gap-2">
                     <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center shadow-sm">
                       <p className="text-[8px] font-black text-slate-400 uppercase mb-1">DNI</p>
@@ -5231,7 +5230,6 @@ const handleUpdateGroup = async (e) => {
                     </div>
                   </div>
 
-                  {/* CONTACTO FAMILIAR */}
                   <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 shadow-sm">
                     <h3 className="font-black text-orange-800 text-[10px] uppercase mb-2 tracking-widest flex items-center gap-1">
                       <Users size={12}/> Contacto Familiar
@@ -5242,12 +5240,10 @@ const handleUpdateGroup = async (e) => {
                     </div>
                   </div>
 
-                  {/* BOTÓN REPORTE AUSENTISMO */}
                   <button onClick={handleReportAbsenteeism} className="w-full py-4 bg-red-50 text-red-700 font-black rounded-2xl border border-red-200 flex items-center justify-center gap-2 hover:bg-red-100 transition shadow-sm uppercase text-[10px] tracking-widest">
                     <AlertTriangle size={18}/> Reportar Ausentismo (+3 días)
                   </button>
 
-                  {/* UBICACIÓN ESCOLAR */}
                   <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
                     <h3 className="font-black text-gray-500 text-[10px] uppercase mb-2 tracking-widest">Ubicación Actual</h3>
                     <div className="grid grid-cols-2 gap-4">
@@ -5257,24 +5253,68 @@ const handleUpdateGroup = async (e) => {
                   </div>
                 </div>
               ) : (
-                /* SECCIÓN BITÁCORA */
-                <div className="space-y-2 animate-in fade-in">
-                  {selectedStudent.incidents && selectedStudent.incidents.length > 0 ? (
-                    selectedStudent.incidents.slice().reverse().map((inc, i) => (
-                      <div key={i} className="bg-gray-50 p-3 rounded-xl border border-gray-100 shadow-sm">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-[10px] font-black text-violet-400 uppercase">{new Date(inc.date).toLocaleDateString('es-AR')}</span>
-                          <span className="text-[9px] font-bold text-slate-400 uppercase italic">Por: {inc.author}</span>
-                        </div>
-                        <p className="font-bold text-slate-700 text-sm leading-relaxed">{inc.text || inc.type}</p>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-10 opacity-30">
-                       <MessageSquare size={40} className="mx-auto mb-2 text-slate-400"/>
-                       <p className="text-xs font-bold uppercase tracking-widest">Sin registros de bitácora</p>
+                /* --- PESTAÑA BITÁCORA (BOTONERA + HISTORIAL) --- */
+                <div className="space-y-4 animate-in fade-in pb-10">
+                  
+                  {/* BOTONERA DE EMOJIS (Para carga rápida) */}
+                  {!isWriting && (
+                    <div className="grid grid-cols-3 gap-2 mb-4">
+                      {INCIDENT_TYPES.map((type) => (
+                        <button 
+                          key={type.label} 
+                          onClick={() => handleSaveIncident(type.label, type.severity)} 
+                          disabled={savingIncident}
+                          className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? 'opacity-50' : ''}`}
+                        >
+                          <span className="text-2xl">{type.emoji}</span>
+                          <span className="text-[9px] font-black uppercase text-center leading-tight">{type.label}</span>
+                        </button>
+                      ))}
                     </div>
                   )}
+
+                  {/* REDACTAR NOTA MANUAL */}
+                  <div className="bg-slate-100 p-4 rounded-2xl border border-slate-200">
+                    {isWriting ? (
+                      <div className="animate-in slide-in-from-bottom-2">
+                        <textarea 
+                          autoFocus 
+                          value={newNote} 
+                          onChange={e => setNewNote(e.target.value)} 
+                          placeholder="Escribí los detalles de la nota..." 
+                          className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm mb-2 h-24 outline-none focus:ring-2 ring-violet-200"
+                        />
+                        <div className="flex gap-2">
+                          <button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
+                          <button onClick={() => addIncident('medium', newNote)} disabled={!newNote.trim()} className="flex-[2] py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-[10px] shadow-lg">Guardar Nota</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button onClick={() => setIsWriting(true)} className="w-full py-3 bg-slate-800 text-white rounded-xl font-bold uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 hover:bg-slate-700 transition">
+                        <Edit3 size={16}/> Escribir Nota Detallada
+                      </button>
+                    )}
+                  </div>
+
+                  {/* LISTADO DE INCIDENTES RECIENTES */}
+                  <div className="space-y-2 mt-4">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Historial de Bitácora</h4>
+                    {selectedStudent.incidents && selectedStudent.incidents.length > 0 ? (
+                      selectedStudent.incidents.slice().reverse().map((inc, i) => (
+                        <div key={i} className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-[10px] font-black text-violet-400 uppercase">{new Date(inc.date).toLocaleDateString('es-AR')}</span>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase italic">Por: {inc.author}</span>
+                          </div>
+                          <p className="font-bold text-slate-700 text-sm leading-relaxed">{inc.text || inc.type}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-10 opacity-30">
+                         <p className="text-xs font-bold uppercase tracking-widest italic">Sin registros de bitácora</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
