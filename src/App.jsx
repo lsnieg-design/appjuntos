@@ -887,7 +887,6 @@ const resetMyDailyChallenge = () => {
 
 // --- VISTA RECURSOS (VERSIÓN CON PLANTILLAS EN GENERADOR DE NOTAS) ---
 function ResourcesView({ resources, canEdit }) {
-  const [folder, setFolder] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingRes, setEditingRes] = useState(null); 
   
@@ -899,7 +898,6 @@ function ResourcesView({ resources, canEdit }) {
     wordSpacing: '0.12em', isPrintMode: false 
   });
 
-  // ESTADOS PARA PLANTILLAS
   const [showTemplates, setShowTemplates] = useState(false);
   const [templateData, setTemplateData] = useState({
       destinatario: '',
@@ -910,20 +908,13 @@ function ResourcesView({ resources, canEdit }) {
   
   const LOGO_SIN_FONDO = "/logosinfondo.png";
 
-  const folders = (resources || []).reduce((acc, r) => { 
-    const cat = r.category || 'VARIOS'; 
-    if (!acc[cat]) acc[cat] = []; 
-    acc[cat].push(r); 
-    return acc; 
-  }, {});
-
   const handleSaveResource = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const data = {
       title: fd.get('title'),
       url: fd.get('url'),
-      category: (folder || fd.get('category') || 'VARIOS').toUpperCase().trim(),
+      category: 'GENERAL', 
       updatedAt: serverTimestamp()
     };
     try {
@@ -937,150 +928,87 @@ function ResourcesView({ resources, canEdit }) {
   };
 
   const handleDeleteResource = async (resId) => {
-    if (!confirm("¿Eliminar este documento?")) return;
+    if (!confirm("¿Eliminar este link?")) return;
     try {
-      if (folders[folder]?.length === 1) { setFolder(null); }
       await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', resId));
     } catch (err) { alert(err.message); }
   };
 
-  const handleDeleteFolder = async (folderName) => {
-    if (!confirm(`⚠️ ¿Borrar carpeta "${folderName}" y sus documentos?`)) return;
-    try {
-      const docsToDelete = folders[folderName];
-      const promises = docsToDelete.map(d => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', d.id)));
-      await Promise.all(promises);
-      setFolder(null);
-    } catch (err) { alert(err.message); }
-  };
-
-  const handleEditFolderName = async (oldName) => {
-    const newName = prompt("Nuevo nombre:", oldName);
-    if (!newName || newName === oldName) return;
-    try {
-      const docsToUpdate = folders[oldName];
-      const promises = docsToUpdate.map(d => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', d.id), { category: newName.toUpperCase().trim() }));
-      await Promise.all(promises);
-      setFolder(newName.toUpperCase().trim());
-    } catch (err) { alert(err.message); }
-  };
-
-  // FUNCIÓN PARA APLICAR PLANTILLA DE REUNIÓN
   const aplicarPlantillaReunion = () => {
       if(!templateData.fechaReunion || !templateData.horaReunion) {
-          alert("Por favor, completá al menos la fecha y la hora.");
-          return;
+          alert("Completá fecha y hora."); return;
       }
-
-      // Convertir fecha de YYYY-MM-DD a formato legible (ej: 15/04/2026)
       const partesFecha = templateData.fechaReunion.split('-');
       const fechaLegible = `${partesFecha[2]}/${partesFecha[1]}/${partesFecha[0]}`;
-
-      const textoDestinatario = templateData.destinatario 
-          ? `Estimada familia de ${templateData.destinatario}:` 
-          : `Estimadas familias:`;
-
-      const cuerpoMensaje = `${textoDestinatario}
-
-Por medio de la presente, nos comunicamos para citarlos a una reunión a fin de conversar sobre aspectos relacionados a la trayectoria escolar.
-
-La misma se llevará a cabo el día ${fechaLegible} a las ${templateData.horaReunion} hs.
-Modalidad: ${templateData.modalidad}.
-
-Agradecemos su compromiso y puntualidad.
-Por favor, confirmar asistencia.`;
-
-      setNotaData({
-          ...notaData,
-          title: 'CITACIÓN A REUNIÓN',
-          body: cuerpoMensaje,
-          textAlign: 'text-left' // Forzamos alineación izquierda para que quede prolijo
-      });
+      const textoDestinatario = templateData.destinatario ? `Estimada familia de ${templateData.destinatario}:` : `Estimadas familias:`;
+      const cuerpoMensaje = `${textoDestinatario}\n\nPor medio de la presente, nos comunicamos para citarlos a una reunión a fin de conversar sobre aspectos relacionados a la trayectoria escolar.\n\nLa misma se llevará a cabo el día ${fechaLegible} a las ${templateData.horaReunion} hs.\nModalidad: ${templateData.modalidad}.\n\nAgradecemos su compromiso y puntualidad.\nPor favor, confirmar asistencia.`;
+      setNotaData({ ...notaData, title: 'CITACIÓN A REUNIÓN', body: cuerpoMensaje, textAlign: 'text-left' });
       setShowTemplates(false);
   };
 
   return (
-    <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10">
-      <div className="flex justify-between items-center mb-6 px-2">
+    <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10 px-2">
+      <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-black text-violet-900 italic tracking-tighter uppercase">Recursos</h2>
         {canEdit && (
-          <button onClick={() => { setEditingRes(null); setShowModal(true); }} className="bg-orange-500 text-white p-2 rounded-xl shadow-lg hover:bg-orange-600 transition flex items-center gap-2">
-            <Plus size={20}/>
-            <span className="text-[10px] font-black uppercase pr-1">{folder ? 'Nuevo Doc' : 'Nueva Carpeta'}</span>
+          <button onClick={() => { setEditingRes(null); setShowModal(true); }} className="bg-orange-500 text-white p-2.5 rounded-xl shadow-lg hover:bg-orange-600 transition flex items-center gap-2 font-black text-[10px] uppercase">
+            <PlusCircle size={20}/> Nuevo Link
           </button>
         )}
       </div>
 
-      {!folder && (
-          <button onClick={() => setShowNotaModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-orange-400 p-6 rounded-3xl shadow-lg text-white flex items-center justify-between mb-6 group active:scale-95 transition-transform mx-2">
-              <div className="flex items-center gap-4">
-                  <div className="bg-white/20 p-3 rounded-2xl group-hover:rotate-12 transition-transform"><Edit3 size={32}/></div>
-                  <div className="text-left">
-                      <h3 className="font-black text-xl tracking-widest uppercase italic drop-shadow-md">Generador de Notas</h3>
-                      <p className="text-xs font-bold opacity-90 mt-1">Crear comunicados oficiales</p>
-                  </div>
+      {/* BOTÓN GENERADOR DE NOTAS */}
+      <button onClick={() => setShowNotaModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-orange-400 p-6 rounded-[35px] shadow-lg text-white flex items-center justify-between mb-8 group active:scale-95 transition-transform">
+          <div className="flex items-center gap-4">
+              <div className="bg-white/20 p-3 rounded-2xl group-hover:rotate-12 transition-transform"><Edit3 size={32}/></div>
+              <div className="text-left">
+                  <h3 className="font-black text-xl tracking-widest uppercase italic drop-shadow-md">Generador de Notas</h3>
+                  <p className="text-xs font-bold opacity-90 mt-1">Crear comunicados oficiales</p>
               </div>
-              <ChevronRight size={24} className="opacity-50"/>
-          </button>
-      )}
+          </div>
+          <ChevronRight size={24} className="opacity-50"/>
+      </button>
 
-      {!folder ? (
-        <div className="grid grid-cols-2 gap-4 pb-10 px-2">
-          {Object.keys(folders).map(name => (
-            <div key={name} className="relative group">
-              <div onClick={() => setFolder(name)} className="bg-white p-6 rounded-[35px] border border-violet-50 text-center cursor-pointer shadow-sm border-b-4 border-orange-500 transition-all hover:scale-105 h-full">
-                <div className="w-12 h-12 bg-violet-50 text-violet-200 rounded-2xl flex items-center justify-center mb-3 mx-auto shadow-inner"><Folder size={28} /></div>
-                <h3 className="font-black text-[10px] uppercase tracking-widest text-gray-700 leading-tight italic">{name}</h3>
-                <p className="text-[8px] font-bold text-gray-300 mt-2 uppercase tracking-[4px]">{folders[name].length} Docs</p>
-              </div>
+      {/* LISTADO DIRECTO */}
+      <div className="space-y-3">
+        <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[4px] ml-2 mb-2">Accesos Directos</h3>
+        {resources.map(r => (
+          <div key={r.id} className="bg-white p-4 rounded-[25px] border border-violet-50 flex justify-between items-center shadow-sm group hover:border-violet-200 transition-all">
+              <a href={r.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="w-10 h-10 bg-violet-50 text-violet-500 rounded-xl flex items-center justify-center shrink-0 shadow-inner group-hover:bg-violet-600 group-hover:text-white transition-colors">
+                    <ExternalLink size={20} />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-black text-xs text-gray-700 uppercase italic truncate">{r.title}</span>
+                    <span className="text-[9px] font-bold text-gray-300 uppercase">Abrir Recurso</span>
+                  </div>
+              </a>
               {canEdit && (
-                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                   <button onClick={(e) => { e.stopPropagation(); handleEditFolderName(name); }} className="p-2 bg-white/90 rounded-full shadow-sm text-gray-400 hover:text-orange-500 transition-colors"><Edit3 size={12}/></button>
-                   <button onClick={(e) => { e.stopPropagation(); handleDeleteFolder(name); }} className="p-2 bg-white/90 rounded-full shadow-sm text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={12}/></button>
+                <div className="flex gap-1 ml-2">
+                  <button onClick={() => { setEditingRes(r); setShowModal(true); }} className="p-2 text-gray-300 hover:text-orange-500"><Edit3 size={16}/></button>
+                  <button onClick={() => handleDeleteResource(r.id)} className="p-2 text-gray-300 hover:text-red-500"><Trash2 size={16}/></button>
                 </div>
               )}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="px-2">
-            <button onClick={() => setFolder(null)} className="mb-4 text-xs font-black text-violet-600 uppercase flex items-center gap-1 bg-violet-50 p-2 px-4 rounded-xl shadow-sm hover:bg-violet-100 transition"><ChevronLeft size={16}/> VOLVER</button>
-            <div className="grid gap-3 pb-20">
-            {folders[folder].map(r => (
-                <div key={r.id} className="bg-white p-4 rounded-[20px] border border-violet-50 flex justify-between items-center group shadow-sm">
-                    <a href={r.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 italic font-black text-xs text-gray-700 hover:text-violet-600 flex-1 min-w-0">
-                        <FileText size={18} className="text-violet-200 shrink-0" /> 
-                        <span className="truncate">{r.title}</span>
-                    </a>
-                    {canEdit && (
-                      <div className="flex gap-2">
-                        <button onClick={() => { setEditingRes(r); setShowModal(true); }} className="text-gray-300 hover:text-orange-500"><Edit3 size={16}/></button>
-                        <button onClick={() => handleDeleteResource(r.id)} className="text-gray-200 hover:text-red-500"><Trash2 size={16}/></button>
-                      </div>
-                    )}
-                </div>
-            ))}
-            </div>
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
 
+      {/* MODAL LINK */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[400] flex items-center justify-center p-4">
-          <form onSubmit={handleSaveResource} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-orange-500">
-            <h3 className="text-xl font-black text-violet-900 mb-6 uppercase italic">{editingRes ? 'Editar' : (folder ? `Nuevo en ${folder}` : 'Nueva Carpeta')}</h3>
+          <form onSubmit={handleSaveResource} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl border-t-8 border-orange-500">
+            <h3 className="text-xl font-black text-violet-900 mb-6 uppercase italic">{editingRes ? 'Editar Link' : 'Nuevo Link'}</h3>
             <div className="space-y-4">
-              <input name="title" defaultValue={editingRes?.title} placeholder="Título" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm border border-gray-100" required />
-              <input name="url" defaultValue={editingRes?.url} placeholder="Link" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm border border-gray-100" required />
-              {!folder && <input name="category" defaultValue={editingRes?.category} placeholder="Carpeta" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm border border-orange-100" required />}
+              <input name="title" defaultValue={editingRes?.title} placeholder="Título del Botón" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm border" required />
+              <input name="url" defaultValue={editingRes?.url} placeholder="https://..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm border" required />
               <div className="flex gap-2 pt-4">
                 <button type="button" onClick={() => { setShowModal(false); setEditingRes(null); }} className="flex-1 py-4 font-black text-xs text-gray-400 uppercase">Cancelar</button>
-                <button type="submit" className="flex-[2] py-4 bg-orange-500 text-white rounded-2xl font-black text-xs uppercase shadow-lg hover:bg-orange-600 transition">Guardar</button>
+                <button type="submit" className="flex-[2] py-4 bg-orange-500 text-white rounded-2xl font-black text-xs uppercase">Guardar</button>
               </div>
             </div>
           </form>
         </div>
       )}
-
       {showNotaModal && (
         <div className="fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-0 md:p-4 backdrop-blur-md" onClick={() => setShowNotaModal(false)}>
           <div className="bg-white rounded-t-[40px] md:rounded-[40px] w-full max-w-7xl flex flex-col h-[98vh] md:h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
