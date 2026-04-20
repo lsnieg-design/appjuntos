@@ -946,7 +946,7 @@ function ResourcesView({ resources, canEdit }) {
       setShowTemplates(false);
   };
 
-  return (
+ return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10 px-2">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-black text-violet-900 italic tracking-tighter uppercase">Recursos</h2>
@@ -969,28 +969,31 @@ function ResourcesView({ resources, canEdit }) {
           <ChevronRight size={24} className="opacity-50"/>
       </button>
 
-      {/* LISTADO DIRECTO */}
+      {/* LISTADO EN DOS COLUMNAS PARA PC */}
       <div className="space-y-3">
         <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[4px] ml-2 mb-2">Accesos Directos</h3>
-        {resources.map(r => (
-          <div key={r.id} className="bg-white p-4 rounded-[25px] border border-violet-50 flex justify-between items-center shadow-sm group hover:border-violet-200 transition-all">
-              <a href={r.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className="w-10 h-10 bg-violet-50 text-violet-500 rounded-xl flex items-center justify-center shrink-0 shadow-inner group-hover:bg-violet-600 group-hover:text-white transition-colors">
-                    <ExternalLink size={20} />
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {resources.map(r => (
+            <div key={r.id} className="bg-white p-4 rounded-[30px] border border-violet-50 flex flex-col justify-between shadow-sm group hover:border-violet-200 hover:shadow-md transition-all relative overflow-hidden h-32">
+                <a href={r.url} target="_blank" rel="noopener noreferrer" className="h-full flex flex-col justify-center">
+                    <div className="w-10 h-10 bg-violet-50 text-violet-500 rounded-xl flex items-center justify-center shrink-0 mb-2 group-hover:bg-violet-600 group-hover:text-white transition-colors">
+                      <ExternalLink size={20} />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-black text-xs text-gray-700 uppercase italic leading-tight line-clamp-2">{r.title}</span>
+                    </div>
+                </a>
+
+                {canEdit && (
+                  <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={(e) => { e.preventDefault(); setEditingRes(r); setShowModal(true); }} className="p-2 bg-white/90 rounded-full shadow-sm text-gray-400 hover:text-orange-500"><Edit3 size={14}/></button>
+                    <button onClick={(e) => { e.preventDefault(); handleDeleteResource(r.id); }} className="p-2 bg-white/90 rounded-full shadow-sm text-gray-400 hover:text-red-500"><Trash2 size={14}/></button>
                   </div>
-                  <div className="flex flex-col">
-                    <span className="font-black text-xs text-gray-700 uppercase italic truncate">{r.title}</span>
-                    <span className="text-[9px] font-bold text-gray-300 uppercase">Abrir Recurso</span>
-                  </div>
-              </a>
-              {canEdit && (
-                <div className="flex gap-1 ml-2">
-                  <button onClick={() => { setEditingRes(r); setShowModal(true); }} className="p-2 text-gray-300 hover:text-orange-500"><Edit3 size={16}/></button>
-                  <button onClick={() => handleDeleteResource(r.id)} className="p-2 text-gray-300 hover:text-red-500"><Trash2 size={16}/></button>
-                </div>
-              )}
-          </div>
-        ))}
+                )}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* MODAL LINK */}
