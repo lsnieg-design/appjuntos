@@ -521,7 +521,7 @@ useEffect(() => {
   const toggleNote = async (note) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', note.id), { done: !note.done });
   const deleteNote = async (id) => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', id));
   
-  const handleSaveCountdown = async () => {
+const handleSaveCountdown = async () => {
       if(!newCountdownTitle || !newCountdownDate) return;
       try {
           if (countdownDocId) { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', countdownDocId), { title: newCountdownTitle, date: newCountdownDate }); }
@@ -530,7 +530,7 @@ useEffect(() => {
       } catch (err) { alert(err.message); }
   };
 
-const checkChallenge = async (e) => {
+  const checkChallenge = async (e) => {
     if (e) e.preventDefault();
     if (!challengeAnswer || !currentChallenge.url || !user) return;
 
@@ -546,24 +546,36 @@ const checkChallenge = async (e) => {
       const cleanCorrect = normalizar(currentChallenge.answer);
       
       if (cleanUser === cleanCorrect) {
+        // Marcamos éxito local
         localStorage.setItem(`lastChallenge_${user.id}`, new Date().toDateString());
-        setShowChallengeSuccess(true);
         
+        // Referencia a la base de datos
         const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+        
+        // PARCHE 100+ : Forzamos que sea número y sumamos
+        const currentScore = Number(userScore) || 0;
+        const newScore = currentScore + 10;
+
         await updateDoc(userRef, { 
-            score: increment(10), 
+            score: newScore,
             lastWin: serverTimestamp() 
         });
         
+        // Actualización de estados visuales
+        setUserScore(newScore);
+        setShowChallengeSuccess(true);
         setChallengeAnswer('');
+        
         setTimeout(() => setShowChallengeSuccess(false), 4000);
       } else { 
         alert("🤔 ¡Casi! Intentá de nuevo. Revisá si es un número o palabra."); 
       }
     } catch (err) { 
-      console.error("Error validando:", err); 
+      console.error("Error validando desafío:", err);
+      alert("Error al guardar puntos. Reintentá.");
     }
   };
+
   const resetAllScores = async () => {
     if (!isSuperAdmin) return;
     if (!confirm("⚠️ ¿Estás segura? Esto pondrá los puntos de TODO EL PERSONAL en 0.")) return;
@@ -577,12 +589,14 @@ const checkChallenge = async (e) => {
   };
 
   const visibleAnnouncements = announcements.filter(a => isSuperAdmin || a.authorId === user.id || !a.channel || a.channel === 'general' || (a.channel === 'inclusion' && isInclusionStaff) || (a.channel === 'sede' && isSedeStaff));
-const resetMyDailyChallenge = () => {
+  
+  const resetMyDailyChallenge = () => {
     localStorage.removeItem(`lastChallenge_${user.id}`);
     setShowChallengeSuccess(false);
     setChallengeAnswer('');
     alert("🔄 Participación diaria reseteada. ¡Podés volver a jugar!");
   };
+
   return (
     <div className="space-y-4 animate-in fade-in pb-10">
            
