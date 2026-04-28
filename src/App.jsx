@@ -1289,7 +1289,8 @@ function TasksView({ tasks = [], user, canEdit }) {
     return { text: `Faltan ${days} días`, color: "bg-green-50 text-green-700" };
   };
 
-  const handleSaveTask = async (e) => {
+ // BUSCÁ ESTA LÍNEA (alrededor de la 1320):
+const handleSaveTask = async (e) => {  // <--- ASEGURATE QUE DIGA "async" AQUÍ
     e.preventDefault();
     if (!db || !appId) return alert("Error: DB no lista");
     const fd = new FormData(e.target);
@@ -1313,17 +1314,16 @@ function TasksView({ tasks = [], user, canEdit }) {
           ...taskData, createdByName: user.firstName || user.fullName || 'Directivo', createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: []
         });
 
-        // --- PARCHE PUNTOS MAYO ---
+        // --- LÓGICA DE PUNTOS DE MAYO (La que causaba el error) ---
         if (new Date() >= new Date('2026-05-01')) {
             const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
             await updateDoc(userRef, { score: increment(5) });
         }
-        // --------------------------
       }
       setShowModal(false); setEditingTask(null); setSelectedUsersObj([]); setSelectedRoles([]);
       alert("✅ Tarea guardada");
     } catch (err) { alert("Error al guardar: " + err.message); }
-  };
+};
 
     try {
       if (editingTask && editingTask.id) {
