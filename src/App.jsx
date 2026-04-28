@@ -1325,17 +1325,7 @@ const handleSaveTask = async (e) => {  // <--- ASEGURATE QUE DIGA "async" AQUÍ
     } catch (err) { alert("Error al guardar: " + err.message); }
 };
 
-    try {
-      if (editingTask && editingTask.id) {
-        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData);
-      } else {
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), {
-          ...taskData, createdByName: user.firstName || user.fullName || 'Directivo', createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: []
-        });
-      }
-      setShowModal(false); setEditingTask(null); setSelectedUsersObj([]); setSelectedRoles([]);
-    } catch (err) { alert("Error al guardar: " + err.message); }
-  };
+   
 
   const toggleUserSelection = (u) => {
     if (selectedUsersObj.some(sel => sel.id === u.id)) setSelectedUsersObj(prev => prev.filter(sel => sel.id !== u.id));
