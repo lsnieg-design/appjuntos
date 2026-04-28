@@ -6488,14 +6488,7 @@ function MedicalView({ user }) {
       
       const updatedEvos = [...(selectedStudent.medicalEvolutions || []), newEvo];
       
-      try {
-          setSaving(true);
-          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', selectedStudent.id), { medicalEvolutions: updatedEvos });
-          setSelectedStudent({ ...selectedStudent, medicalEvolutions: updatedEvos });
-          setShowEvoForm(false);
-      } catch (err) { alert("Error al guardar evolución: " + err.message); }
-      finally { setSaving(false); }
-  };
+      
 
   const handleDeleteEvolution = async (evoId) => {
       if (!confirm("¿Seguro que querés eliminar este registro clínico?")) return;
