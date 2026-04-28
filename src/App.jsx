@@ -596,7 +596,97 @@ const handleSaveCountdown = async () => {
     setChallengeAnswer('');
     alert("🔄 Participación diaria reseteada. ¡Podés volver a jugar!");
   };
+// --- LÓGICA DE MAYO PROGRAMADA ---
+  const renderChallengeOrIncentives = () => {
+    // Detectamos si ya es 1 de Mayo de 2026
+    const hoy = new Date();
+    const fechaCambio = new Date('2026-05-01T00:00:00');
+    const isMayo = hoy >= fechaCambio;
 
+    if (!isMayo) {
+      // HASTA MAYO: Muestra exactamente lo que tenés ahora
+      return (
+        <div className="bg-gradient-to-br from-emerald-400 to-teal-500 p-5 rounded-[30px] shadow-md text-white relative overflow-hidden">
+          <div className="absolute -right-4 -top-4 opacity-10"><Crown size={120}/></div>
+          <div className="flex justify-between items-start mb-2 relative z-10">
+              <div className="flex-1 pr-4">
+                  <div className="flex items-center gap-2">
+                      <h3 className="text-[10px] font-black text-emerald-100 uppercase tracking-widest flex items-center gap-1">✨ Desafío del Día</h3>
+                      {!isGameOver && !currentChallenge.isRestDay && (
+                        <span className="bg-black/20 px-2 py-0.5 rounded-lg text-[9px] font-mono font-bold animate-pulse">⏳ Cierra en: {timeLeft}</span>
+                      )}
+                  </div>
+                  {currentChallenge.isRestDay ? (
+                      <p className="font-bold text-white text-sm mt-2">⏳ {currentChallenge.q}</p>
+                  ) : (
+                      <div className="mt-3 rounded-2xl overflow-hidden border-2 border-white/20 bg-white/10 shadow-inner">
+                          {currentChallenge.url ? <img src={currentChallenge.url} alt="Desafío" className="w-full h-auto object-contain max-h-48 mx-auto" /> : <div className="p-10 text-center text-xs animate-pulse opacity-50">Cargando desafío...</div>}
+                      </div>
+                  )}
+              </div>
+              <div className="bg-white/20 p-2 rounded-xl text-center min-w-[60px] cursor-pointer hover:bg-white/30 transition shadow-inner relative z-50" onClick={() => setShowRanking(true)}>
+                  <div className="text-yellow-400 flex justify-center"><Trophy size={28} /></div>
+                  <span className="block text-[7px] font-bold uppercase mt-1">Ranking</span>
+              </div>
+          </div>
+          {!currentChallenge.isRestDay && (
+            <div className="mt-4 relative z-10">
+              {isGameOver ? (
+                <div className="bg-white/20 p-4 rounded-xl border border-white/30 text-center">
+                  <p className="text-[9px] uppercase font-black opacity-70">El tiempo terminó. La respuesta era:</p>
+                  <p className="text-lg font-black tracking-widest uppercase italic">✨ {currentChallenge.answer} ✨</p>
+                </div>
+              ) : localStorage.getItem(`lastChallenge_${user.id}`) === hoy.toDateString() && !showChallengeSuccess ? (
+                <div className="bg-white/20 p-3 rounded-xl border border-white/30 text-center italic"><p className="text-xs font-black">🚫 ¡Ya sumaste tus puntos de hoy! 😉</p></div>
+              ) : showChallengeSuccess ? (
+                <div className="bg-white/20 p-3 rounded-xl text-center animate-bounce border-2 border-white"><p className="font-black text-sm text-white">🎉 ¡Correcto! Sumaste 10 pts.</p></div>
+              ) : (
+                <form onSubmit={checkChallenge} className="flex gap-2">
+                  <input value={challengeAnswer} onChange={e => setChallengeAnswer(e.target.value)} placeholder="¿Qué ves?..." className="flex-1 bg-white/20 text-white placeholder-emerald-100 border border-white/30 p-2.5 rounded-xl outline-none font-bold text-xs focus:bg-white/40 transition-all"/>
+                  <button type="submit" className="bg-white text-emerald-600 font-black px-4 rounded-xl text-xs uppercase shadow-lg hover:scale-105 active:scale-95 transition-all">Jugar</button>
+                </form>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    } else {
+      // A PARTIR DE MAYO: Nuevo Plan de Recompensas
+      return (
+        <div className="bg-gradient-to-br from-indigo-600 to-violet-700 p-6 rounded-[35px] shadow-xl text-white relative overflow-hidden border-b-4 border-indigo-900">
+          <div className="absolute -right-6 -bottom-6 opacity-10"><Activity size={150}/></div>
+          <div className="flex justify-between items-center mb-5">
+              <div>
+                  <h3 className="text-xl font-black italic uppercase tracking-tighter">Plan de Mayo 🚀</h3>
+                  <p className="text-[9px] font-bold text-indigo-200 uppercase tracking-[2px]">¡Sumá puntos por tu trabajo diario!</p>
+              </div>
+              <div className="bg-white/10 p-3 rounded-2xl text-center cursor-pointer border border-white/20 hover:bg-white/20 transition" onClick={() => setShowRanking(true)}>
+                  <Trophy size={24} className="text-yellow-400 mx-auto" />
+                  <span className="block text-[8px] font-black uppercase mt-1">Ranking</span>
+              </div>
+          </div>
+          <div className="grid grid-cols-1 gap-2 relative z-10">
+              <div className="bg-white/10 p-3 rounded-2xl flex justify-between items-center border border-white/5">
+                  <div className="flex items-center gap-3"><div className="bg-emerald-400 p-1.5 rounded-lg"><Zap size={14}/></div><span className="text-[11px] font-bold">Bitácora Express o Médica</span></div>
+                  <span className="bg-white text-indigo-700 px-2 py-0.5 rounded-md font-black text-[10px]">+10 pts</span>
+              </div>
+              <div className="bg-white/10 p-3 rounded-2xl flex justify-between items-center border border-white/5">
+                  <div className="flex items-center gap-3"><div className="bg-orange-400 p-1.5 rounded-lg"><AlertTriangle size={14}/></div><span className="text-[11px] font-bold">Derivar Caso Social o Ausencia</span></div>
+                  <span className="bg-white text-indigo-700 px-2 py-0.5 rounded-md font-black text-[10px]">+15 pts</span>
+              </div>
+              <div className="bg-white/10 p-3 rounded-2xl flex justify-between items-center border border-white/5">
+                  <div className="flex items-center gap-3"><div className="bg-blue-400 p-1.5 rounded-lg"><CheckCircle2 size={14}/></div><span className="text-[11px] font-bold">Crear / Responder Tareas</span></div>
+                  <span className="bg-white text-indigo-700 px-2 py-0.5 rounded-md font-black text-[10px]">+5 pts</span>
+              </div>
+          </div>
+          <div className="mt-4 bg-orange-500 p-3 rounded-2xl flex items-center justify-between shadow-lg">
+              <div className="flex items-center gap-2"><Crown size={18}/><span className="text-xs font-black uppercase italic">Viernes: Desafío Plus</span></div>
+              <span className="font-black text-sm">🔥 +50 PTS</span>
+          </div>
+        </div>
+      );
+    }
+  };
   return (
     <div className="space-y-4 animate-in fade-in pb-10">
            
@@ -643,72 +733,8 @@ const handleSaveCountdown = async () => {
           )}
       </div>
 
-{/* BLOQUE DESAFÍO VISUAL CON CORTE A LAS 19HS */}
-      <div className="bg-gradient-to-br from-emerald-400 to-teal-500 p-5 rounded-[30px] shadow-md text-white relative overflow-hidden">
-          <div className="absolute -right-4 -top-4 opacity-10"><Crown size={120}/></div>
-          
-          <div className="flex justify-between items-start mb-2 relative z-10">
-              <div className="flex-1 pr-4">
-                  <div className="flex items-center gap-2">
-                      <h3 className="text-[10px] font-black text-emerald-100 uppercase tracking-widest flex items-center gap-1">✨ Desafío del Día</h3>
-                      {/* CUENTA REGRESIVA AL LADO DEL TÍTULO */}
-                      {!isGameOver && !currentChallenge.isRestDay && (
-                        <span className="bg-black/20 px-2 py-0.5 rounded-lg text-[9px] font-mono font-bold animate-pulse">
-                          ⏳ Cierra en: {timeLeft}
-                        </span>
-                      )}
-                  </div>
-
-                  {currentChallenge.isRestDay ? (
-                      <p className="font-bold text-white text-sm mt-2">⏳ {currentChallenge.q}</p>
-                  ) : (
-                      <div className="mt-3 rounded-2xl overflow-hidden border-2 border-white/20 bg-white/10 shadow-inner">
-                          {currentChallenge.url ? (
-                              <img src={currentChallenge.url} alt="Desafío" className="w-full h-auto object-contain max-h-48 mx-auto" />
-                          ) : (
-                              <div className="p-10 text-center text-xs animate-pulse opacity-50">Cargando desafío...</div>
-                          )}
-                      </div>
-                  )}
-              </div>
-
-              <div className="bg-white/20 p-2 rounded-xl text-center min-w-[60px] cursor-pointer hover:bg-white/30 transition shadow-inner relative z-50" onClick={() => setShowRanking(true)}>
-                  <div className="text-yellow-400 flex justify-center"><Trophy size={28} /></div>
-                  <span className="block text-[7px] font-bold uppercase mt-1">Ranking</span>
-              </div>
-          </div>
-          
-          {!currentChallenge.isRestDay && (
-            <div className="mt-4 relative z-10">
-              {/* CASO 1: YA PASARON LAS 19HS (MUESTRA RESPUESTA) */}
-              {isGameOver ? (
-                <div className="bg-white/20 p-4 rounded-xl border border-white/30 text-center">
-                  <p className="text-[9px] uppercase font-black opacity-70">El tiempo terminó. La respuesta era:</p>
-                  <p className="text-lg font-black tracking-widest uppercase italic">✨ {currentChallenge.answer} ✨</p>
-                  <p className="text-[8px] mt-2 italic opacity-60">¡Mañana hay un nuevo desafío!</p>
-                </div>
-              ) : 
-              /* CASO 2: YA PARTICIPÓ HOY */
-              localStorage.getItem(`lastChallenge_${user.id}`) === new Date().toDateString() && !showChallengeSuccess ? (
-                <div className="bg-white/20 p-3 rounded-xl border border-white/30 text-center italic">
-                  <p className="text-xs font-black">🚫 ¡Ya sumaste tus puntos de hoy! Volvé mañana. 😉</p>
-                </div>
-              ) : 
-              /* CASO 3: GANÓ RECIÉN */
-              showChallengeSuccess ? (
-                <div className="bg-white/20 p-3 rounded-xl text-center animate-bounce border-2 border-white">
-                  <p className="font-black text-sm text-white">🎉 ¡Correcto! Sumaste 10 pts.</p>
-                </div>
-              ) : (
-                /* CASO 4: FORMULARIO ACTIVO */
-                <form onSubmit={checkChallenge} className="flex gap-2">
-                  <input value={challengeAnswer} onChange={e => setChallengeAnswer(e.target.value)} placeholder="¿Qué ves?..." className="flex-1 bg-white/20 text-white placeholder-emerald-100 border border-white/30 p-2.5 rounded-xl outline-none font-bold text-xs focus:bg-white/40 transition-all"/>
-                  <button type="submit" className="bg-white text-emerald-600 font-black px-4 rounded-xl text-xs uppercase shadow-lg hover:scale-105 active:scale-95 transition-all">Jugar</button>
-                </form>
-              )}
-            </div>
-          )}
-      </div>
+{/* {/* LÓGICA DINÁMICA: DESAFÍO O PLAN DE MAYO */}
+      {renderChallengeOrIncentives()}
       
       {/* CARTELERA */}
       {visibleAnnouncements.length > 0 && (<div className="bg-yellow-100 p-5 rounded-[30px] border-2 border-yellow-200 shadow-sm relative"><h3 className="text-[10px] font-black text-yellow-700 uppercase mb-3 flex items-center gap-1"><Bell size={12}/> Cartelera Oficial</h3><div className="space-y-3">{visibleAnnouncements.map(a => (<div key={a.id} className="bg-white/80 p-3 rounded-2xl border border-yellow-200/50 text-sm text-gray-800 flex justify-between items-start"><div><p className="italic font-medium">"{a.message}"</p><p className="text-[9px] text-yellow-600 font-bold mt-1 uppercase">- {a.author}</p></div>{(canPost || a.authorId === user.id) && (<button onClick={() => deleteAnnouncement(a.id)} className="text-yellow-600 hover:text-red-500 p-1 bg-yellow-50 rounded-lg transition"><Trash2 size={14}/></button>)}</div>))}</div></div>)}
@@ -1286,6 +1312,26 @@ function TasksView({ tasks = [], user, canEdit }) {
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), {
           ...taskData, createdByName: user.firstName || user.fullName || 'Directivo', createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: []
         });
+
+        // --- PARCHE PUNTOS MAYO ---
+        if (new Date() >= new Date('2026-05-01')) {
+            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+            await updateDoc(userRef, { score: increment(5) });
+        }
+        // --------------------------
+      }
+      setShowModal(false); setEditingTask(null); setSelectedUsersObj([]); setSelectedRoles([]);
+      alert("✅ Tarea guardada");
+    } catch (err) { alert("Error al guardar: " + err.message); }
+  };
+
+    try {
+      if (editingTask && editingTask.id) {
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData);
+      } else {
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), {
+          ...taskData, createdByName: user.firstName || user.fullName || 'Directivo', createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: []
+        });
       }
       setShowModal(false); setEditingTask(null); setSelectedUsersObj([]); setSelectedRoles([]);
     } catch (err) { alert("Error al guardar: " + err.message); }
@@ -1297,7 +1343,7 @@ function TasksView({ tasks = [], user, canEdit }) {
     setUserSearch(""); 
   };
 
-  const handleAddComment = async (taskId, comments = []) => {
+ const handleAddComment = async (taskId, comments = []) => {
     if (!newComment.trim()) return;
     const comment = {
       id: Date.now().toString(),
@@ -1309,7 +1355,16 @@ function TasksView({ tasks = [], user, canEdit }) {
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId), {
         comments: [...(comments || []), comment]
       });
+
+      // --- PARCHE PUNTOS MAYO ---
+      if (new Date() >= new Date('2026-05-01')) {
+          const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+          await updateDoc(userRef, { score: increment(5) });
+      }
+      // --------------------------
+
       setNewComment("");
+      alert("💬 Respuesta enviada (+5 pts)");
     } catch (err) { alert(err.message); }
   };
 
@@ -2761,20 +2816,29 @@ const filteredStudents = students.filter(s => {
   
   // --- FIX BITÁCORA (BOTONES Y TEXTO) ---
   const addIncident = async (type, text = "") => { 
-      if (!viewingStudent) return; 
-      const newInc = { 
-          date: new Date().toISOString(), 
-          type: text ? "Nota" : type, 
-          severity: type, 
-          text: text || type, 
-          author: user.firstName 
-      }; 
-      try { 
-          const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', viewingStudent.id); 
-          await updateDoc(studentRef, { incidents: arrayUnion(newInc) }); 
-          setViewingStudent(prev => ({...prev, incidents: [...(prev.incidents || []), newInc]})); 
-          setNewNote(""); setIsWriting(false); 
-      } catch (e) { alert("Error: " + e.message); } 
+    if (!showBitacoraModal) return; 
+    const newInc = { 
+        date: new Date().toISOString(), 
+        type: text ? "Nota" : type, 
+        severity: type, 
+        text: text || type, 
+        author: user.firstName 
+    }; 
+    try { 
+        const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id); 
+        await updateDoc(studentRef, { incidents: arrayUnion(newInc) }); 
+
+        // --- PARCHE PUNTOS MAYO ---
+        if (new Date() >= new Date('2026-05-01')) {
+            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+            await updateDoc(userRef, { score: increment(10) });
+        }
+        // --------------------------
+
+        setStudents(prev => prev.map(s => s.id === showBitacoraModal.id ? {...s, incidents: [...(s.incidents||[]), newInc]} : s)); 
+        setNewNote(""); setIsWriting(false); setShowBitacoraModal(null); 
+        alert("✅ Registro guardado (+10 pts)"); 
+    } catch (e) { alert(e.message); } 
   };
   
 const handleSaveIncident = async (type, severity) => { 
@@ -4018,18 +4082,28 @@ function SocialView({ user }) {
     }));
   };
 
-  const handleAddComment = async (caseId) => {
+ const handleAddComment = async (caseId) => {
     const text = newComment[caseId];
     if (!text || !text.trim()) return;
     const userFullName = user.fullName || `${user.firstName} ${user.lastName}`;
     const entry = { date: new Date().toISOString(), text: text.trim(), author: userFullName };
     try {
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', caseId), { history: arrayUnion(entry) });
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', caseId), { 
+        history: arrayUnion(entry) 
+      });
+
+      // --- PARCHE PUNTOS MAYO ---
+      if (new Date() >= new Date('2026-05-01')) {
+          const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+          await updateDoc(userRef, { score: increment(10) });
+      }
+      // --------------------------
+
       if (selectedCase && selectedCase.id === caseId) {
         setSelectedCase(prev => ({ ...prev, history: [...(prev.history || []), entry] }));
       }
       setNewComment({ ...newComment, [caseId]: "" });
-      localStorage.setItem(`lastSeenSocial_${caseId}_${user.id}`, (selectedCase.history?.length || 0) + 1);
+      alert("💬 Comentario registrado (+10 pts)");
     } catch (error) {
       alert("No se pudo enviar el mensaje.");
     }
@@ -4812,7 +4886,7 @@ const handleReportAbsenteeism = async () => {
               group: turn === 'morning' ? selectedStudent.groupMorning : selectedStudent.groupAfternoon,
               reason: details,
               reportedBy: user.firstName,
-              status: 'Pendiente', // Pendiente, En Proceso, Reincorporado
+              status: 'Pendiente',
               steps: {
                   llamada: { done: false, date: null, obs: '' },
                   continuidad: { sent: false, date: null },
@@ -4824,12 +4898,44 @@ const handleReportAbsenteeism = async () => {
           };
           
           await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'), caseData);
-          alert("✅ Caso derivado a Trabajo Social.");
-          setActiveTab('social'); // Redirige a la nueva sección
+
+          // --- PARCHE PUNTOS MAYO ---
+          if (new Date() >= new Date('2026-05-01')) {
+              const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+              await updateDoc(userRef, { score: increment(15) });
+          }
+          // --------------------------
+
+          alert("✅ Caso derivado a Trabajo Social (+15 pts).");
+          setActiveTab('social'); 
       } catch (e) { alert("Error: " + e.message); }
   };
 
-  const addIncident = async (type, text = "") => { if (!showBitacoraModal) return; const newInc = { date: new Date().toISOString(), type: text ? "Nota" : type, severity: type, text: text || type, author: user.firstName }; try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id), { incidents: arrayUnion(newInc) }); setStudents(prev => prev.map(s => s.id === showBitacoraModal.id ? {...s, incidents: [...(s.incidents||[]), newInc]} : s)); setNewNote(""); setIsWriting(false); setShowBitacoraModal(null); alert("✅ Guardado."); } catch (e) { alert(e.message); } };
+ const addIncident = async (type, text = "") => { 
+    if (!showBitacoraModal) return; 
+    const newInc = { 
+        date: new Date().toISOString(), 
+        type: text ? "Nota" : type, 
+        severity: type, 
+        text: text || type, 
+        author: user.firstName 
+    }; 
+    try { 
+        const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id); 
+        await updateDoc(studentRef, { incidents: arrayUnion(newInc) }); 
+
+        // --- PARCHE PUNTOS MAYO ---
+        if (new Date() >= new Date('2026-05-01')) {
+            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+            await updateDoc(userRef, { score: increment(10) });
+        }
+        // --------------------------
+
+        setStudents(prev => prev.map(s => s.id === showBitacoraModal.id ? {...s, incidents: [...(s.incidents||[]), newInc]} : s)); 
+        setNewNote(""); setIsWriting(false); setShowBitacoraModal(null); 
+        alert("✅ Registro guardado (+10 pts)"); 
+    } catch (e) { alert(e.message); } 
+  };
   const handleSaveIncident = async (type, severity) => { if (!showBitacoraModal) return; setSavingIncident(true); try { const incidentData = { type, severity, date: new Date().toISOString(), author: user.fullName || user.firstName, authorId: user.id }; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id), { incidents: arrayUnion(incidentData) }); alert("✅ Registro guardado"); setShowBitacoraModal(null); } catch (e) { console.error(e); } finally { setSavingIncident(false); } };
   const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
 
@@ -6361,7 +6467,6 @@ function MedicalView({ user }) {
       const fd = new FormData(e.target);
       const text = fd.get('text');
       const date = fd.get('date');
-
       if (!text.trim()) return;
 
       const newEvo = {
@@ -6370,6 +6475,26 @@ function MedicalView({ user }) {
           text: text.trim(),
           author: user.firstName + (user.lastName ? ' ' + user.lastName : '')
       };
+      
+      try {
+          setSaving(true);
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', selectedStudent.id), { 
+            medicalEvolutions: arrayUnion(newEvo) 
+          });
+
+          // --- PARCHE PUNTOS MAYO ---
+          if (new Date() >= new Date('2026-05-01')) {
+              const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+              await updateDoc(userRef, { score: increment(10) });
+          }
+          // --------------------------
+
+          setSelectedStudent({ ...selectedStudent, medicalEvolutions: [...(selectedStudent.medicalEvolutions || []), newEvo] });
+          setShowEvoForm(false);
+          alert("📋 Evolución médica guardada (+10 pts)");
+      } catch (err) { alert("Error: " + err.message); }
+      finally { setSaving(false); }
+  };
       
       const updatedEvos = [...(selectedStudent.medicalEvolutions || []), newEvo];
       
