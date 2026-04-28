@@ -508,10 +508,20 @@ useEffect(() => {
     e.preventDefault(); 
     const msg = e.target.message.value;
     const chan = e.target.channel.value;
+    const sDate = e.target.showDate.value;
+    const sTime = e.target.showTime.value;
+    
     if (!msg.trim()) return;
     try { 
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), { 
-        message: msg, author: user.fullName || `${user.firstName} ${user.lastName}`, authorId: user.id, role: user.role || user.rol, channel: chan, createdAt: serverTimestamp() 
+        message: msg, 
+        author: user.fullName || `${user.firstName} ${user.lastName}`, 
+        authorId: user.id, 
+        role: user.role || user.rol, 
+        channel: chan, 
+        showDate: sDate || todayStr,
+        showTime: sTime || "00:00",
+        createdAt: serverTimestamp() 
       }); 
       setShowAnnounceModal(false); 
     } catch(err) { alert("Error: " + err.message); } 
@@ -588,8 +598,17 @@ const handleSaveCountdown = async () => {
     } catch (err) { alert("Error técnico al resetear."); }
   };
 
-  const visibleAnnouncements = announcements.filter(a => isSuperAdmin || a.authorId === user.id || !a.channel || a.channel === 'general' || (a.channel === 'inclusion' && isInclusionStaff) || (a.channel === 'sede' && isSedeStaff));
-  
+ const visibleAnnouncements = announcements.filter(a => {
+    // Primero el filtro de permisos que ya tenías
+    const hasPermission = isSuperAdmin || a.authorId === user.id || !a.channel || a.channel === 'general' || (a.channel === 'inclusion' && isInclusionStaff) || (a.channel === 'sede' && isSedeStaff);
+    
+    // Segundo: Filtro de programación (Solo si ya pasó la fecha y hora)
+    const now = new Date();
+    const scheduleDate = new Date(`${a.showDate || '2000-01-01'}T${a.showTime || '00:00'}`);
+    const isReleased = now >= scheduleDate;
+
+    return hasPermission && isReleased;
+  });
   const resetMyDailyChallenge = () => {
     localStorage.removeItem(`lastChallenge_${user.id}`);
     setShowChallengeSuccess(false);
@@ -887,7 +906,6 @@ const handleSaveCountdown = async () => {
           </div>
       )}
 
-      {/* --- MODAL PARA CREAR AVISOS (UBICACIÓN CORRECTA) --- */}
       {showAnnounceModal && (
         <div className="fixed inset-0 bg-black/60 z-[500] flex items-center justify-center p-4 backdrop-blur-sm">
           <form onSubmit={handlePost} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-orange-500">
@@ -897,6 +915,17 @@ const handleSaveCountdown = async () => {
             </div>
             
             <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase ml-2 mb-1 block">¿Cuándo mostrar?</label>
+                  <input type="date" name="showDate" defaultValue={todayStr} className="w-full p-2 bg-gray-50 rounded-xl text-xs font-bold border-none outline-none focus:ring-2 ring-orange-200" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase ml-2 mb-1 block">Hora</label>
+                  <input type="time" name="showTime" defaultValue="08:00" className="w-full p-2 bg-gray-50 rounded-xl text-xs font-bold border-none outline-none focus:ring-2 ring-orange-200" />
+                </div>
+              </div>
+
               <div>
                 <label className="text-[10px] font-black text-gray-400 uppercase ml-2 mb-1 block">Canal de difusión</label>
                 <select name="channel" className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold border-none outline-none focus:ring-2 ring-orange-200">
