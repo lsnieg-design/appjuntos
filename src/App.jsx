@@ -6486,7 +6486,7 @@ function MedicalView({ user }) {
       finally { setSaving(false); }
   };
       
-      const updatedEvos = [...(selectedStudent.medicalEvolutions || []), newEvo];
+    const updatedEvos = [...(selectedStudent.medicalEvolutions || []), newEvo];
       
       
 
