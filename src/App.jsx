@@ -955,24 +955,23 @@ const handleSaveCountdown = async () => {
 } // Fin de la función
 
 
-// --- VISTA RECURSOS (VERSIÓN DEFINITIVA: MOBILE-FIRST + DESCARGA ESTABLE) ---
+// --- VISTA RECURSOS (VERSIÓN CELULAR OPTIMIZADA + PC ESTABLE) ---
 function ResourcesView({ resources, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [editingRes, setEditingRes] = useState(null); 
   const [showNotaModal, setShowNotaModal] = useState(false);
-  const [showMobilePreview, setShowMobilePreview] = useState(false);
+  const [showMobilePreview, setShowMobilePreview] = useState(false); // Estado para el botón de ojo
   
   const [notaData, setNotaData] = useState({ 
     date: new Date().toLocaleDateString('es-AR'), 
     title: '', body: '', signature: 'EQUIPO DIRECTIVO',
     fontSize: 'text-[14px]', textAlign: 'text-center',
-    isPrintMode: false 
+    wordSpacing: '0.12em', isPrintMode: false 
   });
 
   const [showTemplates, setShowTemplates] = useState(false);
   const [templateData, setTemplateData] = useState({
-      destinatario: '', fechaReunion: '', horaReunion: '',
-      modalidad: 'Presencial en la Institución'
+      destinatario: '', fechaReunion: '', horaReunion: '', modalidad: 'Presencial en la Institución'
   });
   
   const LOGO_SIN_FONDO = "/logosinfondo.png";
@@ -997,8 +996,7 @@ function ResourcesView({ resources, canEdit }) {
       if(!templateData.fechaReunion || !templateData.horaReunion) { alert("Completá fecha y hora."); return; }
       const partesFecha = templateData.fechaReunion.split('-');
       const fechaLegible = `${partesFecha[2]}/${partesFecha[1]}/${partesFecha[0]}`;
-      const textoDestinatario = templateData.destinatario ? `Estimada familia de ${templateData.destinatario}:` : `Estimadas familias:`;
-      const cuerpoMensaje = `${textoDestinatario}\n\nPor medio de la presente, nos comunicamos para citarlos a una reunión a fin de conversar sobre aspectos relacionados a la trayectoria escolar.\n\nLa misma se llevará a cabo el día ${fechaLegible} a las ${templateData.horaReunion} hs.\nModalidad: ${templateData.modalidad}.\n\nAgradecemos su compromiso y puntualidad.\nPor favor, confirmar asistencia.`;
+      const cuerpoMensaje = `${templateData.destinatario ? `Estimada familia de ${templateData.destinatario}:` : `Estimadas familias:`}\n\nPor medio de la presente, nos comunicamos para citarlos a una reunión a fin de conversar sobre aspectos relacionados a la trayectoria escolar.\n\nLa misma se llevará a cabo el día ${fechaLegible} a las ${templateData.horaReunion} hs.\nModalidad: ${templateData.modalidad}.\n\nAgradecemos su compromiso y puntualidad.\nPor favor, confirmar asistencia.`;
       setNotaData({ ...notaData, title: 'CITACIÓN A REUNIÓN', body: cuerpoMensaje, textAlign: 'text-left' });
       setShowTemplates(false);
   };
@@ -1008,16 +1006,14 @@ function ResourcesView({ resources, canEdit }) {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-black text-violet-900 italic tracking-tighter uppercase">Recursos</h2>
         {canEdit && (
-          <button onClick={() => { setEditingRes(null); setShowModal(true); }} className="bg-orange-500 text-white p-2.5 rounded-xl shadow-lg font-black text-[10px] uppercase">
-            <PlusCircle size={20}/> Nuevo Link
-          </button>
+          <button onClick={() => { setEditingRes(null); setShowModal(true); }} className="bg-orange-500 text-white p-2.5 rounded-xl shadow-lg font-black text-[10px] uppercase"><PlusCircle size={20}/> Nuevo Link</button>
         )}
       </div>
 
-      <button onClick={() => setShowNotaModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-orange-400 p-6 rounded-[35px] shadow-lg text-white flex items-center justify-between mb-8 group active:scale-95 transition-transform">
+      <button onClick={() => setShowNotaModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-orange-400 p-6 rounded-[35px] shadow-lg text-white flex items-center justify-between mb-8 active:scale-95 transition-transform">
           <div className="flex items-center gap-4">
-              <div className="bg-white/20 p-3 rounded-2xl group-hover:rotate-12 transition-transform"><Edit3 size={32}/></div>
-              <div className="text-left">
+              <div className="bg-white/20 p-3 rounded-2xl"><Edit3 size={32}/></div>
+              <div>
                   <h3 className="font-black text-xl tracking-widest uppercase italic">Generador de Notas</h3>
                   <p className="text-xs font-bold opacity-90 mt-1">Crear comunicados oficiales</p>
               </div>
@@ -1027,51 +1023,61 @@ function ResourcesView({ resources, canEdit }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {resources.map(r => (
-          <div key={r.id} className="bg-white p-4 rounded-[30px] border border-violet-50 flex flex-col justify-between shadow-sm h-32 relative group hover:border-violet-200 transition-all">
+          <div key={r.id} className="bg-white p-4 rounded-[30px] border border-violet-50 flex flex-col justify-between shadow-sm group h-32 relative">
               <a href={r.url} target="_blank" rel="noopener noreferrer" className="h-full flex flex-col justify-center">
-                  <div className="w-10 h-10 bg-violet-50 text-violet-500 rounded-xl flex items-center justify-center mb-2 group-hover:bg-violet-600 group-hover:text-white transition-colors">
-                    <ExternalLink size={20} />
-                  </div>
+                  <div className="w-10 h-10 bg-violet-50 text-violet-500 rounded-xl flex items-center justify-center mb-2"><ExternalLink size={20} /></div>
                   <span className="font-black text-xs text-gray-700 uppercase italic line-clamp-2">{r.title}</span>
               </a>
               {canEdit && (
                 <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => { setEditingRes(r); setShowModal(true); }} className="p-2 bg-white/90 rounded-full shadow-sm text-gray-400 hover:text-orange-500"><Edit3 size={14}/></button>
-                  <button onClick={() => handleDeleteResource(r.id)} className="p-2 bg-white/90 rounded-full shadow-sm text-gray-400 hover:text-red-500"><Trash2 size={14}/></button>
+                  <button onClick={() => { setEditingRes(r); setShowModal(true); }} className="p-2 bg-white/90 rounded-full text-gray-400"><Edit3 size={14}/></button>
+                  <button onClick={() => handleDeleteResource(r.id)} className="p-2 bg-white/90 rounded-full text-gray-400"><Trash2 size={14}/></button>
                 </div>
               )}
           </div>
         ))}
       </div>
 
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[400] flex items-center justify-center p-4">
+          <form onSubmit={handleSaveResource} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl border-t-8 border-orange-500">
+            <h3 className="text-xl font-black text-violet-900 mb-6 uppercase italic">Link</h3>
+            <div className="space-y-4">
+              <input name="title" defaultValue={editingRes?.title} placeholder="Título" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm border" required />
+              <input name="url" defaultValue={editingRes?.url} placeholder="https://..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm border" required />
+              <div className="flex gap-2 pt-4">
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-4 font-black text-xs text-gray-400">Cancelar</button>
+                <button type="submit" className="flex-[2] py-4 bg-orange-500 text-white rounded-2xl font-black text-xs">Guardar</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
+
       {showNotaModal && (
         <div className="fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-0 md:p-4 backdrop-blur-md" onClick={() => setShowNotaModal(false)}>
           <div className="bg-white rounded-t-[40px] md:rounded-[40px] w-full max-w-7xl flex flex-col h-[100dvh] md:h-[90vh] overflow-hidden relative" onClick={e => e.stopPropagation()}>
-            
-            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center shrink-0 bg-white z-10">
-              <h3 className="text-lg md:text-xl font-black text-violet-900 uppercase italic">Editor Institucional</h3>
-              <button onClick={() => setShowNotaModal(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20}/></button>
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white z-10">
+              <h3 className="text-xl font-black text-violet-900 uppercase italic">Editor</h3>
+              <button onClick={() => setShowNotaModal(false)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button>
             </div>
             
             <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
               <div className="flex-1 overflow-y-auto p-4 md:p-10 space-y-6 border-b lg:border-b-0 lg:border-r border-gray-50 custom-scrollbar">
-                <button onClick={() => setShowTemplates(!showTemplates)} className="w-full bg-blue-50 text-blue-700 py-4 rounded-2xl font-bold text-[10px] uppercase border border-blue-100 flex justify-center items-center gap-2">
-                  <List size={16}/> {showTemplates ? 'Cerrar Plantillas' : 'Usar Plantilla Reunión'}
-                </button>
-
+                <button onClick={() => setShowTemplates(!showTemplates)} className="w-full bg-blue-50 text-blue-700 py-3 rounded-xl font-bold text-xs uppercase border border-blue-200 flex justify-center items-center gap-2"><List size={16}/> {showTemplates ? 'Cerrar Plantillas' : 'Usar Plantilla'}</button>
                 {showTemplates && (
-                  <div className="bg-blue-50/50 p-4 rounded-3xl space-y-3 animate-in fade-in zoom-in-95">
-                    <input type="text" placeholder="Nombre estudiante..." value={templateData.destinatario} onChange={e => setTemplateData({...templateData, destinatario: e.target.value})} className="w-full p-3 bg-white rounded-xl outline-none font-bold text-sm border-0 shadow-sm" />
+                  <div className="bg-white p-4 rounded-2xl border border-blue-200 space-y-3 shadow-sm animate-in fade-in">
+                    <input type="text" placeholder="Estudiante..." value={templateData.destinatario} onChange={e => setTemplateData({...templateData, destinatario: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs border border-gray-200" />
                     <div className="grid grid-cols-2 gap-2">
-                      <input type="date" value={templateData.fechaReunion} onChange={e => setTemplateData({...templateData, fechaReunion: e.target.value})} className="p-3 bg-white rounded-xl text-sm border-0 shadow-sm" />
-                      <input type="time" value={templateData.horaReunion} onChange={e => setTemplateData({...templateData, horaReunion: e.target.value})} className="p-3 bg-white rounded-xl text-sm border-0 shadow-sm" />
+                      <input type="date" value={templateData.fechaReunion} onChange={e => setTemplateData({...templateData, fechaReunion: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg outline-none text-xs border border-gray-200" />
+                      <input type="time" value={templateData.horaReunion} onChange={e => setTemplateData({...templateData, horaReunion: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg outline-none text-xs border border-gray-200" />
                     </div>
-                    <button onClick={aplicarPlantillaReunion} className="w-full bg-blue-600 text-white py-3 rounded-xl font-black text-[10px] uppercase shadow-md">Aplicar</button>
+                    <button onClick={aplicarPlantillaReunion} className="w-full bg-blue-600 text-white py-2 rounded-xl font-black text-[10px] uppercase shadow-md">Aplicar Texto</button>
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="space-y-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Tamaño</span>
                     <div className="flex bg-gray-100 p-1 rounded-xl">
                       {[{l:'S', v:'text-[11px]'}, {l:'M', v:'text-[14px]'}, {l:'L', v:'text-[18px]'}].map(s => (
@@ -1079,36 +1085,24 @@ function ResourcesView({ resources, canEdit }) {
                       ))}
                     </div>
                   </div>
-                  <div className="space-y-1">
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Color</span>
+                  <div className="space-y-2">
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Modo</span>
                     <div className="flex bg-gray-100 p-1 rounded-xl">
-                      <button onClick={() => setNotaData({...notaData, isPrintMode: false})} className={`flex-1 py-2 rounded-lg text-[9px] font-black ${!notaData.isPrintMode ? 'bg-orange-500 text-white shadow-sm' : 'text-gray-400'}`}>COLOR</button>
-                      <button onClick={() => setNotaData({...notaData, isPrintMode: true})} className={`flex-1 py-2 rounded-lg text-[9px] font-black ${notaData.isPrintMode ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-400'}`}>B/N</button>
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Línea</span>
-                    <div className="flex bg-gray-100 p-1 rounded-xl gap-1">
-                      <button onClick={() => setNotaData({...notaData, textAlign: 'text-left'})} className={`flex-1 py-2 rounded-lg ${notaData.textAlign === 'text-left' ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-400'}`}><AlignLeft size={14} className="mx-auto"/></button>
-                      <button onClick={() => setNotaData({...notaData, textAlign: 'text-center'})} className={`flex-1 py-2 rounded-lg ${notaData.textAlign === 'text-center' ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-400'}`}><AlignCenter size={14} className="mx-auto"/></button>
-                      <button onClick={() => setNotaData({...notaData, textAlign: 'text-right'})} className={`flex-1 py-2 rounded-lg ${notaData.textAlign === 'text-right' ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-400'}`}><AlignRight size={14} className="mx-auto"/></button>
-                      <button onClick={() => setNotaData({...notaData, textAlign: 'text-justify'})} className={`flex-1 py-2 rounded-lg ${notaData.textAlign === 'text-justify' ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-400'}`}><AlignJustify size={14} className="mx-auto"/></button>
+                      <button onClick={() => setNotaData({...notaData, isPrintMode: false})} className={`flex-1 py-2 rounded-lg text-[10px] font-black ${!notaData.isPrintMode ? 'bg-orange-500 text-white shadow-sm' : 'text-gray-400'}`}>COLOR</button>
+                      <button onClick={() => setNotaData({...notaData, isPrintMode: true})} className={`flex-1 py-2 rounded-lg text-[10px] font-black ${notaData.isPrintMode ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-400'}`}>B/N</button>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  <input type="text" placeholder="TÍTULO NOTA" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-black uppercase text-gray-700 border-2 border-transparent focus:border-violet-200 shadow-inner" />
-                  <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Escribe tu comunicado aquí..." className="w-full p-4 bg-gray-50 rounded-[30px] outline-none text-sm min-h-[200px] lg:h-[300px] resize-none font-medium text-gray-600 shadow-inner" />
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[9px] font-black text-gray-400 uppercase ml-1 tracking-widest">Firma Responsable</label>
-                    <input type="text" value={notaData.signature} onChange={e => setNotaData({...notaData, signature: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-violet-700 text-sm border-2 border-transparent focus:border-violet-200" />
-                  </div>
+                  <input type="text" placeholder="TÍTULO" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-black uppercase text-gray-700 border-2 border-transparent focus:border-violet-200" />
+                  <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Escribe aquí..." className="w-full p-4 bg-gray-50 rounded-[30px] outline-none text-sm min-h-[150px] lg:h-[300px] resize-none font-medium text-gray-600 shadow-inner" />
+                  <input type="text" value={notaData.signature} onChange={e => setNotaData({...notaData, signature: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-violet-700 text-sm border-2 border-transparent focus:border-violet-200" />
                 </div>
               </div>
 
-              {/* LADO 2: VISTA PREVIA (Condicional Móvil) */}
-              <div className={`${showMobilePreview ? 'fixed inset-0 z-[400] flex bg-slate-100' : 'hidden'} lg:relative lg:flex lg:flex-1 bg-slate-100 p-4 md:p-10 flex flex-col items-center justify-start lg:justify-center overflow-y-auto`}>
+              {/* LADO 2: VISTA PREVIA (Condicional en celu) */}
+              <div className={`${showMobilePreview ? 'fixed inset-0 z-[400] flex bg-slate-100' : 'hidden'} lg:relative lg:flex lg:flex-1 p-4 md:p-10 flex-col items-center justify-start lg:justify-center overflow-y-auto`}>
                 <button onClick={() => setShowMobilePreview(false)} className="lg:hidden absolute top-6 right-6 bg-violet-900 text-white p-3 rounded-full shadow-2xl z-[500]"><X size={24}/></button>
                 <div className="w-full flex justify-center origin-top transform scale-[0.55] sm:scale-[0.7] md:scale-[0.8] lg:scale-100 transition-transform mt-10 lg:mt-0">
                   <div id="nota-canvas" className={`w-[600px] min-h-[500px] relative shadow-2xl rounded-sm flex flex-col overflow-hidden ${notaData.isPrintMode ? 'bg-white' : 'bg-[#fefce8]'}`} style={{ height: 'auto' }}>
@@ -1116,19 +1110,19 @@ function ResourcesView({ resources, canEdit }) {
                     <div className="p-12 flex flex-col h-full z-10">
                       <div className="flex justify-between items-start mb-8 text-gray-800">
                         <div className="flex items-center gap-3">
-                          <img src={window.location.origin + LOGO_SIN_FONDO} className="w-14 h-auto mix-blend-multiply" alt="logo" />
+                          <img src={LOGO_SIN_FONDO} className="w-14 h-auto mix-blend-multiply" crossOrigin="anonymous"/>
                           <div className="leading-none">
                              <h2 className="font-black text-sm text-violet-900 uppercase">Juntos a la Par</h2>
-                             <p className="text-[8px] font-bold text-gray-400 uppercase text-center leading-none mt-1">Escuela Especial</p>
+                             <p className="text-[8px] font-bold text-gray-400 uppercase text-center">Escuela Especial</p>
                           </div>
                         </div>
-                        <p className="text-[10px] font-black text-orange-600">{notaData.date}</p>
+                        <p className="text-[10px] font-black text-orange-600 uppercase">{notaData.date}</p>
                       </div>
                       <h1 className="text-xl font-black text-gray-800 uppercase mb-8 text-center">{notaData.title || 'COMUNICADO'}</h1>
-                      <div className={`flex-1 text-gray-700 font-bold whitespace-pre-wrap leading-relaxed px-4 ${notaData.fontSize} ${notaData.textAlign}`}>
+                      <div className={`flex-1 text-gray-700 font-bold whitespace-pre-wrap leading-relaxed px-4 ${notaData.fontSize} ${notaData.textAlign}`} style={{ wordSpacing: 'normal' }}>
                         {notaData.body || 'Escribe tu mensaje...'}
                       </div>
-                      <div className="mt-12 flex flex-col items-center shrink-0">
+                      <div className="mt-12 flex flex-col items-center">
                         <div className="w-32 h-[1px] bg-gray-200 mb-4"></div>
                         <p className="text-sm font-black text-violet-800 uppercase italic leading-none">{notaData.signature}</p>
                         <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-1">Escuela Juntos a la Par</p>
@@ -1139,47 +1133,39 @@ function ResourcesView({ resources, canEdit }) {
               </div>
             </div>
 
-            {/* BOTÓN FLOTANTE OJO (Solo Móvil) */}
+            {/* BOTÓN FLOTANTE OJO (SOLO CELU) */}
             {!showMobilePreview && (
-              <button onClick={() => setShowMobilePreview(true)} className="lg:hidden fixed bottom-24 right-6 bg-violet-600 text-white w-14 h-14 rounded-full shadow-2xl flex items-center justify-center z-[100] animate-bounce">
-                <Eye size={28}/>
-              </button>
+              <button onClick={() => setShowMobilePreview(true)} className="lg:hidden fixed bottom-24 right-6 bg-violet-600 text-white w-14 h-14 rounded-full shadow-2xl flex items-center justify-center z-[100] animate-bounce"><Eye size={28}/></button>
             )}
 
-            {/* FOOTER ACCIONES */}
             <div className="p-4 md:p-6 border-t bg-white shrink-0 z-20 shadow-2xl">
               <div className="flex gap-3 max-w-4xl mx-auto">
-                <button onClick={() => setShowNotaModal(false)} className="px-6 text-gray-400 font-black text-[10px] uppercase py-4">Cerrar</button>
+                <button onClick={() => setShowNotaModal(false)} className="px-6 text-gray-400 font-black text-[10px] uppercase">Volver</button>
                 <button 
                   onClick={async () => {
-                    if (!notaData.title && !notaData.body) return alert("Escribí algo.");
-                    const btnDescarga = document.activeElement;
-                    const originalText = btnDescarga.innerHTML;
-                    btnDescarga.innerText = "⏳ ESPERE...";
+                    if(!notaData.title && !notaData.body) return alert("Escribí algo.");
+                    const btn = document.activeElement; const originalText = btn.innerHTML; btn.innerText = "⏳ GENERANDO...";
+                    const element = document.getElementById('nota-canvas');
                     try {
                       const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
-                      const element = document.getElementById('nota-canvas');
                       const canvas = await html2canvas(element, { 
-                        scale: 2, useCORS: false, allowTaint: true, logging: false,
-                        backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8',
+                        scale: 2, useCORS: true, allowTaint: true, logging: false,
+                        backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
                         width: 600, windowWidth: 600,
                         onclone: (clonedDoc) => {
                           const container = clonedDoc.getElementById('nota-canvas');
                           container.style.display = "flex"; container.style.transform = "none"; container.style.width = "600px";
                           const txt = container.querySelector('.whitespace-pre-wrap');
-                          if (txt) { txt.style.wordSpacing = 'normal'; txt.style.letterSpacing = 'normal'; txt.style.lineHeight = '1.6'; }
+                          if (txt) { txt.style.wordSpacing = 'normal'; txt.style.letterSpacing = 'normal'; txt.style.lineHeight = '1.6'; txt.style.padding = '0 40px'; txt.style.display = "block"; txt.style.width = "100%"; }
                         }
                       }); 
-                      const imgData = canvas.toDataURL('image/jpeg', 0.9);
-                      const link = document.createElement('a'); link.href = imgData;
-                      link.download = `Nota_${new Date().getTime()}.jpg`;
-                      document.body.appendChild(link); link.click(); document.body.removeChild(link);
-                    } catch (err) { alert("Error de seguridad. Usá el OJO y sacá captura."); }
-                    finally { btnDescarga.innerHTML = originalText; }
+                      const link = document.createElement('a'); link.download = `Nota_${new Date().getTime()}.jpg`; link.href = canvas.toDataURL('image/jpeg', 0.9); link.click();
+                    } catch (error) { alert("Error al generar imagen."); }
+                    finally { btn.innerHTML = originalText; }
                   }} 
                   className="flex-1 bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-xs md:text-sm uppercase tracking-[2px] rounded-2xl shadow-xl py-4 flex items-center justify-center gap-2 active:scale-95 transition-transform"
                 >
-                  <Download size={20}/> Descargar JPG
+                  <Download size={20}/> Descargar Oficial
                 </button>
               </div>
             </div>
