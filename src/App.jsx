@@ -2636,6 +2636,7 @@ function MatriculaView({ user }) {
   // 1. ESTADOS Y CONFIGURACIÓN
   // ==========================================
   const [students, setStudents] = useState([]);
+  const [savingIncident, setSavingIncident] = useState(false);
   const [usersList, setUsersList] = useState([]); 
   const [showQuickFix, setShowQuickFix] = useState(false);
   const [fixingField, setFixingField] = useState('gender'); // 'gender' o 'dx'
@@ -5023,29 +5024,59 @@ const handleReportAbsenteeism = async () => {
   };
 
  const addIncident = async (type, text = "") => { 
-    if (!showBitacoraModal) return; 
+    // Detectamos cuál es el alumno activo (el del modal express o el de la ficha completa)
+    const activeStudent = showBitacoraModal || viewingStudent;
+    
+    if (!activeStudent || !activeStudent.id) {
+        alert("❌ Error: No se detectó el ID del alumno.");
+        return;
+    }
+
+    setSavingIncident(true); // Bloqueamos para evitar doble click
+
     const newInc = { 
         date: new Date().toISOString(), 
         type: text ? "Nota" : type, 
-        severity: type, 
+        severity: type === "Nota" ? "medium" : type, 
         text: text || type, 
-        author: user.firstName 
+        author: user.fullName || user.firstName,
+        authorId: user.id
     }; 
+
     try { 
-        const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id); 
-        await updateDoc(studentRef, { incidents: arrayUnion(newInc) }); 
+        const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', activeStudent.id); 
+        
+        // Guardamos en Firebase usando arrayUnion para no pisar lo anterior
+        await updateDoc(studentRef, { 
+            incidents: arrayUnion(newInc) 
+        }); 
 
-        // --- PARCHE PUNTOS MAYO ---
-        if (new Date() >= new Date('2026-05-01')) {
-            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-            await updateDoc(userRef, { score: increment(10) });
+        // --- PUNTOS CHALLENGE ---
+        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+        await updateDoc(userRef, { score: increment(10) });
+        // ------------------------
+
+        // Actualizamos el estado local viewingStudent si estaba abierto para que se vea la nota nueva
+        if (viewingStudent && viewingStudent.id === activeStudent.id) {
+            setViewingStudent(prev => ({
+                ...prev, 
+                incidents: [...(prev.incidents || []), newInc]
+            }));
         }
-        // --------------------------
 
-        setStudents(prev => prev.map(s => s.id === showBitacoraModal.id ? {...s, incidents: [...(s.incidents||[]), newInc]} : s)); 
-        setNewNote(""); setIsWriting(false); setShowBitacoraModal(null); 
-        alert("✅ Registro guardado (+10 pts)"); 
-    } catch (e) { alert(e.message); } 
+        // Limpieza y cierre
+        setNewNote(""); 
+        setIsWriting(false); 
+        if (typeof setShowBitacoraModal === 'function') setShowBitacoraModal(null);
+        
+        alert("✅ Registro guardado con éxito (+10 pts)"); 
+
+    } catch (e) { 
+        console.error("Error al guardar bitácora:", e);
+        alert("❌ Error al guardar: " + e.message); 
+    } finally {
+        setSavingIncident(false);
+    }
   };
   const handleSaveIncident = async (type, severity) => { if (!showBitacoraModal) return; setSavingIncident(true); try { const incidentData = { type, severity, date: new Date().toISOString(), author: user.fullName || user.firstName, authorId: user.id }; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id), { incidents: arrayUnion(incidentData) }); alert("✅ Registro guardado"); setShowBitacoraModal(null); } catch (e) { console.error(e); } finally { setSavingIncident(false); } };
   const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
