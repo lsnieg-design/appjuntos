@@ -5576,27 +5576,28 @@ const handleUpdateGroup = async (e) => {
 
     <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-slate-50">
       
-      {/* SECCIÓN IZQUIERDA: INFORMACIÓN Y GESTIÓN */}
+     {/* SECCIÓN IZQUIERDA: INFORMACIÓN Y GESTIÓN */}
       <div className="w-full lg:w-[450px] overflow-y-auto p-4 space-y-3 custom-scrollbar border-r border-gray-100">
         
-        {/* BOTÓN DRIVE: Aparece solo si hay link */}
-       {selectedGroupDetails.driveLink && (
-    <a href={selectedGroupDetails.driveLink} target="_blank" rel="noreferrer" 
-       className="bg-emerald-500 text-white p-3 rounded-2xl flex flex-col items-center justify-center gap-1 shadow-md active:scale-95 transition">
-      <Folder size={18}/>
-      <span className="font-black text-[8px] uppercase">Fotos Grupo</span>
-    </a>
-  )}
-  {/* El link de Drive institucional que mencionaste que faltaba */}
-  {selectedGroupDetails.institucionalDrive && (
-    <a href={selectedGroupDetails.institucionalDrive} target="_blank" rel="noreferrer" 
-       className="bg-blue-600 text-white p-3 rounded-2xl flex flex-col items-center justify-center gap-1 shadow-md active:scale-95 transition">
-      <FileText size={18}/>
-      <span className="font-black text-[8px] uppercase">Carpeta Drive</span>
-    </a>
-  )}
-</div>
-        {/* ACORDEÓN 1: EQUIPO (Cerrado por defecto en celu) */}
+        {/* BOTONES DE CARPETAS DRIVE */}
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          {selectedGroupDetails.driveLink && (
+            <a href={selectedGroupDetails.driveLink} target="_blank" rel="noreferrer" 
+               className="bg-emerald-500 text-white p-3 rounded-2xl flex flex-col items-center justify-center gap-1 shadow-md active:scale-95 transition">
+              <Folder size={18}/>
+              <span className="font-black text-[8px] uppercase">Fotos Grupo</span>
+            </a>
+          )}
+          {selectedGroupDetails.institucionalDrive && (
+            <a href={selectedGroupDetails.institucionalDrive} target="_blank" rel="noreferrer" 
+               className="bg-blue-600 text-white p-3 rounded-2xl flex flex-col items-center justify-center gap-1 shadow-md active:scale-95 transition">
+              <FileText size={18}/>
+              <span className="font-black text-[8px] uppercase">Carpeta Drive</span>
+            </a>
+          )}
+        </div>
+
+        {/* ACORDEÓN 1: EQUIPO */}
         <details className="group bg-white rounded-[25px] border border-gray-100 overflow-hidden shadow-sm">
           <summary className="p-4 list-none flex justify-between items-center cursor-pointer font-black text-[10px] uppercase text-violet-900">
             Ver Equipo a Cargo <ChevronDown size={16} className="group-open:rotate-180 transition-transform"/>
@@ -5616,8 +5617,6 @@ const handleUpdateGroup = async (e) => {
             Control de Informes <ChevronDown size={16} className="group-open:rotate-180 transition-transform"/>
           </summary>
           <div className="p-4 pt-0 overflow-x-auto">
-            
-            {/* INSTRUCCIÓN DE USO */}
             <div className="bg-blue-50/50 p-3 rounded-xl mb-4 flex items-start gap-2 border border-blue-100/50">
               <span className="text-lg">💡</span>
               <p className="text-[9px] font-bold text-blue-700 leading-tight uppercase">
@@ -5637,21 +5636,16 @@ const handleUpdateGroup = async (e) => {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {selectedGroupDetails.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => {
-                  
                   const getCircleColor = (n) => {
                     const info = s[`informe${n}`] || {};
                     if (!info.enviado) return "bg-gray-200 hover:bg-gray-300"; 
-                    
                     if (info.enviado && !info.devuelto) {
                       const fechaEnvio = new Date(info.fechaEnvio);
                       const hoy = new Date();
                       const diferenciaDias = Math.floor((hoy - fechaEnvio) / (1000 * 60 * 60 * 24));
-                      
-                      // ALERTA 10 DÍAS
                       if (diferenciaDias >= 10) return "bg-red-500 animate-pulse ring-4 ring-red-100"; 
                       return "bg-orange-400 hover:bg-orange-500"; 
                     }
-                    
                     if (info.devuelto && !info.archivado) return "bg-blue-500 hover:bg-blue-600"; 
                     if (info.archivado) return "bg-emerald-500 hover:bg-emerald-600"; 
                     return "bg-gray-200";
@@ -5666,21 +5660,15 @@ const handleUpdateGroup = async (e) => {
                             onClick={async () => {
                               const current = s[`informe${n}`] || { enviado: false };
                               let update = {};
-                              
                               if (!current.enviado) {
-                                // Pasa a ENVIADO
                                 update = { enviado: true, fechaEnvio: new Date().toISOString() };
                               } else if (!current.devuelto) {
-                                // Pasa a DEVUELTO
                                 update = { ...current, devuelto: true, fechaDevuelto: new Date().toISOString() };
                               } else if (!current.archivado) {
-                                // Pasa a ARCHIVADO
                                 update = { ...current, archivado: true };
                               } else {
-                                // RESET
                                 update = { enviado: false };
                               }
-
                               await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { [`informe${n}`]: update });
                             }}
                             className={`w-5 h-5 rounded-full border-2 border-white shadow-sm transition-all transform active:scale-75 ${getCircleColor(n)}`}
@@ -5692,8 +5680,6 @@ const handleUpdateGroup = async (e) => {
                 })}
               </tbody>
             </table>
-
-            {/* LEYENDA INFERIOR */}
             <div className="mt-4 flex flex-wrap gap-2 justify-center border-t pt-3">
                <span className="text-[7px] font-black text-gray-400 uppercase italic tracking-tighter">
                  🔘 Gris: Sin enviar • 🟠 Naranja: Enviado • 🔴 Rojo: Alerta (+10d) • 🔵 Azul: Devuelto • 🟢 Verde: Archivado
@@ -5702,7 +5688,7 @@ const handleUpdateGroup = async (e) => {
           </div>
         </details>
 
-        {/* ACORDEÓN 3: LISTA MINIMIZADA DE ESTUDIANTES */}
+        {/* ACORDEÓN 3: LISTA ESTUDIANTES */}
         <details className="group bg-white rounded-[25px] border border-gray-100 overflow-hidden shadow-sm">
           <summary className="p-4 list-none flex justify-between items-center cursor-pointer font-black text-[10px] uppercase text-gray-400">
             Fichas Técnicas Estudiantes <ChevronDown size={16} className="group-open:rotate-180 transition-transform"/>
@@ -5720,7 +5706,7 @@ const handleUpdateGroup = async (e) => {
         </details>
       </div>
 
-      {/* SECCIÓN DERECHA: MURO / CHAT (Prioritario en PC, debajo en celu) */}
+      {/* SECCIÓN DERECHA: MURO / CHAT */}
       <div className="flex-1 bg-white lg:m-4 lg:rounded-[40px] flex flex-col shadow-2xl overflow-hidden min-h-[450px]">
         <div className="p-4 border-b bg-orange-50/30 flex items-center gap-2">
           <MessageSquare size={18} className="text-orange-500"/>
