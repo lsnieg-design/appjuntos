@@ -1233,32 +1233,55 @@ function ResourcesView({ resources, canEdit }) {
                 <button onClick={() => setShowNotaModal(false)} className="flex-1 text-gray-400 font-black text-xs uppercase py-4">VOLVER</button>
                 <button 
                   onClick={async () => {
-                    if(!notaData.title && !notaData.body) return alert("Escribí algo.");
-                    const element = document.getElementById('nota-canvas');
-                    try {
-                      const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
-                      const canvas = await html2canvas(element, { 
-                        scale: 3, 
-                        useCORS: true, 
-                        backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
-                        logging: false,
-                        onclone: (clonedDoc) => {
-                          const container = clonedDoc.getElementById('nota-canvas');
-                          const txt = container.querySelector('.whitespace-pre-wrap');
-                          if (txt) { 
-                            txt.style.wordSpacing = '0.15em'; 
-                            txt.style.letterSpacing = '0.01em';
-                            txt.style.display = "block";
-                            txt.style.width = "100%";
-                          }
-                        }
-                      }); 
-                      const link = document.createElement('a');
-                      link.download = `Nota_${(notaData.title || 'Nota').substring(0,10)}.jpg`;
-                      link.href = canvas.toDataURL('image/jpeg', 0.95);
-                      link.click();
-                    } catch (error) { alert("Error al generar imagen."); }
-                  }} 
+  if(!notaData.title && !notaData.body) return alert("Escribí algo.");
+  
+  const element = document.getElementById('nota-canvas');
+  
+  try {
+    const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
+    
+    // OPCIONES ANTI-ENCIMAMIENTO PARA MÓVILES
+    const canvas = await html2canvas(element, { 
+      scale: 2, // Bajamos a 2 para que el móvil procese más rápido sin perder calidad
+      useCORS: true, 
+      allowTaint: true,
+      backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
+      logging: false,
+      // EL SECRETO: Forzamos el ancho para que no dependa de la pantalla del celu
+      width: 600,
+      windowWidth: 600, 
+      onclone: (clonedDoc) => {
+        const container = clonedDoc.getElementById('nota-canvas');
+        // Quitamos cualquier restricción de altura y forzamos el renderizado
+        container.style.transform = "none";
+        container.style.width = "600px";
+        
+        const txt = container.querySelector('.whitespace-pre-wrap');
+        if (txt) { 
+          // Limpiamos estilos que causan encimamiento en móviles
+          txt.style.wordSpacing = 'normal'; 
+          txt.style.letterSpacing = 'normal';
+          txt.style.lineHeight = '1.6';
+          txt.style.paddingLeft = '40px';
+          txt.style.paddingRight = '40px';
+          txt.style.display = "block";
+          txt.style.width = "100%";
+        }
+      }
+    }); 
+
+    // Convertimos a imagen y descargamos
+    const imgData = canvas.toDataURL('image/jpeg', 0.9);
+    const link = document.createElement('a');
+    link.download = `Nota_${(notaData.title || 'Nota').substring(0,10)}.jpg`;
+    link.href = imgData;
+    link.click();
+    
+  } catch (error) { 
+    console.error(error);
+    alert("Error al generar imagen. Intenta de nuevo."); 
+  }
+}}
                   className="flex-[3] bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-sm uppercase tracking-[4px] rounded-2xl shadow-xl hover:scale-[1.02] transition py-4 flex items-center justify-center gap-2"
                 >
                   <Download size={20}/> DESCARGAR NOTA OFICIAL
