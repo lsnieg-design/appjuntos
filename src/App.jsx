@@ -1013,13 +1013,13 @@ function ResourcesView({ resources, canEdit }) {
       setNotaData({ ...notaData, title: 'CITACIÓN A REUNIÓN', body: cuerpoMensaje, textAlign: 'text-left' });
       setShowTemplates(false);
   };
-  const descargarNota = async () => {
-    if(!notaData.title && !notaData.body) return alert("Escribí algo.");
+ const descargarNota = async () => {
+    if (!notaData.title && !notaData.body) return alert("Escribí algo.");
     
-    const btnDescarga = document.activeElement;
-    const originalText = btnDescarga.innerText;
-    btnDescarga.innerText = "⏳ GENERANDO...";
-    btnDescarga.disabled = true;
+    const btn = document.activeElement;
+    const originalText = btn.innerHTML;
+    btn.innerText = "⏳ PROCESANDO...";
+    btn.disabled = true;
 
     const element = document.getElementById('nota-canvas');
     
@@ -1027,47 +1027,46 @@ function ResourcesView({ resources, canEdit }) {
       const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
       
       const canvas = await html2canvas(element, { 
-        scale: 2, 
-        useCORS: true, 
-        allowTaint: true, 
+        scale: 2,
         logging: false,
         backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
-        width: 600, 
+        width: 600,
         windowWidth: 600,
-        imageTimeout: 0,
-        removeContainer: true,
+        // PARCHE DE SEGURIDAD: Ignoramos problemas de carga de imagen si el logo falla
+        ignoreElements: (el) => el.tagName === 'IMG' && !el.complete,
         onclone: (clonedDoc) => {
           const container = clonedDoc.getElementById('nota-canvas');
           container.style.transform = "none";
+          container.style.display = "flex";
           container.style.width = "600px";
-          container.style.display = "flex"; 
           
           const txt = container.querySelector('.whitespace-pre-wrap');
           if (txt) { 
             txt.style.wordSpacing = 'normal'; 
             txt.style.letterSpacing = 'normal';
-            txt.style.lineHeight = '1.6'; 
+            txt.style.lineHeight = '1.5';
             txt.style.padding = '0 40px';
-            txt.style.display = "block"; 
-            txt.style.width = "100%";
           }
         }
       }); 
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.9);
+      // Generamos la URL de la imagen
+      const imgData = canvas.toDataURL('image/jpeg', 0.8);
+      
+      // Creamos un link invisible pero lo inyectamos al DOM para que el celular lo reconozca
       const link = document.createElement('a');
       link.href = imgData;
-      link.download = `Nota_Juntos_${new Date().getTime()}.jpg`;
+      link.download = `Nota_${new Date().getTime()}.jpg`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
     } catch (error) { 
-      console.error("Error html2canvas:", error);
-      alert("Hubo un problema al generar la imagen."); 
+      console.error("Detalle del error:", error);
+      alert("Error técnico. Intentá sacar una captura de pantalla a la vista previa."); 
     } finally {
-      btnDescarga.innerText = originalText;
-      btnDescarga.disabled = false;
+      btn.innerHTML = originalText;
+      btn.disabled = false;
     }
   };
 
