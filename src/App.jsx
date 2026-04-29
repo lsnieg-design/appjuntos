@@ -954,24 +954,23 @@ const handleSaveCountdown = async () => {
 } // Fin de la función
 
 
-// --- VISTA RECURSOS (VERSIÓN CON PLANTILLAS EN GENERADOR DE NOTAS) ---
+// --- VISTA RECURSOS (VERSIÓN FINAL UNIFICADA: MOBILE-FIRST + ALINEACIÓN) ---
 function ResourcesView({ resources, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [editingRes, setEditingRes] = useState(null); 
-  
   const [showNotaModal, setShowNotaModal] = useState(false);
+  const [showMobilePreview, setShowMobilePreview] = useState(false);
+  
   const [notaData, setNotaData] = useState({ 
     date: new Date().toLocaleDateString('es-AR'), 
     title: '', body: '', signature: 'EQUIPO DIRECTIVO',
     fontSize: 'text-[14px]', textAlign: 'text-center',
-    wordSpacing: '0.12em', isPrintMode: false 
+    isPrintMode: false 
   });
 
   const [showTemplates, setShowTemplates] = useState(false);
   const [templateData, setTemplateData] = useState({
-      destinatario: '',
-      fechaReunion: '',
-      horaReunion: '',
+      destinatario: '', fechaReunion: '', horaReunion: '',
       modalidad: 'Presencial en la Institución'
   });
   
@@ -1015,7 +1014,7 @@ function ResourcesView({ resources, canEdit }) {
       setShowTemplates(false);
   };
 
- return (
+  return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10 px-2">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-black text-violet-900 italic tracking-tighter uppercase">Recursos</h2>
@@ -1026,7 +1025,6 @@ function ResourcesView({ resources, canEdit }) {
         )}
       </div>
 
-      {/* BOTÓN GENERADOR DE NOTAS */}
       <button onClick={() => setShowNotaModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-orange-400 p-6 rounded-[35px] shadow-lg text-white flex items-center justify-between mb-8 group active:scale-95 transition-transform">
           <div className="flex items-center gap-4">
               <div className="bg-white/20 p-3 rounded-2xl group-hover:rotate-12 transition-transform"><Edit3 size={32}/></div>
@@ -1038,40 +1036,31 @@ function ResourcesView({ resources, canEdit }) {
           <ChevronRight size={24} className="opacity-50"/>
       </button>
 
-      {/* LISTADO EN DOS COLUMNAS PARA PC */}
-      <div className="space-y-3">
-        <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[4px] ml-2 mb-2">Accesos Directos</h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {resources.map(r => (
-            <div key={r.id} className="bg-white p-4 rounded-[30px] border border-violet-50 flex flex-col justify-between shadow-sm group hover:border-violet-200 hover:shadow-md transition-all relative overflow-hidden h-32">
-                <a href={r.url} target="_blank" rel="noopener noreferrer" className="h-full flex flex-col justify-center">
-                    <div className="w-10 h-10 bg-violet-50 text-violet-500 rounded-xl flex items-center justify-center shrink-0 mb-2 group-hover:bg-violet-600 group-hover:text-white transition-colors">
-                      <ExternalLink size={20} />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="font-black text-xs text-gray-700 uppercase italic leading-tight line-clamp-2">{r.title}</span>
-                    </div>
-                </a>
-
-                {canEdit && (
-                  <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={(e) => { e.preventDefault(); setEditingRes(r); setShowModal(true); }} className="p-2 bg-white/90 rounded-full shadow-sm text-gray-400 hover:text-orange-500"><Edit3 size={14}/></button>
-                    <button onClick={(e) => { e.preventDefault(); handleDeleteResource(r.id); }} className="p-2 bg-white/90 rounded-full shadow-sm text-gray-400 hover:text-red-500"><Trash2 size={14}/></button>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {resources.map(r => (
+          <div key={r.id} className="bg-white p-4 rounded-[30px] border border-violet-50 flex flex-col justify-between shadow-sm group hover:border-violet-200 h-32 relative">
+              <a href={r.url} target="_blank" rel="noopener noreferrer" className="h-full flex flex-col justify-center">
+                  <div className="w-10 h-10 bg-violet-50 text-violet-500 rounded-xl flex items-center justify-center mb-2">
+                    <ExternalLink size={20} />
                   </div>
-                )}
-            </div>
-          ))}
-        </div>
+                  <span className="font-black text-xs text-gray-700 uppercase italic line-clamp-2">{r.title}</span>
+              </a>
+              {canEdit && (
+                <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => { setEditingRes(r); setShowModal(true); }} className="p-2 bg-white/90 rounded-full shadow-sm text-gray-400 hover:text-orange-500"><Edit3 size={14}/></button>
+                  <button onClick={() => handleDeleteResource(r.id)} className="p-2 bg-white/90 rounded-full shadow-sm text-gray-400 hover:text-red-500"><Trash2 size={14}/></button>
+                </div>
+              )}
+          </div>
+        ))}
       </div>
 
-      {/* MODAL LINK */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[400] flex items-center justify-center p-4">
           <form onSubmit={handleSaveResource} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl border-t-8 border-orange-500">
             <h3 className="text-xl font-black text-violet-900 mb-6 uppercase italic">{editingRes ? 'Editar Link' : 'Nuevo Link'}</h3>
             <div className="space-y-4">
-              <input name="title" defaultValue={editingRes?.title} placeholder="Título del Botón" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm border" required />
+              <input name="title" defaultValue={editingRes?.title} placeholder="Título" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm border" required />
               <input name="url" defaultValue={editingRes?.url} placeholder="https://..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm border" required />
               <div className="flex gap-2 pt-4">
                 <button type="button" onClick={() => { setShowModal(false); setEditingRes(null); }} className="flex-1 py-4 font-black text-xs text-gray-400 uppercase">Cancelar</button>
@@ -1081,50 +1070,37 @@ function ResourcesView({ resources, canEdit }) {
           </form>
         </div>
       )}
+
       {showNotaModal && (
         <div className="fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-0 md:p-4 backdrop-blur-md" onClick={() => setShowNotaModal(false)}>
-          <div className="bg-white rounded-t-[40px] md:rounded-[40px] w-full max-w-7xl flex flex-col h-[100dvh] md:h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-t-[40px] md:rounded-[40px] w-full max-w-7xl flex flex-col h-[100dvh] md:h-[90vh] overflow-hidden relative" onClick={e => e.stopPropagation()}>
             
-            {/* CABECERA FIJA */}
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center shrink-0 bg-white z-10">
-              <h3 className="text-lg md:text-xl font-black text-violet-900 uppercase italic">Editor Institucional</h3>
-              <button onClick={() => setShowNotaModal(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition">
-                <X size={20}/>
-              </button>
+              <h3 className="text-lg font-black text-violet-900 uppercase italic leading-none">Editor Institucional</h3>
+              <button onClick={() => setShowNotaModal(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20}/></button>
             </div>
             
-            {/* CUERPO DEL EDITOR: Vertical en celu, Horizontal en PC */}
             <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-              
-              {/* LADO 1: CONFIGURACIÓN Y TEXTO (Scrollable) */}
+              {/* PANEL IZQUIERDO: FORMULARIO */}
               <div className="flex-1 overflow-y-auto p-4 md:p-10 space-y-6 border-b lg:border-b-0 lg:border-r border-gray-50 custom-scrollbar">
                 
-                <button 
-                  onClick={() => setShowTemplates(!showTemplates)} 
-                  className="w-full bg-blue-50 text-blue-700 py-3 rounded-2xl font-bold text-[10px] md:text-xs uppercase border border-blue-100 flex justify-center items-center gap-2"
-                >
+                <button onClick={() => setShowTemplates(!showTemplates)} className="w-full bg-blue-50 text-blue-700 py-4 rounded-2xl font-bold text-[10px] uppercase border border-blue-100 flex justify-center items-center gap-2">
                   <List size={16}/> {showTemplates ? 'Cerrar Plantillas' : 'Usar Plantilla Reunión'}
                 </button>
 
                 {showTemplates && (
-                  <div className="bg-blue-50/50 p-4 rounded-3xl border border-blue-100 space-y-3 animate-in fade-in zoom-in-95">
-                    <input 
-                      type="text" 
-                      placeholder="Nombre del estudiante..." 
-                      value={templateData.destinatario} 
-                      onChange={e => setTemplateData({...templateData, destinatario: e.target.value})} 
-                      className="w-full p-3 bg-white rounded-xl outline-none font-bold text-sm border-0 shadow-sm"
-                    />
+                  <div className="bg-blue-50/50 p-4 rounded-3xl space-y-3 animate-in fade-in zoom-in-95">
+                    <input type="text" placeholder="Nombre estudiante..." value={templateData.destinatario} onChange={e => setTemplateData({...templateData, destinatario: e.target.value})} className="w-full p-3 bg-white rounded-xl outline-none font-bold text-sm border-0" />
                     <div className="grid grid-cols-2 gap-2">
-                      <input type="date" value={templateData.fechaReunion} onChange={e => setTemplateData({...templateData, fechaReunion: e.target.value})} className="p-3 bg-white rounded-xl text-sm border-0 shadow-sm"/>
-                      <input type="time" value={templateData.horaReunion} onChange={e => setTemplateData({...templateData, horaReunion: e.target.value})} className="p-3 bg-white rounded-xl text-sm border-0 shadow-sm"/>
+                      <input type="date" value={templateData.fechaReunion} onChange={e => setTemplateData({...templateData, fechaReunion: e.target.value})} className="p-3 bg-white rounded-xl text-xs border-0" />
+                      <input type="time" value={templateData.horaReunion} onChange={e => setTemplateData({...templateData, horaReunion: e.target.value})} className="p-3 bg-white rounded-xl text-xs border-0" />
                     </div>
-                    <button onClick={aplicarPlantillaReunion} className="w-full bg-blue-600 text-white py-3 rounded-xl font-black text-[10px] uppercase shadow-md">Aplicar a la Nota</button>
+                    <button onClick={aplicarPlantillaReunion} className="w-full bg-blue-600 text-white py-3 rounded-xl font-black text-[10px] uppercase">Cargar Texto</button>
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="space-y-1">
                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Tamaño</span>
                     <div className="flex bg-gray-100 p-1 rounded-xl">
                       {[{l:'S', v:'text-[11px]'}, {l:'M', v:'text-[14px]'}, {l:'L', v:'text-[18px]'}].map(s => (
@@ -1133,46 +1109,60 @@ function ResourcesView({ resources, canEdit }) {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Color</span>
                     <div className="flex bg-gray-100 p-1 rounded-xl">
                       <button onClick={() => setNotaData({...notaData, isPrintMode: false})} className={`flex-1 py-2 rounded-lg text-[9px] font-black ${!notaData.isPrintMode ? 'bg-orange-500 text-white shadow-sm' : 'text-gray-400'}`}>COLOR</button>
-                      <button onClick={() => setNotaData({...notaData, isPrintMode: true})} className={`flex-1 py-2 rounded-lg text-[9px] font-black ${notaData.isPrintMode ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-400'}`}>BLANCO</button>
+                      <button onClick={() => setNotaData({...notaData, isPrintMode: true})} className={`flex-1 py-2 rounded-lg text-[9px] font-black ${notaData.isPrintMode ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-400'}`}>B/N</button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Alineación</span>
+                    <div className="flex bg-gray-100 p-1 rounded-xl gap-1">
+                      <button onClick={() => setNotaData({...notaData, textAlign: 'text-left'})} className={`flex-1 py-2 rounded-lg ${notaData.textAlign === 'text-left' ? 'bg-white text-violet-600' : 'text-gray-400'}`}><AlignLeft size={14} className="mx-auto"/></button>
+                      <button onClick={() => setNotaData({...notaData, textAlign: 'text-center'})} className={`flex-1 py-2 rounded-lg ${notaData.textAlign === 'text-center' ? 'bg-white text-violet-600' : 'text-gray-400'}`}><AlignCenter size={14} className="mx-auto"/></button>
+                      <button onClick={() => setNotaData({...notaData, textAlign: 'text-right'})} className={`flex-1 py-2 rounded-lg ${notaData.textAlign === 'text-right' ? 'bg-white text-violet-600' : 'text-gray-400'}`}><AlignRight size={14} className="mx-auto"/></button>
+                      <button onClick={() => setNotaData({...notaData, textAlign: 'text-justify'})} className={`flex-1 py-2 rounded-lg ${notaData.textAlign === 'text-justify' ? 'bg-white text-violet-600' : 'text-gray-400'}`}><AlignJustify size={14} className="mx-auto"/></button>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  <input type="text" placeholder="TÍTULO" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-black uppercase text-gray-700 border-2 border-transparent focus:border-violet-200" />
-                  <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Escribí aquí..." className="w-full p-4 bg-gray-50 rounded-[30px] outline-none text-sm min-h-[150px] lg:h-[300px] resize-none font-medium text-gray-600 shadow-inner" />
-                  <input type="text" value={notaData.signature} onChange={e => setNotaData({...notaData, signature: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-violet-700 text-sm border-2 border-transparent focus:border-violet-200" />
+                  <input type="text" placeholder="TÍTULO NOTA" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-black uppercase text-gray-700 border-2 border-transparent focus:border-violet-200 shadow-inner" />
+                  <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Escribe aquí..." className="w-full p-4 bg-gray-50 rounded-[30px] outline-none text-sm min-h-[200px] lg:h-[300px] resize-none font-medium text-gray-600 shadow-inner" />
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[9px] font-black text-gray-400 uppercase ml-1 tracking-widest">Firma Responsable</label>
+                    <input type="text" value={notaData.signature} onChange={e => setNotaData({...notaData, signature: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-violet-700 text-sm border-2 border-transparent focus:border-violet-200" />
+                  </div>
                 </div>
               </div>
 
-              {/* LADO 2: VISTA PREVIA */}
-              <div className="flex-1 bg-slate-100 p-4 md:p-10 flex flex-col items-center justify-start lg:justify-center overflow-y-auto">
-                <div className="w-full flex justify-center origin-top transform scale-[0.55] sm:scale-[0.7] md:scale-[0.8] lg:scale-100 transition-transform">
+              {/* PANEL DERECHO: VISTA PREVIA (Condicional en Móvil) */}
+              <div className={`${showMobilePreview ? 'fixed inset-0 z-[400] flex bg-slate-100' : 'hidden'} lg:relative lg:flex lg:flex-1 bg-slate-100 p-4 md:p-10 flex-col items-center justify-start lg:justify-center overflow-y-auto`}>
+                <button onClick={() => setShowMobilePreview(false)} className="lg:hidden absolute top-6 right-6 bg-violet-900 text-white p-3 rounded-full shadow-2xl z-[500]"><X size={24}/></button>
+                <div className="w-full flex justify-center origin-top transform scale-[0.55] sm:scale-[0.7] md:scale-[0.8] lg:scale-100 transition-transform mt-10 lg:mt-0">
                   <div id="nota-canvas" className={`w-[600px] min-h-[500px] relative shadow-2xl rounded-sm flex flex-col overflow-hidden ${notaData.isPrintMode ? 'bg-white' : 'bg-[#fefce8]'}`} style={{ height: 'auto' }}>
                     <div className={`h-2 ${notaData.isPrintMode ? 'bg-gray-200' : 'bg-gradient-to-r from-violet-600 to-orange-400'}`}></div>
-                    <div className="p-12 flex flex-col h-full">
+                    <div className="p-12 flex flex-col h-full z-10">
                       <div className="flex justify-between items-start mb-8">
                         <div className="flex items-center gap-3">
                           <img src={LOGO_SIN_FONDO} className="w-14 h-auto mix-blend-multiply" crossOrigin="anonymous"/>
-                          <div className="leading-tight">
-                            <h2 className="font-black text-sm text-violet-900 uppercase">Juntos a la Par</h2>
-                            <p className="text-[8px] font-bold text-gray-400 uppercase">Escuela Especial</p>
+                          <div>
+                             <h2 className="font-black text-sm text-violet-900 uppercase">Juntos a la Par</h2>
+                             <p className="text-[8px] font-bold text-gray-400 uppercase text-center">Escuela Especial</p>
                           </div>
                         </div>
                         <p className="text-[10px] font-black text-orange-600">{notaData.date}</p>
                       </div>
-                      <h1 className="text-xl font-black text-gray-800 uppercase mb-8 text-center">{notaData.title || 'Comunicado'}</h1>
-                      <div className={`flex-1 text-gray-700 font-bold whitespace-pre-wrap leading-relaxed ${notaData.fontSize} ${notaData.textAlign}`}>
-                        {notaData.body || 'Tu mensaje aquí...'}
+                      <h1 className="text-xl font-black text-gray-800 uppercase mb-8 text-center">{notaData.title || 'COMUNICADO'}</h1>
+                      <div className={`flex-1 text-gray-700 font-bold whitespace-pre-wrap leading-relaxed px-4 ${notaData.fontSize} ${notaData.textAlign}`}>
+                        {notaData.body || 'Tu mensaje se verá aquí...'}
                       </div>
                       <div className="mt-12 flex flex-col items-center">
                         <div className="w-32 h-[1px] bg-gray-200 mb-4"></div>
-                        <p className="text-sm font-black text-violet-800 uppercase italic">{notaData.signature}</p>
-                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Escuela Juntos a la Par</p>
+                        <p className="text-sm font-black text-violet-800 uppercase italic leading-none">{notaData.signature}</p>
+                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-1">Escuela Juntos a la Par</p>
                       </div>
                     </div>
                   </div>
@@ -1180,8 +1170,15 @@ function ResourcesView({ resources, canEdit }) {
               </div>
             </div>
 
-            {/* PIE DE PÁGINA FIJO */}
-            <div className="p-4 md:p-6 border-t bg-white shrink-0 shadow-2xl z-20">
+            {/* BOTÓN FLOTANTE VISTA PREVIA (Solo Móvil) */}
+            {!showMobilePreview && (
+              <button onClick={() => setShowMobilePreview(true)} className="lg:hidden fixed bottom-24 right-6 bg-violet-600 text-white w-14 h-14 rounded-full shadow-2xl flex items-center justify-center z-[100] animate-bounce">
+                <Eye size={28}/>
+              </button>
+            )}
+
+            {/* PIE DE PÁGINA: BOTONES ACCIÓN */}
+            <div className="p-4 md:p-6 border-t bg-white shrink-0 shadow-[0_-10px_20px_rgba(0,0,0,0.05)] z-20">
               <div className="flex gap-3 max-w-4xl mx-auto">
                 <button onClick={() => setShowNotaModal(false)} className="px-6 text-gray-400 font-black text-[10px] uppercase">Cerrar</button>
                 <button 
@@ -1197,12 +1194,10 @@ function ResourcesView({ resources, canEdit }) {
                         onclone: (clonedDoc) => {
                           const container = clonedDoc.getElementById('nota-canvas');
                           container.style.transform = "none";
-                          container.style.width = "600px";
                           const txt = container.querySelector('.whitespace-pre-wrap');
                           if (txt) { 
                             txt.style.wordSpacing = 'normal'; txt.style.letterSpacing = 'normal';
-                            txt.style.lineHeight = '1.6'; txt.style.padding = '0 40px';
-                            txt.style.display = "block"; txt.style.width = "100%";
+                            txt.style.lineHeight = '1.6'; txt.style.display = "block"; txt.style.width = "100%";
                           }
                         }
                       }); 
@@ -1214,10 +1209,11 @@ function ResourcesView({ resources, canEdit }) {
                   }} 
                   className="flex-1 bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-xs md:text-sm uppercase tracking-[2px] rounded-2xl shadow-xl py-4 flex items-center justify-center gap-2 active:scale-95 transition-transform"
                 >
-                  <Download size={20}/> Descargar para WhatsApp
+                  <Download size={20}/> Descargar JPG
                 </button>
               </div>
             </div>
+
           </div> 
         </div>
       )}
