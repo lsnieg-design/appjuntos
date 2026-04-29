@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Calendar as CalendarIcon, CheckSquare, Settings, User, FileText, CheckCircle, 
   Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, 
-  Lock, List, Grid, ChevronLeft, ChevronRight, Bell, Check, HelpCircle, Mail, Camera, MapPin, limit,
+  Lock, List, Grid, ChevronLeft, ChevronRight, Bell, Check, HelpCircle, Mail, Camera, MapPin, 
   Send, Key, Filter, LayoutDashboard, Link as LinkIcon, ExternalLink, 
   AlertTriangle, Clock, Shield, Crown, Activity, Share, PlusSquare, 
   Smartphone, GraduationCap, Search, X, UploadCloud, PieChart, Eye, Edit3, Trophy,
@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, limit} from 'firebase/auth';
 import { 
   getFirestore, collection, addDoc, query, orderBy, onSnapshot, doc, 
   updateDoc, deleteDoc, where, getDocs, getDoc, serverTimestamp, arrayUnion, arrayRemove 
