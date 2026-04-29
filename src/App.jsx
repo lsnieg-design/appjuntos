@@ -4731,6 +4731,7 @@ function GroupsView({ user }) {
   const [activeTab, setActiveTab] = useState('info');
   const [groupMessages, setGroupMessages] = useState({}); // Mensajes por grupo
 const [showGroupChat, setShowGroupChat] = useState(null); // Qué chat de grupo está abierto
+  const [selectedGroupDetails, setSelectedGroupDetails] = useState(null); // Para abrir la ventana grande del grupo
   
   const [newNote, setNewNote] = useState("");
   const [isWriting, setIsWriting] = useState(false);
@@ -5171,66 +5172,30 @@ const handleUpdateGroup = async (e) => {
                 {groups.map((g) => (
                    <div key={g.name} className={`flex flex-col h-[calc(100vh-220px)] md:h-fit bg-white rounded-[30px] border shadow-sm relative overflow-hidden group-hover:shadow-md transition shrink-0 ${groups.length <= 2 ? 'w-full max-w-[900px]' : 'min-w-[280px] w-[300px]'} ${g.isInclusionGroup ? 'border-indigo-200' : 'border-gray-200'}`}>
                       <div className={`p-4 border-b-4 relative ${g.isInclusionGroup ? 'bg-indigo-50 border-indigo-400' : (turn==='morning'?'border-orange-400 bg-orange-50':'border-indigo-400 bg-indigo-50')}`}>
-                          <div className="absolute top-2 right-2 flex gap-1">
-                              {g.driveLink && (<button onClick={() => window.open(g.driveLink, '_blank')} className="p-2 bg-green-100 hover:bg-green-200 rounded-full text-green-700 shadow-sm transition" title="Carpeta Drive"><Folder size={14}/></button>)}
-                              {isStrategic && (<button onClick={()=>setGroupStats(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><PieChart size={14}/></button>)}
-                             <button onClick={() => { setGroupsToPrint([g]); setShowPrintOptions(true); }} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>
-                              {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"><Edit3 size={14}/></button>}
-                          </div>
-                          <div className="flex items-center gap-2 pr-24 flex-wrap">
-                            <h3 className="font-black text-gray-800 text-lg leading-tight">{g.name}</h3>
-                            <span className="bg-white/80 text-violet-700 px-2 py-0.5 rounded-md text-[9px] font-black shadow-sm border border-violet-100 shrink-0">{g.students.length} ALUMNXS</span>
-                          </div>
-                          <div className="mt-2 text-xs text-gray-500 font-medium space-y-1">
-                              <p>DOC: <span className="font-bold text-violet-700 uppercase">{g.teacher || 'Sin asignar'}</span> {g.teacher2 && <span className="text-violet-500 font-bold">/ {g.teacher2}</span>}</p>
-                              {g.aux && <p>AUX: <span className="font-bold uppercase">{g.aux}</span></p>}
-                              {(g.special1 || g.special2 || g.special3) && <p className="text-gray-400 text-[9px] uppercase font-bold">ESPECIALES: {[g.special1, g.special2, g.special3].filter(Boolean).join(', ')}</p>}
-                              {(g.sup1 || g.sup2) && <p className="text-violet-600 font-bold truncate">SUP: {g.sup1 || ''} {g.sup2 ? `& ${g.sup2}` : ''}</p>}
-                              {g.classroom && (<p className="text-orange-600 font-black bg-white/80 px-2 py-0.5 rounded-md inline-block shadow-sm mt-1 border border-orange-100">🏫 Aula {g.classroom}</p>)}
-                          </div>
-                      </div>
-                     {/* SECCIÓN DRIVE Y MURO GRUPAL */}
-<div className="px-4 py-2 bg-white flex gap-2 border-b border-gray-100">
-    {g.driveLink ? (
-        <button 
-            onClick={() => window.open(g.driveLink, '_blank')}
-            className="flex-1 py-2 bg-emerald-50 text-emerald-700 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 border border-emerald-100 hover:bg-emerald-100 transition"
-        >
-            <Folder size={14}/> Fotos del Trabajo
-        </button>
-    ) : (
-        <div className="flex-1 py-2 bg-gray-50 text-gray-400 rounded-xl text-[9px] font-bold uppercase flex items-center justify-center border border-dashed border-gray-200">
-            Sin Drive asignado
-        </div>
-    )}
-    <button 
-        onClick={() => setShowGroupChat(showGroupChat === g.name ? null : g.name)}
-        className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 transition ${showGroupChat === g.name ? 'bg-orange-500 text-white shadow-md' : 'bg-orange-50 text-orange-600 border border-orange-100'}`}
-    >
-        <MessageSquare size={14}/> Muro {(groupMessages[g.name]?.length > 0) && `(${groupMessages[g.name].length})`}
-    </button>
-</div>
+  <div className="absolute top-2 right-2 flex gap-1">
+      {/* NUEVO BOTÓN + (MODO ENFOQUE) */}
+      <button 
+        onClick={() => setSelectedGroupDetails(g)} 
+        className="p-2 bg-violet-600 text-white rounded-full shadow-lg hover:scale-110 transition active:scale-95" 
+        title="Ver Grupo Completo"
+      >
+        <Plus size={16}/>
+      </button>
+      <button onClick={() => { setGroupsToPrint([g]); setShowPrintOptions(true); }} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>
+      {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"><Edit3 size={14}/></button>}
+  </div>
+  
+  <div className="flex items-center gap-2 pr-12 flex-wrap">
+    <h3 className="font-black text-gray-800 text-lg leading-tight">{g.name}</h3>
+    <span className="bg-white/80 text-violet-700 px-2 py-0.5 rounded-md text-[9px] font-black shadow-sm border border-violet-100 shrink-0">{g.students.length} ALUMNXS</span>
+  </div>
 
-{/* DESPLIEGUE DEL MURO (CHAT) */}
-{showGroupChat === g.name && (
-    <div className="bg-orange-50/50 p-4 border-b border-orange-100 animate-in slide-in-from-top-2">
-        <div className="max-h-48 overflow-y-auto space-y-2 mb-3 pr-2 custom-scrollbar flex flex-col-reverse">
-            {groupMessages[g.name]?.length > 0 ? groupMessages[g.name].map(m => (
-                <div key={m.id} className="bg-white p-2 rounded-xl shadow-sm border border-orange-100">
-                    <div className="flex justify-between items-center mb-1">
-                        <span className="text-[8px] font-black text-orange-400 uppercase">{m.author}</span>
-                        <span className="text-[7px] text-gray-400 font-bold">{m.createdAt?.seconds ? new Date(m.createdAt.seconds * 1000).toLocaleDateString() : 'Recién'}</span>
-                    </div>
-                    <p className="text-xs text-gray-700 font-medium leading-tight">{m.text}</p>
-                </div>
-            )) : <p className="text-[10px] text-center text-orange-300 font-bold uppercase py-4 tracking-widest">Muro vacío</p>}
-        </div>
-        <form onSubmit={(e) => handleAddGroupComment(e, g.name)} className="flex gap-2">
-            <input name="comment" placeholder="Anotar algo del grupo..." className="flex-1 bg-white border border-orange-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-1 ring-orange-400" />
-            <button type="submit" className="bg-orange-500 text-white p-2 rounded-lg active:scale-90 transition"><Send size={14}/></button>
-        </form>
-    </div>
-)}
+  <div className="mt-2 text-[11px] text-gray-500 font-medium space-y-0.5">
+      <p>DOC: <span className="font-bold text-violet-700 uppercase">{g.teacher || 'Sin asignar'}</span></p>
+      {g.classroom && (<p className="text-orange-600 font-black">🏫 Aula {g.classroom}</p>)}
+  </div>
+</div>
+                   
                      <div className="flex-1 overflow-y-auto p-4 bg-gray-50 grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-3 content-start">
                         {g.students.map(s => (
                             <div key={s.id} onClick={() => {setSelectedStudent(s); setActiveTab('info');}} className="bg-white p-3 rounded-2xl shadow-sm flex items-center gap-3 cursor-pointer hover:scale-[1.02] transition">
@@ -5545,6 +5510,93 @@ const handleUpdateGroup = async (e) => {
           </div>
         </div>
       )}
+      {/* VENTANA GRANDE DEL GRUPO (MODAL DE ENFOQUE) */}
+{selectedGroupDetails && (
+  <div className="fixed inset-0 bg-slate-900/95 z-[500] flex flex-col animate-in fade-in duration-300">
+    <div className="bg-white p-4 flex justify-between items-center border-b shadow-md">
+      <div>
+        <h2 className="text-xl font-black text-violet-900 uppercase italic leading-none">{selectedGroupDetails.name}</h2>
+        <p className="text-[9px] font-bold text-gray-400 uppercase mt-1">Panel Grupal • Ciclo 2026</p>
+      </div>
+      <button onClick={() => setSelectedGroupDetails(null)} className="bg-gray-100 p-2 rounded-full hover:bg-red-50 hover:text-red-500 transition">
+        <X size={24}/>
+      </button>
+    </div>
+
+    <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+      {/* INFO DEL EQUIPO Y DRIVE */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 border-r border-white/10">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white/10 p-3 rounded-2xl border border-white/10 text-white">
+            <p className="text-[8px] font-black text-violet-300 uppercase mb-1">Docentes</p>
+            <p className="text-xs font-bold uppercase">{selectedGroupDetails.teacher}</p>
+            {selectedGroupDetails.teacher2 && <p className="text-[10px] opacity-70 uppercase">{selectedGroupDetails.teacher2}</p>}
+          </div>
+          {selectedGroupDetails.driveLink ? (
+            <button onClick={() => window.open(selectedGroupDetails.driveLink, '_blank')} className="bg-emerald-500 text-white p-3 rounded-2xl flex flex-col items-center justify-center gap-1 shadow-lg">
+              <Folder size={20}/>
+              <span className="text-[9px] font-black uppercase">Carpeta Trabajo</span>
+            </button>
+          ) : (
+            <div className="bg-white/5 p-3 rounded-2xl border border-dashed border-white/20 text-white/30 text-center flex items-center justify-center">
+              <p className="text-[8px] font-black uppercase">Sin Drive</p>
+            </div>
+          )}
+        </div>
+
+        {/* LISTADO DE ALUMNOS DENTRO DEL MODAL */}
+        <div className="space-y-2">
+          <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Alumnxs del Grupo</h4>
+          <div className="grid grid-cols-1 gap-2">
+            {selectedGroupDetails.students.map(s => (
+              <div key={s.id} className="bg-white/5 p-2 rounded-xl flex items-center gap-3 border border-white/5">
+                <div className="w-8 h-8 rounded-full bg-gray-700 overflow-hidden shrink-0 border border-white/10">
+                  {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-500">{s.firstName[0]}</div>}
+                </div>
+                <span className="font-bold text-white text-xs uppercase">{s.lastName}, {s.firstName}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* MURO DE COMENTARIOS (CHAT) */}
+      <div className="flex-[1.5] bg-white md:m-4 md:rounded-[30px] flex flex-col shadow-2xl overflow-hidden">
+        <div className="p-4 border-b flex items-center justify-between bg-orange-50/30">
+          <h3 className="font-black text-orange-600 uppercase italic text-xs flex items-center gap-2">
+            <MessageSquare size={16}/> Muro de Bitácora Grupal
+          </h3>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col-reverse custom-scrollbar">
+          {groupMessages[selectedGroupDetails.name]?.length > 0 ? (
+            groupMessages[selectedGroupDetails.name].map(m => (
+              <div key={m.id} className={`p-3 rounded-2xl max-w-[90%] ${m.authorId === user.id ? 'bg-violet-600 text-white self-end rounded-tr-none' : 'bg-gray-100 text-gray-800 self-start rounded-tl-none'}`}>
+                <div className="flex justify-between items-center mb-1 gap-4">
+                  <span className={`text-[8px] font-black uppercase ${m.authorId === user.id ? 'text-violet-200' : 'text-violet-500'}`}>{m.author}</span>
+                  <span className="text-[7px] opacity-50 font-bold">{m.createdAt?.seconds ? new Date(m.createdAt.seconds * 1000).toLocaleDateString() : 'Recién'}</span>
+                </div>
+                <p className="text-xs font-medium leading-relaxed">{m.text}</p>
+              </div>
+            ))
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center text-gray-300 italic">
+              <p className="text-[10px] font-black uppercase tracking-widest">Muro habilitado para el grupo</p>
+            </div>
+          )}
+        </div>
+
+        <form onSubmit={(e) => handleAddGroupComment(e, selectedGroupDetails.name)} className="p-3 bg-gray-50 border-t flex gap-2">
+          <input name="comment" placeholder="Escribir novedad del grupo..." className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs outline-none focus:ring-1 ring-violet-300" />
+          <button type="submit" className="bg-violet-600 text-white p-2.5 rounded-xl shadow-md active:scale-90 transition-transform">
+            <Send size={18}/>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+)}
+      
       {showBitacoraModal && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-emerald-500"><div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3><p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p></div><button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button></div>{!isWriting ? (<><div className="grid grid-cols-2 gap-3 mb-4 max-h-[50vh] overflow-y-auto">{INCIDENT_TYPES.map((type) => (<button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? "opacity-50" : "hover:brightness-95"}`}><span className="text-2xl">{type.emoji}</span><span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span></button>))}</div><button onClick={() => setIsWriting(true)} className="w-full py-3 bg-gray-900 text-white rounded-2xl font-bold uppercase text-xs flex items-center justify-center gap-2"><Edit3 size={16}/> Escribir Nota</button></>) : (<div className="animate-in slide-in-from-bottom"><textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Detalles..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm mb-2 h-24 outline-none focus:border-violet-500"/><div className="flex gap-2"><button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs hover:bg-gray-100 rounded-xl">Volver</button><button onClick={() => addIncident("medium", newNote)} disabled={!newNote.trim()} className="flex-1 py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg">Guardar</button></div></div>)}</div></div>)}
     </div>
   );
