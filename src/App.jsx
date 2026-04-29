@@ -3804,9 +3804,11 @@ function ActivityLogView() {
     </div>
   );
 }
-// --- NUEVA VISTA: EQUIPO TÉCNICO (CON PERMISOS ESTRICTOS POR ÁREA) ---
+// --- NUEVA VISTA: EQUIPO TÉCNICO (CON CHATS DE ÁREA Y POR SALIDA) ---
 function EquipoTecnicoView({ user }) {
     const [items, setItems] = useState([]);
+    const [messages, setMessages] = useState([]); // Nuevo: Chat general
+    const [outingsChats, setOutingsChats] = useState({}); // Nuevo: Control de chats de salidas
     
     // 1. DEFINICIÓN ESTRICTA DE ROLES
     const isSedeRole = ['Equipo Directivo', 'Equipo Técnico'].includes(user.role);
@@ -3822,12 +3824,25 @@ function EquipoTecnicoView({ user }) {
     const [modalType, setModalType] = useState(''); 
 
     useEffect(() => {
-        const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'tech_items'));
-        const unsub = onSnapshot(q, snap => {
+        // Carga de ítems generales (Tareas, fechas, temas)
+        const qItems = query(collection(db, 'artifacts', appId, 'public', 'data', 'tech_items'));
+        const unsubItems = onSnapshot(qItems, snap => {
             setItems(snap.docs.map(d => ({ id: d.id, ...d.data() })));
         });
-        return () => unsub();
-    }, []);
+
+        // Carga del Chat General del equipo activo
+        const qChat = query(
+            collection(db, 'artifacts', appId, 'public', 'data', 'tech_messages'),
+            where('team', '==', activeTeam),
+            orderBy('createdAt', 'desc'),
+            limit(50)
+        );
+        const unsubChat = onSnapshot(qChat, snap => {
+            setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        });
+
+        return () => { unsubItems(); unsubChat(); };
+    }, [activeTeam]);
 
     // BLOQUEO TOTAL SI NO PERTENECE A ESTOS ROLES
     if (!canAccess) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido a Equipos de Gestión y Técnicos.</div>;
@@ -3845,6 +3860,24 @@ function EquipoTecnicoView({ user }) {
     const today = new Date().toISOString().split('T')[0];
     const upcomingDates = dates.filter(d => d.date >= today);
     const nextDate = upcomingDates.length > 0 ? upcomingDates[0] : null;
+
+    // --- FUNCIONES DE CHAT ---
+    const sendChatMessage = async (e, parentId = null) => {
+        if (e) e.preventDefault();
+        const text = e.target.chatText.value;
+        if (!text.trim()) return;
+        
+        const colName = parentId ? 'outings_messages' : 'tech_messages';
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', colName), {
+            text,
+            author: user.firstName,
+            authorId: user.id,
+            team: activeTeam,
+            parentId, // Solo para chat de salidas
+            createdAt: serverTimestamp()
+        });
+        e.target.reset();
+    };
 
     const handleAddTopic = async () => {
         const text = prompt("Nuevo tema para la reunión:");
@@ -3879,9 +3912,7 @@ function EquipoTecnicoView({ user }) {
         data.team = activeTeam;
         data.author = user.firstName;
         data.createdAt = serverTimestamp();
-        
         if(modalType === 'task') data.status = 'Pendiente';
-        
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tech_items'), data);
         setShowModal(false);
     };
@@ -3897,7 +3928,6 @@ function EquipoTecnicoView({ user }) {
                         <p className="text-xs text-gray-500 font-bold uppercase mt-1">Espacio de Trabajo Confidencial</p>
                     </div>
                     
-                    {/* SELECTOR CONDICIONAL POR ROL */}
                     <div className="flex bg-gray-100 p-1 rounded-xl w-full md:w-auto">
                         {(isSedeRole || isAdmin) && (
                             <button onClick={() => setActiveTeam('sede')} className={`flex-1 md:px-6 py-3 rounded-lg text-xs font-black uppercase transition ${activeTeam === 'sede' ? 'bg-white shadow text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>Sede</button>
@@ -3928,6 +3958,7 @@ function EquipoTecnicoView({ user }) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-4">
+                    {/* PRÓXIMA REUNIÓN */}
                     <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-1 h-full bg-orange-400"></div>
                         <div className="flex justify-between items-center mb-4">
@@ -3950,6 +3981,7 @@ function EquipoTecnicoView({ user }) {
                         </div>
                     </div>
 
+                    {/* TAREAS EQUIPO */}
                     <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
                         <div className="flex justify-between items-center mb-4">
@@ -3957,7 +3989,7 @@ function EquipoTecnicoView({ user }) {
                             <button onClick={() => {setModalType('task'); setShowModal(true);}} className="bg-blue-50 text-blue-600 p-2 rounded-lg hover:bg-blue-100 transition"><Plus size={16}/></button>
                         </div>
                         <div className="space-y-3">
-                            {tasks.length === 0 ? <p className="text-xs text-gray-400 italic">No hay tareas pendientes.</p> : tasks.map(t => (
+                            {tasks.map(t => (
                                 <div key={t.id} className={`p-3 rounded-xl border transition flex justify-between items-center group ${t.status === 'Completada' ? 'bg-gray-50 border-gray-200 opacity-60' : 'bg-white border-blue-100 shadow-sm'}`}>
                                     <div>
                                         <h4 className={`font-bold text-sm ${t.status === 'Completada' ? 'line-through text-gray-500' : 'text-gray-800'}`}>{t.title}</h4>
@@ -3971,9 +4003,27 @@ function EquipoTecnicoView({ user }) {
                             ))}
                         </div>
                     </div>
+
+                    {/* NUEVO: CHAT GENERAL EQUIPO */}
+                    <div className="bg-slate-900 p-6 rounded-[40px] shadow-xl text-white h-[400px] flex flex-col border-b-8 border-blue-600">
+                        <h3 className="font-black uppercase italic text-[10px] mb-4 flex items-center gap-2 text-blue-400"><MessageSquare size={16}/> Muro de Comunicación</h3>
+                        <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-2 custom-scrollbar flex flex-col-reverse">
+                            {messages.map(m => (
+                                <div key={m.id} className={`p-3 rounded-2xl max-w-[85%] ${m.authorId === user.id ? 'bg-blue-600 self-end rounded-tr-none' : 'bg-slate-800 self-start rounded-tl-none'}`}>
+                                    <p className="text-[9px] font-black uppercase opacity-60 mb-1">{m.author}</p>
+                                    <p className="text-sm font-medium">{m.text}</p>
+                                </div>
+                            ))}
+                        </div>
+                        <form onSubmit={sendChatMessage} className="flex gap-2">
+                            <input name="chatText" placeholder="Escribir..." className="flex-1 bg-slate-800 border-none rounded-2xl px-4 py-3 text-sm focus:ring-1 ring-blue-500 outline-none" />
+                            <button type="submit" className="bg-blue-600 p-3 rounded-2xl active:scale-90 transition-transform"><Send size={20}/></button>
+                        </form>
+                    </div>
                 </div>
 
                 <div className="space-y-4">
+                    {/* FECHAS IMPORTANTE */}
                     <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500"></div>
                         <div className="flex justify-between items-center mb-4">
@@ -3981,7 +4031,7 @@ function EquipoTecnicoView({ user }) {
                             <button onClick={() => {setModalType('date'); setShowModal(true);}} className="bg-emerald-50 text-emerald-600 p-2 rounded-lg hover:bg-emerald-100 transition"><Plus size={16}/></button>
                         </div>
                         <div className="space-y-2">
-                            {dates.length === 0 ? <p className="text-xs text-gray-400 italic">Agenda libre.</p> : dates.map(d => (
+                            {dates.map(d => (
                                 <div key={d.id} className="flex justify-between items-center bg-white border border-gray-100 p-3 rounded-xl shadow-sm group">
                                     <div className="flex gap-3 items-center">
                                         <div className="bg-emerald-100 text-emerald-800 text-center rounded-lg px-2 py-1 min-w-[50px]">
@@ -3996,6 +4046,7 @@ function EquipoTecnicoView({ user }) {
                         </div>
                     </div>
 
+                    {/* SALIDAS / PROYECTOS CON CHAT */}
                     <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-1 h-full bg-purple-500"></div>
                         <div className="flex justify-between items-center mb-4">
@@ -4003,19 +4054,29 @@ function EquipoTecnicoView({ user }) {
                             <button onClick={() => {setModalType('outing'); setShowModal(true);}} className="bg-purple-50 text-purple-600 p-2 rounded-lg hover:bg-purple-100 transition"><Plus size={16}/></button>
                         </div>
                         <div className="space-y-3">
-                            {outings.length === 0 ? <p className="text-xs text-gray-400 italic">No hay salidas planificadas.</p> : outings.map(o => (
-                                <div key={o.id} className="bg-purple-50/30 p-4 rounded-2xl border border-purple-100 relative group">
-                                    <button onClick={() => handleDelete(o.id)} className="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><Trash2 size={14}/></button>
-                                    <h4 className="font-black text-purple-900 text-sm mb-1">{o.title}</h4>
-                                    <div className="flex gap-2 mb-2">
-                                        <span className="text-[9px] font-bold bg-white text-gray-600 px-2 py-0.5 rounded border border-gray-200">📅 {new Date(o.date+'T00:00:00').toLocaleDateString('es-AR')}</span>
-                                        <span className="text-[9px] font-bold bg-white text-gray-600 px-2 py-0.5 rounded border border-gray-200">👥 {o.groups}</span>
+                            {outings.map(o => (
+                                <div key={o.id} className="bg-purple-50/30 rounded-2xl border border-purple-100 overflow-hidden group">
+                                    <div className="p-4">
+                                        <div className="flex justify-between">
+                                            <h4 className="font-black text-purple-900 text-sm mb-1">{o.title}</h4>
+                                            <button onClick={() => handleDelete(o.id)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><Trash2 size={14}/></button>
+                                        </div>
+                                        <div className="flex gap-2 mb-2">
+                                            <span className="text-[9px] font-bold bg-white px-2 py-0.5 rounded border">📅 {new Date(o.date+'T00:00:00').toLocaleDateString('es-AR')}</span>
+                                            <span className="text-[9px] font-bold bg-white px-2 py-0.5 rounded border">👥 {o.groups}</span>
+                                        </div>
+                                        <button onClick={() => setOutingsChats(prev => ({...prev, [o.id]: !prev[o.id]}))} className={`w-full mt-2 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${outingsChats[o.id] ? 'bg-purple-600 text-white shadow-lg' : 'bg-white text-purple-600 border border-purple-100'}`}>
+                                            {outingsChats[o.id] ? 'Cerrar Coordinación' : '💬 Chat de Coordinación'}
+                                        </button>
                                     </div>
-                                    <p className="text-xs text-gray-600 mb-2 font-medium">{o.ideas}</p>
-                                    <div className="text-[10px] font-bold text-gray-500 bg-white p-2 rounded-lg border border-gray-100">
-                                        <p><span className="text-purple-500">Docentes:</span> {o.teachers || '-'}</p>
-                                        <p><span className="text-purple-500">Equipo Téc:</span> {o.techs || '-'}</p>
-                                    </div>
+                                    {outingsChats[o.id] && (
+                                        <div className="bg-white border-t p-4 animate-in slide-in-from-top-2">
+                                            <form onSubmit={(e) => sendChatMessage(e, o.id)} className="flex gap-2">
+                                                <input name="chatText" placeholder="Anotar algo..." className="flex-1 bg-gray-50 border rounded-xl px-3 py-2 text-xs outline-none" />
+                                                <button type="submit" className="bg-purple-600 text-white p-2 rounded-xl"><Send size={14}/></button>
+                                            </form>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -4032,24 +4093,17 @@ function EquipoTecnicoView({ user }) {
                             </h3>
                             <button type="button" onClick={() => setShowModal(false)}><X/></button>
                         </div>
-                        
                         <div className="space-y-3">
-                            <input name="title" placeholder={modalType === 'task' ? 'Ej: Revisar informes' : modalType === 'date' ? 'Ej: Entrega PPI' : 'Lugar de salida'} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-sm border focus:border-blue-300" required />
-                            
-                            {modalType === 'task' && <input name="assignee" placeholder="Responsable (Ej: Myrian)" className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs border" required />}
-                            
-                            {(modalType === 'date' || modalType === 'outing') && <input name="date" type="date" className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs border font-bold text-gray-600" required />}
-                            
+                            <input name="title" placeholder="Título" className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-sm border focus:border-blue-300" required />
+                            {modalType === 'task' && <input name="assignee" placeholder="Responsable" className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs border" required />}
+                            {(modalType === 'date' || modalType === 'outing') && <input name="date" type="date" className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs border font-bold" required />}
                             {modalType === 'outing' && (
                                 <>
-                                    <input name="groups" placeholder="Grupos (Ej: 1° Ciclo TM)" className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs border" required />
-                                    <textarea name="ideas" placeholder="Propósito / Ideas previas..." className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs border h-16 resize-none" required />
-                                    <input name="teachers" placeholder="Docentes asistentes" className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs border" />
-                                    <input name="techs" placeholder="Miembros Equipo Técnico" className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs border" />
+                                    <input name="groups" placeholder="Grupos" className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs border" required />
+                                    <textarea name="ideas" placeholder="Propósito..." className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs border h-16 resize-none" required />
                                 </>
                             )}
-                            
-                            <button type="submit" className="w-full py-3 bg-slate-800 text-white rounded-xl font-black uppercase text-xs shadow-lg hover:bg-slate-700 transition mt-2">Guardar</button>
+                            <button type="submit" className="w-full py-3 bg-slate-800 text-white rounded-xl font-black uppercase text-xs shadow-lg mt-2">Guardar</button>
                         </div>
                     </form>
                 </div>
