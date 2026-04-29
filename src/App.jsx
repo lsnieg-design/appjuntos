@@ -955,7 +955,7 @@ const handleSaveCountdown = async () => {
 } // Fin de la función
 
 
-// --- VISTA RECURSOS (PC ORIGINAL + CELULAR CON COMPARTIR DIRECTO) ---
+// --- VISTA RECURSOS (CORREGIDA: SIN ERROR DE SHARE2) ---
 function ResourcesView({ resources, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [editingRes, setEditingRes] = useState(null); 
@@ -976,17 +976,6 @@ function ResourcesView({ resources, canEdit }) {
   
   const LOGO_SIN_FONDO = "/logosinfondo.png";
 
-  const handleSaveResource = async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const data = { title: fd.get('title'), url: fd.get('url'), category: 'GENERAL', updatedAt: serverTimestamp() };
-    try {
-      if (editingRes?.id) { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', editingRes.id), data); }
-      else { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), { ...data, createdAt: serverTimestamp() }); }
-      setShowModal(false); setEditingRes(null);
-    } catch (err) { alert(err.message); }
-  };
-
   const aplicarPlantillaReunion = () => {
       if(!templateData.fechaReunion || !templateData.horaReunion) return alert("Completá fecha y hora.");
       const partesFecha = templateData.fechaReunion.split('-');
@@ -996,7 +985,6 @@ function ResourcesView({ resources, canEdit }) {
       setShowTemplates(false);
   };
 
-  // --- FUNCIÓN MÁGICA PARA COMPARTIR ---
   const compartirNota = async () => {
     const element = document.getElementById('nota-canvas');
     try {
@@ -1024,7 +1012,7 @@ function ResourcesView({ resources, canEdit }) {
           text: 'Comunicado de Escuela Juntos a la Par'
         });
       } else {
-        alert("Tu celular no soporta compartir archivos directamente. Sacale una captura de pantalla.");
+        alert("Tu celular no permite compartir directo. Sacale una captura (Screenshot).");
       }
     } catch (err) {
       alert("Error al procesar la imagen. Sacale una captura.");
@@ -1048,7 +1036,6 @@ function ResourcesView({ resources, canEdit }) {
           <ChevronRight size={24} className="opacity-50"/>
       </button>
 
-      {/* LISTADO DE RECURSOS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {resources.map(r => (
           <div key={r.id} className="bg-white p-4 rounded-[30px] border border-violet-50 flex flex-col justify-between shadow-sm h-32 relative">
@@ -1069,7 +1056,6 @@ function ResourcesView({ resources, canEdit }) {
             </div>
             
             <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-              {/* EDITOR */}
               <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-6 lg:border-r border-gray-50 custom-scrollbar">
                 <button onClick={() => setShowTemplates(!showTemplates)} className="w-full bg-blue-50 text-blue-700 py-3 rounded-xl font-bold text-xs uppercase border border-blue-200"><List size={16} className="inline mr-1"/> Plantillas</button>
                 <div className="space-y-4">
@@ -1078,8 +1064,7 @@ function ResourcesView({ resources, canEdit }) {
                 </div>
               </div>
 
-              {/* VISTA PREVIA MODAL (CELU) O LATERAL (PC) */}
-              <div className={`${showMobilePreview ? 'fixed inset-0 z-[400] flex bg-slate-900' : 'hidden'} lg:relative lg:flex lg:flex-1 bg-slate-100 p-4 md:p-10 flex-col items-center justify-start lg:justify-center overflow-y-auto`}>
+              <div className={`${showMobilePreview ? 'fixed inset-0 z-[400] flex bg-slate-900' : 'hidden'} lg:relative lg:flex lg:flex-1 bg-slate-100 p-4 md:p-10 flex flex-col items-center justify-start lg:justify-center overflow-y-auto`}>
                 <button onClick={() => setShowMobilePreview(false)} className="lg:hidden absolute top-6 right-6 bg-white text-black p-3 rounded-full shadow-2xl z-[500]"><X size={24}/></button>
                 
                 <div id="nota-canvas" className="w-[600px] min-h-[500px] bg-white shadow-2xl relative flex flex-col origin-top scale-[0.55] sm:scale-[0.8] lg:scale-100 mt-12 lg:mt-0">
@@ -1093,7 +1078,7 @@ function ResourcesView({ resources, canEdit }) {
                       <p className="text-[10px] font-black text-orange-600">{notaData.date}</p>
                     </div>
                     <h1 className="text-xl font-black text-gray-800 uppercase mb-8 text-center">{notaData.title || 'COMUNICADO'}</h1>
-                    <div className={`flex-1 text-gray-700 font-bold whitespace-pre-wrap leading-relaxed px-4 ${notaData.fontSize} ${notaData.textAlign}`} style={{ wordSpacing: 'normal' }}>
+                    <div className={`flex-1 text-gray-700 font-bold whitespace-pre-wrap leading-relaxed px-4 ${notaData.fontSize} ${notaData.textAlign}`}>
                       {notaData.body || 'Tu mensaje aquí...'}
                     </div>
                     <div className="mt-12 flex flex-col items-center">
@@ -1103,19 +1088,32 @@ function ResourcesView({ resources, canEdit }) {
                   </div>
                 </div>
 
-                {/* BOTÓN COMPARTIR DENTRO DE VISTA PREVIA (SOLO CELU) */}
-                <button onClick={compartirNota} className="lg:hidden mt-8 bg-green-500 text-white font-black px-10 py-4 rounded-full shadow-xl flex items-center gap-2 animate-pulse">
-                  <Share2 size={24}/> COMPARTIR POR WHATSAPP
+                {/* CAMBIADO: Share2 por ExternalLink para evitar error */}
+                <button onClick={compartirNota} className="lg:hidden mt-8 bg-green-500 text-white font-black px-10 py-4 rounded-full shadow-xl flex items-center gap-2">
+                  <ExternalLink size={24}/> COMPARTIR POR WHATSAPP
                 </button>
               </div>
             </div>
 
-            {/* PIE DE PÁGINA */}
             <div className="p-4 md:p-6 border-t bg-white shrink-0 z-20">
               <div className="flex gap-3 max-w-4xl mx-auto">
                 <button onClick={() => setShowNotaModal(false)} className="px-6 text-gray-400 font-black text-[10px] uppercase">Volver</button>
                 <button onClick={() => setShowMobilePreview(true)} className="lg:hidden flex-1 bg-violet-600 text-white font-black text-xs uppercase py-4 rounded-2xl">
                   <Eye size={20} className="inline mr-2"/> Ver Nota
+                </button>
+                <button 
+                  onClick={async () => {
+                    if(!notaData.title && !notaData.body) return alert("Escribí algo.");
+                    const element = document.getElementById('nota-canvas');
+                    try {
+                      const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
+                      const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }); 
+                      const link = document.createElement('a'); link.download = `Nota_${Date.now()}.jpg`; link.href = canvas.toDataURL('image/jpeg', 0.9); link.click();
+                    } catch (error) { alert("Error al generar imagen."); }
+                  }} 
+                  className="hidden lg:flex flex-1 bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-xs uppercase py-4 rounded-2xl items-center justify-center gap-2"
+                >
+                  <Download size={20}/> Descargar JPG
                 </button>
               </div>
             </div>
