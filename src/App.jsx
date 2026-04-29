@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Calendar as CalendarIcon, CheckSquare, Settings, User, FileText, CheckCircle, 
   Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, 
-  Lock, List, Grid, ChevronLeft, ChevronRight, Bell, Check, HelpCircle, Mail, Camera, MapPin,
+  Lock, List, Grid, ChevronLeft, ChevronRight, Bell, Check, HelpCircle, Mail, Camera, MapPin, limit,
   Send, Key, Filter, LayoutDashboard, Link as LinkIcon, ExternalLink, 
   AlertTriangle, Clock, Shield, Crown, Activity, Share, PlusSquare, 
   Smartphone, GraduationCap, Search, X, UploadCloud, PieChart, Eye, Edit3, Trophy,
@@ -2886,22 +2886,49 @@ const filteredStudents = students.filter(s => {
     } catch (e) { alert(e.message); } 
   };
   
-const handleSaveIncident = async (type, severity) => { 
-      if (!viewingStudent) return; 
+const handleSaveIncident = async (type, text = "", severity = "medium") => { 
+      // Detectamos quién es el alumno (puede venir del modal rápido o de la ficha abierta)
+      const student = showBitacoraModal || viewingStudent;
+      
+      if (!student || !student.id) {
+          alert("❌ Error: No se pudo identificar al alumno.");
+          return;
+      }
+
       const incidentData = { 
-          type, 
-          severity, 
-          text: type, 
+          type: text ? "Nota" : type, 
+          severity: severity, 
+          text: text || type, 
           date: new Date().toISOString(), 
           author: user.fullName || user.firstName, 
           authorId: user.id 
       }; 
+
       try { 
-          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', viewingStudent.id), { incidents: arrayUnion(incidentData) }); 
-          setViewingStudent(prev => ({...prev, incidents: [...(prev.incidents || []), incidentData]})); 
-          alert("✅ Registro guardado"); 
-      } catch (e) { console.error(e); } 
-  }; // <--- ESTA ERA LA LLAVE QUE FALTABA
+          // Guardado en Firebase
+          const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', student.id);
+          await updateDoc(studentRef, { incidents: arrayUnion(incidentData) }); 
+
+          // Suma de puntos Challenge (+10)
+          const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+          await updateDoc(userRef, { score: increment(10) });
+
+          // Actualización visual inmediata
+          if (viewingStudent && viewingStudent.id === student.id) {
+              setViewingStudent(prev => ({...prev, incidents: [...(prev.incidents || []), incidentData]}));
+          }
+
+          // Limpiar y cerrar todo
+          setNewNote("");
+          setIsWriting(false);
+          setShowBitacoraModal(null); 
+          
+          alert("✅ Registro guardado (+10 pts)"); 
+      } catch (e) { 
+          console.error("Error al guardar:", e);
+          alert("❌ Error: " + e.message);
+      } 
+  };
   
   const deleteIncident = async (sid, inc) => { 
       if(confirm("¿Borrar evento?")) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', sid), { incidents: arrayRemove(inc) }); 
@@ -3255,14 +3282,18 @@ const findDuplicates = () => {
                     {activeModalTab === 'history' && (
                       <div className="space-y-4 pb-20 animate-in fade-in">
                         {!isWriting && (
-                          <div className="grid grid-cols-3 gap-2 mb-4">
-                            {INCIDENT_TYPES.map((type) => (
-                              <button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color}`}>
-                                <span className="text-2xl">{type.emoji}</span>
-                                <span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span>
-                              </button>
-                            ))}
-                          </div>
+                        <div className="grid grid-cols-3 gap-2 mb-4">
+  {INCIDENT_TYPES.map((type) => (
+    <button 
+      key={type.label} 
+      onClick={() => handleSaveIncident(type.label, "", type.severity)} // <-- Cambio aquí
+      className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color}`}
+    >
+      <span className="text-2xl">{type.emoji}</span>
+      <span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span>
+    </button>
+  ))}
+</div>
                         )}
                         <div className="space-y-3">
                           {(() => {
@@ -3295,10 +3326,17 @@ const findDuplicates = () => {
                           {isWriting ? (
                             <div className="animate-in slide-in-from-bottom">
                               <textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Detalles..." className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm mb-2 h-24 outline-none"/>
-                              <div className="flex gap-2">
-                                <button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
-                                <button onClick={() => addIncident('medium', newNote)} disabled={!newNote.trim()} className="flex-[2] py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-[10px]">Guardar</button>
-                              </div>
+                              {/* Reemplazo para el botón de guardar nota redactada */}
+<div className="flex gap-2">
+  <button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
+  <button 
+    onClick={() => handleSaveIncident("Nota", newNote, "medium")} // <-- Cambio aquí de addIncident a handleSaveIncident
+    disabled={!newNote.trim()} 
+    className="flex-[2] py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-[10px]"
+  >
+    Guardar
+  </button>
+</div>
                             </div>
                           ) : (
                             <button onClick={() => setIsWriting(true)} className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition hover:scale-[1.02]"><Edit3 size={18}/> Redactar Nota</button>
