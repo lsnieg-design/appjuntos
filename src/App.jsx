@@ -5575,43 +5575,54 @@ const handleUpdateGroup = async (e) => {
       <button onClick={() => setSelectedGroupDetails(null)} className="bg-gray-100 p-2 rounded-full text-gray-500 active:scale-75 transition-transform"><X size={24}/></button>
     </div>
 
-   {/* CUERPO DEL MODAL: ESTRUCTURA REFORZADA */}
+   {/* CUERPO DEL MODAL: ESTRUCTURA MEJORADA */}
     <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-slate-100">
       
-      {/* COLUMNA IZQUIERDA: GESTIÓN (Scroll propio) */}
+      {/* COLUMNA IZQUIERDA: GESTIÓN Y EQUIPO */}
       <div className="w-full lg:w-[420px] overflow-y-auto p-4 lg:p-6 space-y-4 bg-white border-r border-gray-200 custom-scrollbar shrink-0">
         
-        {/* BOTONES DRIVE RÁPIDOS */}
+        {/* BOTONES DRIVE */}
         <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
           <button 
             onClick={() => selectedGroupDetails.driveLink ? window.open(selectedGroupDetails.driveLink, '_blank') : alert('Falta link de Fotos')}
             className={`p-3 rounded-2xl flex items-center gap-3 transition ${selectedGroupDetails.driveLink ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-400'}`}
           >
-            <Folder size={18}/> <span className="font-black text-[9px] uppercase tracking-tighter">Fotos</span>
+            <Folder size={18}/> <span className="font-black text-[9px] uppercase tracking-tighter text-white">Fotos</span>
           </button>
           <button 
             onClick={() => selectedGroupDetails.institucionalDrive ? window.open(selectedGroupDetails.institucionalDrive, '_blank') : alert('Falta link de Drive')}
             className={`p-3 rounded-2xl flex items-center gap-3 transition ${selectedGroupDetails.institucionalDrive ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}
           >
-            <FileText size={18}/> <span className="font-black text-[9px] uppercase tracking-tighter">Drive</span>
+            <FileText size={18}/> <span className="font-black text-[9px] uppercase tracking-tighter text-white">Drive</span>
           </button>
         </div>
 
-        {/* EQUIPO */}
-        <div className="bg-slate-50 p-4 rounded-[25px] border border-slate-200">
-          <p className="text-[9px] font-black text-violet-400 uppercase mb-2">Equipo Directo</p>
-          <p className="text-xs font-bold text-gray-700 uppercase">👩‍🏫 {selectedGroupDetails.teacher}</p>
-          {selectedGroupDetails.aux && <p className="text-[10px] font-bold text-slate-500 uppercase italic mt-1">🤝 {selectedGroupDetails.aux}</p>}
+        {/* EQUIPO DOCENTE COMPLETO */}
+        <div className="bg-slate-50 p-4 rounded-[25px] border border-slate-200 space-y-2">
+          <p className="text-[9px] font-black text-violet-400 uppercase mb-1 tracking-widest">Equipo Docente</p>
+          <div className="space-y-1">
+            <p className="text-xs font-bold text-gray-700 uppercase">👩‍🏫 Titular: {selectedGroupDetails.teacher}</p>
+            {selectedGroupDetails.aux && <p className="text-[10px] font-bold text-slate-500 uppercase italic">🤝 Aux/Presep: {selectedGroupDetails.aux}</p>}
+            <p className="text-[9px] text-gray-400 font-bold uppercase border-t border-slate-200 pt-1 mt-1">
+              ✨ Especiales: {[selectedGroupDetails.special1, selectedGroupDetails.special2, selectedGroupDetails.special3].filter(Boolean).join(' • ') || '-'}
+            </p>
+            {(selectedGroupDetails.sup1 || selectedGroupDetails.sup2) && (
+              <p className="text-[9px] text-indigo-400 font-black uppercase">
+                🔍 Supervisión: {[selectedGroupDetails.sup1, selectedGroupDetails.sup2].filter(Boolean).join(' & ')}
+              </p>
+            )}
+          </div>
         </div>
 
-        {/* CONTROL DE INFORMES (Altura optimizada) */}
-        <div className="bg-white rounded-[25px] border border-blue-100 overflow-hidden shadow-sm">
-          <div className="p-3 bg-blue-50/50 border-b border-blue-100 flex justify-between items-center">
-            <h3 className="font-black text-[9px] uppercase text-blue-600">Control de Informes</h3>
-          </div>
-          <div className="p-2 space-y-2 max-h-[350px] overflow-y-auto custom-scrollbar">
+        {/* CONTROL DE INFORMES (Contraíble en PC y Celu) */}
+        <details className="group bg-white rounded-[25px] border border-blue-100 overflow-hidden shadow-sm" open={window.innerWidth > 1024}>
+          <summary className="p-4 list-none flex justify-between items-center cursor-pointer bg-blue-50/50 border-b border-blue-50">
+            <h3 className="font-black text-[10px] uppercase text-blue-600 tracking-widest">Control de Informes</h3>
+            <ChevronDown size={16} className="text-blue-400 group-open:rotate-180 transition-transform"/>
+          </summary>
+          <div className="p-2 space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar">
              {selectedGroupDetails.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
-                <div key={s.id} className="bg-slate-50 p-2 rounded-xl border border-slate-100">
+                <div key={s.id} className="bg-slate-50 p-2 rounded-xl border border-slate-100 shadow-sm">
                    <p className="font-black text-slate-700 text-[9px] uppercase mb-1 truncate">{s.lastName}, {s.firstName}</p>
                    <div className="grid grid-cols-3 gap-1">
                       {[1,2,3].map(n => {
@@ -5627,15 +5638,20 @@ const handleUpdateGroup = async (e) => {
                                  if (val === 'Enviado') update = { hecho: true, enviado: true, fechaEnvio: new Date().toISOString() };
                                  if (val === 'Devuelto') update = { hecho: true, enviado: true, devuelto: true, fechaDevuelto: new Date().toISOString() };
                                  if (val === 'Archivado') update = { hecho: true, enviado: true, devuelto: true, archivado: true };
+                                 
                                  await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { [`informe${n}`]: update });
                                  const stds = selectedGroupDetails.students.map(std => std.id === s.id ? { ...std, [`informe${n}`]: update } : std);
                                  setSelectedGroupDetails({ ...selectedGroupDetails, students: stds });
+                                 
+                                 // Suma puntos Challenge
+                                 const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+                                 await updateDoc(userRef, { score: increment(5) });
                               }}
                               className={`text-[7px] font-black p-1 rounded-md border transition-all ${
                                 info.archivado ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 
                                 info.devuelto ? 'bg-blue-50 border-blue-200 text-blue-700' : 
                                 info.enviado ? 'bg-orange-50 border-orange-200 text-orange-700' : 
-                                info.hecho ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white text-gray-400'
+                                info.hecho ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white text-gray-400 border-gray-100'
                               }`}
                             >
                                <option value="Pendiente">{n}° PEND.</option>
@@ -5650,18 +5666,30 @@ const handleUpdateGroup = async (e) => {
                 </div>
              ))}
           </div>
-        </div>
+        </details>
       </div>
 
-      {/* COLUMNA DERECHA: ESPACIO DE INTERCAMBIO (Visible siempre) */}
-      <div className="flex-1 flex flex-col bg-white lg:m-4 lg:rounded-[40px] lg:shadow-2xl overflow-hidden min-h-[400px]">
-        <div className="p-4 border-b bg-orange-50/50 flex items-center gap-2">
-          <MessageSquare size={18} className="text-orange-500"/>
-          <h3 className="font-black text-orange-600 uppercase italic text-xs tracking-widest">Intercambio</h3>
+      {/* SECCIÓN DERECHA: ESPACIO DE INTERCAMBIO SOBRE ESTE GRUPO */}
+      <div className="flex-1 flex flex-col bg-white lg:m-4 lg:rounded-[40px] lg:shadow-2xl overflow-hidden min-h-[450px]">
+        {/* Cabecera del chat fija */}
+        <div className="p-4 border-b bg-orange-50/50 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2">
+            <MessageSquare size={18} className="text-orange-500"/>
+            <h3 className="font-black text-orange-600 uppercase italic text-xs tracking-widest">Espacio de intercambio sobre este grupo</h3>
+            {(() => {
+                const total = groupMessages[selectedGroupDetails.name]?.length || 0;
+                const read = parseInt(localStorage.getItem(`read_${selectedGroupDetails.name}_${user.id}`) || "0");
+                if (total > read) return <span className="bg-red-500 text-white text-[8px] px-2 py-0.5 rounded-full animate-bounce shadow-sm">+{total - read}</span>;
+            })()}
+          </div>
         </div>
 
-        {/* CHAT */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col-reverse bg-slate-50/50 custom-scrollbar">
+        {/* Área de mensajes (Visible en celu porque eliminamos el 'details' que fallaba) */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col-reverse bg-slate-50/50 custom-scrollbar"
+             onMouseEnter={() => {
+                const total = groupMessages[selectedGroupDetails.name]?.length || 0;
+                localStorage.setItem(`read_${selectedGroupDetails.name}_${user.id}`, total);
+             }}>
           {groupMessages[selectedGroupDetails.name]?.map(m => (
             <div key={m.id} className={`p-3 rounded-2xl max-w-[85%] shadow-sm ${m.authorId === user.id ? 'bg-violet-600 text-white self-end rounded-tr-none' : 'bg-white text-gray-800 self-start rounded-tl-none border border-gray-100'}`}>
               <div className="flex justify-between items-center mb-1 gap-4">
@@ -5673,13 +5701,20 @@ const handleUpdateGroup = async (e) => {
           ))}
         </div>
 
-        {/* INPUT */}
-        <form onSubmit={(e) => handleAddGroupComment(e, selectedGroupDetails.name)} className="p-4 bg-white border-t flex gap-2">
-          <input name="comment" placeholder="Escribir novedad..." className="flex-1 bg-gray-100 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 ring-violet-200" />
-          <button type="submit" className="bg-violet-600 text-white p-3 rounded-xl shadow-lg active:scale-90 transition-transform"><Send size={20}/></button>
+        {/* Input fijo abajo */}
+        <form onSubmit={(e) => handleAddGroupComment(e, selectedGroupDetails.name)} className="p-4 bg-white border-t flex gap-2 shrink-0">
+          <input 
+            name="comment" 
+            autoComplete="off"
+            placeholder="Escribir novedad..." 
+            className="flex-1 bg-gray-100 border-none rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 ring-violet-200" 
+          />
+          <button type="submit" className="bg-violet-600 text-white p-3 rounded-2xl shadow-lg active:scale-90 transition-transform">
+            <Send size={20}/>
+          </button>
         </form>
       </div>
-    </div> {/* CIERRE DE CUERPO DEL MODAL */}
+    </div>
   </div> 
 )}
 
