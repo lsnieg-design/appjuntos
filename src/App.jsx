@@ -5563,9 +5563,10 @@ const handleUpdateGroup = async (e) => {
           </div>
         </div>
       )}
-    {selectedGroupDetails && (
+   {/* VENTANA GRANDE DEL GRUPO (MODAL OPTIMIZADO) */}
+{selectedGroupDetails && (
   <div className="fixed inset-0 bg-slate-900 z-[500] flex flex-col animate-in fade-in duration-300 overflow-hidden">
-    {/* CABECERA DEL MODAL */}
+    {/* HEADER */}
     <div className="bg-white p-4 flex justify-between items-center border-b shrink-0">
       <div>
         <h2 className="text-xl font-black text-violet-900 uppercase italic">{selectedGroupDetails.name}</h2>
@@ -5576,7 +5577,7 @@ const handleUpdateGroup = async (e) => {
 
     <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-slate-50">
       
-    {/* SECCIÓN IZQUIERDA: INFORMACIÓN Y GESTIÓN (CORREGIDA) */}
+      {/* SECCIÓN IZQUIERDA: INFORMACIÓN Y GESTIÓN */}
       <div className="w-full lg:w-[450px] overflow-y-auto p-4 space-y-4 custom-scrollbar border-r border-gray-100 bg-white">
         
         {/* BOTONES DRIVE: DISEÑO ROBUSTO */}
@@ -5598,7 +5599,7 @@ const handleUpdateGroup = async (e) => {
           </button>
         </div>
 
-        {/* CONTROL DE INFORMES: SISTEMA DE SELECTOR CLARO */}
+        {/* CONTROL DE INFORMES */}
         <div className="bg-slate-50 p-4 rounded-[30px] border border-slate-200">
           <h3 className="font-black text-blue-800 uppercase text-[10px] tracking-[3px] mb-4 flex items-center gap-2">
             <CheckSquare size={16}/> Seguimiento de Informes
@@ -5610,8 +5611,7 @@ const handleUpdateGroup = async (e) => {
                 <p className="font-black text-slate-700 text-[10px] uppercase mb-2 truncate">{s.lastName}, {s.firstName}</p>
                 <div className="grid grid-cols-3 gap-1">
                   {[1,2,3].map(n => {
-                    const info = s[`informe${n}`] || { status: 'Pendiente' };
-                    // Mantenemos la lógica de alerta roja si querés, pero en el borde o texto
+                    const info = s[`informe${n}`] || { enviado: false, devuelto: false, archivado: false };
                     return (
                       <div key={n} className="flex flex-col gap-1">
                         <span className="text-[8px] font-bold text-gray-400 text-center uppercase">{n}° Inf.</span>
@@ -5625,8 +5625,6 @@ const handleUpdateGroup = async (e) => {
                             if (val === 'Archivado') update = { enviado: true, devuelto: true, archivado: true };
 
                             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { [`informe${n}`]: update });
-                            
-                            // Actualización instantánea visual
                             const updatedStudents = selectedGroupDetails.students.map(std => std.id === s.id ? { ...std, [`informe${n}`]: update } : std);
                             setSelectedGroupDetails({ ...selectedGroupDetails, students: updatedStudents });
                           }}
@@ -5670,92 +5668,6 @@ const handleUpdateGroup = async (e) => {
         </details>
       </div>
 
-        {/* ACORDEÓN 2: CONTROL DE INFORMES (ACTUALIZACIÓN INSTANTÁNEA) */}
-        <details className="group bg-white rounded-[25px] border border-gray-100 overflow-hidden shadow-sm" open>
-          <summary className="p-4 list-none flex justify-between items-center cursor-pointer font-black text-[10px] uppercase text-blue-600 tracking-widest">
-            Control de Informes <ChevronDown size={16} className="group-open:rotate-180 transition-transform"/>
-          </summary>
-          <div className="p-4 pt-0 overflow-x-auto">
-            <table className="w-full text-[10px]">
-              <thead>
-                <tr className="text-gray-400 uppercase font-black border-b text-[8px]">
-                  <th className="py-2 text-left">Estudiante</th>
-                  <th className="py-2 text-center">1°</th>
-                  <th className="py-2 text-center">2°</th>
-                  <th className="py-2 text-center">3°</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {selectedGroupDetails.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
-                  <tr key={s.id}>
-                    <td className="py-3 font-bold text-gray-600 uppercase truncate max-w-[110px]">{s.lastName}, {s.firstName[0]}.</td>
-                    {[1,2,3].map(n => {
-                      const info = s[`informe${n}`] || { enviado: false, devuelto: false, archivado: false };
-                      
-                      // Definir color según el estado
-                      let bgColor = "bg-gray-100 text-gray-400";
-                      if (info.archivado) bgColor = "bg-emerald-500 text-white shadow-inner";
-                      else if (info.devuelto) bgColor = "bg-blue-500 text-white";
-                      else if (info.enviado) bgColor = "bg-orange-400 text-white";
-
-                      return (
-                        <td key={n} className="py-3 text-center">
-                          <button 
-                            onClick={async () => {
-                              let nextUpdate = {};
-                              if (!info.enviado) nextUpdate = { enviado: true, fechaEnvio: new Date().toISOString() };
-                              else if (!info.devuelto) nextUpdate = { ...info, devuelto: true, fechaDevuelto: new Date().toISOString() };
-                              else if (!info.archivado) nextUpdate = { ...info, archivado: true };
-                              else nextUpdate = { enviado: false, devuelto: false, archivado: false };
-
-                              // Actualizar Firebase
-                              await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { [`informe${n}`]: nextUpdate });
-                              
-                              // IMPORTANTE: Esto actualiza el estado local para que el cambio sea instantáneo en pantalla
-                              const updatedStudents = selectedGroupDetails.students.map(std => 
-                                std.id === s.id ? { ...std, [`informe${n}`]: nextUpdate } : std
-                              );
-                              setSelectedGroupDetails({ ...selectedGroupDetails, students: updatedStudents });
-                            }}
-                            className={`w-7 h-7 rounded-lg border-2 border-white flex items-center justify-center transition-all active:scale-75 font-black text-[9px] ${bgColor}`}
-                          >
-                            {info.archivado ? <Check size={14} strokeWidth={4}/> : n}
-                          </button>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            
-            {/* LEYENDA SIMPLE */}
-            <div className="mt-4 flex justify-between px-2 py-2 bg-gray-50 rounded-xl border border-gray-100">
-               <span className="text-[7px] font-bold text-orange-400 uppercase">● Enviado</span>
-               <span className="text-[7px] font-bold text-blue-500 uppercase">● Devuelto</span>
-               <span className="text-[7px] font-bold text-emerald-500 uppercase">● Archivado</span>
-            </div>
-          </div>
-        </details>
-
-        {/* ACORDEÓN 3: LISTA ESTUDIANTES */}
-        <details className="group bg-white rounded-[25px] border border-gray-100 overflow-hidden shadow-sm">
-          <summary className="p-4 list-none flex justify-between items-center cursor-pointer font-black text-[10px] uppercase text-gray-400">
-            Fichas Técnicas Estudiantes <ChevronDown size={16} className="group-open:rotate-180 transition-transform"/>
-          </summary>
-          <div className="p-2 grid grid-cols-1 gap-1 bg-gray-50">
-            {selectedGroupDetails.students.map(std => (
-              <div key={std.id} onClick={() => setSelectedStudent(std)} className="bg-white p-2 rounded-xl flex items-center gap-3 border border-gray-50 cursor-pointer hover:bg-violet-50">
-                <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
-                  {std.photoUrl && <img src={std.photoUrl} className="w-full h-full object-cover"/>}
-                </div>
-                <span className="font-bold text-gray-700 text-[10px] uppercase">{std.lastName}, {std.firstName}</span>
-              </div>
-            ))}
-          </div>
-        </details>
-      </div>
-
       {/* SECCIÓN DERECHA: MURO / CHAT */}
       <div className="flex-1 bg-white lg:m-4 lg:rounded-[40px] flex flex-col shadow-2xl overflow-hidden min-h-[450px]">
         <div className="p-4 border-b bg-orange-50/30 flex items-center gap-2">
@@ -5780,13 +5692,47 @@ const handleUpdateGroup = async (e) => {
           <button type="submit" className="bg-violet-600 text-white p-3 rounded-xl shadow-lg active:scale-90 transition-transform"><Send size={20}/></button>
         </form>
       </div>
-
     </div>
   </div>
 )}
-      {showBitacoraModal && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-emerald-500"><div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3><p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p></div><button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button></div>{!isWriting ? (<><div className="grid grid-cols-2 gap-3 mb-4 max-h-[50vh] overflow-y-auto">{INCIDENT_TYPES.map((type) => (<button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? "opacity-50" : "hover:brightness-95"}`}><span className="text-2xl">{type.emoji}</span><span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span></button>))}</div><button onClick={() => setIsWriting(true)} className="w-full py-3 bg-gray-900 text-white rounded-2xl font-bold uppercase text-xs flex items-center justify-center gap-2"><Edit3 size={16}/> Escribir Nota</button></>) : (<div className="animate-in slide-in-from-bottom"><textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Detalles..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm mb-2 h-24 outline-none focus:border-violet-500"/><div className="flex gap-2"><button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs hover:bg-gray-100 rounded-xl">Volver</button><button onClick={() => addIncident("medium", newNote)} disabled={!newNote.trim()} className="flex-1 py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg">Guardar</button></div></div>)}</div></div>)}
+
+{/* MODAL BITÁCORA EXPRESS */}
+{showBitacoraModal && (
+  <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+    <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-emerald-500">
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3>
+          <p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p>
+        </div>
+        <button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button>
+      </div>
+      {!isWriting ? (
+        <>
+          <div className="grid grid-cols-2 gap-3 mb-4 max-h-[50vh] overflow-y-auto">
+            {INCIDENT_TYPES.map((type) => (
+              <button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? "opacity-50" : "hover:brightness-95"}`}>
+                <span className="text-2xl">{type.emoji}</span>
+                <span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span>
+              </button>
+            ))}
+          </div>
+          <button onClick={() => setIsWriting(true)} className="w-full py-3 bg-gray-900 text-white rounded-2xl font-bold uppercase text-xs flex items-center justify-center gap-2"><Edit3 size={16}/> Escribir Nota</button>
+        </>
+      ) : (
+        <div className="animate-in slide-in-from-bottom">
+          <textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Detalles..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm mb-2 h-24 outline-none focus:border-violet-500"/>
+          <div className="flex gap-2">
+            <button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs hover:bg-gray-100 rounded-xl">Volver</button>
+            <button onClick={() => addIncident("medium", newNote)} disabled={!newNote.trim()} className="flex-1 py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg">Guardar</button>
+          </div>
+        </div>
+      )}
     </div>
-  );
+  </div>
+)}
+</div>
+);
 }
 // --- VISTA PERSONAL (VERSIÓN DEFINITIVA Y COMPLETA) ---
 function PersonalView({ user }) {
