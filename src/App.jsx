@@ -5624,28 +5624,39 @@ const handleUpdateGroup = async (e) => {
                          const info = s[`informe${n}`] || { enviado: false, devuelto: false, archivado: false };
                          return (
                             <select 
-                              key={n}
-                              value={info.archivado ? 'Archivado' : info.devuelto ? 'Devuelto' : info.enviado ? 'Enviado' : 'Pendiente'}
-                              onChange={async (e) => {
-                                 const val = e.target.value;
-                                 let update = { enviado: false, devuelto: false, archivado: false };
-                                 if (val === 'Enviado') update = { enviado: true, fechaEnvio: new Date().toISOString() };
-                                 if (val === 'Devuelto') update = { enviado: true, devuelto: true, fechaDevuelto: new Date().toISOString() };
-                                 if (val === 'Archivado') update = { enviado: true, devuelto: true, archivado: true };
-                                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { [`informe${n}`]: update });
-                                 const stds = selectedGroupDetails.students.map(std => std.id === s.id ? { ...std, [`informe${n}`]: update } : std);
-                                 setSelectedGroupDetails({ ...selectedGroupDetails, students: stds });
-                                 // SUMA PUNTOS (+5)
-                                 const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-                                 await updateDoc(userRef, { score: increment(5) });
-                              }}
-                              className={`text-[8px] font-black p-1.5 rounded-lg border-2 transition-colors ${info.archivado ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : info.devuelto ? 'bg-blue-50 border-blue-200 text-blue-700' : info.enviado ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-white text-gray-400'}`}
-                            >
-                               <option value="Pendiente">{n}° PEND.</option>
-                               <option value="Enviado">{n}° ENV.</option>
-                               <option value="Devuelto">{n}° DEV.</option>
-                               <option value="Archivado">{n}° OK</option>
-                            </select>
+  key={n}
+  value={info.archivado ? 'Archivado' : info.devuelto ? 'Devuelto' : info.enviado ? 'Enviado' : info.hecho ? 'Hecho' : 'Pendiente'}
+  onChange={async (e) => {
+    const val = e.target.value;
+    let update = { hecho: false, enviado: false, devuelto: false, archivado: false };
+    
+    if (val === 'Hecho') update = { hecho: true };
+    if (val === 'Enviado') update = { hecho: true, enviado: true, fechaEnvio: new Date().toISOString() };
+    if (val === 'Devuelto') update = { hecho: true, enviado: true, devuelto: true, fechaDevuelto: new Date().toISOString() };
+    if (val === 'Archivado') update = { hecho: true, enviado: true, devuelto: true, archivado: true };
+
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { [`informe${n}`]: update });
+    const stds = selectedGroupDetails.students.map(std => std.id === s.id ? { ...std, [`informe${n}`]: update } : std);
+    setSelectedGroupDetails({ ...selectedGroupDetails, students: stds });
+    
+    // Puntos
+    const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+    await updateDoc(userRef, { score: increment(5) });
+  }}
+  className={`text-[8px] font-black p-1.5 rounded-lg border-2 transition-colors ${
+    info.archivado ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 
+    info.devuelto ? 'bg-blue-50 border-blue-200 text-blue-700' : 
+    info.enviado ? 'bg-orange-50 border-orange-200 text-orange-700' : 
+    info.hecho ? 'bg-indigo-50 border-indigo-200 text-indigo-700' :
+    'bg-white text-gray-400'
+  }`}
+>
+  <option value="Pendiente">{n}° PENDIENTE</option>
+  <option value="Hecho">HECHO</option>
+  <option value="Enviado">ENVIADO</option>
+  <option value="Devuelto">DEVUELTO</option>
+  <option value="Archivado">ARCHIVADO EN LEGAJO</option>
+</select>
                          );
                       })}
                    </div>
@@ -5670,13 +5681,18 @@ const handleUpdateGroup = async (e) => {
         </details>
       </div>
 
-      {/* SECCIÓN DERECHA: MURO */}
-      <div className="flex-1 lg:m-4 lg:rounded-[40px] flex flex-col lg:shadow-2xl overflow-hidden min-h-[100px] lg:min-h-[500px]">
-        <details className="group bg-white lg:flex lg:flex-col lg:h-full" open={window.innerWidth > 1024}>
+     {/* SECCIÓN DERECHA: ESPACIO DE INTERCAMBIO */}
+      <div className="flex-1 lg:m-4 lg:rounded-[40px] flex flex-col lg:shadow-2xl overflow-hidden min-h-[60px] lg:min-h-[500px]">
+        <details 
+          className="group bg-white lg:flex lg:flex-col lg:h-full" 
+          open={window.innerWidth > 1024}
+        >
           <summary className="p-4 border-b bg-orange-50/30 flex items-center justify-between cursor-pointer list-none lg:pointer-events-none">
             <div className="flex items-center gap-2">
               <MessageSquare size={18} className="text-orange-500"/>
-              <h3 className="font-black text-orange-600 uppercase italic text-[10px] lg:text-xs tracking-widest">Intercambio del grupo</h3>
+              <h3 className="font-black text-orange-600 uppercase italic text-[10px] lg:text-xs tracking-widest">
+                Espacio de intercambio
+              </h3>
               {(() => {
                 const total = groupMessages[selectedGroupDetails.name]?.length || 0;
                 const read = parseInt(localStorage.getItem(`read_${selectedGroupDetails.name}_${user.id}`) || "0");
@@ -5685,10 +5701,15 @@ const handleUpdateGroup = async (e) => {
             </div>
             <ChevronDown size={18} className="text-orange-400 lg:hidden group-open:rotate-180 transition-transform"/>
           </summary>
-          <div className="flex flex-col h-[450px] lg:h-full bg-slate-50 border-t lg:border-none" onMouseEnter={() => {
-                const total = groupMessages[selectedGroupDetails.name]?.length || 0;
-                localStorage.setItem(`read_${selectedGroupDetails.name}_${user.id}`, total);
-            }}>
+
+          {/* ALTURA FIJA EN CELU PARA QUE SE DESPLIEGUE BIEN */}
+          <div 
+            className="flex flex-col h-[500px] lg:h-full bg-slate-50 border-t border-orange-100 lg:border-none"
+            onMouseEnter={() => {
+              const total = groupMessages[selectedGroupDetails.name]?.length || 0;
+              localStorage.setItem(`read_${selectedGroupDetails.name}_${user.id}`, total);
+            }}
+          >
             <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col-reverse custom-scrollbar">
               {groupMessages[selectedGroupDetails.name]?.map(m => (
                 <div key={m.id} className={`p-3 rounded-2xl max-w-[90%] shadow-sm ${m.authorId === user.id ? 'bg-violet-600 text-white self-end rounded-tr-none' : 'bg-white text-gray-800 self-start rounded-tl-none border border-gray-100'}`}>
@@ -5700,8 +5721,9 @@ const handleUpdateGroup = async (e) => {
                 </div>
               ))}
             </div>
+
             <form onSubmit={(e) => handleAddGroupComment(e, selectedGroupDetails.name)} className="p-3 bg-gray-100 border-t flex gap-2">
-              <input name="comment" placeholder="Escribir novedad..." className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs outline-none" />
+              <input name="comment" placeholder="Escribir novedad..." className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs outline-none focus:ring-2 ring-violet-200" />
               <button type="submit" className="bg-violet-600 text-white p-2.5 rounded-xl shadow-lg active:scale-90 transition-transform"><Send size={20}/></button>
             </form>
           </div>
