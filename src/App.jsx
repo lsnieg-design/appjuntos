@@ -5575,159 +5575,109 @@ const handleUpdateGroup = async (e) => {
       <button onClick={() => setSelectedGroupDetails(null)} className="bg-gray-100 p-2 rounded-full text-gray-500 active:scale-75 transition-transform"><X size={24}/></button>
     </div>
 
-    {/* CUERPO DEL MODAL */}
+   {/* CUERPO DEL MODAL: ESTRUCTURA REFORZADA */}
     <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-slate-100">
       
-      {/* SECCIÓN IZQUIERDA: GESTIÓN */}
-      <div className="w-full lg:w-[450px] overflow-y-auto p-3 lg:p-6 space-y-3 custom-scrollbar border-r border-gray-200 bg-white">
+      {/* COLUMNA IZQUIERDA: GESTIÓN (Scroll propio) */}
+      <div className="w-full lg:w-[420px] overflow-y-auto p-4 lg:p-6 space-y-4 bg-white border-r border-gray-200 custom-scrollbar shrink-0">
         
-        {/* BOTONES DRIVE */}
-        <div className="grid grid-cols-1 gap-2 mb-4">
+        {/* BOTONES DRIVE RÁPIDOS */}
+        <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
           <button 
-            onClick={() => selectedGroupDetails.driveLink ? window.open(selectedGroupDetails.driveLink, '_blank') : alert('Cargá el link de FOTOS en Editar Grupo')}
-            className={`w-full p-4 rounded-2xl flex items-center justify-between shadow-sm transition ${selectedGroupDetails.driveLink ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-400'}`}
+            onClick={() => selectedGroupDetails.driveLink ? window.open(selectedGroupDetails.driveLink, '_blank') : alert('Falta link de Fotos')}
+            className={`p-3 rounded-2xl flex items-center gap-3 transition ${selectedGroupDetails.driveLink ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-400'}`}
           >
-            <div className="flex items-center gap-3"><Folder size={20}/> <span className="font-black text-xs uppercase tracking-widest text-white">Fotos del Grupo</span></div>
-            <ChevronRight size={16} className="text-white"/>
+            <Folder size={18}/> <span className="font-black text-[9px] uppercase tracking-tighter">Fotos</span>
           </button>
-
           <button 
-            onClick={() => selectedGroupDetails.institucionalDrive ? window.open(selectedGroupDetails.institucionalDrive, '_blank') : alert('Cargá el link de DRIVE GENERAL en Editar Grupo')}
-            className={`w-full p-4 rounded-2xl flex items-center justify-between shadow-sm transition ${selectedGroupDetails.institucionalDrive ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}
+            onClick={() => selectedGroupDetails.institucionalDrive ? window.open(selectedGroupDetails.institucionalDrive, '_blank') : alert('Falta link de Drive')}
+            className={`p-3 rounded-2xl flex items-center gap-3 transition ${selectedGroupDetails.institucionalDrive ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}
           >
-            <div className="flex items-center gap-3"><FileText size={20}/> <span className="font-black text-xs uppercase tracking-widest text-white">Carpeta de Drive</span></div>
-            <ChevronRight size={16} className="text-white"/>
+            <FileText size={18}/> <span className="font-black text-[9px] uppercase tracking-tighter">Drive</span>
           </button>
         </div>
 
         {/* EQUIPO */}
-        <div className="bg-slate-50 p-4 rounded-[25px] border border-slate-100 space-y-2">
-          <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest mb-1">Equipo a cargo</p>
-          <p className="text-xs font-bold text-gray-700 uppercase">👩‍🏫 Titular: {selectedGroupDetails.teacher}</p>
-          {selectedGroupDetails.aux && <p className="text-xs font-black text-slate-500 uppercase">🤝 Aux/Presep: {selectedGroupDetails.aux}</p>}
-          <p className="text-[10px] text-gray-400 font-bold uppercase italic mt-1">
-            ✨ Especiales: {[selectedGroupDetails.special1, selectedGroupDetails.special2, selectedGroupDetails.special3].filter(Boolean).join(' • ') || '-'}
-          </p>
+        <div className="bg-slate-50 p-4 rounded-[25px] border border-slate-200">
+          <p className="text-[9px] font-black text-violet-400 uppercase mb-2">Equipo Directo</p>
+          <p className="text-xs font-bold text-gray-700 uppercase">👩‍🏫 {selectedGroupDetails.teacher}</p>
+          {selectedGroupDetails.aux && <p className="text-[10px] font-bold text-slate-500 uppercase italic mt-1">🤝 {selectedGroupDetails.aux}</p>}
         </div>
 
-        {/* SEGUIMIENTO DE INFORMES */}
-        <details className="group bg-white rounded-[25px] border border-blue-100 overflow-hidden shadow-sm" open={window.innerWidth > 1024}>
-          <summary className="p-4 list-none flex justify-between items-center cursor-pointer font-black text-[10px] uppercase text-blue-600 tracking-widest bg-blue-50/30">
-            Control de Informes <ChevronDown size={18} className="group-open:rotate-180 transition-transform"/>
-          </summary>
-          <div className="p-3 space-y-2 bg-white">
+        {/* CONTROL DE INFORMES (Altura optimizada) */}
+        <div className="bg-white rounded-[25px] border border-blue-100 overflow-hidden shadow-sm">
+          <div className="p-3 bg-blue-50/50 border-b border-blue-100 flex justify-between items-center">
+            <h3 className="font-black text-[9px] uppercase text-blue-600">Control de Informes</h3>
+          </div>
+          <div className="p-2 space-y-2 max-h-[350px] overflow-y-auto custom-scrollbar">
              {selectedGroupDetails.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
-                <div key={s.id} className="bg-slate-50 p-3 rounded-2xl mb-2 border border-slate-100">
-                   <p className="font-black text-slate-700 text-[10px] uppercase mb-2 truncate">{s.lastName}, {s.firstName}</p>
+                <div key={s.id} className="bg-slate-50 p-2 rounded-xl border border-slate-100">
+                   <p className="font-black text-slate-700 text-[9px] uppercase mb-1 truncate">{s.lastName}, {s.firstName}</p>
                    <div className="grid grid-cols-3 gap-1">
                       {[1,2,3].map(n => {
-                         const info = s[`informe${n}`] || { enviado: false, devuelto: false, archivado: false };
+                         const info = s[`informe${n}`] || { hecho: false, enviado: false, devuelto: false, archivado: false };
                          return (
                             <select 
-  key={n}
-  value={info.archivado ? 'Archivado' : info.devuelto ? 'Devuelto' : info.enviado ? 'Enviado' : info.hecho ? 'Hecho' : 'Pendiente'}
-  onChange={async (e) => {
-    const val = e.target.value;
-    let update = { hecho: false, enviado: false, devuelto: false, archivado: false };
-    
-    if (val === 'Hecho') update = { hecho: true };
-    if (val === 'Enviado') update = { hecho: true, enviado: true, fechaEnvio: new Date().toISOString() };
-    if (val === 'Devuelto') update = { hecho: true, enviado: true, devuelto: true, fechaDevuelto: new Date().toISOString() };
-    if (val === 'Archivado') update = { hecho: true, enviado: true, devuelto: true, archivado: true };
-
-    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { [`informe${n}`]: update });
-    const stds = selectedGroupDetails.students.map(std => std.id === s.id ? { ...std, [`informe${n}`]: update } : std);
-    setSelectedGroupDetails({ ...selectedGroupDetails, students: stds });
-    
-    // Puntos
-    const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-    await updateDoc(userRef, { score: increment(5) });
-  }}
-  className={`text-[8px] font-black p-1.5 rounded-lg border-2 transition-colors ${
-    info.archivado ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 
-    info.devuelto ? 'bg-blue-50 border-blue-200 text-blue-700' : 
-    info.enviado ? 'bg-orange-50 border-orange-200 text-orange-700' : 
-    info.hecho ? 'bg-indigo-50 border-indigo-200 text-indigo-700' :
-    'bg-white text-gray-400'
-  }`}
->
-  <option value="Pendiente">{n}° PENDIENTE</option>
-  <option value="Hecho">HECHO</option>
-  <option value="Enviado">ENVIADO</option>
-  <option value="Devuelto">DEVUELTO</option>
-  <option value="Archivado">ARCHIVADO EN LEGAJO</option>
-</select>
+                              key={n}
+                              value={info.archivado ? 'Archivado' : info.devuelto ? 'Devuelto' : info.enviado ? 'Enviado' : info.hecho ? 'Hecho' : 'Pendiente'}
+                              onChange={async (e) => {
+                                 const val = e.target.value;
+                                 let update = { hecho: false, enviado: false, devuelto: false, archivado: false };
+                                 if (val === 'Hecho') update = { hecho: true };
+                                 if (val === 'Enviado') update = { hecho: true, enviado: true, fechaEnvio: new Date().toISOString() };
+                                 if (val === 'Devuelto') update = { hecho: true, enviado: true, devuelto: true, fechaDevuelto: new Date().toISOString() };
+                                 if (val === 'Archivado') update = { hecho: true, enviado: true, devuelto: true, archivado: true };
+                                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { [`informe${n}`]: update });
+                                 const stds = selectedGroupDetails.students.map(std => std.id === s.id ? { ...std, [`informe${n}`]: update } : std);
+                                 setSelectedGroupDetails({ ...selectedGroupDetails, students: stds });
+                              }}
+                              className={`text-[7px] font-black p-1 rounded-md border transition-all ${
+                                info.archivado ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 
+                                info.devuelto ? 'bg-blue-50 border-blue-200 text-blue-700' : 
+                                info.enviado ? 'bg-orange-50 border-orange-200 text-orange-700' : 
+                                info.hecho ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white text-gray-400'
+                              }`}
+                            >
+                               <option value="Pendiente">{n}° PEND.</option>
+                               <option value="Hecho">HECHO</option>
+                               <option value="Enviado">ENV.</option>
+                               <option value="Devuelto">DEV.</option>
+                               <option value="Archivado">LEGAJO</option>
+                            </select>
                          );
                       })}
                    </div>
                 </div>
              ))}
           </div>
-        </details>
-
-        {/* FICHAS TÉCNICAS */}
-        <details className="group bg-white rounded-[25px] border border-gray-100 overflow-hidden shadow-sm">
-          <summary className="p-4 list-none flex justify-between items-center cursor-pointer font-black text-[10px] uppercase text-gray-400 tracking-widest">
-            Fichas Alumnos <ChevronDown size={18} className="group-open:rotate-180 transition-transform"/>
-          </summary>
-          <div className="p-2 space-y-1 bg-gray-50 border-t border-gray-100">
-            {selectedGroupDetails.students.map(std => (
-              <button key={std.id} onClick={() => setSelectedStudent(std)} className="w-full text-left p-3 bg-white rounded-xl font-bold text-[10px] uppercase text-slate-600 border border-gray-100 flex items-center gap-3">
-                <div className="w-6 h-6 rounded-full bg-violet-100 text-violet-500 flex items-center justify-center text-[8px]">{std.firstName[0]}</div>
-                {std.lastName}, {std.firstName}
-              </button>
-            ))}
-          </div>
-        </details>
+        </div>
       </div>
 
-     {/* SECCIÓN DERECHA: ESPACIO DE INTERCAMBIO */}
-      <div className="flex-1 lg:m-4 lg:rounded-[40px] flex flex-col lg:shadow-2xl overflow-hidden min-h-[60px] lg:min-h-[500px]">
-        <details 
-          className="group bg-white lg:flex lg:flex-col lg:h-full" 
-          open={window.innerWidth > 1024}
-        >
-          <summary className="p-4 border-b bg-orange-50/30 flex items-center justify-between cursor-pointer list-none lg:pointer-events-none">
-            <div className="flex items-center gap-2">
-              <MessageSquare size={18} className="text-orange-500"/>
-              <h3 className="font-black text-orange-600 uppercase italic text-[10px] lg:text-xs tracking-widest">
-                Espacio de intercambio
-              </h3>
-              {(() => {
-                const total = groupMessages[selectedGroupDetails.name]?.length || 0;
-                const read = parseInt(localStorage.getItem(`read_${selectedGroupDetails.name}_${user.id}`) || "0");
-                if (total > read) return <span className="bg-red-500 text-white text-[8px] px-1.5 py-0.5 rounded-full animate-bounce">{total - read} nuevos</span>;
-              })()}
-            </div>
-            <ChevronDown size={18} className="text-orange-400 lg:hidden group-open:rotate-180 transition-transform"/>
-          </summary>
+      {/* COLUMNA DERECHA: ESPACIO DE INTERCAMBIO (Visible siempre) */}
+      <div className="flex-1 flex flex-col bg-white lg:m-4 lg:rounded-[40px] lg:shadow-2xl overflow-hidden min-h-[400px]">
+        <div className="p-4 border-b bg-orange-50/50 flex items-center gap-2">
+          <MessageSquare size={18} className="text-orange-500"/>
+          <h3 className="font-black text-orange-600 uppercase italic text-xs tracking-widest">Intercambio</h3>
+        </div>
 
-          {/* ALTURA FIJA EN CELU PARA QUE SE DESPLIEGUE BIEN */}
-          <div 
-            className="flex flex-col h-[500px] lg:h-full bg-slate-50 border-t border-orange-100 lg:border-none"
-            onMouseEnter={() => {
-              const total = groupMessages[selectedGroupDetails.name]?.length || 0;
-              localStorage.setItem(`read_${selectedGroupDetails.name}_${user.id}`, total);
-            }}
-          >
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col-reverse custom-scrollbar">
-              {groupMessages[selectedGroupDetails.name]?.map(m => (
-                <div key={m.id} className={`p-3 rounded-2xl max-w-[90%] shadow-sm ${m.authorId === user.id ? 'bg-violet-600 text-white self-end rounded-tr-none' : 'bg-white text-gray-800 self-start rounded-tl-none border border-gray-100'}`}>
-                  <div className="flex justify-between items-center mb-1 gap-4">
-                    <span className={`text-[8px] font-black uppercase ${m.authorId === user.id ? 'text-violet-200' : 'text-violet-500'}`}>{m.author}</span>
-                    <span className="text-[7px] font-bold opacity-50">{m.createdAt?.seconds ? new Date(m.createdAt.seconds * 1000).toLocaleDateString() : 'Hoy'}</span>
-                  </div>
-                  <p className="text-xs font-medium leading-relaxed">{m.text}</p>
-                </div>
-              ))}
+        {/* CHAT */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col-reverse bg-slate-50/50 custom-scrollbar">
+          {groupMessages[selectedGroupDetails.name]?.map(m => (
+            <div key={m.id} className={`p-3 rounded-2xl max-w-[85%] shadow-sm ${m.authorId === user.id ? 'bg-violet-600 text-white self-end rounded-tr-none' : 'bg-white text-gray-800 self-start rounded-tl-none border border-gray-100'}`}>
+              <div className="flex justify-between items-center mb-1 gap-4">
+                <span className={`text-[8px] font-black uppercase ${m.authorId === user.id ? 'text-violet-200' : 'text-violet-500'}`}>{m.author}</span>
+                <span className="text-[7px] font-bold opacity-40">{m.createdAt?.seconds ? new Date(m.createdAt.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Ahora'}</span>
+              </div>
+              <p className="text-xs font-medium leading-tight">{m.text}</p>
             </div>
+          ))}
+        </div>
 
-            <form onSubmit={(e) => handleAddGroupComment(e, selectedGroupDetails.name)} className="p-3 bg-gray-100 border-t flex gap-2">
-              <input name="comment" placeholder="Escribir novedad..." className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs outline-none focus:ring-2 ring-violet-200" />
-              <button type="submit" className="bg-violet-600 text-white p-2.5 rounded-xl shadow-lg active:scale-90 transition-transform"><Send size={20}/></button>
-            </form>
-          </div>
-        </details>
+        {/* INPUT */}
+        <form onSubmit={(e) => handleAddGroupComment(e, selectedGroupDetails.name)} className="p-4 bg-white border-t flex gap-2">
+          <input name="comment" placeholder="Escribir novedad..." className="flex-1 bg-gray-100 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 ring-violet-200" />
+          <button type="submit" className="bg-violet-600 text-white p-3 rounded-xl shadow-lg active:scale-90 transition-transform"><Send size={20}/></button>
+        </form>
       </div>
     </div> {/* CIERRE DE CUERPO DEL MODAL */}
   </div> 
