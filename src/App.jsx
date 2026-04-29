@@ -5309,7 +5309,17 @@ const handleUpdateGroup = async (e) => {
                 <label className="text-xs font-bold text-green-600 ml-1">Drive del Grupo</label>
                 <input name="driveLink" defaultValue={editingGroup.driveLink || ""} className="w-full p-3 bg-green-50 border border-green-100 rounded-xl outline-none font-bold text-xs text-green-700" placeholder="https://..." />
               </div>
-
+              {/* Campo para el link de fotos en la edición del grupo */}
+<div className="mt-4">
+  <label className="text-[10px] font-black text-emerald-600 uppercase ml-1">Carpeta de Fotos (Drive)</label>
+  <input 
+    type="text"
+    placeholder="Pegá el link de la carpeta acá"
+    defaultValue={editingGroup.driveLink || ""}
+    onChange={(e) => setEditingGroup({...editingGroup, driveLink: e.target.value})}
+    className="w-full p-3 bg-emerald-50 border border-emerald-100 rounded-2xl text-xs font-bold text-emerald-800 outline-none focus:ring-2 ring-emerald-200"
+  />
+</div>
               <button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs mt-4">
                 {updatingGroup ? <span>Cargando...</span> : <span>Aplicar Cambios</span>}
               </button>
@@ -5511,111 +5521,164 @@ const handleUpdateGroup = async (e) => {
           </div>
         </div>
       )}
-     {/* VENTANA GRANDE DEL GRUPO (MODAL OPTIMIZADO) */}
-{selectedGroupDetails && (
+    {selectedGroupDetails && (
   <div className="fixed inset-0 bg-slate-900 z-[500] flex flex-col animate-in fade-in duration-300 overflow-hidden">
-    {/* Header Fijo */}
+    {/* CABECERA DEL MODAL */}
     <div className="bg-white p-4 flex justify-between items-center border-b shrink-0">
       <div>
         <h2 className="text-xl font-black text-violet-900 uppercase italic">{selectedGroupDetails.name}</h2>
-        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Panel Grupal Completo</p>
+        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[4px]">Panel de Control</p>
       </div>
-      <button onClick={() => setSelectedGroupDetails(null)} className="bg-gray-100 p-2 rounded-full text-gray-500 active:scale-90"><X size={24}/></button>
+      <button onClick={() => setSelectedGroupDetails(null)} className="bg-gray-100 p-2 rounded-full text-gray-500 active:scale-75 transition-transform"><X size={24}/></button>
     </div>
 
-    {/* Selector de Pestañas (Solo visible en Celular) */}
-    <div className="flex lg:hidden bg-white border-b p-1 shrink-0">
-      <button onClick={() => setActiveTab('info')} className={`flex-1 py-3 text-[10px] font-black uppercase rounded-xl transition ${activeTab === 'info' ? 'bg-violet-600 text-white shadow-md' : 'text-gray-400'}`}>Información</button>
-      <button onClick={() => setActiveTab('history')} className={`flex-1 py-3 text-[10px] font-black uppercase rounded-xl transition ${activeTab === 'history' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-400'}`}>Muro Comunitario</button>
-    </div>
-
-    <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-slate-100">
+    <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-slate-50">
       
-      {/* COLUMNA 1: INFO DEL EQUIPO Y ALUMNOS */}
-      <div className={`${activeTab !== 'info' ? 'hidden' : 'flex'} lg:flex lg:w-[450px] flex-col overflow-y-auto p-4 lg:p-8 space-y-6 lg:border-r border-gray-200 custom-scrollbar`}>
+      {/* SECCIÓN IZQUIERDA: INFORMACIÓN Y GESTIÓN */}
+      <div className="w-full lg:w-[450px] overflow-y-auto p-4 space-y-3 custom-scrollbar border-r border-gray-100">
         
-        {/* CARGOS Y EQUIPO COMPLETO */}
-        <div className="bg-white p-6 rounded-[35px] shadow-sm border border-gray-100 space-y-4">
-          <h3 className="text-[10px] font-black text-violet-400 uppercase tracking-[3px] border-b pb-2">Equipo del Grupo</h3>
-          <div className="space-y-2">
+        {/* BOTÓN DRIVE: Aparece solo si hay link */}
+        {selectedGroupDetails.driveLink && (
+          <a 
+            href={selectedGroupDetails.driveLink} 
+            target="_blank" 
+            rel="noreferrer"
+            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white p-4 rounded-[25px] flex items-center justify-center gap-3 shadow-lg transition-all active:scale-95 mb-4"
+          >
+            <Folder size={20}/>
+            <span className="font-black text-[10px] uppercase tracking-widest">Carpeta de Fotos</span>
+          </a>
+        )}
+
+        {/* ACORDEÓN 1: EQUIPO (Cerrado por defecto en celu) */}
+        <details className="group bg-white rounded-[25px] border border-gray-100 overflow-hidden shadow-sm">
+          <summary className="p-4 list-none flex justify-between items-center cursor-pointer font-black text-[10px] uppercase text-violet-900">
+            Ver Equipo a Cargo <ChevronDown size={16} className="group-open:rotate-180 transition-transform"/>
+          </summary>
+          <div className="p-4 pt-0 space-y-2 bg-violet-50/20">
             <p className="text-xs font-bold text-gray-700 uppercase">👩‍🏫 Titular: {selectedGroupDetails.teacher}</p>
-            {selectedGroupDetails.teacher2 && <p className="text-xs font-bold text-gray-500 uppercase italic">👤 Pareja: {selectedGroupDetails.teacher2}</p>}
-            {selectedGroupDetails.aux && <p className="text-xs font-bold text-slate-600 uppercase">🤝 Auxiliar: {selectedGroupDetails.aux}</p>}
-            
-            <div className="pt-2 space-y-1">
-              {selectedGroupDetails.special1 && <p className="text-[10px] font-bold text-gray-400 uppercase">🎨 Especial: {selectedGroupDetails.special1}</p>}
-              {selectedGroupDetails.special2 && <p className="text-[10px] font-bold text-gray-400 uppercase">🎵 Especial: {selectedGroupDetails.special2}</p>}
-              {selectedGroupDetails.special3 && <p className="text-[10px] font-bold text-gray-400 uppercase">⚽ Especial: {selectedGroupDetails.special3}</p>}
-            </div>
-
-            {(selectedGroupDetails.sup1 || selectedGroupDetails.sup2) && (
-              <div className="pt-2 mt-2 border-t border-dashed">
-                <p className="text-[10px] font-black text-violet-800 uppercase italic">Supervisión: {selectedGroupDetails.sup1} {selectedGroupDetails.sup2 && `& ${selectedGroupDetails.sup2}`}</p>
-              </div>
-            )}
+            {selectedGroupDetails.aux && <p className="text-xs font-bold text-slate-500 uppercase">🤝 Aux/Presep: {selectedGroupDetails.aux}</p>}
+            <p className="text-[9px] text-gray-400 font-bold uppercase mt-2 border-t pt-2">
+              Especiales: {[selectedGroupDetails.special1, selectedGroupDetails.special2, selectedGroupDetails.special3].filter(Boolean).join(' • ') || 'No asignados'}
+            </p>
           </div>
+        </details>
 
-          {/* EDITAR DRIVE DIRECTO */}
-          <div className="pt-4 border-t">
-            <label className="text-[9px] font-black text-emerald-600 uppercase mb-2 block">Link Carpeta de Fotos (Drive)</label>
-            <div className="flex gap-2">
-              <input 
-                type="text" 
-                defaultValue={selectedGroupDetails.driveLink}
-                placeholder="Pegar link de Drive aquí..."
-                onBlur={async (e) => {
-                  const newLink = e.target.value;
-                  const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-                  const promises = selectedGroupDetails.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { [`driveLink${suf}`]: newLink }));
-                  await Promise.all(promises);
-                  alert("Link de Drive actualizado para el grupo.");
-                }}
-                className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-[10px] outline-none focus:border-emerald-500"
-              />
-              {selectedGroupDetails.driveLink && <button onClick={() => window.open(selectedGroupDetails.driveLink, '_blank')} className="bg-emerald-500 text-white p-2 rounded-xl"><ExternalLink size={16}/></button>}
+        {/* ACORDEÓN 2: CONTROL DE INFORMES CON SEMÁFORO */}
+        <details className="group bg-white rounded-[25px] border border-gray-100 overflow-hidden shadow-sm" open>
+          <summary className="p-4 list-none flex justify-between items-center cursor-pointer font-black text-[10px] uppercase text-blue-600">
+            Control de Informes <ChevronDown size={16} className="group-open:rotate-180 transition-transform"/>
+          </summary>
+          <div className="p-4 pt-0 overflow-x-auto">
+            <table className="w-full text-[10px]">
+              <thead>
+                <tr className="text-gray-400 uppercase font-black border-b text-[8px]">
+                  <th className="py-2 text-left">Estudiante</th>
+                  <th className="py-2 text-center">1°</th>
+                  <th className="py-2 text-center">2°</th>
+                  <th className="py-2 text-center">3°</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {selectedGroupDetails.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => {
+                  
+                  // FUNCIÓN PARA EL COLOR DEL SEMÁFORO
+                  const getCircleColor = (n) => {
+                    const info = s[`informe${n}`] || {};
+                    if (!info.enviado) return "bg-gray-100"; // Gris: No enviado
+                    
+                    // Lógica de los 10 días
+                    if (info.enviado && !info.devuelto) {
+                      const fechaEnvio = new Date(info.fechaEnvio);
+                      const hoy = new Date();
+                      const diferenciaDias = Math.floor((hoy - fechaEnvio) / (1000 * 60 * 60 * 24));
+                      
+                      if (diferenciaDias >= 10) return "bg-red-500 animate-pulse ring-4 ring-red-100"; // Rojo parpadeante si pasaron 10 días
+                      return "bg-orange-400"; // Naranja: Enviado pero en fecha
+                    }
+                    
+                    if (info.devuelto && !info.archivado) return "bg-blue-500"; // Azul: Devuelto
+                    if (info.archivado) return "bg-emerald-500"; // Verde: Archivado/Listo
+                    return "bg-gray-100";
+                  };
+
+                  return (
+                    <tr key={s.id}>
+                      <td className="py-3 font-bold text-gray-600 uppercase truncate max-w-[120px]">{s.lastName}, {s.firstName[0]}.</td>
+                      {[1,2,3].map(n => (
+                        <td key={n} className="py-3 text-center">
+                          <button 
+                            onClick={async () => {
+                              const current = s[`informe${n}`] || { enviado: false };
+                              let update = {};
+                              
+                              if (!current.enviado) {
+                                update = { enviado: true, fechaEnvio: new Date().toISOString() };
+                              } else if (!current.devuelto) {
+                                update = { ...current, devuelto: true, fechaDevuelto: new Date().toISOString() };
+                              } else if (!current.archivado) {
+                                update = { ...current, archivado: true };
+                              } else {
+                                update = { enviado: false }; // Resetear
+                              }
+
+                              await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { [`informe${n}`]: update });
+                            }}
+                            className={`w-4 h-4 rounded-full border-2 border-white shadow-sm transition-all ${getCircleColor(n)}`}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <div className="mt-4 flex flex-wrap gap-2 justify-center border-t pt-3">
+               <span className="text-[7px] font-bold text-gray-400 uppercase italic">🔘 Gris: Sin enviar • 🟠 Naranja: Enviado • 🔴 Rojo: +10 días sin devolver • 🔵 Azul: Devuelto • 🟢 Verde: Archivado</span>
             </div>
           </div>
-        </div>
+        </details>
 
-        {/* LISTADO DE ALUMNOS */}
-        <div className="space-y-3">
-          <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[4px] ml-4 italic">Estudiantes en Lista</h4>
-          <div className="grid grid-cols-1 gap-2">
+        {/* ACORDEÓN 3: LISTA MINIMIZADA DE ESTUDIANTES */}
+        <details className="group bg-white rounded-[25px] border border-gray-100 overflow-hidden shadow-sm">
+          <summary className="p-4 list-none flex justify-between items-center cursor-pointer font-black text-[10px] uppercase text-gray-400">
+            Fichas Técnicas Estudiantes <ChevronDown size={16} className="group-open:rotate-180 transition-transform"/>
+          </summary>
+          <div className="p-2 grid grid-cols-1 gap-1 bg-gray-50">
             {selectedGroupDetails.students.map(s => (
-              <div key={s.id} className="bg-white p-3 rounded-2xl flex items-center gap-3 border border-gray-50 shadow-sm">
-                <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden shrink-0">
-                  {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-gray-300 font-bold">{s.firstName[0]}</div>}
+              <div key={s.id} onClick={() => setSelectedStudent(s)} className="bg-white p-2 rounded-xl flex items-center gap-3 border border-gray-50 cursor-pointer hover:bg-violet-50 transition-colors">
+                <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden shrink-0">
+                  {s.photoUrl && <img src={s.photoUrl} className="w-full h-full object-cover"/>}
                 </div>
-                <span className="font-bold text-gray-700 text-xs uppercase">{s.lastName}, {s.firstName}</span>
+                <span className="font-bold text-gray-700 text-[10px] uppercase">{s.lastName}, {s.firstName}</span>
               </div>
             ))}
           </div>
-        </div>
+        </details>
       </div>
 
-      {/* COLUMNA 2: MURO DE COMENTARIOS (CHAT) */}
-      <div className={`${activeTab !== 'history' ? 'hidden' : 'flex'} flex-1 lg:flex flex-col bg-white md:m-4 md:rounded-[40px] shadow-2xl overflow-hidden`}>
-        <div className="p-5 border-b flex items-center justify-between bg-orange-50/30">
-          <h3 className="font-black text-orange-600 uppercase italic text-xs flex items-center gap-2">
-            <MessageSquare size={18}/> Muro de Bitácora Grupal
-          </h3>
+      {/* SECCIÓN DERECHA: MURO / CHAT (Prioritario en PC, debajo en celu) */}
+      <div className="flex-1 bg-white lg:m-4 lg:rounded-[40px] flex flex-col shadow-2xl overflow-hidden min-h-[450px]">
+        <div className="p-4 border-b bg-orange-50/30 flex items-center gap-2">
+          <MessageSquare size={18} className="text-orange-500"/>
+          <h3 className="font-black text-orange-600 uppercase italic text-xs tracking-widest">Muro de Bitácora Grupal</h3>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-4 flex flex-col-reverse custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col-reverse custom-scrollbar">
           {groupMessages[selectedGroupDetails.name]?.map(m => (
-            <div key={m.id} className={`p-4 rounded-[25px] max-w-[85%] ${m.authorId === user.id ? 'bg-violet-600 text-white self-end rounded-tr-none' : 'bg-gray-100 text-gray-800 self-start rounded-tl-none'}`}>
+            <div key={m.id} className={`p-3 rounded-2xl max-w-[85%] ${m.authorId === user.id ? 'bg-violet-600 text-white self-end rounded-tr-none' : 'bg-gray-100 text-gray-800 self-start rounded-tl-none'}`}>
               <div className="flex justify-between items-center mb-1 gap-4">
-                <span className={`text-[8px] font-black uppercase ${m.authorId === user.id ? 'text-violet-200' : 'text-violet-500'}`}>{m.author}</span>
-                <span className="text-[7px] opacity-50 font-bold">{m.createdAt?.seconds ? new Date(m.createdAt.seconds * 1000).toLocaleDateString() : 'Recién'}</span>
+                <span className="text-[8px] font-black uppercase opacity-70">{m.author}</span>
+                <span className="text-[7px] font-bold opacity-50">{m.createdAt?.seconds ? new Date(m.createdAt.seconds * 1000).toLocaleDateString() : 'Hoy'}</span>
               </div>
-              <p className="text-sm font-medium leading-relaxed">{m.text}</p>
+              <p className="text-xs font-medium leading-relaxed">{m.text}</p>
             </div>
           ))}
         </div>
 
         <form onSubmit={(e) => handleAddGroupComment(e, selectedGroupDetails.name)} className="p-4 bg-gray-50 border-t flex gap-2">
-          <input name="comment" placeholder="Anotar algo..." className="flex-1 bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 ring-violet-200" />
-          <button type="submit" className="bg-violet-600 text-white p-3 rounded-2xl active:scale-95 transition-transform"><Send size={20}/></button>
+          <input name="comment" placeholder="Escribir novedad..." className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs outline-none focus:ring-2 ring-violet-200" />
+          <button type="submit" className="bg-violet-600 text-white p-3 rounded-xl shadow-lg active:scale-90 transition-transform"><Send size={20}/></button>
         </form>
       </div>
 
