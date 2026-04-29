@@ -2907,8 +2907,9 @@ const handleSaveIncident = async (type, text = "", severity = "medium") => {
       try { 
           // Guardado en Firebase
           const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', student.id);
-          await updateDoc(studentRef, { incidents: arrayUnion(incidentData) }); 
-
+          await updateDoc(studentRef, { 
+        incidents: arrayUnion(incidentData) 
+    });
           // Suma de puntos Challenge (+10)
           const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
           await updateDoc(userRef, { score: increment(10) });
@@ -5216,7 +5217,7 @@ const handleUpdateGroup = async (e) => {
         e.target.reset();
     } catch (err) { alert(err.message); }
 };
-const handleSaveIncident = async (type, severity = "medium", text = "") => { 
+const handleSaveIncident = async (type, severity = "medium", text = "") => {
     // Detectamos quién es el alumno activo (del modal express o de la ficha abierta)
     const student = showBitacoraModal || selectedStudent;
     
