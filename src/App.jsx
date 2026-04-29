@@ -5712,43 +5712,43 @@ const handleUpdateGroup = async (e) => {
 )}
 
 {/* MODAL BITÁCORA EXPRESS */}
-{showBitacoraModal && (
-  <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-    <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-emerald-500">
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3>
-          <p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p>
-        </div>
-        <button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button>
-      </div>
-      {!isWriting ? (
-        <>
-          <div className="grid grid-cols-2 gap-3 mb-4 max-h-[50vh] overflow-y-auto">
-            {INCIDENT_TYPES.map((type) => (
-              <button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? "opacity-50" : "hover:brightness-95"}`}>
-                <span className="text-2xl">{type.emoji}</span>
-                <span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span>
-              </button>
-            ))}
-          </div>
-          <button onClick={() => setIsWriting(true)} className="w-full py-3 bg-gray-900 text-white rounded-2xl font-bold uppercase text-xs flex items-center justify-center gap-2"><Edit3 size={16}/> Escribir Nota</button>
-        </>
-      ) : (
-        <div className="animate-in slide-in-from-bottom">
-          <textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Detalles..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm mb-2 h-24 outline-none focus:border-violet-500"/>
-          <div className="flex gap-2">
-            <button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs hover:bg-gray-100 rounded-xl">Volver</button>
-            <button onClick={() => addIncident("medium", newNote)} disabled={!newNote.trim()} className="flex-1 py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg">Guardar</button>
+      {showBitacoraModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-emerald-500">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3>
+                <p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p>
+              </div>
+              <button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button>
+            </div>
+            {!isWriting ? (
+              <>
+                <div className="grid grid-cols-2 gap-3 mb-4 max-h-[50vh] overflow-y-auto">
+                  {INCIDENT_TYPES.map((type) => (
+                    <button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? "opacity-50" : "hover:brightness-95"}`}>
+                      <span className="text-2xl">{type.emoji}</span>
+                      <span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => setIsWriting(true)} className="w-full py-3 bg-gray-900 text-white rounded-2xl font-bold uppercase text-xs flex items-center justify-center gap-2"><Edit3 size={16}/> Escribir Nota</button>
+              </>
+            ) : (
+              <div className="animate-in slide-in-from-bottom">
+                <textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Detalles..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm mb-2 h-24 outline-none focus:border-violet-500"/>
+                <div className="flex gap-2">
+                  <button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs hover:bg-gray-100 rounded-xl">Volver</button>
+                  <button onClick={() => addIncident("medium", newNote)} disabled={!newNote.trim()} className="flex-1 py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg">Guardar</button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
-    </div>
-  </div>
-)}
-</div> {/* CIERRE PRINCIPAL DIV GROUPSVIEW */}
-);
-}
+    </div> // ESTE CIERRA EL CONTENEDOR PRINCIPAL
+  ); // CIERRE DEL RETURN
+} // CIERRE DE LA FUNCIÓN GROUPSVIEW
 
 // --- VISTA PERSONAL (VERSIÓN DEFINITIVA Y COMPLETA) ---
 function PersonalView({ user }) {
