@@ -1082,198 +1082,139 @@ function ResourcesView({ resources, canEdit }) {
         </div>
       )}
       {showNotaModal && (
-  <div className="fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-0 md:p-4 backdrop-blur-md" onClick={() => setShowNotaModal(false)}>
-    <div className="bg-white rounded-t-[40px] md:rounded-[40px] w-full max-w-7xl flex flex-col h-[100dvh] md:h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
-      
-      {/* CABECERA FIJA */}
-      <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center shrink-0 bg-white z-10">
-        <h3 className="text-lg md:text-xl font-black text-violet-900 uppercase italic">Editor Institucional</h3>
-        <button onClick={() => setShowNotaModal(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition">
-          <X size={20}/>
-        </button>
-      </div>
-      
-      {/* CUERPO DEL EDITOR: Vertical en celu, Horizontal en PC */}
-      <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-        
-        {/* LADO 1: CONFIGURACIÓN Y TEXTO (Scrollable) */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-10 space-y-6 border-b lg:border-b-0 lg:border-r border-gray-50 custom-scrollbar">
-          
-          {/* SECCIÓN PLANTILLAS (Más compacta en celu) */}
-          <button 
-            onClick={() => setShowTemplates(!showTemplates)} 
-            className="w-full bg-blue-50 text-blue-700 py-3 rounded-2xl font-bold text-[10px] md:text-xs uppercase border border-blue-100 flex justify-center items-center gap-2"
-          >
-            <List size={16}/> {showTemplates ? 'Cerrar Plantillas' : 'Usar Plantilla Reunión'}
-          </button>
-
-          {showTemplates && (
-            <div className="bg-blue-50/50 p-4 rounded-3xl border border-blue-100 space-y-3 animate-in fade-in zoom-in-95">
-              <input 
-                type="text" 
-                placeholder="Nombre del estudiante..." 
-                value={templateData.destinatario} 
-                onChange={e => setTemplateData({...templateData, destinatario: e.target.value})} 
-                className="w-full p-3 bg-white rounded-xl outline-none font-bold text-sm border-0 shadow-sm"
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <input type="date" value={templateData.fechaReunion} onChange={e => setTemplateData({...templateData, fechaReunion: e.target.value})} className="p-3 bg-white rounded-xl text-sm border-0 shadow-sm"/>
-                <input type="time" value={templateData.horaReunion} onChange={e => setTemplateData({...templateData, horaReunion: e.target.value})} className="p-3 bg-white rounded-xl text-sm border-0 shadow-sm"/>
-              </div>
-              <button onClick={aplicarPlantillaReunion} className="w-full bg-blue-600 text-white py-3 rounded-xl font-black text-[10px] uppercase shadow-md">Aplicar a la Nota</button>
+        <div className="fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-0 md:p-4 backdrop-blur-md" onClick={() => setShowNotaModal(false)}>
+          <div className="bg-white rounded-t-[40px] md:rounded-[40px] w-full max-w-7xl flex flex-col h-[100dvh] md:h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+            
+            {/* CABECERA FIJA */}
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center shrink-0 bg-white z-10">
+              <h3 className="text-lg md:text-xl font-black text-violet-900 uppercase italic">Editor Institucional</h3>
+              <button onClick={() => setShowNotaModal(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition">
+                <X size={20}/>
+              </button>
             </div>
-          )}
+            
+            {/* CUERPO DEL EDITOR: Vertical en celu, Horizontal en PC */}
+            <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+              
+              {/* LADO 1: CONFIGURACIÓN Y TEXTO (Scrollable) */}
+              <div className="flex-1 overflow-y-auto p-4 md:p-10 space-y-6 border-b lg:border-b-0 lg:border-r border-gray-50 custom-scrollbar">
+                
+                <button 
+                  onClick={() => setShowTemplates(!showTemplates)} 
+                  className="w-full bg-blue-50 text-blue-700 py-3 rounded-2xl font-bold text-[10px] md:text-xs uppercase border border-blue-100 flex justify-center items-center gap-2"
+                >
+                  <List size={16}/> {showTemplates ? 'Cerrar Plantillas' : 'Usar Plantilla Reunión'}
+                </button>
 
-          {/* CONTROLES DE ESTILO (En grilla compacta para celu) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Tamaño y Formato</span>
-              <div className="flex bg-gray-100 p-1 rounded-xl">
-                {[{l:'S', v:'text-[11px]'}, {l:'M', v:'text-[14px]'}, {l:'L', v:'text-[18px]'}].map(s => (
-                  <button key={s.v} onClick={() => setNotaData({...notaData, fontSize: s.v})} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${notaData.fontSize === s.v ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-400'}`}>{s.l}</button>
-                ))}
-              </div>
-            </div>
+                {showTemplates && (
+                  <div className="bg-blue-50/50 p-4 rounded-3xl border border-blue-100 space-y-3 animate-in fade-in zoom-in-95">
+                    <input 
+                      type="text" 
+                      placeholder="Nombre del estudiante..." 
+                      value={templateData.destinatario} 
+                      onChange={e => setTemplateData({...templateData, destinatario: e.target.value})} 
+                      className="w-full p-3 bg-white rounded-xl outline-none font-bold text-sm border-0 shadow-sm"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input type="date" value={templateData.fechaReunion} onChange={e => setTemplateData({...templateData, fechaReunion: e.target.value})} className="p-3 bg-white rounded-xl text-sm border-0 shadow-sm"/>
+                      <input type="time" value={templateData.horaReunion} onChange={e => setTemplateData({...templateData, horaReunion: e.target.value})} className="p-3 bg-white rounded-xl text-sm border-0 shadow-sm"/>
+                    </div>
+                    <button onClick={aplicarPlantillaReunion} className="w-full bg-blue-600 text-white py-3 rounded-xl font-black text-[10px] uppercase shadow-md">Aplicar a la Nota</button>
+                  </div>
+                )}
 
-            <div className="space-y-2">
-              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Modo Visual</span>
-              <div className="flex bg-gray-100 p-1 rounded-xl">
-                <button onClick={() => setNotaData({...notaData, isPrintMode: false})} className={`flex-1 py-2 rounded-lg text-[9px] font-black ${!notaData.isPrintMode ? 'bg-orange-500 text-white shadow-sm' : 'text-gray-400'}`}>COLOR</button>
-                <button onClick={() => setNotaData({...notaData, isPrintMode: true})} className={`flex-1 py-2 rounded-lg text-[9px] font-black ${notaData.isPrintMode ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-400'}`}>BLANCO</button>
-              </div>
-            </div>
-          </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Tamaño</span>
+                    <div className="flex bg-gray-100 p-1 rounded-xl">
+                      {[{l:'S', v:'text-[11px]'}, {l:'M', v:'text-[14px]'}, {l:'L', v:'text-[18px]'}].map(s => (
+                        <button key={s.v} onClick={() => setNotaData({...notaData, fontSize: s.v})} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${notaData.fontSize === s.v ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-400'}`}>{s.l}</button>
+                      ))}
+                    </div>
+                  </div>
 
-          {/* INPUTS DE TEXTO */}
-          <div className="space-y-4">
-            <input 
-              type="text" 
-              placeholder="TÍTULO (EJ: COMUNICADO N°1)" 
-              value={notaData.title} 
-              onChange={e => setNotaData({...notaData, title: e.target.value})} 
-              className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-black uppercase text-gray-700 border-2 border-transparent focus:border-violet-200"
-            />
-            <textarea 
-              value={notaData.body} 
-              onChange={e => setNotaData({...notaData, body: e.target.value})} 
-              placeholder="Escribí el cuerpo de la nota aquí..." 
-              className="w-full p-4 bg-gray-50 rounded-[30px] outline-none text-sm border-2 border-transparent focus:border-pink-200 min-h-[200px] lg:h-[300px] resize-none font-medium text-gray-600 shadow-inner"
-            />
-            <div className="flex flex-col gap-2">
-               <label className="text-[9px] font-black text-gray-400 uppercase ml-1">Firma de Responsable</label>
-               <input type="text" value={notaData.signature} onChange={e => setNotaData({...notaData, signature: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-violet-700 text-sm border-2 border-transparent focus:border-violet-200"/>
-            </div>
-          </div>
-        </div>
-
-        {/* LADO 2: VISTA PREVIA (Fondo gris, papel centrado) */}
-        <div className="flex-1 bg-slate-100 p-4 md:p-10 flex flex-col items-center justify-start lg:justify-center overflow-y-auto">
-          <div className="text-[10px] font-black text-gray-400 uppercase mb-4 lg:hidden italic">👇 Vista previa del documento</div>
-          
-          {/* EL PAPEL: Mantiene sus 600px internos pero se escala al ancho de la pantalla en celu */}
-          <div className="w-full flex justify-center origin-top transform scale-[0.55] sm:scale-[0.7] md:scale-[0.8] lg:scale-100 transition-transform">
-             <div id="nota-canvas" className={`w-[600px] min-h-[500px] relative shadow-2xl rounded-sm flex flex-col overflow-hidden ${notaData.isPrintMode ? 'bg-white' : 'bg-[#fefce8]'}`} style={{ height: 'auto' }}>
-                {/* (Aquí va todo el contenido interno del canvas que ya tenías: logo, líneas de colores, texto, etc.) */}
-                <div className={`h-2 ${notaData.isPrintMode ? 'bg-gray-200' : 'bg-gradient-to-r from-violet-600 to-orange-400'}`}></div>
-                <div className="p-12 flex flex-col h-full">
-                   <div className="flex justify-between items-start mb-8">
-                      <div className="flex items-center gap-3">
-                        <img src={LOGO_SIN_FONDO} className="w-14 h-auto mix-blend-multiply" crossOrigin="anonymous"/>
-                        <div className="leading-tight">
-                           <h2 className="font-black text-sm text-violet-900 uppercase">Juntos a la Par</h2>
-                           <p className="text-[8px] font-bold text-gray-400 uppercase">Escuela Especial</p>
-                        </div>
-                      </div>
-                      <p className="text-[10px] font-black text-orange-600">{notaData.date}</p>
-                   </div>
-                   <h1 className="text-xl font-black text-gray-800 uppercase mb-8 text-center">{notaData.title || 'Comunicado'}</h1>
-                   <div className={`flex-1 text-gray-700 font-bold whitespace-pre-wrap leading-relaxed ${notaData.fontSize} ${notaData.textAlign}`}>
-                      {notaData.body || 'Tu mensaje se verá aquí...'}
-                   </div>
-                   <div className="mt-12 flex flex-col items-center">
-                      <div className="w-32 h-[1px] bg-gray-200 mb-4"></div>
-                      <p className="text-sm font-black text-violet-800 uppercase italic">{notaData.signature}</p>
-                      <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Escuela Juntos a la Par</p>
-                   </div>
+                  <div className="space-y-2">
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Color</span>
+                    <div className="flex bg-gray-100 p-1 rounded-xl">
+                      <button onClick={() => setNotaData({...notaData, isPrintMode: false})} className={`flex-1 py-2 rounded-lg text-[9px] font-black ${!notaData.isPrintMode ? 'bg-orange-500 text-white shadow-sm' : 'text-gray-400'}`}>COLOR</button>
+                      <button onClick={() => setNotaData({...notaData, isPrintMode: true})} className={`flex-1 py-2 rounded-lg text-[9px] font-black ${notaData.isPrintMode ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-400'}`}>BLANCO</button>
+                    </div>
+                  </div>
                 </div>
-             </div>
-          </div>
-        </div>
-      </div>
 
-      {/* PIE DE PÁGINA: BOTONES DE ACCIÓN */}
-      <div className="p-4 md:p-6 border-t bg-white shrink-0 shadow-[0_-10px_20px_rgba(0,0,0,0.05)] z-20">
-        <div className="flex gap-3 max-w-4xl mx-auto">
-          <button onClick={() => setShowNotaModal(false)} className="px-6 text-gray-400 font-black text-[10px] uppercase">Cerrar</button>
-          <button 
-            onClick={async () => { /* Tu función de descarga corregida anterior */ }} 
-            className="flex-1 bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-xs md:text-sm uppercase tracking-[2px] rounded-2xl shadow-xl py-4 flex items-center justify-center gap-2 active:scale-95 transition-transform"
-          >
-            <Download size={20}/> Descargar para WhatsApp
-          </button>
-        </div>
-      </div>
-    </div> 
-  </div>
-)}
+                <div className="space-y-4">
+                  <input type="text" placeholder="TÍTULO" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-black uppercase text-gray-700 border-2 border-transparent focus:border-violet-200" />
+                  <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Escribí aquí..." className="w-full p-4 bg-gray-50 rounded-[30px] outline-none text-sm min-h-[150px] lg:h-[300px] resize-none font-medium text-gray-600 shadow-inner" />
+                  <input type="text" value={notaData.signature} onChange={e => setNotaData({...notaData, signature: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-violet-700 text-sm border-2 border-transparent focus:border-violet-200" />
+                </div>
+              </div>
 
-            <div className="p-6 border-t bg-white shrink-0 z-20 shadow-2xl">
-              <div className="flex gap-4 max-w-4xl mx-auto">
-                <button onClick={() => setShowNotaModal(false)} className="flex-1 text-gray-400 font-black text-xs uppercase py-4">VOLVER</button>
+              {/* LADO 2: VISTA PREVIA */}
+              <div className="flex-1 bg-slate-100 p-4 md:p-10 flex flex-col items-center justify-start lg:justify-center overflow-y-auto">
+                <div className="w-full flex justify-center origin-top transform scale-[0.55] sm:scale-[0.7] md:scale-[0.8] lg:scale-100 transition-transform">
+                  <div id="nota-canvas" className={`w-[600px] min-h-[500px] relative shadow-2xl rounded-sm flex flex-col overflow-hidden ${notaData.isPrintMode ? 'bg-white' : 'bg-[#fefce8]'}`} style={{ height: 'auto' }}>
+                    <div className={`h-2 ${notaData.isPrintMode ? 'bg-gray-200' : 'bg-gradient-to-r from-violet-600 to-orange-400'}`}></div>
+                    <div className="p-12 flex flex-col h-full">
+                      <div className="flex justify-between items-start mb-8">
+                        <div className="flex items-center gap-3">
+                          <img src={LOGO_SIN_FONDO} className="w-14 h-auto mix-blend-multiply" crossOrigin="anonymous"/>
+                          <div className="leading-tight">
+                            <h2 className="font-black text-sm text-violet-900 uppercase">Juntos a la Par</h2>
+                            <p className="text-[8px] font-bold text-gray-400 uppercase">Escuela Especial</p>
+                          </div>
+                        </div>
+                        <p className="text-[10px] font-black text-orange-600">{notaData.date}</p>
+                      </div>
+                      <h1 className="text-xl font-black text-gray-800 uppercase mb-8 text-center">{notaData.title || 'Comunicado'}</h1>
+                      <div className={`flex-1 text-gray-700 font-bold whitespace-pre-wrap leading-relaxed ${notaData.fontSize} ${notaData.textAlign}`}>
+                        {notaData.body || 'Tu mensaje aquí...'}
+                      </div>
+                      <div className="mt-12 flex flex-col items-center">
+                        <div className="w-32 h-[1px] bg-gray-200 mb-4"></div>
+                        <p className="text-sm font-black text-violet-800 uppercase italic">{notaData.signature}</p>
+                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Escuela Juntos a la Par</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* PIE DE PÁGINA FIJO */}
+            <div className="p-4 md:p-6 border-t bg-white shrink-0 shadow-2xl z-20">
+              <div className="flex gap-3 max-w-4xl mx-auto">
+                <button onClick={() => setShowNotaModal(false)} className="px-6 text-gray-400 font-black text-[10px] uppercase">Cerrar</button>
                 <button 
                   onClick={async () => {
-  if(!notaData.title && !notaData.body) return alert("Escribí algo.");
-  
-  const element = document.getElementById('nota-canvas');
-  
-  try {
-    const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
-    
-    // OPCIONES ANTI-ENCIMAMIENTO PARA MÓVILES
-    const canvas = await html2canvas(element, { 
-      scale: 2, // Bajamos a 2 para que el móvil procese más rápido sin perder calidad
-      useCORS: true, 
-      allowTaint: true,
-      backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
-      logging: false,
-      // EL SECRETO: Forzamos el ancho para que no dependa de la pantalla del celu
-      width: 600,
-      windowWidth: 600, 
-      onclone: (clonedDoc) => {
-        const container = clonedDoc.getElementById('nota-canvas');
-        // Quitamos cualquier restricción de altura y forzamos el renderizado
-        container.style.transform = "none";
-        container.style.width = "600px";
-        
-        const txt = container.querySelector('.whitespace-pre-wrap');
-        if (txt) { 
-          // Limpiamos estilos que causan encimamiento en móviles
-          txt.style.wordSpacing = 'normal'; 
-          txt.style.letterSpacing = 'normal';
-          txt.style.lineHeight = '1.6';
-          txt.style.paddingLeft = '40px';
-          txt.style.paddingRight = '40px';
-          txt.style.display = "block";
-          txt.style.width = "100%";
-        }
-      }
-    }); 
-
-    // Convertimos a imagen y descargamos
-    const imgData = canvas.toDataURL('image/jpeg', 0.9);
-    const link = document.createElement('a');
-    link.download = `Nota_${(notaData.title || 'Nota').substring(0,10)}.jpg`;
-    link.href = imgData;
-    link.click();
-    
-  } catch (error) { 
-    console.error(error);
-    alert("Error al generar imagen. Intenta de nuevo."); 
-  }
-}}
-                  className="flex-[3] bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-sm uppercase tracking-[4px] rounded-2xl shadow-xl hover:scale-[1.02] transition py-4 flex items-center justify-center gap-2"
+                    if(!notaData.title && !notaData.body) return alert("Escribí algo.");
+                    const element = document.getElementById('nota-canvas');
+                    try {
+                      const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
+                      const canvas = await html2canvas(element, { 
+                        scale: 2, useCORS: true, allowTaint: true, logging: false,
+                        backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
+                        width: 600, windowWidth: 600,
+                        onclone: (clonedDoc) => {
+                          const container = clonedDoc.getElementById('nota-canvas');
+                          container.style.transform = "none";
+                          container.style.width = "600px";
+                          const txt = container.querySelector('.whitespace-pre-wrap');
+                          if (txt) { 
+                            txt.style.wordSpacing = 'normal'; txt.style.letterSpacing = 'normal';
+                            txt.style.lineHeight = '1.6'; txt.style.padding = '0 40px';
+                            txt.style.display = "block"; txt.style.width = "100%";
+                          }
+                        }
+                      }); 
+                      const link = document.createElement('a');
+                      link.download = `Nota_${(notaData.title || 'Nota').substring(0,10)}.jpg`;
+                      link.href = canvas.toDataURL('image/jpeg', 0.9);
+                      link.click();
+                    } catch (error) { alert("Error al generar imagen."); }
+                  }} 
+                  className="flex-1 bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-xs md:text-sm uppercase tracking-[2px] rounded-2xl shadow-xl py-4 flex items-center justify-center gap-2 active:scale-95 transition-transform"
                 >
-                  <Download size={20}/> DESCARGAR NOTA OFICIAL
+                  <Download size={20}/> Descargar para WhatsApp
                 </button>
               </div>
             </div>
