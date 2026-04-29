@@ -5563,8 +5563,7 @@ const handleUpdateGroup = async (e) => {
           </div>
         </div>
       )}
-   {/* VENTANA GRANDE DEL GRUPO (MODAL OPTIMIZADO) */}
-{/* VENTANA GRANDE DEL GRUPO (MODAL OPTIMIZADO) */}
+ {/* VENTANA GRANDE DEL GRUPO (MODAL OPTIMIZADO) */}
 {selectedGroupDetails && (
   <div className="fixed inset-0 bg-slate-900 z-[500] flex flex-col animate-in fade-in duration-300 overflow-hidden">
     {/* HEADER */}
@@ -5582,98 +5581,85 @@ const handleUpdateGroup = async (e) => {
       {/* SECCIÓN IZQUIERDA: GESTIÓN */}
       <div className="w-full lg:w-[450px] overflow-y-auto p-3 lg:p-6 space-y-3 custom-scrollbar border-r border-gray-200 bg-white">
         
-        {/* DRIVE EN CELU (Acordeón) */}
-        <details className="group bg-white rounded-[25px] border border-gray-100 overflow-hidden shadow-sm lg:hidden">
-          <summary className="p-4 list-none flex justify-between items-center cursor-pointer font-black text-[10px] uppercase text-emerald-600 tracking-widest">
-            Accesos a Drive <ChevronDown size={16} className="group-open:rotate-180 transition-transform"/>
-          </summary>
-          <div className="p-4 pt-0 grid grid-cols-1 gap-2 bg-emerald-50/20">
-             {selectedGroupDetails.driveLink && (
-                <button onClick={() => window.open(selectedGroupDetails.driveLink, '_blank')} className="w-full p-3 bg-emerald-500 text-white rounded-xl flex items-center gap-3 font-bold text-xs uppercase"><Folder size={18}/> Fotos Grupo</button>
-             )}
-             {selectedGroupDetails.institucionalDrive && (
-                <button onClick={() => window.open(selectedGroupDetails.institucionalDrive, '_blank')} className="w-full p-3 bg-blue-600 text-white rounded-xl flex items-center gap-3 font-bold text-xs uppercase"><FileText size={18}/> Drive General</button>
-             )}
-          </div>
-        </details>
+        {/* BOTONES DRIVE */}
+        <div className="grid grid-cols-1 gap-2 mb-4">
+          <button 
+            onClick={() => selectedGroupDetails.driveLink ? window.open(selectedGroupDetails.driveLink, '_blank') : alert('Cargá el link de FOTOS en Editar Grupo')}
+            className={`w-full p-4 rounded-2xl flex items-center justify-between shadow-sm transition ${selectedGroupDetails.driveLink ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-400'}`}
+          >
+            <div className="flex items-center gap-3"><Folder size={20}/> <span className="font-black text-xs uppercase tracking-widest text-white">Fotos del Grupo</span></div>
+            <ChevronRight size={16} className="text-white"/>
+          </button>
 
-        {/* DRIVE EN PC (Visible) */}
-        <div className="hidden lg:grid grid-cols-1 gap-2 mb-4">
-           {selectedGroupDetails.driveLink && (
-              <button onClick={() => window.open(selectedGroupDetails.driveLink, '_blank')} className="p-4 bg-emerald-500 text-white rounded-2xl flex items-center justify-between shadow-sm transition hover:bg-emerald-600">
-                <div className="flex items-center gap-3"><Folder size={20}/><span className="font-black text-xs uppercase text-white">Fotos del Grupo</span></div>
-                <ChevronRight size={16}/>
-              </button>
-           )}
-           {selectedGroupDetails.institucionalDrive && (
-              <button onClick={() => window.open(selectedGroupDetails.institucionalDrive, '_blank')} className="p-4 bg-blue-600 text-white rounded-2xl flex items-center justify-between shadow-sm transition hover:bg-blue-700">
-                <div className="flex items-center gap-3"><FileText size={20}/><span className="font-black text-xs uppercase text-white">Carpeta de Drive</span></div>
-                <ChevronRight size={16}/>
-              </button>
-           )}
+          <button 
+            onClick={() => selectedGroupDetails.institucionalDrive ? window.open(selectedGroupDetails.institucionalDrive, '_blank') : alert('Cargá el link de DRIVE GENERAL en Editar Grupo')}
+            className={`w-full p-4 rounded-2xl flex items-center justify-between shadow-sm transition ${selectedGroupDetails.institucionalDrive ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}
+          >
+            <div className="flex items-center gap-3"><FileText size={20}/> <span className="font-black text-xs uppercase tracking-widest text-white">Carpeta de Drive</span></div>
+            <ChevronRight size={16} className="text-white"/>
+          </button>
         </div>
 
         {/* EQUIPO */}
-        <details className="group bg-white rounded-[25px] border border-gray-100 overflow-hidden shadow-sm">
-          <summary className="p-4 list-none flex justify-between items-center cursor-pointer font-black text-[10px] uppercase text-violet-900 tracking-widest">
-            Equipo del Grupo <ChevronDown size={16} className="group-open:rotate-180 transition-transform"/>
-          </summary>
-          <div className="p-4 pt-0 space-y-3 bg-violet-50/20 border-t border-violet-50">
-            <p className="text-xs font-bold text-gray-700 uppercase pt-4">👩‍🏫 Titular: <span className="text-violet-700">{selectedGroupDetails.teacher}</span></p>
-            {selectedGroupDetails.aux && <p className="text-xs font-black text-slate-500 uppercase">🤝 Aux/Presep: {selectedGroupDetails.aux}</p>}
-            <p className="text-[10px] text-gray-400 font-bold uppercase mt-2">✨ Especiales: {[selectedGroupDetails.special1, selectedGroupDetails.special2, selectedGroupDetails.special3].filter(Boolean).join(' • ') || '-'}</p>
-          </div>
-        </details>
+        <div className="bg-slate-50 p-4 rounded-[25px] border border-slate-100 space-y-2">
+          <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest mb-1">Equipo a cargo</p>
+          <p className="text-xs font-bold text-gray-700 uppercase">👩‍🏫 Titular: {selectedGroupDetails.teacher}</p>
+          {selectedGroupDetails.aux && <p className="text-xs font-black text-slate-500 uppercase">🤝 Aux/Presep: {selectedGroupDetails.aux}</p>}
+          <p className="text-[10px] text-gray-400 font-bold uppercase italic mt-1">
+            ✨ Especiales: {[selectedGroupDetails.special1, selectedGroupDetails.special2, selectedGroupDetails.special3].filter(Boolean).join(' • ') || '-'}
+          </p>
+        </div>
 
-        {/* INFORMES */}
+        {/* SEGUIMIENTO DE INFORMES */}
         <details className="group bg-white rounded-[25px] border border-blue-100 overflow-hidden shadow-sm" open={window.innerWidth > 1024}>
           <summary className="p-4 list-none flex justify-between items-center cursor-pointer font-black text-[10px] uppercase text-blue-600 tracking-widest bg-blue-50/30">
             Control de Informes <ChevronDown size={18} className="group-open:rotate-180 transition-transform"/>
           </summary>
-          <div className="p-3 lg:p-4 space-y-3 bg-white border-t border-blue-50">
-             <div className="overflow-hidden">
-                {selectedGroupDetails.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
-                   <div key={s.id} className="bg-slate-50 p-3 rounded-2xl mb-2 border border-slate-100">
-                      <p className="font-black text-slate-700 text-[10px] uppercase mb-2 truncate">{s.lastName}, {s.firstName}</p>
-                      <div className="grid grid-cols-3 gap-1">
-                         {[1,2,3].map(n => {
-                            const info = s[`informe${n}`] || { enviado: false, devuelto: false, archivado: false };
-                            return (
-                               <select 
-                                 key={n}
-                                 value={info.archivado ? 'Archivado' : info.devuelto ? 'Devuelto' : info.enviado ? 'Enviado' : 'Pendiente'}
-                                 onChange={async (e) => {
-                                    const val = e.target.value;
-                                    let update = { enviado: false, devuelto: false, archivado: false };
-                                    if (val === 'Enviado') update = { enviado: true, fechaEnvio: new Date().toISOString() };
-                                    if (val === 'Devuelto') update = { enviado: true, devuelto: true, fechaDevuelto: new Date().toISOString() };
-                                    if (val === 'Archivado') update = { enviado: true, devuelto: true, archivado: true };
-                                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { [`informe${n}`]: update });
-                                    const updatedStudents = selectedGroupDetails.students.map(std => std.id === s.id ? { ...std, [`informe${n}`]: update } : std);
-                                    setSelectedGroupDetails({ ...selectedGroupDetails, students: updatedStudents });
-                                 }}
-                                 className={`text-[8px] font-black p-1.5 rounded-lg border-2 transition-colors ${info.archivado ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : info.devuelto ? 'bg-blue-50 border-blue-200 text-blue-700' : info.enviado ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-white text-gray-400'}`}
-                               >
-                                  <option value="Pendiente">{n}° PEND.</option>
-                                  <option value="Enviado">{n}° ENV.</option>
-                                  <option value="Devuelto">{n}° DEV.</option>
-                                  <option value="Archivado">{n}° OK</option>
-                               </select>
-                            );
-                         })}
-                      </div>
+          <div className="p-3 space-y-2 bg-white">
+             {selectedGroupDetails.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
+                <div key={s.id} className="bg-slate-50 p-3 rounded-2xl mb-2 border border-slate-100">
+                   <p className="font-black text-slate-700 text-[10px] uppercase mb-2 truncate">{s.lastName}, {s.firstName}</p>
+                   <div className="grid grid-cols-3 gap-1">
+                      {[1,2,3].map(n => {
+                         const info = s[`informe${n}`] || { enviado: false, devuelto: false, archivado: false };
+                         return (
+                            <select 
+                              key={n}
+                              value={info.archivado ? 'Archivado' : info.devuelto ? 'Devuelto' : info.enviado ? 'Enviado' : 'Pendiente'}
+                              onChange={async (e) => {
+                                 const val = e.target.value;
+                                 let update = { enviado: false, devuelto: false, archivado: false };
+                                 if (val === 'Enviado') update = { enviado: true, fechaEnvio: new Date().toISOString() };
+                                 if (val === 'Devuelto') update = { enviado: true, devuelto: true, fechaDevuelto: new Date().toISOString() };
+                                 if (val === 'Archivado') update = { enviado: true, devuelto: true, archivado: true };
+                                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { [`informe${n}`]: update });
+                                 const stds = selectedGroupDetails.students.map(std => std.id === s.id ? { ...std, [`informe${n}`]: update } : std);
+                                 setSelectedGroupDetails({ ...selectedGroupDetails, students: stds });
+                                 // SUMA PUNTOS (+5)
+                                 const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+                                 await updateDoc(userRef, { score: increment(5) });
+                              }}
+                              className={`text-[8px] font-black p-1.5 rounded-lg border-2 transition-colors ${info.archivado ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : info.devuelto ? 'bg-blue-50 border-blue-200 text-blue-700' : info.enviado ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-white text-gray-400'}`}
+                            >
+                               <option value="Pendiente">{n}° PEND.</option>
+                               <option value="Enviado">{n}° ENV.</option>
+                               <option value="Devuelto">{n}° DEV.</option>
+                               <option value="Archivado">{n}° OK</option>
+                            </select>
+                         );
+                      })}
                    </div>
-                ))}
-             </div>
+                </div>
+             ))}
           </div>
         </details>
 
-        {/* FICHAS */}
+        {/* FICHAS TÉCNICAS */}
         <details className="group bg-white rounded-[25px] border border-gray-100 overflow-hidden shadow-sm">
           <summary className="p-4 list-none flex justify-between items-center cursor-pointer font-black text-[10px] uppercase text-gray-400 tracking-widest">
-            Fichas Estudiantes <ChevronDown size={18} className="group-open:rotate-180 transition-transform"/>
+            Fichas Alumnos <ChevronDown size={18} className="group-open:rotate-180 transition-transform"/>
           </summary>
-          <div className="p-2 space-y-1 bg-gray-50 border-t border-gray-100 max-h-[300px] overflow-y-auto">
+          <div className="p-2 space-y-1 bg-gray-50 border-t border-gray-100">
             {selectedGroupDetails.students.map(std => (
               <button key={std.id} onClick={() => setSelectedStudent(std)} className="w-full text-left p-3 bg-white rounded-xl font-bold text-[10px] uppercase text-slate-600 border border-gray-100 flex items-center gap-3">
                 <div className="w-6 h-6 rounded-full bg-violet-100 text-violet-500 flex items-center justify-center text-[8px]">{std.firstName[0]}</div>
@@ -5684,40 +5670,25 @@ const handleUpdateGroup = async (e) => {
         </details>
       </div>
 
-     {/* SECCIÓN DERECHA: ESPACIO DE INTERCAMBIO */}
+      {/* SECCIÓN DERECHA: MURO */}
       <div className="flex-1 lg:m-4 lg:rounded-[40px] flex flex-col lg:shadow-2xl overflow-hidden min-h-[100px] lg:min-h-[500px]">
-        <details 
-          className="group bg-white lg:flex lg:flex-col lg:h-full" 
-          open={window.innerWidth > 1024}
-        >
+        <details className="group bg-white lg:flex lg:flex-col lg:h-full" open={window.innerWidth > 1024}>
           <summary className="p-4 border-b bg-orange-50/30 flex items-center justify-between cursor-pointer list-none lg:pointer-events-none">
             <div className="flex items-center gap-2">
               <MessageSquare size={18} className="text-orange-500"/>
-              <h3 className="font-black text-orange-600 uppercase italic text-[10px] lg:text-xs tracking-widest">
-                Espacio de intercambio sobre este grupo
-              </h3>
+              <h3 className="font-black text-orange-600 uppercase italic text-[10px] lg:text-xs tracking-widest">Intercambio del grupo</h3>
               {(() => {
                 const total = groupMessages[selectedGroupDetails.name]?.length || 0;
                 const read = parseInt(localStorage.getItem(`read_${selectedGroupDetails.name}_${user.id}`) || "0");
-                if (total > read) {
-                  return (
-                    <span className="bg-red-500 text-white text-[8px] px-1.5 py-0.5 rounded-full animate-bounce">
-                      {total - read} nuevos
-                    </span>
-                  );
-                }
+                if (total > read) return <span className="bg-red-500 text-white text-[8px] px-1.5 py-0.5 rounded-full animate-bounce">{total - read} nuevos</span>;
               })()}
             </div>
             <ChevronDown size={18} className="text-orange-400 lg:hidden group-open:rotate-180 transition-transform"/>
           </summary>
-
-          <div 
-            className="flex flex-col h-[450px] lg:h-full bg-slate-50 border-t border-orange-100 lg:border-none"
-            onMouseEnter={() => {
-              const total = groupMessages[selectedGroupDetails.name]?.length || 0;
-              localStorage.setItem(`read_${selectedGroupDetails.name}_${user.id}`, total);
-            }}
-          >
+          <div className="flex flex-col h-[450px] lg:h-full bg-slate-50 border-t lg:border-none" onMouseEnter={() => {
+                const total = groupMessages[selectedGroupDetails.name]?.length || 0;
+                localStorage.setItem(`read_${selectedGroupDetails.name}_${user.id}`, total);
+            }}>
             <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col-reverse custom-scrollbar">
               {groupMessages[selectedGroupDetails.name]?.map(m => (
                 <div key={m.id} className={`p-3 rounded-2xl max-w-[90%] shadow-sm ${m.authorId === user.id ? 'bg-violet-600 text-white self-end rounded-tr-none' : 'bg-white text-gray-800 self-start rounded-tl-none border border-gray-100'}`}>
@@ -5729,18 +5700,16 @@ const handleUpdateGroup = async (e) => {
                 </div>
               ))}
             </div>
-
             <form onSubmit={(e) => handleAddGroupComment(e, selectedGroupDetails.name)} className="p-3 bg-gray-100 border-t flex gap-2">
-              <input name="comment" placeholder="Escribir novedad..." className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs outline-none focus:ring-2 ring-violet-200" />
+              <input name="comment" placeholder="Escribir novedad..." className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs outline-none" />
               <button type="submit" className="bg-violet-600 text-white p-2.5 rounded-xl shadow-lg active:scale-90 transition-transform"><Send size={20}/></button>
             </form>
           </div>
         </details>
-      </div> {/* CIERRE DE SECCIÓN DERECHA */}
-
-    </div> {/* CIERRE DE FLEX-ROW (CONTENEDOR DE COLUMNAS) */}
-  </div> {/* CIERRE DE FIXED INSET-0 (FONDO MODAL) */}
-)} {/* CIERRE DE SELECTEDGROUPDETAILS */}
+      </div>
+    </div> {/* CIERRE DE CUERPO DEL MODAL */}
+  </div> 
+)}
 
 {/* MODAL BITÁCORA EXPRESS */}
 {showBitacoraModal && (
@@ -5777,10 +5746,9 @@ const handleUpdateGroup = async (e) => {
     </div>
   </div>
 )}
-</div> // CIERRE DEL DIV PRINCIPAL
-); // CIERRE DEL RETURN
-} // CIERRE DE LA FUNCIÓN
-
+</div> {/* CIERRE PRINCIPAL DIV GROUPSVIEW */}
+);
+}
 
 // --- VISTA PERSONAL (VERSIÓN DEFINITIVA Y COMPLETA) ---
 function PersonalView({ user }) {
