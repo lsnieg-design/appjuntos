@@ -1014,73 +1014,64 @@ function ResourcesView({ resources, canEdit }) {
       setShowTemplates(false);
   };
 const descargarNota = async () => {
-    if (!notaData.title && !notaData.body) return alert("Escribí algo.");
+  if (!notaData.title && !notaData.body) return alert("Escribí algo.");
 
-    const btn = document.activeElement;
-    const originalText = btn.innerHTML;
-    btn.innerText = "⏳ PROCESANDO...";
-    btn.disabled = true;
+  const btn = document.activeElement;
+  const originalText = btn.innerHTML;
+  btn.innerText = "⏳ GENERANDO...";
+  btn.disabled = true;
 
-    // EL SECRETO PARA MÓVILES: Capturamos el elemento real
-    const element = document.getElementById('nota-canvas');
-    if (!element) {
-        alert("No se encontró el lienzo de la nota.");
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-        return;
-    }
+  const element = document.getElementById('nota-canvas');
 
-    try {
-        const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
+  try {
+    const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
 
-        const canvas = await html2canvas(element, {
-            scale: 2,
-            logging: false,
-            useCORS: true,
-            allowTaint: true,
-            backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8',
-            width: 600,
-            windowWidth: 600,
-            // Forzamos el renderizado de fuentes
-            onclone: (clonedDoc) => {
-                const container = clonedDoc.getElementById('nota-canvas');
-                container.style.transform = "none";
-                container.style.display = "flex";
-                container.style.visibility = "visible";
-                
-                const txt = container.querySelector('.whitespace-pre-wrap');
-                if (txt) {
-                    txt.style.wordSpacing = 'normal';
-                    txt.style.letterSpacing = 'normal';
-                    txt.style.lineHeight = '1.6';
-                    txt.style.padding = '0 40px';
-                }
-            }
-        });
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8',
+      // EL SECRETO PARA QUE NO SE AMONTONEN:
+      // Forzamos al navegador a creer que la pantalla mide 600px 
+      // aunque sea un celular de 300px.
+      width: 600,
+      windowWidth: 600, 
+      onclone: (clonedDoc) => {
+        const container = clonedDoc.getElementById('nota-canvas');
+        
+        // Forzamos visibilidad en el clon para que html2canvas lo vea
+        container.style.display = "flex";
+        container.style.transform = "none";
+        container.style.width = "600px";
+        
+        const txt = container.querySelector('.whitespace-pre-wrap');
+        if (txt) {
+          // Normalizamos espacios para evitar el encimamiento
+          txt.style.wordSpacing = 'normal';
+          txt.style.letterSpacing = 'normal';
+          txt.style.lineHeight = '1.6';
+          txt.style.padding = '0 40px';
+          txt.style.width = "100%";
+          txt.style.display = "block";
+        }
+      }
+    });
 
-        // Convertimos a BLOB para que el celular no se agote con un String gigante
-        canvas.toBlob((blob) => {
-            if (!blob) {
-                alert("Error de memoria en el celular. Intentá con un texto más corto.");
-                return;
-            }
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `Nota_${new Date().getTime()}.jpg`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url); // Limpiamos memoria
-        }, 'image/jpeg', 0.9);
+    const imgData = canvas.toDataURL('image/jpeg', 0.9);
+    const link = document.createElement('a');
+    link.href = imgData;
+    link.download = `Nota_Oficial_${new Date().getTime()}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 
-    } catch (error) {
-        console.error("Error crítico:", error);
-        alert("El navegador bloqueó la generación. Por favor, usá el botón de VISTA PREVIA (el ojo) y sacale una captura de pantalla.");
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
+  } catch (error) {
+    console.error(error);
+    alert("Error al generar. Probá abrir el OJO (Vista Previa) antes de descargar.");
+  } finally {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  }
 };
 // --- VISTA TAREAS (VERSIÓN UNIFICADA Y CORREGIDA) ---
 function TasksView({ tasks = [], user, canEdit }) {
@@ -7076,182 +7067,4 @@ function NavButton({ active, onClick, icon, label }) {
 
 // 2. Icono auxiliar para "Mi Aula"
 const StartIcon = ({size}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
