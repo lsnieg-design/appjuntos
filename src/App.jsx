@@ -5576,41 +5576,99 @@ const handleUpdateGroup = async (e) => {
 
     <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-slate-50">
       
-    {/* SECCIÓN IZQUIERDA: INFORMACIÓN Y GESTIÓN */}
-      <div className="w-full lg:w-[450px] overflow-y-auto p-4 space-y-3 custom-scrollbar border-r border-gray-100">
+    {/* SECCIÓN IZQUIERDA: INFORMACIÓN Y GESTIÓN (CORREGIDA) */}
+      <div className="w-full lg:w-[450px] overflow-y-auto p-4 space-y-4 custom-scrollbar border-r border-gray-100 bg-white">
         
-        {/* BOTONES DRIVE PRINCIPALES */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          {selectedGroupDetails.driveLink && (
-            <a href={selectedGroupDetails.driveLink} target="_blank" rel="noreferrer" 
-               className="bg-emerald-500 text-white p-3 rounded-2xl flex flex-col items-center justify-center gap-1 shadow-md active:scale-95 transition">
-              <Folder size={20}/>
-              <span className="font-black text-[9px] uppercase">Fotos Grupo</span>
-            </a>
-          )}
-          {/* BOTÓN DRIVE INSTITUCIONAL - Ahora visible y al lado */}
-          {selectedGroupDetails.institucionalDrive && (
-            <a href={selectedGroupDetails.institucionalDrive} target="_blank" rel="noreferrer" 
-               className="bg-blue-600 text-white p-3 rounded-2xl flex flex-col items-center justify-center gap-1 shadow-md active:scale-95 transition">
-              <FileText size={20}/>
-              <span className="font-black text-[9px] uppercase">Carpeta Drive</span>
-            </a>
-          )}
+        {/* BOTONES DRIVE: DISEÑO ROBUSTO */}
+        <div className="grid grid-cols-1 gap-2 mb-6">
+          <button 
+            onClick={() => selectedGroupDetails.driveLink ? window.open(selectedGroupDetails.driveLink, '_blank') : alert('Cargá el link de FOTOS en el botón Editar Grupo')}
+            className={`w-full p-4 rounded-2xl flex items-center justify-between shadow-sm transition ${selectedGroupDetails.driveLink ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-400'}`}
+          >
+            <div className="flex items-center gap-3"><Folder size={20}/> <span className="font-black text-xs uppercase tracking-widest">Fotos del Grupo</span></div>
+            <ChevronRight size={16}/>
+          </button>
+
+          <button 
+            onClick={() => selectedGroupDetails.institucionalDrive ? window.open(selectedGroupDetails.institucionalDrive, '_blank') : alert('Cargá el link de DRIVE GENERAL en el botón Editar Grupo')}
+            className={`w-full p-4 rounded-2xl flex items-center justify-between shadow-sm transition ${selectedGroupDetails.institucionalDrive ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}
+          >
+            <div className="flex items-center gap-3"><FileText size={20}/> <span className="font-black text-xs uppercase tracking-widest">Carpeta de Drive</span></div>
+            <ChevronRight size={16}/>
+          </button>
         </div>
 
-        {/* ACORDEÓN 1: EQUIPO */}
-        <details className="group bg-white rounded-[25px] border border-gray-100 overflow-hidden shadow-sm">
-          <summary className="p-4 list-none flex justify-between items-center cursor-pointer font-black text-[10px] uppercase text-violet-900">
-            Ver Equipo a Cargo <ChevronDown size={16} className="group-open:rotate-180 transition-transform"/>
-          </summary>
-          <div className="p-4 pt-0 space-y-2 bg-violet-50/20">
-            <p className="text-xs font-bold text-gray-700 uppercase">👩‍🏫 Titular: {selectedGroupDetails.teacher}</p>
-            {selectedGroupDetails.aux && <p className="text-xs font-bold text-slate-500 uppercase">🤝 Aux/Presep: {selectedGroupDetails.aux}</p>}
-            <p className="text-[9px] text-gray-400 font-bold uppercase mt-2 border-t pt-2">
-              Especiales: {[selectedGroupDetails.special1, selectedGroupDetails.special2, selectedGroupDetails.special3].filter(Boolean).join(' • ') || 'No asignados'}
-            </p>
+        {/* CONTROL DE INFORMES: SISTEMA DE SELECTOR CLARO */}
+        <div className="bg-slate-50 p-4 rounded-[30px] border border-slate-200">
+          <h3 className="font-black text-blue-800 uppercase text-[10px] tracking-[3px] mb-4 flex items-center gap-2">
+            <CheckSquare size={16}/> Seguimiento de Informes
+          </h3>
+          
+          <div className="space-y-3">
+            {selectedGroupDetails.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
+              <div key={s.id} className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100">
+                <p className="font-black text-slate-700 text-[10px] uppercase mb-2 truncate">{s.lastName}, {s.firstName}</p>
+                <div className="grid grid-cols-3 gap-1">
+                  {[1,2,3].map(n => {
+                    const info = s[`informe${n}`] || { status: 'Pendiente' };
+                    // Mantenemos la lógica de alerta roja si querés, pero en el borde o texto
+                    return (
+                      <div key={n} className="flex flex-col gap-1">
+                        <span className="text-[8px] font-bold text-gray-400 text-center uppercase">{n}° Inf.</span>
+                        <select 
+                          value={info.archivado ? 'Archivado' : info.devuelto ? 'Devuelto' : info.enviado ? 'Enviado' : 'Pendiente'}
+                          onChange={async (e) => {
+                            const val = e.target.value;
+                            let update = { enviado: false, devuelto: false, archivado: false };
+                            if (val === 'Enviado') update = { enviado: true, fechaEnvio: new Date().toISOString() };
+                            if (val === 'Devuelto') update = { enviado: true, devuelto: true, fechaDevuelto: new Date().toISOString() };
+                            if (val === 'Archivado') update = { enviado: true, devuelto: true, archivado: true };
+
+                            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { [`informe${n}`]: update });
+                            
+                            // Actualización instantánea visual
+                            const updatedStudents = selectedGroupDetails.students.map(std => std.id === s.id ? { ...std, [`informe${n}`]: update } : std);
+                            setSelectedGroupDetails({ ...selectedGroupDetails, students: updatedStudents });
+                          }}
+                          className={`text-[9px] font-black p-1.5 rounded-lg border-2 outline-none transition-colors ${
+                            info.archivado ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 
+                            info.devuelto ? 'bg-blue-50 border-blue-200 text-blue-700' : 
+                            info.enviado ? 'bg-orange-50 border-orange-200 text-orange-700' : 
+                            'bg-gray-50 border-gray-100 text-gray-400'
+                          }`}
+                        >
+                          <option value="Pendiente">PEND.</option>
+                          <option value="Enviado">ENVIADO</option>
+                          <option value="Devuelto">DEVUELTO</option>
+                          <option value="Archivado">OK</option>
+                        </select>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* EQUIPO Y FICHAS (COLAPSADOS) */}
+        <details className="group bg-white rounded-2xl border border-gray-100">
+          <summary className="p-3 list-none flex justify-between items-center cursor-pointer font-bold text-[9px] uppercase text-gray-400">Ver Equipo <Plus size={12}/></summary>
+          <div className="p-3 text-[10px] bg-slate-50 rounded-b-2xl">
+            <p className="font-bold">Docente: {selectedGroupDetails.teacher}</p>
+            <p className="font-bold">Auxiliar: {selectedGroupDetails.aux || '-'}</p>
           </div>
         </details>
+
+        <details className="group bg-white rounded-2xl border border-gray-100">
+          <summary className="p-3 list-none flex justify-between items-center cursor-pointer font-bold text-[9px] uppercase text-gray-400">Fichas Técnicas <Plus size={12}/></summary>
+          <div className="p-2 space-y-1">
+            {selectedGroupDetails.students.map(std => (
+              <button key={std.id} onClick={() => setSelectedStudent(std)} className="w-full text-left p-2 bg-slate-50 rounded-xl font-bold text-[10px] uppercase text-slate-600">{std.lastName}, {std.firstName}</button>
+            ))}
+          </div>
+        </details>
+      </div>
 
         {/* ACORDEÓN 2: CONTROL DE INFORMES (ACTUALIZACIÓN INSTANTÁNEA) */}
         <details className="group bg-white rounded-[25px] border border-gray-100 overflow-hidden shadow-sm" open>
