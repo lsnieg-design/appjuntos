@@ -955,7 +955,7 @@ const handleSaveCountdown = async () => {
 } // Fin de la función
 
 
-// --- VISTA RECURSOS (VERSIÓN BLINDADA: VISTA PREVIA OCULTA EN MÓVIL + FIX DESCARGA) ---
+// --- VISTA RECURSOS (VERSIÓN COMPLETA RESTAURADA + FIX CELULAR) ---
 function ResourcesView({ resources, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [editingRes, setEditingRes] = useState(null); 
@@ -965,7 +965,7 @@ function ResourcesView({ resources, canEdit }) {
     date: new Date().toLocaleDateString('es-AR'), 
     title: '', body: '', signature: 'EQUIPO DIRECTIVO',
     fontSize: 'text-[14px]', textAlign: 'text-center',
-    isPrintMode: false 
+    wordSpacing: '0.12em', isPrintMode: false 
   });
 
   const [showTemplates, setShowTemplates] = useState(false);
@@ -976,23 +976,43 @@ function ResourcesView({ resources, canEdit }) {
   
   const LOGO_SIN_FONDO = "/logosinfondo.png";
 
+  // --- LÓGICA DE FIREBASE PARA RECURSOS ---
   const handleSaveResource = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const data = { title: fd.get('title'), url: fd.get('url'), category: 'GENERAL', updatedAt: serverTimestamp() };
+    const data = {
+      title: fd.get('title'),
+      url: fd.get('url'),
+      category: 'GENERAL', 
+      updatedAt: serverTimestamp()
+    };
     try {
-      if (editingRes?.id) { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', editingRes.id), data); }
-      else { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), { ...data, createdAt: serverTimestamp() }); }
+      if (editingRes?.id) {
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', editingRes.id), data);
+      } else {
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), { ...data, createdAt: serverTimestamp() });
+      }
       setShowModal(false); setEditingRes(null);
     } catch (err) { alert(err.message); }
   };
 
+  const handleDeleteResource = async (resId) => {
+    if (!confirm("¿Eliminar este link?")) return;
+    try {
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', resId));
+    } catch (err) { alert(err.message); }
+  };
+
+  // --- LÓGICA DE PLANTILLAS ---
   const aplicarPlantillaReunion = () => {
-      if(!templateData.fechaReunion || !templateData.horaReunion) return alert("Completá fecha y hora.");
+      if(!templateData.fechaReunion || !templateData.horaReunion) {
+          alert("Completá fecha y hora."); return;
+      }
       const partesFecha = templateData.fechaReunion.split('-');
       const fechaLegible = `${partesFecha[2]}/${partesFecha[1]}/${partesFecha[0]}`;
-      const cuerpo = `${templateData.destinatario ? `Estimada familia de ${templateData.destinatario}:` : `Estimadas familias:`}\n\nPor medio de la presente, los citamos a una reunión el día ${fechaLegible} a las ${templateData.horaReunion} hs.\nModalidad: ${templateData.modalidad}.\n\nAgradecemos su puntualidad.`;
-      setNotaData({ ...notaData, title: 'CITACIÓN A REUNIÓN', body: cuerpo, textAlign: 'text-left' });
+      const textoDestinatario = templateData.destinatario ? `Estimada familia de ${templateData.destinatario}:` : `Estimadas familias:`;
+      const cuerpoMensaje = `${textoDestinatario}\n\nPor medio de la presente, nos comunicamos para citarlos a una reunión a fin de conversar sobre aspectos relacionados a la trayectoria escolar.\n\nLa misma se llevará a cabo el día ${fechaLegible} a las ${templateData.horaReunion} hs.\nModalidad: ${templateData.modalidad}.\n\nAgradecemos su compromiso y puntualidad.\nPor favor, confirmar asistencia.`;
+      setNotaData({ ...notaData, title: 'CITACIÓN A REUNIÓN', body: cuerpoMensaje, textAlign: 'text-left' });
       setShowTemplates(false);
   };
 
@@ -1000,13 +1020,18 @@ function ResourcesView({ resources, canEdit }) {
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10 px-2">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-black text-violet-900 italic tracking-tighter uppercase">Recursos</h2>
+        {canEdit && (
+          <button onClick={() => { setEditingRes(null); setShowModal(true); }} className="bg-orange-500 text-white p-2.5 rounded-xl shadow-lg hover:bg-orange-600 transition flex items-center gap-2 font-black text-[10px] uppercase">
+            <PlusCircle size={20}/> Nuevo Link
+          </button>
+        )}
       </div>
 
-      <button onClick={() => setShowNotaModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-orange-400 p-6 rounded-[35px] shadow-lg text-white flex items-center justify-between mb-8 active:scale-95 transition-transform">
+      <button onClick={() => setShowNotaModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-orange-400 p-6 rounded-[35px] shadow-lg text-white flex items-center justify-between mb-8 group active:scale-95 transition-transform">
           <div className="flex items-center gap-4">
-              <div className="bg-white/20 p-3 rounded-2xl"><Edit3 size={32}/></div>
+              <div className="bg-white/20 p-3 rounded-2xl group-hover:rotate-12 transition-transform"><Edit3 size={32}/></div>
               <div className="text-left">
-                  <h3 className="font-black text-xl tracking-widest uppercase italic">Generador de Notas</h3>
+                  <h3 className="font-black text-xl tracking-widest uppercase italic drop-shadow-md">Generador de Notas</h3>
                   <p className="text-xs font-bold opacity-90 mt-1">Crear comunicados oficiales</p>
               </div>
           </div>
@@ -1015,60 +1040,90 @@ function ResourcesView({ resources, canEdit }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {resources.map(r => (
-          <div key={r.id} className="bg-white p-4 rounded-[30px] border border-violet-50 flex flex-col justify-between shadow-sm group h-32 relative">
+          <div key={r.id} className="bg-white p-4 rounded-[30px] border border-violet-50 flex flex-col justify-between shadow-sm group hover:border-violet-200 h-32 relative overflow-hidden">
               <a href={r.url} target="_blank" rel="noopener noreferrer" className="h-full flex flex-col justify-center">
-                  <div className="w-10 h-10 bg-violet-50 text-violet-500 rounded-xl flex items-center justify-center mb-2"><ExternalLink size={20} /></div>
-                  <span className="font-black text-xs text-gray-700 uppercase italic line-clamp-2">{r.title}</span>
+                  <div className="w-10 h-10 bg-violet-50 text-violet-500 rounded-xl flex items-center justify-center shrink-0 mb-2 group-hover:bg-violet-600 group-hover:text-white transition-colors">
+                    <ExternalLink size={20} />
+                  </div>
+                  <span className="font-black text-xs text-gray-700 uppercase italic leading-tight line-clamp-2">{r.title}</span>
               </a>
+              {canEdit && (
+                <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={(e) => { e.preventDefault(); setEditingRes(r); setShowModal(true); }} className="p-2 bg-white/90 rounded-full shadow-sm text-gray-400 hover:text-orange-500"><Edit3 size={14}/></button>
+                  <button onClick={(e) => { e.preventDefault(); handleDeleteResource(r.id); }} className="p-2 bg-white/90 rounded-full shadow-sm text-gray-400 hover:text-red-500"><Trash2 size={14}/></button>
+                </div>
+              )}
           </div>
         ))}
       </div>
 
       {showNotaModal && (
         <div className="fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-0 md:p-4 backdrop-blur-md" onClick={() => setShowNotaModal(false)}>
-          <div className="bg-white rounded-t-[40px] md:rounded-[40px] w-full max-w-7xl flex flex-col h-[95vh] md:h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center shrink-0 bg-white">
-              <h3 className="text-lg md:text-xl font-black text-violet-900 uppercase italic">Editor</h3>
-              <button onClick={() => setShowNotaModal(false)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button>
+          <div className="bg-white rounded-t-[40px] md:rounded-[40px] w-full max-w-7xl flex flex-col h-[100dvh] md:h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center shrink-0 bg-white z-10">
+              <h3 className="text-lg md:text-xl font-black text-violet-900 uppercase italic">Editor Institucional</h3>
+              <button onClick={() => setShowNotaModal(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20}/></button>
             </div>
             
             <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
               <div className="flex-1 overflow-y-auto p-4 md:p-10 space-y-6 border-b lg:border-b-0 lg:border-r border-gray-50 custom-scrollbar">
-                <button onClick={() => setShowTemplates(!showTemplates)} className="w-full bg-blue-50 text-blue-700 py-3 rounded-xl font-bold text-xs uppercase border border-blue-200"><List size={16} className="inline mr-2"/> Plantillas</button>
+                <button onClick={() => setShowTemplates(!showTemplates)} className="w-full bg-blue-50 text-blue-700 py-3 rounded-xl font-bold text-xs uppercase border border-blue-200 flex justify-center items-center gap-2"><List size={16}/> {showTemplates ? 'Ocultar Plantillas' : 'Usar Plantilla'}</button>
+
                 {showTemplates && (
-                  <div className="bg-gray-50 p-4 rounded-2xl border space-y-3">
-                    <input type="text" placeholder="Estudiante..." value={templateData.destinatario} onChange={e => setTemplateData({...templateData, destinatario: e.target.value})} className="w-full p-2 bg-white rounded-lg text-xs border" />
-                    <button onClick={aplicarPlantillaReunion} className="w-full bg-blue-600 text-white py-2 rounded-xl font-bold text-xs">Cargar</button>
+                  <div className="bg-blue-50/50 p-4 rounded-3xl space-y-3 animate-in fade-in">
+                    <input type="text" placeholder="Nombre estudiante..." value={templateData.destinatario} onChange={e => setTemplateData({...templateData, destinatario: e.target.value})} className="w-full p-3 bg-white rounded-xl text-sm border-0" />
+                    <button onClick={aplicarPlantillaReunion} className="w-full bg-blue-600 text-white py-3 rounded-xl font-black text-[10px] uppercase shadow-md">Aplicar</button>
                   </div>
                 )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Tamaño</span>
+                    <div className="flex bg-gray-100 p-1 rounded-xl">
+                      {[{l:'S', v:'text-[11px]'}, {l:'M', v:'text-[14px]'}, {l:'L', v:'text-[18px]'}].map(s => (
+                        <button key={s.v} onClick={() => setNotaData({...notaData, fontSize: s.v})} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${notaData.fontSize === s.v ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-400'}`}>{s.l}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Modo</span>
+                    <div className="flex bg-gray-100 p-1 rounded-xl">
+                      <button onClick={() => setNotaData({...notaData, isPrintMode: false})} className={`flex-1 py-2 rounded-lg text-[9px] font-black ${!notaData.isPrintMode ? 'bg-orange-500 text-white shadow-sm' : 'text-gray-400'}`}>COLOR</button>
+                      <button onClick={() => setNotaData({...notaData, isPrintMode: true})} className={`flex-1 py-2 rounded-lg text-[9px] font-black ${notaData.isPrintMode ? 'bg-gray-800 text-white shadow-sm' : 'text-gray-400'}`}>B/N</button>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="space-y-4">
-                  <input type="text" placeholder="TÍTULO" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-4 bg-gray-50 rounded-xl outline-none font-black uppercase text-gray-700 border" />
-                  <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Escribí aquí..." className="w-full p-5 bg-gray-50 rounded-[30px] outline-none text-sm h-[200px] md:h-[300px] resize-none border" />
-                  <input type="text" value={notaData.signature} onChange={e => setNotaData({...notaData, signature: e.target.value})} className="w-full p-4 bg-gray-50 rounded-xl outline-none font-bold text-violet-700 border" />
+                  <input type="text" placeholder="TÍTULO NOTA" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-black uppercase text-gray-700 border-2 border-transparent focus:border-violet-200 shadow-inner" />
+                  <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Escribe aquí..." className="w-full p-4 bg-gray-50 rounded-[30px] outline-none text-sm min-h-[200px] lg:h-[300px] resize-none font-medium text-gray-600 shadow-inner" />
+                  <input type="text" value={notaData.signature} onChange={e => setNotaData({...notaData, signature: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-violet-700 text-sm border-2 border-transparent focus:border-violet-200 shadow-inner" />
                 </div>
               </div>
 
-              {/* VISTA PREVIA: HIDDEN EN CELU, FLEX EN PC */}
+              {/* VISTA PREVIA: HIDDEN EN CELU (hidden), FLEX EN PC (lg:flex) */}
               <div className="hidden lg:flex flex-1 bg-slate-100 flex-col items-center justify-center p-10 overflow-y-auto">
-                <div id="nota-canvas" className={`w-[600px] min-h-[500px] relative shadow-2xl rounded-sm flex flex-col overflow-hidden bg-white`}>
-                  <div className="h-2 bg-violet-600"></div>
-                  <div className="p-12 flex flex-col h-full">
-                    <div className="flex justify-between items-start mb-8">
+                <div id="nota-canvas" className={`w-[600px] min-h-[500px] relative shadow-2xl rounded-sm flex flex-col overflow-hidden ${notaData.isPrintMode ? 'bg-white' : 'bg-[#fefce8]'}`} style={{ height: 'auto' }}>
+                  <div className={`h-2 ${notaData.isPrintMode ? 'bg-gray-200' : 'bg-gradient-to-r from-violet-600 to-orange-400'}`}></div>
+                  <div className="p-12 flex flex-col h-full z-10">
+                    <div className="flex justify-between items-start mb-8 text-gray-800">
                       <div className="flex items-center gap-3">
                         <img src={LOGO_SIN_FONDO} className="w-14 h-auto mix-blend-multiply" crossOrigin="anonymous"/>
-                        <div className="leading-tight">
+                        <div className="leading-none">
                            <h2 className="font-black text-sm text-violet-900 uppercase">Juntos a la Par</h2>
+                           <p className="text-[8px] font-bold text-gray-400 uppercase text-center leading-none mt-1">Escuela Especial</p>
                         </div>
                       </div>
-                      <p className="text-[10px] font-black text-orange-600">{notaData.date}</p>
+                      <p className="text-[10px] font-black text-orange-600 uppercase">{notaData.date}</p>
                     </div>
                     <h1 className="text-xl font-black text-gray-800 uppercase mb-8 text-center">{notaData.title || 'COMUNICADO'}</h1>
                     <div className={`flex-1 text-gray-700 font-bold whitespace-pre-wrap leading-relaxed px-4 ${notaData.fontSize} ${notaData.textAlign}`} style={{ wordSpacing: 'normal' }}>
-                      {notaData.body || 'Tu mensaje aquí...'}
+                      {notaData.body || 'Escribe tu mensaje...'}
                     </div>
-                    <div className="mt-12 flex flex-col items-center">
+                    <div className="mt-12 flex flex-col items-center shrink-0">
                       <div className="w-32 h-[1px] bg-gray-200 mb-4"></div>
-                      <p className="text-sm font-black text-violet-800 uppercase italic">{notaData.signature}</p>
+                      <p className="text-sm font-black text-violet-800 uppercase italic leading-none">{notaData.signature}</p>
+                      <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-1">Escuela Juntos a la Par</p>
                     </div>
                   </div>
                 </div>
@@ -1077,24 +1132,28 @@ function ResourcesView({ resources, canEdit }) {
 
             <div className="p-4 md:p-6 border-t bg-white shrink-0 z-20 shadow-2xl">
               <div className="flex gap-3 max-w-4xl mx-auto">
-                <button onClick={() => setShowNotaModal(false)} className="px-6 text-gray-400 font-black text-[10px] uppercase">Cerrar</button>
+                <button onClick={() => setShowNotaModal(false)} className="px-6 text-gray-400 font-black text-[10px] uppercase py-4">Cerrar</button>
                 <button 
                   onClick={async () => {
                     if(!notaData.title && !notaData.body) return alert("Escribí algo.");
-                    const btn = document.activeElement; btn.innerText = "⏳ ESPERE...";
                     const element = document.getElementById('nota-canvas');
                     try {
                       const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
                       const canvas = await html2canvas(element, { 
                         scale: 2, useCORS: true, allowTaint: true, logging: false,
-                        backgroundColor: '#ffffff', width: 600, windowWidth: 600,
+                        backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
+                        width: 600, windowWidth: 600,
                         onclone: (clonedDoc) => {
                           const container = clonedDoc.getElementById('nota-canvas');
-                          container.style.display = "flex"; // Fix para que se vea en el clon
+                          container.style.display = "flex"; 
                           container.style.transform = "none";
                           container.style.width = "600px";
                           const txt = container.querySelector('.whitespace-pre-wrap');
-                          if (txt) { txt.style.wordSpacing = 'normal'; txt.style.lineHeight = '1.6'; txt.style.padding = '0 40px'; }
+                          if (txt) { 
+                            txt.style.wordSpacing = 'normal'; txt.style.letterSpacing = 'normal';
+                            txt.style.lineHeight = '1.6'; txt.style.padding = '0 40px';
+                            txt.style.display = "block"; txt.style.width = "100%";
+                          }
                         }
                       }); 
                       const link = document.createElement('a');
@@ -1102,15 +1161,31 @@ function ResourcesView({ resources, canEdit }) {
                       link.href = canvas.toDataURL('image/jpeg', 0.9);
                       link.click();
                     } catch (error) { alert("Error al generar imagen."); }
-                    finally { btn.innerText = "DESCARGAR JPG"; }
                   }} 
-                  className="flex-1 bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-xs md:text-sm uppercase tracking-[2px] rounded-2xl shadow-xl py-4 flex items-center justify-center gap-2"
+                  className="flex-1 bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-xs md:text-sm uppercase tracking-[2px] rounded-2xl shadow-xl py-4 flex items-center justify-center gap-2 active:scale-95 transition-transform"
                 >
                   <Download size={20}/> DESCARGAR JPG
                 </button>
               </div>
             </div>
           </div> 
+        </div>
+      )}
+
+      {/* MODAL LINK RECURSO */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[400] flex items-center justify-center p-4">
+          <form onSubmit={handleSaveResource} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl border-t-8 border-orange-500">
+            <h3 className="text-xl font-black text-violet-900 mb-6 uppercase italic">{editingRes ? 'Editar Link' : 'Nuevo Link'}</h3>
+            <div className="space-y-4">
+              <input name="title" defaultValue={editingRes?.title} placeholder="Título" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm border" required />
+              <input name="url" defaultValue={editingRes?.url} placeholder="https://..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm border" required />
+              <div className="flex gap-2 pt-4">
+                <button type="button" onClick={() => { setShowModal(false); setEditingRes(null); }} className="flex-1 py-4 font-black text-xs text-gray-400 uppercase">Cancelar</button>
+                <button type="submit" className="flex-[2] py-4 bg-orange-500 text-white rounded-2xl font-black text-xs uppercase">Guardar</button>
+              </div>
+            </div>
+          </form>
         </div>
       )}
     </div>
