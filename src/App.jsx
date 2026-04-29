@@ -955,7 +955,7 @@ const handleSaveCountdown = async () => {
 } // Fin de la función
 
 
-// --- VISTA RECURSOS (VERSIÓN CELULAR OPTIMIZADA + FIX DESCARGA) ---
+// --- VISTA RECURSOS (VERSIÓN BLINDADA: VISTA PREVIA OCULTA EN MÓVIL + FIX DESCARGA) ---
 function ResourcesView({ resources, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [editingRes, setEditingRes] = useState(null); 
@@ -1000,16 +1000,11 @@ function ResourcesView({ resources, canEdit }) {
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10 px-2">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-black text-violet-900 italic tracking-tighter uppercase">Recursos</h2>
-        {canEdit && (
-          <button onClick={() => { setEditingRes(null); setShowModal(true); }} className="bg-orange-500 text-white p-2.5 rounded-xl shadow-lg font-black text-[10px] uppercase">
-            <PlusCircle size={20}/> Nuevo Link
-          </button>
-        )}
       </div>
 
-      <button onClick={() => setShowNotaModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-orange-400 p-6 rounded-[35px] shadow-lg text-white flex items-center justify-between mb-8 group active:scale-95 transition-transform">
+      <button onClick={() => setShowNotaModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-orange-400 p-6 rounded-[35px] shadow-lg text-white flex items-center justify-between mb-8 active:scale-95 transition-transform">
           <div className="flex items-center gap-4">
-              <div className="bg-white/20 p-3 rounded-2xl group-hover:rotate-12 transition-transform"><Edit3 size={32}/></div>
+              <div className="bg-white/20 p-3 rounded-2xl"><Edit3 size={32}/></div>
               <div className="text-left">
                   <h3 className="font-black text-xl tracking-widest uppercase italic">Generador de Notas</h3>
                   <p className="text-xs font-bold opacity-90 mt-1">Crear comunicados oficiales</p>
@@ -1018,7 +1013,6 @@ function ResourcesView({ resources, canEdit }) {
           <ChevronRight size={24} className="opacity-50"/>
       </button>
 
-      {/* LISTADO DE LINKS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {resources.map(r => (
           <div key={r.id} className="bg-white p-4 rounded-[30px] border border-violet-50 flex flex-col justify-between shadow-sm group h-32 relative">
@@ -1034,33 +1028,19 @@ function ResourcesView({ resources, canEdit }) {
         <div className="fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-0 md:p-4 backdrop-blur-md" onClick={() => setShowNotaModal(false)}>
           <div className="bg-white rounded-t-[40px] md:rounded-[40px] w-full max-w-7xl flex flex-col h-[95vh] md:h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center shrink-0 bg-white">
-              <h3 className="text-lg md:text-xl font-black text-violet-900 uppercase italic">Editor Institucional</h3>
+              <h3 className="text-lg md:text-xl font-black text-violet-900 uppercase italic">Editor</h3>
               <button onClick={() => setShowNotaModal(false)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button>
             </div>
             
             <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-              {/* EDITOR (Siempre visible) */}
               <div className="flex-1 overflow-y-auto p-4 md:p-10 space-y-6 border-b lg:border-b-0 lg:border-r border-gray-50 custom-scrollbar">
                 <button onClick={() => setShowTemplates(!showTemplates)} className="w-full bg-blue-50 text-blue-700 py-3 rounded-xl font-bold text-xs uppercase border border-blue-200"><List size={16} className="inline mr-2"/> Plantillas</button>
-                
                 {showTemplates && (
                   <div className="bg-gray-50 p-4 rounded-2xl border space-y-3">
                     <input type="text" placeholder="Estudiante..." value={templateData.destinatario} onChange={e => setTemplateData({...templateData, destinatario: e.target.value})} className="w-full p-2 bg-white rounded-lg text-xs border" />
-                    <button onClick={aplicarPlantillaReunion} className="w-full bg-blue-600 text-white py-2 rounded-xl font-bold text-xs">Cargar Citación</button>
+                    <button onClick={aplicarPlantillaReunion} className="w-full bg-blue-600 text-white py-2 rounded-xl font-bold text-xs">Cargar</button>
                   </div>
                 )}
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex bg-gray-100 p-1 rounded-xl">
-                    {[{l:'S', v:'text-[11px]'}, {l:'M', v:'text-[14px]'}, {l:'L', v:'text-[18px]'}].map(s => (
-                      <button key={s.v} onClick={() => setNotaData({...notaData, fontSize: s.v})} className={`flex-1 py-2 rounded-lg text-xs font-black ${notaData.fontSize === s.v ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-400'}`}>{s.l}</button>
-                    ))}
-                  </div>
-                  <button onClick={() => setNotaData({...notaData, isPrintMode: !notaData.isPrintMode})} className={`py-2 rounded-xl text-[10px] font-black ${notaData.isPrintMode ? 'bg-gray-800 text-white' : 'bg-orange-500 text-white shadow-sm'}`}>
-                    {notaData.isPrintMode ? 'MODO B/N' : 'MODO COLOR'}
-                  </button>
-                </div>
-
                 <div className="space-y-4">
                   <input type="text" placeholder="TÍTULO" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-4 bg-gray-50 rounded-xl outline-none font-black uppercase text-gray-700 border" />
                   <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Escribí aquí..." className="w-full p-5 bg-gray-50 rounded-[30px] outline-none text-sm h-[200px] md:h-[300px] resize-none border" />
@@ -1068,17 +1048,16 @@ function ResourcesView({ resources, canEdit }) {
                 </div>
               </div>
 
-              {/* VISTA PREVIA: HIDDEN EN MÓVIL, FLEX EN PC (lg:flex) */}
+              {/* VISTA PREVIA: HIDDEN EN CELU, FLEX EN PC */}
               <div className="hidden lg:flex flex-1 bg-slate-100 flex-col items-center justify-center p-10 overflow-y-auto">
-                <div id="nota-canvas" className={`w-[600px] min-h-[500px] relative shadow-2xl rounded-sm flex flex-col overflow-hidden ${notaData.isPrintMode ? 'bg-white' : 'bg-[#fefce8]'}`} style={{ height: 'auto' }}>
-                  <div className={`h-2 ${notaData.isPrintMode ? 'bg-gray-200' : 'bg-gradient-to-r from-violet-600 to-orange-400'}`}></div>
+                <div id="nota-canvas" className={`w-[600px] min-h-[500px] relative shadow-2xl rounded-sm flex flex-col overflow-hidden bg-white`}>
+                  <div className="h-2 bg-violet-600"></div>
                   <div className="p-12 flex flex-col h-full">
-                    <div className="flex justify-between items-start mb-8 text-gray-800">
+                    <div className="flex justify-between items-start mb-8">
                       <div className="flex items-center gap-3">
                         <img src={LOGO_SIN_FONDO} className="w-14 h-auto mix-blend-multiply" crossOrigin="anonymous"/>
-                        <div className="leading-tight text-left">
+                        <div className="leading-tight">
                            <h2 className="font-black text-sm text-violet-900 uppercase">Juntos a la Par</h2>
-                           <p className="text-[8px] font-bold text-gray-400 uppercase text-center">Escuela Especial</p>
                         </div>
                       </div>
                       <p className="text-[10px] font-black text-orange-600">{notaData.date}</p>
@@ -1089,40 +1068,33 @@ function ResourcesView({ resources, canEdit }) {
                     </div>
                     <div className="mt-12 flex flex-col items-center">
                       <div className="w-32 h-[1px] bg-gray-200 mb-4"></div>
-                      <p className="text-sm font-black text-violet-800 uppercase italic leading-none">{notaData.signature}</p>
-                      <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-1">Escuela Juntos a la Par</p>
+                      <p className="text-sm font-black text-violet-800 uppercase italic">{notaData.signature}</p>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* PIE DE PÁGINA: BOTÓN DESCARGAR CON FIX DE RENDERIZADO */}
             <div className="p-4 md:p-6 border-t bg-white shrink-0 z-20 shadow-2xl">
               <div className="flex gap-3 max-w-4xl mx-auto">
                 <button onClick={() => setShowNotaModal(false)} className="px-6 text-gray-400 font-black text-[10px] uppercase">Cerrar</button>
                 <button 
                   onClick={async () => {
                     if(!notaData.title && !notaData.body) return alert("Escribí algo.");
+                    const btn = document.activeElement; btn.innerText = "⏳ ESPERE...";
                     const element = document.getElementById('nota-canvas');
                     try {
                       const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
                       const canvas = await html2canvas(element, { 
                         scale: 2, useCORS: true, allowTaint: true, logging: false,
-                        backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
-                        // FORZAMOS EL ANCHO DE PC PARA LA FOTO
-                        width: 600, windowWidth: 600,
+                        backgroundColor: '#ffffff', width: 600, windowWidth: 600,
                         onclone: (clonedDoc) => {
                           const container = clonedDoc.getElementById('nota-canvas');
-                          container.style.display = "flex"; // Forzamos visibilidad en el clon aunque esté oculto en el celu
+                          container.style.display = "flex"; // Fix para que se vea en el clon
                           container.style.transform = "none";
                           container.style.width = "600px";
                           const txt = container.querySelector('.whitespace-pre-wrap');
-                          if (txt) { 
-                            txt.style.wordSpacing = 'normal'; txt.style.letterSpacing = 'normal';
-                            txt.style.lineHeight = '1.6'; txt.style.padding = '0 40px';
-                            txt.style.display = "block"; txt.style.width = "100%";
-                          }
+                          if (txt) { txt.style.wordSpacing = 'normal'; txt.style.lineHeight = '1.6'; txt.style.padding = '0 40px'; }
                         }
                       }); 
                       const link = document.createElement('a');
@@ -1130,10 +1102,11 @@ function ResourcesView({ resources, canEdit }) {
                       link.href = canvas.toDataURL('image/jpeg', 0.9);
                       link.click();
                     } catch (error) { alert("Error al generar imagen."); }
+                    finally { btn.innerText = "DESCARGAR JPG"; }
                   }} 
                   className="flex-1 bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-xs md:text-sm uppercase tracking-[2px] rounded-2xl shadow-xl py-4 flex items-center justify-center gap-2"
                 >
-                  <Download size={20}/> DESCARGAR PARA WHATSAPP
+                  <Download size={20}/> DESCARGAR JPG
                 </button>
               </div>
             </div>
