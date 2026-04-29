@@ -5112,6 +5112,33 @@ const handleUpdateGroup = async (e) => {
   const staffOptions = usersList.filter(u => ['Docente', 'Auxiliar/Preceptor', 'Equipo Técnico', 'Profes Especiales', 'DAI', 'Inclusión'].includes(u.role));
   const techOptions = usersList.filter(u => u.role === 'Equipo Técnico' || u.role === 'Equipo Técnico Inclusión' || u.role === 'Trabajadora Social');
   const specialOptions = usersList.filter(u => u.role === 'Profes Especiales' || u.role === 'Docente');
+  const handleToggleInforme = async (estudiante, numeroInforme) => {
+  const campo = `informe${numeroInforme}`;
+  const estadoActual = estudiante[campo] || { enviado: false };
+  let nuevoEstado = {};
+
+  if (!estadoActual.enviado) {
+    // Pasa a ENVIADO (Naranja)
+    nuevoEstado = { enviado: true, fechaEnvio: new Date().toISOString(), devuelto: false, archivado: false };
+  } else if (!estadoActual.devuelto) {
+    // Pasa a DEVUELTO (Azul)
+    nuevoEstado = { ...estadoActual, devuelto: true, fechaDevuelto: new Date().toISOString() };
+  } else if (!estadoActual.archivado) {
+    // Pasa a ARCHIVADO (Verde)
+    nuevoEstado = { ...estadoActual, archivado: true };
+  } else {
+    // RESET (Vuelve a Gris)
+    nuevoEstado = { enviado: false };
+  }
+
+  try {
+    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', estudiante.id);
+    await updateDoc(docRef, { [campo]: nuevoEstado });
+    // Aquí podrías agregar un mensaje de éxito si quisieras
+  } catch (error) {
+    console.error("Error al actualizar informe:", error);
+  }
+};
   const handleAddGroupComment = async (e, groupName) => {
     e.preventDefault();
     const text = e.target.comment.value;
@@ -5310,15 +5337,30 @@ const handleUpdateGroup = async (e) => {
                 <input name="driveLink" defaultValue={editingGroup.driveLink || ""} className="w-full p-3 bg-green-50 border border-green-100 rounded-xl outline-none font-bold text-xs text-green-700" placeholder="https://..." />
               </div>
               {/* Campo para el link de fotos en la edición del grupo */}
-<div className="mt-4">
-  <label className="text-[10px] font-black text-emerald-600 uppercase ml-1">Carpeta de Fotos (Drive)</label>
-  <input 
-    type="text"
-    placeholder="Pegá el link de la carpeta acá"
-    defaultValue={editingGroup.driveLink || ""}
-    onChange={(e) => setEditingGroup({...editingGroup, driveLink: e.target.value})}
-    className="w-full p-3 bg-emerald-50 border border-emerald-100 rounded-2xl text-xs font-bold text-emerald-800 outline-none focus:ring-2 ring-emerald-200"
-  />
+<div className="space-y-4 mt-4">
+  {/* CAMPO 1: CARPETA DE FOTOS (VERDE) */}
+  <div>
+    <label className="text-[10px] font-black text-emerald-600 uppercase ml-1">Link Carpeta de Fotos (Drive)</label>
+    <input 
+      type="text"
+      placeholder="Pegá el link de la carpeta de FOTOS acá"
+      defaultValue={editingGroup.driveLink || ""}
+      onChange={(e) => setEditingGroup({...editingGroup, driveLink: e.target.value})}
+      className="w-full p-3 bg-emerald-50 border border-emerald-100 rounded-2xl text-xs font-bold text-emerald-800 outline-none focus:ring-2 ring-emerald-200"
+    />
+  </div>
+
+  {/* CAMPO 2: CARPETA INSTITUCIONAL (AZUL) */}
+  <div>
+    <label className="text-[10px] font-black text-blue-600 uppercase ml-1">Link Carpeta Drive (Documentación)</label>
+    <input 
+      type="text"
+      placeholder="Pegá el link del DRIVE INSTITUCIONAL acá"
+      defaultValue={editingGroup.institucionalDrive || ""}
+      onChange={(e) => setEditingGroup({...editingGroup, institucionalDrive: e.target.value})}
+      className="w-full p-3 bg-blue-50 border border-blue-100 rounded-2xl text-xs font-bold text-blue-800 outline-none focus:ring-2 ring-blue-200"
+    />
+  </div>
 </div>
               <button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs mt-4">
                 {updatingGroup ? <span>Cargando...</span> : <span>Aplicar Cambios</span>}
@@ -5538,18 +5580,22 @@ const handleUpdateGroup = async (e) => {
       <div className="w-full lg:w-[450px] overflow-y-auto p-4 space-y-3 custom-scrollbar border-r border-gray-100">
         
         {/* BOTÓN DRIVE: Aparece solo si hay link */}
-        {selectedGroupDetails.driveLink && (
-          <a 
-            href={selectedGroupDetails.driveLink} 
-            target="_blank" 
-            rel="noreferrer"
-            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white p-4 rounded-[25px] flex items-center justify-center gap-3 shadow-lg transition-all active:scale-95 mb-4"
-          >
-            <Folder size={20}/>
-            <span className="font-black text-[10px] uppercase tracking-widest">Carpeta de Fotos</span>
-          </a>
-        )}
-
+       {selectedGroupDetails.driveLink && (
+    <a href={selectedGroupDetails.driveLink} target="_blank" rel="noreferrer" 
+       className="bg-emerald-500 text-white p-3 rounded-2xl flex flex-col items-center justify-center gap-1 shadow-md active:scale-95 transition">
+      <Folder size={18}/>
+      <span className="font-black text-[8px] uppercase">Fotos Grupo</span>
+    </a>
+  )}
+  {/* El link de Drive institucional que mencionaste que faltaba */}
+  {selectedGroupDetails.institucionalDrive && (
+    <a href={selectedGroupDetails.institucionalDrive} target="_blank" rel="noreferrer" 
+       className="bg-blue-600 text-white p-3 rounded-2xl flex flex-col items-center justify-center gap-1 shadow-md active:scale-95 transition">
+      <FileText size={18}/>
+      <span className="font-black text-[8px] uppercase">Carpeta Drive</span>
+    </a>
+  )}
+</div>
         {/* ACORDEÓN 1: EQUIPO (Cerrado por defecto en celu) */}
         <details className="group bg-white rounded-[25px] border border-gray-100 overflow-hidden shadow-sm">
           <summary className="p-4 list-none flex justify-between items-center cursor-pointer font-black text-[10px] uppercase text-violet-900">
@@ -5566,10 +5612,20 @@ const handleUpdateGroup = async (e) => {
 
         {/* ACORDEÓN 2: CONTROL DE INFORMES CON SEMÁFORO */}
         <details className="group bg-white rounded-[25px] border border-gray-100 overflow-hidden shadow-sm" open>
-          <summary className="p-4 list-none flex justify-between items-center cursor-pointer font-black text-[10px] uppercase text-blue-600">
+          <summary className="p-4 list-none flex justify-between items-center cursor-pointer font-black text-[10px] uppercase text-blue-600 tracking-widest">
             Control de Informes <ChevronDown size={16} className="group-open:rotate-180 transition-transform"/>
           </summary>
           <div className="p-4 pt-0 overflow-x-auto">
+            
+            {/* INSTRUCCIÓN DE USO */}
+            <div className="bg-blue-50/50 p-3 rounded-xl mb-4 flex items-start gap-2 border border-blue-100/50">
+              <span className="text-lg">💡</span>
+              <p className="text-[9px] font-bold text-blue-700 leading-tight uppercase">
+                Hacé click en los círculos para cambiar el estado:<br/>
+                <span className="opacity-70">Gris → Naranja → Azul → Verde → Reiniciar</span>
+              </p>
+            </div>
+
             <table className="w-full text-[10px]">
               <thead>
                 <tr className="text-gray-400 uppercase font-black border-b text-[8px]">
@@ -5582,24 +5638,23 @@ const handleUpdateGroup = async (e) => {
               <tbody className="divide-y divide-gray-50">
                 {selectedGroupDetails.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => {
                   
-                  // FUNCIÓN PARA EL COLOR DEL SEMÁFORO
                   const getCircleColor = (n) => {
                     const info = s[`informe${n}`] || {};
-                    if (!info.enviado) return "bg-gray-100"; // Gris: No enviado
+                    if (!info.enviado) return "bg-gray-200 hover:bg-gray-300"; 
                     
-                    // Lógica de los 10 días
                     if (info.enviado && !info.devuelto) {
                       const fechaEnvio = new Date(info.fechaEnvio);
                       const hoy = new Date();
                       const diferenciaDias = Math.floor((hoy - fechaEnvio) / (1000 * 60 * 60 * 24));
                       
-                      if (diferenciaDias >= 10) return "bg-red-500 animate-pulse ring-4 ring-red-100"; // Rojo parpadeante si pasaron 10 días
-                      return "bg-orange-400"; // Naranja: Enviado pero en fecha
+                      // ALERTA 10 DÍAS
+                      if (diferenciaDias >= 10) return "bg-red-500 animate-pulse ring-4 ring-red-100"; 
+                      return "bg-orange-400 hover:bg-orange-500"; 
                     }
                     
-                    if (info.devuelto && !info.archivado) return "bg-blue-500"; // Azul: Devuelto
-                    if (info.archivado) return "bg-emerald-500"; // Verde: Archivado/Listo
-                    return "bg-gray-100";
+                    if (info.devuelto && !info.archivado) return "bg-blue-500 hover:bg-blue-600"; 
+                    if (info.archivado) return "bg-emerald-500 hover:bg-emerald-600"; 
+                    return "bg-gray-200";
                   };
 
                   return (
@@ -5613,18 +5668,22 @@ const handleUpdateGroup = async (e) => {
                               let update = {};
                               
                               if (!current.enviado) {
+                                // Pasa a ENVIADO
                                 update = { enviado: true, fechaEnvio: new Date().toISOString() };
                               } else if (!current.devuelto) {
+                                // Pasa a DEVUELTO
                                 update = { ...current, devuelto: true, fechaDevuelto: new Date().toISOString() };
                               } else if (!current.archivado) {
+                                // Pasa a ARCHIVADO
                                 update = { ...current, archivado: true };
                               } else {
-                                update = { enviado: false }; // Resetear
+                                // RESET
+                                update = { enviado: false };
                               }
 
                               await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { [`informe${n}`]: update });
                             }}
-                            className={`w-4 h-4 rounded-full border-2 border-white shadow-sm transition-all ${getCircleColor(n)}`}
+                            className={`w-5 h-5 rounded-full border-2 border-white shadow-sm transition-all transform active:scale-75 ${getCircleColor(n)}`}
                           />
                         </td>
                       ))}
@@ -5633,8 +5692,12 @@ const handleUpdateGroup = async (e) => {
                 })}
               </tbody>
             </table>
+
+            {/* LEYENDA INFERIOR */}
             <div className="mt-4 flex flex-wrap gap-2 justify-center border-t pt-3">
-               <span className="text-[7px] font-bold text-gray-400 uppercase italic">🔘 Gris: Sin enviar • 🟠 Naranja: Enviado • 🔴 Rojo: +10 días sin devolver • 🔵 Azul: Devuelto • 🟢 Verde: Archivado</span>
+               <span className="text-[7px] font-black text-gray-400 uppercase italic tracking-tighter">
+                 🔘 Gris: Sin enviar • 🟠 Naranja: Enviado • 🔴 Rojo: Alerta (+10d) • 🔵 Azul: Devuelto • 🟢 Verde: Archivado
+               </span>
             </div>
           </div>
         </details>
