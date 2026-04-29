@@ -5576,24 +5576,24 @@ const handleUpdateGroup = async (e) => {
 
     <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-slate-50">
       
-     {/* SECCIÓN IZQUIERDA: INFORMACIÓN Y GESTIÓN */}
+    {/* SECCIÓN IZQUIERDA: INFORMACIÓN Y GESTIÓN */}
       <div className="w-full lg:w-[450px] overflow-y-auto p-4 space-y-3 custom-scrollbar border-r border-gray-100">
         
         {/* BOTONES DRIVE PRINCIPALES */}
-        <div className="flex gap-3 mb-4">
+        <div className="grid grid-cols-2 gap-3 mb-4">
           {selectedGroupDetails.driveLink && (
             <a href={selectedGroupDetails.driveLink} target="_blank" rel="noreferrer" 
-               className="flex-1 bg-emerald-500 text-white p-3 rounded-2xl flex flex-col items-center justify-center gap-1 shadow-md active:scale-95 transition">
+               className="bg-emerald-500 text-white p-3 rounded-2xl flex flex-col items-center justify-center gap-1 shadow-md active:scale-95 transition">
               <Folder size={20}/>
               <span className="font-black text-[9px] uppercase">Fotos Grupo</span>
             </a>
           )}
-          {/* BOTÓN DRIVE INSTITUCIONAL - Ubicado al lado del anterior */}
+          {/* BOTÓN DRIVE INSTITUCIONAL - Ahora visible y al lado */}
           {selectedGroupDetails.institucionalDrive && (
             <a href={selectedGroupDetails.institucionalDrive} target="_blank" rel="noreferrer" 
-               className="flex-1 bg-blue-600 text-white p-3 rounded-2xl flex flex-col items-center justify-center gap-1 shadow-md active:scale-95 transition">
+               className="bg-blue-600 text-white p-3 rounded-2xl flex flex-col items-center justify-center gap-1 shadow-md active:scale-95 transition">
               <FileText size={20}/>
-              <span className="font-black text-[9px] uppercase">Drive General</span>
+              <span className="font-black text-[9px] uppercase">Carpeta Drive</span>
             </a>
           )}
         </div>
@@ -5612,90 +5612,86 @@ const handleUpdateGroup = async (e) => {
           </div>
         </details>
 
-        {/* ACORDEÓN 2: CONTROL DE INFORMES (Selector por pasos) */}
+        {/* ACORDEÓN 2: CONTROL DE INFORMES (ACTUALIZACIÓN INSTANTÁNEA) */}
         <details className="group bg-white rounded-[25px] border border-gray-100 overflow-hidden shadow-sm" open>
           <summary className="p-4 list-none flex justify-between items-center cursor-pointer font-black text-[10px] uppercase text-blue-600 tracking-widest">
             Control de Informes <ChevronDown size={16} className="group-open:rotate-180 transition-transform"/>
           </summary>
-          <div className="p-4 pt-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-[10px] min-w-[300px]">
-                <thead>
-                  <tr className="text-gray-400 uppercase font-black border-b text-[8px]">
-                    <th className="py-2 text-left">Estudiante</th>
-                    <th className="py-2 text-center">1°</th>
-                    <th className="py-2 text-center">2°</th>
-                    <th className="py-2 text-center">3°</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {selectedGroupDetails.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
-                    <tr key={s.id}>
-                      <td className="py-3 font-bold text-gray-600 uppercase truncate max-w-[100px]">{s.lastName}, {s.firstName[0]}.</td>
-                      {[1,2,3].map(n => {
-                        const info = s[`informe${n}`] || { estado: 'gris' };
-                        
-                        // Lógica de colores inmediata
-                        const getStatusStyle = () => {
-                          if (info.archivado) return "bg-emerald-500 text-white border-emerald-600";
-                          if (info.devuelto) return "bg-blue-500 text-white border-blue-600";
-                          if (info.enviado) return "bg-orange-400 text-white border-orange-500";
-                          return "bg-gray-100 text-gray-400 border-gray-200";
-                        };
+          <div className="p-4 pt-0 overflow-x-auto">
+            <table className="w-full text-[10px]">
+              <thead>
+                <tr className="text-gray-400 uppercase font-black border-b text-[8px]">
+                  <th className="py-2 text-left">Estudiante</th>
+                  <th className="py-2 text-center">1°</th>
+                  <th className="py-2 text-center">2°</th>
+                  <th className="py-2 text-center">3°</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {selectedGroupDetails.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
+                  <tr key={s.id}>
+                    <td className="py-3 font-bold text-gray-600 uppercase truncate max-w-[110px]">{s.lastName}, {s.firstName[0]}.</td>
+                    {[1,2,3].map(n => {
+                      const info = s[`informe${n}`] || { enviado: false, devuelto: false, archivado: false };
+                      
+                      // Definir color según el estado
+                      let bgColor = "bg-gray-100 text-gray-400";
+                      if (info.archivado) bgColor = "bg-emerald-500 text-white shadow-inner";
+                      else if (info.devuelto) bgColor = "bg-blue-500 text-white";
+                      else if (info.enviado) bgColor = "bg-orange-400 text-white";
 
-                        return (
-                          <td key={n} className="py-3 text-center">
-                            <button 
-                              onClick={async () => {
-                                let update = {};
-                                if (!info.enviado) {
-                                  update = { enviado: true, fechaEnvio: new Date().toISOString() };
-                                } else if (!info.devuelto) {
-                                  update = { ...info, devuelto: true, fechaDevuelto: new Date().toISOString() };
-                                } else if (!info.archivado) {
-                                  update = { ...info, archivado: true };
-                                } else {
-                                  update = { enviado: false, devuelto: false, archivado: false };
-                                }
-                                
-                                // Actualización en Firebase
-                                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { [`informe${n}`]: update });
-                              }}
-                              className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-all active:scale-75 shadow-sm ${getStatusStyle()}`}
-                            >
-                              {info.archivado ? <Check size={12} strokeWidth={4}/> : n}
-                            </button>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      return (
+                        <td key={n} className="py-3 text-center">
+                          <button 
+                            onClick={async () => {
+                              let nextUpdate = {};
+                              if (!info.enviado) nextUpdate = { enviado: true, fechaEnvio: new Date().toISOString() };
+                              else if (!info.devuelto) nextUpdate = { ...info, devuelto: true, fechaDevuelto: new Date().toISOString() };
+                              else if (!info.archivado) nextUpdate = { ...info, archivado: true };
+                              else nextUpdate = { enviado: false, devuelto: false, archivado: false };
+
+                              // Actualizar Firebase
+                              await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { [`informe${n}`]: nextUpdate });
+                              
+                              // IMPORTANTE: Esto actualiza el estado local para que el cambio sea instantáneo en pantalla
+                              const updatedStudents = selectedGroupDetails.students.map(std => 
+                                std.id === s.id ? { ...std, [`informe${n}`]: nextUpdate } : std
+                              );
+                              setSelectedGroupDetails({ ...selectedGroupDetails, students: updatedStudents });
+                            }}
+                            className={`w-7 h-7 rounded-lg border-2 border-white flex items-center justify-center transition-all active:scale-75 font-black text-[9px] ${bgColor}`}
+                          >
+                            {info.archivado ? <Check size={14} strokeWidth={4}/> : n}
+                          </button>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
             
-            {/* LEYENDA MODERNA */}
-            <div className="mt-4 p-2 bg-gray-50 rounded-xl flex flex-wrap gap-x-4 gap-y-1 justify-center border border-gray-100">
-               <div className="flex items-center gap-1"><div className="w-2 h-2 bg-gray-300 rounded-full"/> <span className="text-[7px] font-bold uppercase text-gray-400">Pendiente</span></div>
-               <div className="flex items-center gap-1"><div className="w-2 h-2 bg-orange-400 rounded-full"/> <span className="text-[7px] font-bold uppercase text-gray-400">Enviado</span></div>
-               <div className="flex items-center gap-1"><div className="w-2 h-2 bg-blue-500 rounded-full"/> <span className="text-[7px] font-bold uppercase text-gray-400">Devuelto</span></div>
-               <div className="flex items-center gap-1"><div className="w-2 h-2 bg-emerald-500 rounded-full"/> <span className="text-[7px] font-bold uppercase text-gray-400">Archivado</span></div>
+            {/* LEYENDA SIMPLE */}
+            <div className="mt-4 flex justify-between px-2 py-2 bg-gray-50 rounded-xl border border-gray-100">
+               <span className="text-[7px] font-bold text-orange-400 uppercase">● Enviado</span>
+               <span className="text-[7px] font-bold text-blue-500 uppercase">● Devuelto</span>
+               <span className="text-[7px] font-bold text-emerald-500 uppercase">● Archivado</span>
             </div>
           </div>
         </details>
 
-        {/* ACORDEÓN 3: FICHAS TÉCNICAS */}
+        {/* ACORDEÓN 3: LISTA ESTUDIANTES */}
         <details className="group bg-white rounded-[25px] border border-gray-100 overflow-hidden shadow-sm">
           <summary className="p-4 list-none flex justify-between items-center cursor-pointer font-black text-[10px] uppercase text-gray-400">
             Fichas Técnicas Estudiantes <ChevronDown size={16} className="group-open:rotate-180 transition-transform"/>
           </summary>
           <div className="p-2 grid grid-cols-1 gap-1 bg-gray-50">
-            {selectedGroupDetails.students.map(s => (
-              <div key={s.id} onClick={() => setSelectedStudent(s)} className="bg-white p-2 rounded-xl flex items-center gap-3 border border-gray-50 cursor-pointer hover:bg-violet-50 transition-colors">
-                <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden shrink-0 shadow-inner">
-                  {s.photoUrl && <img src={s.photoUrl} className="w-full h-full object-cover" alt={s.firstName}/>}
+            {selectedGroupDetails.students.map(std => (
+              <div key={std.id} onClick={() => setSelectedStudent(std)} className="bg-white p-2 rounded-xl flex items-center gap-3 border border-gray-50 cursor-pointer hover:bg-violet-50">
+                <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
+                  {std.photoUrl && <img src={std.photoUrl} className="w-full h-full object-cover"/>}
                 </div>
-                <span className="font-bold text-gray-700 text-[10px] uppercase">{s.lastName}, {s.firstName}</span>
+                <span className="font-bold text-gray-700 text-[10px] uppercase">{std.lastName}, {std.firstName}</span>
               </div>
             ))}
           </div>
@@ -5706,13 +5702,12 @@ const handleUpdateGroup = async (e) => {
       <div className="flex-1 bg-white lg:m-4 lg:rounded-[40px] flex flex-col shadow-2xl overflow-hidden min-h-[450px]">
         <div className="p-4 border-b bg-orange-50/30 flex items-center gap-2">
           <MessageSquare size={18} className="text-orange-500"/>
-          {/* TEXTO ACTUALIZADO AQUÍ */}
           <h3 className="font-black text-orange-600 uppercase italic text-xs tracking-widest">Espacio de intercambio sobre este grupo</h3>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col-reverse custom-scrollbar bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px]">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col-reverse custom-scrollbar">
           {groupMessages[selectedGroupDetails.name]?.map(m => (
-            <div key={m.id} className={`p-3 rounded-2xl max-w-[85%] shadow-sm ${m.authorId === user.id ? 'bg-violet-600 text-white self-end rounded-tr-none' : 'bg-white text-gray-800 self-start rounded-tl-none border border-gray-100'}`}>
+            <div key={m.id} className={`p-3 rounded-2xl max-w-[85%] ${m.authorId === user.id ? 'bg-violet-600 text-white self-end rounded-tr-none' : 'bg-gray-100 text-gray-800 self-start rounded-tl-none'}`}>
               <div className="flex justify-between items-center mb-1 gap-4">
                 <span className="text-[8px] font-black uppercase opacity-70">{m.author}</span>
                 <span className="text-[7px] font-bold opacity-50">{m.createdAt?.seconds ? new Date(m.createdAt.seconds * 1000).toLocaleDateString() : 'Hoy'}</span>
@@ -5731,7 +5726,6 @@ const handleUpdateGroup = async (e) => {
     </div>
   </div>
 )}
-      
       {showBitacoraModal && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-emerald-500"><div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3><p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p></div><button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button></div>{!isWriting ? (<><div className="grid grid-cols-2 gap-3 mb-4 max-h-[50vh] overflow-y-auto">{INCIDENT_TYPES.map((type) => (<button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? "opacity-50" : "hover:brightness-95"}`}><span className="text-2xl">{type.emoji}</span><span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span></button>))}</div><button onClick={() => setIsWriting(true)} className="w-full py-3 bg-gray-900 text-white rounded-2xl font-bold uppercase text-xs flex items-center justify-center gap-2"><Edit3 size={16}/> Escribir Nota</button></>) : (<div className="animate-in slide-in-from-bottom"><textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Detalles..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm mb-2 h-24 outline-none focus:border-violet-500"/><div className="flex gap-2"><button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs hover:bg-gray-100 rounded-xl">Volver</button><button onClick={() => addIncident("medium", newNote)} disabled={!newNote.trim()} className="flex-1 py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg">Guardar</button></div></div>)}</div></div>)}
     </div>
   );
