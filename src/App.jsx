@@ -5684,7 +5684,7 @@ const handleUpdateGroup = async (e) => {
         </details>
       </div>
 
-     {/* SECCIÓN DERECHA: ESPACIO DE INTERCAMBIO (CON ACORDEÓN EN CELU) */}
+     {/* SECCIÓN DERECHA: ESPACIO DE INTERCAMBIO */}
       <div className="flex-1 lg:m-4 lg:rounded-[40px] flex flex-col lg:shadow-2xl overflow-hidden min-h-[100px] lg:min-h-[500px]">
         <details 
           className="group bg-white lg:flex lg:flex-col lg:h-full" 
@@ -5696,7 +5696,6 @@ const handleUpdateGroup = async (e) => {
               <h3 className="font-black text-orange-600 uppercase italic text-[10px] lg:text-xs tracking-widest">
                 Espacio de intercambio sobre este grupo
               </h3>
-              {/* CARTELITO DE MENSAJES NUEVOS */}
               {(() => {
                 const total = groupMessages[selectedGroupDetails.name]?.length || 0;
                 const read = parseInt(localStorage.getItem(`read_${selectedGroupDetails.name}_${user.id}`) || "0");
@@ -5715,12 +5714,10 @@ const handleUpdateGroup = async (e) => {
           <div 
             className="flex flex-col h-[450px] lg:h-full bg-slate-50 border-t border-orange-100 lg:border-none"
             onMouseEnter={() => {
-              // Al pasar el mouse o tocar, marcamos como leídos
               const total = groupMessages[selectedGroupDetails.name]?.length || 0;
               localStorage.setItem(`read_${selectedGroupDetails.name}_${user.id}`, total);
             }}
           >
-            {/* LISTADO DE MENSAJES */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col-reverse custom-scrollbar">
               {groupMessages[selectedGroupDetails.name]?.map(m => (
                 <div key={m.id} className={`p-3 rounded-2xl max-w-[90%] shadow-sm ${m.authorId === user.id ? 'bg-violet-600 text-white self-end rounded-tr-none' : 'bg-white text-gray-800 self-start rounded-tl-none border border-gray-100'}`}>
@@ -5733,18 +5730,17 @@ const handleUpdateGroup = async (e) => {
               ))}
             </div>
 
-            {/* FORMULARIO DE ENVÍO */}
             <form onSubmit={(e) => handleAddGroupComment(e, selectedGroupDetails.name)} className="p-3 bg-gray-100 border-t flex gap-2">
               <input name="comment" placeholder="Escribir novedad..." className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs outline-none focus:ring-2 ring-violet-200" />
               <button type="submit" className="bg-violet-600 text-white p-2.5 rounded-xl shadow-lg active:scale-90 transition-transform"><Send size={20}/></button>
             </form>
           </div>
         </details>
-      </div>
+      </div> {/* CIERRE DE SECCIÓN DERECHA */}
 
-    </div> {/* CIERRE DEL CONTENEDOR DE COLUMNAS (flex-row) */}
-  </div> {/* CIERRE DEL MODAL (fixed inset-0) */}
-)}
+    </div> {/* CIERRE DE FLEX-ROW (CONTENEDOR DE COLUMNAS) */}
+  </div> {/* CIERRE DE FIXED INSET-0 (FONDO MODAL) */}
+)} {/* CIERRE DE SELECTEDGROUPDETAILS */}
 
 {/* MODAL BITÁCORA EXPRESS */}
 {showBitacoraModal && (
