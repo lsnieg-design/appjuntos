@@ -954,12 +954,12 @@ const handleSaveCountdown = async () => {
 } // Fin de la función
 
 
-// --- VISTA RECURSOS (VERSIÓN DEFINITIVA: NADA SE BORRA, TODO SE MEJORA) ---
+// --- VISTA RECURSOS (VERSIÓN CORREGIDA SIN ERRORES DE COMPILACIÓN) ---
 function ResourcesView({ resources, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [editingRes, setEditingRes] = useState(null); 
   const [showNotaModal, setShowNotaModal] = useState(false);
-  const [showMobilePreview, setShowMobilePreview] = useState(false); // Para el botón del OJO
+  const [showMobilePreview, setShowMobilePreview] = useState(false);
   
   const [notaData, setNotaData] = useState({ 
     date: new Date().toLocaleDateString('es-AR'), 
@@ -976,15 +976,12 @@ function ResourcesView({ resources, canEdit }) {
   
   const LOGO_SIN_FONDO = "/logosinfondo.png";
 
-  // LÓGICA DE RECURSOS (Mantenida tal cual)
   const handleSaveResource = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const data = {
-      title: fd.get('title'),
-      url: fd.get('url'),
-      category: 'GENERAL', 
-      updatedAt: serverTimestamp()
+      title: fd.get('title'), url: fd.get('url'),
+      category: 'GENERAL', updatedAt: serverTimestamp()
     };
     try {
       if (editingRes?.id) {
@@ -1003,7 +1000,6 @@ function ResourcesView({ resources, canEdit }) {
     } catch (err) { alert(err.message); }
   };
 
-  // LÓGICA DE PLANTILLAS (Mantenida tal cual)
   const aplicarPlantillaReunion = () => {
       if(!templateData.fechaReunion || !templateData.horaReunion) {
           alert("Completá fecha y hora."); return;
@@ -1016,47 +1012,8 @@ function ResourcesView({ resources, canEdit }) {
       setShowTemplates(false);
   };
 
-  // LÓGICA DE DESCARGA (Tu lógica + Parche de amontonamiento)
-  const descargarNota = async () => {
-    if (!notaData.title && !notaData.body) return alert("Escribí algo.");
-    const btn = document.activeElement;
-    const originalText = btn.innerHTML;
-    btn.innerText = "⏳ GENERANDO...";
-    btn.disabled = true;
-
-    const element = document.getElementById('nota-canvas');
-    try {
-      const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
-      const canvas = await html2canvas(element, { 
-        scale: 2, useCORS: true, allowTaint: true, logging: false,
-        backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
-        width: 600, windowWidth: 600,
-        onclone: (clonedDoc) => {
-          const container = clonedDoc.getElementById('nota-canvas');
-          container.style.display = "flex";
-          container.style.transform = "none";
-          container.style.width = "600px";
-          const txt = container.querySelector('.whitespace-pre-wrap');
-          if (txt) { 
-            txt.style.wordSpacing = 'normal'; txt.style.letterSpacing = 'normal';
-            txt.style.lineHeight = '1.6'; txt.style.padding = '0 40px';
-            txt.style.display = "block"; txt.style.width = "100%";
-          }
-        }
-      }); 
-      const link = document.createElement('a');
-      link.href = canvas.toDataURL('image/jpeg', 0.9);
-      link.download = `Nota_${new Date().getTime()}.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) { alert("Error al generar imagen."); }
-    finally { btn.innerHTML = originalText; btn.disabled = false; }
-  };
-
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10 px-2">
-      {/* CABECERA Y BOTONES PRINCIPALES */}
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-black text-violet-900 italic tracking-tighter uppercase">Recursos</h2>
         {canEdit && (
@@ -1077,7 +1034,6 @@ function ResourcesView({ resources, canEdit }) {
           <ChevronRight size={24} className="opacity-50"/>
       </button>
 
-      {/* LISTADO DE LINKS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {resources.map(r => (
           <div key={r.id} className="bg-white p-4 rounded-[30px] border border-violet-50 flex flex-col justify-between shadow-sm h-32 relative group">
@@ -1095,35 +1051,15 @@ function ResourcesView({ resources, canEdit }) {
         ))}
       </div>
 
-      {/* MODAL PARA LINKS */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[400] flex items-center justify-center p-4">
-          <form onSubmit={handleSaveResource} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl border-t-8 border-orange-500">
-            <h3 className="text-xl font-black text-violet-900 mb-6 uppercase italic">{editingRes ? 'Editar Link' : 'Nuevo Link'}</h3>
-            <div className="space-y-4">
-              <input name="title" defaultValue={editingRes?.title} placeholder="Título" className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm border" required />
-              <input name="url" defaultValue={editingRes?.url} placeholder="https://..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm border" required />
-              <div className="flex gap-2 pt-4">
-                <button type="button" onClick={() => { setShowModal(false); setEditingRes(null); }} className="flex-1 py-4 font-black text-xs text-gray-400 uppercase">Cancelar</button>
-                <button type="submit" className="flex-[2] py-4 bg-orange-500 text-white rounded-2xl font-black text-xs uppercase">Guardar</button>
-              </div>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* MODAL GENERADOR DE NOTAS */}
       {showNotaModal && (
         <div className="fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-0 md:p-4 backdrop-blur-md" onClick={() => setShowNotaModal(false)}>
           <div className="bg-white rounded-t-[40px] md:rounded-[40px] w-full max-w-7xl flex flex-col h-[100dvh] md:h-[90vh] overflow-hidden relative" onClick={e => e.stopPropagation()}>
-            
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center shrink-0 bg-white z-10">
               <h3 className="text-lg font-black text-violet-900 uppercase italic leading-none">Editor Institucional</h3>
               <button onClick={() => setShowNotaModal(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20}/></button>
             </div>
             
             <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-              {/* PANEL EDITOR */}
               <div className="flex-1 overflow-y-auto p-4 md:p-10 space-y-6 border-b lg:border-b-0 lg:border-r border-gray-50 custom-scrollbar">
                 <button onClick={() => setShowTemplates(!showTemplates)} className="w-full bg-blue-50 text-blue-700 py-4 rounded-2xl font-bold text-[10px] uppercase border border-blue-100 flex justify-center items-center gap-2">
                   <List size={16}/> {showTemplates ? 'Cerrar Plantillas' : 'Usar Plantilla Reunión'}
@@ -1131,16 +1067,16 @@ function ResourcesView({ resources, canEdit }) {
 
                 {showTemplates && (
                   <div className="bg-blue-50/50 p-4 rounded-3xl space-y-3 animate-in fade-in zoom-in-95">
-                    <input type="text" placeholder="Nombre estudiante..." value={templateData.destinatario} onChange={e => setTemplateData({...templateData, destinatario: e.target.value})} className="w-full p-3 bg-white rounded-xl outline-none text-sm border-0" />
+                    <input type="text" placeholder="Nombre estudiante..." value={templateData.destinatario} onChange={e => setTemplateData({...templateData, destinatario: e.target.value})} className="w-full p-3 bg-white rounded-xl outline-none font-bold text-sm border-0" />
                     <div className="grid grid-cols-2 gap-2">
                       <input type="date" value={templateData.fechaReunion} onChange={e => setTemplateData({...templateData, fechaReunion: e.target.value})} className="p-3 bg-white rounded-xl text-xs border-0" />
                       <input type="time" value={templateData.horaReunion} onChange={e => setTemplateData({...templateData, horaReunion: e.target.value})} className="p-3 bg-white rounded-xl text-xs border-0" />
                     </div>
-                    <button onClick={aplicarPlantillaReunion} className="w-full bg-blue-600 text-white py-3 rounded-xl font-black text-[10px] uppercase">Aplicar</button>
+                    <button onClick={aplicarPlantillaReunion} className="w-full bg-blue-600 text-white py-3 rounded-xl font-black text-[10px] uppercase">Cargar Texto</button>
                   </div>
                 )}
 
-                {/* BOTONES DE CONFIGURACIÓN */}
+                {/* BOTONES DE CONFIGURACIÓN (CON ALINEACIÓN RECUPERADA) */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-1">
                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Tamaño</span>
@@ -1169,9 +1105,12 @@ function ResourcesView({ resources, canEdit }) {
                 </div>
 
                 <div className="space-y-4">
-                  <input type="text" placeholder="TÍTULO" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-black uppercase text-gray-700 border-2 border-transparent focus:border-violet-200 shadow-inner" />
-                  <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Escribí aquí..." className="w-full p-4 bg-gray-50 rounded-[30px] outline-none text-sm min-h-[200px] lg:h-[300px] resize-none font-medium text-gray-600 shadow-inner" />
-                  <input type="text" value={notaData.signature} onChange={e => setNotaData({...notaData, signature: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-violet-700 text-sm border-2 border-transparent focus:border-violet-200" />
+                  <input type="text" placeholder="TÍTULO NOTA" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-black uppercase text-gray-700 border-2 border-transparent focus:border-violet-200 shadow-inner" />
+                  <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Escribe aquí..." className="w-full p-4 bg-gray-50 rounded-[30px] outline-none text-sm min-h-[200px] lg:h-[300px] resize-none font-medium text-gray-600 shadow-inner" />
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[9px] font-black text-gray-400 uppercase ml-1 tracking-widest">Firma Responsable</label>
+                    <input type="text" value={notaData.signature} onChange={e => setNotaData({...notaData, signature: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-violet-700 text-sm border-2 border-transparent focus:border-violet-200" />
+                  </div>
                 </div>
               </div>
 
@@ -1194,7 +1133,7 @@ function ResourcesView({ resources, canEdit }) {
                       </div>
                       <h1 className="text-xl font-black text-gray-800 uppercase mb-8 text-center">{notaData.title || 'COMUNICADO'}</h1>
                       <div className={`flex-1 text-gray-700 font-bold whitespace-pre-wrap leading-relaxed px-4 ${notaData.fontSize} ${notaData.textAlign}`}>
-                        {notaData.body || 'Escribe tu mensaje...'}
+                        {notaData.body || 'Tu mensaje se verá aquí...'}
                       </div>
                       <div className="mt-12 flex flex-col items-center">
                         <div className="w-32 h-[1px] bg-gray-200 mb-4"></div>
@@ -1212,11 +1151,47 @@ function ResourcesView({ resources, canEdit }) {
               <button onClick={() => setShowMobilePreview(true)} className="lg:hidden fixed bottom-24 right-6 bg-violet-600 text-white w-14 h-14 rounded-full shadow-2xl flex items-center justify-center z-[100] animate-bounce"><Eye size={28}/></button>
             )}
 
-            {/* PIE DE PÁGINA */}
+            {/* PIE DE PÁGINA CON LÓGICA DE DESCARGA INTEGRADA */}
             <div className="p-4 md:p-6 border-t bg-white shrink-0 shadow-2xl z-20">
               <div className="flex gap-3 max-w-4xl mx-auto">
                 <button onClick={() => setShowNotaModal(false)} className="px-6 text-gray-400 font-black text-[10px] uppercase">Cerrar</button>
-                <button onClick={descargarNota} className="flex-1 bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-xs md:text-sm uppercase tracking-[2px] rounded-2xl shadow-xl py-4 flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                <button 
+                  onClick={async () => {
+                    if (!notaData.title && !notaData.body) return alert("Escribí algo.");
+                    const btn = document.activeElement;
+                    const originalText = btn.innerHTML;
+                    btn.innerText = "⏳ GENERANDO...";
+                    const element = document.getElementById('nota-canvas');
+                    try {
+                      const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
+                      const canvas = await html2canvas(element, { 
+                        scale: 2, useCORS: true, allowTaint: true, logging: false,
+                        backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
+                        width: 600, windowWidth: 600,
+                        onclone: (clonedDoc) => {
+                          const container = clonedDoc.getElementById('nota-canvas');
+                          container.style.display = "flex";
+                          container.style.transform = "none";
+                          container.style.width = "600px";
+                          const txt = container.querySelector('.whitespace-pre-wrap');
+                          if (txt) { 
+                            txt.style.wordSpacing = 'normal'; txt.style.letterSpacing = 'normal';
+                            txt.style.lineHeight = '1.6'; txt.style.padding = '0 40px';
+                            txt.style.display = "block"; txt.style.width = "100%";
+                          }
+                        }
+                      }); 
+                      const link = document.createElement('a');
+                      link.href = canvas.toDataURL('image/jpeg', 0.9);
+                      link.download = `Nota_${new Date().getTime()}.jpg`;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    } catch (error) { alert("Error al generar imagen."); }
+                    finally { btn.innerHTML = originalText; }
+                  }} 
+                  className="flex-1 bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-xs md:text-sm uppercase tracking-[2px] rounded-2xl shadow-xl py-4 flex items-center justify-center gap-2 active:scale-95 transition-transform"
+                >
                   <Download size={20}/> Descargar JPG
                 </button>
               </div>
