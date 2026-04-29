@@ -14,10 +14,10 @@ import {
 } from 'lucide-react';
 
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, limit} from 'firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken} from 'firebase/auth';
 import { 
   getFirestore, collection, addDoc, query, orderBy, onSnapshot, doc, 
-  updateDoc, deleteDoc, where, getDocs, getDoc, serverTimestamp, arrayUnion, arrayRemove 
+  updateDoc, deleteDoc, where, getDocs, getDoc, serverTimestamp, arrayUnion, arrayRemove, limit 
 } from 'firebase/firestore';
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 const VALID_ROLES_OFFICIAL = [
