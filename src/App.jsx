@@ -5061,14 +5061,7 @@ const handleReportAbsenteeism = async () => {
       } catch (e) { alert("Error: " + e.message); }
   };
 
- const addIncident = async (type, text = "") => { 
-    // Detectamos cuál es el alumno activo (el del modal express o el de la ficha completa)
-    const activeStudent = showBitacoraModal || viewingStudent;
-    
-    if (!activeStudent || !activeStudent.id) {
-        alert("❌ Error: No se detectó el ID del alumno.");
-        return;
-    }
+ 
 
     setSavingIncident(true); // Bloqueamos para evitar doble click
 
@@ -5116,8 +5109,7 @@ const handleReportAbsenteeism = async () => {
         setSavingIncident(false);
     }
   };
-  const handleSaveIncident = async (type, severity) => { if (!showBitacoraModal) return; setSavingIncident(true); try { const incidentData = { type, severity, date: new Date().toISOString(), author: user.fullName || user.firstName, authorId: user.id }; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', showBitacoraModal.id), { incidents: arrayUnion(incidentData) }); alert("✅ Registro guardado"); setShowBitacoraModal(null); } catch (e) { console.error(e); } finally { setSavingIncident(false); } };
-  const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
+ const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
 
 const handleUpdateGroup = async (e) => { 
       e.preventDefault(); 
@@ -5224,6 +5216,55 @@ const handleUpdateGroup = async (e) => {
         e.target.reset();
     } catch (err) { alert(err.message); }
 };
+const handleSaveIncident = async (type, severity = "medium", text = "") => { 
+    // Detectamos quién es el alumno activo (del modal express o de la ficha abierta)
+    const student = showBitacoraModal || selectedStudent;
+    
+    if (!student || !student.id) {
+        alert("❌ Error: No se pudo identificar al alumno.");
+        return;
+    }
+
+    setSavingIncident(true);
+
+    const incidentData = { 
+        type: text ? "Nota" : type, 
+        severity: severity, 
+        text: text || type, 
+        date: new Date().toISOString(), 
+        author: user.fullName || user.firstName, 
+        authorId: user.id 
+    }; 
+
+    try { 
+        const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', student.id);
+        await updateDoc(studentRef, { incidents: arrayUnion(incidentData) }); 
+
+        // --- PUNTOS CHALLENGE ---
+        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+        await updateDoc(userRef, { score: increment(10) });
+
+        // Actualizamos el estado local si la ficha del alumno está abierta
+        if (selectedStudent && selectedStudent.id === student.id) {
+            setSelectedStudent(prev => ({
+                ...prev, 
+                incidents: [...(prev.incidents || []), incidentData]
+            }));
+        }
+
+        // Limpiar estados y cerrar modal
+        setNewNote("");
+        setIsWriting(false);
+        setShowBitacoraModal(null); 
+        
+        alert("✅ Bitácora guardada (+10 pts)"); 
+    } catch (e) { 
+        console.error("Error al guardar:", e);
+        alert("❌ Error: " + e.message);
+    } finally {
+        setSavingIncident(false);
+    }
+  };
   return (
     <div className="flex flex-col h-full bg-slate-100 animate-in fade-in relative">
       {!isManagement && (
@@ -5801,22 +5842,35 @@ const handleUpdateGroup = async (e) => {
             {!isWriting ? (
               <>
                 <div className="grid grid-cols-2 gap-3 mb-4 max-h-[50vh] overflow-y-auto">
-                  {INCIDENT_TYPES.map((type) => (
-                    <button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? "opacity-50" : "hover:brightness-95"}`}>
-                      <span className="text-2xl">{type.emoji}</span>
-                      <span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span>
-                    </button>
-                  ))}
+                  {/* Reemplaza la línea del map de emojis dentro de Bitácora Express */}
+{INCIDENT_TYPES.map((type) => (
+  <button 
+    key={type.label} 
+    onClick={() => handleSaveIncident(type.label, type.severity)} // <-- Usamos la nueva función
+    disabled={savingIncident} 
+    className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? "opacity-50" : "hover:brightness-95"}`}
+  >
+    <span className="text-2xl">{type.emoji}</span>
+    <span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span>
+  </button>
+))}
                 </div>
                 <button onClick={() => setIsWriting(true)} className="w-full py-3 bg-gray-900 text-white rounded-2xl font-bold uppercase text-xs flex items-center justify-center gap-2"><Edit3 size={16}/> Escribir Nota</button>
               </>
             ) : (
               <div className="animate-in slide-in-from-bottom">
                 <textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Detalles..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm mb-2 h-24 outline-none focus:border-violet-500"/>
-                <div className="flex gap-2">
-                  <button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs hover:bg-gray-100 rounded-xl">Volver</button>
-                  <button onClick={() => addIncident("medium", newNote)} disabled={!newNote.trim()} className="flex-1 py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg">Guardar</button>
-                </div>
+             {/* Reemplaza el botón de Guardar dentro del formulario de escritura */}
+<div className="flex gap-2">
+  <button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs hover:bg-gray-100 rounded-xl">Volver</button>
+  <button 
+    onClick={() => handleSaveIncident("Nota", "medium", newNote)} // <-- Usamos la nueva función con el texto
+    disabled={!newNote.trim() || savingIncident} 
+    className="flex-1 py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg"
+  >
+    {savingIncident ? 'Guardando...' : 'Guardar'}
+  </button>
+</div>
               </div>
             )}
           </div>
