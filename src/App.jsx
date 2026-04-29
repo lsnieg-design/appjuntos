@@ -954,12 +954,12 @@ const handleSaveCountdown = async () => {
 } // Fin de la función
 
 
-// --- VISTA RECURSOS (VERSIÓN CORREGIDA SIN ERRORES DE COMPILACIÓN) ---
+// --- VISTA RECURSOS (VERSIÓN DEFINITIVA: INTERFAZ MÓVIL + DESCARGA ESTABLE) ---
 function ResourcesView({ resources, canEdit }) {
   const [showModal, setShowModal] = useState(false);
   const [editingRes, setEditingRes] = useState(null); 
   const [showNotaModal, setShowNotaModal] = useState(false);
-  const [showMobilePreview, setShowMobilePreview] = useState(false);
+  const [showMobilePreview, setShowMobilePreview] = useState(false); // Control del "Ojo"
   
   const [notaData, setNotaData] = useState({ 
     date: new Date().toLocaleDateString('es-AR'), 
@@ -976,64 +976,57 @@ function ResourcesView({ resources, canEdit }) {
   
   const LOGO_SIN_FONDO = "/logosinfondo.png";
 
+  // --- LÓGICA DE RECURSOS Y PLANTILLAS ---
   const handleSaveResource = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const data = {
-      title: fd.get('title'), url: fd.get('url'),
-      category: 'GENERAL', updatedAt: serverTimestamp()
-    };
+    const data = { title: fd.get('title'), url: fd.get('url'), category: 'GENERAL', updatedAt: serverTimestamp() };
     try {
-      if (editingRes?.id) {
-        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', editingRes.id), data);
-      } else {
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), { ...data, createdAt: serverTimestamp() });
-      }
+      if (editingRes?.id) { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', editingRes.id), data); }
+      else { await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), { ...data, createdAt: serverTimestamp() }); }
       setShowModal(false); setEditingRes(null);
     } catch (err) { alert(err.message); }
   };
 
   const handleDeleteResource = async (resId) => {
     if (!confirm("¿Eliminar este link?")) return;
-    try {
-      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', resId));
-    } catch (err) { alert(err.message); }
+    try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', resId)); } catch (err) { alert(err.message); }
   };
 
   const aplicarPlantillaReunion = () => {
-      if(!templateData.fechaReunion || !templateData.horaReunion) {
-          alert("Completá fecha y hora."); return;
-      }
+      if(!templateData.fechaReunion || !templateData.horaReunion) { alert("Completá fecha y hora."); return; }
       const partesFecha = templateData.fechaReunion.split('-');
       const fechaLegible = `${partesFecha[2]}/${partesFecha[1]}/${partesFecha[0]}`;
-      const textoDestinatario = templateData.destinatario ? `Estimada familia de ${templateData.destinatario}:` : `Estimadas familias:`;
-      const cuerpoMensaje = `${textoDestinatario}\n\nPor medio de la presente, nos comunicamos para citarlos a una reunión a fin de conversar sobre aspectos relacionados a la trayectoria escolar.\n\nLa misma se llevará a cabo el día ${fechaLegible} a las ${templateData.horaReunion} hs.\nModalidad: ${templateData.modalidad}.\n\nAgradecemos su compromiso y puntualidad.\nPor favor, confirmar asistencia.`;
+      const cuerpoMensaje = `${templateData.destinatario ? `Estimada familia de ${templateData.destinatario}:` : `Estimadas familias:`}\n\nPor medio de la presente, nos comunicamos para citarlos a una reunión a fin de conversar sobre aspectos relacionados a la trayectoria escolar.\n\nLa misma se llevará a cabo el día ${fechaLegible} a las ${templateData.horaReunion} hs.\nModalidad: ${templateData.modalidad}.\n\nAgradecemos su compromiso y puntualidad.\nPor favor, confirmar asistencia.`;
       setNotaData({ ...notaData, title: 'CITACIÓN A REUNIÓN', body: cuerpoMensaje, textAlign: 'text-left' });
       setShowTemplates(false);
   };
 
   return (
     <div className="space-y-4 animate-in slide-in-from-bottom-4 pb-10 px-2">
+      {/* CABECERA */}
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-black text-violet-900 italic tracking-tighter uppercase">Recursos</h2>
         {canEdit && (
-          <button onClick={() => { setEditingRes(null); setShowModal(true); }} className="bg-orange-500 text-white p-2.5 rounded-xl shadow-lg hover:bg-orange-600 transition flex items-center gap-2 font-black text-[10px] uppercase">
+          <button onClick={() => { setEditingRes(null); setShowModal(true); }} className="bg-orange-500 text-white p-2.5 rounded-xl shadow-lg font-black text-[10px] uppercase">
             <PlusCircle size={20}/> Nuevo Link
           </button>
         )}
       </div>
 
-      <button onClick={() => setShowNotaModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-orange-400 p-6 rounded-[35px] shadow-lg text-white flex items-center justify-between mb-8 group active:scale-95 transition-transform">
+      {/* BOTÓN GENERADOR */}
+      <button onClick={() => setShowNotaModal(true)} className="w-full bg-gradient-to-r from-pink-500 to-orange-400 p-6 rounded-[35px] shadow-lg text-white flex items-center justify-between mb-8 active:scale-95 transition-transform">
           <div className="flex items-center gap-4">
-              <div className="bg-white/20 p-3 rounded-2xl group-hover:rotate-12 transition-transform"><Edit3 size={32}/></div>
+              <div className="bg-white/20 p-3 rounded-2xl"><Edit3 size={32}/></div>
               <div className="text-left">
-                  <h3 className="font-black text-xl tracking-widest uppercase italic drop-shadow-md">Generador de Notas</h3>
+                  <h3 className="font-black text-xl tracking-widest uppercase italic">Generador de Notas</h3>
                   <p className="text-xs font-bold opacity-90 mt-1">Crear comunicados oficiales</p>
               </div>
           </div>
           <ChevronRight size={24} className="opacity-50"/>
       </button>
 
+      {/* GRID DE RECURSOS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {resources.map(r => (
           <div key={r.id} className="bg-white p-4 rounded-[30px] border border-violet-50 flex flex-col justify-between shadow-sm h-32 relative group">
@@ -1051,23 +1044,27 @@ function ResourcesView({ resources, canEdit }) {
         ))}
       </div>
 
+      {/* MODAL GENERADOR (DISEÑO DUAL PC/CELU) */}
       {showNotaModal && (
         <div className="fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-0 md:p-4 backdrop-blur-md" onClick={() => setShowNotaModal(false)}>
           <div className="bg-white rounded-t-[40px] md:rounded-[40px] w-full max-w-7xl flex flex-col h-[100dvh] md:h-[90vh] overflow-hidden relative" onClick={e => e.stopPropagation()}>
-            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center shrink-0 bg-white z-10">
-              <h3 className="text-lg font-black text-violet-900 uppercase italic leading-none">Editor Institucional</h3>
-              <button onClick={() => setShowNotaModal(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20}/></button>
+            
+            {/* HEADER MODAL */}
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center shrink-0 bg-white">
+              <h3 className="text-lg font-black text-violet-900 uppercase italic">Editor Institucional</h3>
+              <button onClick={() => setShowNotaModal(false)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button>
             </div>
             
             <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+              {/* LADO 1: EDITOR */}
               <div className="flex-1 overflow-y-auto p-4 md:p-10 space-y-6 border-b lg:border-b-0 lg:border-r border-gray-50 custom-scrollbar">
                 <button onClick={() => setShowTemplates(!showTemplates)} className="w-full bg-blue-50 text-blue-700 py-4 rounded-2xl font-bold text-[10px] uppercase border border-blue-100 flex justify-center items-center gap-2">
                   <List size={16}/> {showTemplates ? 'Cerrar Plantillas' : 'Usar Plantilla Reunión'}
                 </button>
 
                 {showTemplates && (
-                  <div className="bg-blue-50/50 p-4 rounded-3xl space-y-3 animate-in fade-in zoom-in-95">
-                    <input type="text" placeholder="Nombre estudiante..." value={templateData.destinatario} onChange={e => setTemplateData({...templateData, destinatario: e.target.value})} className="w-full p-3 bg-white rounded-xl outline-none font-bold text-sm border-0" />
+                  <div className="bg-blue-50/50 p-4 rounded-3xl space-y-3 animate-in fade-in">
+                    <input type="text" placeholder="Nombre estudiante..." value={templateData.destinatario} onChange={e => setTemplateData({...templateData, destinatario: e.target.value})} className="w-full p-3 bg-white rounded-xl outline-none text-sm border-0 shadow-sm" />
                     <div className="grid grid-cols-2 gap-2">
                       <input type="date" value={templateData.fechaReunion} onChange={e => setTemplateData({...templateData, fechaReunion: e.target.value})} className="p-3 bg-white rounded-xl text-xs border-0" />
                       <input type="time" value={templateData.horaReunion} onChange={e => setTemplateData({...templateData, horaReunion: e.target.value})} className="p-3 bg-white rounded-xl text-xs border-0" />
@@ -1076,7 +1073,7 @@ function ResourcesView({ resources, canEdit }) {
                   </div>
                 )}
 
-                {/* BOTONES DE CONFIGURACIÓN (CON ALINEACIÓN RECUPERADA) */}
+                {/* BOTONES CONFIGURACIÓN (TAMAÑO, COLOR, ALINEACIÓN) */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-1">
                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Tamaño</span>
@@ -1094,7 +1091,7 @@ function ResourcesView({ resources, canEdit }) {
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Alineación</span>
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Línea</span>
                     <div className="flex bg-gray-100 p-1 rounded-xl gap-1">
                       <button onClick={() => setNotaData({...notaData, textAlign: 'text-left'})} className={`flex-1 py-2 rounded-lg ${notaData.textAlign === 'text-left' ? 'bg-white text-violet-600' : 'text-gray-400'}`}><AlignLeft size={14} className="mx-auto"/></button>
                       <button onClick={() => setNotaData({...notaData, textAlign: 'text-center'})} className={`flex-1 py-2 rounded-lg ${notaData.textAlign === 'text-center' ? 'bg-white text-violet-600' : 'text-gray-400'}`}><AlignCenter size={14} className="mx-auto"/></button>
@@ -1107,14 +1104,11 @@ function ResourcesView({ resources, canEdit }) {
                 <div className="space-y-4">
                   <input type="text" placeholder="TÍTULO NOTA" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-black uppercase text-gray-700 border-2 border-transparent focus:border-violet-200 shadow-inner" />
                   <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Escribe aquí..." className="w-full p-4 bg-gray-50 rounded-[30px] outline-none text-sm min-h-[200px] lg:h-[300px] resize-none font-medium text-gray-600 shadow-inner" />
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[9px] font-black text-gray-400 uppercase ml-1 tracking-widest">Firma Responsable</label>
-                    <input type="text" value={notaData.signature} onChange={e => setNotaData({...notaData, signature: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-violet-700 text-sm border-2 border-transparent focus:border-violet-200" />
-                  </div>
+                  <input type="text" value={notaData.signature} onChange={e => setNotaData({...notaData, signature: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-violet-700 text-sm border-2 border-transparent focus:border-violet-200 shadow-inner" />
                 </div>
               </div>
 
-              {/* PANEL VISTA PREVIA (Condicional en Móvil) */}
+              {/* LADO 2: VISTA PREVIA (Condicional Móvil) */}
               <div className={`${showMobilePreview ? 'fixed inset-0 z-[400] flex bg-slate-100' : 'hidden'} lg:relative lg:flex lg:flex-1 bg-slate-100 p-4 md:p-10 flex-col items-center justify-start lg:justify-center overflow-y-auto`}>
                 <button onClick={() => setShowMobilePreview(false)} className="lg:hidden absolute top-6 right-6 bg-violet-900 text-white p-3 rounded-full shadow-2xl z-[500]"><X size={24}/></button>
                 <div className="w-full flex justify-center origin-top transform scale-[0.55] sm:scale-[0.7] md:scale-[0.8] lg:scale-100 transition-transform mt-10 lg:mt-0">
@@ -1124,9 +1118,9 @@ function ResourcesView({ resources, canEdit }) {
                       <div className="flex justify-between items-start mb-8 text-gray-800">
                         <div className="flex items-center gap-3">
                           <img src={LOGO_SIN_FONDO} className="w-14 h-auto mix-blend-multiply" crossOrigin="anonymous"/>
-                          <div>
+                          <div className="leading-none">
                              <h2 className="font-black text-sm text-violet-900 uppercase">Juntos a la Par</h2>
-                             <p className="text-[8px] font-bold text-gray-400 uppercase text-center">Escuela Especial</p>
+                             <p className="text-[8px] font-bold text-gray-400 uppercase">Escuela Especial</p>
                           </div>
                         </div>
                         <p className="text-[10px] font-black text-orange-600">{notaData.date}</p>
@@ -1135,9 +1129,9 @@ function ResourcesView({ resources, canEdit }) {
                       <div className={`flex-1 text-gray-700 font-bold whitespace-pre-wrap leading-relaxed px-4 ${notaData.fontSize} ${notaData.textAlign}`}>
                         {notaData.body || 'Tu mensaje se verá aquí...'}
                       </div>
-                      <div className="mt-12 flex flex-col items-center">
+                      <div className="mt-12 flex flex-col items-center shrink-0">
                         <div className="w-32 h-[1px] bg-gray-200 mb-4"></div>
-                        <p className="text-sm font-black text-violet-800 uppercase italic leading-none">{notaData.signature}</p>
+                        <p className="text-sm font-black text-violet-800 uppercase italic">{notaData.signature}</p>
                         <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-1">Escuela Juntos a la Par</p>
                       </div>
                     </div>
@@ -1148,18 +1142,19 @@ function ResourcesView({ resources, canEdit }) {
 
             {/* BOTÓN FLOTANTE OJO (Solo Móvil) */}
             {!showMobilePreview && (
-              <button onClick={() => setShowMobilePreview(true)} className="lg:hidden fixed bottom-24 right-6 bg-violet-600 text-white w-14 h-14 rounded-full shadow-2xl flex items-center justify-center z-[100] animate-bounce"><Eye size={28}/></button>
+              <button onClick={() => setShowMobilePreview(true)} className="lg:hidden fixed bottom-24 right-6 bg-violet-600 text-white w-14 h-14 rounded-full shadow-2xl flex items-center justify-center z-[100] animate-bounce">
+                <Eye size={28}/>
+              </button>
             )}
 
-            {/* PIE DE PÁGINA CON LÓGICA DE DESCARGA INTEGRADA */}
-            <div className="p-4 md:p-6 border-t bg-white shrink-0 shadow-2xl z-20">
+            {/* FOOTER DESCARGAR */}
+            <div className="p-4 md:p-6 border-t bg-white shrink-0 z-20 shadow-2xl">
               <div className="flex gap-3 max-w-4xl mx-auto">
                 <button onClick={() => setShowNotaModal(false)} className="px-6 text-gray-400 font-black text-[10px] uppercase">Cerrar</button>
                 <button 
                   onClick={async () => {
                     if (!notaData.title && !notaData.body) return alert("Escribí algo.");
-                    const btn = document.activeElement;
-                    const originalText = btn.innerHTML;
+                    const btn = document.activeElement; const original = btn.innerHTML;
                     btn.innerText = "⏳ GENERANDO...";
                     const element = document.getElementById('nota-canvas');
                     try {
@@ -1170,9 +1165,7 @@ function ResourcesView({ resources, canEdit }) {
                         width: 600, windowWidth: 600,
                         onclone: (clonedDoc) => {
                           const container = clonedDoc.getElementById('nota-canvas');
-                          container.style.display = "flex";
-                          container.style.transform = "none";
-                          container.style.width = "600px";
+                          container.style.display = "flex"; container.style.transform = "none"; container.style.width = "600px";
                           const txt = container.querySelector('.whitespace-pre-wrap');
                           if (txt) { 
                             txt.style.wordSpacing = 'normal'; txt.style.letterSpacing = 'normal';
@@ -1181,14 +1174,10 @@ function ResourcesView({ resources, canEdit }) {
                           }
                         }
                       }); 
-                      const link = document.createElement('a');
-                      link.href = canvas.toDataURL('image/jpeg', 0.9);
-                      link.download = `Nota_${new Date().getTime()}.jpg`;
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                    } catch (error) { alert("Error al generar imagen."); }
-                    finally { btn.innerHTML = originalText; }
+                      const link = document.createElement('a'); link.href = canvas.toDataURL('image/jpeg', 0.9);
+                      link.download = `Nota_${new Date().getTime()}.jpg`; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                    } catch (err) { alert("Error al generar imagen."); }
+                    finally { btn.innerHTML = original; }
                   }} 
                   className="flex-1 bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-xs md:text-sm uppercase tracking-[2px] rounded-2xl shadow-xl py-4 flex items-center justify-center gap-2 active:scale-95 transition-transform"
                 >
