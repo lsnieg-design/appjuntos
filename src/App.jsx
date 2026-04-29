@@ -1142,31 +1142,79 @@ function ResourcesView({ resources, canEdit }) {
               <div className="flex gap-3 max-w-4xl mx-auto">
                 <button onClick={() => setShowNotaModal(false)} className="px-6 text-gray-400 font-black text-[10px] uppercase">Volver</button>
                 <button 
-                  onClick={async () => {
-                    if(!notaData.title && !notaData.body) return alert("Escribí algo.");
-                    const btn = document.activeElement; const originalText = btn.innerHTML; btn.innerText = "⏳ GENERANDO...";
-                    const element = document.getElementById('nota-canvas');
-                    try {
-                      const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
-                      const canvas = await html2canvas(element, { 
-                        scale: 2, useCORS: true, allowTaint: true, logging: false,
-                        backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
-                        width: 600, windowWidth: 600,
-                        onclone: (clonedDoc) => {
-                          const container = clonedDoc.getElementById('nota-canvas');
-                          container.style.display = "flex"; container.style.transform = "none"; container.style.width = "600px";
-                          const txt = container.querySelector('.whitespace-pre-wrap');
-                          if (txt) { txt.style.wordSpacing = 'normal'; txt.style.letterSpacing = 'normal'; txt.style.lineHeight = '1.6'; txt.style.padding = '0 40px'; txt.style.display = "block"; txt.style.width = "100%"; }
-                        }
-                      }); 
-                      const link = document.createElement('a'); link.download = `Nota_${new Date().getTime()}.jpg`; link.href = canvas.toDataURL('image/jpeg', 0.9); link.click();
-                    } catch (error) { alert("Error al generar imagen."); }
-                    finally { btn.innerHTML = originalText; }
-                  }} 
-                  className="flex-1 bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-xs md:text-sm uppercase tracking-[2px] rounded-2xl shadow-xl py-4 flex items-center justify-center gap-2 active:scale-95 transition-transform"
-                >
-                  <Download size={20}/> Descargar Oficial
-                </button>
+  onClick={async () => {
+    if(!notaData.title && !notaData.body) return alert("Escribí algo.");
+    
+    const btn = document.activeElement; 
+    const originalText = btn.innerHTML; 
+    btn.innerText = "⏳ GENERANDO...";
+    
+    const element = document.getElementById('nota-canvas');
+    
+    try {
+      const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
+      
+      // Pequeña espera para asegurar renderizado
+      await new Promise(r => setTimeout(r, 400));
+
+      const canvas = await html2canvas(element, { 
+        scale: 2, 
+        useCORS: true, 
+        allowTaint: true, 
+        backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
+        width: 600, 
+        windowWidth: 600,
+        onclone: (clonedDoc) => {
+          const container = clonedDoc.getElementById('nota-canvas');
+          container.style.display = "flex";
+          container.style.transform = "none";
+          container.style.visibility = "visible";
+          
+          const txt = container.querySelector('.whitespace-pre-wrap');
+          if (txt) { 
+            txt.style.lineHeight = '1.6';
+            txt.style.padding = '0 40px';
+            txt.style.width = "100%";
+          }
+        }
+      }); 
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.9);
+      
+      // --- SOLUCIÓN PARA CELULARES ---
+      // Creamos un modal temporal que muestra la imagen lista para guardar
+      const win = window.open();
+      if (!win || win.closed || typeof win.closed == 'undefined') {
+        // Si el navegador bloquea la ventana emergente, usamos este plan B:
+        const link = document.createElement('a');
+        link.href = imgData;
+        link.download = `Nota_${new Date().getTime()}.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        win.document.write(`
+          <html>
+            <body style="margin:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#111; font-family:sans-serif;">
+              <p style="color:white; margin:20px; font-weight:bold; text-align:center;">Mantené apretada la imagen para "Descargar" o "Guardar"</p>
+              <img src="${imgData}" style="max-width:100%; box-shadow: 0 0 20px rgba(0,0,0,0.5);" />
+              <button onclick="window.close()" style="margin-top:20px; padding:10px 20px; border-radius:10px; border:none; background:white; font-weight:bold;">VOLVER AL EDITOR</button>
+            </body>
+          </html>
+        `);
+      }
+      
+    } catch (error) { 
+      console.error(error);
+      alert("Error al generar. Intentá sacar captura de pantalla con el 'OJO'."); 
+    } finally {
+      btn.innerHTML = originalText;
+    }
+  }} 
+  className="flex-1 bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-xs md:text-sm uppercase tracking-[2px] rounded-2xl shadow-xl py-4 flex items-center justify-center gap-2 active:scale-95 transition-transform"
+>
+  <Download size={20}/> Generar Imagen
+</button>
               </div>
             </div>
           </div> 
