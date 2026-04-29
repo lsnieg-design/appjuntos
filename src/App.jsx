@@ -5684,32 +5684,66 @@ const handleUpdateGroup = async (e) => {
         </details>
       </div>
 
-      {/* SECCIÓN DERECHA: MURO */}
-      <div className="flex-1 bg-white lg:m-4 lg:rounded-[40px] flex flex-col shadow-2xl overflow-hidden min-h-[500px]">
-        <div className="p-4 border-b bg-orange-50/30 flex items-center gap-2">
-          <MessageSquare size={18} className="text-orange-500"/>
-          <h3 className="font-black text-orange-600 uppercase italic text-[10px] lg:text-xs tracking-widest">Espacio de intercambio sobre este grupo</h3>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col-reverse custom-scrollbar bg-slate-50">
-          {groupMessages[selectedGroupDetails.name]?.map(m => (
-            <div key={m.id} className={`p-3 rounded-2xl max-w-[90%] shadow-sm ${m.authorId === user.id ? 'bg-violet-600 text-white self-end rounded-tr-none' : 'bg-white text-gray-800 self-start rounded-tl-none border border-gray-100'}`}>
-              <div className="flex justify-between items-center mb-1 gap-4">
-                <span className={`text-[8px] font-black uppercase ${m.authorId === user.id ? 'text-violet-200' : 'text-violet-500'}`}>{m.author}</span>
-                <span className="text-[7px] font-bold opacity-50">{m.createdAt?.seconds ? new Date(m.createdAt.seconds * 1000).toLocaleDateString() : 'Hoy'}</span>
-              </div>
-              <p className="text-xs font-medium leading-relaxed">{m.text}</p>
+     {/* SECCIÓN DERECHA: ESPACIO DE INTERCAMBIO (CON ACORDEÓN EN CELU) */}
+      <div className="flex-1 lg:m-4 lg:rounded-[40px] flex flex-col lg:shadow-2xl overflow-hidden min-h-[100px] lg:min-h-[500px]">
+        <details 
+          className="group bg-white lg:flex lg:flex-col lg:h-full" 
+          open={window.innerWidth > 1024}
+        >
+          <summary className="p-4 border-b bg-orange-50/30 flex items-center justify-between cursor-pointer list-none lg:pointer-events-none">
+            <div className="flex items-center gap-2">
+              <MessageSquare size={18} className="text-orange-500"/>
+              <h3 className="font-black text-orange-600 uppercase italic text-[10px] lg:text-xs tracking-widest">
+                Espacio de intercambio sobre este grupo
+              </h3>
+              {/* CARTELITO DE MENSAJES NUEVOS */}
+              {(() => {
+                const total = groupMessages[selectedGroupDetails.name]?.length || 0;
+                const read = parseInt(localStorage.getItem(`read_${selectedGroupDetails.name}_${user.id}`) || "0");
+                if (total > read) {
+                  return (
+                    <span className="bg-red-500 text-white text-[8px] px-1.5 py-0.5 rounded-full animate-bounce">
+                      {total - read} nuevos
+                    </span>
+                  );
+                }
+              })()}
             </div>
-          ))}
-        </div>
+            <ChevronDown size={18} className="text-orange-400 lg:hidden group-open:rotate-180 transition-transform"/>
+          </summary>
 
-        <form onSubmit={(e) => handleAddGroupComment(e, selectedGroupDetails.name)} className="p-3 bg-gray-100 border-t flex gap-2">
-          <input name="comment" placeholder="Escribir novedad..." className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs outline-none focus:ring-2 ring-violet-200" />
-          <button type="submit" className="bg-violet-600 text-white p-2.5 rounded-xl shadow-lg active:scale-90 transition-transform"><Send size={20}/></button>
-        </form>
+          <div 
+            className="flex flex-col h-[450px] lg:h-full bg-slate-50 border-t border-orange-100 lg:border-none"
+            onMouseEnter={() => {
+              // Al pasar el mouse o tocar, marcamos como leídos
+              const total = groupMessages[selectedGroupDetails.name]?.length || 0;
+              localStorage.setItem(`read_${selectedGroupDetails.name}_${user.id}`, total);
+            }}
+          >
+            {/* LISTADO DE MENSAJES */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col-reverse custom-scrollbar">
+              {groupMessages[selectedGroupDetails.name]?.map(m => (
+                <div key={m.id} className={`p-3 rounded-2xl max-w-[90%] shadow-sm ${m.authorId === user.id ? 'bg-violet-600 text-white self-end rounded-tr-none' : 'bg-white text-gray-800 self-start rounded-tl-none border border-gray-100'}`}>
+                  <div className="flex justify-between items-center mb-1 gap-4">
+                    <span className={`text-[8px] font-black uppercase ${m.authorId === user.id ? 'text-violet-200' : 'text-violet-500'}`}>{m.author}</span>
+                    <span className="text-[7px] font-bold opacity-50">{m.createdAt?.seconds ? new Date(m.createdAt.seconds * 1000).toLocaleDateString() : 'Hoy'}</span>
+                  </div>
+                  <p className="text-xs font-medium leading-relaxed">{m.text}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* FORMULARIO DE ENVÍO */}
+            <form onSubmit={(e) => handleAddGroupComment(e, selectedGroupDetails.name)} className="p-3 bg-gray-100 border-t flex gap-2">
+              <input name="comment" placeholder="Escribir novedad..." className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs outline-none focus:ring-2 ring-violet-200" />
+              <button type="submit" className="bg-violet-600 text-white p-2.5 rounded-xl shadow-lg active:scale-90 transition-transform"><Send size={20}/></button>
+            </form>
+          </div>
+        </details>
       </div>
-    </div>
-  </div>
+
+    </div> {/* CIERRE DEL CONTENEDOR DE COLUMNAS (flex-row) */}
+  </div> {/* CIERRE DEL MODAL (fixed inset-0) */}
 )}
 
 {/* MODAL BITÁCORA EXPRESS */}
