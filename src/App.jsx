@@ -5117,9 +5117,7 @@ const handleReportAbsenteeism = async () => {
     }
   };
 
-        // --- PUNTOS CHALLENGE ---
-        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-        await updateDoc(userRef, { score: increment(10) });
+        
         // ------------------------
 
         // Actualizamos el estado local viewingStudent si estaba abierto para que se vea la nota nueva
