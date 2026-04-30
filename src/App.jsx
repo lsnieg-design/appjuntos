@@ -5063,26 +5063,27 @@ const handleReportAbsenteeism = async () => {
           
           await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'), caseData);
 
-          // --- PARCHE PUNTOS MAYO ---
           if (new Date() >= new Date('2026-05-01')) {
               const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
               await updateDoc(userRef, { score: increment(15) });
           }
-          // --------------------------
 
           alert("✅ Caso derivado a Trabajo Social (+15 pts).");
           setActiveTab('social'); 
       } catch (e) { alert("Error: " + e.message); }
   };
 
- 
+  // --- ESTA ES LA PARTE QUE FALTABA RECONSTRUIR ---
+  const handleSaveIncident = async (type, severity = "medium", text = "") => {
+    const activeStudent = showBitacoraModal || selectedStudent;
+    if (!activeStudent) return;
 
-    setSavingIncident(true); // Bloqueamos para evitar doble click
+    setSavingIncident(true);
 
     const newInc = { 
         date: new Date().toISOString(), 
         type: text ? "Nota" : type, 
-        severity: type === "Nota" ? "medium" : type, 
+        severity: severity, 
         text: text || type, 
         author: user.fullName || user.firstName,
         authorId: user.id
@@ -5091,10 +5092,30 @@ const handleReportAbsenteeism = async () => {
     try { 
         const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', activeStudent.id); 
         
-        // Guardamos en Firebase usando arrayUnion para no pisar lo anterior
         await updateDoc(studentRef, { 
             incidents: arrayUnion(newInc) 
         }); 
+
+        if (new Date() >= new Date('2026-05-01')) {
+            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+            await updateDoc(userRef, { score: increment(10) });
+        }
+
+        if (viewingStudent && viewingStudent.id === activeStudent.id) {
+            setViewingStudent(prev => ({...prev, incidents: [...(prev.incidents || []), newInc]}));
+        }
+
+        setNewNote("");
+        setIsWriting(false);
+        setShowBitacoraModal(null);
+        alert("✅ Registro guardado (+10 pts)");
+    } catch (e) {
+        console.error("Error al guardar:", e);
+        alert("❌ Error: " + e.message);
+    } finally {
+        setSavingIncident(false);
+    }
+  };
 
         // --- PUNTOS CHALLENGE ---
         const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
