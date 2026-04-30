@@ -5688,7 +5688,6 @@ const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
         <button 
           onClick={() => {
             setShowMobileChat(true);
-            // Marcamos como leído al abrir en celu
             const total = groupMessages[selectedGroupDetails.name]?.length || 0;
             localStorage.setItem(`read_${selectedGroupDetails.name}_${user.id}`, total);
           }}
@@ -5712,25 +5711,32 @@ const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
       <div className={`flex-1 flex flex-col h-full border-r border-slate-100 bg-white overflow-y-auto custom-scrollbar ${showMobileChat ? 'hidden lg:flex' : 'flex'}`}>
         <div className="p-6 space-y-6">
             
-            {/* BOTONES DRIVE Y FOTOS (Nuevos y Modernos) */}
+            {/* BOTONES DRIVE CORREGIDOS (Invertidos según tu pedido) */}
             <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => selectedGroupDetails.driveLink ? window.open(selectedGroupDetails.driveLink, '_blank') : alert('Falta link')}
-                    className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-all active:scale-95 shadow-sm">
-                    <Folder size={20}/> <span className="font-black text-[10px] uppercase tracking-tighter">Fotos</span>
-                </button>
                 <button onClick={() => selectedGroupDetails.institucionalDrive ? window.open(selectedGroupDetails.institucionalDrive, '_blank') : alert('Falta link')}
                     className="flex items-center gap-3 p-4 rounded-2xl bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 transition-all active:scale-95 shadow-sm">
-                    <FileText size={20}/> <span className="font-black text-[10px] uppercase tracking-tighter">Drive</span>
+                    <FileText size={20}/> <span className="font-black text-[10px] uppercase tracking-tighter">Drive Institucional</span>
+                </button>
+                <button onClick={() => selectedGroupDetails.driveLink ? window.open(selectedGroupDetails.driveLink, '_blank') : alert('Falta link')}
+                    className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-all active:scale-95 shadow-sm">
+                    <Folder size={20}/> <span className="font-black text-[10px] uppercase tracking-tighter">Carpeta Fotos</span>
                 </button>
             </div>
 
-            {/* SELECTOR DE ÉPOCA */}
-            <div className="flex bg-slate-100 p-1 rounded-2xl">
-              {[1, 2, 3].map(n => (
-                <button key={n} onClick={() => setInformeEpoca(n)} className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${informeEpoca === n ? 'bg-white text-violet-600 shadow-sm' : 'text-slate-400'}`}>
-                  {n}° Etapa
-                </button>
-              ))}
+            {/* SELECTOR DE ÉPOCA CON NUEVOS TÍTULOS */}
+            <div className="space-y-2">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Seleccionar período de informes:</p>
+                <div className="flex bg-slate-100 p-1 rounded-2xl">
+                {[
+                    {id: 1, label: 'Inicial'},
+                    {id: 2, label: 'Medio'},
+                    {id: 3, label: 'Final'}
+                ].map(epoca => (
+                    <button key={epoca.id} onClick={() => setInformeEpoca(epoca.id)} className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${informeEpoca === epoca.id ? 'bg-white text-violet-600 shadow-sm' : 'text-slate-400'}`}>
+                    Informe {epoca.label}
+                    </button>
+                ))}
+                </div>
             </div>
 
             {/* STAFF RESPONSABLE COMPLETO */}
@@ -5747,7 +5753,6 @@ const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
                       </div>
                     )}
                 </div>
-                {/* Especiales y Supervisoras */}
                 <div className="px-2 space-y-1 border-t border-slate-200 pt-3">
                     <p className="text-[9px] font-bold text-slate-500 italic flex items-center gap-1">✨ Especiales: <span className="text-slate-700 not-italic font-black uppercase">{[selectedGroupDetails.special1, selectedGroupDetails.special2, selectedGroupDetails.special3].filter(Boolean).join(' • ') || '-'}</span></p>
                     <p className="text-[9px] font-bold text-indigo-400 flex items-center gap-1">🔍 Supervisión: <span className="text-indigo-600 font-black uppercase">{[selectedGroupDetails.sup1, selectedGroupDetails.sup2].filter(Boolean).join(' & ') || '-'}</span></p>
@@ -5756,7 +5761,9 @@ const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
 
             {/* LISTADO DE INFORMES */}
             <div className="space-y-3 pb-20">
-                <h3 className="font-black text-sm uppercase text-slate-800 tracking-[2px] border-l-4 border-violet-500 pl-3">Estado {informeEpoca}° Informes</h3>
+                <h3 className="font-black text-sm uppercase text-slate-800 tracking-[2px] border-l-4 border-violet-500 pl-3">
+                    {informeEpoca === 1 ? 'INFORME INICIAL' : informeEpoca === 2 ? 'INFORME MEDIO' : 'INFORME FINAL'}
+                </h3>
                 <div className="grid grid-cols-1 gap-3">
                     {selectedGroupDetails.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => {
                         const info = s[`informe${informeEpoca}`] || { status: 'Pendiente' };
@@ -5784,7 +5791,7 @@ const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
         </div>
       </div>
 
-      {/* PANEL DERECHO: MURAL (Autolimpiado de notificaciones) */}
+      {/* PANEL DERECHO: MURAL */}
       <div 
         className={`lg:flex lg:flex-1 flex-col bg-slate-50 relative border-l-4 border-violet-50 ${showMobileChat ? 'fixed inset-0 z-[700] flex' : 'hidden'}`}
         onMouseEnter={() => {
