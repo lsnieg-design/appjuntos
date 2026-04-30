@@ -5073,7 +5073,7 @@ const handleReportAbsenteeism = async () => {
       } catch (e) { alert("Error: " + e.message); }
   };
 
-  // --- ESTA ES LA PARTE QUE FALTABA RECONSTRUIR ---
+ // --- FUNCIÓN UNIFICADA DE BITÁCORA ---
   const handleSaveIncident = async (type, severity = "medium", text = "") => {
     const activeStudent = showBitacoraModal || selectedStudent;
     if (!activeStudent) return;
@@ -5092,52 +5092,32 @@ const handleReportAbsenteeism = async () => {
     try { 
         const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', activeStudent.id); 
         
+        // 1. Guardamos el incidente en el alumno
         await updateDoc(studentRef, { 
             incidents: arrayUnion(newInc) 
         }); 
 
+        // 2. --- PUNTOS CHALLENGE / MAYO ---
+        // Se activa si es >= 1 de Mayo
         if (new Date() >= new Date('2026-05-01')) {
             const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
             await updateDoc(userRef, { score: increment(10) });
         }
 
+        // 3. Actualización de interfaz local
         if (viewingStudent && viewingStudent.id === activeStudent.id) {
             setViewingStudent(prev => ({...prev, incidents: [...(prev.incidents || []), newInc]}));
         }
 
+        // 4. Limpieza y cierre
         setNewNote("");
         setIsWriting(false);
-        setShowBitacoraModal(null);
-        alert("✅ Registro guardado (+10 pts)");
+        if (typeof setShowBitacoraModal === 'function') setShowBitacoraModal(null);
+        
+        alert("✅ Registro guardado correctamente.");
     } catch (e) {
         console.error("Error al guardar:", e);
         alert("❌ Error: " + e.message);
-    } finally {
-        setSavingIncident(false);
-    }
-  };
-
-        
-        // ------------------------
-
-        // Actualizamos el estado local viewingStudent si estaba abierto para que se vea la nota nueva
-        if (viewingStudent && viewingStudent.id === activeStudent.id) {
-            setViewingStudent(prev => ({
-                ...prev, 
-                incidents: [...(prev.incidents || []), newInc]
-            }));
-        }
-
-        // Limpieza y cierre
-        setNewNote(""); 
-        setIsWriting(false); 
-        if (typeof setShowBitacoraModal === 'function') setShowBitacoraModal(null);
-        
-        alert("✅ Registro guardado con éxito (+10 pts)"); 
-
-    } catch (e) { 
-        console.error("Error al guardar bitácora:", e);
-        alert("❌ Error al guardar: " + e.message); 
     } finally {
         setSavingIncident(false);
     }
