@@ -2886,14 +2886,14 @@ const filteredStudents = students.filter(s => {
     } catch (e) { alert(e.message); } 
   };
   
-const handleSaveIncident = async (type, text = "", severity = "medium") => {
-    // Detectamos automáticamente quién es el alumno activo
-    // En GroupsView se usa showBitacoraModal, en MatriculaView viewingStudent
-    const activeStudent = (typeof showBitacoraModal !== 'undefined' && showBitacoraModal) || 
-                          (typeof viewingStudent !== 'undefined' && viewingStudent) || 
-                          selectedStudent;
+// Asegúrate de que diga "async" justo antes de los paréntesis
+  const handleSaveIncident = async (type, text = "", severity = "medium") => {
+    // Identificar al alumno activo
+    const student = (typeof showBitacoraModal !== 'undefined' && showBitacoraModal) || 
+                    (typeof viewingStudent !== 'undefined' && viewingStudent) || 
+                    selectedStudent;
     
-    if (!activeStudent || !activeStudent.id) {
+    if (!student || !student.id) {
         alert("❌ Error: No se pudo identificar al alumno.");
         return;
     }
@@ -2910,9 +2910,9 @@ const handleSaveIncident = async (type, text = "", severity = "medium") => {
     }; 
 
     try { 
-        const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', activeStudent.id); 
+        const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', student.id); 
         
-        // Guardado en Firebase
+        // El error de Vercel estaba aquí (línea 5095) porque faltaba el async arriba
         await updateDoc(studentRef, { 
             incidents: arrayUnion(incidentData) 
         }); 
@@ -2923,11 +2923,10 @@ const handleSaveIncident = async (type, text = "", severity = "medium") => {
             await updateDoc(userRef, { score: increment(10) });
         }
 
-        // Actualización de estados locales para que se vea el cambio al instante
-        setStudents(prev => prev.map(s => s.id === activeStudent.id ? {...s, incidents: [...(s.incidents||[]), incidentData]} : s)); 
+        // Actualización de estados locales
+        setStudents(prev => prev.map(s => s.id === student.id ? {...s, incidents: [...(s.incidents||[]), incidentData]} : s)); 
         
-        // Si estamos en MatriculaView, actualizamos la ficha abierta
-        if (typeof setViewingStudent === 'function' && viewingStudent?.id === activeStudent.id) {
+        if (typeof setViewingStudent === 'function' && viewingStudent?.id === student.id) {
             setViewingStudent(prev => ({...prev, incidents: [...(prev.incidents||[]), incidentData]}));
         }
 
@@ -2938,12 +2937,13 @@ const handleSaveIncident = async (type, text = "", severity = "medium") => {
         
         alert("✅ Bitácora guardada correctamente."); 
     } catch (e) { 
-        console.error("Error al guardar bitácora:", e);
-        alert("❌ Error de conexión al guardar."); 
+        console.error("Error al guardar:", e);
+        alert("❌ Error de conexión."); 
     } finally { 
         setSavingIncident(false); 
     }
   };
+  
   const deleteIncident = async (sid, inc) => { 
       if(confirm("¿Borrar evento?")) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', sid), { incidents: arrayRemove(inc) }); 
   }; 
@@ -5230,14 +5230,14 @@ const handleUpdateGroup = async (e) => {
         e.target.reset();
     } catch (err) { alert(err.message); }
 };
-const handleSaveIncident = async (type, text = "", severity = "medium") => {
-    // Detectamos automáticamente quién es el alumno activo
-    // En GroupsView se usa showBitacoraModal, en MatriculaView viewingStudent
-    const activeStudent = (typeof showBitacoraModal !== 'undefined' && showBitacoraModal) || 
-                          (typeof viewingStudent !== 'undefined' && viewingStudent) || 
-                          selectedStudent;
+// Asegúrate de que diga "async" justo antes de los paréntesis
+  const handleSaveIncident = async (type, text = "", severity = "medium") => {
+    // Identificar al alumno activo
+    const student = (typeof showBitacoraModal !== 'undefined' && showBitacoraModal) || 
+                    (typeof viewingStudent !== 'undefined' && viewingStudent) || 
+                    selectedStudent;
     
-    if (!activeStudent || !activeStudent.id) {
+    if (!student || !student.id) {
         alert("❌ Error: No se pudo identificar al alumno.");
         return;
     }
@@ -5254,9 +5254,9 @@ const handleSaveIncident = async (type, text = "", severity = "medium") => {
     }; 
 
     try { 
-        const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', activeStudent.id); 
+        const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', student.id); 
         
-        // Guardado en Firebase
+        // El error de Vercel estaba aquí (línea 5095) porque faltaba el async arriba
         await updateDoc(studentRef, { 
             incidents: arrayUnion(incidentData) 
         }); 
@@ -5267,11 +5267,10 @@ const handleSaveIncident = async (type, text = "", severity = "medium") => {
             await updateDoc(userRef, { score: increment(10) });
         }
 
-        // Actualización de estados locales para que se vea el cambio al instante
-        setStudents(prev => prev.map(s => s.id === activeStudent.id ? {...s, incidents: [...(s.incidents||[]), incidentData]} : s)); 
+        // Actualización de estados locales
+        setStudents(prev => prev.map(s => s.id === student.id ? {...s, incidents: [...(s.incidents||[]), incidentData]} : s)); 
         
-        // Si estamos en MatriculaView, actualizamos la ficha abierta
-        if (typeof setViewingStudent === 'function' && viewingStudent?.id === activeStudent.id) {
+        if (typeof setViewingStudent === 'function' && viewingStudent?.id === student.id) {
             setViewingStudent(prev => ({...prev, incidents: [...(prev.incidents||[]), incidentData]}));
         }
 
@@ -5282,12 +5281,13 @@ const handleSaveIncident = async (type, text = "", severity = "medium") => {
         
         alert("✅ Bitácora guardada correctamente."); 
     } catch (e) { 
-        console.error("Error al guardar bitácora:", e);
-        alert("❌ Error de conexión al guardar."); 
+        console.error("Error al guardar:", e);
+        alert("❌ Error de conexión."); 
     } finally { 
         setSavingIncident(false); 
     }
   };
+
   return (
     <div className="flex flex-col h-full bg-slate-100 animate-in fade-in relative">
       {!isManagement && (
