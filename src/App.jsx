@@ -5689,123 +5689,94 @@ const handleSaveIncident = async (type, severity = "medium", text = "") => {
    {/* CUERPO DEL MODAL: ESTRUCTURA MEJORADA */}
     <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-slate-100">
       
-      {/* COLUMNA IZQUIERDA: GESTIÓN Y EQUIPO */}
-      <div className="w-full lg:w-[420px] overflow-y-auto p-4 lg:p-6 space-y-4 bg-white border-r border-gray-200 custom-scrollbar shrink-0">
-        
-        {/* BOTONES DRIVE */}
-        <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
-          <button 
-            onClick={() => selectedGroupDetails.driveLink ? window.open(selectedGroupDetails.driveLink, '_blank') : alert('Falta link de Fotos')}
-            className={`p-3 rounded-2xl flex items-center gap-3 transition ${selectedGroupDetails.driveLink ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-400'}`}
-          >
-            <Folder size={18}/> <span className="font-black text-[9px] uppercase tracking-tighter text-white">Fotos</span>
-          </button>
-          <button 
-            onClick={() => selectedGroupDetails.institucionalDrive ? window.open(selectedGroupDetails.institucionalDrive, '_blank') : alert('Falta link de Drive')}
-            className={`p-3 rounded-2xl flex items-center gap-3 transition ${selectedGroupDetails.institucionalDrive ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}
-          >
-            <FileText size={18}/> <span className="font-black text-[9px] uppercase tracking-tighter text-white">Drive</span>
-          </button>
-        </div>
+     // Dentro de la sección de la columna izquierda (WIDGETS)
+<div className="w-full lg:w-[380px] overflow-y-auto p-5 space-y-6 bg-white border-r border-slate-100 custom-scrollbar shrink-0">
+    
+    {/* ACCESOS RÁPIDOS DRIVE: BOTONES MÁS MODERNOS */}
+    <div className="grid grid-cols-2 gap-3">
+        <button onClick={() => selectedGroupDetails.driveLink ? window.open(selectedGroupDetails.driveLink, '_blank') : alert('Falta link de Fotos')}
+            className="flex flex-col items-center justify-center p-4 rounded-3xl bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100 transition-all active:scale-95 shadow-sm group">
+            <Folder size={24} className="group-hover:scale-110 transition-transform mb-1"/>
+            <span className="font-black text-[10px] uppercase tracking-tighter">Galería Fotos</span>
+        </button>
+        <button onClick={() => selectedGroupDetails.institucionalDrive ? window.open(selectedGroupDetails.institucionalDrive, '_blank') : alert('Falta link de Drive')}
+            className="flex flex-col items-center justify-center p-4 rounded-3xl bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-all active:scale-95 shadow-sm group">
+            <FileText size={24} className="group-hover:scale-110 transition-transform mb-1"/>
+            <span className="font-black text-[10px] uppercase tracking-tighter">Drive Grupal</span>
+        </button>
+    </div>
 
-        {/* EQUIPO DOCENTE COMPLETO */}
-        <div className="bg-slate-50 p-4 rounded-[25px] border border-slate-200 space-y-2">
-          <p className="text-[9px] font-black text-violet-400 uppercase mb-1 tracking-widest">Equipo Docente</p>
-          <div className="space-y-1">
-            <p className="text-xs font-bold text-gray-700 uppercase">👩‍🏫 Titular: {selectedGroupDetails.teacher}</p>
-            {selectedGroupDetails.aux && <p className="text-[10px] font-bold text-slate-500 uppercase italic">🤝 Aux/Presep: {selectedGroupDetails.aux}</p>}
-            <p className="text-[9px] text-gray-400 font-bold uppercase border-t border-slate-200 pt-1 mt-1">
-              ✨ Especiales: {[selectedGroupDetails.special1, selectedGroupDetails.special2, selectedGroupDetails.special3].filter(Boolean).join(' • ') || '-'}
-            </p>
-            {(selectedGroupDetails.sup1 || selectedGroupDetails.sup2) && (
-              <p className="text-[9px] text-indigo-400 font-black uppercase">
-                🔍 Supervisión: {[selectedGroupDetails.sup1, selectedGroupDetails.sup2].filter(Boolean).join(' & ')}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* CONTROL DE INFORMES (Contraíble en PC y Celu) */}
-        <details className="group bg-white rounded-[25px] border border-blue-100 overflow-hidden shadow-sm" open={window.innerWidth > 1024}>
-          <summary className="p-4 list-none flex justify-between items-center cursor-pointer bg-blue-50/50 border-b border-blue-50">
-            <h3 className="font-black text-[10px] uppercase text-blue-600 tracking-widest">Control de Informes</h3>
-            <ChevronDown size={16} className="text-blue-400 group-open:rotate-180 transition-transform"/>
-          </summary>
-          <div className="p-2 space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar">
-             {selectedGroupDetails.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
-                <div key={s.id} className="bg-slate-50 p-2 rounded-xl border border-slate-100 shadow-sm">
-                   <p className="font-black text-slate-700 text-[9px] uppercase mb-1 truncate">{s.lastName}, {s.firstName}</p>
-                   <div className="grid grid-cols-3 gap-1">
-                      {[1,2,3].map(n => {
-                         const info = s[`informe${n}`] || { hecho: false, enviado: false, devuelto: false, archivado: false };
-                         return (
-                            <select 
-                              key={n}
-                              value={info.archivado ? 'Archivado' : info.devuelto ? 'Devuelto' : info.enviado ? 'Enviado' : info.hecho ? 'Hecho' : 'Pendiente'}
-                              onChange={async (e) => {
-                                 const val = e.target.value;
-                                 let update = { hecho: false, enviado: false, devuelto: false, archivado: false };
-                                 if (val === 'Hecho') update = { hecho: true };
-                                 if (val === 'Enviado') update = { hecho: true, enviado: true, fechaEnvio: new Date().toISOString() };
-                                 if (val === 'Devuelto') update = { hecho: true, enviado: true, devuelto: true, fechaDevuelto: new Date().toISOString() };
-                                 if (val === 'Archivado') update = { hecho: true, enviado: true, devuelto: true, archivado: true };
-                                 
-                                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), { [`informe${n}`]: update });
-                                 const stds = selectedGroupDetails.students.map(std => std.id === s.id ? { ...std, [`informe${n}`]: update } : std);
-                                 setSelectedGroupDetails({ ...selectedGroupDetails, students: stds });
-                                 
-                                 // Suma puntos Challenge
-                                 const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-                                 await updateDoc(userRef, { score: increment(5) });
-                              }}
-                              className={`text-[7px] font-black p-1 rounded-md border transition-all ${
-                                info.archivado ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 
-                                info.devuelto ? 'bg-blue-50 border-blue-200 text-blue-700' : 
-                                info.enviado ? 'bg-orange-50 border-orange-200 text-orange-700' : 
-                                info.hecho ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white text-gray-400 border-gray-100'
-                              }`}
-                            >
-                               <option value="Pendiente">{n}° PEND.</option>
-                               <option value="Hecho">HECHO</option>
-                               <option value="Enviado">ENV.</option>
-                               <option value="Devuelto">DEV.</option>
-                               <option value="Archivado">LEGAJO</option>
-                            </select>
-                         );
-                      })}
-                   </div>
+    {/* EQUIPO DOCENTE: DISEÑO "LISTA DE CONTACTOS" */}
+    <div className="bg-slate-50 p-5 rounded-[30px] border border-slate-100">
+        <p className="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-[2px] text-center">Equipo a Cargo</p>
+        <div className="space-y-3">
+            <div className="flex items-center gap-3 bg-white p-2 rounded-2xl shadow-sm">
+                <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 font-bold text-xs">T</div>
+                <div><p className="text-[11px] font-black text-slate-700 uppercase">{selectedGroupDetails.teacher}</p><p className="text-[8px] text-slate-400 font-bold uppercase">Titular</p></div>
+            </div>
+            {selectedGroupDetails.aux && (
+                <div className="flex items-center gap-3 bg-white p-2 rounded-2xl shadow-sm">
+                    <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-xs">A</div>
+                    <div><p className="text-[11px] font-black text-slate-700 uppercase">{selectedGroupDetails.aux}</p><p className="text-[8px] text-slate-400 font-bold uppercase">Auxiliar / Presep.</p></div>
                 </div>
-             ))}
-          </div>
-        </details>
-      </div>
+            )}
+        </div>
+    </div>
 
-      {/* SECCIÓN DERECHA: ESPACIO DE INTERCAMBIO SOBRE ESTE GRUPO */}
+    {/* CONTROL DE INFORMES: DISEÑO MÁS LIMPIO */}
+    <div className="space-y-3">
+        <h3 className="font-black text-[10px] uppercase text-slate-400 tracking-[3px] text-center">Estado de Informes</h3>
+        <div className="space-y-2">
+            {selectedGroupDetails.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
+                <div key={s.id} className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-2 group hover:border-blue-200 transition-colors">
+                    <p className="font-black text-slate-600 text-[10px] uppercase truncate">{s.lastName}, {s.firstName}</p>
+                    <div className="flex gap-1">
+                        {[1,2,3].map(n => {
+                            const info = s[`informe${n}`] || { hecho: false, enviado: false, devuelto: false, archivado: false };
+                            return (
+                                <button key={n} className={`flex-1 py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${
+                                    info.archivado ? 'bg-emerald-500 border-emerald-600 text-white' : 
+                                    info.devuelto ? 'bg-blue-500 border-blue-600 text-white' : 
+                                    info.enviado ? 'bg-orange-500 border-orange-600 text-white' : 
+                                    info.hecho ? 'bg-violet-500 border-violet-600 text-white' : 'bg-slate-50 border-slate-100 text-slate-300'
+                                }`} onClick={() => handleToggleInforme(s, n)}>
+                                    {n}° {info.archivado ? 'OK' : 'Inf'}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            ))}
+        </div>
+    </div>
+</div>
+
+    {/* SECCIÓN DERECHA: ESPACIO DE INTERCAMBIO SOBRE ESTE GRUPO */}
       <div className="flex-1 flex flex-col bg-white lg:m-4 lg:rounded-[40px] lg:shadow-2xl overflow-hidden min-h-[450px]">
         {/* Cabecera del chat fija */}
         <div className="p-4 border-b bg-orange-50/50 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
-            <MessageSquare size={18} className="text-orange-500"/>
+            <MessageSquare size={18} className="text-orange-500" />
             <h3 className="font-black text-orange-600 uppercase italic text-xs tracking-widest">Espacio de intercambio sobre este grupo</h3>
             {(() => {
-                const total = groupMessages[selectedGroupDetails.name]?.length || 0;
-                const read = parseInt(localStorage.getItem(`read_${selectedGroupDetails.name}_${user.id}`) || "0");
-                if (total > read) return <span className="bg-red-500 text-white text-[8px] px-2 py-0.5 rounded-full animate-bounce shadow-sm">+{total - read}</span>;
+              const total = groupMessages[selectedGroupDetails.name]?.length || 0;
+              const read = parseInt(localStorage.getItem(`read_${selectedGroupDetails.name}_${user.id}`) || "0");
+              if (total > read) return <span className="bg-red-500 text-white text-[8px] px-2 py-0.5 rounded-full animate-bounce shadow-sm">+{total - read}</span>;
             })()}
           </div>
         </div>
 
-        {/* Área de mensajes (Visible en celu porque eliminamos el 'details' que fallaba) */}
+        {/* Área de mensajes */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col-reverse bg-slate-50/50 custom-scrollbar"
-             onMouseEnter={() => {
-                const total = groupMessages[selectedGroupDetails.name]?.length || 0;
-                localStorage.setItem(`read_${selectedGroupDetails.name}_${user.id}`, total);
-             }}>
+          onMouseEnter={() => {
+            const total = groupMessages[selectedGroupDetails.name]?.length || 0;
+            localStorage.setItem(`read_${selectedGroupDetails.name}_${user.id}`, total);
+          }}>
           {groupMessages[selectedGroupDetails.name]?.map(m => (
             <div key={m.id} className={`p-3 rounded-2xl max-w-[85%] shadow-sm ${m.authorId === user.id ? 'bg-violet-600 text-white self-end rounded-tr-none' : 'bg-white text-gray-800 self-start rounded-tl-none border border-gray-100'}`}>
               <div className="flex justify-between items-center mb-1 gap-4">
                 <span className={`text-[8px] font-black uppercase ${m.authorId === user.id ? 'text-violet-200' : 'text-violet-500'}`}>{m.author}</span>
-                <span className="text-[7px] font-bold opacity-40">{m.createdAt?.seconds ? new Date(m.createdAt.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Ahora'}</span>
+                <span className="text-[7px] font-bold opacity-40">{m.createdAt?.seconds ? new Date(m.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Ahora'}</span>
               </div>
               <p className="text-xs font-medium leading-tight">{m.text}</p>
             </div>
@@ -5814,22 +5785,22 @@ const handleSaveIncident = async (type, severity = "medium", text = "") => {
 
         {/* Input fijo abajo */}
         <form onSubmit={(e) => handleAddGroupComment(e, selectedGroupDetails.name)} className="p-4 bg-white border-t flex gap-2 shrink-0">
-          <input 
-            name="comment" 
+          <input
+            name="comment"
             autoComplete="off"
-            placeholder="Escribir novedad..." 
-            className="flex-1 bg-gray-100 border-none rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 ring-violet-200" 
+            placeholder="Escribir novedad..."
+            className="flex-1 bg-gray-100 border-none rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 ring-violet-200"
           />
           <button type="submit" className="bg-violet-600 text-white p-3 rounded-2xl shadow-lg active:scale-90 transition-transform">
-            <Send size={20}/>
+            <Send size={20} />
           </button>
         </form>
       </div>
     </div>
-  </div> 
+  </div>
 )}
 
-{/* MODAL BITÁCORA EXPRESS */}
+      {/* MODAL BITÁCORA EXPRESS */}
       {showBitacoraModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
           <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-emerald-500">
@@ -5838,48 +5809,46 @@ const handleSaveIncident = async (type, severity = "medium", text = "") => {
                 <h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3>
                 <p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p>
               </div>
-              <button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button>
+              <button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20} /></button>
             </div>
             {!isWriting ? (
               <>
                 <div className="grid grid-cols-2 gap-3 mb-4 max-h-[50vh] overflow-y-auto">
-                  {/* Reemplaza la línea del map de emojis dentro de Bitácora Express */}
-{INCIDENT_TYPES.map((type) => (
-  <button 
-    key={type.label} 
-    onClick={() => handleSaveIncident(type.label, type.severity)} // <-- Usamos la nueva función
-    disabled={savingIncident} 
-    className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? "opacity-50" : "hover:brightness-95"}`}
-  >
-    <span className="text-2xl">{type.emoji}</span>
-    <span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span>
-  </button>
-))}
+                  {INCIDENT_TYPES.map((type) => (
+                    <button
+                      key={type.label}
+                      onClick={() => handleSaveIncident(type.label, type.severity)}
+                      disabled={savingIncident}
+                      className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? "opacity-50" : "hover:brightness-95"}`}
+                    >
+                      <span className="text-2xl">{type.emoji}</span>
+                      <span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span>
+                    </button>
+                  ))}
                 </div>
-                <button onClick={() => setIsWriting(true)} className="w-full py-3 bg-gray-900 text-white rounded-2xl font-bold uppercase text-xs flex items-center justify-center gap-2"><Edit3 size={16}/> Escribir Nota</button>
+                <button onClick={() => setIsWriting(true)} className="w-full py-3 bg-gray-900 text-white rounded-2xl font-bold uppercase text-xs flex items-center justify-center gap-2"><Edit3 size={16} /> Escribir Nota</button>
               </>
             ) : (
               <div className="animate-in slide-in-from-bottom">
-                <textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Detalles..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm mb-2 h-24 outline-none focus:border-violet-500"/>
-             {/* Reemplaza el botón de Guardar dentro del formulario de escritura */}
-<div className="flex gap-2">
-  <button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs hover:bg-gray-100 rounded-xl">Volver</button>
-  <button 
-    onClick={() => handleSaveIncident("Nota", "medium", newNote)} // <-- Usamos la nueva función con el texto
-    disabled={!newNote.trim() || savingIncident} 
-    className="flex-1 py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg"
-  >
-    {savingIncident ? 'Guardando...' : 'Guardar'}
-  </button>
-</div>
+                <textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Detalles..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm mb-2 h-24 outline-none focus:border-violet-500" />
+                <div className="flex gap-2">
+                  <button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs hover:bg-gray-100 rounded-xl">Volver</button>
+                  <button
+                    onClick={() => handleSaveIncident("Nota", "medium", newNote)}
+                    disabled={!newNote.trim() || savingIncident}
+                    className="flex-1 py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg"
+                  >
+                    {savingIncident ? 'Guardando...' : 'Guardar'}
+                  </button>
+                </div>
               </div>
             )}
           </div>
         </div>
       )}
-    </div> // ESTE CIERRA EL CONTENEDOR PRINCIPAL
-  ); // CIERRE DEL RETURN
-} // CIERRE DE LA FUNCIÓN GROUPSVIEW
+    </div>
+  );
+}
 
 // --- VISTA PERSONAL (VERSIÓN DEFINITIVA Y COMPLETA) ---
 function PersonalView({ user }) {
