@@ -4785,6 +4785,8 @@ function GroupsView({ user }) {
   const [groupMessages, setGroupMessages] = useState({}); // Mensajes por grupo
 const [showGroupChat, setShowGroupChat] = useState(null); // Qué chat de grupo está abierto
   const [selectedGroupDetails, setSelectedGroupDetails] = useState(null); // Para abrir la ventana grande del grupo
+  const [showMobileChat, setShowMobileChat] = useState(false);
+const [informeEpoca, setInformeEpoca] = useState(1); // Para filtrar 1°, 2° o 3°
   
   const [newNote, setNewNote] = useState("");
   const [isWriting, setIsWriting] = useState(false);
@@ -5668,154 +5670,147 @@ const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
         </div>
       )}
 {selectedGroupDetails && (
-  <div className="fixed inset-0 bg-slate-900/95 z-[500] flex flex-col animate-in fade-in duration-300 overflow-hidden backdrop-blur-md">
-    {/* HEADER FIJO */}
-    <div className="bg-white p-4 flex justify-between items-center border-b-4 border-violet-100 shrink-0">
-      <div className="flex items-center gap-4">
-        <div className="bg-violet-600 text-white p-3 rounded-2xl shadow-lg">
-           <Users size={24}/>
+  <div className="fixed inset-0 bg-slate-900 z-[500] flex flex-col animate-in fade-in duration-300 overflow-hidden">
+    {/* HEADER DINÁMICO */}
+    <div className="bg-white p-4 flex justify-between items-center border-b-4 border-violet-100 shrink-0 z-[600]">
+      <div className="flex items-center gap-3">
+        <div className="bg-violet-600 text-white p-2 rounded-xl shadow-lg">
+           <Users size={20}/>
         </div>
         <div>
-          <h2 className="text-xl md:text-2xl font-black text-slate-800 uppercase italic tracking-tighter">{selectedGroupDetails.name}</h2>
-          <p className="text-[10px] font-black text-violet-400 uppercase tracking-[4px]">Panel de Control Grupal</p>
+          <h2 className="text-lg md:text-2xl font-black text-slate-800 uppercase italic leading-none">{selectedGroupDetails.name}</h2>
+          <p className="text-[9px] font-bold text-violet-400 uppercase tracking-[2px]">Control de Gestión</p>
         </div>
       </div>
-      <button onClick={() => setSelectedGroupDetails(null)} className="bg-slate-100 p-3 rounded-full text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all active:scale-75"><X size={24}/></button>
+      
+      <div className="flex items-center gap-2">
+        {/* ICONO DE CHAT PARA CELU (Solo visible en móvil) */}
+        <button 
+          onClick={() => setShowMobileChat(true)}
+          className="lg:hidden relative p-3 bg-orange-100 text-orange-600 rounded-full active:scale-90 transition-all"
+        >
+          <MessageSquare size={24} />
+          {(() => {
+            const total = groupMessages[selectedGroupDetails.name]?.length || 0;
+            const read = parseInt(localStorage.getItem(`read_${selectedGroupDetails.name}_${user.id}`) || "0");
+            if (total > read) return <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[8px] flex items-center justify-center rounded-full border-2 border-white animate-bounce">{total - read}</span>;
+          })()}
+        </button>
+
+        <button onClick={() => setSelectedGroupDetails(null)} className="bg-slate-100 p-3 rounded-full text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all"><X size={24}/></button>
+      </div>
     </div>
 
-    <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden bg-slate-100">
+    <div className="flex-1 flex flex-row overflow-hidden bg-white">
       
-      {/* PANEL IZQUIERDO: CONTROLES, STAFF E INFORMES */}
-      <div className="w-full lg:w-[450px] flex-shrink-0 flex flex-col bg-white border-r border-slate-100 shadow-2xl z-10 lg:h-full">
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar overscroll-contain">
+      {/* PANEL IZQUIERDO: INFORMES Y STAFF (50% en PC, 100% en Celu) */}
+      <div className={`flex-1 flex flex-col h-full border-r border-slate-100 bg-white overflow-y-auto custom-scrollbar ${showMobileChat ? 'hidden lg:flex' : 'flex'}`}>
+        <div className="p-6 space-y-8">
             
-            {/* 1. BOTONES DRIVE */}
-            <div className="grid grid-cols-2 gap-4">
-                <button onClick={() => selectedGroupDetails.driveLink ? window.open(selectedGroupDetails.driveLink, '_blank') : alert('Falta link')}
-                    className="flex flex-col items-center justify-center p-5 rounded-[30px] bg-emerald-50 text-emerald-600 border-2 border-emerald-100 active:scale-95 shadow-sm group">
-                    <Folder size={32} className="mb-2"/>
-                    <span className="font-black text-[10px] uppercase tracking-widest text-center">Carpeta Grupo</span>
+            {/* SELECTOR DE ÉPOCA (Para trabajar solo con 1° informe ahora) */}
+            <div className="flex bg-slate-100 p-1 rounded-2xl">
+              {[1, 2, 3].map(n => (
+                <button 
+                  key={n}
+                  onClick={() => setInformeEpoca(n)}
+                  className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${informeEpoca === n ? 'bg-white text-violet-600 shadow-sm' : 'text-slate-400'}`}
+                >
+                  {n}° Etapa
                 </button>
-                <button onClick={() => selectedGroupDetails.institucionalDrive ? window.open(selectedGroupDetails.institucionalDrive, '_blank') : alert('Falta link')}
-                    className="flex flex-col items-center justify-center p-5 rounded-[30px] bg-blue-50 text-blue-600 border-2 border-blue-100 active:scale-95 shadow-sm group">
-                    <FileText size={32} className="mb-2"/>
-                    <span className="font-black text-[10px] uppercase tracking-widest text-center">Drive Inst.</span>
-                </button>
+              ))}
             </div>
 
-            {/* 2. STAFF RESPONSABLE */}
-            <div className="bg-slate-50 p-5 rounded-[35px] border border-slate-100 space-y-4">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[3px] text-center">Staff a Cargo</p>
-                <div className="space-y-2">
-                    <div className="flex items-center gap-3 bg-white p-3 rounded-2xl shadow-sm border border-slate-100">
-                        <div className="w-8 h-8 rounded-lg bg-violet-600 text-white flex items-center justify-center font-black text-xs uppercase">T</div>
-                        <div className="min-w-0"><p className="text-xs font-black text-slate-700 uppercase truncate">{selectedGroupDetails.teacher}</p><p className="text-[8px] text-violet-400 font-bold uppercase">Titular / Pareja</p></div>
-                    </div>
-                    {selectedGroupDetails.aux && (
-                        <div className="flex items-center gap-3 bg-white p-3 rounded-2xl shadow-sm border border-slate-100">
-                            <div className="w-8 h-8 rounded-lg bg-orange-500 text-white flex items-center justify-center font-black text-xs uppercase">A</div>
-                            <div className="min-w-0"><p className="text-xs font-black text-slate-700 uppercase truncate">{selectedGroupDetails.aux}</p><p className="text-[8px] text-orange-400 font-bold uppercase">Auxiliar / Presep.</p></div>
-                        </div>
-                    )}
-                    <div className="p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100">
-                        <p className="text-[8px] font-black text-indigo-400 uppercase mb-1">Especiales y Supervisión</p>
-                        <p className="text-[10px] font-bold text-slate-600 leading-tight italic">✨ {[selectedGroupDetails.special1, selectedGroupDetails.special2, selectedGroupDetails.special3].filter(Boolean).join(' • ') || 'Sin especiales'}</p>
-                        <p className="text-[10px] font-black text-indigo-600 mt-2 flex items-center gap-1">🔍 {[selectedGroupDetails.sup1, selectedGroupDetails.sup2].filter(Boolean).join(' & ') || 'Sin supervisión'}</p>
-                    </div>
+            {/* STAFF (Más compacto) */}
+            <div className="grid grid-cols-2 gap-2 bg-slate-50 p-4 rounded-3xl border border-slate-100 shadow-inner">
+                <div className="bg-white p-2 rounded-xl shadow-sm border border-slate-100">
+                    <p className="text-[7px] font-black text-violet-400 uppercase">Titular</p>
+                    <p className="text-[10px] font-black text-slate-700 truncate uppercase">{selectedGroupDetails.teacher}</p>
                 </div>
+                {selectedGroupDetails.aux && (
+                  <div className="bg-white p-2 rounded-xl shadow-sm border border-slate-100">
+                      <p className="text-[7px] font-black text-orange-400 uppercase">Auxiliar</p>
+                      <p className="text-[10px] font-black text-slate-700 truncate uppercase">{selectedGroupDetails.aux}</p>
+                  </div>
+                )}
             </div>
 
-            {/* 3. CONTROL DE INFORMES (ACORDEÓN) */}
-            <details className="group bg-white rounded-[30px] border-2 border-slate-100 overflow-hidden shadow-sm" open>
-                <summary className="p-4 list-none flex justify-between items-center cursor-pointer bg-slate-50/50 hover:bg-slate-100 transition-colors">
-                    <h3 className="font-black text-[11px] uppercase text-slate-500 tracking-[3px]">Control de Informes</h3>
-                    <ChevronDown size={20} className="text-slate-400 group-open:rotate-180 transition-transform"/>
-                </summary>
-                <div className="p-4 space-y-2">
-                    {selectedGroupDetails.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
-                        <div key={s.id} className="bg-white p-3 rounded-[20px] border border-slate-100 shadow-sm flex flex-col gap-2">
-                            <p className="font-black text-slate-700 text-[10px] uppercase truncate ml-1">{s.lastName}, {s.firstName}</p>
-                            <div className="flex gap-1">
-                                {[1,2,3].map(n => {
-                                    const info = s[`informe${n}`] || { status: 'Pendiente' };
-                                    const statusMap = {
-                                        'Hecho': 'bg-blue-500 border-blue-600 text-white',
-                                        'Impreso': 'bg-violet-500 border-violet-600 text-white',
-                                        'Enviado': 'bg-orange-500 border-orange-600 text-white',
-                                        'Archivado': 'bg-emerald-500 border-emerald-600 text-white',
-                                        'Pendiente': 'bg-slate-50 border-slate-100 text-slate-300'
-                                    };
-                                    return (
-                                        <button key={n} 
-                                            onClick={() => handleToggleInformeGrupo(s, n)}
-                                            className={`flex-1 py-1.5 rounded-lg text-[7px] font-black uppercase border transition-all ${statusMap[info.status] || statusMap['Pendiente']}`}>
-                                            {n}° {info.status}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    ))}
+            {/* LISTADO DE INFORMES CON LETRA GRANDE */}
+            <div className="space-y-3 pb-20">
+                <h3 className="font-black text-sm uppercase text-slate-800 tracking-[2px] border-l-4 border-violet-500 pl-3">Estado {informeEpoca}° Informes</h3>
+                <div className="grid grid-cols-1 gap-3">
+                    {selectedGroupDetails.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => {
+                        const info = s[`informe${informeEpoca}`] || { status: 'Pendiente' };
+                        const statusColors = {
+                          'Hecho': 'bg-blue-600 text-white',
+                          'Impreso': 'bg-violet-600 text-white',
+                          'Enviado': 'bg-orange-500 text-white',
+                          'Archivado': 'bg-emerald-600 text-white',
+                          'Pendiente': 'bg-slate-50 text-slate-400 border-slate-200'
+                        };
+                        return (
+                          <div key={s.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-white rounded-3xl border-2 border-slate-100 shadow-sm hover:border-violet-200 transition-all gap-4">
+                              <span className="font-black text-lg text-slate-700 uppercase tracking-tighter">{s.lastName}, {s.firstName}</span>
+                              <button 
+                                onClick={() => handleToggleInformeGrupo(s, informeEpoca)}
+                                className={`py-4 px-6 rounded-2xl text-xs font-black uppercase shadow-md transition-all active:scale-95 min-w-[150px] ${statusColors[info.status] || statusColors['Pendiente']}`}
+                              >
+                                {info.status}
+                              </button>
+                          </div>
+                        );
+                    })}
                 </div>
-            </details>
-            <div className="pb-10 lg:hidden"></div> {/* Espacio extra en móvil */}
+            </div>
         </div>
       </div>
 
-      {/* PANEL DERECHO: MURAL (ACORDEÓN EN MÓVIL, FIJO EN PC) */}
-      <div className="flex-1 flex flex-col bg-slate-50 min-h-[600px] lg:min-h-0 relative border-t-4 lg:border-t-0 border-violet-100">
-        {/* Fondo decorativo de puntitos */}
+      {/* PANEL DERECHO: MURAL (50% en PC, MODAL en Celu) */}
+      <div className={`lg:flex lg:flex-1 flex-col bg-slate-50 relative border-l-4 border-violet-50 ${showMobileChat ? 'fixed inset-0 z-[700] flex' : 'hidden'}`}>
+        {/* Botón cerrar chat en celu */}
+        <button 
+          onClick={() => setShowMobileChat(false)}
+          className="lg:hidden absolute top-4 right-4 z-[800] bg-white p-2 rounded-full shadow-xl text-slate-800"
+        >
+          <X size={24}/>
+        </button>
+
+        {/* Fondo decorativo */}
         <div className="absolute inset-0 opacity-[0.05] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#4c1d95 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
         
-        <details className="flex-1 flex flex-col h-full group/chat lg:open" open>
-            <summary className="p-4 bg-white/80 backdrop-blur-md border-b flex items-center justify-between shrink-0 z-10 list-none cursor-pointer lg:cursor-default">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-500 text-white rounded-xl shadow-lg shadow-orange-100"><MessageSquare size={18}/></div>
-                <h3 className="font-black text-slate-800 uppercase italic text-sm tracking-tight">Muro de Intercambio Pedagógico</h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="hidden md:inline text-[9px] font-black text-orange-500 bg-orange-50 px-3 py-1 rounded-full border border-orange-100">Privado del Equipo ✍️</span>
-                <ChevronDown size={20} className="text-slate-400 group-open/chat:rotate-180 transition-transform lg:hidden"/>
-              </div>
-            </summary>
+        <div className="p-5 bg-white/80 backdrop-blur-md border-b flex items-center gap-3 shrink-0 z-10">
+            <div className="p-2 bg-orange-500 text-white rounded-xl"><MessageSquare size={18}/></div>
+            <h3 className="font-black text-slate-800 uppercase italic text-sm">Muro de Intercambio</h3>
+        </div>
 
-            <div className="flex flex-col h-[500px] lg:h-full overflow-hidden">
-                {/* ÁREA DE MENSAJES */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-4 flex flex-col-reverse custom-scrollbar z-10">
-                  {groupMessages[selectedGroupDetails.name]?.map(m => (
-                    <div key={m.id} className={`flex flex-col ${m.authorId === user.id ? 'items-end' : 'items-start'}`}>
-                      <div className={`max-w-[85%] md:max-w-[70%] p-4 rounded-[25px] shadow-sm ${
-                        m.authorId === user.id ? 'bg-violet-600 text-white rounded-tr-none' : 'bg-white text-slate-700 rounded-tl-none border border-slate-200'
-                      }`}>
-                        <div className="flex justify-between items-center mb-1 gap-6">
-                          <span className={`text-[9px] font-black uppercase tracking-tighter ${m.authorId === user.id ? 'text-violet-200' : 'text-violet-600'}`}>{m.author}</span>
-                          <span className="text-[8px] font-bold opacity-40">{m.createdAt?.seconds ? new Date(m.createdAt.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '...'}</span>
-                        </div>
-                        <p className="text-sm font-medium leading-tight">{m.text}</p>
-                      </div>
-                    </div>
-                  ))}
-                  {(!groupMessages[selectedGroupDetails.name] || groupMessages[selectedGroupDetails.name].length === 0) && (
-                      <div className="m-auto text-center py-20 opacity-20"><MessageSquare size={64} className="mx-auto mb-4"/><p className="font-black uppercase tracking-widest">Sin mensajes aún</p></div>
-                  )}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 flex flex-col-reverse custom-scrollbar z-10 overscroll-contain">
+          {groupMessages[selectedGroupDetails.name]?.map(m => (
+            <div key={m.id} className={`flex flex-col ${m.authorId === user.id ? 'items-end' : 'items-start'}`}>
+              <div className={`max-w-[85%] md:max-w-[80%] p-4 rounded-[25px] shadow-sm ${
+                m.authorId === user.id ? 'bg-violet-600 text-white rounded-tr-none' : 'bg-white text-slate-700 rounded-tl-none border border-slate-200'
+              }`}>
+                <div className="flex justify-between items-center mb-1 gap-6">
+                  <span className={`text-[9px] font-black uppercase tracking-tighter ${m.authorId === user.id ? 'text-violet-200' : 'text-violet-600'}`}>{m.author}</span>
+                  <span className="text-[8px] font-bold opacity-40">{m.createdAt?.seconds ? new Date(m.createdAt.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '...'}</span>
                 </div>
-
-                {/* INPUT FIJO ABAJO */}
-                <div className="p-6 bg-white border-t-2 border-slate-100 z-10">
-                  <form onSubmit={(e) => handleAddGroupComment(e, selectedGroupDetails.name)} className="flex items-center gap-3 bg-slate-50 p-2 rounded-[30px] border-2 border-slate-200 focus-within:border-orange-300 focus-within:bg-white transition-all shadow-inner">
-                    <input
-                      name="comment"
-                      autoComplete="off"
-                      placeholder="Escribir novedad grupal o avance..."
-                      className="flex-1 bg-transparent border-none px-5 py-3 text-sm font-bold text-slate-700 outline-none"
-                    />
-                    <button type="submit" className="bg-orange-500 text-white p-4 rounded-full shadow-lg active:scale-90 transition-transform flex items-center justify-center">
-                      <Send size={20} />
-                    </button>
-                  </form>
-                </div>
+                <p className="text-sm font-medium leading-tight">{m.text}</p>
+              </div>
             </div>
-        </details>
+          ))}
+        </div>
+
+        <div className="p-6 bg-white border-t-2 border-slate-100 z-10">
+          <form onSubmit={(e) => handleAddGroupComment(e, selectedGroupDetails.name)} className="flex items-center gap-3 bg-slate-50 p-2 rounded-[30px] border-2 border-slate-200 focus-within:border-orange-300 focus-within:bg-white transition-all shadow-inner">
+            <input
+              name="comment"
+              autoComplete="off"
+              placeholder="Escribir novedad..."
+              className="flex-1 bg-transparent border-none px-5 py-3 text-sm font-bold text-slate-700 outline-none"
+            />
+            <button type="submit" className="bg-orange-500 text-white p-4 rounded-full shadow-lg active:scale-90 transition-transform">
+              <Send size={20} />
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   </div>
