@@ -2886,51 +2886,64 @@ const filteredStudents = students.filter(s => {
     } catch (e) { alert(e.message); } 
   };
   
-const handleSaveIncident = async (type, text = "", severity = "medium") => { 
-      // Detectamos quién es el alumno (puede venir del modal rápido o de la ficha abierta)
-      const student = showBitacoraModal || viewingStudent;
-      
-      if (!student || !student.id) {
-          alert("❌ Error: No se pudo identificar al alumno.");
-          return;
-      }
+const handleSaveIncident = async (type, text = "", severity = "medium") => {
+    // Detectamos automáticamente quién es el alumno activo
+    // En GroupsView se usa showBitacoraModal, en MatriculaView viewingStudent
+    const activeStudent = (typeof showBitacoraModal !== 'undefined' && showBitacoraModal) || 
+                          (typeof viewingStudent !== 'undefined' && viewingStudent) || 
+                          selectedStudent;
+    
+    if (!activeStudent || !activeStudent.id) {
+        alert("❌ Error: No se pudo identificar al alumno.");
+        return;
+    }
 
-      const incidentData = { 
-          type: text ? "Nota" : type, 
-          severity: severity, 
-          text: text || type, 
-          date: new Date().toISOString(), 
-          author: user.fullName || user.firstName, 
-          authorId: user.id 
-      }; 
+    setSavingIncident(true);
 
-      try { 
-          // Guardado en Firebase
-          const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', student.id);
-          await updateDoc(studentRef, { 
-        incidents: arrayUnion(incidentData) 
-    });
-          // Suma de puntos Challenge (+10)
-          const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-          await updateDoc(userRef, { score: increment(10) });
+    const incidentData = { 
+        date: new Date().toISOString(), 
+        type: text ? "Nota" : type, 
+        severity: severity, 
+        text: text || type, 
+        author: user.fullName || user.firstName,
+        authorId: user.id 
+    }; 
 
-          // Actualización visual inmediata
-          if (viewingStudent && viewingStudent.id === student.id) {
-              setViewingStudent(prev => ({...prev, incidents: [...(prev.incidents || []), incidentData]}));
-          }
+    try { 
+        const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', activeStudent.id); 
+        
+        // Guardado en Firebase
+        await updateDoc(studentRef, { 
+            incidents: arrayUnion(incidentData) 
+        }); 
 
-          // Limpiar y cerrar todo
-          setNewNote("");
-          setIsWriting(false);
-          setShowBitacoraModal(null); 
-          
-          alert("✅ Registro guardado (+10 pts)"); 
-      } catch (e) { 
-          console.error("Error al guardar:", e);
-          alert("❌ Error: " + e.message);
-      } 
+        // Puntos Challenge (Mayo 2026)
+        if (new Date() >= new Date('2026-05-01')) {
+            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+            await updateDoc(userRef, { score: increment(10) });
+        }
+
+        // Actualización de estados locales para que se vea el cambio al instante
+        setStudents(prev => prev.map(s => s.id === activeStudent.id ? {...s, incidents: [...(s.incidents||[]), incidentData]} : s)); 
+        
+        // Si estamos en MatriculaView, actualizamos la ficha abierta
+        if (typeof setViewingStudent === 'function' && viewingStudent?.id === activeStudent.id) {
+            setViewingStudent(prev => ({...prev, incidents: [...(prev.incidents||[]), incidentData]}));
+        }
+
+        // Limpieza y cierre
+        setNewNote(""); 
+        setIsWriting(false); 
+        if (typeof setShowBitacoraModal === 'function') setShowBitacoraModal(null);
+        
+        alert("✅ Bitácora guardada correctamente."); 
+    } catch (e) { 
+        console.error("Error al guardar bitácora:", e);
+        alert("❌ Error de conexión al guardar."); 
+    } finally { 
+        setSavingIncident(false); 
+    }
   };
-  
   const deleteIncident = async (sid, inc) => { 
       if(confirm("¿Borrar evento?")) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', sid), { incidents: arrayRemove(inc) }); 
   }; 
@@ -5217,11 +5230,14 @@ const handleUpdateGroup = async (e) => {
         e.target.reset();
     } catch (err) { alert(err.message); }
 };
-const handleSaveIncident = async (type, severity = "medium", text = "") => {
-    // Detectamos quién es el alumno activo (del modal express o de la ficha abierta)
-    const student = showBitacoraModal || selectedStudent;
+const handleSaveIncident = async (type, text = "", severity = "medium") => {
+    // Detectamos automáticamente quién es el alumno activo
+    // En GroupsView se usa showBitacoraModal, en MatriculaView viewingStudent
+    const activeStudent = (typeof showBitacoraModal !== 'undefined' && showBitacoraModal) || 
+                          (typeof viewingStudent !== 'undefined' && viewingStudent) || 
+                          selectedStudent;
     
-    if (!student || !student.id) {
+    if (!activeStudent || !activeStudent.id) {
         alert("❌ Error: No se pudo identificar al alumno.");
         return;
     }
@@ -5229,41 +5245,47 @@ const handleSaveIncident = async (type, severity = "medium", text = "") => {
     setSavingIncident(true);
 
     const incidentData = { 
+        date: new Date().toISOString(), 
         type: text ? "Nota" : type, 
         severity: severity, 
         text: text || type, 
-        date: new Date().toISOString(), 
-        author: user.fullName || user.firstName, 
+        author: user.fullName || user.firstName,
         authorId: user.id 
     }; 
 
     try { 
-        const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', student.id);
-        await updateDoc(studentRef, { incidents: arrayUnion(incidentData) }); 
+        const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', activeStudent.id); 
+        
+        // Guardado en Firebase
+        await updateDoc(studentRef, { 
+            incidents: arrayUnion(incidentData) 
+        }); 
 
-        // --- PUNTOS CHALLENGE ---
-        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-        await updateDoc(userRef, { score: increment(10) });
-
-        // Actualizamos el estado local si la ficha del alumno está abierta
-        if (selectedStudent && selectedStudent.id === student.id) {
-            setSelectedStudent(prev => ({
-                ...prev, 
-                incidents: [...(prev.incidents || []), incidentData]
-            }));
+        // Puntos Challenge (Mayo 2026)
+        if (new Date() >= new Date('2026-05-01')) {
+            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+            await updateDoc(userRef, { score: increment(10) });
         }
 
-        // Limpiar estados y cerrar modal
-        setNewNote("");
-        setIsWriting(false);
-        setShowBitacoraModal(null); 
+        // Actualización de estados locales para que se vea el cambio al instante
+        setStudents(prev => prev.map(s => s.id === activeStudent.id ? {...s, incidents: [...(s.incidents||[]), incidentData]} : s)); 
         
-        alert("✅ Bitácora guardada (+10 pts)"); 
+        // Si estamos en MatriculaView, actualizamos la ficha abierta
+        if (typeof setViewingStudent === 'function' && viewingStudent?.id === activeStudent.id) {
+            setViewingStudent(prev => ({...prev, incidents: [...(prev.incidents||[]), incidentData]}));
+        }
+
+        // Limpieza y cierre
+        setNewNote(""); 
+        setIsWriting(false); 
+        if (typeof setShowBitacoraModal === 'function') setShowBitacoraModal(null);
+        
+        alert("✅ Bitácora guardada correctamente."); 
     } catch (e) { 
-        console.error("Error al guardar:", e);
-        alert("❌ Error: " + e.message);
-    } finally {
-        setSavingIncident(false);
+        console.error("Error al guardar bitácora:", e);
+        alert("❌ Error de conexión al guardar."); 
+    } finally { 
+        setSavingIncident(false); 
     }
   };
   return (
