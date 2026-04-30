@@ -5229,6 +5229,35 @@ const handleUpdateGroup = async (e) => {
         e.target.reset();
     } catch (err) { alert(err.message); }
 };
+  // Lógica para que los botones de informes funcionen en esta vista
+  const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
+    const campo = `informe${numeroInforme}`;
+    const estadoActual = estudiante[campo] || { hecho: false, enviado: false, devuelto: false, archivado: false };
+    let nuevoEstado = {};
+
+    if (!estadoActual.hecho) nuevoEstado = { hecho: true };
+    else if (!estadoActual.enviado) nuevoEstado = { ...estadoActual, enviado: true, fechaEnvio: new Date().toISOString() };
+    else if (!estadoActual.devuelto) nuevoEstado = { ...estadoActual, devuelto: true, fechaDevuelto: new Date().toISOString() };
+    else if (!estadoActual.archivado) nuevoEstado = { ...estadoActual, archivado: true };
+    else nuevoEstado = { hecho: false }; // Reset
+
+    try {
+      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', estudiante.id);
+      await updateDoc(docRef, { [campo]: nuevoEstado });
+      
+      // Actualizamos el estado local para que el color cambie al instante
+      const nuevosEstudiantes = selectedGroupDetails.students.map(s => 
+        s.id === estudiante.id ? { ...s, [campo]: nuevoEstado } : s
+      );
+      setSelectedGroupDetails({ ...selectedGroupDetails, students: nuevosEstudiantes });
+
+      // Opcional: Suma de puntos por gestión si ya es mayo
+      if (new Date() >= new Date('2026-05-01')) {
+        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+        await updateDoc(userRef, { score: increment(5) });
+      }
+    } catch (error) { console.error("Error:", error); }
+  };
 
   return (
     <div className="flex flex-col h-full bg-slate-100 animate-in fade-in relative">
@@ -5638,127 +5667,137 @@ const handleUpdateGroup = async (e) => {
           </div>
         </div>
       )}
- {/* VENTANA GRANDE DEL GRUPO (MODAL OPTIMIZADO) */}
 {selectedGroupDetails && (
-  <div className="fixed inset-0 bg-slate-900 z-[500] flex flex-col animate-in fade-in duration-300 overflow-hidden">
-    {/* HEADER */}
-    <div className="bg-white p-4 flex justify-between items-center border-b shrink-0">
-      <div>
-        <h2 className="text-xl font-black text-violet-900 uppercase italic">{selectedGroupDetails.name}</h2>
-        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[4px]">Panel de Control</p>
+  <div className="fixed inset-0 bg-slate-900/95 z-[500] flex flex-col animate-in fade-in duration-300 overflow-hidden backdrop-blur-md">
+    {/* HEADER PREMIUM */}
+    <div className="bg-white p-4 flex justify-between items-center border-b-4 border-violet-100 shrink-0">
+      <div className="flex items-center gap-4">
+        <div className="bg-violet-600 text-white p-3 rounded-2xl shadow-lg shadow-violet-200">
+           <Users size={24}/>
+        </div>
+        <div>
+          <h2 className="text-2xl font-black text-slate-800 uppercase italic tracking-tighter">{selectedGroupDetails.name}</h2>
+          <p className="text-[10px] font-black text-violet-400 uppercase tracking-[4px]">Gestión Pedagógica Colectiva</p>
+        </div>
       </div>
-      <button onClick={() => setSelectedGroupDetails(null)} className="bg-gray-100 p-2 rounded-full text-gray-500 active:scale-75 transition-transform"><X size={24}/></button>
+      <button onClick={() => setSelectedGroupDetails(null)} className="bg-slate-100 p-3 rounded-full text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all active:scale-75"><X size={24}/></button>
     </div>
 
-   {/* CUERPO DEL MODAL: ESTRUCTURA MEJORADA */}
-    <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-slate-100">
+    <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
       
-     // Dentro de la sección de la columna izquierda (WIDGETS)
-<div className="w-full lg:w-[380px] overflow-y-auto p-5 space-y-6 bg-white border-r border-slate-100 custom-scrollbar shrink-0">
-    
-    {/* ACCESOS RÁPIDOS DRIVE: BOTONES MÁS MODERNOS */}
-    <div className="grid grid-cols-2 gap-3">
-        <button onClick={() => selectedGroupDetails.driveLink ? window.open(selectedGroupDetails.driveLink, '_blank') : alert('Falta link de Fotos')}
-            className="flex flex-col items-center justify-center p-4 rounded-3xl bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100 transition-all active:scale-95 shadow-sm group">
-            <Folder size={24} className="group-hover:scale-110 transition-transform mb-1"/>
-            <span className="font-black text-[10px] uppercase tracking-tighter">Galería Fotos</span>
-        </button>
-        <button onClick={() => selectedGroupDetails.institucionalDrive ? window.open(selectedGroupDetails.institucionalDrive, '_blank') : alert('Falta link de Drive')}
-            className="flex flex-col items-center justify-center p-4 rounded-3xl bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-all active:scale-95 shadow-sm group">
-            <FileText size={24} className="group-hover:scale-110 transition-transform mb-1"/>
-            <span className="font-black text-[10px] uppercase tracking-tighter">Drive Grupal</span>
-        </button>
-    </div>
+      {/* PANEL IZQUIERDO: CONTROLES (Scroll independiente) */}
+      <div className="w-full lg:w-[400px] overflow-y-auto p-6 space-y-8 bg-white border-r border-slate-100 custom-scrollbar shrink-0 shadow-2xl z-10">
+        
+        {/* BOTONES DRIVE DINÁMICOS */}
+        <div className="grid grid-cols-2 gap-4">
+            <button onClick={() => selectedGroupDetails.driveLink ? window.open(selectedGroupDetails.driveLink, '_blank') : alert('Falta link')}
+                className="flex flex-col items-center justify-center p-5 rounded-[30px] bg-emerald-50 text-emerald-600 border-2 border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all active:scale-95 shadow-sm group">
+                <Folder size={32} className="mb-2 group-hover:scale-110 transition-transform"/>
+                <span className="font-black text-[10px] uppercase tracking-widest">Galería Fotos</span>
+            </button>
+            <button onClick={() => selectedGroupDetails.institucionalDrive ? window.open(selectedGroupDetails.institucionalDrive, '_blank') : alert('Falta link')}
+                className="flex flex-col items-center justify-center p-5 rounded-[30px] bg-blue-50 text-blue-600 border-2 border-blue-100 hover:bg-blue-600 hover:text-white transition-all active:scale-95 shadow-sm group">
+                <FileText size={32} className="mb-2 group-hover:scale-110 transition-transform"/>
+                <span className="font-black text-[10px] uppercase tracking-widest">Documentos</span>
+            </button>
+        </div>
 
-    {/* EQUIPO DOCENTE: DISEÑO "LISTA DE CONTACTOS" */}
-    <div className="bg-slate-50 p-5 rounded-[30px] border border-slate-100">
-        <p className="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-[2px] text-center">Equipo a Cargo</p>
-        <div className="space-y-3">
-            <div className="flex items-center gap-3 bg-white p-2 rounded-2xl shadow-sm">
-                <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 font-bold text-xs">T</div>
-                <div><p className="text-[11px] font-black text-slate-700 uppercase">{selectedGroupDetails.teacher}</p><p className="text-[8px] text-slate-400 font-bold uppercase">Titular</p></div>
+        {/* EQUIPO DOCENTE DISEÑO TARJETA */}
+        <div className="bg-slate-50 p-6 rounded-[35px] border border-slate-100 space-y-4 shadow-inner">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[3px] text-center italic">Staff Responsable</p>
+            <div className="flex items-center gap-4 bg-white p-3 rounded-2xl shadow-sm border border-slate-100">
+                <div className="w-10 h-10 rounded-xl bg-violet-600 text-white flex items-center justify-center font-black">T</div>
+                <div><p className="text-xs font-black text-slate-700 uppercase">{selectedGroupDetails.teacher}</p><p className="text-[8px] text-violet-400 font-bold uppercase tracking-tighter">Docente Titular</p></div>
             </div>
             {selectedGroupDetails.aux && (
-                <div className="flex items-center gap-3 bg-white p-2 rounded-2xl shadow-sm">
-                    <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-xs">A</div>
-                    <div><p className="text-[11px] font-black text-slate-700 uppercase">{selectedGroupDetails.aux}</p><p className="text-[8px] text-slate-400 font-bold uppercase">Auxiliar / Presep.</p></div>
+                <div className="flex items-center gap-4 bg-white p-3 rounded-2xl shadow-sm border border-slate-100">
+                    <div className="w-10 h-10 rounded-xl bg-orange-500 text-white flex items-center justify-center font-black">A</div>
+                    <div><p className="text-xs font-black text-slate-700 uppercase">{selectedGroupDetails.aux}</p><p className="text-[8px] text-orange-400 font-bold uppercase tracking-tighter">Auxiliar / Presep.</p></div>
                 </div>
             )}
         </div>
-    </div>
 
-    {/* CONTROL DE INFORMES: DISEÑO MÁS LIMPIO */}
-    <div className="space-y-3">
-        <h3 className="font-black text-[10px] uppercase text-slate-400 tracking-[3px] text-center">Estado de Informes</h3>
-        <div className="space-y-2">
-            {selectedGroupDetails.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
-                <div key={s.id} className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-2 group hover:border-blue-200 transition-colors">
-                    <p className="font-black text-slate-600 text-[10px] uppercase truncate">{s.lastName}, {s.firstName}</p>
-                    <div className="flex gap-1">
-                        {[1,2,3].map(n => {
-                            const info = s[`informe${n}`] || { hecho: false, enviado: false, devuelto: false, archivado: false };
-                            return (
-                                <button key={n} className={`flex-1 py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${
-                                    info.archivado ? 'bg-emerald-500 border-emerald-600 text-white' : 
-                                    info.devuelto ? 'bg-blue-500 border-blue-600 text-white' : 
-                                    info.enviado ? 'bg-orange-500 border-orange-600 text-white' : 
-                                    info.hecho ? 'bg-violet-500 border-violet-600 text-white' : 'bg-slate-50 border-slate-100 text-slate-300'
-                                }`} onClick={() => handleToggleInforme(s, n)}>
-                                    {n}° {info.archivado ? 'OK' : 'Inf'}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-            ))}
-        </div>
-    </div>
-</div>
-
-    {/* SECCIÓN DERECHA: ESPACIO DE INTERCAMBIO SOBRE ESTE GRUPO */}
-      <div className="flex-1 flex flex-col bg-white lg:m-4 lg:rounded-[40px] lg:shadow-2xl overflow-hidden min-h-[450px]">
-        {/* Cabecera del chat fija */}
-        <div className="p-4 border-b bg-orange-50/50 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            <MessageSquare size={18} className="text-orange-500" />
-            <h3 className="font-black text-orange-600 uppercase italic text-xs tracking-widest">Espacio de intercambio sobre este grupo</h3>
-            {(() => {
-              const total = groupMessages[selectedGroupDetails.name]?.length || 0;
-              const read = parseInt(localStorage.getItem(`read_${selectedGroupDetails.name}_${user.id}`) || "0");
-              if (total > read) return <span className="bg-red-500 text-white text-[8px] px-2 py-0.5 rounded-full animate-bounce shadow-sm">+{total - read}</span>;
-            })()}
-          </div>
-        </div>
-
-        {/* Área de mensajes */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col-reverse bg-slate-50/50 custom-scrollbar"
-          onMouseEnter={() => {
-            const total = groupMessages[selectedGroupDetails.name]?.length || 0;
-            localStorage.setItem(`read_${selectedGroupDetails.name}_${user.id}`, total);
-          }}>
-          {groupMessages[selectedGroupDetails.name]?.map(m => (
-            <div key={m.id} className={`p-3 rounded-2xl max-w-[85%] shadow-sm ${m.authorId === user.id ? 'bg-violet-600 text-white self-end rounded-tr-none' : 'bg-white text-gray-800 self-start rounded-tl-none border border-gray-100'}`}>
-              <div className="flex justify-between items-center mb-1 gap-4">
-                <span className={`text-[8px] font-black uppercase ${m.authorId === user.id ? 'text-violet-200' : 'text-violet-500'}`}>{m.author}</span>
-                <span className="text-[7px] font-bold opacity-40">{m.createdAt?.seconds ? new Date(m.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Ahora'}</span>
+        {/* CONTROL DE INFORMES DISEÑO "TABLERO DE CONTROL" */}
+        <div className="space-y-4 pb-10">
+            <div className="flex justify-between items-center px-2">
+              <h3 className="font-black text-[11px] uppercase text-slate-400 tracking-[3px]">Avance de Informes</h3>
+              <div className="flex gap-1">
+                <div className="w-2 h-2 rounded-full bg-emerald-500" title="Archivado"></div>
+                <div className="w-2 h-2 rounded-full bg-blue-500" title="Devuelto"></div>
+                <div className="w-2 h-2 rounded-full bg-orange-500" title="Enviado"></div>
               </div>
-              <p className="text-xs font-medium leading-tight">{m.text}</p>
+            </div>
+            <div className="space-y-2">
+                {selectedGroupDetails.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
+                    <div key={s.id} className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm hover:border-violet-200 transition-all">
+                        <p className="font-black text-slate-700 text-[11px] uppercase truncate mb-3">{s.lastName}, {s.firstName}</p>
+                        <div className="flex gap-2">
+                            {[1,2,3].map(n => {
+                                const info = s[`informe${n}`] || { hecho: false, enviado: false, devuelto: false, archivado: false };
+                                return (
+                                    <button key={n} 
+                                        onClick={() => handleToggleInformeGrupo(s, n)}
+                                        className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase border-2 transition-all shadow-sm ${
+                                        info.archivado ? 'bg-emerald-500 border-emerald-600 text-white' : 
+                                        info.devuelto ? 'bg-blue-600 border-blue-700 text-white' : 
+                                        info.enviado ? 'bg-orange-500 border-orange-600 text-white' : 
+                                        info.hecho ? 'bg-violet-600 border-violet-700 text-white' : 'bg-slate-50 border-slate-100 text-slate-300'
+                                    }`}>
+                                        {n}°
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+      </div>
+
+      {/* PANEL DERECHO: MURAL (EL CORAZÓN DEL GRUPO) */}
+      <div className="flex-1 flex flex-col bg-slate-100">
+        <div className="p-4 bg-white/80 backdrop-blur-md border-b flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-orange-500 text-white rounded-xl shadow-lg shadow-orange-100"><MessageSquare size={18}/></div>
+            <h3 className="font-black text-slate-800 uppercase italic text-sm tracking-tight">Muro de Intercambio Pedagógico</h3>
+          </div>
+          <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-3 py-1 rounded-full uppercase tracking-widest">Privado del Equipo</span>
+        </div>
+
+        {/* ÁREA DE MENSAJES ESTILO CHAT MODERNO */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 flex flex-col-reverse custom-scrollbar">
+          {groupMessages[selectedGroupDetails.name]?.map(m => (
+            <div key={m.id} className={`flex flex-col ${m.authorId === user.id ? 'items-end' : 'items-start'}`}>
+              <div className={`max-w-[80%] md:max-w-[60%] p-4 rounded-[30px] shadow-sm ${
+                m.authorId === user.id ? 'bg-violet-600 text-white rounded-tr-none' : 'bg-white text-slate-700 rounded-tl-none border border-slate-200'
+              }`}>
+                <div className="flex justify-between items-center mb-1 gap-6">
+                  <span className={`text-[9px] font-black uppercase tracking-tighter ${m.authorId === user.id ? 'text-violet-200' : 'text-violet-600'}`}>{m.author}</span>
+                  <span className="text-[8px] font-bold opacity-40">{m.createdAt?.seconds ? new Date(m.createdAt.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '...'}</span>
+                </div>
+                <p className="text-sm font-medium leading-relaxed">{m.text}</p>
+              </div>
             </div>
           ))}
+          {(!groupMessages[selectedGroupDetails.name] || groupMessages[selectedGroupDetails.name].length === 0) && (
+              <div className="m-auto text-center py-20 opacity-20"><MessageSquare size={64} className="mx-auto mb-4"/><p className="font-black uppercase tracking-widest">Sin mensajes aún</p></div>
+          )}
         </div>
 
-        {/* Input fijo abajo */}
-        <form onSubmit={(e) => handleAddGroupComment(e, selectedGroupDetails.name)} className="p-4 bg-white border-t flex gap-2 shrink-0">
-          <input
-            name="comment"
-            autoComplete="off"
-            placeholder="Escribir novedad..."
-            className="flex-1 bg-gray-100 border-none rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 ring-violet-200"
-          />
-          <button type="submit" className="bg-violet-600 text-white p-3 rounded-2xl shadow-lg active:scale-90 transition-transform">
-            <Send size={20} />
-          </button>
-        </form>
+        {/* INPUT FIJO ESTILO IOS */}
+        <div className="p-6 bg-white border-t-2 border-slate-100">
+          <form onSubmit={(e) => handleAddGroupComment(e, selectedGroupDetails.name)} className="flex items-center gap-3 bg-slate-100 p-2 rounded-[35px] border-2 border-transparent focus-within:border-violet-300 focus-within:bg-white transition-all shadow-inner">
+            <input
+              name="comment"
+              autoComplete="off"
+              placeholder="Registrar una novedad del grupo o avance de informes..."
+              className="flex-1 bg-transparent border-none px-5 py-3 text-sm font-bold text-slate-700 outline-none"
+            />
+            <button type="submit" className="bg-violet-600 text-white p-4 rounded-full shadow-xl active:scale-90 transition-transform flex items-center justify-center">
+              <Send size={20} />
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   </div>
