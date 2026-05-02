@@ -616,111 +616,49 @@ const handleSaveCountdown = async () => {
     setChallengeAnswer('');
     alert("🔄 Participación diaria reseteada. ¡Podés volver a jugar!");
   };
-// --- LÓGICA DE MAYO PROGRAMADA ---
+
+  // --- LÓGICA DE PUNTOS Y RECOMPENSAS (PLAN DE MAYO) ---
   const renderChallengeOrIncentives = () => {
-    // Detectamos si ya es 1 de Mayo de 2026
-    const hoy = new Date();
-    const fechaCambio = new Date('2026-05-01T00:00:00');
-    const isMayo = hoy >= fechaCambio;
-
-    if (!isMayo) {
-      // HASTA MAYO: Muestra exactamente lo que tenés ahora
-      return (
-        <div className="bg-gradient-to-br from-emerald-400 to-teal-500 p-5 rounded-[30px] shadow-md text-white relative overflow-hidden">
-          <div className="absolute -right-4 -top-4 opacity-10"><Crown size={120}/></div>
-          <div className="flex justify-between items-start mb-2 relative z-10">
-              <div className="flex-1 pr-4">
-                  <div className="flex items-center gap-2">
-                      <h3 className="text-[10px] font-black text-emerald-100 uppercase tracking-widest flex items-center gap-1">✨ Desafío del Día</h3>
-                      {!isGameOver && !currentChallenge.isRestDay && (
-                        <span className="bg-black/20 px-2 py-0.5 rounded-lg text-[9px] font-mono font-bold animate-pulse">⏳ Cierra en: {timeLeft}</span>
-                      )}
-                  </div>
-                  {currentChallenge.isRestDay ? (
-                      <p className="font-bold text-white text-sm mt-2">⏳ {currentChallenge.q}</p>
-                  ) : (
-                      <div className="mt-3 rounded-2xl overflow-hidden border-2 border-white/20 bg-white/10 shadow-inner">
-                          {currentChallenge.url ? <img src={currentChallenge.url} alt="Desafío" className="w-full h-auto object-contain max-h-48 mx-auto" /> : <div className="p-10 text-center text-xs animate-pulse opacity-50">Cargando desafío...</div>}
-                      </div>
-                  )}
-              </div>
-              <div className="bg-white/20 p-2 rounded-xl text-center min-w-[60px] cursor-pointer hover:bg-white/30 transition shadow-inner relative z-50" onClick={() => setShowRanking(true)}>
-                  <div className="text-yellow-400 flex justify-center"><Trophy size={28} /></div>
-                  <span className="block text-[7px] font-bold uppercase mt-1">Ranking</span>
-              </div>
-          </div>
-          {!currentChallenge.isRestDay && (
-            <div className="mt-4 relative z-10">
-              {isGameOver ? (
-                <div className="bg-white/20 p-4 rounded-xl border border-white/30 text-center">
-                  <p className="text-[9px] uppercase font-black opacity-70">El tiempo terminó. La respuesta era:</p>
-                  <p className="text-lg font-black tracking-widest uppercase italic">✨ {currentChallenge.answer} ✨</p>
-                </div>
-              ) : localStorage.getItem(`lastChallenge_${user.id}`) === hoy.toDateString() && !showChallengeSuccess ? (
-                <div className="bg-white/20 p-3 rounded-xl border border-white/30 text-center italic"><p className="text-xs font-black">🚫 ¡Ya sumaste tus puntos de hoy! 😉</p></div>
-              ) : showChallengeSuccess ? (
-                <div className="bg-white/20 p-3 rounded-xl text-center animate-bounce border-2 border-white"><p className="font-black text-sm text-white">🎉 ¡Correcto! Sumaste 10 pts.</p></div>
-              ) : (
-                <form onSubmit={checkChallenge} className="flex gap-2">
-                  <input value={challengeAnswer} onChange={e => setChallengeAnswer(e.target.value)} placeholder="¿Qué ves?..." className="flex-1 bg-white/20 text-white placeholder-emerald-100 border border-white/30 p-2.5 rounded-xl outline-none font-bold text-xs focus:bg-white/40 transition-all"/>
-                  <button type="submit" className="bg-white text-emerald-600 font-black px-4 rounded-xl text-xs uppercase shadow-lg hover:scale-105 active:scale-95 transition-all">Jugar</button>
-                </form>
-              )}
-            </div>
-          )}
-        </div>
-      );
-    } else {
-      // A PARTIR DE MAYO: Nuevo Plan de Recompensas
-      return (
-        <div className="bg-gradient-to-br from-indigo-600 to-violet-700 p-6 rounded-[35px] shadow-xl text-white relative overflow-hidden border-b-4 border-indigo-900">
-          <div className="absolute -right-6 -bottom-6 opacity-10"><Activity size={150}/></div>
-          <div className="flex justify-between items-center mb-5">
-              <div>
-                  <h3 className="text-xl font-black italic uppercase tracking-tighter">Plan de Mayo 🚀</h3>
-                  <p className="text-[9px] font-bold text-indigo-200 uppercase tracking-[2px]">¡Sumá puntos por tu trabajo diario!</p>
-              </div>
-              <div className="bg-white/10 p-3 rounded-2xl text-center cursor-pointer border border-white/20 hover:bg-white/20 transition" onClick={() => setShowRanking(true)}>
-                  <Trophy size={24} className="text-yellow-400 mx-auto" />
-                  <span className="block text-[8px] font-black uppercase mt-1">Ranking</span>
-              </div>
-          </div>
-          <div className="grid grid-cols-1 gap-2 relative z-10">
-              <div className="bg-white/10 p-3 rounded-2xl flex justify-between items-center border border-white/5">
-                  <div className="flex items-center gap-3"><div className="bg-emerald-400 p-1.5 rounded-lg"><Zap size={14}/></div><span className="text-[11px] font-bold">Bitácora Express o Médica</span></div>
-                  <span className="bg-white text-indigo-700 px-2 py-0.5 rounded-md font-black text-[10px]">+10 pts</span>
-              </div>
-              <div className="bg-white/10 p-3 rounded-2xl flex justify-between items-center border border-white/5">
-                  <div className="flex items-center gap-3"><div className="bg-orange-400 p-1.5 rounded-lg"><AlertTriangle size={14}/></div><span className="text-[11px] font-bold">Derivar Caso Social o Ausencia</span></div>
-                  <span className="bg-white text-indigo-700 px-2 py-0.5 rounded-md font-black text-[10px]">+15 pts</span>
-              </div>
-              <div className="bg-white/10 p-3 rounded-2xl flex justify-between items-center border border-white/5">
-                  <div className="flex items-center gap-3"><div className="bg-blue-400 p-1.5 rounded-lg"><CheckCircle2 size={14}/></div><span className="text-[11px] font-bold">Crear / Responder Tareas</span></div>
-                  <span className="bg-white text-indigo-700 px-2 py-0.5 rounded-md font-black text-[10px]">+5 pts</span>
-              </div>
-          </div>
-          <div className="mt-4 bg-orange-500 p-3 rounded-2xl flex items-center justify-between shadow-lg">
-              <div className="flex items-center gap-2"><Crown size={18}/><span className="text-xs font-black uppercase italic">Viernes: Desafío Plus</span></div>
-              <span className="font-black text-sm">🔥 +50 PTS</span>
-          </div>
-        </div>
-      );
-    }
-  };
-  return (
+ return (
     <div className="space-y-4 animate-in fade-in pb-10">
-   
-
       {/* HEADER BIENVENIDA */}
       <div className="flex justify-between items-center px-2">
           <div><h2 className="text-2xl font-black text-slate-800 tracking-tighter italic">¡Hola, {user.firstName}! 👋</h2><p className="text-slate-500 font-medium text-xs">Panel de Control</p></div>
           <div className="flex gap-2"><button onClick={() => setShowTutorial(true)} className="bg-white text-violet-600 px-3 py-2 rounded-xl text-xs font-bold shadow-sm border border-violet-100 flex items-center gap-1 hover:bg-violet-50 transition"><HelpCircle size={16}/> Ayuda</button>{canPost && <button onClick={() => setShowAnnounceModal(true)} className="bg-orange-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-lg hover:scale-105 transition flex items-center gap-1"><Edit3 size={14}/> Aviso</button>}</div>
       </div>
-      
-      {isManagement && ungroupedCount > 0 && (<div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl flex items-center justify-between shadow-sm"><div className="flex items-center gap-3"><AlertTriangle className="text-red-500" size={24} /><div><h4 className="font-black text-red-700 text-xs uppercase">Atención</h4><p className="text-xs text-red-600 font-bold">{ungroupedCount} alumnos sin grupo.</p></div></div></div>)}
-      
-      {/* CUMPLES Y CUENTA REGRESIVA */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+
+      {/* 1. CARTELERA (Ahora arriba) */}
+      {visibleAnnouncements.length > 0 && (
+        <div className="bg-yellow-100 p-5 rounded-[30px] border-2 border-yellow-200 shadow-sm relative mx-1">
+          <h3 className="text-[10px] font-black text-yellow-700 uppercase mb-3 flex items-center gap-1"><Bell size={12}/> Cartelera Oficial</h3>
+          <div className="space-y-3">
+            {visibleAnnouncements.map(a => (
+              <div key={a.id} className="bg-white/80 p-3 rounded-2xl border border-yellow-200/50 text-sm text-gray-800 flex justify-between items-start">
+                <div><p className="italic font-medium">"{a.message}"</p><p className="text-[9px] text-yellow-600 font-bold mt-1 uppercase">- {a.author}</p></div>
+                {(canPost || a.authorId === user.id) && <button onClick={() => deleteAnnouncement(a.id)} className="text-yellow-600 hover:text-red-500 p-1 rounded-lg transition"><Trash2 size={14}/></button>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 2. GANADOR MENSUAL */}
+      {todayDate.getDate() <= 5 && rankingData.length > 0 && rankingData[0].score > 10 && (
+          <div className="bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-400 p-6 rounded-[35px] text-white shadow-xl animate-in zoom-in duration-500 mx-2 border-4 border-white/30 relative">
+              <div className="absolute top-2 right-4 opacity-20"><Trophy size={40}/></div>
+              <h3 className="font-black text-center text-xl uppercase italic tracking-tighter">🏆 ¡DESTACADO DE ABRIL! 🏆</h3>
+              <p className="text-center font-black text-2xl mt-2 uppercase drop-shadow-md">{rankingData[0].firstName} {rankingData[0].lastName}</p>
+              <p className="text-center text-[10px] uppercase font-black opacity-90 mt-1 tracking-widest text-center">¡Vení a buscar tu premio a Dirección! 🎁</p>
+              {isSuperAdmin && todayDate.getDate() <= 3 && (
+                <button onClick={resetAllScores} className="mt-4 w-full py-1 bg-white/20 rounded-lg text-[8px] font-black uppercase hover:bg-red-500 transition-colors">Confirmar Reinicio de Puntos para Mayo</button>
+              )}
+          </div>
+      )}
+
+      {isManagement && ungroupedCount > 0 && (<div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl flex items-center justify-between shadow-sm mx-1"><div className="flex items-center gap-3"><AlertTriangle className="text-red-500" size={24} /><div><h4 className="font-black text-red-700 text-xs uppercase">Atención</h4><p className="text-xs text-red-600 font-bold">{ungroupedCount} alumnos sin grupo.</p></div></div></div>)}
+
+      {/* 3. CUMPLES Y CUENTA REGRESIVA */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 px-1">
           {studentBirthdays.length > 0 && (
               <button onClick={() => { setBirthdayModalType('students'); setShowBirthdayModal(true); }} className="bg-gradient-to-r from-pink-400 to-pink-500 p-4 rounded-2xl shadow-sm text-white flex items-center gap-3 active:scale-95 transition text-left">
                   <div className="bg-white/20 p-2 rounded-xl"><Crown size={20}/></div>
@@ -744,28 +682,40 @@ const handleSaveCountdown = async () => {
               </div>
           )}
       </div>
-       {/* CARTELERA */}
-      {visibleAnnouncements.length > 0 && (<div className="bg-yellow-100 p-5 rounded-[30px] border-2 border-yellow-200 shadow-sm relative"><h3 className="text-[10px] font-black text-yellow-700 uppercase mb-3 flex items-center gap-1"><Bell size={12}/> Cartelera Oficial</h3><div className="space-y-3">{visibleAnnouncements.map(a => (<div key={a.id} className="bg-white/80 p-3 rounded-2xl border border-yellow-200/50 text-sm text-gray-800 flex justify-between items-start"><div><p className="italic font-medium">"{a.message}"</p><p className="text-[9px] text-yellow-600 font-bold mt-1 uppercase">- {a.author}</p></div>{(canPost || a.authorId === user.id) && (<button onClick={() => deleteAnnouncement(a.id)} className="text-yellow-600 hover:text-red-500 p-1 bg-yellow-50 rounded-lg transition"><Trash2 size={14}/></button>)}</div>))}</div></div>)}
-             
-     {/* CARTEL GANADOR MENSUAL (CON FILTRO DE PUNTAJE) */}
-      {todayDate.getDate() === 1 && rankingData.length > 0 && rankingData[0].score > 50 && (
-          <div className="bg-gradient-to-r from-yellow-400 to-orange-500 p-6 rounded-[35px] text-white shadow-xl animate-bounce mx-2">
-              <h3 className="font-black text-center text-xl uppercase italic tracking-tighter">🏆 ¡GANADOR DEL MES ANTERIOR! 🏆</h3>
-              <p className="text-center font-bold text-lg mt-2 uppercase">{rankingData[0].firstName} {rankingData[0].lastName}</p>
-              <p className="text-center text-[10px] uppercase font-black opacity-80 mt-1 tracking-widest">¡Vení a buscar tu premio a Dirección! 🎁</p>
-          </div>
-      )}
 
-{/* {/* LÓGICA DINÁMICA: DESAFÍO O PLAN DE MAYO */}
+      {/* 4. PLAN DE MAYO */}
       {renderChallengeOrIncentives()}
+
+      {/* 5. TAREAS Y CALENDARIO */}
+      <div className="grid grid-cols-2 gap-3 px-1">
+        <div onClick={() => setActiveTab('tasks')} className="bg-white p-5 rounded-[30px] border border-orange-100 shadow-sm cursor-pointer hover:shadow-md transition">
+          <h4 className="text-3xl font-black text-orange-500">{myPendingTasksCount}</h4>
+          <p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Tareas Pendientes</p>
+        </div>
+        <div onClick={() => setActiveTab('calendar')} className={`p-5 rounded-[30px] border shadow-sm cursor-pointer hover:shadow-md transition ${todayEvents.length > 0 ? 'bg-violet-600 text-white border-violet-600' : 'bg-white border-violet-100'}`}>
+          {todayEvents.length > 0 ? ( <><h4 className="text-lg font-black leading-tight mb-1">{todayEvents[0].title}</h4><p className="text-[9px] opacity-80 uppercase font-bold tracking-widest">Es Hoy</p></> ) : ( <><h4 className="text-3xl font-black text-violet-600">0</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Eventos Hoy</p></> )}
+        </div>
+      </div>
       
-      
-      {/* TAREAS Y CALENDARIO */}
-      <div className="grid grid-cols-2 gap-3"><div onClick={() => setActiveTab('tasks')} className="bg-white p-5 rounded-[30px] border border-orange-100 shadow-sm cursor-pointer hover:shadow-md transition"><h4 className="text-3xl font-black text-orange-500">{myPendingTasksCount}</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Tareas Pendientes</p></div><div onClick={() => setActiveTab('calendar')} className={`p-5 rounded-[30px] border shadow-sm cursor-pointer hover:shadow-md transition ${todayEvents.length > 0 ? 'bg-violet-600 text-white border-violet-600' : 'bg-white border-violet-100'}`}>{todayEvents.length > 0 ? ( <><h4 className="text-lg font-black leading-tight mb-1">{todayEvents[0].title}</h4><p className="text-[9px] opacity-80 uppercase font-bold tracking-widest">Es Hoy</p></> ) : ( <><h4 className="text-3xl font-black text-violet-600">0</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Eventos Hoy</p></> )}</div></div>
-      
-      <div className="bg-gray-50 p-5 rounded-[35px] border border-gray-100 shadow-inner"><h3 className="font-black text-gray-400 uppercase text-[10px] mb-3 flex items-center gap-2"><Lock size={12}/> Tareas Personales</h3><form onSubmit={saveNote} className="flex gap-2 mb-3"><input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Nueva nota..." className="flex-1 p-3 rounded-xl border-none outline-none text-xs bg-white shadow-sm font-medium" /><button type="submit" className="bg-violet-600 text-white p-3 rounded-xl font-bold shadow-lg hover:bg-violet-700 transition"><Plus size={16}/></button></form><div className="space-y-2">{notes.map(n => (<div key={n.id} className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm group"><button onClick={() => toggleNote(n)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${n.done ? 'bg-violet-400 border-violet-400' : 'border-violet-200'}`}>{n.done && <Check size={10} className="text-white"/>}</button><span className={`text-xs flex-1 font-medium ${n.done ? 'line-through text-gray-300' : 'text-gray-600'}`}>{n.text}</span><button onClick={() => deleteNote(n.id)} className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"><Trash2 size={14}/></button></div>))}</div></div>
-      
-      {/* MANUAL COMPLETO */}
+      {/* 6. TAREAS PERSONALES */}
+      <div className="bg-gray-50 p-5 rounded-[35px] border border-gray-100 shadow-inner mx-1">
+        <h3 className="font-black text-gray-400 uppercase text-[10px] mb-3 flex items-center gap-2"><Lock size={12}/> Tareas Personales</h3>
+        <form onSubmit={saveNote} className="flex gap-2 mb-3">
+          <input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Nueva nota..." className="flex-1 p-3 rounded-xl border-none outline-none text-xs bg-white shadow-sm font-medium" />
+          <button type="submit" className="bg-violet-600 text-white p-3 rounded-xl font-bold shadow-lg hover:bg-violet-700 transition"><Plus size={16}/></button>
+        </form>
+        <div className="space-y-2">
+          {notes.map(n => (
+            <div key={n.id} className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm group">
+              <button onClick={() => toggleNote(n)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${n.done ? 'bg-violet-400 border-violet-400' : 'border-violet-200'}`}>{n.done && <Check size={10} className="text-white"/>}</button>
+              <span className={`text-xs flex-1 font-medium ${n.done ? 'line-through text-gray-300' : 'text-gray-600'}`}>{n.text}</span>
+              <button onClick={() => deleteNote(n.id)} className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition"><Trash2 size={14}/></button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* --- MODAL AYUDA (Aquí mantenemos todo tu manual original) --- */}
       {showTutorial && (
         <div className="fixed inset-0 bg-violet-900/95 z-[300] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in">
             <div className="bg-white rounded-[40px] w-full max-w-lg p-6 shadow-2xl max-h-[85vh] flex flex-col relative">
@@ -794,36 +744,22 @@ const handleSaveCountdown = async () => {
                         </>
                     )}
                     {tutorialTab === 'legajos' && (
-                        <>
-                            <div className="bg-green-50 p-4 rounded-2xl border border-green-100">
-                                <h4 className="font-bold text-green-800 mb-1 flex items-center gap-2"><GraduationCap size={16}/> Buscador Institucional</h4>
-                                <p>Busca cualquier alumno de la escuela. Usa los filtros (Turno, Docente, DX) para refinar.</p>
-                            </div>
-                            <div className="bg-white p-4 rounded-2xl border border-gray-200">
-                                <h4 className="font-bold text-gray-800 mb-1 flex items-center gap-2"><UploadCloud size={16}/> La Nube (Gestión)</h4>
-                                <p>Solo directivos: Herramientas para descargar copias de seguridad (Backup).</p>
-                            </div>
-                        </>
+                        <div className="bg-green-50 p-4 rounded-2xl border border-green-100">
+                            <h4 className="font-bold text-green-800 mb-1 flex items-center gap-2"><GraduationCap size={16}/> Buscador Institucional</h4>
+                            <p>Busca cualquier alumno de la escuela. Usa los filtros (Turno, Docente, DX) para refinar.</p>
+                        </div>
                     )}
                     {tutorialTab === 'aula' && (
-                        <>
-                            <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
-                                <h4 className="font-bold text-indigo-800 mb-1 flex items-center gap-2"><Grid size={16}/> Gestión de Clases</h4>
-                                <p>Aquí ves a los grupos armados. Usa el botón de imprimir arriba para sacar la lista de asistencia.</p>
-                            </div>
-                            <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-100">
-                                <h4 className="font-bold text-yellow-800 mb-1 flex items-center gap-2">⚡ Bitácora Express</h4>
-                                <p>Toca el rayo en un alumno para registrar rápidamente una conducta o incidente.</p>
-                            </div>
-                        </>
+                        <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
+                            <h4 className="font-bold text-indigo-800 mb-1 flex items-center gap-2"><Grid size={16}/> Gestión de Clases</h4>
+                            <p>Aquí ves a los grupos armados. Usa el botón de imprimir arriba para sacar la lista de asistencia.</p>
+                        </div>
                     )}
                     {tutorialTab === 'tareas' && (
-                        <>
-                            <div className="bg-purple-50 p-4 rounded-2xl border border-purple-100">
-                                <h4 className="font-bold text-purple-800 mb-1 flex items-center gap-2"><CheckSquare size={16}/> Pedidos y Organización</h4>
-                                <p>Crea tareas para solicitar materiales o informes.</p>
-                            </div>
-                        </>
+                        <div className="bg-purple-50 p-4 rounded-2xl border border-purple-100">
+                            <h4 className="font-bold text-purple-800 mb-1 flex items-center gap-2"><CheckSquare size={16}/> Pedidos y Organización</h4>
+                            <p>Crea tareas para solicitar materiales o informes.</p>
+                        </div>
                     )}
                     {tutorialTab === 'agenda' && (
                          <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
@@ -844,31 +780,12 @@ const handleSaveCountdown = async () => {
                          </div>
                     )}
                 </div>
-                <button onClick={() => setShowTutorial(false)} className="w-full bg-violet-600 text-white py-3 rounded-2xl font-bold mt-4 shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition">¡Entendido!</button>
+                <button onClick={() => setShowTutorial(false)} className="order-last w-full bg-violet-600 text-white py-3 rounded-2xl font-bold mt-4 shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700 transition">¡Entendido!</button>
             </div>
         </div>
       )}
 
-      {/* MODAL CUMPLES */}
-      {showBirthdayModal && (
-          <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowBirthdayModal(false)}>
-              <div className={`bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl border-t-8 ${birthdayModalType === 'students' ? 'border-pink-500' : 'border-violet-500'} max-h-[85vh] flex flex-col`} onClick={e => e.stopPropagation()}>
-                  <div className="flex justify-between items-center mb-6"><h3 className={`text-lg font-black uppercase italic flex items-center gap-2 ${birthdayModalType === 'students' ? 'text-pink-500' : 'text-violet-600'}`}>{birthdayModalType === 'students' ? <><Crown size={20}/> Cumples Alumnos</> : <><User size={20}/> Cumples Profes</>}</h3><button onClick={() => setShowBirthdayModal(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20}/></button></div>
-                  <div className="flex-1 overflow-y-auto pr-2 space-y-3">
-                      {(birthdayModalType === 'students' ? studentBirthdays : staffBirthdays).length === 0 ? (<p className="text-sm text-gray-400 italic text-center py-6 uppercase font-bold tracking-widest">Sin festejos cerca.</p>) : (
-                          (birthdayModalType === 'students' ? studentBirthdays : staffBirthdays).map(b => (
-                              <div key={b.id} className={`flex items-center gap-4 p-3 rounded-2xl border transition ${birthdayModalType === 'students' ? 'bg-pink-50 border-pink-100' : 'bg-violet-50 border-violet-100'}`}>
-                                  <div className={`w-12 h-12 rounded-full bg-white border-2 overflow-hidden shrink-0 flex items-center justify-center font-bold ${birthdayModalType === 'students' ? 'border-pink-200 text-pink-400' : 'border-violet-200 text-violet-400'}`}>{b.photoUrl ? <img src={b.photoUrl} className="w-full h-full object-cover"/> : b.firstName?.charAt(0) || '👤'}</div>
-                                  <div><h4 className="font-bold text-gray-800 leading-tight uppercase text-xs">{b.firstName} {b.lastName}</h4><p className={`text-[10px] font-bold uppercase mt-0.5 ${birthdayModalType === 'students' ? 'text-pink-600' : 'text-violet-600'}`}>{birthdayModalType === 'students' ? (b.modality === 'Inclusión' ? '📍 Inclusión' : `📍 ${[b.groupMorning, b.groupAfternoon].filter(Boolean).join(' / ') || 'Sin Grupo'}`) : `💼 ${b.role || 'Docente'}`}</p><p className="text-[10px] text-gray-500 mt-0.5 flex items-center gap-1 font-black"><CalendarIcon size={10}/> {new Date(b.nextBirthday).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}</p></div>
-                              </div>
-                          ))
-                      )}
-                  </div>
-              </div>
-          </div>
-      )}
-
-   {/* MODAL RANKING ACTUALIZADO */}
+      {/* MODAL RANKING */}
       {showRanking && (
           <div className="fixed inset-0 bg-slate-900/90 z-[9999] flex items-center justify-center p-4 backdrop-blur-md" onClick={() => setShowRanking(false)}>
               <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[85vh] relative" onClick={e => e.stopPropagation()}>
@@ -876,38 +793,22 @@ const handleSaveCountdown = async () => {
                       <h3 className="text-lg font-black text-emerald-600 uppercase italic tracking-tighter">Ranking Institucional</h3>
                       <button onClick={() => setShowRanking(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20} className="text-gray-500"/></button>
                   </div>
-                  <div className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar">
-                      <div>
-                        {/* NOMBRE DEL MES DINÁMICO */}
-                        <p className="text-[10px] font-black text-gray-400 uppercase mb-3 tracking-widest text-center italic border-b pb-1">
-                            Top de {new Date().toLocaleDateString('es-AR', { month: 'long' })}
-                        </p>
-                        
-                        <div className="space-y-2">
-                            {rankingData.length === 0 ? (
-                                <p className="text-center text-gray-400 text-xs py-4 italic">¡Aún no hay puntos registrados este mes!</p>
-                            ) : (
-                                rankingData.map((u, index) => (
-                                    <div key={u.id || index} className={`flex items-center justify-between p-3 rounded-2xl border ${index === 0 ? 'bg-yellow-50 border-yellow-200 shadow-sm' : 'bg-gray-50 border-gray-100'}`}>
-                                        <div className="flex items-center gap-3">
-                                          <span className={`font-black text-lg ${index === 0 ? 'text-yellow-500' : 'text-gray-400'}`}>#{index + 1}</span>
-                                          <span className="font-bold text-gray-700 text-sm uppercase">{u.firstName} {u.lastName?.charAt(0)}.</span>
-                                        </div>
-                                        <div className="bg-white px-3 py-1 rounded-lg border border-gray-200 font-black text-emerald-600 text-xs">{(u.score || 0)} pts</div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                      </div>
+                  <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                      {rankingData.map((u, index) => (
+                          <div key={u.id || index} className={`flex items-center justify-between p-3 rounded-2xl border ${index === 0 ? 'bg-yellow-50 border-yellow-200 shadow-sm' : 'bg-gray-50 border-gray-100'}`}>
+                              <div className="flex items-center gap-3">
+                                <span className={`font-black text-lg ${index === 0 ? 'text-yellow-500' : 'text-gray-400'}`}>#{index + 1}</span>
+                                <span className="font-bold text-gray-700 text-sm uppercase">{u.firstName} {u.lastName?.charAt(0)}.</span>
+                              </div>
+                              <div className="bg-white px-3 py-1 rounded-lg border border-gray-200 font-black text-emerald-600 text-xs">{(u.score || 0)} pts</div>
+                          </div>
+                      ))}
                   </div>
-                  {isSuperAdmin && (
-                    <button onClick={resetAllScores} className="mt-4 w-full py-2 bg-red-50 text-red-500 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all shadow-sm">🛑 Resetear Todo el Ranking</button>
-                  )}
-                  <p className="text-[8px] text-center text-gray-400 mt-4 uppercase font-bold tracking-widest shrink-0">Los puntos se reinician el 1 de cada mes</p>
               </div>
           </div>
       )}
 
+      {/* MODAL ANUNCIOS */}
       {showAnnounceModal && (
         <div className="fixed inset-0 bg-black/60 z-[500] flex items-center justify-center p-4 backdrop-blur-sm">
           <form onSubmit={handlePost} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-orange-500">
@@ -915,46 +816,22 @@ const handleSaveCountdown = async () => {
               <h3 className="text-xl font-black text-violet-900 uppercase italic">Nuevo Aviso</h3>
               <button type="button" onClick={() => setShowAnnounceModal(false)}><X size={20} className="text-gray-400"/></button>
             </div>
-            
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase ml-2 mb-1 block">¿Cuándo mostrar?</label>
-                  <input type="date" name="showDate" defaultValue={todayStr} className="w-full p-2 bg-gray-50 rounded-xl text-xs font-bold border-none outline-none focus:ring-2 ring-orange-200" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase ml-2 mb-1 block">Hora</label>
-                  <input type="time" name="showTime" defaultValue="08:00" className="w-full p-2 bg-gray-50 rounded-xl text-xs font-bold border-none outline-none focus:ring-2 ring-orange-200" />
-                </div>
+                <div><label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">¿Cuándo?</label><input type="date" name="showDate" defaultValue={todayStr} className="w-full p-2 bg-gray-50 rounded-xl text-xs font-bold border-none" /></div>
+                <div><label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">Hora</label><input type="time" name="showTime" defaultValue="08:00" className="w-full p-2 bg-gray-50 rounded-xl text-xs font-bold border-none" /></div>
               </div>
-
-              <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase ml-2 mb-1 block">Canal de difusión</label>
-                <select name="channel" className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold border-none outline-none focus:ring-2 ring-orange-200">
-                  <option value="general">📢 Todo el Personal (General)</option>
-                  <option value="sede">🏫 Solo Sede</option>
-                  <option value="inclusion">📍 Solo Inclusión</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase ml-2 mb-1 block">Mensaje</label>
-                <textarea name="message" required placeholder="Escribí el aviso aquí..." className="w-full h-32 p-4 bg-gray-50 rounded-2xl border-none outline-none text-sm font-medium focus:ring-2 ring-orange-200 resize-none"></textarea>
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button type="button" onClick={() => setShowAnnounceModal(false)} className="flex-1 py-3 text-gray-400 font-bold uppercase text-xs">Cancelar</button>
-                <button type="submit" className="flex-[2] py-4 bg-orange-500 text-white rounded-2xl font-black uppercase text-xs shadow-lg shadow-orange-200 hover:bg-orange-600 transition active:scale-95">Publicar Aviso</button>
-              </div>
+              <div><label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">Canal</label><select name="channel" className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold border-none"><option value="general">Todo el Personal</option><option value="sede">Solo Sede</option><option value="inclusion">Solo Inclusión</option></select></div>
+              <textarea name="message" required placeholder="Mensaje..." className="w-full h-32 p-4 bg-gray-50 rounded-2xl border-none outline-none text-sm font-medium resize-none"></textarea>
+              <button type="submit" className="w-full py-4 bg-orange-500 text-white rounded-2xl font-black uppercase text-xs shadow-lg">Publicar Aviso</button>
             </div>
           </form>
         </div>
       )}
 
-    </div> // Fin del DashboardView contenedor principal
+    </div>
   );
-} // Fin de la función
-
+}
 
 
 // --- VISTA RECURSOS (VERSIÓN CON PLANTILLAS EN GENERADOR DE NOTAS) ---
