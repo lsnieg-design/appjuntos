@@ -5186,8 +5186,8 @@ const filteredStudents = students.filter(s => {
     } catch (e) { 
         console.error("Error al guardar:", e);
         alert("❌ Error de conexión."); 
-    } finally { 
-        setSavingIncident(false); 
+   } finally {
+        setSavingIncident(false);
     }
   };
   
