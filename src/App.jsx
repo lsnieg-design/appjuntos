@@ -833,7 +833,2376 @@ const handleSaveCountdown = async () => {
   );
 }
 
+// --- APP PRINCIPAL (FINAL: CON ADMIN INTEGRADO + MANTENIMIENTO + NOTIFS) ---
+function MainApp({ user, onLogout }) {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [tasks, setTasks] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [resources, setResources] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
+  
+  const [showNotifPanel, setShowNotifPanel] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [globalViewingStudent, setGlobalViewingStudent] = useState(null);
+  
+  // POPUPS
+  const [showNotifRequest, setShowNotifRequest] = useState(false);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [showMaintenanceAlert, setShowMaintenanceAlert] = useState(false);
 
+  const prevNotifCount = useRef(0);
+  const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin'; 
+  const canManageContent = user.rol === 'admin' || isSuperAdmin || user.role === 'Equipo Directivo';
+  
+  // --- DEFINICIÓN DE PERMISOS GLOBALES (ORDEN CORREGIDO) ---
+  
+  // 1. Primero definimos los permisos específicos (con ? para que sea seguro)
+  const isAdminRole = ['admin', 'super-admin', 'Administración', 'Equipo Directivo', 'Dirección Inclusión'].includes(user?.role) || user?.rol === 'admin';
+  const isTechTeamRole = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión', 'Equipo Técnico', 'Equipo Técnico Inclusión'].includes(user?.role) || user?.rol === 'admin';
+  const isMedicalRole = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión', 'Médico', 'Enfermería', 'Salud'].includes(user?.role) || user?.rol === 'admin';
+  
+  // 2. Definimos el permiso Social (usando el texto exacto como está en Firebase)
+  const canAccessSocial = ['admin', 'super-admin', 'Docente', 'Auxiliar/Preceptor', 'Equipo Directivo', 'Equipo Técnico', 'Inclusión', 'DAI'].includes(user?.role) || user?.rol === 'admin';
+
+  // 3. Ahora que canAccessSocial EXISTE, definimos si mostramos el menú privado
+  const showPrivateMenu = isAdminRole || isTechTeamRole || isMedicalRole || canAccessSocial;
+
+  // 4. Otros estados de la interfaz
+  const isWideTab = ['groups', 'calendar', 'matricula', 'resources', 'users', 'admin'].includes(activeTab);
+  useEffect(() => {
+    if (user?.id) updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { lastLogin: serverTimestamp() }).catch(()=>{});
+    const unsubTasks = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('dueDate', 'asc')), (snap) => setTasks(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    const unsubEvents = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc')), (snap) => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    const unsubResources = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc')), (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    const unsubAnnounce = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc')), (snap) => setAnnouncements(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    
+    // MANTENIMIENTO
+    const unsubMaint = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'maintenance'), (doc) => { 
+        const isActive = doc.exists() ? doc.data().active : false;
+        setMaintenanceMode(isActive);
+        if(isActive && user.rol !== 'super-admin') setShowMaintenanceAlert(true);
+    });
+
+    const qNotifs = query(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), where('toUserId', '==', user.id));
+    const unsubNotifs = onSnapshot(qNotifs, (snap) => { 
+        const d = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); d.sort((a,b)=> (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)); 
+        const unread = d.filter(n=>!n.read); setNotifications(unread);
+        if (unread.length > prevNotifCount.current) { const latest = unread[0]; if (latest) { if ("Notification" in window && Notification.permission === "granted") { new Notification(`🔔 ${latest.title}`, { body: latest.message, icon: LOGO_URL }); } try { new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play().catch(()=>{}); } catch(e){} } }
+        prevNotifCount.current = unread.length;
+    });
+
+    // CHECK NOTIFICACIONES AL INICIO
+    if ("Notification" in window && Notification.permission === 'default') {
+        setTimeout(() => setShowNotifRequest(true), 3500); // Espera 3.5s para no chocar con la carga
+    }
+
+    return () => { unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); unsubAnnounce(); unsubMaint(); };
+  }, [user.id]);
+
+  const handleGlobalSearch = async (text) => { setSearchQuery(text); if (text.length < 2) { setSearchResults([]); return; } const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students')); const s = await getDocs(q); const r = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(s => (s.isActive===undefined || s.isActive) && (s.firstName.toLowerCase().includes(text.toLowerCase()) || s.lastName.toLowerCase().includes(text.toLowerCase()))); setSearchResults(r.slice(0, 5)); };
+  const handleNotificationClick = async (n) => { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', n.id)); if (n.targetTab) setActiveTab(n.targetTab); setShowNotifPanel(false); };
+  const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
+  
+  const enableNotifications = async () => { 
+      const permission = await Notification.requestPermission(); 
+      if (permission === 'granted') { 
+          try { 
+              const { getMessaging, getToken } = await import("firebase/messaging"); const messaging = getMessaging(); 
+              const token = await getToken(messaging, { vapidKey: 'BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw' }); 
+              if(token) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { fcmTokens: arrayUnion(token) }); 
+          } catch(e) {} 
+          alert("✅ ¡Genial! Te avisaremos de las novedades."); 
+      } 
+      setShowNotifRequest(false); 
+  };
+
+  // PANTALLA DE BLOQUEO TOTAL (SOLO SI SE DESEA - AHORA ESTÁ EN MODO CERRABLE ARRIBA)
+  // Si quisieras bloqueo total descomenta esto. Pero pediste poder cerrar.
+
+  return (
+    <div className="flex flex-col h-[100dvh] w-full bg-gray-50 font-sans text-slate-800 overflow-hidden relative">
+      <style>{` *::-webkit-scrollbar { display: none; } * { -ms-overflow-style: none; scrollbar-width: none; } `}</style>
+      
+      <header className="bg-violet-800 text-white shadow-lg px-4 py-3 flex justify-between items-center z-50 sticky top-0 shrink-0">
+        <div className="flex items-center space-x-3"><img src={LOGO_URL} alt="Logo" className="w-10 h-8 object-contain" /><div><h1 className="font-bold text-sm leading-tight">Juntos a la Par</h1><p className="text-[10px] text-orange-200 uppercase font-bold">{user.firstName}</p></div></div>
+        <div className="flex items-center gap-3"><button onClick={() => setShowSearch(true)} className="p-2 rounded-full bg-violet-900/50 hover:bg-orange-500 transition"><Search size={20} /></button><div className="relative"><button onClick={() => setShowNotifPanel(!showNotifPanel)} className={`p-2 rounded-full transition ${showNotifPanel ? 'bg-orange-500' : 'bg-violet-900/50'}`}><Bell size={20} />{notifications.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-pulse border border-white">{notifications.length}</span>}</button>{showNotifPanel && (<div className="absolute right-0 mt-3 w-72 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[100]"><div className="p-4 bg-violet-50 border-b flex justify-between items-center"><h3 className="font-bold text-violet-900 text-sm">Avisos</h3><button onClick={() => setShowNotifPanel(false)}><X size={16} className="text-gray-400"/></button></div><div className="max-h-80 overflow-y-auto">{notifications.length===0?<div className="p-10 text-center text-gray-400"><p className="text-xs font-bold uppercase">Sin novedades</p></div>:notifications.map(n=>(<div key={n.id} onClick={()=>handleNotificationClick(n)} className="p-4 border-b hover:bg-gray-50 cursor-pointer"><p className="text-[10px] font-bold text-orange-600 mb-1 uppercase">{n.title}</p><p className="text-xs text-gray-700">{n.message}</p></div>))}</div></div>)}</div><div onClick={() => {setActiveTab('profile'); setShowNotifPanel(false);}} className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold border-2 border-orange-400 overflow-hidden cursor-pointer active:scale-95 transition">{user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover" /> : user.firstName?.[0]}</div></div>
+      </header>
+
+      {/* --- CARTEL MANTENIMIENTO CERRABLE --- */}
+      {maintenanceMode && showMaintenanceAlert && (
+          <div className="fixed top-16 left-0 right-0 z-[999] p-4 animate-in slide-in-from-top-5">
+              <div className="bg-gradient-to-r from-orange-500 to-red-600 rounded-2xl shadow-2xl p-5 text-white flex flex-col items-center gap-3 border-4 border-white/20 relative overflow-hidden">
+                  <div className="absolute -top-10 -left-10 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
+                  <div className="flex items-center gap-3 z-10">
+                      <div className="bg-white p-3 rounded-full text-orange-600 animate-spin-slow"><Settings size={28}/></div>
+                      <div className="text-center">
+                          <h3 className="font-black uppercase text-lg tracking-wider leading-none">¡Estamos en Obra! 🚧</h3>
+                          <p className="text-xs font-medium opacity-90 mt-1">Estamos mejorando la App. Puede haber interrupciones breves.</p>
+                      </div>
+                  </div>
+                  <div className="flex gap-2 w-full">
+                      <button onClick={() => setShowMaintenanceAlert(false)} className="flex-1 bg-white text-orange-600 px-4 py-3 rounded-xl text-xs font-black uppercase shadow-lg hover:bg-orange-50 transition active:scale-95">
+                          Entendido, usar con cuidado
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* --- POPUP DE PEDIDO DE NOTIFICACIONES --- */}
+      {showNotifRequest && (
+        <div className="fixed inset-0 z-[400] flex items-end md:items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in">
+             <div className="bg-white rounded-[30px] p-6 w-full max-w-sm shadow-2xl text-center border-t-8 border-orange-500 mb-20 md:mb-0">
+                 <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                     <Bell size={32} className="text-orange-500"/>
+                 </div>
+                 <h3 className="text-xl font-black text-gray-800 mb-2">¡No te pierdas nada!</h3>
+                 <p className="text-sm text-gray-500 mb-6">Activa las notificaciones para saber cuando tienes una tarea nueva o un aviso urgente.</p>
+                 <div className="flex flex-col gap-3">
+                     <button onClick={enableNotifications} className="w-full bg-violet-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-violet-700 transition">ACTIVAR AHORA</button>
+                     <button onClick={() => setShowNotifRequest(false)} className="text-gray-400 text-xs font-bold uppercase hover:text-gray-600">Ahora no</button>
+                 </div>
+             </div>
+         </div>
+      )}
+
+      <main className={`flex-1 overflow-y-auto no-scrollbar pb-24 pt-6 mx-auto w-full transition-all duration-300 ${isWideTab ? 'px-2 max-w-[98%]' : 'px-4 max-w-4xl'}`}>
+        {activeTab === 'dashboard' && <DashboardView user={user} tasks={tasks} events={events} announcements={announcements} setActiveTab={setActiveTab} />}
+        {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
+        {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} canEdit={canManageContent} />}
+        {activeTab === 'matricula' && <MatriculaView user={user} />}
+        {activeTab === 'resources' && <ResourcesView resources={resources} canEdit={canManageContent} />}
+        {activeTab === 'profile' && <ProfileView user={user} onLogout={onLogout} isSuperAdmin={isSuperAdmin} />}
+        {activeTab === 'proyecto' && <ProyectoView user={user} />}
+        {activeTab === 'groups' && <GroupsView user={user} />}
+        {activeTab === 'users' && isSuperAdmin && <UsersAdminView />}
+        {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={isSuperAdmin} user={user} />}
+        {activeTab === 'equipo' && <EquipoTecnicoView user={user} />}
+        {/* --- NUEVO: VISTA ADMIN (SOLO RENDERIZA SI EL TAB ES 'ADMIN') --- */}
+        {activeTab === 'admin' && <AdministracionView user={user} />}
+        {/* ----------------------------------------------------------------- */}
+        {activeTab === 'users' && isSuperAdmin && <UsersAdminView />}
+        {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={isSuperAdmin} user={user} />}
+        {activeTab === 'admin' && <AdministracionView user={user} />}
+        {/* PEGAR ESTA LÍNEA NUEVA: */}
+        {activeTab === 'personal' && <PersonalView user={user} />}
+        {activeTab === 'medical' && <MedicalView user={user} />}
+        {activeTab === 'social' && <SocialView user={user} />}
+    
+      </main>
+
+<nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-16 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] pb-safe shrink-0">
+        {/* Usamos grid-cols-5 universal para PC y Celular */}
+        <div className="grid grid-cols-5 h-full max-w-3xl mx-auto px-2 relative">
+          
+          <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Inicio" />
+          <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={20} />} label="Tareas" />
+          
+          {/* BOTÓN CENTRAL: MI AULA */}
+          <div className="relative -top-5 flex justify-center">
+            <button onClick={() => setActiveTab('groups')} className={`w-14 h-14 rounded-full flex flex-col items-center justify-center shadow-xl border-4 border-gray-50 transition-all transform active:scale-95 ${activeTab === 'groups' ? 'bg-orange-500 text-white scale-110' : 'bg-violet-600 text-white'}`}>
+              <Grid size={24} />
+            </button>
+            <span className="absolute -bottom-4 text-[9px] font-black text-violet-900 uppercase tracking-wide whitespace-nowrap">Mi Aula</span>
+          </div>
+          
+          <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={20} />} label="Agenda" />
+
+          {/* BOTÓN MÁS (UNIVERSAL PARA PC Y CELULAR) */}
+          <div className="relative">
+              <NavButton active={['matricula', 'resources', 'proyecto', 'admin', 'personal', 'medical', 'equipo'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={20} />} label="Más" />
+              
+              {showMoreMenu && (
+                  <div className="absolute bottom-16 right-0 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 w-56 animate-in slide-in-from-bottom-5 zoom-in-95 origin-bottom-right z-50">
+                      <button onClick={() => { setActiveTab('matricula'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
+                          <GraduationCap size={18} className="text-violet-500"/> Legajos
+                      </button>
+               
+                      <button onClick={() => { setActiveTab('resources'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
+                          <LinkIcon size={18} className="text-green-500"/> Recursos
+                      </button>
+                      <button onClick={() => { setActiveTab('proyecto'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
+                          <PieChart size={18} className="text-orange-500"/> Proyecto Inst.
+                      </button>
+                      
+                      {/* --- SECCIÓN PRIVADA: ADMIN, PERSONAL, EQUIPO TÉCNICO, MÉDICO --- */}
+                      {showPrivateMenu && (
+                          <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
+                              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-3 mb-1 mt-1">Gestión Privada</p>
+                              
+                              {isTechTeamRole && (
+                                  <button onClick={() => { setActiveTab('equipo'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-teal-50 flex items-center gap-3 text-sm font-bold text-teal-700 transition">
+                                      <Briefcase size={18} className="text-teal-500"/> Equipo Técnico
+                                  </button>
+                              )}
+
+                              {isAdminRole && (
+                                  <>
+                                      <button onClick={() => { setActiveTab('admin'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-blue-600 transition">
+                                          <FileText size={18} className="text-blue-500"/> Admin Docs
+                                      </button>
+                                      <button onClick={() => { setActiveTab('personal'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-violet-700 transition">
+                                          <Users size={18} className="text-violet-500"/> Personal
+                                      </button>
+                                  </>
+                              )}
+                             {canAccessSocial && (
+            <button 
+                onClick={() => { setActiveTab('social'); setShowMoreMenu(false); }} 
+                className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition"
+            >
+                <Users size={18} className="text-blue-500"/> Trabajo Social
+            </button>
+        )}
+
+                              {isMedicalRole && (
+                                  <button onClick={() => { setActiveTab('medical'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-red-50 flex items-center gap-3 text-sm font-bold text-red-600 transition">
+                                      <Activity size={18} className="text-red-500"/> Médico
+                                  </button>
+                              )}
+                          </div>
+                      )}
+                  </div>
+              )}
+          </div>
+        </div>
+      </nav>
+
+      {/* BUSCADOR Y MODAL GLOBAL */}
+      {showSearch && ( <div className="fixed inset-0 bg-violet-900/90 z-[300] flex flex-col p-4 backdrop-blur-md animate-in fade-in"><div className="flex justify-between items-center text-white mb-4"><h3 className="font-black italic uppercase">Buscador Rápido</h3><button onClick={() => {setShowSearch(false); setSearchQuery(''); setSearchResults([]);}} className="p-2 bg-white/20 rounded-full"><X/></button></div><input autoFocus value={searchQuery} onChange={(e) => handleGlobalSearch(e.target.value)} placeholder="Escribí un nombre o apellido..." className="w-full p-4 rounded-2xl bg-white text-lg font-bold text-gray-800 outline-none shadow-xl mb-4"/><div className="flex-1 overflow-y-auto space-y-2">{searchResults.map(s => (<div key={s.id} onClick={() => setGlobalViewingStudent(s)} className="bg-white p-3 rounded-xl flex items-center gap-3 active:scale-95 transition cursor-pointer"><div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center font-bold text-gray-400">{s.firstName[0]}</div>}</div><div><p className="font-bold text-gray-800 text-sm">{s.lastName}, {s.firstName}</p><p className="text-[10px] text-gray-500">{s.level} • {s.groupMorning || s.groupAfternoon || 'Sin Grupo'}</p></div></div>))}{searchQuery.length > 2 && searchResults.length === 0 && <p className="text-white/50 text-center mt-4">No se encontraron resultados.</p>}</div></div> )}
+      {globalViewingStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[350] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95"><div className="bg-violet-600 p-4 text-white flex justify-between items-center"><h3 className="font-bold text-lg">{globalViewingStudent.lastName}, {globalViewingStudent.firstName}</h3><button onClick={() => setGlobalViewingStudent(null)}><X/></button></div><div className="p-6"><div className="flex gap-4 items-center mb-4"><div className="w-20 h-20 bg-gray-200 rounded-2xl overflow-hidden">{globalViewingStudent.photoUrl && <img src={globalViewingStudent.photoUrl} className="w-full h-full object-cover"/>}</div><div><p className="text-sm font-bold text-gray-600">Edad: {calculateAge(globalViewingStudent.birthDate)} años</p><p className="text-sm font-bold text-gray-600">DNI: {globalViewingStudent.dni}</p><p className="text-xs text-orange-500 font-bold mt-1 uppercase">{globalViewingStudent.dx}</p></div></div><button onClick={() => { setActiveTab('matricula'); setShowSearch(false); setGlobalViewingStudent(null); alert("Te llevamos a la sección Legajos. Buscalo ahí para editar."); }} className="w-full bg-violet-100 text-violet-700 py-3 rounded-xl font-bold text-xs uppercase hover:bg-violet-200 transition">Ir a Legajo Completo</button></div></div></div>)}
+    </div>
+  );
+} // <--- CIERRE CORRECTO DE LA FUNCIÓN MainApp
+  // --- VISTA AULA CORREGIDA (SELECTOR DE DOCENTES ARREGLADO) ---
+function GroupsView({ user }) {
+  const [students, setStudents] = useState([]);
+  const [usersList, setUsersList] = useState([]); 
+  const [turn, setTurn] = useState('morning'); 
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [showBitacoraModal, setShowBitacoraModal] = useState(null); 
+  const [activeTab, setActiveTab] = useState('info');
+  const [groupMessages, setGroupMessages] = useState({}); // Mensajes por grupo
+const [showGroupChat, setShowGroupChat] = useState(null); // Qué chat de grupo está abierto
+  const [selectedGroupDetails, setSelectedGroupDetails] = useState(null); // Para abrir la ventana grande del grupo
+  const [showMobileChat, setShowMobileChat] = useState(false);
+const [informeEpoca, setInformeEpoca] = useState(1); // Para filtrar 1°, 2° o 3°
+  
+  const [newNote, setNewNote] = useState("");
+  const [isWriting, setIsWriting] = useState(false);
+  const [editingGroup, setEditingGroup] = useState(null);
+  
+  const userRoleStr = (user?.role || '').toLowerCase();
+  const isDAIRole = userRoleStr.includes('inclusión') || userRoleStr.includes('inclusion') || userRoleStr.includes('dai');
+  const [viewFilter, setViewFilter] = useState(isDAIRole ? 'inclusion' : 'sede');
+  const [groupStats, setGroupStats] = useState(null);
+  const [updatingGroup, setUpdatingGroup] = useState(false);
+  const [savingIncident, setSavingIncident] = useState(false);
+  const [showPrintOptions, setShowPrintOptions] = useState(false);
+  const [groupsToPrint, setGroupsToPrint] = useState([]); // Para saber si imprimimos uno o todos
+  const [printColumns, setPrintColumns] = useState({
+    dni: true,
+    birthDate: true,
+    healthInsurance: false,
+    contacts: true,
+    photo: false
+  });
+  const SOCIAL_TARGETS = ['mchancalay', 'Myrian Chancalay'];
+  const scrollRef = useRef(null); 
+  const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scrollRef.current.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' }); } };
+
+  const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración', 'Dirección Inclusión', 'Equipo Técnico Inclusión'].includes(user.role) || user.rol === 'admin';
+  const isStrategic = ['super-admin', 'admin', 'Equipo Directivo', 'Equipo Técnico', 'Dirección Inclusión', 'Equipo Técnico Inclusión'].includes(user.role);
+  const LOGO_URL = "/icon-192.png";
+
+  const INCIDENT_TYPES = [
+      { label: "Trabajó Muy Bien", emoji: "🌟", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
+      { label: "Ayudó a un amigo", emoji: "🤝", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
+      { label: "Logro de Aprendizaje", emoji: "🚀", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
+      { label: "Buena Conducta", emoji: "😇", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
+      { label: "Crisis Llanto", emoji: "😭", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" },
+      { label: "Higiene / Esfínter", emoji: "💩", severity: "medium", color: "bg-blue-100 border-blue-300 text-blue-800" }, 
+      { label: "No trabajó", emoji: "💤", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
+      { label: "Llegada Tarde", emoji: "🕑", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
+      { label: "No comió", emoji: "🍽️", severity: "low", color: "bg-blue-50 border-blue-200 text-blue-700" }, 
+      { label: "Agresión / Violencia", emoji: "👊", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
+      { label: "Brote / Gritos", emoji: "🤬", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
+      { label: "Fuga / Intento", emoji: "🏃", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
+      { label: "Convulsión / Salud", emoji: "🚑", severity: "high", color: "bg-indigo-100 border-indigo-300 text-indigo-800" }, 
+  ];
+
+  useEffect(() => {
+    const qS = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
+    const unsubS = onSnapshot(qS, (snap) => { setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
+    const qU = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('lastName', 'asc'));
+    const unsubU = onSnapshot(qU, (snap) => { setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
+   return () => { unsubS(); unsubU(); unsubGM(); };
+  }, []);
+     const qGM = query(collection(db, 'artifacts', appId, 'public', 'data', 'group_mural'), orderBy('createdAt', 'desc'));
+const unsubGM = onSnapshot(qGM, (snap) => {
+    const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // Los agrupamos por nombre de grupo para fácil acceso
+    const groupedMsgs = msgs.reduce((acc, m) => {
+        if (!acc[m.groupName]) acc[m.groupName] = [];
+        acc[m.groupName].push(m);
+        return acc;
+    }, {});
+    setGroupMessages(groupedMsgs);
+});
+  const getNormRole = (r) => {
+    if (!r) return '';
+    return r.trim();
+  };
+
+  const groupedData = students.reduce((acc, s) => {
+      const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
+      if (s.modality === 'Inclusión') {
+          const dais = [...new Set([s.daiMorning, s.daiAfternoon].filter(Boolean))];
+          dais.forEach(daiName => {
+              const groupKey = `DAI: ${daiName}`;
+              if (!acc[groupKey]) {
+                  acc[groupKey] = { name: groupKey, students: [], teacher: daiName, teacherId: s.daiId, isInclusionGroup: true };
+              }
+              if (!acc[groupKey].students.find(x => x.id === s.id)) { acc[groupKey].students.push(s); }
+          });
+      } else {
+          const groupName = s[`group${suf}`];
+          if (!groupName) return acc;
+          const groupKey = groupName.trim();
+          if (!acc[groupKey]) { 
+              acc[groupKey] = { 
+                  name: groupKey, students: [], teacher: s[`teacher${suf}`], teacherId: s[`teacherId${suf}`], 
+                  teacher2: s[`teacher2${suf}`], aux: s[`aux${suf}`], special1: s[`special1${suf}`], 
+                  special2: s[`special2${suf}`], special3: s[`special3${suf}`], sup1: s[`sup1${suf}`], 
+                  sup2: s[`sup2${suf}`], classroom: s.classroom, driveLink: s[`driveLink${suf}`], isInclusionGroup: false 
+              }; 
+          }
+          acc[groupKey].students.push(s); 
+      }
+      return acc;
+  }, {});
+// Ordenamos los grupos: INICIAL siempre primero, el resto por nombre alfabético
+  let groups = Object.values(groupedData).sort((a, b) => {
+      const nameA = a.name.toUpperCase();
+      const nameB = b.name.toUpperCase();
+      
+      // Si el grupo A es inicial y el B no, A va primero
+      if (nameA.includes("INICIAL") && !nameB.includes("INICIAL")) return -1;
+      // Si el grupo B es inicial y el A no, B va primero
+      if (!nameA.includes("INICIAL") && nameB.includes("INICIAL")) return 1;
+      
+      // Si ambos son iniciales o ninguno lo es, ordenamos alfabéticamente normal
+      return nameA.localeCompare(nameB);
+  });
+
+ // --- LÓGICA DE FILTRADO DEFINITIVA (SÓLO POR ID - UNIFICADA) ---
+  if (!isManagement) {
+      groups = groups.filter(g => {
+          const uId = user.id;
+          const legajoId = user.legajoId;
+          const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
+
+          // 1. Chequeo de Equipo del Grupo (Titular, Auxiliar, Especiales)
+          // Buscamos tu ID en cualquiera de estos campos del grupo
+          const groupStaffIds = [
+            g.teacherId, 
+            g.auxId, 
+            g.special1Id, 
+            g.special2Id, 
+            g.special3Id,
+            g.sup1Id,
+            g.sup2Id
+          ];
+          
+          if (groupStaffIds.includes(uId) || (legajoId && groupStaffIds.includes(legajoId))) return true;
+
+          // 2. Chequeo por Alumno (DAI o Docentes específicos en ficha)
+          const vinculadoAAlumnx = g.students.some(s => 
+              s.daiId === uId || (legajoId && s.daiId === legajoId) ||
+              s[`teacherId${suf}`] === uId || (legajoId && s[`teacherId${suf}`] === legajoId) ||
+              s[`teacherId2${suf}`] === uId || (legajoId && s[`teacherId2${suf}`] === legajoId) ||
+              s[`auxId${suf}`] === uId || (legajoId && s[`auxId${suf}`] === legajoId)
+          );
+          
+          if (vinculadoAAlumnx) return true;
+
+          return false;
+      });
+  } else {
+      // Si es directivo, filtramos por la pestaña Sede/Inclusión
+      if (viewFilter !== 'all') { 
+          groups = groups.filter(g => viewFilter === 'inclusion' ? g.isInclusionGroup : !g.isInclusionGroup); 
+      }
+  }
+
+  const getSafeDate = (d) => { if(!d) return '-'; try { return new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('es-AR'); } catch(e) { return d; } };
+
+const printGroups = (groupsList) => {
+    const iframe = document.createElement('iframe'); 
+    iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0'; 
+    document.body.appendChild(iframe);
+    
+    let fullHtml = `<html><head><title>Listado Institucional</title><style>
+      @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap'); 
+      body{font-family:'Roboto', sans-serif; padding:20px; color:#333;} 
+      .main-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 5px solid #7c3aed; padding-bottom: 10px; margin-bottom: 20px; } 
+      .main-title { font-size: 24px; font-weight: 900; color: #4c1d95; text-transform: uppercase; margin: 0; } 
+      .group-section { margin-bottom: 30px; page-break-inside: avoid; } 
+      .group-header { background-color: #f3f4f6; border-left: 6px solid #7c3aed; padding: 10px 15px; margin-bottom: 10px; border-radius: 0 8px 8px 0; } 
+      .group-name { font-size: 18px; font-weight: 900; color: #5b21b6; margin: 0; } 
+      .group-staff { font-size: 10px; font-weight: bold; color: #555; margin-top: 4px; text-transform: uppercase; } 
+      table { width: 100%; border-collapse: collapse; font-size: 10px; } 
+      thead tr { background-color: #7c3aed !important; color: white !important; } 
+      th { padding: 5px; text-align: left; text-transform: uppercase; font-weight: bold; border: 1px solid #ddd; } 
+      td { border: 1px solid #e5e7eb; padding: 5px; color: #374151; vertical-align: middle; } 
+      .photo-img { width: 30px; height: 30px; border-radius: 5px; object-fit: cover; border: 1px solid #ddd; }
+      .footer { margin-top: 30px; border-top: 1px solid #ddd; padding-top: 10px; text-align: right; font-size: 9px; color: #9ca3af; font-style: italic; }
+    </style></head><body>
+    <div class="main-header"><div><h1 class="main-title">Listado Institucional</h1><p class="main-subtitle">Ciclo 2026 - Turno ${turn === 'morning' ? 'Mañana' : 'Tarde'}</p></div><img src="${LOGO_URL}" style="height: 50px;" /></div>`;
+
+    groupsList.forEach(g => {
+        const sorted = [...g.students].sort((a,b) => a.lastName.localeCompare(b.lastName));
+        let supText = g.sup1 || '-'; if (g.sup2) supText += ` / ${g.sup2}`;
+        const aulaText = g.classroom ? ` | 🏫 AULA: ${g.classroom}` : '';
+        
+        fullHtml += `<div class="group-section"><div class="group-header"><h2 class="group-name">${g.name}</h2><div class="group-staff">DOC: ${g.teacher || 'VACANTE'} | AUX: ${g.aux || '-'} | SUP: ${supText} ${aulaText}</div></div>
+        <table><thead><tr>
+          <th width="3%">#</th>
+          ${printColumns.photo ? '<th width="5%">Foto</th>' : ''}
+          <th width="30%">Apellido y Nombre</th>
+          ${printColumns.dni ? '<th width="12%">DNI</th>' : ''}
+          ${printColumns.birthDate ? '<th width="12%">Nacimiento</th>' : ''}
+          ${printColumns.healthInsurance ? '<th width="15%">Obra Social</th>' : ''}
+          ${printColumns.contacts ? '<th>Familia / Contacto</th>' : ''}
+        </tr></thead><tbody>`;
+
+        sorted.forEach((s, i) => {
+            fullHtml += `<tr>
+                <td style="text-align:center;">${i+1}</td>
+                ${printColumns.photo ? `<td>${s.photoUrl ? `<img src="${s.photoUrl}" class="photo-img"/>` : '-'}</td>` : ''}
+                <td style="font-weight:bold;text-transform:uppercase;">${s.lastName}, ${s.firstName}</td>
+                ${printColumns.dni ? `<td>${s.dni||'-'}</td>` : ''}
+                ${printColumns.birthDate ? `<td>${getSafeDate(s.birthDate)}</td>` : ''}
+                ${printColumns.healthInsurance ? `<td>${s.healthInsurance||'S/D'}</td>` : ''}
+                ${printColumns.contacts ? `<td>${g.isInclusionGroup ? `Esc: ${s.originSchool}` : `M: ${s.motherName||'-'} (${s.motherContact||'-'}) / P: ${s.fatherName||'-'}`}</td>` : ''}
+            </tr>`;
+        });
+        fullHtml += `</tbody></table></div>`;
+    });
+    fullHtml += `<div class="footer">Generado el ${new Date().toLocaleDateString()}</div></body></html>`;
+    const doc = iframe.contentWindow.document; doc.open(); doc.write(fullHtml); doc.close();
+    setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
+  };
+const printStaffOrganization = (groupsList) => {
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    let html = `<html><head><title>Planilla de Organización</title><style>
+      @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
+      body{font-family:'Roboto', sans-serif; padding:20px; color:#333;}
+      h1 { text-align: center; color: #4c1d95; text-transform: uppercase; font-size: 20px; margin-bottom: 20px; border-bottom: 3px solid #7c3aed; padding-bottom: 10px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+      th { background-color: #7c3aed; color: white; text-transform: uppercase; font-size: 10px; padding: 10px; border: 1px solid #ddd; }
+      td { padding: 10px; border: 1px solid #ddd; font-size: 11px; font-weight: bold; text-align: center; text-transform: uppercase; }
+      tr:nth-child(even) { background-color: #f3f4f6; }
+      .footer { margin-top: 20px; text-align: right; font-size: 9px; color: #aaa; font-style: italic; }
+    </style></head><body>
+    <h1>Planilla de Organización de Personal - Turno ${turn === 'morning' ? 'Mañana' : 'Tarde'}</h1>
+    <table>
+      <thead>
+        <tr>
+          <th>Nivel</th>
+          <th>Grupo</th>
+          <th>Docente / DAI</th>
+          <th>Auxiliar</th>
+          <th>Aula Física</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+    groupsList.forEach(g => {
+        html += `<tr>
+          <td>${g.students[0]?.level || '-'}</td>
+          <td style="color: #7c3aed;">${g.name}</td>
+          <td>${g.teacher || 'VACANTE'} ${g.teacher2 ? `/ ${g.teacher2}` : ''}</td>
+          <td>${g.aux || '-'}</td>
+          <td>${g.classroom || '-'}</td>
+        </tr>`;
+    });
+
+    html += `</tbody></table><p class="footer">Generado el ${new Date().toLocaleDateString()}</p></body></html>`;
+    
+    const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close();
+    setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); document.body.removeChild(iframe); }, 500);
+  };
+  const handlePrintAll = () => { printGroups(groups); };
+  const handlePrintSingleGroup = (g) => { printGroups([g]); };
+
+const handleReportAbsenteeism = async () => {
+      if(!selectedStudent) return;
+      const details = prompt(`¿Motivo del ausentismo o conflicto de ${selectedStudent.firstName}?`);
+      if(!details) return;
+
+      try {
+          const caseData = {
+              studentId: selectedStudent.id,
+              studentName: `${selectedStudent.lastName}, ${selectedStudent.firstName}`,
+              level: selectedStudent.level || 'Sin Nivel',
+              group: turn === 'morning' ? selectedStudent.groupMorning : selectedStudent.groupAfternoon,
+              reason: details,
+              reportedBy: user.firstName,
+              status: 'Pendiente',
+              steps: {
+                  llamada: { done: false, date: null, obs: '' },
+                  continuidad: { sent: false, date: null },
+                  entrevista: { done: false, date: null }
+              },
+              history: [{ date: new Date().toISOString(), text: `Reporte inicial: ${details}`, author: user.firstName }],
+              createdAt: serverTimestamp(),
+              cycle: '2026'
+          };
+          
+          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'), caseData);
+
+          if (new Date() >= new Date('2026-05-01')) {
+              const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+              await updateDoc(userRef, { score: increment(15) });
+          }
+
+          alert("✅ Caso derivado a Trabajo Social (+15 pts).");
+          setActiveTab('social'); 
+      } catch (e) { alert("Error: " + e.message); }
+  };
+
+// --- FUNCIÓN UNIFICADA DE BITÁCORA ---
+  const handleSaveIncident = async (type, severity = "medium", text = "") => {
+    const activeStudent = showBitacoraModal || selectedStudent;
+    if (!activeStudent) return;
+
+    setSavingIncident(true);
+
+    const newInc = { 
+        date: new Date().toISOString(), 
+        type: text ? "Nota" : type, 
+        severity: severity, 
+        text: text || type, 
+        author: user.fullName || user.firstName,
+        authorId: user.id
+    }; 
+
+    try { 
+        const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', activeStudent.id); 
+        
+        // 1. Guardamos el incidente en el alumno
+        await updateDoc(studentRef, { 
+            incidents: arrayUnion(newInc) 
+        }); 
+
+        // 2. --- PUNTOS CHALLENGE / MAYO ---
+        // Se activa si es >= 1 de Mayo
+        if (new Date() >= new Date('2026-05-01')) {
+            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+            await updateDoc(userRef, { score: increment(10) });
+        }
+
+        // 3. Actualización de interfaz local
+        if (viewingStudent && viewingStudent.id === activeStudent.id) {
+            setViewingStudent(prev => ({...prev, incidents: [...(prev.incidents || []), newInc]}));
+        }
+
+        // 4. Limpieza y cierre
+        setNewNote("");
+        setIsWriting(false);
+        if (typeof setShowBitacoraModal === 'function') setShowBitacoraModal(null);
+        
+        alert("✅ Registro guardado correctamente.");
+    } catch (e) {
+        console.error("Error al guardar:", e);
+        alert("❌ Error: " + e.message);
+    } finally {
+        setSavingIncident(false);
+    }
+  };
+ const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
+
+const handleUpdateGroup = async (e) => { 
+      e.preventDefault(); 
+      if (!editingGroup) return; 
+      setUpdatingGroup(true); 
+      const fd = new FormData(e.target); 
+      const updates = {}; 
+      const suf = turn === 'morning' ? 'Morning' : 'Afternoon'; 
+
+      const getName = (id) => {
+        if (!id) return "";
+        const found = usersList.find(u => u.id === id);
+        return found ? found.fullName : "";
+      };
+
+      try {
+          if (!editingGroup.isInclusionGroup) { 
+              // Docente 1
+              const tId = fd.get('teacher');
+              updates[`teacherId${suf}`] = tId; 
+              updates[`teacher${suf}`] = getName(tId);
+
+              // Docente 2 (Pareja)
+              const t2Id = fd.get('teacher2Id');
+              updates[`teacherId2${suf}`] = t2Id;
+              updates[`teacher2${suf}`] = getName(t2Id);
+
+              // Auxiliar
+              const aId = fd.get('auxId');
+              updates[`auxId${suf}`] = aId;
+              updates[`aux${suf}`] = getName(aId);
+
+              // Especiales (1, 2 y 3)
+              [1, 2, 3].forEach(num => {
+                const specId = fd.get(`special${num}Id`);
+                updates[`special${num}Id${suf}`] = specId || "";
+                updates[`special${num}${suf}`] = getName(specId);
+              });
+
+              updates[`group${suf}`] = fd.get('groupName'); 
+              updates.classroom = fd.get('classroom'); 
+              updates[`driveLink${suf}`] = fd.get('driveLink');
+          } else { 
+              const dId = fd.get('teacher');
+              updates['daiId'] = dId; 
+              updates['daiMorning'] = getName(dId); 
+              updates['daiAfternoon'] = getName(dId);
+              updates[`driveLink${suf}`] = fd.get('driveLink');
+          } 
+      
+          const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)); 
+          await Promise.all(promises); 
+          setEditingGroup(null); 
+      } catch (err) { 
+          alert("Error: " + err.message); 
+      } finally { 
+          setUpdatingGroup(false); 
+      } 
+  };
+
+  const staffOptions = usersList.filter(u => ['Docente', 'Auxiliar/Preceptor', 'Equipo Técnico', 'Profes Especiales', 'DAI', 'Inclusión'].includes(u.role));
+  const techOptions = usersList.filter(u => u.role === 'Equipo Técnico' || u.role === 'Equipo Técnico Inclusión' || u.role === 'Trabajadora Social');
+  const specialOptions = usersList.filter(u => u.role === 'Profes Especiales' || u.role === 'Docente');
+  const handleToggleInforme = async (estudiante, numeroInforme) => {
+  const campo = `informe${numeroInforme}`;
+  const estadoActual = estudiante[campo] || { enviado: false };
+  let nuevoEstado = {};
+
+  if (!estadoActual.enviado) {
+    // Pasa a ENVIADO (Naranja)
+    nuevoEstado = { enviado: true, fechaEnvio: new Date().toISOString(), devuelto: false, archivado: false };
+  } else if (!estadoActual.devuelto) {
+    // Pasa a DEVUELTO (Azul)
+    nuevoEstado = { ...estadoActual, devuelto: true, fechaDevuelto: new Date().toISOString() };
+  } else if (!estadoActual.archivado) {
+    // Pasa a ARCHIVADO (Verde)
+    nuevoEstado = { ...estadoActual, archivado: true };
+  } else {
+    // RESET (Vuelve a Gris)
+    nuevoEstado = { enviado: false };
+  }
+
+  try {
+    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', estudiante.id);
+    await updateDoc(docRef, { [campo]: nuevoEstado });
+    // Aquí podrías agregar un mensaje de éxito si quisieras
+  } catch (error) {
+    console.error("Error al actualizar informe:", error);
+  }
+};
+  const handleAddGroupComment = async (e, groupName) => {
+    e.preventDefault();
+    const text = e.target.comment.value;
+    if (!text.trim()) return;
+
+    try {
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'group_mural'), {
+            groupName,
+            text,
+            author: user.firstName,
+            authorId: user.id,
+            createdAt: serverTimestamp()
+        });
+        e.target.reset();
+    } catch (err) { alert(err.message); }
+};
+const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
+    const campo = `informe${numeroInforme}`;
+    const estadoActual = estudiante[campo] || { status: 'Pendiente' };
+    let nuevoEstado = {};
+
+    // Ciclo de estados con texto
+    switch (estadoActual.status) {
+      case 'Pendiente': nuevoEstado = { status: 'Hecho' }; break;
+      case 'Hecho': nuevoEstado = { status: 'Impreso' }; break;
+      case 'Impreso': nuevoEstado = { status: 'Enviado', fechaEnvio: new Date().toISOString() }; break;
+      case 'Enviado': nuevoEstado = { status: 'Archivado' }; break;
+      default: nuevoEstado = { status: 'Pendiente' }; // Reinicia el ciclo
+    }
+
+    try {
+      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', estudiante.id);
+      await updateDoc(docRef, { [campo]: nuevoEstado });
+      
+      const nuevosEstudiantes = selectedGroupDetails.students.map(s => 
+        s.id === estudiante.id ? { ...s, [campo]: nuevoEstado } : s
+      );
+      setSelectedGroupDetails({ ...selectedGroupDetails, students: nuevosEstudiantes });
+      
+      if (new Date() >= new Date('2026-05-01')) {
+        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+        await updateDoc(userRef, { score: increment(5) });
+      }
+    } catch (error) { console.error("Error:", error); }
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-slate-100 animate-in fade-in relative">
+      {!isManagement && (
+        <div className="bg-white px-6 py-4 border-b flex items-center gap-4 shrink-0">
+          <div className="w-12 h-12 bg-violet-100 rounded-2xl flex items-center justify-center text-violet-600 shadow-inner"> <User size={24} /> </div>
+          <div>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Docente Identificada</p>
+            <h2 className="text-lg font-black text-violet-900 uppercase italic leading-none">{user.fullName || `${user.firstName} ${user.lastName}`}</h2>
+            <p className="text-[9px] font-bold text-orange-500 mt-1 uppercase">ID: {user.id.substring(0,8)}...</p>
+          </div>
+        </div>
+      )}
+      <div className="bg-white p-4 shadow-sm z-10 sticky top-0 flex flex-col gap-3">
+          <div className="flex justify-between items-center">
+              <div>
+                  <h2 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2"><Grid size={24} className="text-orange-500"/> Mis Grupos</h2>
+                  <p className="text-xs text-gray-400 font-bold uppercase">{isManagement ? "Vista Institucional" : `Espacio Docente`}</p>
+              </div>
+              {isManagement && <button onClick={() => { setGroupsToPrint(groups); setShowPrintOptions(true); }} className="bg-violet-100 text-violet-700 p-2 rounded-xl shadow-sm hover:bg-violet-200 transition" title="Imprimir Todo"><FileText size={24}/></button>}
+          </div>
+          <div className={`flex gap-2 ${viewFilter === 'inclusion' ? 'justify-end' : ''}`}>
+              {viewFilter !== 'inclusion' && (
+                  <div className="flex bg-gray-100 p-1 rounded-xl flex-1">
+                      <button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-400'}`}>☀️ Mañana</button>
+                      <button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 Tarde</button>
+                  </div>
+              )}
+              {isManagement && (
+                  <div className="flex bg-gray-100 p-1 rounded-xl">
+                      <button onClick={() => setViewFilter('sede')} className={`px-4 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'sede' ? 'bg-white shadow text-blue-600' : 'text-gray-400'}`}>Sede</button>
+                      <button onClick={() => setViewFilter('inclusion')} className={`px-4 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'inclusion' ? 'bg-white shadow text-indigo-600' : 'text-gray-400'}`}>Inclusión</button>
+                  </div>
+              )}
+          </div>
+      </div>
+      
+      <div className="relative flex-1 overflow-hidden">
+          <button onClick={() => scroll('left')} className="hidden md:flex absolute left-2 top-1/2 z-20 bg-white/90 text-violet-600 p-3 rounded-full shadow-xl border border-gray-100 hover:scale-110 transition -translate-y-1/2"><ChevronLeft size={24}/></button>
+          <button onClick={() => scroll('right')} className="hidden md:flex absolute right-2 top-1/2 z-20 bg-white/90 text-violet-600 p-3 rounded-full shadow-xl border border-gray-100 hover:scale-110 transition -translate-y-1/2"><ChevronRight size={24}/></button>
+          <div ref={scrollRef} className={`h-full overflow-x-auto p-6 scroll-smooth flex gap-6 items-start ${groups.length <= 2 ? 'justify-center' : ''}`}>
+                {groups.length === 0 && (<div className="m-auto text-center opacity-50"><p className="font-bold text-gray-400">No hay grupos visibles.</p></div>)} 
+                {groups.map((g) => (
+                   <div key={g.name} className={`flex flex-col h-[calc(100vh-220px)] md:h-fit bg-white rounded-[30px] border shadow-sm relative overflow-hidden group-hover:shadow-md transition shrink-0 ${groups.length <= 2 ? 'w-full max-w-[900px]' : 'min-w-[280px] w-[300px]'} ${g.isInclusionGroup ? 'border-indigo-200' : 'border-gray-200'}`}>
+                      <div className={`p-4 border-b-4 relative ${g.isInclusionGroup ? 'bg-indigo-50 border-indigo-400' : (turn==='morning'?'border-orange-400 bg-orange-50':'border-indigo-400 bg-indigo-50')}`}>
+  <div className="absolute top-2 right-2 flex gap-1">
+      {/* NUEVO BOTÓN + (MODO ENFOQUE) */}
+      <button 
+        onClick={() => setSelectedGroupDetails(g)} 
+        className="p-2 bg-violet-600 text-white rounded-full shadow-lg hover:scale-110 transition active:scale-95" 
+        title="Ver Grupo Completo"
+      >
+        <Plus size={16}/>
+      </button>
+      <button onClick={() => { setGroupsToPrint([g]); setShowPrintOptions(true); }} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>
+      {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"><Edit3 size={14}/></button>}
+  </div>
+  
+  <div className="flex items-center gap-2 pr-12 flex-wrap">
+    <h3 className="font-black text-gray-800 text-lg leading-tight">{g.name}</h3>
+    <span className="bg-white/80 text-violet-700 px-2 py-0.5 rounded-md text-[9px] font-black shadow-sm border border-violet-100 shrink-0">{g.students.length} ALUMNXS</span>
+  </div>
+
+  <div className="mt-2 text-[11px] text-gray-500 font-medium space-y-0.5">
+      <p>DOC: <span className="font-bold text-violet-700 uppercase">{g.teacher || 'Sin asignar'}</span></p>
+      {g.aux && <p>AUX: <span className="font-bold text-slate-600 uppercase">{g.aux}</span></p>}
+    {g.classroom && (<p className="text-orange-600 font-black">🏫 Aula {g.classroom}</p>)}
+  </div>
+</div>
+                   
+                     <div className="flex-1 overflow-y-auto p-4 bg-gray-50 grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-3 content-start">
+                        {g.students.map(s => (
+                            <div key={s.id} onClick={() => {setSelectedStudent(s); setActiveTab('info');}} className="bg-white p-3 rounded-2xl shadow-sm flex items-center gap-3 cursor-pointer hover:scale-[1.02] transition">
+                                <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden shrink-0 border border-gray-100">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="flex items-center justify-center w-full h-full font-bold text-gray-400">{s.firstName[0]}</div>}</div>
+                                <div><h4 className="font-bold text-gray-700 text-sm">{s.firstName} {s.lastName}</h4>{g.isInclusionGroup && <p className="text-[10px] text-indigo-500 font-bold">Esc. {s.originSchool}</p>}</div>
+                                <button onClick={(e) => {e.stopPropagation(); setShowBitacoraModal(s); setIsWriting(false); setNewNote("");}} className="ml-auto w-8 h-8 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center hover:bg-violet-600 hover:text-white transition">⚡</button>
+                            </div>
+                        ))}
+                      </div>
+                    </div>
+                ))}
+          </div>
+      </div>
+
+      {showBitacoraModal && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-emerald-500">
+        <div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3><p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p></div><button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button></div>
+        {!isWriting ? (
+            <>
+                <div className="grid grid-cols-2 gap-3 mb-4 max-h-[50vh] overflow-y-auto">{INCIDENT_TYPES.map((type) => (<button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? 'opacity-50' : 'hover:brightness-95'}`}><span className="text-2xl">{type.emoji}</span><span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span></button>))}</div>
+                <button onClick={() => setIsWriting(true)} className="w-full py-3 bg-gray-900 text-white rounded-2xl font-bold uppercase text-xs flex items-center justify-center gap-2"><Edit3 size={16}/> Escribir Nota</button>
+            </>
+        ) : (
+            <div className="animate-in slide-in-from-bottom">
+                <textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Escribí los detalles..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm mb-2 h-24 outline-none focus:border-violet-500"/>
+                <div className="flex gap-2"><button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs hover:bg-gray-100 rounded-xl">Volver</button><button onClick={() => addIncident('medium', newNote)} disabled={!newNote.trim()} className="flex-1 py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg">Guardar</button></div>
+            </div>
+        )}
+      </div></div>)}
+
+     {editingGroup && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+          <form onSubmit={handleUpdateGroup} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-violet-900 uppercase italic">Editar Grupo</h3>
+              <button type="button" onClick={() => setEditingGroup(null)}><X size={20}/></button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-violet-50 p-3 rounded-xl border border-violet-100 text-center">
+                <p className="text-xs text-violet-500 font-bold uppercase mb-1">
+                  {editingGroup.isInclusionGroup ? "Editando Inclusión" : "Editando Sede"}
+                </p>
+                {!editingGroup.isInclusionGroup && (
+                  <input name="groupName" defaultValue={editingGroup.name} className="font-black text-2xl text-violet-900 bg-transparent text-center w-full outline-none border-b border-violet-200" placeholder="Nombre Grupo" />
+                )}
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-500 ml-1">Docente Titular (1)</label>
+                <select name="teacher" defaultValue={editingGroup.teacherId || ""} className="w-full p-3 bg-white border-2 border-violet-100 rounded-xl outline-none font-bold text-xs">
+                  <option value="">Seleccionar...</option>
+                  {usersList.map(u => <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>)}
+                </select>
+              </div>
+
+              {!editingGroup.isInclusionGroup && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 ml-1">Docente Pareja (2)</label>
+                    <select name="teacher2Id" defaultValue={editingGroup.teacherId2 || ""} className="w-full p-3 bg-white border-2 border-violet-100 rounded-xl outline-none font-bold text-xs">
+                      <option value="">Ninguno / Vacante</option>
+                      {usersList.map(u => <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>)}
+                    </select>
+                  </div>
+
+                 <div>
+  <label className="text-xs font-bold text-gray-500 ml-1">Auxiliar / Preceptora</label>
+  <select 
+    name="auxId" 
+    defaultValue={editingGroup.auxId || ""} 
+    className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs border border-transparent focus:border-violet-200"
+  >
+    <option value="">Sin asignar</option>
+    {/* Filtro ampliado: Aparecen Docentes, Auxiliares, Preceptores e Inclusión */}
+    {usersList
+      .filter(u => ['Docente', 'Auxiliar/Preceptor', 'Preceptora', 'Auxiliar', 'Inclusión'].includes(u.role))
+      .map(u => (
+        <option key={u.id} value={u.id}>
+          {u.lastName}, {u.firstName} ({u.role})
+        </option>
+      ))
+    }
+  </select>
+</div>
+
+                  <div className="bg-violet-50/50 p-4 rounded-2xl border border-violet-100 space-y-3">
+                    <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest ml-1">Profesores Especiales</p>
+                    <select name="special1Id" defaultValue={editingGroup.special1Id || ""} className="w-full p-2 bg-white rounded-lg border border-violet-100 text-xs font-bold">
+                      <option value="">Especial 1...</option>
+                      {usersList.filter(u => u.role === "Profes Especiales").map(u => <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>)}
+                    </select>
+                    <select name="special2Id" defaultValue={editingGroup.special2Id || ""} className="w-full p-2 bg-white rounded-lg border border-violet-100 text-xs font-bold">
+                      <option value="">Especial 2...</option>
+                      {usersList.filter(u => u.role === "Profes Especiales").map(u => <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>)}
+                    </select>
+                    <select name="special3Id" defaultValue={editingGroup.special3Id || ""} className="w-full p-2 bg-white rounded-lg border border-violet-100 text-xs font-bold">
+                      <option value="">Especial 3...</option>
+                      {usersList.filter(u => u.role === "Profes Especiales").map(u => <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>)}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 ml-1">Aula Física</label>
+                    <input name="classroom" defaultValue={editingGroup.classroom || ""} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" placeholder="Ej: 4"/>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="text-xs font-bold text-green-600 ml-1">Drive del Grupo</label>
+                <input name="driveLink" defaultValue={editingGroup.driveLink || ""} className="w-full p-3 bg-green-50 border border-green-100 rounded-xl outline-none font-bold text-xs text-green-700" placeholder="https://..." />
+              </div>
+              {/* Campo para el link de fotos en la edición del grupo */}
+<div className="space-y-4 mt-4">
+  {/* CAMPO 1: CARPETA DE FOTOS (VERDE) */}
+  <div>
+    <label className="text-[10px] font-black text-emerald-600 uppercase ml-1">Link Carpeta de Fotos (Drive)</label>
+    <input 
+      type="text"
+      placeholder="Pegá el link de la carpeta de FOTOS acá"
+      defaultValue={editingGroup.driveLink || ""}
+      onChange={(e) => setEditingGroup({...editingGroup, driveLink: e.target.value})}
+      className="w-full p-3 bg-emerald-50 border border-emerald-100 rounded-2xl text-xs font-bold text-emerald-800 outline-none focus:ring-2 ring-emerald-200"
+    />
+  </div>
+
+  {/* CAMPO 2: CARPETA INSTITUCIONAL (AZUL) */}
+  <div>
+    <label className="text-[10px] font-black text-blue-600 uppercase ml-1">Link Carpeta Drive (Documentación)</label>
+    <input 
+      type="text"
+      placeholder="Pegá el link del DRIVE INSTITUCIONAL acá"
+      defaultValue={editingGroup.institucionalDrive || ""}
+      onChange={(e) => setEditingGroup({...editingGroup, institucionalDrive: e.target.value})}
+      className="w-full p-3 bg-blue-50 border border-blue-100 rounded-2xl text-xs font-bold text-blue-800 outline-none focus:ring-2 ring-blue-200"
+    />
+  </div>
+</div>
+              <button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs mt-4">
+                {updatingGroup ? <span>Cargando...</span> : <span>Aplicar Cambios</span>}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {showPrintOptions && (
+        <div className="fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600">
+            <h3 className="text-xl font-black text-violet-900 uppercase italic mb-4 text-center">Info a Imprimir</h3>
+            <p className="text-[10px] text-gray-400 font-bold uppercase text-center mb-4 tracking-widest">Listado de Estudiantes</p>
+            <div className="grid grid-cols-1 gap-2 mb-6">
+              {[
+                {id: "photo", label: "📸 Foto del Alumno"},
+                {id: "dni", label: "🪪 DNI"},
+                {id: "birthDate", label: "📅 Fecha Nacimiento"},
+                {id: "healthInsurance", label: "🏥 Obra Social"},
+                {id: "contacts", label: "📞 Contactos Familia"},
+              ].map(col => (
+                <label key={col.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl cursor-pointer hover:bg-violet-50 transition border border-transparent hover:border-violet-200">
+                  <span className="text-xs font-bold text-gray-600 uppercase">{col.label}</span>
+                  <input 
+                    type="checkbox" 
+                    checked={printColumns[col.id]} 
+                    onChange={() => setPrintColumns({...printColumns, [col.id]: !printColumns[col.id]})}
+                    className="w-5 h-5 accent-violet-600"
+                  />
+                </label>
+              ))}
+            </div>
+
+            <div className="relative h-px bg-gray-100 my-6">
+              <span className="absolute left-1/2 -translate-x-1/2 -top-2 bg-white px-3 text-[8px] font-black text-gray-300 uppercase tracking-widest">Otras Plantillas</span>
+            </div>
+
+            <button 
+              onClick={() => { printStaffOrganization(groupsToPrint); setShowPrintOptions(false); }}
+              className="w-full py-4 bg-teal-50 text-teal-700 border-2 border-teal-100 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-teal-100 transition active:scale-95 flex items-center justify-center gap-2 mb-6"
+            >
+              <Users size={16}/> Solo Organización (Cargos)
+            </button>
+
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setShowPrintOptions(false)} className="flex-1 py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
+              <button 
+                onClick={() => { printGroups(groupsToPrint); setShowPrintOptions(false); }} 
+                className="flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg hover:bg-violet-700 transition"
+              >
+                Imprimir Alumnos
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {groupStats && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[250] flex items-center justify-center p-4" onClick={() => setGroupStats(null)}><div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-6"><div><h3 className="text-xl font-black text-violet-900 uppercase italic">Análisis del Grupo</h3><p className="text-xs text-gray-500 font-bold">{groupStats.name}</p></div><button onClick={() => setGroupStats(null)}><X size={20}/></button></div></div></div>)}
+{selectedStudent && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            
+            {/* CABECERA CON PESTAÑAS */}
+            <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0">
+              <button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition">
+                <X size={20}/>
+              </button>
+              
+              <div className="flex items-center gap-4">
+                <div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">
+                  {selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold uppercase tracking-tight leading-tight">{selectedStudent.lastName}, {selectedStudent.firstName}</h2>
+                  <p className="opacity-90 text-xs font-bold uppercase mt-1 tracking-widest text-cyan-50">{selectedStudent.modality || 'Sede'}</p>
+                </div>
+              </div>
+
+              <div className="flex gap-2 mt-6">
+                <button onClick={() => setActiveTab("info")} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === "info" ? "bg-white text-blue-600 shadow-md" : "bg-black/20 text-white/70"}`}>Datos</button>
+                <button onClick={() => setActiveTab("history")} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === "history" ? "bg-white text-blue-600 shadow-md" : "bg-black/20 text-white/70"}`}>Bitácora</button>
+              </div>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-6">
+              {activeTab === "info" ? (
+                /* --- PESTAÑA DATOS (DNI, EDAD, FAMILIA) --- */
+                <div className="space-y-5 animate-in fade-in">
+                  
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center shadow-sm">
+                      <p className="text-[8px] font-black text-slate-400 uppercase mb-1">DNI</p>
+                      <p className="font-bold text-slate-800 text-xs">{selectedStudent.dni || '-'}</p>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center shadow-sm">
+                      <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Nacimiento</p>
+                      <p className="font-bold text-slate-800 text-[10px]">{selectedStudent.birthDate ? new Date(selectedStudent.birthDate + 'T12:00:00').toLocaleDateString('es-AR') : '-'}</p>
+                    </div>
+                    <div className="bg-blue-50 p-3 rounded-2xl border border-blue-100 text-center shadow-sm">
+                      <p className="text-[8px] font-black text-blue-400 uppercase mb-1">Edad Actual</p>
+                      <p className="font-bold text-blue-700 text-xs">{calculateAge(selectedStudent.birthDate)} años</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 shadow-sm">
+                    <h3 className="font-black text-orange-800 text-[10px] uppercase mb-2 tracking-widest flex items-center gap-1">
+                      <Users size={12}/> Contacto Familiar
+                    </h3>
+                    <div className="space-y-1">
+                      <p className="text-sm text-slate-700">Madre: <b className="text-slate-900">{selectedStudent.motherName || 'S/D'}</b> {selectedStudent.motherContact && <span className="text-blue-600 font-bold ml-1">({selectedStudent.motherContact})</span>}</p>
+                      <p className="text-sm text-slate-700">Padre: <b className="text-slate-900">{selectedStudent.fatherName || 'S/D'}</b> {selectedStudent.fatherContact && <span className="text-blue-600 font-bold ml-1">({selectedStudent.fatherContact})</span>}</p>
+                    </div>
+                  </div>
+
+                  <button onClick={handleReportAbsenteeism} className="w-full py-4 bg-red-50 text-red-700 font-black rounded-2xl border border-red-200 flex items-center justify-center gap-2 hover:bg-red-100 transition shadow-sm uppercase text-[10px] tracking-widest">
+                    <AlertTriangle size={18}/> Reportar Ausentismo (+3 días)
+                  </button>
+
+                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
+                    <h3 className="font-black text-gray-500 text-[10px] uppercase mb-2 tracking-widest">Ubicación Actual</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <p className="text-xs font-bold text-slate-400">TM: <b className="text-slate-800 block uppercase">{selectedStudent.groupMorning || 'No asiste'}</b></p>
+                      <p className="text-xs font-bold text-slate-400">TT: <b className="text-slate-800 block uppercase">{selectedStudent.groupAfternoon || 'No asiste'}</b></p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* --- PESTAÑA BITÁCORA (BOTONERA + HISTORIAL) --- */
+                <div className="space-y-4 animate-in fade-in pb-10">
+                  
+                  {/* BOTONERA DE EMOJIS (Para carga rápida) */}
+                  {!isWriting && (
+                    <div className="grid grid-cols-3 gap-2 mb-4">
+                      {INCIDENT_TYPES.map((type) => (
+                        <button 
+                          key={type.label} 
+                          onClick={() => handleSaveIncident(type.label, type.severity)} 
+                          disabled={savingIncident}
+                          className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? 'opacity-50' : ''}`}
+                        >
+                          <span className="text-2xl">{type.emoji}</span>
+                          <span className="text-[9px] font-black uppercase text-center leading-tight">{type.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* REDACTAR NOTA MANUAL */}
+                  <div className="bg-slate-100 p-4 rounded-2xl border border-slate-200">
+                    {isWriting ? (
+                      <div className="animate-in slide-in-from-bottom-2">
+                        <textarea 
+                          autoFocus 
+                          value={newNote} 
+                          onChange={e => setNewNote(e.target.value)} 
+                          placeholder="Escribí los detalles de la nota..." 
+                          className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm mb-2 h-24 outline-none focus:ring-2 ring-violet-200"
+                        />
+                        <div className="flex gap-2">
+                          <button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
+                          <button onClick={() => addIncident('medium', newNote)} disabled={!newNote.trim()} className="flex-[2] py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-[10px] shadow-lg">Guardar Nota</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button onClick={() => setIsWriting(true)} className="w-full py-3 bg-slate-800 text-white rounded-xl font-bold uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 hover:bg-slate-700 transition">
+                        <Edit3 size={16}/> Escribir Nota Detallada
+                      </button>
+                    )}
+                  </div>
+
+                  {/* LISTADO DE INCIDENTES RECIENTES */}
+                  <div className="space-y-2 mt-4">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Historial de Bitácora</h4>
+                    {selectedStudent.incidents && selectedStudent.incidents.length > 0 ? (
+                      selectedStudent.incidents.slice().reverse().map((inc, i) => (
+                        <div key={i} className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-[10px] font-black text-violet-400 uppercase">{new Date(inc.date).toLocaleDateString('es-AR')}</span>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase italic">Por: {inc.author}</span>
+                          </div>
+                          <p className="font-bold text-slate-700 text-sm leading-relaxed">{inc.text || inc.type}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-10 opacity-30">
+                         <p className="text-xs font-bold uppercase tracking-widest italic">Sin registros de bitácora</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* CIERRE DEL PIE DEL MODAL */}
+            <div className="p-4 border-t bg-white shrink-0">
+               <button onClick={() => setSelectedStudent(null)} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg">Cerrar Ficha</button>
+            </div>
+
+          </div>
+        </div>
+      )}
+{selectedGroupDetails && (
+  <div className="fixed inset-0 bg-slate-900 z-[500] flex flex-col animate-in fade-in duration-300 overflow-hidden">
+    {/* HEADER DINÁMICO */}
+    <div className="bg-white p-4 flex justify-between items-center border-b-4 border-violet-100 shrink-0 z-[600]">
+      <div className="flex items-center gap-3">
+        <div className="bg-violet-600 text-white p-2 rounded-xl shadow-lg">
+           <Users size={20}/>
+        </div>
+        <div>
+          <h2 className="text-lg md:text-2xl font-black text-slate-800 uppercase italic leading-none">{selectedGroupDetails.name}</h2>
+          <p className="text-[9px] font-bold text-violet-400 uppercase tracking-[2px]">Control de Gestión</p>
+        </div>
+      </div>
+      
+      <div className="flex items-center gap-2">
+        {/* ICONO DE CHAT PARA CELU */}
+        <button 
+          onClick={() => {
+            setShowMobileChat(true);
+            const total = groupMessages[selectedGroupDetails.name]?.length || 0;
+            localStorage.setItem(`read_${selectedGroupDetails.name}_${user.id}`, total);
+          }}
+          className="lg:hidden relative p-3 bg-orange-100 text-orange-600 rounded-full active:scale-90 transition-all"
+        >
+          <MessageSquare size={24} />
+          {(() => {
+            const total = groupMessages[selectedGroupDetails.name]?.length || 0;
+            const read = parseInt(localStorage.getItem(`read_${selectedGroupDetails.name}_${user.id}`) || "0");
+            if (total > read) return <span className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-[10px] font-black flex items-center justify-center rounded-full border-2 border-white animate-bounce">{total - read}</span>;
+          })()}
+        </button>
+
+        <button onClick={() => setSelectedGroupDetails(null)} className="bg-slate-100 p-3 rounded-full text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all"><X size={24}/></button>
+      </div>
+    </div>
+
+    <div className="flex-1 flex flex-row overflow-hidden bg-white">
+      
+      {/* PANEL IZQUIERDO: INFORMES, STAFF Y DRIVE */}
+      <div className={`flex-1 flex flex-col h-full border-r border-slate-100 bg-white overflow-y-auto custom-scrollbar ${showMobileChat ? 'hidden lg:flex' : 'flex'}`}>
+        <div className="p-6 space-y-6">
+            
+            {/* BOTONES DRIVE CORREGIDOS (Invertidos según tu pedido) */}
+            <div className="grid grid-cols-2 gap-3">
+                <button onClick={() => selectedGroupDetails.institucionalDrive ? window.open(selectedGroupDetails.institucionalDrive, '_blank') : alert('Falta link')}
+                    className="flex items-center gap-3 p-4 rounded-2xl bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 transition-all active:scale-95 shadow-sm">
+                    <FileText size={20}/> <span className="font-black text-[10px] uppercase tracking-tighter">Drive Institucional</span>
+                </button>
+                <button onClick={() => selectedGroupDetails.driveLink ? window.open(selectedGroupDetails.driveLink, '_blank') : alert('Falta link')}
+                    className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-all active:scale-95 shadow-sm">
+                    <Folder size={20}/> <span className="font-black text-[10px] uppercase tracking-tighter">Carpeta Fotos</span>
+                </button>
+            </div>
+
+            {/* SELECTOR DE ÉPOCA CON NUEVOS TÍTULOS */}
+            <div className="space-y-2">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Seleccionar período de informes:</p>
+                <div className="flex bg-slate-100 p-1 rounded-2xl">
+                {[
+                    {id: 1, label: 'Inicial'},
+                    {id: 2, label: 'Medio'},
+                    {id: 3, label: 'Final'}
+                ].map(epoca => (
+                    <button key={epoca.id} onClick={() => setInformeEpoca(epoca.id)} className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${informeEpoca === epoca.id ? 'bg-white text-violet-600 shadow-sm' : 'text-slate-400'}`}>
+                    Informe {epoca.label}
+                    </button>
+                ))}
+                </div>
+            </div>
+
+            {/* STAFF RESPONSABLE COMPLETO */}
+            <div className="bg-slate-50 p-5 rounded-[30px] border border-slate-100 space-y-4 shadow-inner">
+                <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-100 text-center">
+                        <p className="text-[7px] font-black text-violet-400 uppercase">Titular</p>
+                        <p className="text-[10px] font-black text-slate-700 truncate uppercase">{selectedGroupDetails.teacher}</p>
+                    </div>
+                    {selectedGroupDetails.aux && (
+                      <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-100 text-center">
+                          <p className="text-[7px] font-black text-orange-400 uppercase">Auxiliar</p>
+                          <p className="text-[10px] font-black text-slate-700 truncate uppercase">{selectedGroupDetails.aux}</p>
+                      </div>
+                    )}
+                </div>
+                <div className="px-2 space-y-1 border-t border-slate-200 pt-3">
+                    <p className="text-[9px] font-bold text-slate-500 italic flex items-center gap-1">✨ Especiales: <span className="text-slate-700 not-italic font-black uppercase">{[selectedGroupDetails.special1, selectedGroupDetails.special2, selectedGroupDetails.special3].filter(Boolean).join(' • ') || '-'}</span></p>
+                    <p className="text-[9px] font-bold text-indigo-400 flex items-center gap-1">🔍 Supervisión: <span className="text-indigo-600 font-black uppercase">{[selectedGroupDetails.sup1, selectedGroupDetails.sup2].filter(Boolean).join(' & ') || '-'}</span></p>
+                </div>
+            </div>
+
+            {/* LISTADO DE INFORMES */}
+            <div className="space-y-3 pb-20">
+                <h3 className="font-black text-sm uppercase text-slate-800 tracking-[2px] border-l-4 border-violet-500 pl-3">
+                    {informeEpoca === 1 ? 'INFORME INICIAL' : informeEpoca === 2 ? 'INFORME MEDIO' : 'INFORME FINAL'}
+                </h3>
+                <div className="grid grid-cols-1 gap-3">
+                    {selectedGroupDetails.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => {
+                        const info = s[`informe${informeEpoca}`] || { status: 'Pendiente' };
+                        const statusColors = {
+                          'Hecho': 'bg-blue-600 text-white',
+                          'Impreso': 'bg-violet-600 text-white',
+                          'Enviado': 'bg-orange-500 text-white',
+                          'Archivado': 'bg-emerald-600 text-white',
+                          'Pendiente': 'bg-slate-50 text-slate-400 border-slate-200'
+                        };
+                        return (
+                          <div key={s.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-white rounded-3xl border-2 border-slate-100 shadow-sm hover:border-violet-200 transition-all gap-4">
+                              <span className="font-black text-lg text-slate-700 uppercase tracking-tighter">{s.lastName}, {s.firstName}</span>
+                              <button 
+                                onClick={() => handleToggleInformeGrupo(s, informeEpoca)}
+                                className={`py-4 px-6 rounded-2xl text-[10px] font-black uppercase shadow-md transition-all active:scale-95 min-w-[140px] ${statusColors[info.status] || statusColors['Pendiente']}`}
+                              >
+                                {info.status}
+                              </button>
+                          </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+      </div>
+
+      {/* PANEL DERECHO: MURAL */}
+      <div 
+        className={`lg:flex lg:flex-1 flex-col bg-slate-50 relative border-l-4 border-violet-50 ${showMobileChat ? 'fixed inset-0 z-[700] flex' : 'hidden'}`}
+        onMouseEnter={() => {
+            const total = groupMessages[selectedGroupDetails.name]?.length || 0;
+            localStorage.setItem(`read_${selectedGroupDetails.name}_${user.id}`, total);
+        }}
+      >
+        <button onClick={() => setShowMobileChat(false)} className="lg:hidden absolute top-4 right-4 z-[800] bg-white p-2 rounded-full shadow-xl text-slate-800"><X size={24}/></button>
+        <div className="absolute inset-0 opacity-[0.05] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#4c1d95 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
+        
+        <div className="p-5 bg-white/80 backdrop-blur-md border-b flex items-center gap-3 shrink-0 z-10">
+            <div className="p-2 bg-orange-500 text-white rounded-xl shadow-lg shadow-orange-100"><MessageSquare size={18}/></div>
+            <div>
+                <h3 className="font-black text-slate-800 uppercase italic text-sm">Muro de Intercambio</h3>
+                <p className="text-[8px] font-bold text-orange-500 uppercase tracking-widest">Cualquier miembro del equipo puede escribir aquí ✍️</p>
+            </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 flex flex-col-reverse custom-scrollbar z-10 overscroll-contain">
+          {groupMessages[selectedGroupDetails.name]?.map(m => (
+            <div key={m.id} className={`flex flex-col ${m.authorId === user.id ? 'items-end' : 'items-start'}`}>
+              <div className={`max-w-[85%] md:max-w-[80%] p-4 rounded-[25px] shadow-sm ${
+                m.authorId === user.id ? 'bg-violet-600 text-white rounded-tr-none' : 'bg-white text-slate-700 rounded-tl-none border border-slate-200'
+              }`}>
+                <div className="flex justify-between items-center mb-1 gap-6">
+                  <span className={`text-[9px] font-black uppercase tracking-tighter ${m.authorId === user.id ? 'text-violet-200' : 'text-violet-600'}`}>{m.author}</span>
+                  <span className="text-[8px] font-bold opacity-40">{m.createdAt?.seconds ? new Date(m.createdAt.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '...'}</span>
+                </div>
+                <p className="text-sm font-medium leading-tight">{m.text}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="p-6 bg-white border-t-2 border-slate-100 z-10">
+          <form onSubmit={(e) => handleAddGroupComment(e, selectedGroupDetails.name)} className="flex items-center gap-3 bg-slate-50 p-2 rounded-[30px] border-2 border-slate-200 focus-within:border-orange-300 focus-within:bg-white transition-all shadow-inner">
+            <input name="comment" autoComplete="off" placeholder="Escribir novedad..." className="flex-1 bg-transparent border-none px-5 py-3 text-sm font-bold text-slate-700 outline-none" />
+            <button type="submit" className="bg-orange-500 text-white p-4 rounded-full shadow-lg active:scale-90 transition-transform"><Send size={20} /></button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
+      {/* MODAL BITÁCORA EXPRESS (EXTERNO) */}
+      {showBitacoraModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-emerald-500">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3>
+                <p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p>
+              </div>
+              <button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20} /></button>
+            </div>
+            {!isWriting ? (
+              <>
+                <div className="grid grid-cols-2 gap-3 mb-4 max-h-[50vh] overflow-y-auto">
+                  {INCIDENT_TYPES.map((type) => (
+                    <button
+                      key={type.label}
+                      onClick={() => handleSaveIncident(type.label, type.severity)}
+                      disabled={savingIncident}
+                      className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? "opacity-50" : "hover:brightness-95"}`}
+                    >
+                      <span className="text-2xl">{type.emoji}</span>
+                      <span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => setIsWriting(true)} className="w-full py-3 bg-gray-900 text-white rounded-2xl font-bold uppercase text-xs flex items-center justify-center gap-2"><Edit3 size={16} /> Escribir Nota</button>
+              </>
+            ) : (
+              <div className="animate-in slide-in-from-bottom">
+                <textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Detalles..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm mb-2 h-24 outline-none focus:border-violet-500" />
+                <div className="flex gap-2">
+                  <button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs hover:bg-gray-100 rounded-xl">Volver</button>
+                  <button
+                    onClick={() => handleSaveIncident("Nota", "medium", newNote)}
+                    disabled={!newNote.trim() || savingIncident}
+                    className="flex-1 py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg"
+                  >
+                    {savingIncident ? 'Guardando...' : 'Guardar'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+// --- VISTA PERSONAL (VERSIÓN DEFINITIVA Y COMPLETA) ---
+function PersonalView({ user }) {
+  const [staffList, setStaffList] = useState([]);
+  const [students, setStudents] = useState([]); // <-- AGREGÁ ESTO
+ const uniqueTurns = TURNS_LIST;
+  
+  const [staffFilterText, setStaffFilterText] = useState('');
+  // ROLES COMO ARRAY PARA MULTISELECCIÓN
+  const [filters, setFilters] = useState({ modality: 'all', roles: [], turn: 'all', subsidized: 'all' });
+  
+  const [viewingStaff, setViewingStaff] = useState(null); 
+  const [showStaffForm, setShowStaffForm] = useState(false);
+  const [editingStaff, setEditingStaff] = useState(null);
+  
+  const [processing, setProcessing] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [showPrintOptions, setShowPrintOptions] = useState(false);
+  const [printColumns, setPrintColumns] = useState({
+      dni: true,
+      cargo1: true,
+      cargo2: true,
+      alta: false,
+      domicilio: false,
+      telefono: false,
+      titulo: false
+  });
+
+  const canAccess = ['admin', 'super-admin', 'Administración', 'Equipo Directivo'].includes(user.role) || user.rol === 'admin';
+
+  // LISTA ESTRICTA DE ROLES OFICIALES
+  const VALID_ROLES = [
+      "Docente", "Preceptora", "Auxiliar", "Profe Especial", "Equipo Técnico", "Equipo Directivo",
+      "Dirección Inclusión", "Equipo Técnico Inclusión", "DAI",
+      "Cocina", "Limpieza", "Mantenimiento", "Administración"
+  ];
+
+  const getNormRole = (r) => {
+      if (!r) return '';
+      const match = VALID_ROLES.find(v => v.toLowerCase() === r.trim().toLowerCase());
+      return match || r.trim();
+  };
+
+ useEffect(() => {
+  const qStaff = query(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), orderBy('lastName', 'asc'));
+  const unsubStaff = onSnapshot(qStaff, (snap) => { setStaffList(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
+
+  // AGREGÁ ESTE BLOQUE:
+  const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
+  const unsubStudents = onSnapshot(qStudents, (snap) => { 
+      setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))); 
+  });
+
+  return () => { unsubStaff(); unsubStudents(); }; // Asegurate de cerrar ambos
+}, []);
+
+const filteredStaff = staffList.filter(s => {
+      // 1. Buscador y Modalidad (se mantienen)
+      const txt = staffFilterText.toLowerCase();
+      const matchesText = !txt || `${s.lastName || ''} ${s.firstName || ''} ${s.dni || ''}`.toLowerCase().includes(txt);
+      if (!matchesText) return false;
+      if (filters.modality !== 'all' && (s.modality || 'Sede') !== filters.modality) return false;
+      
+      // 2. LÓGICA DE CATEGORÍAS (REINICIADA DESDE CERO)
+      // Solo miramos los cargos específicos, ignoramos campos generales viejos
+      const c1Sub = s.cargo1_subsidized;
+      const c2Sub = s.cargo2_subsidized;
+
+      // Definimos los estados puros
+      const isMecanizada = (c1Sub === 'true' || c2Sub === 'true');
+      const isFueraDePlanta = (c1Sub === 'fuera' || c2Sub === 'fuera' || s.cargo1_en_papeles === 'true' || s.cargo2_en_papeles === 'true');
+      // Es DENO solo si NO es mecanizada y NO es fuera de planta
+      const isDeno = !isMecanizada && !isFueraDePlanta;
+
+      // 3. APLICACIÓN DEL FILTRO ESTRICTO
+      if (filters.subsidized !== 'all') {
+          if (filters.subsidized === 'yes' && !isMecanizada) return false;
+          if (filters.subsidized === 'fuera' && !isFueraDePlanta) return false;
+          if (filters.subsidized === 'no' && !isDeno) return false;
+      }
+
+      // --- El resto de la función (Roles y Turnos) sigue igual ---
+      const c1Role = getNormRole(s.cargo1_role || s.role); 
+      const c2Role = getNormRole(s.cargo2_role);
+      const c1Turn = (s.cargo1_turn || '').trim().toLowerCase();
+      const c2Turn = (s.cargo2_turn || '').trim().toLowerCase();
+      const filterRoles = filters.roles || [];
+      const filterTurn = filters.turn.toLowerCase();
+      const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || c1Turn);
+      const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || c2Turn);
+      let c1MatchesRole = filterRoles.length === 0 || filterRoles.includes(c1Role);
+      let c2MatchesRole = filterRoles.length === 0 || filterRoles.includes(c2Role);
+      const c1MatchesTurn = filterTurn === 'all' || c1Turn.includes(filterTurn);
+      const c2MatchesTurn = filterTurn === 'all' || c2Turn.includes(filterTurn);
+
+      if (filterRoles.length === 0 && filterTurn === 'all') return true;
+      return (hasC1 && c1MatchesRole && c1MatchesTurn) || (hasC2 && c2MatchesRole && c2MatchesTurn);
+  });
+
+  const handlePhotoChange = (e) => {
+      const f = e.target.files[0]; if(!f) return;
+      setUploading(true);
+      const reader = new FileReader();
+      reader.onload=(ev)=>{
+          const img=new Image();
+          img.onload=()=>{
+              const c=document.createElement('canvas');
+              const s=300/img.width; c.width=300; c.height=img.height*s;
+              const ctx=c.getContext('2d'); ctx.drawImage(img,0,0,c.width,c.height);
+              setPhotoPreview(c.toDataURL('image/jpeg',0.7));
+              setUploading(false);
+          };
+          img.src=ev.target.result;
+      };
+      reader.readAsDataURL(f);
+  };
+
+  const calcularAntiguedad = (aniosBase, mesesBase, fechaReferencia) => {
+      const aBase = parseInt(aniosBase) || 0;
+      const mBase = parseInt(mesesBase) || 0;
+      if (!fechaReferencia && aBase === 0 && mBase === 0) return '-';
+
+      const refDate = fechaReferencia ? new Date(fechaReferencia + 'T00:00:00') : new Date();
+      const hoy = new Date();
+      
+      let diffAnios = hoy.getFullYear() - refDate.getFullYear();
+      let diffMeses = hoy.getMonth() - refDate.getMonth();
+      
+      if (diffMeses < 0 || (diffMeses === 0 && hoy.getDate() < refDate.getDate())) {
+          diffAnios--;
+          diffMeses += 12;
+      }
+
+      let totalMeses = mBase + diffMeses;
+      let totalAnios = aBase + diffAnios;
+
+      if (totalMeses >= 12) {
+          totalAnios += Math.floor(totalMeses / 12);
+          totalMeses = totalMeses % 12;
+      }
+
+      if (totalAnios <= 0 && totalMeses <= 0) return 'Reciente';
+      if (totalAnios <= 0) return `${totalMeses} meses`;
+      if (totalMeses === 0) return `${totalAnios} años`;
+      return `${totalAnios} años, ${totalMeses} mes${totalMeses !== 1 ? 'es' : ''}`;
+  };
+
+  const getSafeDate = (d) => { if(!d) return '-'; try { return new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('es-AR'); } catch(e) { return d; } };
+
+  // IMPRIMIR FICHAS INDIVIDUALES (CARDS)
+  const imprimirFichasDocentes = (lista) => {
+      if (!lista || lista.length === 0) return alert("No hay docentes para imprimir.");
+      let html = `<html><head><title>Fichas Docentes</title>
+      <style>
+          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
+          body{font-family:'Roboto',sans-serif;padding:20px; color: #222;}
+          .page{border:1px solid #eee;padding:30px;margin-bottom:20px;border-radius:8px;page-break-after:always;max-width:800px;margin:0 auto 20px auto;border-top:10px solid #8b5cf6;}
+          .header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #ddd;padding-bottom:20px;margin-bottom:20px;}
+          .header-text h1{color:#5b21b6;font-size:24px;margin:0;text-transform:uppercase;}
+          .header-text p{color:#666;font-size:14px;margin:5px 0 0 0;}
+          .photo-box{width:80px;height:80px;background:#eee;border-radius:50%;overflow:hidden;border:3px solid #8b5cf6;display:flex;align-items:center;justify-content:center;font-size:30px;color:#aaa;}
+          .photo-box img{width:100%;height:100%;object-fit:cover;}
+          .section-title{background:#f3f4f6;color:#5b21b6;padding:8px 15px;font-weight:900;text-transform:uppercase;font-size:12px;border-radius:6px;margin-bottom:10px;border-left:5px solid #8b5cf6; margin-top:20px;}
+          .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px;}
+          .field{margin-bottom:5px;}
+          .label{display:block;font-size:9px;color:#888;text-transform:uppercase;font-weight:bold;}
+          .value{font-size:12px;font-weight:bold;color:#333;}
+          .footer{text-align:center;font-size:9px;color:#aaa;margin-top:30px;border-top:1px solid #eee;padding-top:10px;}
+          .cargo-card { border: 2px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-bottom: 15px; background-color: #f9fafb; }
+          .cargo-card.active { border-color: #c4b5fd; background-color: #fff; }
+          .cargo-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px dashed #e5e7eb; padding-bottom: 10px; margin-bottom: 15px; }
+          .cargo-role { font-size: 16px; font-weight: 900; color: #6d28d9; text-transform: uppercase; }
+          .badge-sub { background: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; }
+          .badge-nosub { background: #f3f4f6; color: #4b5563; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; }
+          .badge-papeles { background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-left: 5px; }
+          .cargo-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+      </style></head><body>`;
+      
+      lista.forEach(s => {
+          let antiguedad = calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef);
+          
+          let c1Role = getNormRole(s.cargo1_role || s.role) || 'Rol Pendiente';
+          let c2Role = getNormRole(s.cargo2_role) || 'Rol Pendiente';
+
+          const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role !== 'Rol Pendiente' || (s.cargo1_turn && s.cargo1_turn.trim()));
+          const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role !== 'Rol Pendiente' || (s.cargo2_turn && s.cargo2_turn.trim()));
+
+          let c1Html = '';
+          if (hasC1) {
+              let subBadge = (s.cargo1_subsidized === 'true' || s.isSubsidized === 'true') ? '<span class="badge-sub">SUBVENCIONADO (MECA)</span>' : '<span class="badge-nosub">SIN SUBVENCIÓN (DENO)</span>';
+              let papelesBadge = s.cargo1_en_papeles === 'true' ? '<span class="badge-papeles">SOLO EN PAPELES</span>' : '';
+              c1Html = `
+              <div class="cargo-card active">
+                  <div class="cargo-header">
+                      <span class="cargo-role">CARGO 1: ${c1Role}</span>
+                      <div>${subBadge}${papelesBadge}</div>
+                  </div>
+                  <div class="cargo-grid">
+                      <div class="field"><span class="label">N° de Cargo</span><span class="value">${s.cargo1_numero || '-'}</span></div>
+                      <div class="field"><span class="label">Detalle / Nombre</span><span class="value">${s.cargo1_name || '-'}</span></div>
+                      <div class="field"><span class="label">Turno</span><span class="value">${s.cargo1_turn || '-'}</span></div>
+                      <div class="field"><span class="label">Sit. de Revista</span><span class="value">${s.cargo1_revista || '-'}</span></div>
+                      <div class="field"><span class="label">Tipo</span><span class="value" style="text-transform:uppercase;">${s.cargo1_type || '-'}</span></div>
+                      <div class="field"><span class="label">Fecha Alta</span><span class="value">${getSafeDate(s.cargo1_ingreso)}</span></div>
+                  </div>
+              </div>`;
+          } else {
+              c1Html = `<div class="cargo-card"><div class="cargo-role" style="color:#aaa; font-size: 14px;">CARGO 1: NO TRABAJA / SIN CARGO</div></div>`;
+          }
+
+          let c2Html = '';
+          if (hasC2) {
+              let subBadge = s.cargo2_subsidized === 'true' ? '<span class="badge-sub">SUBVENCIONADO (MECA)</span>' : '<span class="badge-nosub">SIN SUBVENCIÓN (DENO)</span>';
+              let papelesBadge = s.cargo2_en_papeles === 'true' ? '<span class="badge-papeles">SOLO EN PAPELES</span>' : '';
+              c2Html = `
+              <div class="cargo-card active">
+                  <div class="cargo-header">
+                      <span class="cargo-role">CARGO 2: ${c2Role}</span>
+                      <div>${subBadge}${papelesBadge}</div>
+                  </div>
+                  <div class="cargo-grid">
+                      <div class="field"><span class="label">N° de Cargo</span><span class="value">${s.cargo2_numero || '-'}</span></div>
+                      <div class="field"><span class="label">Detalle / Nombre</span><span class="value">${s.cargo2_name || '-'}</span></div>
+                      <div class="field"><span class="label">Turno</span><span class="value">${s.cargo2_turn || '-'}</span></div>
+                      <div class="field"><span class="label">Sit. de Revista</span><span class="value">${s.cargo2_revista || '-'}</span></div>
+                      <div class="field"><span class="label">Tipo</span><span class="value" style="text-transform:uppercase;">${s.cargo2_type || '-'}</span></div>
+                      <div class="field"><span class="label">Fecha Alta</span><span class="value">${getSafeDate(s.cargo2_ingreso)}</span></div>
+                  </div>
+              </div>`;
+          } else {
+              c2Html = `<div class="cargo-card"><div class="cargo-role" style="color:#aaa; font-size: 14px;">CARGO 2: NO TRABAJA / SIN CARGO</div></div>`;
+          }
+
+          html += `<div class="page">
+              <div class="header">
+                  <div class="header-text"><h1>${s.lastName}, ${s.firstName}</h1><p>DNI: ${s.dni || '-'} | Modalidad: <strong style="color: #6d28d9;">${s.modality || 'Sede'}</strong></p></div>
+                  <div class="photo-box">${s.photoUrl ? `<img src="${s.photoUrl}"/>` : s.firstName?.[0] || 'U'}</div>
+              </div>
+              <div class="section-title">Datos Personales y Formación</div>
+              <div class="grid">
+                  <div class="field"><span class="label">Fecha Nacimiento</span><span class="value">${s.birthDate ? new Date(s.birthDate + 'T00:00:00').toLocaleDateString('es-AR') : '-'}</span></div>
+                  <div class="field"><span class="label">Teléfono / Celular</span><span class="value">${s.phone || '-'}</span></div>
+                  <div class="field"><span class="label">Email</span><span class="value">${s.email || '-'}</span></div>
+                  <div class="field"><span class="label">Contacto de Emergencia</span><span class="value" style="color:#dc2626">${s.emergencyContact || '-'}</span></div>
+                  <div class="field" style="grid-column: span 2;"><span class="label">Dirección</span><span class="value">${s.address || '-'}</span></div>
+                  <div class="field"><span class="label">Título</span><span class="value">${s.degree || '-'}</span></div>
+                  <div class="field"><span class="label">Estado de Estudios</span><span class="value">${s.studyStatus || '-'}</span></div>
+              </div>
+              <div class="section-title">Antigüedad e Ingreso Institucional</div>
+              <div class="grid">
+                  <div class="field"><span class="label">Fecha Ingreso Inst.</span><span class="value">${s.fechaIngreso ? new Date(s.fechaIngreso + 'T00:00:00').toLocaleDateString('es-AR') : '-'}</span></div>
+                  <div class="field"><span class="label">Antigüedad Reconocida Total</span><span class="value" style="color:#5b21b6; font-size:14px;">${antiguedad}</span></div>
+              </div>
+              <div class="section-title" style="margin-bottom: 15px;">Detalle de Cargos Activos</div>
+              ${c1Html}
+              ${c2Html}
+              <div class="footer">Juntos a la Par - Legajo Docente generado el ${new Date().toLocaleDateString('es-AR')} a las ${new Date().toLocaleTimeString('es-AR', {hour: '2-digit', minute:'2-digit'})}</div>
+          </div>`;
+      });
+      html += '</body></html>';
+
+      const iframe = document.createElement('iframe'); 
+      iframe.style.position = 'fixed'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0'; 
+      document.body.appendChild(iframe); 
+      const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close(); 
+      setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
+  };
+
+const imprimirPlanillaGeneral = (lista) => {
+    if (!lista || lista.length === 0) return alert("No hay personal para imprimir.");
+    
+    const LOGO_APP = "https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png";
+
+    let html = `<html><head><title>Planilla Personalizada</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
+        @page { size: landscape; margin: 10mm; }
+        body { font-family: 'Roboto', sans-serif; padding: 0; color: #1e293b; font-size: 9px; }
+        .header-table { width: 100%; border-bottom: 2px solid #6d28d9; margin-bottom: 15px; }
+        table.data-table { width: 100%; border-collapse: collapse; }
+        .data-table th { background: #f8fafc; padding: 8px; border: 1px solid #e2e8f0; text-transform: uppercase; font-weight: 900; text-align: left; }
+        .data-table td { padding: 8px; border: 1px solid #e2e8f0; vertical-align: middle; }
+        tr:nth-child(even) { background-color: #f1f5f9; }
+        .cargo-role { font-weight: 900; color: #4338ca; font-size: 8px; text-transform: uppercase; }
+    </style></head><body>
+    <table class="header-table"><tr>
+        <td><img src="${LOGO_APP}" style="height:40px;"></td>
+        <td style="text-align:center;"><h1 style="margin:0; font-size:18px; color:#6d28d9;">Planilla de Personal Institucional</h1></td>
+        <td style="text-align:right; font-weight:bold;">Ciclo 2026</td>
+    </tr></table>
+    <table class="data-table">
+        <thead><tr>
+            <th>Apellido y Nombre</th>
+            ${printColumns.dni ? '<th>DNI</th>' : ''}
+            ${printColumns.cargo1 ? '<th>Cargo 1</th>' : ''}
+            ${printColumns.cargo2 ? '<th>Cargo 2</th>' : ''}
+            ${printColumns.alta ? '<th>Ingreso Inst.</th>' : ''}
+            ${printColumns.domicilio ? '<th>Dirección</th>' : ''}
+            ${printColumns.telefono ? '<th>Teléfono</th>' : ''}
+            ${printColumns.titulo ? '<th>Título</th>' : ''}
+        </tr></thead><tbody>`;
+    
+    lista.forEach(s => {
+        html += `<tr>
+            <td style="font-weight:700; text-transform:uppercase;">${s.lastName}, ${s.firstName}</td>
+            ${printColumns.dni ? `<td>${s.dni || '-'}</td>` : ''}
+            ${printColumns.cargo1 ? `<td><div class="cargo-role">${s.cargo1_role || s.role || ''}</div>${s.cargo1_name || ''}</td>` : ''}
+            ${printColumns.cargo2 ? `<td><div class="cargo-role">${s.cargo2_role || ''}</div>${s.cargo2_name || ''}</td>` : ''}
+            ${printColumns.alta ? `<td>${s.fechaIngreso ? new Date(s.fechaIngreso+'T12:00:00').toLocaleDateString('es-AR') : '-'}</td>` : ''}
+            ${printColumns.domicilio ? `<td>${s.address || '-'}</td>` : ''}
+            ${printColumns.telefono ? `<td>${s.phone || '-'}</td>` : ''}
+            ${printColumns.titulo ? `<td>${s.degree || '-'}</td>` : ''}
+        </tr>`;
+    });
+
+    html += `</tbody></table><p style="text-align:right; font-size:8px; margin-top:10px;">Generado el ${new Date().toLocaleString('es-AR')}</p></body></html>`;
+
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+    const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close();
+    setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); document.body.removeChild(iframe); }, 500);
+};
+  const handleImportStaff = async (e) => {
+      const file = e.target.files[0];
+      if (!file || !confirm("⚠️ ¿Importar archivo CSV completo?")) return;
+      setProcessing(true);
+      const reader = new FileReader();
+      reader.onload = async (evt) => {
+          try {
+              const rows = evt.target.result.split('\n').slice(1).filter(r => r.trim() !== '');
+              const promises = rows.map(row => {
+                  const cols = row.split(';');
+                  let bDate = "";
+                  if (cols[3]?.trim()) {
+                      const parts = cols[3].trim().split('/');
+                      if (parts.length === 3) bDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                  }
+                  return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), {
+                      lastName: cols[0]?.trim() || '', firstName: cols[1]?.trim() || '', dni: cols[2]?.trim() || '',
+                      birthDate: bDate, address: cols[4]?.trim() || '', phone: cols[5]?.trim() || '',
+                      emergencyContact: cols[6]?.trim() || '', email: cols[7]?.trim() || '',
+                      studyStatus: cols[8]?.trim() || '', degree: cols[9]?.trim() || '',
+                      modality: cols[11]?.trim() || 'Sede',
+                      cargo1_role: cols[10]?.trim() || '', 
+                      cargo1_subsidized: cols[12]?.trim() === 'SI' ? 'true' : 'false',
+                      cargo1_en_papeles: 'false',
+                      cargo1_name: cols[13]?.trim() || '', cargo1_type: cols[14]?.trim() || '', cargo1_turn: cols[15]?.trim() || '', cargo1_revista: cols[16]?.trim() || '',
+                      cargo2_name: cols[17]?.trim() || '', cargo2_type: cols[18]?.trim() || '', cargo2_turn: cols[19]?.trim() || '', cargo2_revista: cols[20]?.trim() || '',
+                      cargo2_en_papeles: 'false',
+                      createdAt: serverTimestamp()
+                  });
+              });
+              await Promise.all(promises);
+              alert("✅ Personal importado correctamente.");
+          } catch (err) { alert("Error: " + err.message); } finally { setProcessing(false); }
+      };
+      reader.readAsText(file);
+  };
+
+ const handleSaveStaff = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const d = Object.fromEntries(fd.entries());
+    
+    // Bloqueamos el score para que no se pise al editar el legajo
+    delete d.score;
+    delete d.id; 
+
+    d.photoUrl = photoPreview || editingStaff?.photoUrl || '';
+    
+    if(!d.cargo2_name || d.cargo2_name.trim() === '') { 
+        d.cargo2_role = ''; d.cargo2_turn = ''; d.cargo2_type = ''; 
+        d.cargo2_revista = ''; d.cargo2_ingreso = ''; d.cargo2_name = ''; 
+        d.cargo2_subsidized = 'false'; d.cargo2_en_papeles = 'false';
+    }
+
+    try {
+        setProcessing(true);
+        if (editingStaff?.id) {
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id), d);
+            if (viewingStaff?.id === editingStaff.id) {
+                setViewingStaff({ ...viewingStaff, ...d });
+            }
+        } else {
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), { 
+                ...d, 
+                createdAt: serverTimestamp() 
+            });
+        }
+        setShowStaffForm(false); 
+        setEditingStaff(null); 
+        setPhotoPreview(null);
+        alert("✅ Legajo actualizado con éxito");
+    } catch (err) { 
+        alert("Error: " + err.message); 
+    } finally {
+        setProcessing(false);
+    }
+  };
+  const calculateStats = () => {
+      const stats = {
+          cargos: { simple: 0, doble: 0 },
+      };
+
+      filteredStaff.forEach(s => {
+          const c1Role = getNormRole(s.cargo1_role || s.role);
+          const c2Role = getNormRole(s.cargo2_role);
+          const c1Turn = (s.cargo1_turn || '').toLowerCase();
+          const c2Turn = (s.cargo2_turn || '').toLowerCase();
+          
+          const filterRoles = filters.roles || [];
+          const filterTurn = filters.turn.toLowerCase();
+
+          const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || c1Turn);
+          const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || c2Turn);
+
+          const c1IsUnassigned = !hasC1 || !VALID_ROLES.includes(c1Role);
+          const c2IsUnassigned = hasC2 && !VALID_ROLES.includes(c2Role);
+
+          let c1MatchesRole = filterRoles.length === 0 || (filterRoles.includes('sin-asignar') && c1IsUnassigned) || filterRoles.includes(c1Role);
+          let c2MatchesRole = filterRoles.length === 0 || (filterRoles.includes('sin-asignar') && c2IsUnassigned) || filterRoles.includes(c2Role);
+
+          const c1Matches = hasC1 && c1MatchesRole && (filterTurn === 'all' || c1Turn.includes(filterTurn));
+          const c2Matches = hasC2 && c2MatchesRole && (filterTurn === 'all' || c2Turn.includes(filterTurn));
+
+          const isC1Papeles = s.cargo1_en_papeles === 'true';
+          const isC2Papeles = s.cargo2_en_papeles === 'true';
+
+          let activeCargosCount = 0;
+          if (c1Matches && !isC1Papeles && s.cargo1_name) activeCargosCount++;
+          if (c2Matches && !isC2Papeles && s.cargo2_name) activeCargosCount++;
+
+          if (activeCargosCount === 2) stats.cargos.doble++;
+          else if (activeCargosCount === 1) stats.cargos.simple++;
+      });
+      return stats;
+  };
+
+  if (!canAccess) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido.</div>;
+
+  const currentStats = calculateStats();
+  const totalCargosReales = currentStats.cargos.simple + (currentStats.cargos.doble * 2);
+
+  return (
+    <div className="space-y-4 animate-in fade-in pb-20 px-2 md:px-4 pt-4">
+        
+        {/* ENCABEZADO CON CONTADOR EN VIVO (PERSONAS Y CARGOS) */}
+        <div className="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-3xl border border-violet-100 shadow-sm gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
+                <h3 className="font-black text-violet-900 uppercase italic text-xl">Personal</h3>
+                
+                <div className="flex gap-2">
+                    {/* CARTEL DE PERSONAS FÍSICAS */}
+                    <div className="bg-orange-100 text-orange-700 px-3 py-2 rounded-xl font-black text-[10px] md:text-xs flex items-center gap-1.5 border border-orange-200 shadow-sm uppercase tracking-widest" title="Cantidad de personas físicas">
+                        <User size={14}/> {filteredStaff.length} {filteredStaff.length === 1 ? 'Persona' : 'Personas'}
+                    </div>
+                    
+                    {/* CARTEL DE CARGOS TOTALES */}
+                    <div className="bg-emerald-100 text-emerald-800 px-3 py-2 rounded-xl font-black text-[10px] md:text-xs flex items-center gap-1.5 border border-emerald-200 shadow-sm uppercase tracking-widest" title="Cantidad total de cargos ejercidos">
+                        {totalCargosReales} {totalCargosReales === 1 ? 'Cargo Activo' : 'Cargos Activos'}
+                    </div>
+                </div>
+            </div>
+            
+            <div className="flex gap-2">
+                <button 
+    onClick={() => setShowPrintOptions(true)} 
+    className="bg-white text-blue-600 border border-blue-200 p-3 rounded-2xl shadow-sm hover:bg-blue-50 transition" 
+    title="Configurar Planilla"
+>
+    <Grid size={20}/>
+</button>
+              <button onClick={() => imprimirFichasDocentes(filteredStaff)} className="bg-white text-violet-600 border border-violet-200 p-3 rounded-2xl shadow-sm hover:bg-violet-50 transition" title="Imprimir Fichas Individuales"><Printer size={20}/></button>
+                
+                <label className="p-3 bg-emerald-100 text-emerald-700 rounded-2xl cursor-pointer hover:bg-emerald-200 transition flex items-center justify-center">
+                    {processing ? <RefreshCw className="animate-spin" size={20}/> : <UploadCloud size={20}/>}
+                    <input type="file" accept=".csv" className="hidden" onChange={handleImportStaff} />
+                </label>
+
+                <button onClick={()=>{setEditingStaff(null); setPhotoPreview(null); setShowStaffForm(true);}} className="bg-violet-600 text-white p-3 rounded-2xl shadow-lg flex items-center justify-center"><Plus size={20}/></button>
+            </div>
+        </div>
+
+        {/* BARRA DE FILTROS ACTUALIZADA PARA MULTISELECCIÓN */}
+        <div className="space-y-2">
+            <div className="bg-white p-2 rounded-2xl border border-gray-100 flex items-center gap-2 shadow-sm">
+                <Search size={18} className="ml-2 text-gray-300"/>
+                <input value={staffFilterText} onChange={e=>setStaffFilterText(e.target.value)} placeholder="Buscar por apellido, nombre o DNI..." className="w-full p-2 outline-none text-sm font-bold text-gray-700 bg-transparent"/>
+                {staffFilterText && <button onClick={()=>setStaffFilterText('')} className="pr-2 text-gray-400 hover:text-gray-600"><X size={16}/></button>}
+            </div>
+            
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide items-center">
+                <select value={filters.modality} onChange={e=>setFilters({...filters, modality: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
+                    <option value="all">Modalidad: Todas</option><option value="Sede">Sede</option><option value="Inclusión">Inclusión</option>
+                </select>
+                
+               {/* SELECTOR DE ROLES EN BARRA DE FILTROS */}
+<select 
+    value="default" 
+    onChange={e => {
+        const val = e.target.value;
+        if (val !== 'default' && !filters.roles.includes(val)) {
+            setFilters({...filters, roles: [...filters.roles, val]});
+        }
+    }} 
+    className="bg-white text-violet-700 text-xs p-2 rounded-lg font-bold min-w-[140px] border border-violet-200 shadow-sm outline-none cursor-pointer"
+>
+    <option value="default">+ Agregar Rol...</option>
+    <option value="sin-asignar">⚠️ Sin Asignar / Error</option>
+    {/* CAMBIO AQUÍ: Usamos la constante de afuera */}
+   {VALID_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+</select>
+
+               <select value={filters.turn} onChange={e=>setFilters({...filters, turn: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
+    <option value="all">Turno: Todos</option>
+    {/* Corregido: uniqueTurns cambiado por TURNS_LIST con blindaje */}
+    {(typeof TURNS_LIST !== 'undefined' ? TURNS_LIST : []).map(t => (
+        <option key={t} value={t}>{t}</option>
+    ))}
+</select>
+               <select 
+  value={filters.subsidized} 
+  onChange={e => setFilters({...filters, subsidized: e.target.value})} 
+  className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none cursor-pointer"
+>
+    <option value="all">Subvención: Todas</option>
+    <option value="yes">Mecanizada (Subv.)</option>
+    <option value="no">No Subvencionada (DENO)</option>
+    <option value="fuera">Fuera de Planta / Papeles</option>
+</select>
+                <button onClick={() => setFilters({ modality: 'all', roles: [], turn: 'all', subsidized: 'all' })} className="bg-red-50 text-red-600 text-xs px-3 py-2 rounded-lg font-bold min-w-[80px] border border-red-100 shadow-sm hover:bg-red-100 transition">Limpiar</button>
+            </div>
+
+            {/* MOSTRAR ETIQUETAS DE ROLES SELECCIONADOS */}
+            {filters.roles.length > 0 && (
+                <div className="flex flex-wrap gap-2 animate-in fade-in mt-1 mb-2">
+                    {filters.roles.map(r => (
+                        <span key={r} className="bg-violet-100 text-violet-800 text-[10px] font-black px-2 py-1.5 rounded-lg flex items-center gap-1 border border-violet-200 shadow-sm">
+                            {r === 'sin-asignar' ? '⚠️ Sin Asignar' : r}
+                            <button onClick={() => setFilters({...filters, roles: filters.roles.filter(role => role !== r)})} className="hover:text-red-500 transition-colors bg-white rounded-full p-0.5 ml-1"><X size={10}/></button>
+                        </span>
+                    ))}
+                </div>
+            )}
+        </div>
+
+        {/* LISTADO DE PERSONAL */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[65vh] overflow-y-auto pb-10 mt-2">
+          {filteredStaff.map(s => {
+    const tieneSub = s.cargo1_subsidized === 'true' || s.cargo2_subsidized === 'true' || s.isSubsidized === 'true';
+    
+    const c1Role = getNormRole(s.cargo1_role || s.role);
+    const c2Role = getNormRole(s.cargo2_role);
+
+    const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || (s.cargo1_turn && s.cargo1_turn.trim()));
+    const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || (s.cargo2_turn && s.cargo2_turn.trim()));
+
+    {/* CAMBIO AQUÍ: Usamos VALID_ROLES_OFFICIAL */}
+    const c1NeedsFix = !hasC1 || !VALID_ROLES_OFFICIAL.includes(c1Role);
+    const c2NeedsFix = hasC2 && !VALID_ROLES_OFFICIAL.includes(c2Role);
+    const needsRoleFix = c1NeedsFix || c2NeedsFix;
+                
+               return (
+    <div key={s.id} onClick={() => setViewingStaff(s)} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all cursor-pointer group relative">
+        <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100 shrink-0 relative">
+            {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName?.[0]}
+            {tieneSub && <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white shadow-sm" title="Subvencionada"></div>}
+        </div>
+        <div className="flex-1 min-w-0">
+            <div className="flex gap-2 items-center flex-wrap">
+                <h4 className="font-bold text-gray-800 text-sm uppercase truncate">{s.lastName}, {s.firstName}</h4>
+                <span className={`text-[8px] px-2 py-0.5 rounded-md font-black uppercase ${s.modality === 'Inclusión' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}`}>{s.modality || 'Sede'}</span>
+                {needsRoleFix && <span className="bg-red-100 text-red-700 text-[9px] font-black px-2 py-0.5 rounded-lg border border-red-200 animate-pulse">⚠️ ASIGNAR ROL</span>}
+            </div>
+            <div className="flex gap-2 text-[10px] mt-1 text-gray-500 font-bold">
+                {s.dni && <span>DNI: {s.dni}</span>}
+                <span className="text-violet-500">Anti: {calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef)}</span>
+            </div>
+            
+            {/* ETIQUETAS VISUALES TRIPLES: MECA, PAPELES, DENO */}
+            <p className="text-[10px] font-black uppercase mt-1 truncate">
+                {hasC1 ? (
+                    <span className={s.cargo1_subsidized === 'true' ? 'text-emerald-600' : s.cargo1_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
+                        C1: {getNormRole(s.cargo1_role || s.role)} ({s.cargo1_turn || '-'}) 
+                        {s.cargo1_subsidized === 'true' ? ' (MECA)' : s.cargo1_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
+                    </span>
+                ) : (
+                    <span className="text-gray-300">NO TRABAJA (C1)</span>
+                )} 
+                
+                {hasC2 ? (
+                    <>
+                        <span className="text-gray-300 mx-1">|</span>
+                        <span className={s.cargo2_subsidized === 'true' ? 'text-emerald-600' : s.cargo2_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
+                            C2: {getNormRole(s.cargo2_role)} ({s.cargo2_turn || '-'}) 
+                            {s.cargo2_subsidized === 'true' ? ' (MECA)' : s.cargo2_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
+                        </span>
+                    </>
+                ) : (
+                    <span className="text-gray-300"> | NO TRABAJA (C2)</span>
+                )}
+            </p>
+        </div>
+                        <Eye className="text-gray-300 group-hover:text-violet-500 transition-colors shrink-0" />
+                    </div>
+                )
+            })}
+        </div>
+
+{/* MODAL LECTURA LEGAJO - VERSIÓN COMPLETA RECONSTRUIDA */}
+{viewingStaff && !showStaffForm && (
+    <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setViewingStaff(null)}>
+        <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+            
+            {/* CABECERA */}
+            <div className="bg-violet-800 p-6 text-white relative shrink-0">
+                <button onClick={()=>setViewingStaff(null)} className="absolute top-4 right-4 bg-white/20 p-1.5 rounded-full hover:bg-white/40 transition"><X size={20}/></button>
+                <div className="flex gap-5 items-center">
+                    <div className="w-20 h-20 rounded-2xl bg-white/20 border-4 border-white/10 overflow-hidden flex items-center justify-center shadow-lg">
+                        {viewingStaff.photoUrl ? <img src={viewingStaff.photoUrl} className="w-full h-full object-cover"/> : <div className="text-4xl font-black text-white/50">{viewingStaff?.firstName?.[0] || '👤'}</div>}
+                    </div>
+                    <div>
+                        <h2 className="text-2xl font-black uppercase tracking-tight">{viewingStaff?.lastName}, {viewingStaff?.firstName}</h2>
+                        <p className="text-orange-300 font-bold text-xs uppercase tracking-widest">{viewingStaff?.modality || 'Sede'}</p>
+                        <span className="bg-white/20 px-3 py-1 rounded-lg text-[10px] font-bold inline-block mt-2">DNI: {viewingStaff?.dni || '-'}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div className="p-6 overflow-y-auto bg-gray-50 flex-1 space-y-4">
+                {/* DATOS DE CONTACTO RÁPIDO */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Nacimiento</p><p className="font-black text-slate-800 text-xs">{getSafeDate(viewingStaff.birthDate)}</p></div>
+                    <div className="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Celular</p><p className="font-black text-slate-800 text-xs">{viewingStaff.phone || '-'}</p></div>
+                </div>
+
+                {/* DETALLE COMPLETO DE CARGOS (RECONSTRUIDO) */}
+                <div className="bg-violet-50 p-4 rounded-2xl border border-violet-100 shadow-sm space-y-3">
+                    <div className="flex justify-between text-xs border-b border-violet-200 pb-2">
+                        <span className="font-bold text-gray-500">Ingreso Inst: {getSafeDate(viewingStaff.fechaIngreso)}</span>
+                        <span className="font-black text-violet-700">Antigüedad: {calcularAntiguedad(viewingStaff.antiguedadAnios, viewingStaff.antiguedadMeses, viewingStaff.antiguedadFechaRef)}</span>
+                    </div>
+                    
+                    {/* CARGO 1 - TODA LA INFO ANTERIOR */}
+                    {Boolean((viewingStaff.cargo1_name && viewingStaff.cargo1_name.trim()) || viewingStaff.cargo1_role || viewingStaff.role) ? (
+                        <div className={`bg-white p-3 rounded-lg border ${viewingStaff.cargo1_en_papeles === 'true' ? 'border-gray-200 opacity-70' : 'border-violet-200 shadow-sm'} text-xs relative`}>
+                            <div className="flex justify-between items-center mb-1">
+                                <span className="font-black text-violet-900 uppercase">C1: {getNormRole(viewingStaff.cargo1_role || viewingStaff.role)} {viewingStaff.cargo1_en_papeles === 'true' && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[8px] ml-1">EN PAPELES</span>}</span>
+                                <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${viewingStaff.cargo1_subsidized === 'true' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`}>{viewingStaff.cargo1_subsidized === 'true' ? 'MECA' : 'DENO'}</span>
+                            </div>
+                            <p className="font-bold text-gray-700">{viewingStaff.cargo1_name}</p>
+                            <p className="text-gray-500 text-[10px]">N° {viewingStaff.cargo1_numero || '-'} | {viewingStaff.cargo1_type || '-'} | {viewingStaff.cargo1_turn || '-'} | {viewingStaff.cargo1_revista || '-'}</p>
+                            <p className="text-[9px] text-violet-400 mt-1 font-bold">Alta: {getSafeDate(viewingStaff.cargo1_ingreso)}</p>
+                        </div>
+                    ) : null}
+
+                    {/* CARGO 2 - TODA LA INFO ANTERIOR */}
+                    {Boolean((viewingStaff.cargo2_name && viewingStaff.cargo2_name.trim()) || viewingStaff.cargo2_role) ? (
+                        <div className={`bg-white p-3 rounded-lg border ${viewingStaff.cargo2_en_papeles === 'true' ? 'border-gray-200 opacity-70' : 'border-violet-200 shadow-sm'} text-xs relative`}>
+                            <div className="flex justify-between items-center mb-1">
+                                <span className="font-black text-violet-900 uppercase">C2: {getNormRole(viewingStaff.cargo2_role)} {viewingStaff.cargo2_en_papeles === 'true' && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[8px] ml-1">EN PAPELES</span>}</span>
+                                <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${viewingStaff.cargo2_subsidized === 'true' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`}>{viewingStaff.cargo2_subsidized === 'true' ? 'MECA' : 'DENO'}</span>
+                            </div>
+                            <p className="font-bold text-gray-700">{viewingStaff.cargo2_name}</p>
+                            <p className="text-gray-500 text-[10px]">N° {viewingStaff.cargo2_numero || '-'} | {viewingStaff.cargo2_type || '-'} | {viewingStaff.cargo2_turn || '-'} | {viewingStaff.cargo2_revista || '-'}</p>
+                            <p className="text-[9px] text-violet-400 mt-1 font-bold">Alta: {getSafeDate(viewingStaff.cargo2_ingreso)}</p>
+                        </div>
+                    ) : null}
+                </div>
+
+                {/* SECCIÓN INTELIGENTE: GRUPOS A CARGO (SOLO PARA DOCENTES/AUX/PREC/DAI) */}
+                {['Docente', 'Auxiliar', 'Preceptora', 'DAI', 'Inclusión'].some(role => 
+                    (viewingStaff.cargo1_role || viewingStaff.role || '').includes(role) || 
+                    (viewingStaff.cargo2_role || '').includes(role)
+                ) && (
+                    <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
+                        <h4 className="text-[10px] font-black text-emerald-600 uppercase mb-3 flex items-center gap-2">📍 Alumnos y Grupos Asignados</h4>
+                        <div className="grid grid-cols-2 gap-2">
+                            {(() => {
+                                const myGroupsTM = [...new Set(students.filter(s => s.teacherIdMorning === viewingStaff.id || s.teacherId2Morning === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupMorning))].filter(Boolean);
+                                const myGroupsTT = [...new Set(students.filter(s => s.teacherIdAfternoon === viewingStaff.id || s.teacherId2Afternoon === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupAfternoon))].filter(Boolean);
+                                return (
+                                    <>
+                                        <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
+                                            <p className="text-[8px] font-black text-gray-400 uppercase">T. Mañana</p>
+                                            <p className="font-bold text-emerald-700 text-xs">{myGroupsTM.length > 0 ? myGroupsTM.join(', ') : 'Ninguno'}</p>
+                                        </div>
+                                        <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
+                                            <p className="text-[8px] font-black text-gray-400 uppercase">T. Tarde</p>
+                                            <p className="font-bold text-emerald-700 text-xs">{myGroupsTT.length > 0 ? myGroupsTT.join(', ') : 'Ninguno'}</p>
+                                        </div>
+                                    </>
+                                );
+                            })()}
+                        </div>
+                        <p className="text-[7px] text-emerald-400 mt-2 italic text-center">* Información vinculada por ID de seguridad</p>
+                    </div>
+                )}
+            </div>
+            
+            <div className="p-4 border-t bg-white flex justify-end gap-2 shrink-0">
+                <button onClick={()=>imprimirFichasDocentes([viewingStaff])} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-slate-600 font-bold text-xs uppercase hover:bg-gray-50 flex gap-2 items-center shadow-sm"><FileText size={16}/> Imprimir</button>
+                <button onClick={()=>{setEditingStaff(viewingStaff); setPhotoPreview(viewingStaff.photoUrl); setShowStaffForm(true);}} className="px-4 py-3 bg-violet-600 text-white rounded-xl font-bold text-xs uppercase hover:bg-violet-700 flex gap-2 items-center shadow-lg"><Edit3 size={16}/> Editar Legajo</button>
+            </div>
+        </div>
+    </div>
+)}
+{/* MODAL EDICIÓN LEGAJO - VERSIÓN PREMIUM RESPONSIVA DEFINITIVA */}
+    {showStaffForm && (
+      <div className="fixed inset-0 bg-black/70 z-[150] flex items-center justify-center p-2 sm:p-4 backdrop-blur-md animate-in fade-in duration-300">
+        <div className="bg-slate-50 rounded-[30px] w-full max-w-xl shadow-2xl max-h-[95vh] overflow-hidden flex flex-col border border-white/20">
+          
+          {/* CABECERA FIJA */}
+          <div className="bg-violet-700 p-5 text-white flex justify-between items-center shrink-0">
+            <div className="flex-1">
+              <h3 className="text-lg font-black uppercase italic tracking-tighter">
+                {editingStaff ? 'Editar Legajo' : 'Nuevo Personal'}
+              </h3>
+              {/* CARTEL DE ATENCIÓN DINÁMICO */}
+              {editingStaff && (!editingStaff?.dni || !editingStaff?.cargo1_role || !editingStaff?.modality) ? (
+                <div className="bg-amber-400 text-amber-900 text-[8px] font-black px-2 py-0.5 rounded-full inline-flex items-center gap-1 animate-pulse mt-1 uppercase">
+                  ⚠️ Atención: Ficha incompleta. Completar datos para vinculación.
+                </div>
+              ) : (
+                <p className="text-[10px] opacity-70 font-bold uppercase">Configuración de ficha técnica</p>
+              )}
+            </div>
+            <button onClick={() => setShowStaffForm(false)} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition">
+              <X size={20} />
+            </button>
+          </div>
+
+          <form id="staffForm" onSubmit={handleSaveStaff} className="overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar">
+            
+            {/* SECCIÓN VINCULACIÓN DE SEGURIDAD (IMPORTANTE) */}
+          <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 space-y-2">
+    <p className="text-[10px] font-black text-blue-600 uppercase flex items-center gap-2">
+        {/* CAMBIO AQUÍ: de Link a LinkIcon */}
+        <LinkIcon size={14}/> Conexión de Seguridad y Grupos
+    </p>
+    <input 
+        name="userId" 
+        defaultValue={editingStaff?.userId || ""} 
+        placeholder="ID de Usuario vinculado para login y grupos..." 
+        className="p-3 bg-white rounded-xl w-full font-mono text-[10px] outline-none border border-blue-200 focus:ring-2 ring-blue-100"
+    />
+    <p className="text-[7px] text-blue-400 font-bold italic uppercase px-1">
+      * Este ID conecta el legajo con el usuario y detecta automáticamente sus grupos asignados.
+    </p>
+</div>
+
+           {/* SECCIÓN 1: IDENTIDAD Y FOTO (ACTUALIZADA) */}
+<div className="flex flex-col items-center mb-6">
+    <div className="w-24 h-24 rounded-3xl bg-violet-100 border-4 border-white shadow-md overflow-hidden relative group">
+        {photoPreview ? <img src={photoPreview} className="w-full h-full object-cover"/> : (editingStaff?.photoUrl ? <img src={editingStaff.photoUrl} className="w-full h-full object-cover"/> : <div className="flex items-center justify-center h-full text-violet-300"><User size={40}/></div>)}
+        <label className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer">
+            <Camera className="text-white" size={24}/>
+            <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange}/>
+        </label>
+    </div>
+    <p className="text-[9px] font-black text-violet-400 uppercase mt-2">Tocar para cambiar foto</p>
+</div>
+
+<details open className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+  <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
+    <span className="text-[11px] font-black text-violet-600 uppercase flex items-center gap-2"><User size={14}/> Datos de Identidad</span>
+    <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
+  </summary>
+  <div className="p-4 pt-0 grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <input name="lastName" defaultValue={editingStaff?.lastName || ""} placeholder="Apellido/s" required className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
+    <input name="firstName" defaultValue={editingStaff?.firstName || ""} placeholder="Nombre/s" required className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
+    <input name="dni" defaultValue={editingStaff?.dni || ""} placeholder="DNI sin puntos" className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
+    <input name="birthDate" type="date" defaultValue={editingStaff?.birthDate || ""} className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm"/>
+    <input name="phone" defaultValue={editingStaff?.phone || ""} placeholder="Celular" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+    <input name="email" defaultValue={editingStaff?.email || ""} placeholder="Email" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+  </div>
+</details>
+
+{/* SECCIÓN NUEVA: DOMICILIO Y FORMACIÓN */}
+<details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-3">
+  <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
+    <span className="text-[11px] font-black text-blue-600 uppercase flex items-center gap-2"><MapPin size={14}/> Domicilio y Título</span>
+    <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
+  </summary>
+  <div className="p-4 pt-0 space-y-3">
+    <input name="address" defaultValue={editingStaff?.address || ""} placeholder="Dirección completa" className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm"/>
+    <input name="emergencyContact" defaultValue={editingStaff?.emergencyContact || ""} placeholder="Contacto Emergencia (Nombre y Tel)" className="p-3 bg-red-50 text-red-700 rounded-xl border-none w-full font-bold text-sm placeholder:text-red-300"/>
+    <div className="grid grid-cols-2 gap-2">
+        <input name="degree" defaultValue={editingStaff?.degree || ""} placeholder="Título Obtenido" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+        <select name="studyStatus" defaultValue={editingStaff?.studyStatus || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+            <option value="">Estado estudios...</option>
+            <option value="Completo">Completo</option>
+            <option value="Incompleto">Incompleto</option>
+            <option value="En curso">En curso</option>
+        </select>
+    </div>
+  </div>
+</details>
+            {/* SECCIÓN 2: CARGO PRIMARIO (CON SUBVENCIÓN) */}
+            <details open className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition border-l-4 border-emerald-500">
+                <span className="text-[11px] font-black text-emerald-600 uppercase flex items-center gap-2">
+                  <Briefcase size={14}/> Cargo Principal
+                </span>
+                <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
+              </summary>
+              <div className="p-4 pt-0 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <select name="modality" defaultValue={editingStaff?.modality || 'Sede'} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+                    <option value="Sede">Modalidad: Sede</option>
+                    <option value="Inclusión">Modalidad: Inclusión</option>
+                    <option value="Ambos">Modalidad: Ambos</option>
+                  </select>
+                  <select name="cargo1_subsidized" defaultValue={editingStaff?.cargo1_subsidized || 'false'} className={`p-3 rounded-xl border-none font-black text-xs ${editingStaff?.cargo1_subsidized === 'true' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500'}`}>
+                    <option value="false">DENO (No Subvencionado)</option>
+    <option value="true">MECA (Subvencionado)</option>
+    <option value="fuera">FUERA DE PLANTA (Papeles)</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-[1fr,2fr] gap-2">
+                  <input name="cargo1_numero" defaultValue={editingStaff?.cargo1_numero || ""} placeholder="N° Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+                  <input name="cargo1_name" defaultValue={editingStaff?.cargo1_name || ""} placeholder="Nombre del Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+                </div>
+         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+  <div className="flex flex-col">
+    <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Función / Rol</label>
+    <select 
+      name="cargo1_role" 
+      defaultValue={editingStaff?.cargo1_role || editingStaff?.role || ""} 
+      className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs"
+      required
+    >
+      <option value="">Seleccionar Rol...</option>
+      {/* CORRECCIÓN: Ahora usa VALID_ROLES_OFFICIAL */}
+      {(typeof VALID_ROLES_OFFICIAL !== 'undefined' ? VALID_ROLES_OFFICIAL : []).map(r => (
+        <option key={r} value={r}>{r}</option>
+      ))}
+    </select>
+  </div>
+  <div className="flex flex-col">
+    <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Turno Horario</label>
+    <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+      <option value="">Turno...</option>
+      <option value="Mañana">Mañana</option>
+      <option value="Tarde">Tarde</option>
+      <option value="Alternado">Alternado</option>
+      <option value="Vespertino">Vespertino</option>
+      <option value="Doble">Doble</option>
+    </select>
+  </div>
+</div>
+                <div className="grid grid-cols-2 gap-2">
+                   <select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+                    <option value="">Revista...</option>
+                    <option value="Titular">Titular</option><option value="Provisional">Provisional</option><option value="Suplente">Suplente</option>
+                  </select>
+                  <div className="flex flex-col">
+                    <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Alta Cargo</label>
+                    <input name="cargo1_ingreso" type="date" defaultValue={editingStaff?.cargo1_ingreso || ""} className="p-2 bg-slate-50 rounded-xl border-none font-bold text-xs"/>
+                  </div>
+                </div>
+              </div>
+            </details>
+
+            {/* SECCIÓN 3: CARGO SECUNDARIO */}
+            {/* SECCIÓN 3: CARGO SECUNDARIO (CORREGIDA CON REVISTA Y ALTA) */}
+            <details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-3">
+              <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
+                <span className="text-[11px] font-black text-slate-500 uppercase flex items-center gap-2">
+                  <PlusCircle size={14}/> Cargo Secundario / Adicional
+                </span>
+                <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
+              </summary>
+              <div className="p-4 pt-0 space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <input name="cargo2_numero" defaultValue={editingStaff?.cargo2_numero || ""} placeholder="N° Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm w-full"/>
+                  <input name="cargo2_name" defaultValue={editingStaff?.cargo2_name || ""} placeholder="Nombre Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm w-full"/>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <select name="cargo2_role" defaultValue={editingStaff?.cargo2_role || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
+                    <option value="">Rol Cargo 2...</option>
+                    {VALID_ROLES.map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                  <select name="cargo2_subsidized" defaultValue={editingStaff?.cargo2_subsidized || 'false'} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
+                   <option value="false">DENO (No Subvencionado)</option>
+    <option value="true">MECA (Subvencionado)</option>
+    <option value="fuera">FUERA DE PLANTA (Papeles)</option>
+                  </select>
+                </div>
+                {/* --- NUEVOS CAMPOS AGREGADOS AQUÍ --- */}
+                <div className="grid grid-cols-2 gap-2">
+                   <select name="cargo2_revista" defaultValue={editingStaff?.cargo2_revista || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+                    <option value="">Revista...</option>
+                    <option value="Titular">Titular</option>
+                    <option value="Provisional">Provisional</option>
+                    <option value="Suplente">Suplente</option>
+                  </select>
+                  <div className="flex flex-col">
+                    <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Alta Cargo 2</label>
+                    <input name="cargo2_ingreso" type="date" defaultValue={editingStaff?.cargo2_ingreso || ""} className="p-2 bg-slate-50 rounded-xl border-none font-bold text-xs"/>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 px-2">
+                   <input type="checkbox" name="cargo2_en_papeles" defaultChecked={editingStaff?.cargo2_en_papeles === 'true'} value="true" className="w-4 h-4 accent-violet-600"/>
+                   <span className="text-[10px] font-bold text-gray-500 uppercase">¿Este cargo figura solo en papeles?</span>
+                </div>
+              </div>
+            </details>
+
+            {/* SECCIÓN 4: INSTITUCIONAL Y ANTIGÜEDAD */}
+            <details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
+                <span className="text-[11px] font-black text-violet-500 uppercase flex items-center gap-2">
+                  <Clock size={14}/> Ingreso y Antigüedad
+                </span>
+                <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
+              </summary>
+              <div className="p-4 pt-0 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Ingreso Institución</label>
+                  <input name="fechaIngreso" type="date" defaultValue={editingStaff?.fechaIngreso || ""} className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm"/>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Años Anti.</label>
+                    <input name="antiguedadAnios" type="number" defaultValue={editingStaff?.antiguedadAnios || ""} className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm text-center"/>
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Meses Anti.</label>
+                    <input name="antiguedadMeses" type="number" defaultValue={editingStaff?.antiguedadMeses || ""} className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm text-center"/>
+                  </div>
+                </div>
+                <input name="antiguedadFechaRef" type="hidden" defaultValue={editingStaff?.antiguedadFechaRef || new Date().toISOString().split('T')[0]} />
+              </div>
+            </details>
+
+            <div className="h-4"></div>
+          </form>
+{/* BOTONERA FIJA INFERIOR CORREGIDA */}
+          <div className="p-4 bg-white border-t space-y-3 shrink-0">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button type="button" onClick={() => setShowStaffForm(false)} className="order-2 sm:order-1 flex-1 py-3 text-slate-500 font-bold uppercase text-[10px] tracking-widest">
+                Cancelar
+              </button>
+              <button 
+                type="submit" 
+                form="staffForm" 
+                disabled={processing}
+                className="order-1 sm:order-2 flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-violet-200 hover:bg-violet-700 transition active:scale-95 flex justify-center items-center gap-2"
+              >
+                {processing ? <RefreshCw className="animate-spin" size={16}/> : 'Guardar Cambios'}
+              </button>
+            </div>
+            
+            {editingStaff && (
+              <button 
+                type="button" 
+                onClick={async () => {
+                  if(confirm("¿Eliminar definitivamente?")) {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); 
+                    setShowStaffForm(false); 
+                    setViewingStaff(null);
+                  }
+                }} 
+                className="w-full py-2 text-red-400 font-bold text-[9px] uppercase hover:text-red-500 transition tracking-tighter"
+              >
+                Eliminar Personal del Sistema
+              </button>
+            )}
+          </div>
+        </div> 
+      </div>
+    )}
+
+    {/* PARCHE PUNTO 3: MODAL DE OPCIONES DE IMPRESIÓN (FUERA DEL FORM) */}
+    {showPrintOptions && (
+        <div className="fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95">
+                <h3 className="text-xl font-black text-violet-900 uppercase italic mb-4 text-center">¿Qué info imprimir?</h3>
+                <div className="grid grid-cols-1 gap-2 mb-6">
+                    {Object.keys(printColumns).map(col => (
+                        <label key={col} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl cursor-pointer hover:bg-violet-50 transition border border-transparent hover:border-violet-200">
+                            <span className="text-[10px] font-black text-gray-600 uppercase">
+                                {col === 'alta' ? 'Fecha Ingreso' : col.replace('cargo', 'Cargo ')}
+                            </span>
+                            <input 
+                                type="checkbox" 
+                                checked={printColumns[col]} 
+                                onChange={() => setPrintColumns({...printColumns, [col]: !printColumns[col]})}
+                                className="w-5 h-5 accent-violet-600"
+                            />
+                        </label>
+                    ))}
+                </div>
+                <div className="flex gap-2">
+                    <button onClick={() => setShowPrintOptions(false)} className="flex-1 py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
+                    <button 
+                        onClick={() => { imprimirPlanillaGeneral(filteredStaff); setShowPrintOptions(false); }} 
+                        className="flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg hover:bg-violet-700 transition"
+                    >
+                        Generar Planilla
+                    </button>
+                </div>
+            </div>
+        </div>
+    )}
+
+  </div> // Fin del contenedor principal PersonalView
+  ); 
+} // Fin de la función
 // --- VISTA RECURSOS (VERSIÓN CON PLANTILLAS EN GENERADOR DE NOTAS) ---
 function ResourcesView({ resources, canEdit }) {
   const [showModal, setShowModal] = useState(false);
@@ -4406,2377 +6775,9 @@ function SocialView({ user }) {
     </div>
   );
 }
-// --- APP PRINCIPAL (FINAL: CON ADMIN INTEGRADO + MANTENIMIENTO + NOTIFS) ---
-function MainApp({ user, onLogout }) {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const [tasks, setTasks] = useState([]);
-  const [events, setEvents] = useState([]);
-  const [resources, setResources] = useState([]);
-  const [notifications, setNotifications] = useState([]);
-  const [announcements, setAnnouncements] = useState([]);
-  
-  const [showNotifPanel, setShowNotifPanel] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [globalViewingStudent, setGlobalViewingStudent] = useState(null);
-  
-  // POPUPS
-  const [showNotifRequest, setShowNotifRequest] = useState(false);
-  const [maintenanceMode, setMaintenanceMode] = useState(false);
-  const [showMaintenanceAlert, setShowMaintenanceAlert] = useState(false);
 
-  const prevNotifCount = useRef(0);
-  const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin'; 
-  const canManageContent = user.rol === 'admin' || isSuperAdmin || user.role === 'Equipo Directivo';
-  
-  // --- DEFINICIÓN DE PERMISOS GLOBALES (ORDEN CORREGIDO) ---
-  
-  // 1. Primero definimos los permisos específicos (con ? para que sea seguro)
-  const isAdminRole = ['admin', 'super-admin', 'Administración', 'Equipo Directivo', 'Dirección Inclusión'].includes(user?.role) || user?.rol === 'admin';
-  const isTechTeamRole = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión', 'Equipo Técnico', 'Equipo Técnico Inclusión'].includes(user?.role) || user?.rol === 'admin';
-  const isMedicalRole = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión', 'Médico', 'Enfermería', 'Salud'].includes(user?.role) || user?.rol === 'admin';
-  
-  // 2. Definimos el permiso Social (usando el texto exacto como está en Firebase)
-  const canAccessSocial = ['admin', 'super-admin', 'Docente', 'Auxiliar/Preceptor', 'Equipo Directivo', 'Equipo Técnico', 'Inclusión', 'DAI'].includes(user?.role) || user?.rol === 'admin';
 
-  // 3. Ahora que canAccessSocial EXISTE, definimos si mostramos el menú privado
-  const showPrivateMenu = isAdminRole || isTechTeamRole || isMedicalRole || canAccessSocial;
 
-  // 4. Otros estados de la interfaz
-  const isWideTab = ['groups', 'calendar', 'matricula', 'resources', 'users', 'admin'].includes(activeTab);
-  useEffect(() => {
-    if (user?.id) updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { lastLogin: serverTimestamp() }).catch(()=>{});
-    const unsubTasks = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('dueDate', 'asc')), (snap) => setTasks(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-    const unsubEvents = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc')), (snap) => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-    const unsubResources = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc')), (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-    const unsubAnnounce = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc')), (snap) => setAnnouncements(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-    
-    // MANTENIMIENTO
-    const unsubMaint = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'maintenance'), (doc) => { 
-        const isActive = doc.exists() ? doc.data().active : false;
-        setMaintenanceMode(isActive);
-        if(isActive && user.rol !== 'super-admin') setShowMaintenanceAlert(true);
-    });
-
-    const qNotifs = query(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), where('toUserId', '==', user.id));
-    const unsubNotifs = onSnapshot(qNotifs, (snap) => { 
-        const d = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); d.sort((a,b)=> (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)); 
-        const unread = d.filter(n=>!n.read); setNotifications(unread);
-        if (unread.length > prevNotifCount.current) { const latest = unread[0]; if (latest) { if ("Notification" in window && Notification.permission === "granted") { new Notification(`🔔 ${latest.title}`, { body: latest.message, icon: LOGO_URL }); } try { new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play().catch(()=>{}); } catch(e){} } }
-        prevNotifCount.current = unread.length;
-    });
-
-    // CHECK NOTIFICACIONES AL INICIO
-    if ("Notification" in window && Notification.permission === 'default') {
-        setTimeout(() => setShowNotifRequest(true), 3500); // Espera 3.5s para no chocar con la carga
-    }
-
-    return () => { unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); unsubAnnounce(); unsubMaint(); };
-  }, [user.id]);
-
-  const handleGlobalSearch = async (text) => { setSearchQuery(text); if (text.length < 2) { setSearchResults([]); return; } const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students')); const s = await getDocs(q); const r = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(s => (s.isActive===undefined || s.isActive) && (s.firstName.toLowerCase().includes(text.toLowerCase()) || s.lastName.toLowerCase().includes(text.toLowerCase()))); setSearchResults(r.slice(0, 5)); };
-  const handleNotificationClick = async (n) => { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', n.id)); if (n.targetTab) setActiveTab(n.targetTab); setShowNotifPanel(false); };
-  const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
-  
-  const enableNotifications = async () => { 
-      const permission = await Notification.requestPermission(); 
-      if (permission === 'granted') { 
-          try { 
-              const { getMessaging, getToken } = await import("firebase/messaging"); const messaging = getMessaging(); 
-              const token = await getToken(messaging, { vapidKey: 'BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw' }); 
-              if(token) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { fcmTokens: arrayUnion(token) }); 
-          } catch(e) {} 
-          alert("✅ ¡Genial! Te avisaremos de las novedades."); 
-      } 
-      setShowNotifRequest(false); 
-  };
-
-  // PANTALLA DE BLOQUEO TOTAL (SOLO SI SE DESEA - AHORA ESTÁ EN MODO CERRABLE ARRIBA)
-  // Si quisieras bloqueo total descomenta esto. Pero pediste poder cerrar.
-
-  return (
-    <div className="flex flex-col h-[100dvh] w-full bg-gray-50 font-sans text-slate-800 overflow-hidden relative">
-      <style>{` *::-webkit-scrollbar { display: none; } * { -ms-overflow-style: none; scrollbar-width: none; } `}</style>
-      
-      <header className="bg-violet-800 text-white shadow-lg px-4 py-3 flex justify-between items-center z-50 sticky top-0 shrink-0">
-        <div className="flex items-center space-x-3"><img src={LOGO_URL} alt="Logo" className="w-10 h-8 object-contain" /><div><h1 className="font-bold text-sm leading-tight">Juntos a la Par</h1><p className="text-[10px] text-orange-200 uppercase font-bold">{user.firstName}</p></div></div>
-        <div className="flex items-center gap-3"><button onClick={() => setShowSearch(true)} className="p-2 rounded-full bg-violet-900/50 hover:bg-orange-500 transition"><Search size={20} /></button><div className="relative"><button onClick={() => setShowNotifPanel(!showNotifPanel)} className={`p-2 rounded-full transition ${showNotifPanel ? 'bg-orange-500' : 'bg-violet-900/50'}`}><Bell size={20} />{notifications.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-pulse border border-white">{notifications.length}</span>}</button>{showNotifPanel && (<div className="absolute right-0 mt-3 w-72 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[100]"><div className="p-4 bg-violet-50 border-b flex justify-between items-center"><h3 className="font-bold text-violet-900 text-sm">Avisos</h3><button onClick={() => setShowNotifPanel(false)}><X size={16} className="text-gray-400"/></button></div><div className="max-h-80 overflow-y-auto">{notifications.length===0?<div className="p-10 text-center text-gray-400"><p className="text-xs font-bold uppercase">Sin novedades</p></div>:notifications.map(n=>(<div key={n.id} onClick={()=>handleNotificationClick(n)} className="p-4 border-b hover:bg-gray-50 cursor-pointer"><p className="text-[10px] font-bold text-orange-600 mb-1 uppercase">{n.title}</p><p className="text-xs text-gray-700">{n.message}</p></div>))}</div></div>)}</div><div onClick={() => {setActiveTab('profile'); setShowNotifPanel(false);}} className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold border-2 border-orange-400 overflow-hidden cursor-pointer active:scale-95 transition">{user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover" /> : user.firstName?.[0]}</div></div>
-      </header>
-
-      {/* --- CARTEL MANTENIMIENTO CERRABLE --- */}
-      {maintenanceMode && showMaintenanceAlert && (
-          <div className="fixed top-16 left-0 right-0 z-[999] p-4 animate-in slide-in-from-top-5">
-              <div className="bg-gradient-to-r from-orange-500 to-red-600 rounded-2xl shadow-2xl p-5 text-white flex flex-col items-center gap-3 border-4 border-white/20 relative overflow-hidden">
-                  <div className="absolute -top-10 -left-10 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
-                  <div className="flex items-center gap-3 z-10">
-                      <div className="bg-white p-3 rounded-full text-orange-600 animate-spin-slow"><Settings size={28}/></div>
-                      <div className="text-center">
-                          <h3 className="font-black uppercase text-lg tracking-wider leading-none">¡Estamos en Obra! 🚧</h3>
-                          <p className="text-xs font-medium opacity-90 mt-1">Estamos mejorando la App. Puede haber interrupciones breves.</p>
-                      </div>
-                  </div>
-                  <div className="flex gap-2 w-full">
-                      <button onClick={() => setShowMaintenanceAlert(false)} className="flex-1 bg-white text-orange-600 px-4 py-3 rounded-xl text-xs font-black uppercase shadow-lg hover:bg-orange-50 transition active:scale-95">
-                          Entendido, usar con cuidado
-                      </button>
-                  </div>
-              </div>
-          </div>
-      )}
-
-      {/* --- POPUP DE PEDIDO DE NOTIFICACIONES --- */}
-      {showNotifRequest && (
-        <div className="fixed inset-0 z-[400] flex items-end md:items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in">
-             <div className="bg-white rounded-[30px] p-6 w-full max-w-sm shadow-2xl text-center border-t-8 border-orange-500 mb-20 md:mb-0">
-                 <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
-                     <Bell size={32} className="text-orange-500"/>
-                 </div>
-                 <h3 className="text-xl font-black text-gray-800 mb-2">¡No te pierdas nada!</h3>
-                 <p className="text-sm text-gray-500 mb-6">Activa las notificaciones para saber cuando tienes una tarea nueva o un aviso urgente.</p>
-                 <div className="flex flex-col gap-3">
-                     <button onClick={enableNotifications} className="w-full bg-violet-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-violet-700 transition">ACTIVAR AHORA</button>
-                     <button onClick={() => setShowNotifRequest(false)} className="text-gray-400 text-xs font-bold uppercase hover:text-gray-600">Ahora no</button>
-                 </div>
-             </div>
-         </div>
-      )}
-
-      <main className={`flex-1 overflow-y-auto no-scrollbar pb-24 pt-6 mx-auto w-full transition-all duration-300 ${isWideTab ? 'px-2 max-w-[98%]' : 'px-4 max-w-4xl'}`}>
-        {activeTab === 'dashboard' && <DashboardView user={user} tasks={tasks} events={events} announcements={announcements} setActiveTab={setActiveTab} />}
-        {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
-        {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} canEdit={canManageContent} />}
-        {activeTab === 'matricula' && <MatriculaView user={user} />}
-        {activeTab === 'resources' && <ResourcesView resources={resources} canEdit={canManageContent} />}
-        {activeTab === 'profile' && <ProfileView user={user} onLogout={onLogout} isSuperAdmin={isSuperAdmin} />}
-        {activeTab === 'proyecto' && <ProyectoView user={user} />}
-        {activeTab === 'groups' && <GroupsView user={user} />}
-        {activeTab === 'users' && isSuperAdmin && <UsersAdminView />}
-        {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={isSuperAdmin} user={user} />}
-        {activeTab === 'equipo' && <EquipoTecnicoView user={user} />}
-        {/* --- NUEVO: VISTA ADMIN (SOLO RENDERIZA SI EL TAB ES 'ADMIN') --- */}
-        {activeTab === 'admin' && <AdministracionView user={user} />}
-        {/* ----------------------------------------------------------------- */}
-        {activeTab === 'users' && isSuperAdmin && <UsersAdminView />}
-        {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={isSuperAdmin} user={user} />}
-        {activeTab === 'admin' && <AdministracionView user={user} />}
-        {/* PEGAR ESTA LÍNEA NUEVA: */}
-        {activeTab === 'personal' && <PersonalView user={user} />}
-        {activeTab === 'medical' && <MedicalView user={user} />}
-        {activeTab === 'social' && <SocialView user={user} />}
-    
-      </main>
-
-<nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-16 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] pb-safe shrink-0">
-        {/* Usamos grid-cols-5 universal para PC y Celular */}
-        <div className="grid grid-cols-5 h-full max-w-3xl mx-auto px-2 relative">
-          
-          <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Inicio" />
-          <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={20} />} label="Tareas" />
-          
-          {/* BOTÓN CENTRAL: MI AULA */}
-          <div className="relative -top-5 flex justify-center">
-            <button onClick={() => setActiveTab('groups')} className={`w-14 h-14 rounded-full flex flex-col items-center justify-center shadow-xl border-4 border-gray-50 transition-all transform active:scale-95 ${activeTab === 'groups' ? 'bg-orange-500 text-white scale-110' : 'bg-violet-600 text-white'}`}>
-              <Grid size={24} />
-            </button>
-            <span className="absolute -bottom-4 text-[9px] font-black text-violet-900 uppercase tracking-wide whitespace-nowrap">Mi Aula</span>
-          </div>
-          
-          <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={20} />} label="Agenda" />
-
-          {/* BOTÓN MÁS (UNIVERSAL PARA PC Y CELULAR) */}
-          <div className="relative">
-              <NavButton active={['matricula', 'resources', 'proyecto', 'admin', 'personal', 'medical', 'equipo'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={20} />} label="Más" />
-              
-              {showMoreMenu && (
-                  <div className="absolute bottom-16 right-0 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 w-56 animate-in slide-in-from-bottom-5 zoom-in-95 origin-bottom-right z-50">
-                      <button onClick={() => { setActiveTab('matricula'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
-                          <GraduationCap size={18} className="text-violet-500"/> Legajos
-                      </button>
-               
-                      <button onClick={() => { setActiveTab('resources'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
-                          <LinkIcon size={18} className="text-green-500"/> Recursos
-                      </button>
-                      <button onClick={() => { setActiveTab('proyecto'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
-                          <PieChart size={18} className="text-orange-500"/> Proyecto Inst.
-                      </button>
-                      
-                      {/* --- SECCIÓN PRIVADA: ADMIN, PERSONAL, EQUIPO TÉCNICO, MÉDICO --- */}
-                      {showPrivateMenu && (
-                          <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
-                              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-3 mb-1 mt-1">Gestión Privada</p>
-                              
-                              {isTechTeamRole && (
-                                  <button onClick={() => { setActiveTab('equipo'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-teal-50 flex items-center gap-3 text-sm font-bold text-teal-700 transition">
-                                      <Briefcase size={18} className="text-teal-500"/> Equipo Técnico
-                                  </button>
-                              )}
-
-                              {isAdminRole && (
-                                  <>
-                                      <button onClick={() => { setActiveTab('admin'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-blue-600 transition">
-                                          <FileText size={18} className="text-blue-500"/> Admin Docs
-                                      </button>
-                                      <button onClick={() => { setActiveTab('personal'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-violet-700 transition">
-                                          <Users size={18} className="text-violet-500"/> Personal
-                                      </button>
-                                  </>
-                              )}
-                             {canAccessSocial && (
-            <button 
-                onClick={() => { setActiveTab('social'); setShowMoreMenu(false); }} 
-                className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition"
-            >
-                <Users size={18} className="text-blue-500"/> Trabajo Social
-            </button>
-        )}
-
-                              {isMedicalRole && (
-                                  <button onClick={() => { setActiveTab('medical'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-red-50 flex items-center gap-3 text-sm font-bold text-red-600 transition">
-                                      <Activity size={18} className="text-red-500"/> Médico
-                                  </button>
-                              )}
-                          </div>
-                      )}
-                  </div>
-              )}
-          </div>
-        </div>
-      </nav>
-
-      {/* BUSCADOR Y MODAL GLOBAL */}
-      {showSearch && ( <div className="fixed inset-0 bg-violet-900/90 z-[300] flex flex-col p-4 backdrop-blur-md animate-in fade-in"><div className="flex justify-between items-center text-white mb-4"><h3 className="font-black italic uppercase">Buscador Rápido</h3><button onClick={() => {setShowSearch(false); setSearchQuery(''); setSearchResults([]);}} className="p-2 bg-white/20 rounded-full"><X/></button></div><input autoFocus value={searchQuery} onChange={(e) => handleGlobalSearch(e.target.value)} placeholder="Escribí un nombre o apellido..." className="w-full p-4 rounded-2xl bg-white text-lg font-bold text-gray-800 outline-none shadow-xl mb-4"/><div className="flex-1 overflow-y-auto space-y-2">{searchResults.map(s => (<div key={s.id} onClick={() => setGlobalViewingStudent(s)} className="bg-white p-3 rounded-xl flex items-center gap-3 active:scale-95 transition cursor-pointer"><div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center font-bold text-gray-400">{s.firstName[0]}</div>}</div><div><p className="font-bold text-gray-800 text-sm">{s.lastName}, {s.firstName}</p><p className="text-[10px] text-gray-500">{s.level} • {s.groupMorning || s.groupAfternoon || 'Sin Grupo'}</p></div></div>))}{searchQuery.length > 2 && searchResults.length === 0 && <p className="text-white/50 text-center mt-4">No se encontraron resultados.</p>}</div></div> )}
-      {globalViewingStudent && (<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[350] flex items-center justify-center p-4"><div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95"><div className="bg-violet-600 p-4 text-white flex justify-between items-center"><h3 className="font-bold text-lg">{globalViewingStudent.lastName}, {globalViewingStudent.firstName}</h3><button onClick={() => setGlobalViewingStudent(null)}><X/></button></div><div className="p-6"><div className="flex gap-4 items-center mb-4"><div className="w-20 h-20 bg-gray-200 rounded-2xl overflow-hidden">{globalViewingStudent.photoUrl && <img src={globalViewingStudent.photoUrl} className="w-full h-full object-cover"/>}</div><div><p className="text-sm font-bold text-gray-600">Edad: {calculateAge(globalViewingStudent.birthDate)} años</p><p className="text-sm font-bold text-gray-600">DNI: {globalViewingStudent.dni}</p><p className="text-xs text-orange-500 font-bold mt-1 uppercase">{globalViewingStudent.dx}</p></div></div><button onClick={() => { setActiveTab('matricula'); setShowSearch(false); setGlobalViewingStudent(null); alert("Te llevamos a la sección Legajos. Buscalo ahí para editar."); }} className="w-full bg-violet-100 text-violet-700 py-3 rounded-xl font-bold text-xs uppercase hover:bg-violet-200 transition">Ir a Legajo Completo</button></div></div></div>)}
-    </div>
-  );
-} // <--- CIERRE CORRECTO DE LA FUNCIÓN MainApp
-
-// --- VISTA AULA CORREGIDA (SELECTOR DE DOCENTES ARREGLADO) ---
-function GroupsView({ user }) {
-  const [students, setStudents] = useState([]);
-  const [usersList, setUsersList] = useState([]); 
-  const [turn, setTurn] = useState('morning'); 
-  const [selectedStudent, setSelectedStudent] = useState(null);
-  const [showBitacoraModal, setShowBitacoraModal] = useState(null); 
-  const [activeTab, setActiveTab] = useState('info');
-  const [groupMessages, setGroupMessages] = useState({}); // Mensajes por grupo
-const [showGroupChat, setShowGroupChat] = useState(null); // Qué chat de grupo está abierto
-  const [selectedGroupDetails, setSelectedGroupDetails] = useState(null); // Para abrir la ventana grande del grupo
-  const [showMobileChat, setShowMobileChat] = useState(false);
-const [informeEpoca, setInformeEpoca] = useState(1); // Para filtrar 1°, 2° o 3°
-  
-  const [newNote, setNewNote] = useState("");
-  const [isWriting, setIsWriting] = useState(false);
-  const [editingGroup, setEditingGroup] = useState(null);
-  
-  const userRoleStr = (user?.role || '').toLowerCase();
-  const isDAIRole = userRoleStr.includes('inclusión') || userRoleStr.includes('inclusion') || userRoleStr.includes('dai');
-  const [viewFilter, setViewFilter] = useState(isDAIRole ? 'inclusion' : 'sede');
-  const [groupStats, setGroupStats] = useState(null);
-  const [updatingGroup, setUpdatingGroup] = useState(false);
-  const [savingIncident, setSavingIncident] = useState(false);
-  const [showPrintOptions, setShowPrintOptions] = useState(false);
-  const [groupsToPrint, setGroupsToPrint] = useState([]); // Para saber si imprimimos uno o todos
-  const [printColumns, setPrintColumns] = useState({
-    dni: true,
-    birthDate: true,
-    healthInsurance: false,
-    contacts: true,
-    photo: false
-  });
-  const SOCIAL_TARGETS = ['mchancalay', 'Myrian Chancalay'];
-  const scrollRef = useRef(null); 
-  const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scrollRef.current.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' }); } };
-
-  const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración', 'Dirección Inclusión', 'Equipo Técnico Inclusión'].includes(user.role) || user.rol === 'admin';
-  const isStrategic = ['super-admin', 'admin', 'Equipo Directivo', 'Equipo Técnico', 'Dirección Inclusión', 'Equipo Técnico Inclusión'].includes(user.role);
-  const LOGO_URL = "/icon-192.png";
-
-  const INCIDENT_TYPES = [
-      { label: "Trabajó Muy Bien", emoji: "🌟", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
-      { label: "Ayudó a un amigo", emoji: "🤝", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
-      { label: "Logro de Aprendizaje", emoji: "🚀", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
-      { label: "Buena Conducta", emoji: "😇", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
-      { label: "Crisis Llanto", emoji: "😭", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" },
-      { label: "Higiene / Esfínter", emoji: "💩", severity: "medium", color: "bg-blue-100 border-blue-300 text-blue-800" }, 
-      { label: "No trabajó", emoji: "💤", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
-      { label: "Llegada Tarde", emoji: "🕑", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
-      { label: "No comió", emoji: "🍽️", severity: "low", color: "bg-blue-50 border-blue-200 text-blue-700" }, 
-      { label: "Agresión / Violencia", emoji: "👊", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
-      { label: "Brote / Gritos", emoji: "🤬", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
-      { label: "Fuga / Intento", emoji: "🏃", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
-      { label: "Convulsión / Salud", emoji: "🚑", severity: "high", color: "bg-indigo-100 border-indigo-300 text-indigo-800" }, 
-  ];
-
-  useEffect(() => {
-    const qS = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
-    const unsubS = onSnapshot(qS, (snap) => { setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
-    const qU = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('lastName', 'asc'));
-    const unsubU = onSnapshot(qU, (snap) => { setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
-   return () => { unsubS(); unsubU(); unsubGM(); };
-  }, []);
-     const qGM = query(collection(db, 'artifacts', appId, 'public', 'data', 'group_mural'), orderBy('createdAt', 'desc'));
-const unsubGM = onSnapshot(qGM, (snap) => {
-    const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    // Los agrupamos por nombre de grupo para fácil acceso
-    const groupedMsgs = msgs.reduce((acc, m) => {
-        if (!acc[m.groupName]) acc[m.groupName] = [];
-        acc[m.groupName].push(m);
-        return acc;
-    }, {});
-    setGroupMessages(groupedMsgs);
-});
-  const getNormRole = (r) => {
-    if (!r) return '';
-    return r.trim();
-  };
-
-  const groupedData = students.reduce((acc, s) => {
-      const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-      if (s.modality === 'Inclusión') {
-          const dais = [...new Set([s.daiMorning, s.daiAfternoon].filter(Boolean))];
-          dais.forEach(daiName => {
-              const groupKey = `DAI: ${daiName}`;
-              if (!acc[groupKey]) {
-                  acc[groupKey] = { name: groupKey, students: [], teacher: daiName, teacherId: s.daiId, isInclusionGroup: true };
-              }
-              if (!acc[groupKey].students.find(x => x.id === s.id)) { acc[groupKey].students.push(s); }
-          });
-      } else {
-          const groupName = s[`group${suf}`];
-          if (!groupName) return acc;
-          const groupKey = groupName.trim();
-          if (!acc[groupKey]) { 
-              acc[groupKey] = { 
-                  name: groupKey, students: [], teacher: s[`teacher${suf}`], teacherId: s[`teacherId${suf}`], 
-                  teacher2: s[`teacher2${suf}`], aux: s[`aux${suf}`], special1: s[`special1${suf}`], 
-                  special2: s[`special2${suf}`], special3: s[`special3${suf}`], sup1: s[`sup1${suf}`], 
-                  sup2: s[`sup2${suf}`], classroom: s.classroom, driveLink: s[`driveLink${suf}`], isInclusionGroup: false 
-              }; 
-          }
-          acc[groupKey].students.push(s); 
-      }
-      return acc;
-  }, {});
-// Ordenamos los grupos: INICIAL siempre primero, el resto por nombre alfabético
-  let groups = Object.values(groupedData).sort((a, b) => {
-      const nameA = a.name.toUpperCase();
-      const nameB = b.name.toUpperCase();
-      
-      // Si el grupo A es inicial y el B no, A va primero
-      if (nameA.includes("INICIAL") && !nameB.includes("INICIAL")) return -1;
-      // Si el grupo B es inicial y el A no, B va primero
-      if (!nameA.includes("INICIAL") && nameB.includes("INICIAL")) return 1;
-      
-      // Si ambos son iniciales o ninguno lo es, ordenamos alfabéticamente normal
-      return nameA.localeCompare(nameB);
-  });
-
- // --- LÓGICA DE FILTRADO DEFINITIVA (SÓLO POR ID - UNIFICADA) ---
-  if (!isManagement) {
-      groups = groups.filter(g => {
-          const uId = user.id;
-          const legajoId = user.legajoId;
-          const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-
-          // 1. Chequeo de Equipo del Grupo (Titular, Auxiliar, Especiales)
-          // Buscamos tu ID en cualquiera de estos campos del grupo
-          const groupStaffIds = [
-            g.teacherId, 
-            g.auxId, 
-            g.special1Id, 
-            g.special2Id, 
-            g.special3Id,
-            g.sup1Id,
-            g.sup2Id
-          ];
-          
-          if (groupStaffIds.includes(uId) || (legajoId && groupStaffIds.includes(legajoId))) return true;
-
-          // 2. Chequeo por Alumno (DAI o Docentes específicos en ficha)
-          const vinculadoAAlumnx = g.students.some(s => 
-              s.daiId === uId || (legajoId && s.daiId === legajoId) ||
-              s[`teacherId${suf}`] === uId || (legajoId && s[`teacherId${suf}`] === legajoId) ||
-              s[`teacherId2${suf}`] === uId || (legajoId && s[`teacherId2${suf}`] === legajoId) ||
-              s[`auxId${suf}`] === uId || (legajoId && s[`auxId${suf}`] === legajoId)
-          );
-          
-          if (vinculadoAAlumnx) return true;
-
-          return false;
-      });
-  } else {
-      // Si es directivo, filtramos por la pestaña Sede/Inclusión
-      if (viewFilter !== 'all') { 
-          groups = groups.filter(g => viewFilter === 'inclusion' ? g.isInclusionGroup : !g.isInclusionGroup); 
-      }
-  }
-
-  const getSafeDate = (d) => { if(!d) return '-'; try { return new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('es-AR'); } catch(e) { return d; } };
-
-const printGroups = (groupsList) => {
-    const iframe = document.createElement('iframe'); 
-    iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0'; 
-    document.body.appendChild(iframe);
-    
-    let fullHtml = `<html><head><title>Listado Institucional</title><style>
-      @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap'); 
-      body{font-family:'Roboto', sans-serif; padding:20px; color:#333;} 
-      .main-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 5px solid #7c3aed; padding-bottom: 10px; margin-bottom: 20px; } 
-      .main-title { font-size: 24px; font-weight: 900; color: #4c1d95; text-transform: uppercase; margin: 0; } 
-      .group-section { margin-bottom: 30px; page-break-inside: avoid; } 
-      .group-header { background-color: #f3f4f6; border-left: 6px solid #7c3aed; padding: 10px 15px; margin-bottom: 10px; border-radius: 0 8px 8px 0; } 
-      .group-name { font-size: 18px; font-weight: 900; color: #5b21b6; margin: 0; } 
-      .group-staff { font-size: 10px; font-weight: bold; color: #555; margin-top: 4px; text-transform: uppercase; } 
-      table { width: 100%; border-collapse: collapse; font-size: 10px; } 
-      thead tr { background-color: #7c3aed !important; color: white !important; } 
-      th { padding: 5px; text-align: left; text-transform: uppercase; font-weight: bold; border: 1px solid #ddd; } 
-      td { border: 1px solid #e5e7eb; padding: 5px; color: #374151; vertical-align: middle; } 
-      .photo-img { width: 30px; height: 30px; border-radius: 5px; object-fit: cover; border: 1px solid #ddd; }
-      .footer { margin-top: 30px; border-top: 1px solid #ddd; padding-top: 10px; text-align: right; font-size: 9px; color: #9ca3af; font-style: italic; }
-    </style></head><body>
-    <div class="main-header"><div><h1 class="main-title">Listado Institucional</h1><p class="main-subtitle">Ciclo 2026 - Turno ${turn === 'morning' ? 'Mañana' : 'Tarde'}</p></div><img src="${LOGO_URL}" style="height: 50px;" /></div>`;
-
-    groupsList.forEach(g => {
-        const sorted = [...g.students].sort((a,b) => a.lastName.localeCompare(b.lastName));
-        let supText = g.sup1 || '-'; if (g.sup2) supText += ` / ${g.sup2}`;
-        const aulaText = g.classroom ? ` | 🏫 AULA: ${g.classroom}` : '';
-        
-        fullHtml += `<div class="group-section"><div class="group-header"><h2 class="group-name">${g.name}</h2><div class="group-staff">DOC: ${g.teacher || 'VACANTE'} | AUX: ${g.aux || '-'} | SUP: ${supText} ${aulaText}</div></div>
-        <table><thead><tr>
-          <th width="3%">#</th>
-          ${printColumns.photo ? '<th width="5%">Foto</th>' : ''}
-          <th width="30%">Apellido y Nombre</th>
-          ${printColumns.dni ? '<th width="12%">DNI</th>' : ''}
-          ${printColumns.birthDate ? '<th width="12%">Nacimiento</th>' : ''}
-          ${printColumns.healthInsurance ? '<th width="15%">Obra Social</th>' : ''}
-          ${printColumns.contacts ? '<th>Familia / Contacto</th>' : ''}
-        </tr></thead><tbody>`;
-
-        sorted.forEach((s, i) => {
-            fullHtml += `<tr>
-                <td style="text-align:center;">${i+1}</td>
-                ${printColumns.photo ? `<td>${s.photoUrl ? `<img src="${s.photoUrl}" class="photo-img"/>` : '-'}</td>` : ''}
-                <td style="font-weight:bold;text-transform:uppercase;">${s.lastName}, ${s.firstName}</td>
-                ${printColumns.dni ? `<td>${s.dni||'-'}</td>` : ''}
-                ${printColumns.birthDate ? `<td>${getSafeDate(s.birthDate)}</td>` : ''}
-                ${printColumns.healthInsurance ? `<td>${s.healthInsurance||'S/D'}</td>` : ''}
-                ${printColumns.contacts ? `<td>${g.isInclusionGroup ? `Esc: ${s.originSchool}` : `M: ${s.motherName||'-'} (${s.motherContact||'-'}) / P: ${s.fatherName||'-'}`}</td>` : ''}
-            </tr>`;
-        });
-        fullHtml += `</tbody></table></div>`;
-    });
-    fullHtml += `<div class="footer">Generado el ${new Date().toLocaleDateString()}</div></body></html>`;
-    const doc = iframe.contentWindow.document; doc.open(); doc.write(fullHtml); doc.close();
-    setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
-  };
-const printStaffOrganization = (groupsList) => {
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
-    document.body.appendChild(iframe);
-
-    let html = `<html><head><title>Planilla de Organización</title><style>
-      @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
-      body{font-family:'Roboto', sans-serif; padding:20px; color:#333;}
-      h1 { text-align: center; color: #4c1d95; text-transform: uppercase; font-size: 20px; margin-bottom: 20px; border-bottom: 3px solid #7c3aed; padding-bottom: 10px; }
-      table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-      th { background-color: #7c3aed; color: white; text-transform: uppercase; font-size: 10px; padding: 10px; border: 1px solid #ddd; }
-      td { padding: 10px; border: 1px solid #ddd; font-size: 11px; font-weight: bold; text-align: center; text-transform: uppercase; }
-      tr:nth-child(even) { background-color: #f3f4f6; }
-      .footer { margin-top: 20px; text-align: right; font-size: 9px; color: #aaa; font-style: italic; }
-    </style></head><body>
-    <h1>Planilla de Organización de Personal - Turno ${turn === 'morning' ? 'Mañana' : 'Tarde'}</h1>
-    <table>
-      <thead>
-        <tr>
-          <th>Nivel</th>
-          <th>Grupo</th>
-          <th>Docente / DAI</th>
-          <th>Auxiliar</th>
-          <th>Aula Física</th>
-        </tr>
-      </thead>
-      <tbody>`;
-
-    groupsList.forEach(g => {
-        html += `<tr>
-          <td>${g.students[0]?.level || '-'}</td>
-          <td style="color: #7c3aed;">${g.name}</td>
-          <td>${g.teacher || 'VACANTE'} ${g.teacher2 ? `/ ${g.teacher2}` : ''}</td>
-          <td>${g.aux || '-'}</td>
-          <td>${g.classroom || '-'}</td>
-        </tr>`;
-    });
-
-    html += `</tbody></table><p class="footer">Generado el ${new Date().toLocaleDateString()}</p></body></html>`;
-    
-    const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close();
-    setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); document.body.removeChild(iframe); }, 500);
-  };
-  const handlePrintAll = () => { printGroups(groups); };
-  const handlePrintSingleGroup = (g) => { printGroups([g]); };
-
-const handleReportAbsenteeism = async () => {
-      if(!selectedStudent) return;
-      const details = prompt(`¿Motivo del ausentismo o conflicto de ${selectedStudent.firstName}?`);
-      if(!details) return;
-
-      try {
-          const caseData = {
-              studentId: selectedStudent.id,
-              studentName: `${selectedStudent.lastName}, ${selectedStudent.firstName}`,
-              level: selectedStudent.level || 'Sin Nivel',
-              group: turn === 'morning' ? selectedStudent.groupMorning : selectedStudent.groupAfternoon,
-              reason: details,
-              reportedBy: user.firstName,
-              status: 'Pendiente',
-              steps: {
-                  llamada: { done: false, date: null, obs: '' },
-                  continuidad: { sent: false, date: null },
-                  entrevista: { done: false, date: null }
-              },
-              history: [{ date: new Date().toISOString(), text: `Reporte inicial: ${details}`, author: user.firstName }],
-              createdAt: serverTimestamp(),
-              cycle: '2026'
-          };
-          
-          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'), caseData);
-
-          if (new Date() >= new Date('2026-05-01')) {
-              const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-              await updateDoc(userRef, { score: increment(15) });
-          }
-
-          alert("✅ Caso derivado a Trabajo Social (+15 pts).");
-          setActiveTab('social'); 
-      } catch (e) { alert("Error: " + e.message); }
-  };
-
-// --- FUNCIÓN UNIFICADA DE BITÁCORA ---
-  const handleSaveIncident = async (type, severity = "medium", text = "") => {
-    const activeStudent = showBitacoraModal || selectedStudent;
-    if (!activeStudent) return;
-
-    setSavingIncident(true);
-
-    const newInc = { 
-        date: new Date().toISOString(), 
-        type: text ? "Nota" : type, 
-        severity: severity, 
-        text: text || type, 
-        author: user.fullName || user.firstName,
-        authorId: user.id
-    }; 
-
-    try { 
-        const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', activeStudent.id); 
-        
-        // 1. Guardamos el incidente en el alumno
-        await updateDoc(studentRef, { 
-            incidents: arrayUnion(newInc) 
-        }); 
-
-        // 2. --- PUNTOS CHALLENGE / MAYO ---
-        // Se activa si es >= 1 de Mayo
-        if (new Date() >= new Date('2026-05-01')) {
-            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-            await updateDoc(userRef, { score: increment(10) });
-        }
-
-        // 3. Actualización de interfaz local
-        if (viewingStudent && viewingStudent.id === activeStudent.id) {
-            setViewingStudent(prev => ({...prev, incidents: [...(prev.incidents || []), newInc]}));
-        }
-
-        // 4. Limpieza y cierre
-        setNewNote("");
-        setIsWriting(false);
-        if (typeof setShowBitacoraModal === 'function') setShowBitacoraModal(null);
-        
-        alert("✅ Registro guardado correctamente.");
-    } catch (e) {
-        console.error("Error al guardar:", e);
-        alert("❌ Error: " + e.message);
-    } finally {
-        setSavingIncident(false);
-    }
-  };
- const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
-
-const handleUpdateGroup = async (e) => { 
-      e.preventDefault(); 
-      if (!editingGroup) return; 
-      setUpdatingGroup(true); 
-      const fd = new FormData(e.target); 
-      const updates = {}; 
-      const suf = turn === 'morning' ? 'Morning' : 'Afternoon'; 
-
-      const getName = (id) => {
-        if (!id) return "";
-        const found = usersList.find(u => u.id === id);
-        return found ? found.fullName : "";
-      };
-
-      try {
-          if (!editingGroup.isInclusionGroup) { 
-              // Docente 1
-              const tId = fd.get('teacher');
-              updates[`teacherId${suf}`] = tId; 
-              updates[`teacher${suf}`] = getName(tId);
-
-              // Docente 2 (Pareja)
-              const t2Id = fd.get('teacher2Id');
-              updates[`teacherId2${suf}`] = t2Id;
-              updates[`teacher2${suf}`] = getName(t2Id);
-
-              // Auxiliar
-              const aId = fd.get('auxId');
-              updates[`auxId${suf}`] = aId;
-              updates[`aux${suf}`] = getName(aId);
-
-              // Especiales (1, 2 y 3)
-              [1, 2, 3].forEach(num => {
-                const specId = fd.get(`special${num}Id`);
-                updates[`special${num}Id${suf}`] = specId || "";
-                updates[`special${num}${suf}`] = getName(specId);
-              });
-
-              updates[`group${suf}`] = fd.get('groupName'); 
-              updates.classroom = fd.get('classroom'); 
-              updates[`driveLink${suf}`] = fd.get('driveLink');
-          } else { 
-              const dId = fd.get('teacher');
-              updates['daiId'] = dId; 
-              updates['daiMorning'] = getName(dId); 
-              updates['daiAfternoon'] = getName(dId);
-              updates[`driveLink${suf}`] = fd.get('driveLink');
-          } 
-      
-          const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)); 
-          await Promise.all(promises); 
-          setEditingGroup(null); 
-      } catch (err) { 
-          alert("Error: " + err.message); 
-      } finally { 
-          setUpdatingGroup(false); 
-      } 
-  };
-
-  const staffOptions = usersList.filter(u => ['Docente', 'Auxiliar/Preceptor', 'Equipo Técnico', 'Profes Especiales', 'DAI', 'Inclusión'].includes(u.role));
-  const techOptions = usersList.filter(u => u.role === 'Equipo Técnico' || u.role === 'Equipo Técnico Inclusión' || u.role === 'Trabajadora Social');
-  const specialOptions = usersList.filter(u => u.role === 'Profes Especiales' || u.role === 'Docente');
-  const handleToggleInforme = async (estudiante, numeroInforme) => {
-  const campo = `informe${numeroInforme}`;
-  const estadoActual = estudiante[campo] || { enviado: false };
-  let nuevoEstado = {};
-
-  if (!estadoActual.enviado) {
-    // Pasa a ENVIADO (Naranja)
-    nuevoEstado = { enviado: true, fechaEnvio: new Date().toISOString(), devuelto: false, archivado: false };
-  } else if (!estadoActual.devuelto) {
-    // Pasa a DEVUELTO (Azul)
-    nuevoEstado = { ...estadoActual, devuelto: true, fechaDevuelto: new Date().toISOString() };
-  } else if (!estadoActual.archivado) {
-    // Pasa a ARCHIVADO (Verde)
-    nuevoEstado = { ...estadoActual, archivado: true };
-  } else {
-    // RESET (Vuelve a Gris)
-    nuevoEstado = { enviado: false };
-  }
-
-  try {
-    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', estudiante.id);
-    await updateDoc(docRef, { [campo]: nuevoEstado });
-    // Aquí podrías agregar un mensaje de éxito si quisieras
-  } catch (error) {
-    console.error("Error al actualizar informe:", error);
-  }
-};
-  const handleAddGroupComment = async (e, groupName) => {
-    e.preventDefault();
-    const text = e.target.comment.value;
-    if (!text.trim()) return;
-
-    try {
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'group_mural'), {
-            groupName,
-            text,
-            author: user.firstName,
-            authorId: user.id,
-            createdAt: serverTimestamp()
-        });
-        e.target.reset();
-    } catch (err) { alert(err.message); }
-};
-const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
-    const campo = `informe${numeroInforme}`;
-    const estadoActual = estudiante[campo] || { status: 'Pendiente' };
-    let nuevoEstado = {};
-
-    // Ciclo de estados con texto
-    switch (estadoActual.status) {
-      case 'Pendiente': nuevoEstado = { status: 'Hecho' }; break;
-      case 'Hecho': nuevoEstado = { status: 'Impreso' }; break;
-      case 'Impreso': nuevoEstado = { status: 'Enviado', fechaEnvio: new Date().toISOString() }; break;
-      case 'Enviado': nuevoEstado = { status: 'Archivado' }; break;
-      default: nuevoEstado = { status: 'Pendiente' }; // Reinicia el ciclo
-    }
-
-    try {
-      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', estudiante.id);
-      await updateDoc(docRef, { [campo]: nuevoEstado });
-      
-      const nuevosEstudiantes = selectedGroupDetails.students.map(s => 
-        s.id === estudiante.id ? { ...s, [campo]: nuevoEstado } : s
-      );
-      setSelectedGroupDetails({ ...selectedGroupDetails, students: nuevosEstudiantes });
-      
-      if (new Date() >= new Date('2026-05-01')) {
-        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-        await updateDoc(userRef, { score: increment(5) });
-      }
-    } catch (error) { console.error("Error:", error); }
-  };
-
-  return (
-    <div className="flex flex-col h-full bg-slate-100 animate-in fade-in relative">
-      {!isManagement && (
-        <div className="bg-white px-6 py-4 border-b flex items-center gap-4 shrink-0">
-          <div className="w-12 h-12 bg-violet-100 rounded-2xl flex items-center justify-center text-violet-600 shadow-inner"> <User size={24} /> </div>
-          <div>
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Docente Identificada</p>
-            <h2 className="text-lg font-black text-violet-900 uppercase italic leading-none">{user.fullName || `${user.firstName} ${user.lastName}`}</h2>
-            <p className="text-[9px] font-bold text-orange-500 mt-1 uppercase">ID: {user.id.substring(0,8)}...</p>
-          </div>
-        </div>
-      )}
-      <div className="bg-white p-4 shadow-sm z-10 sticky top-0 flex flex-col gap-3">
-          <div className="flex justify-between items-center">
-              <div>
-                  <h2 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2"><Grid size={24} className="text-orange-500"/> Mis Grupos</h2>
-                  <p className="text-xs text-gray-400 font-bold uppercase">{isManagement ? "Vista Institucional" : `Espacio Docente`}</p>
-              </div>
-              {isManagement && <button onClick={() => { setGroupsToPrint(groups); setShowPrintOptions(true); }} className="bg-violet-100 text-violet-700 p-2 rounded-xl shadow-sm hover:bg-violet-200 transition" title="Imprimir Todo"><FileText size={24}/></button>}
-          </div>
-          <div className={`flex gap-2 ${viewFilter === 'inclusion' ? 'justify-end' : ''}`}>
-              {viewFilter !== 'inclusion' && (
-                  <div className="flex bg-gray-100 p-1 rounded-xl flex-1">
-                      <button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-400'}`}>☀️ Mañana</button>
-                      <button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 Tarde</button>
-                  </div>
-              )}
-              {isManagement && (
-                  <div className="flex bg-gray-100 p-1 rounded-xl">
-                      <button onClick={() => setViewFilter('sede')} className={`px-4 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'sede' ? 'bg-white shadow text-blue-600' : 'text-gray-400'}`}>Sede</button>
-                      <button onClick={() => setViewFilter('inclusion')} className={`px-4 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'inclusion' ? 'bg-white shadow text-indigo-600' : 'text-gray-400'}`}>Inclusión</button>
-                  </div>
-              )}
-          </div>
-      </div>
-      
-      <div className="relative flex-1 overflow-hidden">
-          <button onClick={() => scroll('left')} className="hidden md:flex absolute left-2 top-1/2 z-20 bg-white/90 text-violet-600 p-3 rounded-full shadow-xl border border-gray-100 hover:scale-110 transition -translate-y-1/2"><ChevronLeft size={24}/></button>
-          <button onClick={() => scroll('right')} className="hidden md:flex absolute right-2 top-1/2 z-20 bg-white/90 text-violet-600 p-3 rounded-full shadow-xl border border-gray-100 hover:scale-110 transition -translate-y-1/2"><ChevronRight size={24}/></button>
-          <div ref={scrollRef} className={`h-full overflow-x-auto p-6 scroll-smooth flex gap-6 items-start ${groups.length <= 2 ? 'justify-center' : ''}`}>
-                {groups.length === 0 && (<div className="m-auto text-center opacity-50"><p className="font-bold text-gray-400">No hay grupos visibles.</p></div>)} 
-                {groups.map((g) => (
-                   <div key={g.name} className={`flex flex-col h-[calc(100vh-220px)] md:h-fit bg-white rounded-[30px] border shadow-sm relative overflow-hidden group-hover:shadow-md transition shrink-0 ${groups.length <= 2 ? 'w-full max-w-[900px]' : 'min-w-[280px] w-[300px]'} ${g.isInclusionGroup ? 'border-indigo-200' : 'border-gray-200'}`}>
-                      <div className={`p-4 border-b-4 relative ${g.isInclusionGroup ? 'bg-indigo-50 border-indigo-400' : (turn==='morning'?'border-orange-400 bg-orange-50':'border-indigo-400 bg-indigo-50')}`}>
-  <div className="absolute top-2 right-2 flex gap-1">
-      {/* NUEVO BOTÓN + (MODO ENFOQUE) */}
-      <button 
-        onClick={() => setSelectedGroupDetails(g)} 
-        className="p-2 bg-violet-600 text-white rounded-full shadow-lg hover:scale-110 transition active:scale-95" 
-        title="Ver Grupo Completo"
-      >
-        <Plus size={16}/>
-      </button>
-      <button onClick={() => { setGroupsToPrint([g]); setShowPrintOptions(true); }} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>
-      {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"><Edit3 size={14}/></button>}
-  </div>
-  
-  <div className="flex items-center gap-2 pr-12 flex-wrap">
-    <h3 className="font-black text-gray-800 text-lg leading-tight">{g.name}</h3>
-    <span className="bg-white/80 text-violet-700 px-2 py-0.5 rounded-md text-[9px] font-black shadow-sm border border-violet-100 shrink-0">{g.students.length} ALUMNXS</span>
-  </div>
-
-  <div className="mt-2 text-[11px] text-gray-500 font-medium space-y-0.5">
-      <p>DOC: <span className="font-bold text-violet-700 uppercase">{g.teacher || 'Sin asignar'}</span></p>
-      {g.aux && <p>AUX: <span className="font-bold text-slate-600 uppercase">{g.aux}</span></p>}
-    {g.classroom && (<p className="text-orange-600 font-black">🏫 Aula {g.classroom}</p>)}
-  </div>
-</div>
-                   
-                     <div className="flex-1 overflow-y-auto p-4 bg-gray-50 grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-3 content-start">
-                        {g.students.map(s => (
-                            <div key={s.id} onClick={() => {setSelectedStudent(s); setActiveTab('info');}} className="bg-white p-3 rounded-2xl shadow-sm flex items-center gap-3 cursor-pointer hover:scale-[1.02] transition">
-                                <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden shrink-0 border border-gray-100">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="flex items-center justify-center w-full h-full font-bold text-gray-400">{s.firstName[0]}</div>}</div>
-                                <div><h4 className="font-bold text-gray-700 text-sm">{s.firstName} {s.lastName}</h4>{g.isInclusionGroup && <p className="text-[10px] text-indigo-500 font-bold">Esc. {s.originSchool}</p>}</div>
-                                <button onClick={(e) => {e.stopPropagation(); setShowBitacoraModal(s); setIsWriting(false); setNewNote("");}} className="ml-auto w-8 h-8 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center hover:bg-violet-600 hover:text-white transition">⚡</button>
-                            </div>
-                        ))}
-                      </div>
-                    </div>
-                ))}
-          </div>
-      </div>
-
-      {showBitacoraModal && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4"><div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-emerald-500">
-        <div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3><p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p></div><button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button></div>
-        {!isWriting ? (
-            <>
-                <div className="grid grid-cols-2 gap-3 mb-4 max-h-[50vh] overflow-y-auto">{INCIDENT_TYPES.map((type) => (<button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? 'opacity-50' : 'hover:brightness-95'}`}><span className="text-2xl">{type.emoji}</span><span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span></button>))}</div>
-                <button onClick={() => setIsWriting(true)} className="w-full py-3 bg-gray-900 text-white rounded-2xl font-bold uppercase text-xs flex items-center justify-center gap-2"><Edit3 size={16}/> Escribir Nota</button>
-            </>
-        ) : (
-            <div className="animate-in slide-in-from-bottom">
-                <textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Escribí los detalles..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm mb-2 h-24 outline-none focus:border-violet-500"/>
-                <div className="flex gap-2"><button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs hover:bg-gray-100 rounded-xl">Volver</button><button onClick={() => addIncident('medium', newNote)} disabled={!newNote.trim()} className="flex-1 py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg">Guardar</button></div>
-            </div>
-        )}
-      </div></div>)}
-
-     {editingGroup && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-          <form onSubmit={handleUpdateGroup} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-black text-violet-900 uppercase italic">Editar Grupo</h3>
-              <button type="button" onClick={() => setEditingGroup(null)}><X size={20}/></button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="bg-violet-50 p-3 rounded-xl border border-violet-100 text-center">
-                <p className="text-xs text-violet-500 font-bold uppercase mb-1">
-                  {editingGroup.isInclusionGroup ? "Editando Inclusión" : "Editando Sede"}
-                </p>
-                {!editingGroup.isInclusionGroup && (
-                  <input name="groupName" defaultValue={editingGroup.name} className="font-black text-2xl text-violet-900 bg-transparent text-center w-full outline-none border-b border-violet-200" placeholder="Nombre Grupo" />
-                )}
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-gray-500 ml-1">Docente Titular (1)</label>
-                <select name="teacher" defaultValue={editingGroup.teacherId || ""} className="w-full p-3 bg-white border-2 border-violet-100 rounded-xl outline-none font-bold text-xs">
-                  <option value="">Seleccionar...</option>
-                  {usersList.map(u => <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>)}
-                </select>
-              </div>
-
-              {!editingGroup.isInclusionGroup && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-xs font-bold text-gray-500 ml-1">Docente Pareja (2)</label>
-                    <select name="teacher2Id" defaultValue={editingGroup.teacherId2 || ""} className="w-full p-3 bg-white border-2 border-violet-100 rounded-xl outline-none font-bold text-xs">
-                      <option value="">Ninguno / Vacante</option>
-                      {usersList.map(u => <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>)}
-                    </select>
-                  </div>
-
-                 <div>
-  <label className="text-xs font-bold text-gray-500 ml-1">Auxiliar / Preceptora</label>
-  <select 
-    name="auxId" 
-    defaultValue={editingGroup.auxId || ""} 
-    className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs border border-transparent focus:border-violet-200"
-  >
-    <option value="">Sin asignar</option>
-    {/* Filtro ampliado: Aparecen Docentes, Auxiliares, Preceptores e Inclusión */}
-    {usersList
-      .filter(u => ['Docente', 'Auxiliar/Preceptor', 'Preceptora', 'Auxiliar', 'Inclusión'].includes(u.role))
-      .map(u => (
-        <option key={u.id} value={u.id}>
-          {u.lastName}, {u.firstName} ({u.role})
-        </option>
-      ))
-    }
-  </select>
-</div>
-
-                  <div className="bg-violet-50/50 p-4 rounded-2xl border border-violet-100 space-y-3">
-                    <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest ml-1">Profesores Especiales</p>
-                    <select name="special1Id" defaultValue={editingGroup.special1Id || ""} className="w-full p-2 bg-white rounded-lg border border-violet-100 text-xs font-bold">
-                      <option value="">Especial 1...</option>
-                      {usersList.filter(u => u.role === "Profes Especiales").map(u => <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>)}
-                    </select>
-                    <select name="special2Id" defaultValue={editingGroup.special2Id || ""} className="w-full p-2 bg-white rounded-lg border border-violet-100 text-xs font-bold">
-                      <option value="">Especial 2...</option>
-                      {usersList.filter(u => u.role === "Profes Especiales").map(u => <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>)}
-                    </select>
-                    <select name="special3Id" defaultValue={editingGroup.special3Id || ""} className="w-full p-2 bg-white rounded-lg border border-violet-100 text-xs font-bold">
-                      <option value="">Especial 3...</option>
-                      {usersList.filter(u => u.role === "Profes Especiales").map(u => <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>)}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-gray-500 ml-1">Aula Física</label>
-                    <input name="classroom" defaultValue={editingGroup.classroom || ""} className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs" placeholder="Ej: 4"/>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="text-xs font-bold text-green-600 ml-1">Drive del Grupo</label>
-                <input name="driveLink" defaultValue={editingGroup.driveLink || ""} className="w-full p-3 bg-green-50 border border-green-100 rounded-xl outline-none font-bold text-xs text-green-700" placeholder="https://..." />
-              </div>
-              {/* Campo para el link de fotos en la edición del grupo */}
-<div className="space-y-4 mt-4">
-  {/* CAMPO 1: CARPETA DE FOTOS (VERDE) */}
-  <div>
-    <label className="text-[10px] font-black text-emerald-600 uppercase ml-1">Link Carpeta de Fotos (Drive)</label>
-    <input 
-      type="text"
-      placeholder="Pegá el link de la carpeta de FOTOS acá"
-      defaultValue={editingGroup.driveLink || ""}
-      onChange={(e) => setEditingGroup({...editingGroup, driveLink: e.target.value})}
-      className="w-full p-3 bg-emerald-50 border border-emerald-100 rounded-2xl text-xs font-bold text-emerald-800 outline-none focus:ring-2 ring-emerald-200"
-    />
-  </div>
-
-  {/* CAMPO 2: CARPETA INSTITUCIONAL (AZUL) */}
-  <div>
-    <label className="text-[10px] font-black text-blue-600 uppercase ml-1">Link Carpeta Drive (Documentación)</label>
-    <input 
-      type="text"
-      placeholder="Pegá el link del DRIVE INSTITUCIONAL acá"
-      defaultValue={editingGroup.institucionalDrive || ""}
-      onChange={(e) => setEditingGroup({...editingGroup, institucionalDrive: e.target.value})}
-      className="w-full p-3 bg-blue-50 border border-blue-100 rounded-2xl text-xs font-bold text-blue-800 outline-none focus:ring-2 ring-blue-200"
-    />
-  </div>
-</div>
-              <button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs mt-4">
-                {updatingGroup ? <span>Cargando...</span> : <span>Aplicar Cambios</span>}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {showPrintOptions && (
-        <div className="fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600">
-            <h3 className="text-xl font-black text-violet-900 uppercase italic mb-4 text-center">Info a Imprimir</h3>
-            <p className="text-[10px] text-gray-400 font-bold uppercase text-center mb-4 tracking-widest">Listado de Estudiantes</p>
-            <div className="grid grid-cols-1 gap-2 mb-6">
-              {[
-                {id: "photo", label: "📸 Foto del Alumno"},
-                {id: "dni", label: "🪪 DNI"},
-                {id: "birthDate", label: "📅 Fecha Nacimiento"},
-                {id: "healthInsurance", label: "🏥 Obra Social"},
-                {id: "contacts", label: "📞 Contactos Familia"},
-              ].map(col => (
-                <label key={col.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl cursor-pointer hover:bg-violet-50 transition border border-transparent hover:border-violet-200">
-                  <span className="text-xs font-bold text-gray-600 uppercase">{col.label}</span>
-                  <input 
-                    type="checkbox" 
-                    checked={printColumns[col.id]} 
-                    onChange={() => setPrintColumns({...printColumns, [col.id]: !printColumns[col.id]})}
-                    className="w-5 h-5 accent-violet-600"
-                  />
-                </label>
-              ))}
-            </div>
-
-            <div className="relative h-px bg-gray-100 my-6">
-              <span className="absolute left-1/2 -translate-x-1/2 -top-2 bg-white px-3 text-[8px] font-black text-gray-300 uppercase tracking-widest">Otras Plantillas</span>
-            </div>
-
-            <button 
-              onClick={() => { printStaffOrganization(groupsToPrint); setShowPrintOptions(false); }}
-              className="w-full py-4 bg-teal-50 text-teal-700 border-2 border-teal-100 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-teal-100 transition active:scale-95 flex items-center justify-center gap-2 mb-6"
-            >
-              <Users size={16}/> Solo Organización (Cargos)
-            </button>
-
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setShowPrintOptions(false)} className="flex-1 py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
-              <button 
-                onClick={() => { printGroups(groupsToPrint); setShowPrintOptions(false); }} 
-                className="flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg hover:bg-violet-700 transition"
-              >
-                Imprimir Alumnos
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {groupStats && (<div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[250] flex items-center justify-center p-4" onClick={() => setGroupStats(null)}><div className="bg-white rounded-[40px] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}><div className="flex justify-between items-center mb-6"><div><h3 className="text-xl font-black text-violet-900 uppercase italic">Análisis del Grupo</h3><p className="text-xs text-gray-500 font-bold">{groupStats.name}</p></div><button onClick={() => setGroupStats(null)}><X size={20}/></button></div></div></div>)}
-{selectedStudent && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-            
-            {/* CABECERA CON PESTAÑAS */}
-            <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0">
-              <button onClick={() => setSelectedStudent(null)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-1 rounded-full transition">
-                <X size={20}/>
-              </button>
-              
-              <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center">
-                  {selectedStudent.photoUrl ? <img src={selectedStudent.photoUrl} className="w-full h-full object-cover"/> : <User size={40} className="text-white/50"/>}
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold uppercase tracking-tight leading-tight">{selectedStudent.lastName}, {selectedStudent.firstName}</h2>
-                  <p className="opacity-90 text-xs font-bold uppercase mt-1 tracking-widest text-cyan-50">{selectedStudent.modality || 'Sede'}</p>
-                </div>
-              </div>
-
-              <div className="flex gap-2 mt-6">
-                <button onClick={() => setActiveTab("info")} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === "info" ? "bg-white text-blue-600 shadow-md" : "bg-black/20 text-white/70"}`}>Datos</button>
-                <button onClick={() => setActiveTab("history")} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === "history" ? "bg-white text-blue-600 shadow-md" : "bg-black/20 text-white/70"}`}>Bitácora</button>
-              </div>
-            </div>
-
-            <div className="p-6 overflow-y-auto space-y-6">
-              {activeTab === "info" ? (
-                /* --- PESTAÑA DATOS (DNI, EDAD, FAMILIA) --- */
-                <div className="space-y-5 animate-in fade-in">
-                  
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center shadow-sm">
-                      <p className="text-[8px] font-black text-slate-400 uppercase mb-1">DNI</p>
-                      <p className="font-bold text-slate-800 text-xs">{selectedStudent.dni || '-'}</p>
-                    </div>
-                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center shadow-sm">
-                      <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Nacimiento</p>
-                      <p className="font-bold text-slate-800 text-[10px]">{selectedStudent.birthDate ? new Date(selectedStudent.birthDate + 'T12:00:00').toLocaleDateString('es-AR') : '-'}</p>
-                    </div>
-                    <div className="bg-blue-50 p-3 rounded-2xl border border-blue-100 text-center shadow-sm">
-                      <p className="text-[8px] font-black text-blue-400 uppercase mb-1">Edad Actual</p>
-                      <p className="font-bold text-blue-700 text-xs">{calculateAge(selectedStudent.birthDate)} años</p>
-                    </div>
-                  </div>
-
-                  <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 shadow-sm">
-                    <h3 className="font-black text-orange-800 text-[10px] uppercase mb-2 tracking-widest flex items-center gap-1">
-                      <Users size={12}/> Contacto Familiar
-                    </h3>
-                    <div className="space-y-1">
-                      <p className="text-sm text-slate-700">Madre: <b className="text-slate-900">{selectedStudent.motherName || 'S/D'}</b> {selectedStudent.motherContact && <span className="text-blue-600 font-bold ml-1">({selectedStudent.motherContact})</span>}</p>
-                      <p className="text-sm text-slate-700">Padre: <b className="text-slate-900">{selectedStudent.fatherName || 'S/D'}</b> {selectedStudent.fatherContact && <span className="text-blue-600 font-bold ml-1">({selectedStudent.fatherContact})</span>}</p>
-                    </div>
-                  </div>
-
-                  <button onClick={handleReportAbsenteeism} className="w-full py-4 bg-red-50 text-red-700 font-black rounded-2xl border border-red-200 flex items-center justify-center gap-2 hover:bg-red-100 transition shadow-sm uppercase text-[10px] tracking-widest">
-                    <AlertTriangle size={18}/> Reportar Ausentismo (+3 días)
-                  </button>
-
-                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
-                    <h3 className="font-black text-gray-500 text-[10px] uppercase mb-2 tracking-widest">Ubicación Actual</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <p className="text-xs font-bold text-slate-400">TM: <b className="text-slate-800 block uppercase">{selectedStudent.groupMorning || 'No asiste'}</b></p>
-                      <p className="text-xs font-bold text-slate-400">TT: <b className="text-slate-800 block uppercase">{selectedStudent.groupAfternoon || 'No asiste'}</b></p>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                /* --- PESTAÑA BITÁCORA (BOTONERA + HISTORIAL) --- */
-                <div className="space-y-4 animate-in fade-in pb-10">
-                  
-                  {/* BOTONERA DE EMOJIS (Para carga rápida) */}
-                  {!isWriting && (
-                    <div className="grid grid-cols-3 gap-2 mb-4">
-                      {INCIDENT_TYPES.map((type) => (
-                        <button 
-                          key={type.label} 
-                          onClick={() => handleSaveIncident(type.label, type.severity)} 
-                          disabled={savingIncident}
-                          className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? 'opacity-50' : ''}`}
-                        >
-                          <span className="text-2xl">{type.emoji}</span>
-                          <span className="text-[9px] font-black uppercase text-center leading-tight">{type.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* REDACTAR NOTA MANUAL */}
-                  <div className="bg-slate-100 p-4 rounded-2xl border border-slate-200">
-                    {isWriting ? (
-                      <div className="animate-in slide-in-from-bottom-2">
-                        <textarea 
-                          autoFocus 
-                          value={newNote} 
-                          onChange={e => setNewNote(e.target.value)} 
-                          placeholder="Escribí los detalles de la nota..." 
-                          className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm mb-2 h-24 outline-none focus:ring-2 ring-violet-200"
-                        />
-                        <div className="flex gap-2">
-                          <button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
-                          <button onClick={() => addIncident('medium', newNote)} disabled={!newNote.trim()} className="flex-[2] py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-[10px] shadow-lg">Guardar Nota</button>
-                        </div>
-                      </div>
-                    ) : (
-                      <button onClick={() => setIsWriting(true)} className="w-full py-3 bg-slate-800 text-white rounded-xl font-bold uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 hover:bg-slate-700 transition">
-                        <Edit3 size={16}/> Escribir Nota Detallada
-                      </button>
-                    )}
-                  </div>
-
-                  {/* LISTADO DE INCIDENTES RECIENTES */}
-                  <div className="space-y-2 mt-4">
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Historial de Bitácora</h4>
-                    {selectedStudent.incidents && selectedStudent.incidents.length > 0 ? (
-                      selectedStudent.incidents.slice().reverse().map((inc, i) => (
-                        <div key={i} className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-[10px] font-black text-violet-400 uppercase">{new Date(inc.date).toLocaleDateString('es-AR')}</span>
-                            <span className="text-[9px] font-bold text-slate-400 uppercase italic">Por: {inc.author}</span>
-                          </div>
-                          <p className="font-bold text-slate-700 text-sm leading-relaxed">{inc.text || inc.type}</p>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-10 opacity-30">
-                         <p className="text-xs font-bold uppercase tracking-widest italic">Sin registros de bitácora</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            {/* CIERRE DEL PIE DEL MODAL */}
-            <div className="p-4 border-t bg-white shrink-0">
-               <button onClick={() => setSelectedStudent(null)} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg">Cerrar Ficha</button>
-            </div>
-
-          </div>
-        </div>
-      )}
-{selectedGroupDetails && (
-  <div className="fixed inset-0 bg-slate-900 z-[500] flex flex-col animate-in fade-in duration-300 overflow-hidden">
-    {/* HEADER DINÁMICO */}
-    <div className="bg-white p-4 flex justify-between items-center border-b-4 border-violet-100 shrink-0 z-[600]">
-      <div className="flex items-center gap-3">
-        <div className="bg-violet-600 text-white p-2 rounded-xl shadow-lg">
-           <Users size={20}/>
-        </div>
-        <div>
-          <h2 className="text-lg md:text-2xl font-black text-slate-800 uppercase italic leading-none">{selectedGroupDetails.name}</h2>
-          <p className="text-[9px] font-bold text-violet-400 uppercase tracking-[2px]">Control de Gestión</p>
-        </div>
-      </div>
-      
-      <div className="flex items-center gap-2">
-        {/* ICONO DE CHAT PARA CELU */}
-        <button 
-          onClick={() => {
-            setShowMobileChat(true);
-            const total = groupMessages[selectedGroupDetails.name]?.length || 0;
-            localStorage.setItem(`read_${selectedGroupDetails.name}_${user.id}`, total);
-          }}
-          className="lg:hidden relative p-3 bg-orange-100 text-orange-600 rounded-full active:scale-90 transition-all"
-        >
-          <MessageSquare size={24} />
-          {(() => {
-            const total = groupMessages[selectedGroupDetails.name]?.length || 0;
-            const read = parseInt(localStorage.getItem(`read_${selectedGroupDetails.name}_${user.id}`) || "0");
-            if (total > read) return <span className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-[10px] font-black flex items-center justify-center rounded-full border-2 border-white animate-bounce">{total - read}</span>;
-          })()}
-        </button>
-
-        <button onClick={() => setSelectedGroupDetails(null)} className="bg-slate-100 p-3 rounded-full text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all"><X size={24}/></button>
-      </div>
-    </div>
-
-    <div className="flex-1 flex flex-row overflow-hidden bg-white">
-      
-      {/* PANEL IZQUIERDO: INFORMES, STAFF Y DRIVE */}
-      <div className={`flex-1 flex flex-col h-full border-r border-slate-100 bg-white overflow-y-auto custom-scrollbar ${showMobileChat ? 'hidden lg:flex' : 'flex'}`}>
-        <div className="p-6 space-y-6">
-            
-            {/* BOTONES DRIVE CORREGIDOS (Invertidos según tu pedido) */}
-            <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => selectedGroupDetails.institucionalDrive ? window.open(selectedGroupDetails.institucionalDrive, '_blank') : alert('Falta link')}
-                    className="flex items-center gap-3 p-4 rounded-2xl bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 transition-all active:scale-95 shadow-sm">
-                    <FileText size={20}/> <span className="font-black text-[10px] uppercase tracking-tighter">Drive Institucional</span>
-                </button>
-                <button onClick={() => selectedGroupDetails.driveLink ? window.open(selectedGroupDetails.driveLink, '_blank') : alert('Falta link')}
-                    className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-all active:scale-95 shadow-sm">
-                    <Folder size={20}/> <span className="font-black text-[10px] uppercase tracking-tighter">Carpeta Fotos</span>
-                </button>
-            </div>
-
-            {/* SELECTOR DE ÉPOCA CON NUEVOS TÍTULOS */}
-            <div className="space-y-2">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Seleccionar período de informes:</p>
-                <div className="flex bg-slate-100 p-1 rounded-2xl">
-                {[
-                    {id: 1, label: 'Inicial'},
-                    {id: 2, label: 'Medio'},
-                    {id: 3, label: 'Final'}
-                ].map(epoca => (
-                    <button key={epoca.id} onClick={() => setInformeEpoca(epoca.id)} className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${informeEpoca === epoca.id ? 'bg-white text-violet-600 shadow-sm' : 'text-slate-400'}`}>
-                    Informe {epoca.label}
-                    </button>
-                ))}
-                </div>
-            </div>
-
-            {/* STAFF RESPONSABLE COMPLETO */}
-            <div className="bg-slate-50 p-5 rounded-[30px] border border-slate-100 space-y-4 shadow-inner">
-                <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-100 text-center">
-                        <p className="text-[7px] font-black text-violet-400 uppercase">Titular</p>
-                        <p className="text-[10px] font-black text-slate-700 truncate uppercase">{selectedGroupDetails.teacher}</p>
-                    </div>
-                    {selectedGroupDetails.aux && (
-                      <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-100 text-center">
-                          <p className="text-[7px] font-black text-orange-400 uppercase">Auxiliar</p>
-                          <p className="text-[10px] font-black text-slate-700 truncate uppercase">{selectedGroupDetails.aux}</p>
-                      </div>
-                    )}
-                </div>
-                <div className="px-2 space-y-1 border-t border-slate-200 pt-3">
-                    <p className="text-[9px] font-bold text-slate-500 italic flex items-center gap-1">✨ Especiales: <span className="text-slate-700 not-italic font-black uppercase">{[selectedGroupDetails.special1, selectedGroupDetails.special2, selectedGroupDetails.special3].filter(Boolean).join(' • ') || '-'}</span></p>
-                    <p className="text-[9px] font-bold text-indigo-400 flex items-center gap-1">🔍 Supervisión: <span className="text-indigo-600 font-black uppercase">{[selectedGroupDetails.sup1, selectedGroupDetails.sup2].filter(Boolean).join(' & ') || '-'}</span></p>
-                </div>
-            </div>
-
-            {/* LISTADO DE INFORMES */}
-            <div className="space-y-3 pb-20">
-                <h3 className="font-black text-sm uppercase text-slate-800 tracking-[2px] border-l-4 border-violet-500 pl-3">
-                    {informeEpoca === 1 ? 'INFORME INICIAL' : informeEpoca === 2 ? 'INFORME MEDIO' : 'INFORME FINAL'}
-                </h3>
-                <div className="grid grid-cols-1 gap-3">
-                    {selectedGroupDetails.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => {
-                        const info = s[`informe${informeEpoca}`] || { status: 'Pendiente' };
-                        const statusColors = {
-                          'Hecho': 'bg-blue-600 text-white',
-                          'Impreso': 'bg-violet-600 text-white',
-                          'Enviado': 'bg-orange-500 text-white',
-                          'Archivado': 'bg-emerald-600 text-white',
-                          'Pendiente': 'bg-slate-50 text-slate-400 border-slate-200'
-                        };
-                        return (
-                          <div key={s.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-white rounded-3xl border-2 border-slate-100 shadow-sm hover:border-violet-200 transition-all gap-4">
-                              <span className="font-black text-lg text-slate-700 uppercase tracking-tighter">{s.lastName}, {s.firstName}</span>
-                              <button 
-                                onClick={() => handleToggleInformeGrupo(s, informeEpoca)}
-                                className={`py-4 px-6 rounded-2xl text-[10px] font-black uppercase shadow-md transition-all active:scale-95 min-w-[140px] ${statusColors[info.status] || statusColors['Pendiente']}`}
-                              >
-                                {info.status}
-                              </button>
-                          </div>
-                        );
-                    })}
-                </div>
-            </div>
-        </div>
-      </div>
-
-      {/* PANEL DERECHO: MURAL */}
-      <div 
-        className={`lg:flex lg:flex-1 flex-col bg-slate-50 relative border-l-4 border-violet-50 ${showMobileChat ? 'fixed inset-0 z-[700] flex' : 'hidden'}`}
-        onMouseEnter={() => {
-            const total = groupMessages[selectedGroupDetails.name]?.length || 0;
-            localStorage.setItem(`read_${selectedGroupDetails.name}_${user.id}`, total);
-        }}
-      >
-        <button onClick={() => setShowMobileChat(false)} className="lg:hidden absolute top-4 right-4 z-[800] bg-white p-2 rounded-full shadow-xl text-slate-800"><X size={24}/></button>
-        <div className="absolute inset-0 opacity-[0.05] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#4c1d95 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
-        
-        <div className="p-5 bg-white/80 backdrop-blur-md border-b flex items-center gap-3 shrink-0 z-10">
-            <div className="p-2 bg-orange-500 text-white rounded-xl shadow-lg shadow-orange-100"><MessageSquare size={18}/></div>
-            <div>
-                <h3 className="font-black text-slate-800 uppercase italic text-sm">Muro de Intercambio</h3>
-                <p className="text-[8px] font-bold text-orange-500 uppercase tracking-widest">Cualquier miembro del equipo puede escribir aquí ✍️</p>
-            </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 flex flex-col-reverse custom-scrollbar z-10 overscroll-contain">
-          {groupMessages[selectedGroupDetails.name]?.map(m => (
-            <div key={m.id} className={`flex flex-col ${m.authorId === user.id ? 'items-end' : 'items-start'}`}>
-              <div className={`max-w-[85%] md:max-w-[80%] p-4 rounded-[25px] shadow-sm ${
-                m.authorId === user.id ? 'bg-violet-600 text-white rounded-tr-none' : 'bg-white text-slate-700 rounded-tl-none border border-slate-200'
-              }`}>
-                <div className="flex justify-between items-center mb-1 gap-6">
-                  <span className={`text-[9px] font-black uppercase tracking-tighter ${m.authorId === user.id ? 'text-violet-200' : 'text-violet-600'}`}>{m.author}</span>
-                  <span className="text-[8px] font-bold opacity-40">{m.createdAt?.seconds ? new Date(m.createdAt.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '...'}</span>
-                </div>
-                <p className="text-sm font-medium leading-tight">{m.text}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="p-6 bg-white border-t-2 border-slate-100 z-10">
-          <form onSubmit={(e) => handleAddGroupComment(e, selectedGroupDetails.name)} className="flex items-center gap-3 bg-slate-50 p-2 rounded-[30px] border-2 border-slate-200 focus-within:border-orange-300 focus-within:bg-white transition-all shadow-inner">
-            <input name="comment" autoComplete="off" placeholder="Escribir novedad..." className="flex-1 bg-transparent border-none px-5 py-3 text-sm font-bold text-slate-700 outline-none" />
-            <button type="submit" className="bg-orange-500 text-white p-4 rounded-full shadow-lg active:scale-90 transition-transform"><Send size={20} /></button>
-          </form>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
-
-      {/* MODAL BITÁCORA EXPRESS (EXTERNO) */}
-      {showBitacoraModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-emerald-500">
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3>
-                <p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p>
-              </div>
-              <button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20} /></button>
-            </div>
-            {!isWriting ? (
-              <>
-                <div className="grid grid-cols-2 gap-3 mb-4 max-h-[50vh] overflow-y-auto">
-                  {INCIDENT_TYPES.map((type) => (
-                    <button
-                      key={type.label}
-                      onClick={() => handleSaveIncident(type.label, type.severity)}
-                      disabled={savingIncident}
-                      className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? "opacity-50" : "hover:brightness-95"}`}
-                    >
-                      <span className="text-2xl">{type.emoji}</span>
-                      <span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span>
-                    </button>
-                  ))}
-                </div>
-                <button onClick={() => setIsWriting(true)} className="w-full py-3 bg-gray-900 text-white rounded-2xl font-bold uppercase text-xs flex items-center justify-center gap-2"><Edit3 size={16} /> Escribir Nota</button>
-              </>
-            ) : (
-              <div className="animate-in slide-in-from-bottom">
-                <textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Detalles..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm mb-2 h-24 outline-none focus:border-violet-500" />
-                <div className="flex gap-2">
-                  <button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-500 font-bold uppercase text-xs hover:bg-gray-100 rounded-xl">Volver</button>
-                  <button
-                    onClick={() => handleSaveIncident("Nota", "medium", newNote)}
-                    disabled={!newNote.trim() || savingIncident}
-                    className="flex-1 py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg"
-                  >
-                    {savingIncident ? 'Guardando...' : 'Guardar'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-// --- VISTA PERSONAL (VERSIÓN DEFINITIVA Y COMPLETA) ---
-function PersonalView({ user }) {
-  const [staffList, setStaffList] = useState([]);
-  const [students, setStudents] = useState([]); // <-- AGREGÁ ESTO
- const uniqueTurns = TURNS_LIST;
-  
-  const [staffFilterText, setStaffFilterText] = useState('');
-  // ROLES COMO ARRAY PARA MULTISELECCIÓN
-  const [filters, setFilters] = useState({ modality: 'all', roles: [], turn: 'all', subsidized: 'all' });
-  
-  const [viewingStaff, setViewingStaff] = useState(null); 
-  const [showStaffForm, setShowStaffForm] = useState(false);
-  const [editingStaff, setEditingStaff] = useState(null);
-  
-  const [processing, setProcessing] = useState(false);
-  const [photoPreview, setPhotoPreview] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [showPrintOptions, setShowPrintOptions] = useState(false);
-  const [printColumns, setPrintColumns] = useState({
-      dni: true,
-      cargo1: true,
-      cargo2: true,
-      alta: false,
-      domicilio: false,
-      telefono: false,
-      titulo: false
-  });
-
-  const canAccess = ['admin', 'super-admin', 'Administración', 'Equipo Directivo'].includes(user.role) || user.rol === 'admin';
-
-  // LISTA ESTRICTA DE ROLES OFICIALES
-  const VALID_ROLES = [
-      "Docente", "Preceptora", "Auxiliar", "Profe Especial", "Equipo Técnico", "Equipo Directivo",
-      "Dirección Inclusión", "Equipo Técnico Inclusión", "DAI",
-      "Cocina", "Limpieza", "Mantenimiento", "Administración"
-  ];
-
-  const getNormRole = (r) => {
-      if (!r) return '';
-      const match = VALID_ROLES.find(v => v.toLowerCase() === r.trim().toLowerCase());
-      return match || r.trim();
-  };
-
- useEffect(() => {
-  const qStaff = query(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), orderBy('lastName', 'asc'));
-  const unsubStaff = onSnapshot(qStaff, (snap) => { setStaffList(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
-
-  // AGREGÁ ESTE BLOQUE:
-  const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
-  const unsubStudents = onSnapshot(qStudents, (snap) => { 
-      setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))); 
-  });
-
-  return () => { unsubStaff(); unsubStudents(); }; // Asegurate de cerrar ambos
-}, []);
-
-const filteredStaff = staffList.filter(s => {
-      // 1. Buscador y Modalidad (se mantienen)
-      const txt = staffFilterText.toLowerCase();
-      const matchesText = !txt || `${s.lastName || ''} ${s.firstName || ''} ${s.dni || ''}`.toLowerCase().includes(txt);
-      if (!matchesText) return false;
-      if (filters.modality !== 'all' && (s.modality || 'Sede') !== filters.modality) return false;
-      
-      // 2. LÓGICA DE CATEGORÍAS (REINICIADA DESDE CERO)
-      // Solo miramos los cargos específicos, ignoramos campos generales viejos
-      const c1Sub = s.cargo1_subsidized;
-      const c2Sub = s.cargo2_subsidized;
-
-      // Definimos los estados puros
-      const isMecanizada = (c1Sub === 'true' || c2Sub === 'true');
-      const isFueraDePlanta = (c1Sub === 'fuera' || c2Sub === 'fuera' || s.cargo1_en_papeles === 'true' || s.cargo2_en_papeles === 'true');
-      // Es DENO solo si NO es mecanizada y NO es fuera de planta
-      const isDeno = !isMecanizada && !isFueraDePlanta;
-
-      // 3. APLICACIÓN DEL FILTRO ESTRICTO
-      if (filters.subsidized !== 'all') {
-          if (filters.subsidized === 'yes' && !isMecanizada) return false;
-          if (filters.subsidized === 'fuera' && !isFueraDePlanta) return false;
-          if (filters.subsidized === 'no' && !isDeno) return false;
-      }
-
-      // --- El resto de la función (Roles y Turnos) sigue igual ---
-      const c1Role = getNormRole(s.cargo1_role || s.role); 
-      const c2Role = getNormRole(s.cargo2_role);
-      const c1Turn = (s.cargo1_turn || '').trim().toLowerCase();
-      const c2Turn = (s.cargo2_turn || '').trim().toLowerCase();
-      const filterRoles = filters.roles || [];
-      const filterTurn = filters.turn.toLowerCase();
-      const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || c1Turn);
-      const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || c2Turn);
-      let c1MatchesRole = filterRoles.length === 0 || filterRoles.includes(c1Role);
-      let c2MatchesRole = filterRoles.length === 0 || filterRoles.includes(c2Role);
-      const c1MatchesTurn = filterTurn === 'all' || c1Turn.includes(filterTurn);
-      const c2MatchesTurn = filterTurn === 'all' || c2Turn.includes(filterTurn);
-
-      if (filterRoles.length === 0 && filterTurn === 'all') return true;
-      return (hasC1 && c1MatchesRole && c1MatchesTurn) || (hasC2 && c2MatchesRole && c2MatchesTurn);
-  });
-
-  const handlePhotoChange = (e) => {
-      const f = e.target.files[0]; if(!f) return;
-      setUploading(true);
-      const reader = new FileReader();
-      reader.onload=(ev)=>{
-          const img=new Image();
-          img.onload=()=>{
-              const c=document.createElement('canvas');
-              const s=300/img.width; c.width=300; c.height=img.height*s;
-              const ctx=c.getContext('2d'); ctx.drawImage(img,0,0,c.width,c.height);
-              setPhotoPreview(c.toDataURL('image/jpeg',0.7));
-              setUploading(false);
-          };
-          img.src=ev.target.result;
-      };
-      reader.readAsDataURL(f);
-  };
-
-  const calcularAntiguedad = (aniosBase, mesesBase, fechaReferencia) => {
-      const aBase = parseInt(aniosBase) || 0;
-      const mBase = parseInt(mesesBase) || 0;
-      if (!fechaReferencia && aBase === 0 && mBase === 0) return '-';
-
-      const refDate = fechaReferencia ? new Date(fechaReferencia + 'T00:00:00') : new Date();
-      const hoy = new Date();
-      
-      let diffAnios = hoy.getFullYear() - refDate.getFullYear();
-      let diffMeses = hoy.getMonth() - refDate.getMonth();
-      
-      if (diffMeses < 0 || (diffMeses === 0 && hoy.getDate() < refDate.getDate())) {
-          diffAnios--;
-          diffMeses += 12;
-      }
-
-      let totalMeses = mBase + diffMeses;
-      let totalAnios = aBase + diffAnios;
-
-      if (totalMeses >= 12) {
-          totalAnios += Math.floor(totalMeses / 12);
-          totalMeses = totalMeses % 12;
-      }
-
-      if (totalAnios <= 0 && totalMeses <= 0) return 'Reciente';
-      if (totalAnios <= 0) return `${totalMeses} meses`;
-      if (totalMeses === 0) return `${totalAnios} años`;
-      return `${totalAnios} años, ${totalMeses} mes${totalMeses !== 1 ? 'es' : ''}`;
-  };
-
-  const getSafeDate = (d) => { if(!d) return '-'; try { return new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('es-AR'); } catch(e) { return d; } };
-
-  // IMPRIMIR FICHAS INDIVIDUALES (CARDS)
-  const imprimirFichasDocentes = (lista) => {
-      if (!lista || lista.length === 0) return alert("No hay docentes para imprimir.");
-      let html = `<html><head><title>Fichas Docentes</title>
-      <style>
-          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
-          body{font-family:'Roboto',sans-serif;padding:20px; color: #222;}
-          .page{border:1px solid #eee;padding:30px;margin-bottom:20px;border-radius:8px;page-break-after:always;max-width:800px;margin:0 auto 20px auto;border-top:10px solid #8b5cf6;}
-          .header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #ddd;padding-bottom:20px;margin-bottom:20px;}
-          .header-text h1{color:#5b21b6;font-size:24px;margin:0;text-transform:uppercase;}
-          .header-text p{color:#666;font-size:14px;margin:5px 0 0 0;}
-          .photo-box{width:80px;height:80px;background:#eee;border-radius:50%;overflow:hidden;border:3px solid #8b5cf6;display:flex;align-items:center;justify-content:center;font-size:30px;color:#aaa;}
-          .photo-box img{width:100%;height:100%;object-fit:cover;}
-          .section-title{background:#f3f4f6;color:#5b21b6;padding:8px 15px;font-weight:900;text-transform:uppercase;font-size:12px;border-radius:6px;margin-bottom:10px;border-left:5px solid #8b5cf6; margin-top:20px;}
-          .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px;}
-          .field{margin-bottom:5px;}
-          .label{display:block;font-size:9px;color:#888;text-transform:uppercase;font-weight:bold;}
-          .value{font-size:12px;font-weight:bold;color:#333;}
-          .footer{text-align:center;font-size:9px;color:#aaa;margin-top:30px;border-top:1px solid #eee;padding-top:10px;}
-          .cargo-card { border: 2px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-bottom: 15px; background-color: #f9fafb; }
-          .cargo-card.active { border-color: #c4b5fd; background-color: #fff; }
-          .cargo-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px dashed #e5e7eb; padding-bottom: 10px; margin-bottom: 15px; }
-          .cargo-role { font-size: 16px; font-weight: 900; color: #6d28d9; text-transform: uppercase; }
-          .badge-sub { background: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; }
-          .badge-nosub { background: #f3f4f6; color: #4b5563; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; }
-          .badge-papeles { background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-left: 5px; }
-          .cargo-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
-      </style></head><body>`;
-      
-      lista.forEach(s => {
-          let antiguedad = calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef);
-          
-          let c1Role = getNormRole(s.cargo1_role || s.role) || 'Rol Pendiente';
-          let c2Role = getNormRole(s.cargo2_role) || 'Rol Pendiente';
-
-          const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role !== 'Rol Pendiente' || (s.cargo1_turn && s.cargo1_turn.trim()));
-          const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role !== 'Rol Pendiente' || (s.cargo2_turn && s.cargo2_turn.trim()));
-
-          let c1Html = '';
-          if (hasC1) {
-              let subBadge = (s.cargo1_subsidized === 'true' || s.isSubsidized === 'true') ? '<span class="badge-sub">SUBVENCIONADO (MECA)</span>' : '<span class="badge-nosub">SIN SUBVENCIÓN (DENO)</span>';
-              let papelesBadge = s.cargo1_en_papeles === 'true' ? '<span class="badge-papeles">SOLO EN PAPELES</span>' : '';
-              c1Html = `
-              <div class="cargo-card active">
-                  <div class="cargo-header">
-                      <span class="cargo-role">CARGO 1: ${c1Role}</span>
-                      <div>${subBadge}${papelesBadge}</div>
-                  </div>
-                  <div class="cargo-grid">
-                      <div class="field"><span class="label">N° de Cargo</span><span class="value">${s.cargo1_numero || '-'}</span></div>
-                      <div class="field"><span class="label">Detalle / Nombre</span><span class="value">${s.cargo1_name || '-'}</span></div>
-                      <div class="field"><span class="label">Turno</span><span class="value">${s.cargo1_turn || '-'}</span></div>
-                      <div class="field"><span class="label">Sit. de Revista</span><span class="value">${s.cargo1_revista || '-'}</span></div>
-                      <div class="field"><span class="label">Tipo</span><span class="value" style="text-transform:uppercase;">${s.cargo1_type || '-'}</span></div>
-                      <div class="field"><span class="label">Fecha Alta</span><span class="value">${getSafeDate(s.cargo1_ingreso)}</span></div>
-                  </div>
-              </div>`;
-          } else {
-              c1Html = `<div class="cargo-card"><div class="cargo-role" style="color:#aaa; font-size: 14px;">CARGO 1: NO TRABAJA / SIN CARGO</div></div>`;
-          }
-
-          let c2Html = '';
-          if (hasC2) {
-              let subBadge = s.cargo2_subsidized === 'true' ? '<span class="badge-sub">SUBVENCIONADO (MECA)</span>' : '<span class="badge-nosub">SIN SUBVENCIÓN (DENO)</span>';
-              let papelesBadge = s.cargo2_en_papeles === 'true' ? '<span class="badge-papeles">SOLO EN PAPELES</span>' : '';
-              c2Html = `
-              <div class="cargo-card active">
-                  <div class="cargo-header">
-                      <span class="cargo-role">CARGO 2: ${c2Role}</span>
-                      <div>${subBadge}${papelesBadge}</div>
-                  </div>
-                  <div class="cargo-grid">
-                      <div class="field"><span class="label">N° de Cargo</span><span class="value">${s.cargo2_numero || '-'}</span></div>
-                      <div class="field"><span class="label">Detalle / Nombre</span><span class="value">${s.cargo2_name || '-'}</span></div>
-                      <div class="field"><span class="label">Turno</span><span class="value">${s.cargo2_turn || '-'}</span></div>
-                      <div class="field"><span class="label">Sit. de Revista</span><span class="value">${s.cargo2_revista || '-'}</span></div>
-                      <div class="field"><span class="label">Tipo</span><span class="value" style="text-transform:uppercase;">${s.cargo2_type || '-'}</span></div>
-                      <div class="field"><span class="label">Fecha Alta</span><span class="value">${getSafeDate(s.cargo2_ingreso)}</span></div>
-                  </div>
-              </div>`;
-          } else {
-              c2Html = `<div class="cargo-card"><div class="cargo-role" style="color:#aaa; font-size: 14px;">CARGO 2: NO TRABAJA / SIN CARGO</div></div>`;
-          }
-
-          html += `<div class="page">
-              <div class="header">
-                  <div class="header-text"><h1>${s.lastName}, ${s.firstName}</h1><p>DNI: ${s.dni || '-'} | Modalidad: <strong style="color: #6d28d9;">${s.modality || 'Sede'}</strong></p></div>
-                  <div class="photo-box">${s.photoUrl ? `<img src="${s.photoUrl}"/>` : s.firstName?.[0] || 'U'}</div>
-              </div>
-              <div class="section-title">Datos Personales y Formación</div>
-              <div class="grid">
-                  <div class="field"><span class="label">Fecha Nacimiento</span><span class="value">${s.birthDate ? new Date(s.birthDate + 'T00:00:00').toLocaleDateString('es-AR') : '-'}</span></div>
-                  <div class="field"><span class="label">Teléfono / Celular</span><span class="value">${s.phone || '-'}</span></div>
-                  <div class="field"><span class="label">Email</span><span class="value">${s.email || '-'}</span></div>
-                  <div class="field"><span class="label">Contacto de Emergencia</span><span class="value" style="color:#dc2626">${s.emergencyContact || '-'}</span></div>
-                  <div class="field" style="grid-column: span 2;"><span class="label">Dirección</span><span class="value">${s.address || '-'}</span></div>
-                  <div class="field"><span class="label">Título</span><span class="value">${s.degree || '-'}</span></div>
-                  <div class="field"><span class="label">Estado de Estudios</span><span class="value">${s.studyStatus || '-'}</span></div>
-              </div>
-              <div class="section-title">Antigüedad e Ingreso Institucional</div>
-              <div class="grid">
-                  <div class="field"><span class="label">Fecha Ingreso Inst.</span><span class="value">${s.fechaIngreso ? new Date(s.fechaIngreso + 'T00:00:00').toLocaleDateString('es-AR') : '-'}</span></div>
-                  <div class="field"><span class="label">Antigüedad Reconocida Total</span><span class="value" style="color:#5b21b6; font-size:14px;">${antiguedad}</span></div>
-              </div>
-              <div class="section-title" style="margin-bottom: 15px;">Detalle de Cargos Activos</div>
-              ${c1Html}
-              ${c2Html}
-              <div class="footer">Juntos a la Par - Legajo Docente generado el ${new Date().toLocaleDateString('es-AR')} a las ${new Date().toLocaleTimeString('es-AR', {hour: '2-digit', minute:'2-digit'})}</div>
-          </div>`;
-      });
-      html += '</body></html>';
-
-      const iframe = document.createElement('iframe'); 
-      iframe.style.position = 'fixed'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0'; 
-      document.body.appendChild(iframe); 
-      const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close(); 
-      setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
-  };
-
-const imprimirPlanillaGeneral = (lista) => {
-    if (!lista || lista.length === 0) return alert("No hay personal para imprimir.");
-    
-    const LOGO_APP = "https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png";
-
-    let html = `<html><head><title>Planilla Personalizada</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
-        @page { size: landscape; margin: 10mm; }
-        body { font-family: 'Roboto', sans-serif; padding: 0; color: #1e293b; font-size: 9px; }
-        .header-table { width: 100%; border-bottom: 2px solid #6d28d9; margin-bottom: 15px; }
-        table.data-table { width: 100%; border-collapse: collapse; }
-        .data-table th { background: #f8fafc; padding: 8px; border: 1px solid #e2e8f0; text-transform: uppercase; font-weight: 900; text-align: left; }
-        .data-table td { padding: 8px; border: 1px solid #e2e8f0; vertical-align: middle; }
-        tr:nth-child(even) { background-color: #f1f5f9; }
-        .cargo-role { font-weight: 900; color: #4338ca; font-size: 8px; text-transform: uppercase; }
-    </style></head><body>
-    <table class="header-table"><tr>
-        <td><img src="${LOGO_APP}" style="height:40px;"></td>
-        <td style="text-align:center;"><h1 style="margin:0; font-size:18px; color:#6d28d9;">Planilla de Personal Institucional</h1></td>
-        <td style="text-align:right; font-weight:bold;">Ciclo 2026</td>
-    </tr></table>
-    <table class="data-table">
-        <thead><tr>
-            <th>Apellido y Nombre</th>
-            ${printColumns.dni ? '<th>DNI</th>' : ''}
-            ${printColumns.cargo1 ? '<th>Cargo 1</th>' : ''}
-            ${printColumns.cargo2 ? '<th>Cargo 2</th>' : ''}
-            ${printColumns.alta ? '<th>Ingreso Inst.</th>' : ''}
-            ${printColumns.domicilio ? '<th>Dirección</th>' : ''}
-            ${printColumns.telefono ? '<th>Teléfono</th>' : ''}
-            ${printColumns.titulo ? '<th>Título</th>' : ''}
-        </tr></thead><tbody>`;
-    
-    lista.forEach(s => {
-        html += `<tr>
-            <td style="font-weight:700; text-transform:uppercase;">${s.lastName}, ${s.firstName}</td>
-            ${printColumns.dni ? `<td>${s.dni || '-'}</td>` : ''}
-            ${printColumns.cargo1 ? `<td><div class="cargo-role">${s.cargo1_role || s.role || ''}</div>${s.cargo1_name || ''}</td>` : ''}
-            ${printColumns.cargo2 ? `<td><div class="cargo-role">${s.cargo2_role || ''}</div>${s.cargo2_name || ''}</td>` : ''}
-            ${printColumns.alta ? `<td>${s.fechaIngreso ? new Date(s.fechaIngreso+'T12:00:00').toLocaleDateString('es-AR') : '-'}</td>` : ''}
-            ${printColumns.domicilio ? `<td>${s.address || '-'}</td>` : ''}
-            ${printColumns.telefono ? `<td>${s.phone || '-'}</td>` : ''}
-            ${printColumns.titulo ? `<td>${s.degree || '-'}</td>` : ''}
-        </tr>`;
-    });
-
-    html += `</tbody></table><p style="text-align:right; font-size:8px; margin-top:10px;">Generado el ${new Date().toLocaleString('es-AR')}</p></body></html>`;
-
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    document.body.appendChild(iframe);
-    const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close();
-    setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); document.body.removeChild(iframe); }, 500);
-};
-  const handleImportStaff = async (e) => {
-      const file = e.target.files[0];
-      if (!file || !confirm("⚠️ ¿Importar archivo CSV completo?")) return;
-      setProcessing(true);
-      const reader = new FileReader();
-      reader.onload = async (evt) => {
-          try {
-              const rows = evt.target.result.split('\n').slice(1).filter(r => r.trim() !== '');
-              const promises = rows.map(row => {
-                  const cols = row.split(';');
-                  let bDate = "";
-                  if (cols[3]?.trim()) {
-                      const parts = cols[3].trim().split('/');
-                      if (parts.length === 3) bDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                  }
-                  return addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), {
-                      lastName: cols[0]?.trim() || '', firstName: cols[1]?.trim() || '', dni: cols[2]?.trim() || '',
-                      birthDate: bDate, address: cols[4]?.trim() || '', phone: cols[5]?.trim() || '',
-                      emergencyContact: cols[6]?.trim() || '', email: cols[7]?.trim() || '',
-                      studyStatus: cols[8]?.trim() || '', degree: cols[9]?.trim() || '',
-                      modality: cols[11]?.trim() || 'Sede',
-                      cargo1_role: cols[10]?.trim() || '', 
-                      cargo1_subsidized: cols[12]?.trim() === 'SI' ? 'true' : 'false',
-                      cargo1_en_papeles: 'false',
-                      cargo1_name: cols[13]?.trim() || '', cargo1_type: cols[14]?.trim() || '', cargo1_turn: cols[15]?.trim() || '', cargo1_revista: cols[16]?.trim() || '',
-                      cargo2_name: cols[17]?.trim() || '', cargo2_type: cols[18]?.trim() || '', cargo2_turn: cols[19]?.trim() || '', cargo2_revista: cols[20]?.trim() || '',
-                      cargo2_en_papeles: 'false',
-                      createdAt: serverTimestamp()
-                  });
-              });
-              await Promise.all(promises);
-              alert("✅ Personal importado correctamente.");
-          } catch (err) { alert("Error: " + err.message); } finally { setProcessing(false); }
-      };
-      reader.readAsText(file);
-  };
-
- const handleSaveStaff = async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const d = Object.fromEntries(fd.entries());
-    
-    // Bloqueamos el score para que no se pise al editar el legajo
-    delete d.score;
-    delete d.id; 
-
-    d.photoUrl = photoPreview || editingStaff?.photoUrl || '';
-    
-    if(!d.cargo2_name || d.cargo2_name.trim() === '') { 
-        d.cargo2_role = ''; d.cargo2_turn = ''; d.cargo2_type = ''; 
-        d.cargo2_revista = ''; d.cargo2_ingreso = ''; d.cargo2_name = ''; 
-        d.cargo2_subsidized = 'false'; d.cargo2_en_papeles = 'false';
-    }
-
-    try {
-        setProcessing(true);
-        if (editingStaff?.id) {
-            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id), d);
-            if (viewingStaff?.id === editingStaff.id) {
-                setViewingStaff({ ...viewingStaff, ...d });
-            }
-        } else {
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), { 
-                ...d, 
-                createdAt: serverTimestamp() 
-            });
-        }
-        setShowStaffForm(false); 
-        setEditingStaff(null); 
-        setPhotoPreview(null);
-        alert("✅ Legajo actualizado con éxito");
-    } catch (err) { 
-        alert("Error: " + err.message); 
-    } finally {
-        setProcessing(false);
-    }
-  };
-  const calculateStats = () => {
-      const stats = {
-          cargos: { simple: 0, doble: 0 },
-      };
-
-      filteredStaff.forEach(s => {
-          const c1Role = getNormRole(s.cargo1_role || s.role);
-          const c2Role = getNormRole(s.cargo2_role);
-          const c1Turn = (s.cargo1_turn || '').toLowerCase();
-          const c2Turn = (s.cargo2_turn || '').toLowerCase();
-          
-          const filterRoles = filters.roles || [];
-          const filterTurn = filters.turn.toLowerCase();
-
-          const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || c1Turn);
-          const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || c2Turn);
-
-          const c1IsUnassigned = !hasC1 || !VALID_ROLES.includes(c1Role);
-          const c2IsUnassigned = hasC2 && !VALID_ROLES.includes(c2Role);
-
-          let c1MatchesRole = filterRoles.length === 0 || (filterRoles.includes('sin-asignar') && c1IsUnassigned) || filterRoles.includes(c1Role);
-          let c2MatchesRole = filterRoles.length === 0 || (filterRoles.includes('sin-asignar') && c2IsUnassigned) || filterRoles.includes(c2Role);
-
-          const c1Matches = hasC1 && c1MatchesRole && (filterTurn === 'all' || c1Turn.includes(filterTurn));
-          const c2Matches = hasC2 && c2MatchesRole && (filterTurn === 'all' || c2Turn.includes(filterTurn));
-
-          const isC1Papeles = s.cargo1_en_papeles === 'true';
-          const isC2Papeles = s.cargo2_en_papeles === 'true';
-
-          let activeCargosCount = 0;
-          if (c1Matches && !isC1Papeles && s.cargo1_name) activeCargosCount++;
-          if (c2Matches && !isC2Papeles && s.cargo2_name) activeCargosCount++;
-
-          if (activeCargosCount === 2) stats.cargos.doble++;
-          else if (activeCargosCount === 1) stats.cargos.simple++;
-      });
-      return stats;
-  };
-
-  if (!canAccess) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido.</div>;
-
-  const currentStats = calculateStats();
-  const totalCargosReales = currentStats.cargos.simple + (currentStats.cargos.doble * 2);
-
-  return (
-    <div className="space-y-4 animate-in fade-in pb-20 px-2 md:px-4 pt-4">
-        
-        {/* ENCABEZADO CON CONTADOR EN VIVO (PERSONAS Y CARGOS) */}
-        <div className="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-3xl border border-violet-100 shadow-sm gap-4">
-            <div className="flex items-center gap-4 flex-wrap">
-                <h3 className="font-black text-violet-900 uppercase italic text-xl">Personal</h3>
-                
-                <div className="flex gap-2">
-                    {/* CARTEL DE PERSONAS FÍSICAS */}
-                    <div className="bg-orange-100 text-orange-700 px-3 py-2 rounded-xl font-black text-[10px] md:text-xs flex items-center gap-1.5 border border-orange-200 shadow-sm uppercase tracking-widest" title="Cantidad de personas físicas">
-                        <User size={14}/> {filteredStaff.length} {filteredStaff.length === 1 ? 'Persona' : 'Personas'}
-                    </div>
-                    
-                    {/* CARTEL DE CARGOS TOTALES */}
-                    <div className="bg-emerald-100 text-emerald-800 px-3 py-2 rounded-xl font-black text-[10px] md:text-xs flex items-center gap-1.5 border border-emerald-200 shadow-sm uppercase tracking-widest" title="Cantidad total de cargos ejercidos">
-                        {totalCargosReales} {totalCargosReales === 1 ? 'Cargo Activo' : 'Cargos Activos'}
-                    </div>
-                </div>
-            </div>
-            
-            <div className="flex gap-2">
-                <button 
-    onClick={() => setShowPrintOptions(true)} 
-    className="bg-white text-blue-600 border border-blue-200 p-3 rounded-2xl shadow-sm hover:bg-blue-50 transition" 
-    title="Configurar Planilla"
->
-    <Grid size={20}/>
-</button>
-              <button onClick={() => imprimirFichasDocentes(filteredStaff)} className="bg-white text-violet-600 border border-violet-200 p-3 rounded-2xl shadow-sm hover:bg-violet-50 transition" title="Imprimir Fichas Individuales"><Printer size={20}/></button>
-                
-                <label className="p-3 bg-emerald-100 text-emerald-700 rounded-2xl cursor-pointer hover:bg-emerald-200 transition flex items-center justify-center">
-                    {processing ? <RefreshCw className="animate-spin" size={20}/> : <UploadCloud size={20}/>}
-                    <input type="file" accept=".csv" className="hidden" onChange={handleImportStaff} />
-                </label>
-
-                <button onClick={()=>{setEditingStaff(null); setPhotoPreview(null); setShowStaffForm(true);}} className="bg-violet-600 text-white p-3 rounded-2xl shadow-lg flex items-center justify-center"><Plus size={20}/></button>
-            </div>
-        </div>
-
-        {/* BARRA DE FILTROS ACTUALIZADA PARA MULTISELECCIÓN */}
-        <div className="space-y-2">
-            <div className="bg-white p-2 rounded-2xl border border-gray-100 flex items-center gap-2 shadow-sm">
-                <Search size={18} className="ml-2 text-gray-300"/>
-                <input value={staffFilterText} onChange={e=>setStaffFilterText(e.target.value)} placeholder="Buscar por apellido, nombre o DNI..." className="w-full p-2 outline-none text-sm font-bold text-gray-700 bg-transparent"/>
-                {staffFilterText && <button onClick={()=>setStaffFilterText('')} className="pr-2 text-gray-400 hover:text-gray-600"><X size={16}/></button>}
-            </div>
-            
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide items-center">
-                <select value={filters.modality} onChange={e=>setFilters({...filters, modality: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
-                    <option value="all">Modalidad: Todas</option><option value="Sede">Sede</option><option value="Inclusión">Inclusión</option>
-                </select>
-                
-               {/* SELECTOR DE ROLES EN BARRA DE FILTROS */}
-<select 
-    value="default" 
-    onChange={e => {
-        const val = e.target.value;
-        if (val !== 'default' && !filters.roles.includes(val)) {
-            setFilters({...filters, roles: [...filters.roles, val]});
-        }
-    }} 
-    className="bg-white text-violet-700 text-xs p-2 rounded-lg font-bold min-w-[140px] border border-violet-200 shadow-sm outline-none cursor-pointer"
->
-    <option value="default">+ Agregar Rol...</option>
-    <option value="sin-asignar">⚠️ Sin Asignar / Error</option>
-    {/* CAMBIO AQUÍ: Usamos la constante de afuera */}
-   {VALID_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-</select>
-
-               <select value={filters.turn} onChange={e=>setFilters({...filters, turn: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
-    <option value="all">Turno: Todos</option>
-    {/* Corregido: uniqueTurns cambiado por TURNS_LIST con blindaje */}
-    {(typeof TURNS_LIST !== 'undefined' ? TURNS_LIST : []).map(t => (
-        <option key={t} value={t}>{t}</option>
-    ))}
-</select>
-               <select 
-  value={filters.subsidized} 
-  onChange={e => setFilters({...filters, subsidized: e.target.value})} 
-  className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none cursor-pointer"
->
-    <option value="all">Subvención: Todas</option>
-    <option value="yes">Mecanizada (Subv.)</option>
-    <option value="no">No Subvencionada (DENO)</option>
-    <option value="fuera">Fuera de Planta / Papeles</option>
-</select>
-                <button onClick={() => setFilters({ modality: 'all', roles: [], turn: 'all', subsidized: 'all' })} className="bg-red-50 text-red-600 text-xs px-3 py-2 rounded-lg font-bold min-w-[80px] border border-red-100 shadow-sm hover:bg-red-100 transition">Limpiar</button>
-            </div>
-
-            {/* MOSTRAR ETIQUETAS DE ROLES SELECCIONADOS */}
-            {filters.roles.length > 0 && (
-                <div className="flex flex-wrap gap-2 animate-in fade-in mt-1 mb-2">
-                    {filters.roles.map(r => (
-                        <span key={r} className="bg-violet-100 text-violet-800 text-[10px] font-black px-2 py-1.5 rounded-lg flex items-center gap-1 border border-violet-200 shadow-sm">
-                            {r === 'sin-asignar' ? '⚠️ Sin Asignar' : r}
-                            <button onClick={() => setFilters({...filters, roles: filters.roles.filter(role => role !== r)})} className="hover:text-red-500 transition-colors bg-white rounded-full p-0.5 ml-1"><X size={10}/></button>
-                        </span>
-                    ))}
-                </div>
-            )}
-        </div>
-
-        {/* LISTADO DE PERSONAL */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[65vh] overflow-y-auto pb-10 mt-2">
-          {filteredStaff.map(s => {
-    const tieneSub = s.cargo1_subsidized === 'true' || s.cargo2_subsidized === 'true' || s.isSubsidized === 'true';
-    
-    const c1Role = getNormRole(s.cargo1_role || s.role);
-    const c2Role = getNormRole(s.cargo2_role);
-
-    const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || (s.cargo1_turn && s.cargo1_turn.trim()));
-    const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || (s.cargo2_turn && s.cargo2_turn.trim()));
-
-    {/* CAMBIO AQUÍ: Usamos VALID_ROLES_OFFICIAL */}
-    const c1NeedsFix = !hasC1 || !VALID_ROLES_OFFICIAL.includes(c1Role);
-    const c2NeedsFix = hasC2 && !VALID_ROLES_OFFICIAL.includes(c2Role);
-    const needsRoleFix = c1NeedsFix || c2NeedsFix;
-                
-               return (
-    <div key={s.id} onClick={() => setViewingStaff(s)} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all cursor-pointer group relative">
-        <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100 shrink-0 relative">
-            {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName?.[0]}
-            {tieneSub && <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white shadow-sm" title="Subvencionada"></div>}
-        </div>
-        <div className="flex-1 min-w-0">
-            <div className="flex gap-2 items-center flex-wrap">
-                <h4 className="font-bold text-gray-800 text-sm uppercase truncate">{s.lastName}, {s.firstName}</h4>
-                <span className={`text-[8px] px-2 py-0.5 rounded-md font-black uppercase ${s.modality === 'Inclusión' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}`}>{s.modality || 'Sede'}</span>
-                {needsRoleFix && <span className="bg-red-100 text-red-700 text-[9px] font-black px-2 py-0.5 rounded-lg border border-red-200 animate-pulse">⚠️ ASIGNAR ROL</span>}
-            </div>
-            <div className="flex gap-2 text-[10px] mt-1 text-gray-500 font-bold">
-                {s.dni && <span>DNI: {s.dni}</span>}
-                <span className="text-violet-500">Anti: {calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef)}</span>
-            </div>
-            
-            {/* ETIQUETAS VISUALES TRIPLES: MECA, PAPELES, DENO */}
-            <p className="text-[10px] font-black uppercase mt-1 truncate">
-                {hasC1 ? (
-                    <span className={s.cargo1_subsidized === 'true' ? 'text-emerald-600' : s.cargo1_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
-                        C1: {getNormRole(s.cargo1_role || s.role)} ({s.cargo1_turn || '-'}) 
-                        {s.cargo1_subsidized === 'true' ? ' (MECA)' : s.cargo1_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
-                    </span>
-                ) : (
-                    <span className="text-gray-300">NO TRABAJA (C1)</span>
-                )} 
-                
-                {hasC2 ? (
-                    <>
-                        <span className="text-gray-300 mx-1">|</span>
-                        <span className={s.cargo2_subsidized === 'true' ? 'text-emerald-600' : s.cargo2_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
-                            C2: {getNormRole(s.cargo2_role)} ({s.cargo2_turn || '-'}) 
-                            {s.cargo2_subsidized === 'true' ? ' (MECA)' : s.cargo2_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
-                        </span>
-                    </>
-                ) : (
-                    <span className="text-gray-300"> | NO TRABAJA (C2)</span>
-                )}
-            </p>
-        </div>
-                        <Eye className="text-gray-300 group-hover:text-violet-500 transition-colors shrink-0" />
-                    </div>
-                )
-            })}
-        </div>
-
-{/* MODAL LECTURA LEGAJO - VERSIÓN COMPLETA RECONSTRUIDA */}
-{viewingStaff && !showStaffForm && (
-    <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setViewingStaff(null)}>
-        <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
-            
-            {/* CABECERA */}
-            <div className="bg-violet-800 p-6 text-white relative shrink-0">
-                <button onClick={()=>setViewingStaff(null)} className="absolute top-4 right-4 bg-white/20 p-1.5 rounded-full hover:bg-white/40 transition"><X size={20}/></button>
-                <div className="flex gap-5 items-center">
-                    <div className="w-20 h-20 rounded-2xl bg-white/20 border-4 border-white/10 overflow-hidden flex items-center justify-center shadow-lg">
-                        {viewingStaff.photoUrl ? <img src={viewingStaff.photoUrl} className="w-full h-full object-cover"/> : <div className="text-4xl font-black text-white/50">{viewingStaff?.firstName?.[0] || '👤'}</div>}
-                    </div>
-                    <div>
-                        <h2 className="text-2xl font-black uppercase tracking-tight">{viewingStaff?.lastName}, {viewingStaff?.firstName}</h2>
-                        <p className="text-orange-300 font-bold text-xs uppercase tracking-widest">{viewingStaff?.modality || 'Sede'}</p>
-                        <span className="bg-white/20 px-3 py-1 rounded-lg text-[10px] font-bold inline-block mt-2">DNI: {viewingStaff?.dni || '-'}</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div className="p-6 overflow-y-auto bg-gray-50 flex-1 space-y-4">
-                {/* DATOS DE CONTACTO RÁPIDO */}
-                <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Nacimiento</p><p className="font-black text-slate-800 text-xs">{getSafeDate(viewingStaff.birthDate)}</p></div>
-                    <div className="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Celular</p><p className="font-black text-slate-800 text-xs">{viewingStaff.phone || '-'}</p></div>
-                </div>
-
-                {/* DETALLE COMPLETO DE CARGOS (RECONSTRUIDO) */}
-                <div className="bg-violet-50 p-4 rounded-2xl border border-violet-100 shadow-sm space-y-3">
-                    <div className="flex justify-between text-xs border-b border-violet-200 pb-2">
-                        <span className="font-bold text-gray-500">Ingreso Inst: {getSafeDate(viewingStaff.fechaIngreso)}</span>
-                        <span className="font-black text-violet-700">Antigüedad: {calcularAntiguedad(viewingStaff.antiguedadAnios, viewingStaff.antiguedadMeses, viewingStaff.antiguedadFechaRef)}</span>
-                    </div>
-                    
-                    {/* CARGO 1 - TODA LA INFO ANTERIOR */}
-                    {Boolean((viewingStaff.cargo1_name && viewingStaff.cargo1_name.trim()) || viewingStaff.cargo1_role || viewingStaff.role) ? (
-                        <div className={`bg-white p-3 rounded-lg border ${viewingStaff.cargo1_en_papeles === 'true' ? 'border-gray-200 opacity-70' : 'border-violet-200 shadow-sm'} text-xs relative`}>
-                            <div className="flex justify-between items-center mb-1">
-                                <span className="font-black text-violet-900 uppercase">C1: {getNormRole(viewingStaff.cargo1_role || viewingStaff.role)} {viewingStaff.cargo1_en_papeles === 'true' && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[8px] ml-1">EN PAPELES</span>}</span>
-                                <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${viewingStaff.cargo1_subsidized === 'true' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`}>{viewingStaff.cargo1_subsidized === 'true' ? 'MECA' : 'DENO'}</span>
-                            </div>
-                            <p className="font-bold text-gray-700">{viewingStaff.cargo1_name}</p>
-                            <p className="text-gray-500 text-[10px]">N° {viewingStaff.cargo1_numero || '-'} | {viewingStaff.cargo1_type || '-'} | {viewingStaff.cargo1_turn || '-'} | {viewingStaff.cargo1_revista || '-'}</p>
-                            <p className="text-[9px] text-violet-400 mt-1 font-bold">Alta: {getSafeDate(viewingStaff.cargo1_ingreso)}</p>
-                        </div>
-                    ) : null}
-
-                    {/* CARGO 2 - TODA LA INFO ANTERIOR */}
-                    {Boolean((viewingStaff.cargo2_name && viewingStaff.cargo2_name.trim()) || viewingStaff.cargo2_role) ? (
-                        <div className={`bg-white p-3 rounded-lg border ${viewingStaff.cargo2_en_papeles === 'true' ? 'border-gray-200 opacity-70' : 'border-violet-200 shadow-sm'} text-xs relative`}>
-                            <div className="flex justify-between items-center mb-1">
-                                <span className="font-black text-violet-900 uppercase">C2: {getNormRole(viewingStaff.cargo2_role)} {viewingStaff.cargo2_en_papeles === 'true' && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[8px] ml-1">EN PAPELES</span>}</span>
-                                <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${viewingStaff.cargo2_subsidized === 'true' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`}>{viewingStaff.cargo2_subsidized === 'true' ? 'MECA' : 'DENO'}</span>
-                            </div>
-                            <p className="font-bold text-gray-700">{viewingStaff.cargo2_name}</p>
-                            <p className="text-gray-500 text-[10px]">N° {viewingStaff.cargo2_numero || '-'} | {viewingStaff.cargo2_type || '-'} | {viewingStaff.cargo2_turn || '-'} | {viewingStaff.cargo2_revista || '-'}</p>
-                            <p className="text-[9px] text-violet-400 mt-1 font-bold">Alta: {getSafeDate(viewingStaff.cargo2_ingreso)}</p>
-                        </div>
-                    ) : null}
-                </div>
-
-                {/* SECCIÓN INTELIGENTE: GRUPOS A CARGO (SOLO PARA DOCENTES/AUX/PREC/DAI) */}
-                {['Docente', 'Auxiliar', 'Preceptora', 'DAI', 'Inclusión'].some(role => 
-                    (viewingStaff.cargo1_role || viewingStaff.role || '').includes(role) || 
-                    (viewingStaff.cargo2_role || '').includes(role)
-                ) && (
-                    <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
-                        <h4 className="text-[10px] font-black text-emerald-600 uppercase mb-3 flex items-center gap-2">📍 Alumnos y Grupos Asignados</h4>
-                        <div className="grid grid-cols-2 gap-2">
-                            {(() => {
-                                const myGroupsTM = [...new Set(students.filter(s => s.teacherIdMorning === viewingStaff.id || s.teacherId2Morning === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupMorning))].filter(Boolean);
-                                const myGroupsTT = [...new Set(students.filter(s => s.teacherIdAfternoon === viewingStaff.id || s.teacherId2Afternoon === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupAfternoon))].filter(Boolean);
-                                return (
-                                    <>
-                                        <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
-                                            <p className="text-[8px] font-black text-gray-400 uppercase">T. Mañana</p>
-                                            <p className="font-bold text-emerald-700 text-xs">{myGroupsTM.length > 0 ? myGroupsTM.join(', ') : 'Ninguno'}</p>
-                                        </div>
-                                        <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
-                                            <p className="text-[8px] font-black text-gray-400 uppercase">T. Tarde</p>
-                                            <p className="font-bold text-emerald-700 text-xs">{myGroupsTT.length > 0 ? myGroupsTT.join(', ') : 'Ninguno'}</p>
-                                        </div>
-                                    </>
-                                );
-                            })()}
-                        </div>
-                        <p className="text-[7px] text-emerald-400 mt-2 italic text-center">* Información vinculada por ID de seguridad</p>
-                    </div>
-                )}
-            </div>
-            
-            <div className="p-4 border-t bg-white flex justify-end gap-2 shrink-0">
-                <button onClick={()=>imprimirFichasDocentes([viewingStaff])} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-slate-600 font-bold text-xs uppercase hover:bg-gray-50 flex gap-2 items-center shadow-sm"><FileText size={16}/> Imprimir</button>
-                <button onClick={()=>{setEditingStaff(viewingStaff); setPhotoPreview(viewingStaff.photoUrl); setShowStaffForm(true);}} className="px-4 py-3 bg-violet-600 text-white rounded-xl font-bold text-xs uppercase hover:bg-violet-700 flex gap-2 items-center shadow-lg"><Edit3 size={16}/> Editar Legajo</button>
-            </div>
-        </div>
-    </div>
-)}
-{/* MODAL EDICIÓN LEGAJO - VERSIÓN PREMIUM RESPONSIVA DEFINITIVA */}
-    {showStaffForm && (
-      <div className="fixed inset-0 bg-black/70 z-[150] flex items-center justify-center p-2 sm:p-4 backdrop-blur-md animate-in fade-in duration-300">
-        <div className="bg-slate-50 rounded-[30px] w-full max-w-xl shadow-2xl max-h-[95vh] overflow-hidden flex flex-col border border-white/20">
-          
-          {/* CABECERA FIJA */}
-          <div className="bg-violet-700 p-5 text-white flex justify-between items-center shrink-0">
-            <div className="flex-1">
-              <h3 className="text-lg font-black uppercase italic tracking-tighter">
-                {editingStaff ? 'Editar Legajo' : 'Nuevo Personal'}
-              </h3>
-              {/* CARTEL DE ATENCIÓN DINÁMICO */}
-              {editingStaff && (!editingStaff?.dni || !editingStaff?.cargo1_role || !editingStaff?.modality) ? (
-                <div className="bg-amber-400 text-amber-900 text-[8px] font-black px-2 py-0.5 rounded-full inline-flex items-center gap-1 animate-pulse mt-1 uppercase">
-                  ⚠️ Atención: Ficha incompleta. Completar datos para vinculación.
-                </div>
-              ) : (
-                <p className="text-[10px] opacity-70 font-bold uppercase">Configuración de ficha técnica</p>
-              )}
-            </div>
-            <button onClick={() => setShowStaffForm(false)} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition">
-              <X size={20} />
-            </button>
-          </div>
-
-          <form id="staffForm" onSubmit={handleSaveStaff} className="overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar">
-            
-            {/* SECCIÓN VINCULACIÓN DE SEGURIDAD (IMPORTANTE) */}
-          <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 space-y-2">
-    <p className="text-[10px] font-black text-blue-600 uppercase flex items-center gap-2">
-        {/* CAMBIO AQUÍ: de Link a LinkIcon */}
-        <LinkIcon size={14}/> Conexión de Seguridad y Grupos
-    </p>
-    <input 
-        name="userId" 
-        defaultValue={editingStaff?.userId || ""} 
-        placeholder="ID de Usuario vinculado para login y grupos..." 
-        className="p-3 bg-white rounded-xl w-full font-mono text-[10px] outline-none border border-blue-200 focus:ring-2 ring-blue-100"
-    />
-    <p className="text-[7px] text-blue-400 font-bold italic uppercase px-1">
-      * Este ID conecta el legajo con el usuario y detecta automáticamente sus grupos asignados.
-    </p>
-</div>
-
-           {/* SECCIÓN 1: IDENTIDAD Y FOTO (ACTUALIZADA) */}
-<div className="flex flex-col items-center mb-6">
-    <div className="w-24 h-24 rounded-3xl bg-violet-100 border-4 border-white shadow-md overflow-hidden relative group">
-        {photoPreview ? <img src={photoPreview} className="w-full h-full object-cover"/> : (editingStaff?.photoUrl ? <img src={editingStaff.photoUrl} className="w-full h-full object-cover"/> : <div className="flex items-center justify-center h-full text-violet-300"><User size={40}/></div>)}
-        <label className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer">
-            <Camera className="text-white" size={24}/>
-            <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange}/>
-        </label>
-    </div>
-    <p className="text-[9px] font-black text-violet-400 uppercase mt-2">Tocar para cambiar foto</p>
-</div>
-
-<details open className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-  <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
-    <span className="text-[11px] font-black text-violet-600 uppercase flex items-center gap-2"><User size={14}/> Datos de Identidad</span>
-    <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
-  </summary>
-  <div className="p-4 pt-0 grid grid-cols-1 sm:grid-cols-2 gap-3">
-    <input name="lastName" defaultValue={editingStaff?.lastName || ""} placeholder="Apellido/s" required className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
-    <input name="firstName" defaultValue={editingStaff?.firstName || ""} placeholder="Nombre/s" required className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
-    <input name="dni" defaultValue={editingStaff?.dni || ""} placeholder="DNI sin puntos" className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
-    <input name="birthDate" type="date" defaultValue={editingStaff?.birthDate || ""} className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm"/>
-    <input name="phone" defaultValue={editingStaff?.phone || ""} placeholder="Celular" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
-    <input name="email" defaultValue={editingStaff?.email || ""} placeholder="Email" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
-  </div>
-</details>
-
-{/* SECCIÓN NUEVA: DOMICILIO Y FORMACIÓN */}
-<details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-3">
-  <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
-    <span className="text-[11px] font-black text-blue-600 uppercase flex items-center gap-2"><MapPin size={14}/> Domicilio y Título</span>
-    <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
-  </summary>
-  <div className="p-4 pt-0 space-y-3">
-    <input name="address" defaultValue={editingStaff?.address || ""} placeholder="Dirección completa" className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm"/>
-    <input name="emergencyContact" defaultValue={editingStaff?.emergencyContact || ""} placeholder="Contacto Emergencia (Nombre y Tel)" className="p-3 bg-red-50 text-red-700 rounded-xl border-none w-full font-bold text-sm placeholder:text-red-300"/>
-    <div className="grid grid-cols-2 gap-2">
-        <input name="degree" defaultValue={editingStaff?.degree || ""} placeholder="Título Obtenido" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
-        <select name="studyStatus" defaultValue={editingStaff?.studyStatus || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
-            <option value="">Estado estudios...</option>
-            <option value="Completo">Completo</option>
-            <option value="Incompleto">Incompleto</option>
-            <option value="En curso">En curso</option>
-        </select>
-    </div>
-  </div>
-</details>
-            {/* SECCIÓN 2: CARGO PRIMARIO (CON SUBVENCIÓN) */}
-            <details open className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition border-l-4 border-emerald-500">
-                <span className="text-[11px] font-black text-emerald-600 uppercase flex items-center gap-2">
-                  <Briefcase size={14}/> Cargo Principal
-                </span>
-                <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
-              </summary>
-              <div className="p-4 pt-0 space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <select name="modality" defaultValue={editingStaff?.modality || 'Sede'} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
-                    <option value="Sede">Modalidad: Sede</option>
-                    <option value="Inclusión">Modalidad: Inclusión</option>
-                    <option value="Ambos">Modalidad: Ambos</option>
-                  </select>
-                  <select name="cargo1_subsidized" defaultValue={editingStaff?.cargo1_subsidized || 'false'} className={`p-3 rounded-xl border-none font-black text-xs ${editingStaff?.cargo1_subsidized === 'true' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500'}`}>
-                    <option value="false">DENO (No Subvencionado)</option>
-    <option value="true">MECA (Subvencionado)</option>
-    <option value="fuera">FUERA DE PLANTA (Papeles)</option>
-                  </select>
-                </div>
-                <div className="grid grid-cols-[1fr,2fr] gap-2">
-                  <input name="cargo1_numero" defaultValue={editingStaff?.cargo1_numero || ""} placeholder="N° Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
-                  <input name="cargo1_name" defaultValue={editingStaff?.cargo1_name || ""} placeholder="Nombre del Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
-                </div>
-         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-  <div className="flex flex-col">
-    <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Función / Rol</label>
-    <select 
-      name="cargo1_role" 
-      defaultValue={editingStaff?.cargo1_role || editingStaff?.role || ""} 
-      className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs"
-      required
-    >
-      <option value="">Seleccionar Rol...</option>
-      {/* CORRECCIÓN: Ahora usa VALID_ROLES_OFFICIAL */}
-      {(typeof VALID_ROLES_OFFICIAL !== 'undefined' ? VALID_ROLES_OFFICIAL : []).map(r => (
-        <option key={r} value={r}>{r}</option>
-      ))}
-    </select>
-  </div>
-  <div className="flex flex-col">
-    <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Turno Horario</label>
-    <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
-      <option value="">Turno...</option>
-      <option value="Mañana">Mañana</option>
-      <option value="Tarde">Tarde</option>
-      <option value="Alternado">Alternado</option>
-      <option value="Vespertino">Vespertino</option>
-      <option value="Doble">Doble</option>
-    </select>
-  </div>
-</div>
-                <div className="grid grid-cols-2 gap-2">
-                   <select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
-                    <option value="">Revista...</option>
-                    <option value="Titular">Titular</option><option value="Provisional">Provisional</option><option value="Suplente">Suplente</option>
-                  </select>
-                  <div className="flex flex-col">
-                    <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Alta Cargo</label>
-                    <input name="cargo1_ingreso" type="date" defaultValue={editingStaff?.cargo1_ingreso || ""} className="p-2 bg-slate-50 rounded-xl border-none font-bold text-xs"/>
-                  </div>
-                </div>
-              </div>
-            </details>
-
-            {/* SECCIÓN 3: CARGO SECUNDARIO */}
-            {/* SECCIÓN 3: CARGO SECUNDARIO (CORREGIDA CON REVISTA Y ALTA) */}
-            <details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-3">
-              <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
-                <span className="text-[11px] font-black text-slate-500 uppercase flex items-center gap-2">
-                  <PlusCircle size={14}/> Cargo Secundario / Adicional
-                </span>
-                <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
-              </summary>
-              <div className="p-4 pt-0 space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <input name="cargo2_numero" defaultValue={editingStaff?.cargo2_numero || ""} placeholder="N° Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm w-full"/>
-                  <input name="cargo2_name" defaultValue={editingStaff?.cargo2_name || ""} placeholder="Nombre Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm w-full"/>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <select name="cargo2_role" defaultValue={editingStaff?.cargo2_role || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
-                    <option value="">Rol Cargo 2...</option>
-                    {VALID_ROLES.map(r => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
-                  </select>
-                  <select name="cargo2_subsidized" defaultValue={editingStaff?.cargo2_subsidized || 'false'} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
-                   <option value="false">DENO (No Subvencionado)</option>
-    <option value="true">MECA (Subvencionado)</option>
-    <option value="fuera">FUERA DE PLANTA (Papeles)</option>
-                  </select>
-                </div>
-                {/* --- NUEVOS CAMPOS AGREGADOS AQUÍ --- */}
-                <div className="grid grid-cols-2 gap-2">
-                   <select name="cargo2_revista" defaultValue={editingStaff?.cargo2_revista || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
-                    <option value="">Revista...</option>
-                    <option value="Titular">Titular</option>
-                    <option value="Provisional">Provisional</option>
-                    <option value="Suplente">Suplente</option>
-                  </select>
-                  <div className="flex flex-col">
-                    <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Alta Cargo 2</label>
-                    <input name="cargo2_ingreso" type="date" defaultValue={editingStaff?.cargo2_ingreso || ""} className="p-2 bg-slate-50 rounded-xl border-none font-bold text-xs"/>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 px-2">
-                   <input type="checkbox" name="cargo2_en_papeles" defaultChecked={editingStaff?.cargo2_en_papeles === 'true'} value="true" className="w-4 h-4 accent-violet-600"/>
-                   <span className="text-[10px] font-bold text-gray-500 uppercase">¿Este cargo figura solo en papeles?</span>
-                </div>
-              </div>
-            </details>
-
-            {/* SECCIÓN 4: INSTITUCIONAL Y ANTIGÜEDAD */}
-            <details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
-                <span className="text-[11px] font-black text-violet-500 uppercase flex items-center gap-2">
-                  <Clock size={14}/> Ingreso y Antigüedad
-                </span>
-                <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
-              </summary>
-              <div className="p-4 pt-0 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Ingreso Institución</label>
-                  <input name="fechaIngreso" type="date" defaultValue={editingStaff?.fechaIngreso || ""} className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm"/>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Años Anti.</label>
-                    <input name="antiguedadAnios" type="number" defaultValue={editingStaff?.antiguedadAnios || ""} className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm text-center"/>
-                  </div>
-                  <div>
-                    <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Meses Anti.</label>
-                    <input name="antiguedadMeses" type="number" defaultValue={editingStaff?.antiguedadMeses || ""} className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm text-center"/>
-                  </div>
-                </div>
-                <input name="antiguedadFechaRef" type="hidden" defaultValue={editingStaff?.antiguedadFechaRef || new Date().toISOString().split('T')[0]} />
-              </div>
-            </details>
-
-            <div className="h-4"></div>
-          </form>
-{/* BOTONERA FIJA INFERIOR CORREGIDA */}
-          <div className="p-4 bg-white border-t space-y-3 shrink-0">
-            <div className="flex flex-col sm:flex-row gap-2">
-              <button type="button" onClick={() => setShowStaffForm(false)} className="order-2 sm:order-1 flex-1 py-3 text-slate-500 font-bold uppercase text-[10px] tracking-widest">
-                Cancelar
-              </button>
-              <button 
-                type="submit" 
-                form="staffForm" 
-                disabled={processing}
-                className="order-1 sm:order-2 flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-violet-200 hover:bg-violet-700 transition active:scale-95 flex justify-center items-center gap-2"
-              >
-                {processing ? <RefreshCw className="animate-spin" size={16}/> : 'Guardar Cambios'}
-              </button>
-            </div>
-            
-            {editingStaff && (
-              <button 
-                type="button" 
-                onClick={async () => {
-                  if(confirm("¿Eliminar definitivamente?")) {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); 
-                    setShowStaffForm(false); 
-                    setViewingStaff(null);
-                  }
-                }} 
-                className="w-full py-2 text-red-400 font-bold text-[9px] uppercase hover:text-red-500 transition tracking-tighter"
-              >
-                Eliminar Personal del Sistema
-              </button>
-            )}
-          </div>
-        </div> 
-      </div>
-    )}
-
-    {/* PARCHE PUNTO 3: MODAL DE OPCIONES DE IMPRESIÓN (FUERA DEL FORM) */}
-    {showPrintOptions && (
-        <div className="fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95">
-                <h3 className="text-xl font-black text-violet-900 uppercase italic mb-4 text-center">¿Qué info imprimir?</h3>
-                <div className="grid grid-cols-1 gap-2 mb-6">
-                    {Object.keys(printColumns).map(col => (
-                        <label key={col} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl cursor-pointer hover:bg-violet-50 transition border border-transparent hover:border-violet-200">
-                            <span className="text-[10px] font-black text-gray-600 uppercase">
-                                {col === 'alta' ? 'Fecha Ingreso' : col.replace('cargo', 'Cargo ')}
-                            </span>
-                            <input 
-                                type="checkbox" 
-                                checked={printColumns[col]} 
-                                onChange={() => setPrintColumns({...printColumns, [col]: !printColumns[col]})}
-                                className="w-5 h-5 accent-violet-600"
-                            />
-                        </label>
-                    ))}
-                </div>
-                <div className="flex gap-2">
-                    <button onClick={() => setShowPrintOptions(false)} className="flex-1 py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
-                    <button 
-                        onClick={() => { imprimirPlanillaGeneral(filteredStaff); setShowPrintOptions(false); }} 
-                        className="flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg hover:bg-violet-700 transition"
-                    >
-                        Generar Planilla
-                    </button>
-                </div>
-            </div>
-        </div>
-    )}
-
-  </div> // Fin del contenedor principal PersonalView
-  ); 
-} // Fin de la función
 
 function MedicalView({ user }) {
   const [students, setStudents] = useState([]);
@@ -7630,5 +7631,3 @@ const StartIcon = ({size}) => (
     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
   </svg>
 );
-
-// --- ESTA LLAVE CIERRA EL ARCHIVO SI QUEDÓ ALGO ABIERTO ARRIBA ---
