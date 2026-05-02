@@ -709,17 +709,7 @@ const handleSaveCountdown = async () => {
   };
   return (
     <div className="space-y-4 animate-in fade-in pb-10">
-    {/* CARTELERA */}
-      {visibleAnnouncements.length > 0 && (<div className="bg-yellow-100 p-5 rounded-[30px] border-2 border-yellow-200 shadow-sm relative"><h3 className="text-[10px] font-black text-yellow-700 uppercase mb-3 flex items-center gap-1"><Bell size={12}/> Cartelera Oficial</h3><div className="space-y-3">{visibleAnnouncements.map(a => (<div key={a.id} className="bg-white/80 p-3 rounded-2xl border border-yellow-200/50 text-sm text-gray-800 flex justify-between items-start"><div><p className="italic font-medium">"{a.message}"</p><p className="text-[9px] text-yellow-600 font-bold mt-1 uppercase">- {a.author}</p></div>{(canPost || a.authorId === user.id) && (<button onClick={() => deleteAnnouncement(a.id)} className="text-yellow-600 hover:text-red-500 p-1 bg-yellow-50 rounded-lg transition"><Trash2 size={14}/></button>)}</div>))}</div></div>)}
-             
-     {/* CARTEL GANADOR MENSUAL (CON FILTRO DE PUNTAJE) */}
-      {todayDate.getDate() === 1 && rankingData.length > 0 && rankingData[0].score > 50 && (
-          <div className="bg-gradient-to-r from-yellow-400 to-orange-500 p-6 rounded-[35px] text-white shadow-xl animate-bounce mx-2">
-              <h3 className="font-black text-center text-xl uppercase italic tracking-tighter">🏆 ¡GANADOR DEL MES ANTERIOR! 🏆</h3>
-              <p className="text-center font-bold text-lg mt-2 uppercase">{rankingData[0].firstName} {rankingData[0].lastName}</p>
-              <p className="text-center text-[10px] uppercase font-black opacity-80 mt-1 tracking-widest">¡Vení a buscar tu premio a Dirección! 🎁</p>
-          </div>
-      )}
+   
 
       {/* HEADER BIENVENIDA */}
       <div className="flex justify-between items-center px-2">
@@ -754,6 +744,17 @@ const handleSaveCountdown = async () => {
               </div>
           )}
       </div>
+       {/* CARTELERA */}
+      {visibleAnnouncements.length > 0 && (<div className="bg-yellow-100 p-5 rounded-[30px] border-2 border-yellow-200 shadow-sm relative"><h3 className="text-[10px] font-black text-yellow-700 uppercase mb-3 flex items-center gap-1"><Bell size={12}/> Cartelera Oficial</h3><div className="space-y-3">{visibleAnnouncements.map(a => (<div key={a.id} className="bg-white/80 p-3 rounded-2xl border border-yellow-200/50 text-sm text-gray-800 flex justify-between items-start"><div><p className="italic font-medium">"{a.message}"</p><p className="text-[9px] text-yellow-600 font-bold mt-1 uppercase">- {a.author}</p></div>{(canPost || a.authorId === user.id) && (<button onClick={() => deleteAnnouncement(a.id)} className="text-yellow-600 hover:text-red-500 p-1 bg-yellow-50 rounded-lg transition"><Trash2 size={14}/></button>)}</div>))}</div></div>)}
+             
+     {/* CARTEL GANADOR MENSUAL (CON FILTRO DE PUNTAJE) */}
+      {todayDate.getDate() === 1 && rankingData.length > 0 && rankingData[0].score > 50 && (
+          <div className="bg-gradient-to-r from-yellow-400 to-orange-500 p-6 rounded-[35px] text-white shadow-xl animate-bounce mx-2">
+              <h3 className="font-black text-center text-xl uppercase italic tracking-tighter">🏆 ¡GANADOR DEL MES ANTERIOR! 🏆</h3>
+              <p className="text-center font-bold text-lg mt-2 uppercase">{rankingData[0].firstName} {rankingData[0].lastName}</p>
+              <p className="text-center text-[10px] uppercase font-black opacity-80 mt-1 tracking-widest">¡Vení a buscar tu premio a Dirección! 🎁</p>
+          </div>
+      )}
 
 {/* {/* LÓGICA DINÁMICA: DESAFÍO O PLAN DE MAYO */}
       {renderChallengeOrIncentives()}
