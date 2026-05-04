@@ -1,3 +1,14 @@
+import React, { useState, useEffect } from 'react';
+// IMPORTAMOS TODOS LOS ICONOS QUE USA TU CÓDIGO
+import { 
+  User, Printer, Plus, Search, X, Eye, Edit3, RefreshCw, 
+  UploadCloud, Grid, Briefcase, ChevronDown, MapPin, 
+  PlusCircle, Clock, Camera, Folder, Link as LinkIcon 
+} from 'lucide-react';
+import { 
+  doc, updateDoc, collection, query, orderBy, onSnapshot, 
+  addDoc, serverTimestamp, where, deleteDoc 
+} from 'firebase/firestore';
 // --- VISTA PERSONAL (VERSIÓN DEFINITIVA Y COMPLETA) ---
 function PersonalView({ user }) {
   const [staffList, setStaffList] = useState([]);
