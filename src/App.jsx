@@ -476,51 +476,84 @@ function MainApp({ user, onLogout }) {
          </div>
       )}
 
-      <main className={`flex-1 overflow-y-auto no-scrollbar pb-24 pt-6 mx-auto w-full transition-all duration-300 ${isWideTab ? 'px-2 max-w-[98%]' : 'px-4 max-w-4xl'}`}>
-      {activeTab === 'dashboard' && (
-          <DashboardView user={user} db={db} appId={appId} />
-        )}
-       {activeTab === 'groups' && (
-          <GroupsView user={user} db={db} appId={appId} setActiveTab={setActiveTab} />
-        )}
+   <main className={`flex-1 overflow-y-auto no-scrollbar pb-24 pt-6 mx-auto w-full transition-all duration-300 ${isWideTab ? 'px-2 max-w-[98%]' : 'px-4 max-w-4xl'}`}>
+        {activeTab === 'dashboard' && <DashboardView user={user} db={db} appId={appId} />}
+        {activeTab === 'groups' && <GroupsView user={user} db={db} appId={appId} setActiveTab={setActiveTab} />}
         {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
         {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} canEdit={canManageContent} />}
         {activeTab === 'matricula' && <MatriculaView user={user} />}
         {activeTab === 'resources' && <ResourcesView resources={resources} canEdit={canManageContent} />}
         {activeTab === 'profile' && <ProfileView user={user} onLogout={onLogout} isSuperAdmin={isSuperAdmin} />}
         {activeTab === 'proyecto' && <ProyectoView user={user} />}
-        {activeTab === 'users' && isSuperAdmin && <UsersAdminView />}
         {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={isSuperAdmin} user={user} />}
         {activeTab === 'equipo' && <EquipoTecnicoView user={user} />}
-        {/* --- NUEVO: VISTA ADMIN (SOLO RENDERIZA SI EL TAB ES 'ADMIN') --- */}
         {activeTab === 'admin' && <AdministracionView user={user} />}
-        {/* ----------------------------------------------------------------- */}
-       
-        {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={isSuperAdmin} user={user} />}
-      
-        {/* PEGAR ESTA LÍNEA NUEVA: */}
-       {activeTab === 'personal' && (
-  <PersonalView 
-    user={user} 
-    db={db} 
-    appId={appId} 
-    TURNS_LIST={TURNS_LIST} 
-    VALID_ROLES_OFFICIAL={VALID_ROLES_OFFICIAL} 
-  />
-)}
+        {activeTab === 'personal' && (
+          <PersonalView 
+            user={user} 
+            db={db} 
+            appId={appId} 
+            TURNS_LIST={TURNS_LIST} 
+            VALID_ROLES_OFFICIAL={VALID_ROLES_OFFICIAL} 
+          />
+        )}
         {activeTab === 'medical' && <MedicalView user={user} />}
         {activeTab === 'social' && <SocialView user={user} />}
-    
+
+        {/* BUSCADOR Y MODAL GLOBAL (Mantenidos dentro del flujo del main o justo después) */}
+        {showSearch && (
+          <div className="fixed inset-0 bg-violet-900/90 z-[300] flex flex-col p-4 backdrop-blur-md animate-in fade-in">
+            <div className="flex justify-between items-center text-white mb-4">
+              <h3 className="font-black italic uppercase">Buscador Rápido</h3>
+              <button onClick={() => {setShowSearch(false); setSearchQuery(''); setSearchResults([]);}} className="p-2 bg-white/20 rounded-full"><X/></button>
+            </div>
+            <input autoFocus value={searchQuery} onChange={(e) => handleGlobalSearch(e.target.value)} placeholder="Escribí un nombre o apellido..." className="w-full p-4 rounded-2xl bg-white text-lg font-bold text-gray-800 outline-none shadow-xl mb-4"/>
+            <div className="flex-1 overflow-y-auto space-y-2">
+              {searchResults.map(s => (
+                <div key={s.id} onClick={() => setGlobalViewingStudent(s)} className="bg-white p-3 rounded-xl flex items-center gap-3 active:scale-95 transition cursor-pointer">
+                  <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">
+                    {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center font-bold text-gray-400">{s.firstName[0]}</div>}
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-800 text-sm">{s.lastName}, {s.firstName}</p>
+                    <p className="text-[10px] text-gray-500">{s.level} • {s.groupMorning || s.groupAfternoon || 'Sin Grupo'}</p>
+                  </div>
+                </div>
+              ))}
+              {searchQuery.length > 2 && searchResults.length === 0 && <p className="text-white/50 text-center mt-4">No se encontraron resultados.</p>}
+            </div>
+          </div>
+        )}
+
+        {globalViewingStudent && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[350] flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95">
+              <div className="bg-violet-600 p-4 text-white flex justify-between items-center">
+                <h3 className="font-bold text-lg">{globalViewingStudent.lastName}, {globalViewingStudent.firstName}</h3>
+                <button onClick={() => setGlobalViewingStudent(null)}><X/></button>
+              </div>
+              <div className="p-6">
+                <div className="flex gap-4 items-center mb-4">
+                  <div className="w-20 h-20 bg-gray-200 rounded-2xl overflow-hidden">
+                    {globalViewingStudent.photoUrl && <img src={globalViewingStudent.photoUrl} className="w-full h-full object-cover"/>}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-600">DNI: {globalViewingStudent.dni}</p>
+                    <p className="text-xs text-orange-500 font-bold mt-1 uppercase">{globalViewingStudent.dx}</p>
+                  </div>
+                </div>
+                <button onClick={() => { setActiveTab('matricula'); setShowSearch(false); setGlobalViewingStudent(null); }} className="w-full bg-violet-100 text-violet-700 py-3 rounded-xl font-bold text-xs uppercase hover:bg-violet-200 transition">Ver Legajo Completo</button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
 
-<nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-16 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] pb-safe shrink-0">
-        {/* Usamos grid-cols-5 universal para PC y Celular */}
+      <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-16 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] pb-safe shrink-0">
         <div className="grid grid-cols-5 h-full max-w-3xl mx-auto px-2 relative">
-          
           <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Inicio" />
           <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={20} />} label="Tareas" />
           
-          {/* BOTÓN CENTRAL: MI AULA */}
           <div className="relative -top-5 flex justify-center">
             <button onClick={() => setActiveTab('groups')} className={`w-14 h-14 rounded-full flex flex-col items-center justify-center shadow-xl border-4 border-gray-50 transition-all transform active:scale-95 ${activeTab === 'groups' ? 'bg-orange-500 text-white scale-110' : 'bg-violet-600 text-white'}`}>
               <Grid size={24} />
@@ -529,11 +562,9 @@ function MainApp({ user, onLogout }) {
           </div>
           
           <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={20} />} label="Agenda" />
-
-          {/* BOTÓN MÁS (UNIVERSAL PARA PC Y CELULAR) */}
+          
           <div className="relative">
-              <NavButton active={['matricula', 'resources', 'proyecto', 'admin', 'personal', 'medical', 'equipo'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={20} />} label="Más" />
-              
+            <NavButton active={['matricula', 'resources', 'proyecto', 'admin', 'personal', 'medical', 'equipo'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={20} />} label="Más" />
               {showMoreMenu && (
                   <div className="absolute bottom-16 right-0 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 w-56 animate-in slide-in-from-bottom-5 zoom-in-95 origin-bottom-right z-50">
                       <button onClick={() => { setActiveTab('matricula'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
