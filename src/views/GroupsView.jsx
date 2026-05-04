@@ -9,7 +9,7 @@ export function GroupsView({ user, db, appId, setActiveTab }) {
   const [turn, setTurn] = useState('morning'); 
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [showBitacoraModal, setShowBitacoraModal] = useState(null); 
-  const [activeTab, setActiveTab] = useState('info');
+  const [activeTabModal, setActiveTabModal] = useState('info');
   const [groupMessages, setGroupMessages] = useState({}); // Mensajes por grupo
 const [showGroupChat, setShowGroupChat] = useState(null); // Qué chat de grupo está abierto
   const [selectedGroupDetails, setSelectedGroupDetails] = useState(null); // Para abrir la ventana grande del grupo
@@ -775,13 +775,13 @@ const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
               </div>
 
               <div className="flex gap-2 mt-6">
-                <button onClick={() => setActiveTab("info")} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === "info" ? "bg-white text-blue-600 shadow-md" : "bg-black/20 text-white/70"}`}>Datos</button>
-                <button onClick={() => setActiveTab("history")} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === "history" ? "bg-white text-blue-600 shadow-md" : "bg-black/20 text-white/70"}`}>Bitácora</button>
+                <button onClick={() => setActiveTabModal("info")} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTabModal === "info" ? "bg-white text-blue-600 shadow-md" : "bg-black/20 text-white/70"}`}>Datos</button>
+                <button onClick={() => setActiveTabModal("history")} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTab === "history" ? "bg-white text-blue-600 shadow-md" : "bg-black/20 text-white/70"}`}>Bitácora</button>
               </div>
             </div>
 
             <div className="p-6 overflow-y-auto space-y-6">
-              {activeTab === "info" ? (
+              {activeTabModal === "info" ? (
                 /* --- PESTAÑA DATOS (DNI, EDAD, FAMILIA) --- */
                 <div className="space-y-5 animate-in fade-in">
                   
