@@ -60,6 +60,7 @@ const [informeEpoca, setInformeEpoca] = useState(1); // Para filtrar 1°, 2° o 
   ];
 
   useEffect(() => {
+    if (!db || !appId) return;
     const qS = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
     const unsubS = onSnapshot(qS, (snap) => { setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
     const qU = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('lastName', 'asc'));
