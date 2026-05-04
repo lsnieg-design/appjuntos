@@ -3,9 +3,8 @@ import { Grid, User, FileText, Printer, Edit3, X, MessageSquare, Send, Trash2, P
 import { doc, updateDoc, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, arrayUnion, arrayRemove, increment, where } from 'firebase/firestore';
 
 
+
 export function GroupsView({ user, db, appId, setActiveTab }) {
-  // --- VISTA AULA CORREGIDA (SELECTOR DE DOCENTES ARREGLADO) ---
-function GroupsView({ user }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
   const [turn, setTurn] = useState('morning'); 
