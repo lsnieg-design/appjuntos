@@ -477,12 +477,12 @@ function MainApp({ user, onLogout }) {
       )}
 
       <main className={`flex-1 overflow-y-auto no-scrollbar pb-24 pt-6 mx-auto w-full transition-all duration-300 ${isWideTab ? 'px-2 max-w-[98%]' : 'px-4 max-w-4xl'}`}>
-        {activeTab === 'dashboard' && (
-    <DashboardView user={user} db={db} appId="{appId}"/>
-  )}
-        {activeTab === 'groups' && (
-  <GroupsView user={user} db={db} 
-)}
+      {activeTab === 'dashboard' && (
+          <DashboardView user={user} db={db} appId={appId} />
+        )}
+       {activeTab === 'groups' && (
+          <GroupsView user={user} db={db} appId={appId} setActiveTab={setActiveTab} />
+        )}
         {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
         {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} canEdit={canManageContent} />}
         {activeTab === 'matricula' && <MatriculaView user={user} />}
