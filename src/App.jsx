@@ -481,14 +481,15 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'dashboard' && (
     <DashboardView user="{user}" db="{db}" appId="{appId}"/>
   )}
-        {activeTab === 'groups' && <GroupsView user="{user}" db="{db}" appId="{appId}" setActiveTab="{setActiveTab}"/>}
+        {activeTab === 'groups' && (
+  <GroupsView user="{user}" db="{db}" // REVISÁ ESTO appId="{appId}" setActiveTab="{setActiveTab}"/>
+)}
         {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
         {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} canEdit={canManageContent} />}
         {activeTab === 'matricula' && <MatriculaView user={user} />}
         {activeTab === 'resources' && <ResourcesView resources={resources} canEdit={canManageContent} />}
         {activeTab === 'profile' && <ProfileView user={user} onLogout={onLogout} isSuperAdmin={isSuperAdmin} />}
         {activeTab === 'proyecto' && <ProyectoView user={user} />}
-        {activeTab === 'groups' && <GroupsView user={user} />}
         {activeTab === 'users' && isSuperAdmin && <UsersAdminView />}
         {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={isSuperAdmin} user={user} />}
         {activeTab === 'equipo' && <EquipoTecnicoView user={user} />}
