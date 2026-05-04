@@ -15,10 +15,11 @@ import {
   doc, updateDoc, collection, query, orderBy, onSnapshot, 
   addDoc, serverTimestamp, where, deleteDoc 
 } from 'firebase/firestore';
+
 // --- VISTA PERSONAL (VERSIÓN DEFINITIVA Y COMPLETA) ---
-function PersonalView({ user }) {
+export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL }) {
   const [staffList, setStaffList] = useState([]);
-  const [students, setStudents] = useState([]); // <-- AGREGÁ ESTO
+  const [students, setStudents] = useState([]);
  const uniqueTurns = TURNS_LIST;
   
   const [staffFilterText, setStaffFilterText] = useState('');
