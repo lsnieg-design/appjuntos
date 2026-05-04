@@ -2,10 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Grid, User, FileText, Printer, Edit3, X, MessageSquare, Send, Trash2, Plus, AlertTriangle, ChevronLeft, ChevronRight, Folder } from 'lucide-react';
 import { doc, updateDoc, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, arrayUnion, arrayRemove, increment, where } from 'firebase/firestore';
 
-// USA ESTA SOLA LÍNEA (Asegúrate de incluir db y appId):
+// Solo esta cabecera, con todos los parámetros que necesita el resto del código
 export function GroupsView({ user, db, appId, setActiveTab }) {
   const [students, setStudents] = useState([]);
-  const [usersList, setUsersList] = useState([]); 
+  const [usersList, setUsersList] = useState([]);
   const [turn, setTurn] = useState('morning'); 
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [showBitacoraModal, setShowBitacoraModal] = useState(null); 
