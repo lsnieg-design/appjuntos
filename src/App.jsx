@@ -478,10 +478,10 @@ function MainApp({ user, onLogout }) {
 
       <main className={`flex-1 overflow-y-auto no-scrollbar pb-24 pt-6 mx-auto w-full transition-all duration-300 ${isWideTab ? 'px-2 max-w-[98%]' : 'px-4 max-w-4xl'}`}>
         {activeTab === 'dashboard' && (
-    <DashboardView user="{user}" db="{db}" appId="{appId}"/>
+    <DashboardView user={user} db="{db}" appId="{appId}"/>
   )}
         {activeTab === 'groups' && (
-  <GroupsView user="{user}" db="{db}" // REVISÁ ESTO appId="{appId}" setActiveTab="{setActiveTab}"/>
+  <GroupsView user={user} db="{db}" 
 )}
         {activeTab === 'calendar' && <CalendarView events={events} canEdit={canManageContent} user={user} />}
         {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} canEdit={canManageContent} />}
@@ -495,9 +495,9 @@ function MainApp({ user, onLogout }) {
         {/* --- NUEVO: VISTA ADMIN (SOLO RENDERIZA SI EL TAB ES 'ADMIN') --- */}
         {activeTab === 'admin' && <AdministracionView user={user} />}
         {/* ----------------------------------------------------------------- */}
-        {activeTab === 'users' && isSuperAdmin && <UsersAdminView />}
+       
         {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={isSuperAdmin} user={user} />}
-        {activeTab === 'admin' && <AdministracionView user={user} />}
+      
         {/* PEGAR ESTA LÍNEA NUEVA: */}
        {activeTab === 'personal' && (
   <PersonalView 
