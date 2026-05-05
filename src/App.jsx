@@ -698,29 +698,7 @@ function ActivityLogView() {
   );
 }
 
-// --- COMPONENTE VISUAL: INTRO (Faltaba en tu código) ---
-function SplashScreen() {
-  return (
-    <div className="fixed inset-0 bg-gradient-to-br from-violet-600 to-indigo-700 z-[9999] flex flex-col items-center justify-center">
-      <div className="bg-white p-6 rounded-[40px] shadow-2xl animate-bounce">
-        <img src="/icon-192.png" alt="Logo" className="w-32 h-auto" />
-      </div>
-      <h1 className="mt-8 text-3xl font-black text-white tracking-widest uppercase italic">Juntos a la Par</h1>
-    </div>
-  );
-}
 
-// --- BOTÓN DE NAVEGACIÓN (Faltaba en tu código) ---
-function NavButton({ active, onClick, icon, label }) {
-  return (
-    <button onClick={onClick} className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-300 ${active ? 'text-orange-500 transform -translate-y-1' : 'text-gray-400 hover:text-violet-600'}`}>
-      <div className={`relative p-2 rounded-2xl ${active ? 'bg-orange-50' : 'bg-transparent'}`}>
-        {icon}
-      </div>
-      <span className={`text-[10px] font-bold ${active ? 'text-violet-900' : 'text-gray-400'}`}>{label}</span>
-    </button>
-  );
-}
 
 const StartIcon = ({size}) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
