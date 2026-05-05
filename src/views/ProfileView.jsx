@@ -9,6 +9,7 @@ import {
   serverTimestamp, arrayUnion 
 } from 'firebase/firestore';
 
+
 // Importamos las sub-vistas que se abren desde el perfil
 import { UsersAdminView } from './UsersAdminView';
 import { ActivityLogView } from './ActivityLogView';
