@@ -16,6 +16,7 @@ import {
   addDoc, serverTimestamp, where, deleteDoc 
 } from 'firebase/firestore';
 
+
 // --- VISTA PERSONAL (VERSIÓN DEFINITIVA Y COMPLETA) ---
 export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL }) {
   const [staffList, setStaffList] = useState([]);
