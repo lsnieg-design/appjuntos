@@ -8,6 +8,7 @@ import {
   collection, addDoc, doc, updateDoc, deleteDoc, serverTimestamp 
 } from 'firebase/firestore';
 
+
 export function ResourcesView({ resources, canEdit, db, appId }) {
   const [showModal, setShowModal] = useState(false);
   const [editingRes, setEditingRes] = useState(null); 
