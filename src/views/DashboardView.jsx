@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Calendar as CalendarIcon, CheckSquare, Settings, User, FileText, CheckCircle, 
-  Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, 
+  Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, Star,
   Lock, List, Grid, ChevronLeft, ChevronRight, Bell, Check, HelpCircle, Mail, Camera, MapPin, 
   Send, Key, Filter, LayoutDashboard, Link as LinkIcon, ExternalLink, Zap,
   AlertTriangle, Clock, Shield, Crown, Activity, Share, PlusSquare, 
