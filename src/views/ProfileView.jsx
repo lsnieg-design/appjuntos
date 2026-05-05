@@ -1,4 +1,4 @@
-import { ActivityLogView } from './views/ActivityLogView';
+
 import React, { useState, useEffect } from 'react';
 import { 
   User, Users, Activity, Download, Bell, 
