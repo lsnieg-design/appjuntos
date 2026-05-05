@@ -9,6 +9,7 @@ import {
   updateDoc, arrayUnion, increment 
 } from 'firebase/firestore';
 
+
 export function SocialView({ user, db, appId }) {
   const [cases, setCases] = useState([]);
   const [students, setStudents] = useState([]);
