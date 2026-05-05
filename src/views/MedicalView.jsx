@@ -8,6 +8,7 @@ import {
   doc, updateDoc, arrayUnion, increment 
 } from 'firebase/firestore';
 
+
 export function MedicalView({ user, db, appId }) {
   const [periods, setPeriods] = useState([]);
   const [expandedPeriod, setExpandedPeriod] = useState(null);
