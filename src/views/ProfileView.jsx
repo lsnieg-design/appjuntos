@@ -1,8 +1,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  User, Users, Activity, Download, Bell, 
-  LogOut, Settings, RefreshCw, X 
+  Calendar as CalendarIcon, CheckSquare, Settings, User, FileText, CheckCircle, 
+  Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, 
+  Lock, List, Grid, ChevronLeft, ChevronRight, Bell, Check, HelpCircle, Mail, Camera, MapPin, 
+  Send, Key, Filter, LayoutDashboard, Link as LinkIcon, ExternalLink, Zap,
+  AlertTriangle, Clock, Shield, Crown, Activity, Share, PlusSquare, 
+  Smartphone, GraduationCap, Search, X, UploadCloud, PieChart, Eye, Edit3, Trophy,
+  Folder, MessageSquare, Globe, BookOpen, Lightbulb, ChevronDown, PlusCircle, Printer,
+  AlignLeft, AlignCenter, AlignRight, AlignJustify, Phone, CheckCircle2, Clock3, UserCheck,
+  ChevronUp // <--- ESTE ES EL QUE FALTABA
 } from 'lucide-react';
 import { 
   doc, onSnapshot, updateDoc, setDoc, 
