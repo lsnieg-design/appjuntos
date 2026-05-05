@@ -8,6 +8,7 @@ import {
   deleteDoc, serverTimestamp 
 } from 'firebase/firestore';
 
+
 export function CalendarView({ events, canEdit, user, db, appId }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDayEvents, setSelectedDayEvents] = useState(null);
