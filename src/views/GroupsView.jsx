@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Grid, User, FileText, Printer, Edit3, X, MessageSquare, Send, Trash2, Plus, AlertTriangle, ChevronLeft, ChevronRight, Folder } from 'lucide-react';
 import { doc, updateDoc, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, arrayUnion, arrayRemove, increment, where } from 'firebase/firestore';
 
+
 // Solo esta cabecera, con todos los parámetros que necesita el resto del código
 export function GroupsView({ user, db, appId, setActiveTab }) {
   const [students, setStudents] = useState([]);
