@@ -7,6 +7,7 @@ import {
   collection, query, where, onSnapshot, orderBy, limit 
 } from 'firebase/firestore';
 
+
 export function DashboardView({ user, db, appId, tasks = [], events = [], announcements = [] }) {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEvents = events.filter(e => e.date === todayStr);
