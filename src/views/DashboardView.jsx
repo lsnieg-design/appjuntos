@@ -344,18 +344,24 @@ const handleSaveCountdown = async () => {
     );
   };
  return (
-    <div className="space-y-4 animate-in fade-in pb-10">
+    <div className="w-full space-y-4 animate-in fade-in pb-10">
       {/* HEADER BIENVENIDA */}
       <div className="flex justify-between items-center px-2">
-          <div><h2 className="text-2xl font-black text-slate-800 tracking-tighter italic">¡Hola, {user.firstName}! 👋</h2><p className="text-slate-500 font-medium text-xs">Panel de Control</p></div>
-          <div className="flex gap-2"><button onClick={() => setShowTutorial(true)} className="bg-white text-violet-600 px-3 py-2 rounded-xl text-xs font-bold shadow-sm border border-violet-100 flex items-center gap-1 hover:bg-violet-50 transition"><HelpCircle size={16}/> Ayuda</button>{canPost && <button onClick={() => setShowAnnounceModal(true)} className="bg-orange-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-lg hover:scale-105 transition flex items-center gap-1"><Edit3 size={14}/> Aviso</button>}</div>
+          <div>
+            <h2 className="text-2xl font-black text-slate-800 tracking-tighter italic">¡Hola, {user.firstName}! 👋</h2>
+            <p className="text-slate-500 font-medium text-xs">Mayo: Sumá puntos participando en la App</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setShowTutorial(true)} className="bg-white text-violet-600 px-3 py-2 rounded-xl text-xs font-bold shadow-sm border border-violet-100 flex items-center gap-1 hover:bg-violet-50 transition"><HelpCircle size={16}/> Ayuda</button>
+            {canPost && <button onClick={() => setShowAnnounceModal(true)} className="bg-orange-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-lg hover:scale-105 transition flex items-center gap-1"><Edit3 size={14}/> Aviso</button>}
+          </div>
       </div>
 
-      {/* 1. CARTELERA (Ahora arriba) */}
+      {/* 1. CARTELERA */}
       {visibleAnnouncements.length > 0 && (
         <div className="bg-yellow-100 p-5 rounded-[30px] border-2 border-yellow-200 shadow-sm relative mx-1">
           <h3 className="text-[10px] font-black text-yellow-700 uppercase mb-3 flex items-center gap-1"><Bell size={12}/> Cartelera Oficial</h3>
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {visibleAnnouncements.map(a => (
               <div key={a.id} className="bg-white/80 p-3 rounded-2xl border border-yellow-200/50 text-sm text-gray-800 flex justify-between items-start">
                 <div><p className="italic font-medium">"{a.message}"</p><p className="text-[9px] text-yellow-600 font-bold mt-1 uppercase">- {a.author}</p></div>
@@ -366,20 +372,35 @@ const handleSaveCountdown = async () => {
         </div>
       )}
 
-      {/* 2. GANADOR MENSUAL */}
-      {todayDate.getDate() <= 5 && rankingData.length > 0 && rankingData[0].score > 10 && (
-          <div className="bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-400 p-6 rounded-[35px] text-white shadow-xl animate-in zoom-in duration-500 mx-2 border-4 border-white/30 relative">
-              <div className="absolute top-2 right-4 opacity-20"><Trophy size={40}/></div>
-              <h3 className="font-black text-center text-xl uppercase italic tracking-tighter">🏆 ¡DESTACADO DE ABRIL! 🏆</h3>
-              <p className="text-center font-black text-2xl mt-2 uppercase drop-shadow-md">{rankingData[0].firstName} {rankingData[0].lastName}</p>
-              <p className="text-center text-[10px] uppercase font-black opacity-90 mt-1 tracking-widest text-center">¡Vení a buscar tu premio a Dirección! 🎁</p>
-              {isSuperAdmin && todayDate.getDate() <= 3 && (
-                <button onClick={resetAllScores} className="mt-4 w-full py-1 bg-white/20 rounded-lg text-[8px] font-black uppercase hover:bg-red-500 transition-colors">Confirmar Reinicio de Puntos para Mayo</button>
-              )}
+      {/* 2. SISTEMA DE PUNTOS MAYO (Reemplazo del Desafío Foto) */}
+      <div className="bg-slate-900 p-6 rounded-[35px] text-white shadow-xl mx-1 border-b-8 border-violet-600 flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-4">
+              <div className="bg-violet-500/20 p-4 rounded-2xl animate-pulse">
+                <Star className="text-yellow-400" size={32} fill="currentColor"/>
+              </div>
+              <div>
+                <h3 className="font-black text-xl uppercase italic tracking-tighter text-violet-200">Objetivo Mayo</h3>
+                <p className="text-xs font-medium opacity-80 leading-relaxed max-w-md">
+                  Este mes los puntos se ganan participando: <br/>
+                  <span className="text-yellow-400 font-bold">10 pts</span> por cada **Evolución Médica** o **Acta de Entrevista** cargada.
+                </p>
+              </div>
           </div>
-      )}
-
-      {isManagement && ungroupedCount > 0 && (<div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl flex items-center justify-between shadow-sm mx-1"><div className="flex items-center gap-3"><AlertTriangle className="text-red-500" size={24} /><div><h4 className="font-black text-red-700 text-xs uppercase">Atención</h4><p className="text-xs text-red-600 font-bold">{ungroupedCount} alumnos sin grupo.</p></div></div></div>)}
+          
+          <div className="flex items-center gap-6 bg-white/10 p-4 rounded-2xl border border-white/10">
+              <div className="text-center">
+                  <p className="text-[10px] uppercase font-black text-violet-400 tracking-widest">Puntos Acumulados</p>
+                  <p className="text-3xl font-black text-white">{userScore} <span className="text-xs opacity-50">pts</span></p>
+              </div>
+              <div className="h-10 w-[1px] bg-white/20"></div>
+              <button 
+                onClick={() => setShowRanking(true)} 
+                className="bg-violet-600 hover:bg-violet-500 text-white px-5 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all shadow-lg active:scale-95"
+              >
+                Ver Ranking
+              </button>
+          </div>
+      </div>
 
       {/* 3. CUMPLES Y CUENTA REGRESIVA */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 px-1">
@@ -407,17 +428,37 @@ const handleSaveCountdown = async () => {
           )}
       </div>
 
-      {/* 4. PLAN DE MAYO */}
-      {renderChallengeOrIncentives()}
+      {/* 4. ATENCIÓN (Solo gestión) */}
+      {isManagement && ungroupedCount > 0 && (
+        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl flex items-center justify-between shadow-sm mx-1">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="text-red-500" size={24} />
+            <div>
+              <h4 className="font-black text-red-700 text-xs uppercase">Atención</h4>
+              <p className="text-xs text-red-600 font-bold">{ungroupedCount} alumnos sin grupo.</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 5. TAREAS Y CALENDARIO */}
-      <div className="grid grid-cols-2 gap-3 px-1">
-        <div onClick={() => setActiveTab('tasks')} className="bg-white p-5 rounded-[30px] border border-orange-100 shadow-sm cursor-pointer hover:shadow-md transition">
-          <h4 className="text-3xl font-black text-orange-500">{myPendingTasksCount}</h4>
-          <p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Tareas Pendientes</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 px-1">
+        <div onClick={() => setActiveTab('tasks')} className="bg-white p-5 rounded-[30px] border border-orange-100 shadow-sm cursor-pointer hover:shadow-md transition flex items-center justify-between">
+          <div>
+            <h4 className="text-3xl font-black text-orange-500">{myPendingTasksCount}</h4>
+            <p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Tareas Pendientes</p>
+          </div>
+          <ChevronRight className="text-orange-200" />
         </div>
-        <div onClick={() => setActiveTab('calendar')} className={`p-5 rounded-[30px] border shadow-sm cursor-pointer hover:shadow-md transition ${todayEvents.length > 0 ? 'bg-violet-600 text-white border-violet-600' : 'bg-white border-violet-100'}`}>
-          {todayEvents.length > 0 ? ( <><h4 className="text-lg font-black leading-tight mb-1">{todayEvents[0].title}</h4><p className="text-[9px] opacity-80 uppercase font-bold tracking-widest">Es Hoy</p></> ) : ( <><h4 className="text-3xl font-black text-violet-600">0</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Eventos Hoy</p></> )}
+        <div onClick={() => setActiveTab('calendar')} className={`p-5 rounded-[30px] border shadow-sm cursor-pointer hover:shadow-md transition flex items-center justify-between ${todayEvents.length > 0 ? 'bg-violet-600 text-white border-violet-600' : 'bg-white border-violet-100'}`}>
+          <div>
+            {todayEvents.length > 0 ? ( 
+              <><h4 className="text-lg font-black leading-tight mb-1">{todayEvents[0].title}</h4><p className="text-[9px] opacity-80 uppercase font-bold tracking-widest">Evento de Hoy</p></> 
+            ) : ( 
+              <><h4 className="text-3xl font-black text-violet-600">0</h4><p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">Eventos Hoy</p></> 
+            )}
+          </div>
+          <ChevronRight className={todayEvents.length > 0 ? "text-white/30" : "text-violet-100"} />
         </div>
       </div>
       
@@ -428,7 +469,7 @@ const handleSaveCountdown = async () => {
           <input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Nueva nota..." className="flex-1 p-3 rounded-xl border-none outline-none text-xs bg-white shadow-sm font-medium" />
           <button type="submit" className="bg-violet-600 text-white p-3 rounded-xl font-bold shadow-lg hover:bg-violet-700 transition"><Plus size={16}/></button>
         </form>
-        <div className="space-y-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {notes.map(n => (
             <div key={n.id} className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm group">
               <button onClick={() => toggleNote(n)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${n.done ? 'bg-violet-400 border-violet-400' : 'border-violet-200'}`}>{n.done && <Check size={10} className="text-white"/>}</button>
@@ -438,7 +479,6 @@ const handleSaveCountdown = async () => {
           ))}
         </div>
       </div>
-
       {/* --- MODAL AYUDA (Aquí mantenemos todo tu manual original) --- */}
       {showTutorial && (
         <div className="fixed inset-0 bg-violet-900/95 z-[300] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in">
