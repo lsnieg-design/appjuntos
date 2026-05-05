@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  LayoutDashboard, User, CheckSquare, Calendar, 
-  MessageSquare, Trophy, Star, Activity, Clock 
+ LayoutDashboard, User, CheckSquare, Calendar, 
+  MessageSquare, Trophy, Star, Activity, Clock,
+  Bell, AlertTriangle, Crown, HelpCircle, Edit3, // <--- ACÁ TIENE QUE ESTAR
+  X, Check, Plus, Trash2, Lock, ChevronRight
 } from 'lucide-react';
 import { 
   collection, query, where, onSnapshot, orderBy, limit 
