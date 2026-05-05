@@ -7,7 +7,7 @@ import {
   collection, query, where, onSnapshot, orderBy, limit 
 } from 'firebase/firestore';
 
-export function DashboardView({ user, db, appId }) {
+export function DashboardView({ user, db, appId, tasks = [], events = [], announcements = [] }) {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEvents = events.filter(e => e.date === todayStr);
   const [students, setStudents] = useState([]);
@@ -300,7 +300,41 @@ const handleSaveCountdown = async () => {
   };
 
   // --- LÓGICA DE PUNTOS Y RECOMPENSAS (PLAN DE MAYO) ---
+// --- LÓGICA DE PUNTOS Y RECOMPENSAS (PLAN DE MAYO) ---
   const renderChallengeOrIncentives = () => {
+    const hasPlayedToday = localStorage.getItem(`lastChallenge_${user.id}`) === new Date().toDateString();
+
+    if (hasPlayedToday || isGameOver || !isWorkingDay) {
+      return (
+        <div className="bg-slate-900 p-6 rounded-[35px] text-white shadow-xl mx-1 border-b-8 border-violet-600">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-2">
+              <Trophy className="text-yellow-400" size={20} />
+              <span className="font-black text-xs uppercase italic">Tus Puntos: {userScore}</span>
+            </div>
+            <button onClick={() => setShowRanking(true)} className="text-[10px] font-black uppercase text-violet-400 border border-violet-800 px-3 py-1 rounded-full">Ver Ranking</button>
+          </div>
+          <p className="text-center text-xs font-bold opacity-70">¡Gracias por participar hoy! Mañana hay un nuevo desafío.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-white p-5 rounded-[35px] shadow-sm border border-violet-100 mx-1">
+        <h3 className="font-black text-violet-900 uppercase text-xs mb-3 flex items-center gap-2">Desafío del Día</h3>
+        {currentChallenge.url ? (
+          <div className="space-y-4">
+            <img src={currentChallenge.url} className="w-full h-48 object-contain rounded-2xl bg-slate-50" alt="Desafío" />
+            <div className="flex gap-2">
+              <input value={challengeAnswer} onChange={e => setChallengeAnswer(e.target.value)} placeholder="Tu respuesta..." className="flex-1 p-3 bg-slate-100 rounded-xl text-sm font-bold border-none outline-none" />
+              <button onClick={checkChallenge} className="bg-violet-600 text-white p-3 rounded-xl"><Star size={20} /></button>
+            </div>
+            <p className="text-[10px] text-center text-gray-400 font-bold uppercase">Cierra en: {timeLeft}</p>
+          </div>
+        ) : <p className="text-xs text-gray-400">Cargando...</p>}
+      </div>
+    );
+  };
  return (
     <div className="space-y-4 animate-in fade-in pb-10">
       {/* HEADER BIENVENIDA */}
