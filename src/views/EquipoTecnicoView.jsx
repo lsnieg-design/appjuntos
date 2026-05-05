@@ -9,6 +9,7 @@ import {
   doc, addDoc, updateDoc, deleteDoc, serverTimestamp 
 } from 'firebase/firestore';
 
+
 export function EquipoTecnicoView({ user, db, appId }) {
     const [items, setItems] = useState([]);
     const [messages, setMessages] = useState([]); // Nuevo: Chat general
