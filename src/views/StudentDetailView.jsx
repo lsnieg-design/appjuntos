@@ -10,6 +10,8 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
   const [newNote, setNewNote] = useState('');
   const [loading, setLoading] = useState(false);
 
+  if (!student) return null;
+
   // Lista de 13 botones para coincidir con Mi Aula
   const INCIDENT_TYPES = [
     { label: "Trabajó Muy Bien", emoji: "🌟", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
