@@ -495,16 +495,7 @@ function MainApp({ user, onLogout }) {
     setActiveTab={setActiveTab} 
   />
 )}
-        {activeTab === 'groups' && <GroupsView user={user} db={db} appId={appId} setActiveTab={setActiveTab} />}
-      {activeTab === 'calendar' && (
-  <CalendarView 
-    events={events} 
-    canEdit={canManageContent} 
-    user={user} 
-    db={db} 
-    appId={appId} 
-  />
-)}
+      
      {activeTab === 'tasks' && (
   <TasksView 
     tasks={tasks} 
