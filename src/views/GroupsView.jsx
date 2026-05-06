@@ -17,6 +17,7 @@ import {
 } from 'firebase/firestore';
 
 export function GroupsView({ user, db, appId, setActiveTab }) {
+  const [fullFileStudent, setFullFileStudent] = useState(null);
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
   const [turn, setTurn] = useState('morning'); 
@@ -180,6 +181,8 @@ const INCIDENT_TYPES = [
     } catch (e) { console.error(e); }
   };
 
+ // ... (arriba queda todo igual)
+
   return (
     <div className="flex flex-col h-full bg-slate-100 animate-in fade-in relative">
       {/* HEADER IDENTIFICACIÓN DOCENTE */}
@@ -208,16 +211,10 @@ const INCIDENT_TYPES = [
                   <button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-50 shadow-sm' : 'text-gray-400'}`}>☀️ Mañana</button>
                   <button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 Tarde</button>
               </div>
-              {isManagement && (
-                  <div className="flex bg-gray-100 p-1 rounded-xl">
-                      <button onClick={() => setViewFilter('sede')} className={`px-4 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'sede' ? 'bg-white shadow text-blue-600' : 'text-gray-400'}`}>Sede</button>
-                      <button onClick={() => setViewFilter('inclusion')} className={`px-4 py-2 rounded-lg text-xs font-bold transition ${viewFilter === 'inclusion' ? 'bg-white shadow text-indigo-600' : 'text-gray-400'}`}>Inclusión</button>
-                  </div>
-              )}
           </div>
       </div>
       
-      {/* LISTADO DE GRUPOS (CARRUSEL) */}
+      {/* LISTADO DE GRUPOS */}
       <div className="relative flex-1 overflow-hidden">
           <button onClick={() => scroll('left')} className="hidden md:flex absolute left-2 top-1/2 z-20 bg-white/90 text-violet-600 p-3 rounded-full shadow-xl border border-gray-100 hover:scale-110 transition -translate-y-1/2"><ChevronLeft size={24}/></button>
           <button onClick={() => scroll('right')} className="hidden md:flex absolute right-2 top-1/2 z-20 bg-white/90 text-violet-600 p-3 rounded-full shadow-xl border border-gray-100 hover:scale-110 transition -translate-y-1/2"><ChevronRight size={24}/></button>
@@ -227,13 +224,9 @@ const INCIDENT_TYPES = [
                 <div className={`p-5 border-b-4 relative ${turn==='morning'?'border-orange-400 bg-orange-50':'border-indigo-400 bg-indigo-50'}`}>
                   <div className="absolute top-4 right-4 flex gap-1">
                     <button onClick={() => setSelectedGroupDetails(g)} className="p-2 bg-violet-600 text-white rounded-full shadow-lg hover:scale-110 transition active:scale-95"><Plus size={16}/></button>
-                    {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"><Edit3 size={14}/></button>}
                   </div>
                   <h3 className="font-black text-gray-800 text-lg leading-tight uppercase">{g.name}</h3>
-                  <div className="mt-2 text-[11px] text-gray-500 font-bold space-y-0.5">
-                    <p>DOC: <span className="text-violet-700 uppercase">{g.teacher || 'Vacante'}</span></p>
-                    {g.classroom && <p className="text-orange-600">AULA: {g.classroom}</p>}
-                  </div>
+                  <p className="text-[10px] text-gray-500 font-bold uppercase mt-1">Doc: {g.teacher || 'Vacante'}</p>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50 space-y-2 content-start">
@@ -245,7 +238,7 @@ const INCIDENT_TYPES = [
                         </div>
                         <span className="font-bold text-xs text-slate-700 uppercase">{s.lastName}, {s.firstName}</span>
                       </div>
-                      <button onClick={(e) => {e.stopPropagation(); setShowBitacoraModal(s); setIsWriting(false); setNewNote("");}} className="w-8 h-8 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center hover:bg-violet-600 hover:text-white transition">⚡</button>
+                      <button onClick={(e) => {e.stopPropagation(); setShowBitacoraModal(s); setIsWriting(false);}} className="w-8 h-8 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center">⚡</button>
                     </div>
                   ))}
                 </div>
@@ -254,49 +247,83 @@ const INCIDENT_TYPES = [
           </div>
       </div>
 
-   {selectedStudent && (
-  <StudentDetailView 
-    student={selectedStudent} 
-    user={user} db={db} appId={appId}
-    onClose={() => setSelectedStudent(null)} 
-    onEdit={(s) => {
-       setSelectedStudent(null);
-       onSelectStudent(s.id); // <--- ESTO SETEA EL ID GLOBALMENTE
-       setActiveTab('matricula'); // <--- ESTO CAMBIA LA PESTAÑA
-    }}
-  />
-)}
-             // CERRAMOS EL MODAL ACTUAL
+      {/* 1. MODAL DETALLE ESTUDIANTE (INFO RÁPIDA) */}
+      {selectedStudent && (
+        <StudentDetailView 
+          student={selectedStudent} user={user} db={db} appId={appId}
+          onClose={() => setSelectedStudent(null)} 
+          onEdit={(s) => {
+             // CERRAMOS este modal y abrimos el "Legajo Completo" aquí mismo
              setSelectedStudent(null);
-             // GUARDAMOS EL ID EN EL ESTADO GLOBAL DE APP.JSX
-             if (typeof onSelectStudent === 'function') {
-                onSelectStudent(s.id);
-             }
-             // REDIRECCIONAMOS
-             setActiveTab('matricula'); 
+             setFullFileStudent(s); 
           }}
         />
       )}
-      {/* MODAL BITÁCORA EXPRESS */}
+
+      {/* 2. MODAL LEGAJO COMPLETO (SIN REDIRECCIONAR) */}
+      {fullFileStudent && (
+        <div className="fixed inset-0 bg-black/80 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-[40px] w-full max-w-4xl h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in zoom-in-95">
+            <div className="p-4 bg-slate-900 text-white flex justify-between items-center shrink-0">
+               <div className="flex items-center gap-3">
+                  <GraduationCap className="text-orange-500"/>
+                  <h3 className="font-black uppercase italic tracking-tighter">Legajo Digital: {fullFileStudent.lastName}, {fullFileStudent.firstName}</h3>
+               </div>
+               <button onClick={() => setFullFileStudent(null)} className="p-2 bg-white/10 rounded-full hover:bg-red-500 transition"><X size={20}/></button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto bg-gray-100 p-6">
+               <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-200">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                      <h4 className="text-orange-500 font-black text-xs uppercase mb-4 border-b pb-1">Datos de Identidad</h4>
+                      <div className="space-y-3">
+                        <p className="text-sm"><b>DNI:</b> {fullFileStudent.dni || '-'}</p>
+                        <p className="text-sm"><b>Nacimiento:</b> {fullFileStudent.birthDate || '-'}</p>
+                        <p className="text-sm"><b>Dirección:</b> {fullFileStudent.address || '-'}</p>
+                        <p className="text-sm"><b>Diagnóstico:</b> <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-bold">{fullFileStudent.dx || 'S/D'}</span></p>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-blue-500 font-black text-xs uppercase mb-4 border-b pb-1">Contacto Familiar</h4>
+                      <div className="space-y-3">
+                        <p className="text-sm"><b>Madre:</b> {fullFileStudent.motherName || '-'} ({fullFileStudent.motherContact || '-'})</p>
+                        <p className="text-sm"><b>Padre:</b> {fullFileStudent.fatherName || '-'} ({fullFileStudent.fatherContact || '-'})</p>
+                        <p className="text-sm"><b>Obra Social:</b> {fullFileStudent.healthInsurance || 'No declara'}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-8 p-4 bg-amber-50 border border-amber-100 rounded-2xl">
+                    <p className="text-[10px] font-black text-amber-600 uppercase mb-1">Autorizados a retirar</p>
+                    <p className="text-sm italic text-slate-600">{fullFileStudent.pickupInfo || 'No hay información de retiro cargada.'}</p>
+                  </div>
+               </div>
+            </div>
+            <div className="p-4 bg-white border-t flex justify-center">
+                <button onClick={() => setFullFileStudent(null)} className="px-8 py-3 bg-slate-800 text-white rounded-xl font-bold uppercase text-xs">Cerrar Legajo</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. MODAL BITÁCORA EXPRESS (RAYITO) */}
       {showBitacoraModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 border-t-8 border-emerald-500">
+          <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl border-t-8 border-emerald-500">
             <div className="flex justify-between items-center mb-4">
               <div><h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3><p className="text-xs text-gray-500 font-bold">Alumno: {showBitacoraModal.firstName}</p></div>
               <button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20} /></button>
             </div>
             {!isWriting ? (
-              <>
-                <div className="grid grid-cols-2 gap-3 mb-4 max-h-[50vh] overflow-y-auto">
-                  {INCIDENT_TYPES.map((type) => (
-                    <button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? "opacity-50" : "hover:brightness-95"}`}>
-                      <span className="text-2xl">{type.emoji}</span>
-                      <span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span>
-                    </button>
-                  ))}
-                </div>
-                <button onClick={() => setIsWriting(true)} className="w-full py-3 bg-gray-900 text-white rounded-2xl font-bold uppercase text-xs flex items-center justify-center gap-2"><Edit3 size={16} /> Escribir Nota</button>
-              </>
+              <div className="grid grid-cols-2 gap-3">
+                {INCIDENT_TYPES.map((type) => (
+                  <button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? "opacity-50" : "hover:brightness-95"}`}>
+                    <span className="text-2xl">{type.emoji}</span>
+                    <span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span>
+                  </button>
+                ))}
+                <button onClick={() => setIsWriting(true)} className="col-span-2 py-3 bg-gray-900 text-white rounded-2xl font-bold uppercase text-xs flex items-center justify-center gap-2"><Edit3 size={16} /> Nota Detallada</button>
+              </div>
             ) : (
               <div className="animate-in slide-in-from-bottom">
                 <textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Detalles..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm mb-2 h-24 outline-none focus:border-violet-500" />
@@ -310,7 +337,7 @@ const INCIDENT_TYPES = [
         </div>
       )}
 
-      {/* PANEL ENFOQUE GRUPO (CHAT + INFORMES) */}
+      {/* 4. PANEL ENFOQUE GRUPO (CHAT + INFORMES) */}
       {selectedGroupDetails && (
         <div className="fixed inset-0 bg-white z-[500] flex flex-col animate-in fade-in">
            <div className="p-4 border-b-4 border-violet-100 flex justify-between items-center bg-white shrink-0">
@@ -327,7 +354,7 @@ const INCIDENT_TYPES = [
            <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-white">
               <div className={`flex-1 overflow-y-auto p-6 space-y-6 ${showMobileChat ? 'hidden lg:block' : 'block'}`}>
                 <div className="grid grid-cols-2 gap-3">
-                    <button onClick={() => window.open(selectedGroupDetails.driveLink, '_blank')} className="p-4 bg-emerald-50 text-emerald-700 rounded-3xl font-black text-[10px] uppercase border border-emerald-100 flex items-center justify-center gap-2 shadow-sm"><Folder size={18}/> Carpeta Fotos</button>
+                    <button onClick={() => window.open(selectedGroupDetails.driveLink, '_blank')} className="p-4 bg-emerald-50 text-emerald-700 rounded-3xl font-black text-[10px] uppercase border border-emerald-100 flex items-center justify-center gap-2 shadow-sm"><Folder size={18}/> Fotos</button>
                     <button onClick={() => window.open(selectedGroupDetails.institucionalDrive, '_blank')} className="p-4 bg-blue-50 text-blue-700 rounded-3xl font-black text-[10px] uppercase border border-blue-100 flex items-center justify-center gap-2 shadow-sm"><FileText size={18}/> Drive Institucional</button>
                 </div>
                 <div className="flex bg-slate-100 p-1 rounded-2xl mb-4">
@@ -374,7 +401,7 @@ const INCIDENT_TYPES = [
         </div>
       )}
 
-      {/* DIÁLOGO DE EDICIÓN (SOLO GESTIÓN) */}
+      {/* 5. DIÁLOGO DE EDICIÓN (SOLO GESTIÓN) */}
       {editingGroup && (
          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
             <form onSubmit={handleUpdateGroup} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto no-scrollbar">
