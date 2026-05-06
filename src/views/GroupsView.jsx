@@ -174,88 +174,84 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     } catch (err) { alert(err.message); }
   };
 
-  return (
-    <div className="flex flex-col h-full bg-slate-100 animate-in fade-in relative">
-      <div className="bg-white p-4 shadow-sm z-10 sticky top-0 flex flex-col gap-3">
+return (
+    <div className="flex flex-col h-full bg-slate-100 animate-in fade-in relative overflow-hidden">
+      
+      {/* 1. CABECERA FIJA */}
+      <div className="bg-white p-4 shadow-sm z-[100] sticky top-0 flex flex-col gap-3">
         <div className="flex justify-between items-center px-2">
-          <div><h2 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2"><Grid size={24} className="text-orange-500"/> Mis Grupos</h2></div>
-          <button onClick={() => { setGroupsToPrint(gruposFinales); setShowPrintOptions(true); }} className="bg-violet-100 text-violet-700 p-2.5 rounded-xl hover:bg-violet-200 transition shadow-sm"><Printer size={24}/></button>
+          <div>
+            <h2 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2">
+              <Grid size={24} className="text-orange-500"/> Mis Grupos
+            </h2>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-8">Vista Institucional</p>
+          </div>
+          <button 
+            onClick={() => { setGroupsToPrint(gruposFinales); setShowPrintOptions(true); }} 
+            className="bg-violet-100 text-violet-700 p-2.5 rounded-xl hover:bg-violet-200 transition shadow-sm"
+          >
+            <Printer size={24}/>
+          </button>
         </div>
-        <div className="flex bg-gray-100 p-1 rounded-xl mx-2">
-          <button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'morning' ? 'bg-white text-orange-50 shadow-sm' : 'text-gray-400'}`}>☀️ MAÑANA</button>
-          <button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 TARDE</button>
+
+        <div className="flex bg-gray-100 p-1 rounded-2xl mx-2">
+          <button onClick={() => setTurn('morning')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-400'}`}>☀️ MAÑANA</button>
+          <button onClick={() => setTurn('afternoon')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 TARDE</button>
         </div>
       </div>
 
-     {/* SECCIÓN DE GRUPOS CON NAVEGACIÓN POR FLECHAS */}
-      <div className="flex-1 overflow-hidden relative group/scroll">
+      {/* 2. ÁREA DE GRUPOS CON FLECHAS FLOTANTES */}
+      <div className="flex-1 relative flex items-center overflow-hidden">
         
-        {/* FLECHA IZQUIERDA */}
+        {/* FLECHA IZQUIERDA (Ahora con Z-index alto para que no la tapen) */}
         <button 
           onClick={() => scroll('left')}
-          className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-white p-4 rounded-full shadow-xl text-violet-600 border border-slate-100 transition-all opacity-0 group-hover/scroll:opacity-100 hidden lg:flex active:scale-90"
+          className="absolute left-4 z-[200] bg-white text-violet-600 p-4 rounded-full shadow-2xl border border-slate-100 hover:scale-110 active:scale-95 transition-all hidden lg:flex"
         >
-          <ChevronLeft size={30} strokeWidth={3} />
+          <ChevronLeft size={32} strokeWidth={3} />
         </button>
 
-        {/* CONTENEDOR DE GRUPOS */}
+        {/* CONTENEDOR PRINCIPAL - Quitamos las barras grises con no-scrollbar */}
         <div 
           ref={scrollRef} 
-          className="h-full overflow-x-auto p-6 scroll-smooth flex gap-6 items-start no-scrollbar"
+          className="h-full w-full overflow-x-auto flex gap-6 p-6 scroll-smooth no-scrollbar items-start"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {gruposFinales.map((g) => (
-            <div key={g.name} className="flex flex-col min-w-[320px] bg-white rounded-[35px] border border-gray-200 shadow-sm overflow-hidden h-[calc(100vh-250px)]">
-              {/* CABECERA DE TARJETA */}
-              <div className={`p-5 border-b-4 relative ${turn === 'morning' ? 'border-orange-400 bg-orange-50' : 'border-indigo-400 bg-indigo-50'}`}>
+            <div key={g.name} className="flex flex-col min-w-[340px] bg-white rounded-[40px] border border-slate-200 shadow-sm overflow-hidden h-[calc(100vh-280px)]">
+              
+              {/* CABECERA TARJETA */}
+              <div className={`p-6 border-b-4 relative ${turn === 'morning' ? 'border-orange-400 bg-orange-50/50' : 'border-indigo-400 bg-indigo-50/50'}`}>
                 <div className="absolute top-4 right-4 flex gap-1">
-                  <button onClick={() => { setGroupsToPrint([g]); setShowPrintOptions(true); }} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>
-                  <button onClick={() => setSelectedGroupDetails(g)} className="p-2 bg-violet-600 text-white rounded-full shadow-lg hover:scale-110 transition active:scale-95"><Plus size={16}/></button>
-                  {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"><Edit3 size={14}/></button>}
+                  <button onClick={() => { setGroupsToPrint([g]); setShowPrintOptions(true); }} className="p-2 bg-white/80 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>
+                  <button onClick={() => setSelectedGroupDetails(g)} className="p-2 bg-violet-600 text-white rounded-full shadow-lg hover:scale-110 transition"><Plus size={16}/></button>
+                  {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/80 hover:bg-white rounded-full text-slate-400 shadow-sm transition"><Edit3 size={14}/></button>}
                 </div>
                 
-                <h3 className="font-black text-slate-800 text-lg leading-tight pr-16 uppercase">{g.name}</h3>
+                <h3 className="font-black text-slate-800 text-xl leading-tight pr-16 uppercase">{g.name}</h3>
                 
                 <div className="flex flex-wrap gap-2 mt-3">
-                  <span className="bg-white/80 text-violet-700 px-2 py-0.5 rounded-md text-[9px] font-black uppercase shadow-sm border border-violet-100">
-                    {g.students.length} Estudiantes
-                  </span>
-                  {g.classroom && (
-                    <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-md text-[9px] font-black border border-orange-200 uppercase">
-                      Aula {g.classroom}
-                    </span>
-                  )}
+                  <span className="bg-white text-violet-700 px-2 py-1 rounded-lg text-[9px] font-black uppercase shadow-sm border border-violet-100">{g.students.length} Alumnxs</span>
+                  {g.classroom && <span className="bg-white text-orange-700 px-2 py-1 rounded-lg text-[9px] font-black border border-orange-100 uppercase">Aula {g.classroom}</span>}
                 </div>
 
-                <div className="mt-3 space-y-1">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
-                    <User size={10} className="text-violet-500"/> Doc: <span className="text-slate-800 font-black">{g.teacher || 'Sin asignar'}</span>
-                  </p>
-                  <p className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
-                    <Users size={10} className="text-orange-500"/> Aux: <span className="text-slate-800 font-black">{g.aux || 'S/D'}</span>
-                  </p>
+                <div className="mt-4 pt-3 border-t border-slate-200/50 space-y-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">DOC: <span className="text-slate-700 font-black">{g.teacher || 'Sin asignar'}</span></p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">AUX: <span className="text-slate-700 font-black">{g.aux || 'S/D'}</span></p>
                 </div>
               </div>
 
-              {/* LISTADO DE ALUMNOS */}
-              <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50 space-y-2 content-start">
+              {/* LISTADO ALUMNOS - no-scrollbar para que no se vea la barra gris en cada grupo */}
+              <div className="flex-1 overflow-y-auto p-4 bg-slate-50/30 space-y-2 no-scrollbar">
                 {g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
-                  <div key={s.id} onClick={() => setSelectedStudent(s)} className="bg-white p-3 rounded-2xl shadow-sm flex items-center justify-between cursor-pointer border border-transparent hover:border-violet-100 transition-all group/item">
+                  <div key={s.id} onClick={() => setSelectedStudent(s)} className="bg-white p-3 rounded-[24px] shadow-sm flex items-center justify-between cursor-pointer border-2 border-transparent hover:border-violet-200 transition-all group/item">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-400 border border-slate-200 text-sm overflow-hidden">
-                        {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover transition-transform group-hover/item:scale-110"/> : s.firstName[0]}
+                      <div className="w-11 h-11 rounded-2xl bg-slate-100 flex items-center justify-center font-black text-slate-400 border border-slate-200 text-sm overflow-hidden shadow-inner">
+                        {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover group-hover/item:scale-110 transition-transform"/> : s.firstName[0]}
                       </div>
-                      <span className="font-bold text-xs text-slate-700 uppercase">{s.lastName}, {s.firstName}</span>
+                      <span className="font-bold text-xs text-slate-700 uppercase tracking-tight">{s.lastName}, {s.firstName}</span>
                     </div>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation(); 
-                        setShowBitacoraModal(s); 
-                        setIsWriting(false);
-                      }} 
-                      className="w-8 h-8 bg-violet-50 text-violet-400 rounded-full flex items-center justify-center hover:bg-violet-600 hover:text-white transition-colors shadow-sm"
-                    >
-                      ⚡
-                    </button>
+                    <button onClick={(e) => {e.stopPropagation(); setShowBitacoraModal(s); setIsWriting(false);}} className="w-9 h-9 bg-violet-50 text-violet-500 rounded-full flex items-center justify-center hover:bg-violet-600 hover:text-white transition-all shadow-sm">⚡</button>
                   </div>
                 ))}
               </div>
@@ -266,9 +262,9 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
         {/* FLECHA DERECHA */}
         <button 
           onClick={() => scroll('right')}
-          className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-white p-4 rounded-full shadow-xl text-violet-600 border border-slate-100 transition-all opacity-0 group-hover/scroll:opacity-100 hidden lg:flex active:scale-90"
+          className="absolute right-4 z-[200] bg-white text-violet-600 p-4 rounded-full shadow-2xl border border-slate-100 hover:scale-110 active:scale-95 transition-all hidden lg:flex"
         >
-          <ChevronRight size={30} strokeWidth={3} />
+          <ChevronRight size={32} strokeWidth={3} />
         </button>
       </div>
 
