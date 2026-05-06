@@ -52,38 +52,19 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     return () => { unsubS(); unsubU(); unsubGM(); };
   }, [db, appId]);
 
-  // --- LÓGICA DE AGRUPAMIENTO ---
-  const groupedData = students.reduce((acc, s) => {
-    const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-    const gName = s[`group${suf}`];
-    if (!gName) return acc;
-    if (!acc[gName]) acc[gName] = { 
-      name: gName, 
-      students: [], 
-      teacher: s[`teacher${suf}`], 
-      teacherId: s[`teacherId${suf}`],
-      classroom: s.classroom, 
-      driveLink: s[`driveLink${suf}`], 
-      institucionalDrive: s.institucionalDrive 
-    };
-    acc[gName].students.push(s);
-    return acc;
-  }, {});
-// --- LÓGICA DE AGRUPAMIENTO OPTIMIZADA ---
+  // --- LÓGICA DE AGRUPAMIENTO OPTIMIZADA ---
   const gruposFinales = React.useMemo(() => {
-    console.log("Calculando grupos..."); // Solo verás esto cuando realmente cambien los datos
     const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-    
     const grouped = students.reduce((acc, s) => {
       const gName = s[`group${suf}`];
       if (!gName) return acc;
-      
       if (!acc[gName]) {
         acc[gName] = { 
           name: gName, 
           students: [], 
           teacher: s[`teacher${suf}`], 
           teacherId: s[`teacherId${suf}`],
+          aux: s[`aux${suf}`] || 'S/D',
           classroom: s.classroom, 
           driveLink: s[`driveLink${suf}`], 
           institucionalDrive: s.institucionalDrive 
@@ -92,18 +73,17 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
       acc[gName].students.push(s);
       return acc;
     }, {});
-
     return Object.values(grouped).sort((a, b) => 
       a.name.includes("INICIAL") ? -1 : a.name.localeCompare(b.name)
     );
-  }, [students, turn]); // SOLO se recalcula si cambian los alumnos o el turno
+  }, [students, turn]);
+
   // --- FUNCIONES DE ACCIÓN ---
 
   const printGroups = (groupsList) => {
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
     document.body.appendChild(iframe);
-    
     let h = `<html><head><style>
       body{font-family:sans-serif; padding:20px;}
       .header{background:#f3f4f6; padding:15px; border-left:5px solid #7c3aed; margin-bottom:10px; border-radius: 0 15px 15px 0;}
@@ -116,39 +96,13 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     </style></head><body>`;
 
     groupsList.forEach(g => {
-        // Obtenemos los nombres del staff del primer alumno para el encabezado
         const staff = g.students[0] || {};
         const turnoTexto = turn === 'morning' ? 'TURNO MAÑANA' : 'TURNO TARDE';
         const auxNombre = turn === 'morning' ? (staff.auxMorning || 'S/D') : (staff.auxAfternoon || 'S/D');
-
-        h += `<div class="header">
-                <h2>${g.name}</h2>
-                <div class="staff-info">
-                  DOCENTE: ${g.teacher || 'S/D'} | 
-                  AUX/PRECEP: ${auxNombre} | 
-                  JORNADA: ${turnoTexto}
-                </div>
-              </div>
-        <table><thead><tr>
-          <th>#</th>
-          ${printColumns.photo ? '<th>Foto</th>' : ''}
-          <th>Nombre y Apellido</th>
-          ${printColumns.dni ? '<th>DNI</th>' : ''}
-          ${printColumns.birthDate ? '<th>Nacimiento</th>' : ''}
-          ${printColumns.healthInsurance ? '<th>OS</th>' : ''}
-          ${printColumns.contacts ? '<th>Familia</th>' : ''}
-        </tr></thead><tbody>`;
-        
+        h += `<div class="header"><h2>${g.name}</h2><div class="staff-info">DOCENTE: ${g.teacher || 'S/D'} | AUX/PRECEP: ${auxNombre} | JORNADA: ${turnoTexto}</div></div>
+        <table><thead><tr><th>#</th>${printColumns.photo ? '<th>Foto</th>' : ''}<th>Nombre y Apellido</th>${printColumns.dni ? '<th>DNI</th>' : ''}${printColumns.birthDate ? '<th>Nacimiento</th>' : ''}${printColumns.healthInsurance ? '<th>OS</th>' : ''}${printColumns.contacts ? '<th>Familia</th>' : ''}</tr></thead><tbody>`;
         g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).forEach((s, i) => {
-            h += `<tr>
-              <td>${i+1}</td>
-              ${printColumns.photo ? `<td>${s.photoUrl ? `<img src="${s.photoUrl}" class="photo-img"/>` : '-'}</td>` : ''}
-              <td><b>${s.lastName}, ${s.firstName}</b></td>
-              ${printColumns.dni ? `<td>${s.dni || '-'}</td>` : ''}
-              ${printColumns.birthDate ? `<td>${s.birthDate || '-'}</td>` : ''}
-              ${printColumns.healthInsurance ? `<td>${s.healthInsurance || '-'}</td>` : ''}
-              ${printColumns.contacts ? `<td>M: ${s.motherContact || '-'} / P: ${s.fatherContact || '-'}</td>` : ''}
-            </tr>`;
+            h += `<tr><td>${i+1}</td>${printColumns.photo ? `<td>${s.photoUrl ? `<img src="${s.photoUrl}" class="photo-img"/>` : '-'}</td>` : ''}<td><b>${s.lastName}, ${s.firstName}</b></td>${printColumns.dni ? `<td>${s.dni || '-'}</td>` : ''}${printColumns.birthDate ? `<td>${s.birthDate || '-'}</td>` : ''}${printColumns.healthInsurance ? `<td>${s.healthInsurance || '-'}</td>` : ''}${printColumns.contacts ? `<td>M: ${s.motherContact || '-'} / P: ${s.fatherContact || '-'}</td>` : ''}</tr>`;
         });
         h += `</tbody></table><br/>`;
     });
@@ -160,101 +114,41 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
   const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
     const campo = `informe${numeroInforme}`;
     const info = estudiante[campo] || { status: 'Pendiente' };
-    let proximo = 'Pendiente';
-    
-    if (info.status === 'Pendiente') proximo = 'Hecho';
-    else if (info.status === 'Hecho') proximo = 'Impreso';
-    else if (info.status === 'Impreso') proximo = 'Enviado';
-    else if (info.status === 'Enviado') proximo = 'Archivado';
-
+    const proximo = { 'Pendiente': 'Hecho', 'Hecho': 'Impreso', 'Impreso': 'Enviado', 'Enviado': 'Archivado' }[info.status] || 'Pendiente';
     try {
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', estudiante.id), { 
         [campo]: { status: proximo, updatedAt: new Date().toISOString() } 
       });
-      const nuevosEstudiantes = selectedGroupDetails.students.map(s => 
-        s.id === estudiante.id ? { ...s, [campo]: { status: proximo } } : s
-      );
+      const nuevosEstudiantes = selectedGroupDetails.students.map(s => s.id === estudiante.id ? { ...s, [campo]: { status: proximo } } : s);
       setSelectedGroupDetails({ ...selectedGroupDetails, students: nuevosEstudiantes });
-    } catch (e) { 
-      console.error("Error al actualizar informe:", e); 
-    }
+    } catch (e) { console.error(e); }
   };
 
-const handleUpdateGroup = async (e) => {
+  const handleUpdateGroup = async (e) => {
     e.preventDefault(); 
     if (!editingGroup) return; 
     setUpdatingGroup(true);
-    
     const fd = new FormData(e.target);
     const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-    
-    const getName = (id) => {
-      if (!id) return "";
-      const found = usersList.find(u => u.id === id);
-      return found ? found.fullName : "";
-    };
-
-    const teacherId = fd.get('teacher');
-    const teacher2Id = fd.get('teacher2Id');
-    const auxId = fd.get('auxId');
-
+    const getName = (id) => usersList.find(u => u.id === id)?.fullName || "";
     const updates = { 
       [`group${suf}`]: fd.get('groupName'), 
       classroom: fd.get('classroom'),
-      [`teacherId${suf}`]: teacherId,
-      [`teacher${suf}`]: getName(teacherId),
-      [`teacherId2${suf}`]: teacher2Id,
-      [`teacher2${suf}`]: getName(teacher2Id),
-      [`auxId${suf}`]: auxId,
-      [`aux${suf}`]: getName(auxId),
-      [`driveLink${suf}`]: fd.get('driveLink'),
-      institucionalDrive: fd.get('institucionalDrive')
-    };
-
-    try {
-      const promises = editingGroup.students.map(s => 
-        updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)
-      );
-      
-      await Promise.all(promises);
-      setEditingGroup(null);
-      alert("✅ Datos del grupo actualizados en todos los legajos.");
-    } catch (err) { 
-      console.error(err);
-      alert("Error: " + err.message); 
-    } finally { 
-      setUpdatingGroup(false); 
-    }
-  };
-    const updates = { 
-      [`group${suf}`]: fd.get('groupName'), 
-      classroom: fd.get('classroom'),
-      // Actualización masiva de Staff
       [`teacherId${suf}`]: fd.get('teacher'),
       [`teacher${suf}`]: getName(fd.get('teacher')),
       [`teacherId2${suf}`]: fd.get('teacher2Id'),
       [`teacher2${suf}`]: getName(fd.get('teacher2Id')),
       [`auxId${suf}`]: fd.get('auxId'),
       [`aux${suf}`]: getName(fd.get('auxId')),
-      // Links de Drive
       [`driveLink${suf}`]: fd.get('driveLink'),
       institucionalDrive: fd.get('institucionalDrive')
     };
-
     try {
-      // Ejecutamos la actualización en todos los alumnos que pertenecen a este grupo
-      const promises = editingGroup.students.map(s => 
-        updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)
-      );
-      
+      const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates));
       await Promise.all(promises);
       setEditingGroup(null);
-      alert("✅ Datos del grupo actualizados en todos los legajos individuales.");
-    } catch (err) { 
-      alert("Error en actualización masiva: " + err.message); 
-    } finally { 
-      setUpdatingGroup(false); 
-    }
+      alert("✅ Datos del grupo actualizados.");
+    } catch (err) { alert("Error: " + err.message); } finally { setUpdatingGroup(false); }
   };
 
   const handleSaveIncident = async (type, severity = "medium", text = "") => {
@@ -262,23 +156,12 @@ const handleUpdateGroup = async (e) => {
     if (!activeStudent) return;
     setSavingIncident(true);
     try {
-      const entry = {
-        date: new Date().toISOString(),
-        type: text ? "Nota" : type,
-        severity,
-        text: text || type,
-        author: user.fullName || user.firstName,
-        authorId: user.id
-      };
+      const entry = { date: new Date().toISOString(), type: text ? "Nota" : type, severity, text: text || type, author: user.fullName || user.firstName, authorId: user.id };
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', activeStudent.id), { incidents: arrayUnion(entry) });
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { score: increment(10) });
       setShowBitacoraModal(null); setIsWriting(false); setNewNote("");
       alert("✅ Registro guardado.");
-    } catch (e) { 
-      alert(e.message); 
-    } finally { 
-      setSavingIncident(false); 
-    }
+    } catch (e) { alert(e.message); } finally { setSavingIncident(false); }
   };
 
   const handleAddGroupComment = async (e, groupName) => {
@@ -286,9 +169,7 @@ const handleUpdateGroup = async (e) => {
     const text = e.target.comment.value;
     if (!text.trim()) return;
     try {
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'group_mural'), {
-        groupName, text, author: user.firstName, authorId: user.id, createdAt: serverTimestamp()
-      });
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'group_mural'), { groupName, text, author: user.firstName, authorId: user.id, createdAt: serverTimestamp() });
       e.target.reset();
     } catch (err) { alert(err.message); }
   };
