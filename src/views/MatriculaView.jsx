@@ -27,7 +27,7 @@ export function MatriculaView({ user, db, appId, initStudentId }) {
   const [socialCases, setSocialCases] = useState([])
   
   // Estados de visualización y edición
-  const [viewingStudent, setViewingStudent] = useState(null);
+  
   const [editingStudent, setEditingStudent] = useState(null);
   const [duplicates, setDuplicates] = useState(null);
   const [activeModalTab, setActiveModalTab] = useState('info'); // 'info' o 'history'
