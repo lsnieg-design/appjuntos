@@ -17,6 +17,9 @@ import { doc, updateDoc, collection, query, orderBy, onSnapshot, addDoc, serverT
 // Solo esta cabecera, con todos los parámetros que necesita el resto del código
 export function GroupsView({ user, db, appId, setActiveTab }) {
   const [students, setStudents] = useState([]);
+  const [activeTabModal, setActiveTabModal] = useState("info"); // <--- AGREGÁ ESTA LÍNEA
+  const [isWriting, setIsWriting] = useState(false);           // <--- AGREGÁ ESTA LÍNEA
+  const [newNote, setNewNote] = useState('');
   const [usersList, setUsersList] = useState([]);
   const [turn, setTurn] = useState('morning'); 
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -280,91 +283,9 @@ const printStaffOrganization = (groupsList) => {
   const handlePrintAll = () => { printGroups(groups); };
   const handlePrintSingleGroup = (g) => { printGroups([g]); };
 
-const handleReportAbsenteeism = async () => {
-      if(!selectedStudent) return;
-      const details = prompt(`¿Motivo del ausentismo o conflicto de ${selectedStudent.firstName}?`);
-      if(!details) return;
 
-      try {
-          const caseData = {
-              studentId: selectedStudent.id,
-              studentName: `${selectedStudent.lastName}, ${selectedStudent.firstName}`,
-              level: selectedStudent.level || 'Sin Nivel',
-              group: turn === 'morning' ? selectedStudent.groupMorning : selectedStudent.groupAfternoon,
-              reason: details,
-              reportedBy: user.firstName,
-              status: 'Pendiente',
-              steps: {
-                  llamada: { done: false, date: null, obs: '' },
-                  continuidad: { sent: false, date: null },
-                  entrevista: { done: false, date: null }
-              },
-              history: [{ date: new Date().toISOString(), text: `Reporte inicial: ${details}`, author: user.firstName }],
-              createdAt: serverTimestamp(),
-              cycle: '2026'
-          };
-          
-          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'), caseData);
 
-          if (new Date() >= new Date('2026-05-01')) {
-              const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-              await updateDoc(userRef, { score: increment(15) });
-          }
 
-          alert("✅ Caso derivado a Trabajo Social (+15 pts).");
-          setActiveTab('social'); 
-      } catch (e) { alert("Error: " + e.message); }
-  };
-
-// --- FUNCIÓN UNIFICADA DE BITÁCORA ---
-  const handleSaveIncident = async (type, severity = "medium", text = "") => {
-    const activeStudent = showBitacoraModal || selectedStudent;
-    if (!activeStudent) return;
-
-    setSavingIncident(true);
-
-    const newInc = { 
-        date: new Date().toISOString(), 
-        type: text ? "Nota" : type, 
-        severity: severity, 
-        text: text || type, 
-        author: user.fullName || user.firstName,
-        authorId: user.id
-    }; 
-
-    try { 
-        const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', activeStudent.id); 
-        
-        // 1. Guardamos el incidente en el alumno
-        await updateDoc(studentRef, { 
-            incidents: arrayUnion(newInc) 
-        }); 
-
-        // 2. --- PUNTOS CHALLENGE / MAYO ---
-        // Se activa si es >= 1 de Mayo
-        if (new Date() >= new Date('2026-05-01')) {
-            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-            await updateDoc(userRef, { score: increment(10) });
-        }
-
-        // 3. Actualización de interfaz local
-        if (viewingStudent && viewingStudent.id === activeStudent.id) {
-            setViewingStudent(prev => ({...prev, incidents: [...(prev.incidents || []), newInc]}));
-        }
-
-        // 4. Limpieza y cierre
-        setNewNote("");
-        setIsWriting(false);
-        if (typeof setShowBitacoraModal === 'function') setShowBitacoraModal(null);
-        
-        alert("✅ Registro guardado correctamente.");
-    } catch (e) {
-        console.error("Error al guardar:", e);
-        alert("❌ Error: " + e.message);
-    } finally {
-        setSavingIncident(false);
-    }
-  };
  const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
 
 const handleUpdateGroup = async (e) => { 
@@ -776,7 +697,6 @@ const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
     onClose={() => setSelectedStudent(null)} 
     onEdit={(s) => {
        setActiveTab('matricula'); 
-       // Opcional: podrías guardar el ID para que MatriculaView lo abra automáticamente
     }}
   />
 )}
