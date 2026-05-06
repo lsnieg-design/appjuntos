@@ -200,25 +200,25 @@ return (
         </div>
       </div>
 
-      {/* 2. ÁREA DE GRUPOS CON FLECHAS FLOTANTES */}
-      <div className="flex-1 relative flex items-center overflow-hidden">
+     {/* 2. ÁREA DE GRUPOS CON FLECHAS FLOTANTES */}
+      <div className="flex-1 relative flex items-start overflow-hidden">
         
-        {/* FLECHA IZQUIERDA (Ahora con Z-index alto para que no la tapen) */}
+        {/* FLECHA IZQUIERDA */}
         <button 
           onClick={() => scroll('left')}
-          className="absolute left-4 z-[200] bg-white text-violet-600 p-4 rounded-full shadow-2xl border border-slate-100 hover:scale-110 active:scale-95 transition-all hidden lg:flex"
+          className="absolute left-4 top-1/2 -translate-y-1/2 z-[200] bg-white text-violet-600 p-4 rounded-full shadow-2xl border border-slate-100 hover:scale-110 active:scale-95 transition-all hidden lg:flex"
         >
           <ChevronLeft size={32} strokeWidth={3} />
         </button>
 
-        {/* CONTENEDOR PRINCIPAL - Quitamos las barras grises con no-scrollbar */}
+        {/* CONTENEDOR PRINCIPAL: Ahora permite que el contenido crezca */}
         <div 
           ref={scrollRef} 
           className="h-full w-full overflow-x-auto flex gap-6 p-6 scroll-smooth no-scrollbar items-start"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {gruposFinales.map((g) => (
-            <div key={g.name} className="flex flex-col min-w-[340px] bg-white rounded-[40px] border border-slate-200 shadow-sm overflow-hidden h-[calc(100vh-280px)]">
+            <div key={g.name} className="flex flex-col min-w-[340px] bg-white rounded-[40px] border border-slate-200 shadow-sm overflow-hidden h-fit mb-10">
               
               {/* CABECERA TARJETA */}
               <div className={`p-6 border-b-4 relative ${turn === 'morning' ? 'border-orange-400 bg-orange-50/50' : 'border-indigo-400 bg-indigo-50/50'}`}>
@@ -241,8 +241,8 @@ return (
                 </div>
               </div>
 
-              {/* LISTADO ALUMNOS - no-scrollbar para que no se vea la barra gris en cada grupo */}
-              <div className="flex-1 overflow-y-auto p-4 bg-slate-50/30 space-y-2 no-scrollbar">
+              {/* LISTADO ALUMNOS: h-fit y sin scroll interno */}
+              <div className="p-4 bg-slate-50/30 space-y-2 h-fit">
                 {g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
                   <div key={s.id} onClick={() => setSelectedStudent(s)} className="bg-white p-3 rounded-[24px] shadow-sm flex items-center justify-between cursor-pointer border-2 border-transparent hover:border-violet-200 transition-all group/item">
                     <div className="flex items-center gap-3">
@@ -262,7 +262,7 @@ return (
         {/* FLECHA DERECHA */}
         <button 
           onClick={() => scroll('right')}
-          className="absolute right-4 z-[200] bg-white text-violet-600 p-4 rounded-full shadow-2xl border border-slate-100 hover:scale-110 active:scale-95 transition-all hidden lg:flex"
+          className="absolute right-4 top-1/2 -translate-y-1/2 z-[200] bg-white text-violet-600 p-4 rounded-full shadow-2xl border border-slate-100 hover:scale-110 active:scale-95 transition-all hidden lg:flex"
         >
           <ChevronRight size={32} strokeWidth={3} />
         </button>
