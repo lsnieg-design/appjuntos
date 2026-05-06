@@ -4,16 +4,7 @@ import {
 } from 'lucide-react';
 import { doc, updateDoc, arrayUnion, increment } from 'firebase/firestore';
 
-export function StudentDetailView({ student, onClose, onEdit, db, appId, user }) {
-  const [activeTabModal, setActiveTabModal] = useState("info");
-  const [isWriting, setIsWriting] = useState(false);
-  const [newNote, setNewNote] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  if (!student) return null;
-
-  // Lista de 13 botones para coincidir con Mi Aula
-  const INCIDENT_TYPES = [
+const INCIDENT_TYPES = [
     { label: "Trabajó Muy Bien", emoji: "🌟", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
     { label: "Ayudó a un amigo", emoji: "🤝", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
     { label: "Logro de Aprendizaje", emoji: "🚀", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
@@ -27,7 +18,13 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
     { label: "Brote / Gritos", emoji: "🤬", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
     { label: "Fuga / Intento", emoji: "🏃", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
     { label: "Convulsión / Salud", emoji: "🚑", severity: "high", color: "bg-indigo-100 border-indigo-300 text-indigo-800" }, 
-  ];
+];
+
+export function StudentDetailView({ student, onClose, onEdit, db, appId, user }) {
+  const [activeTabModal, setActiveTabModal] = useState("info");
+  const [isWriting, setIsWriting] = useState(false);
+  const [newNote, setNewNote] = useState('');
+  const [loading, setLoading] = useState(false);
 
   if (!student) return null;
 
@@ -54,13 +51,9 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
         author: user.fullName || `${user.firstName} ${user.lastName || ''}`,
         authorId: user.id
       };
-      
       await updateDoc(studentRef, { incidents: arrayUnion(entry) });
-      
-      // Premio Mayo: 10 puntos por registro pedagógico
       const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
       await updateDoc(userRef, { score: increment(10) });
-
       setNewNote('');
       setIsWriting(false);
       alert(`✅ Registrado correctamente. ¡Sumaste 10 puntos!`);
@@ -96,8 +89,6 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[250] flex items-center justify-center p-4">
       <div className="bg-white rounded-[40px] w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95">
-        
-        {/* CABECERA */}
         <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0">
           <button onClick={onClose} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-2 rounded-full transition"><X size={20}/></button>
           <div className="flex items-center gap-4">
@@ -109,14 +100,12 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
               <p className="opacity-90 text-xs font-bold uppercase mt-1 tracking-widest text-cyan-50">{student.modality || 'Sede'}</p>
             </div>
           </div>
-
           <div className="flex gap-2 mt-6">
             <button onClick={() => setActiveTabModal("info")} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTabModal === "info" ? "bg-white text-blue-600 shadow-md" : "bg-black/20 text-white/70"}`}>Datos</button>
             <button onClick={() => setActiveTabModal("history")} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition ${activeTabModal === "history" ? "bg-white text-blue-600 shadow-md" : "bg-black/20 text-white/70"}`}>Bitácora</button>
           </div>
         </div>
 
-        {/* CONTENIDO */}
         <div className="p-6 overflow-y-auto space-y-6 no-scrollbar flex-1 bg-gray-50">
           {activeTabModal === "info" ? (
             <div className="space-y-5 animate-in fade-in">
@@ -134,15 +123,13 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
                    <p className="font-bold text-orange-700 text-[10px] truncate">{student.dx || '-'}</p>
                 </div>
               </div>
-
               <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
-                <h3 className="font-black text-slate-400 text-[10px] uppercase mb-2 tracking-widest flex items-center gap-1"><Users size={12}/> Contacto Familiar</h3>
+                <h3 className="font-black text-slate-400 text-[10px] uppercase mb-2 tracking-widest flex items-center gap-1"><Users size={12}/> Familia</h3>
                 <div className="space-y-1">
                   <p className="text-sm text-slate-700">M: <b className="text-slate-900">{student.motherName || 'S/D'}</b></p>
                   <p className="text-sm text-slate-700">P: <b className="text-slate-900">{student.fatherName || 'S/D'}</b></p>
                 </div>
               </div>
-
               <button onClick={handleReportAbsenteeism} className="w-full py-4 bg-red-50 text-red-700 font-black rounded-2xl border border-red-200 flex items-center justify-center gap-2 hover:bg-red-100 transition shadow-sm uppercase text-[10px] tracking-widest">
                 <AlertTriangle size={18}/> Reportar Ausentismo (+3 días)
               </button>
@@ -159,7 +146,6 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
                   ))}
                 </div>
               )}
-
               <div className="bg-slate-100 p-4 rounded-2xl border border-slate-200 shadow-inner">
                 {isWriting ? (
                   <div className="space-y-2">
@@ -175,7 +161,6 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
                   </button>
                 )}
               </div>
-
               <div className="space-y-2 mt-4">
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Historial Reciente</h4>
                 {student.incidents?.slice().reverse().map((inc, i) => (
@@ -192,7 +177,6 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
           )}
         </div>
 
-        {/* PIE */}
         <div className="p-4 border-t bg-white shrink-0">
           <button 
             onClick={() => { 
