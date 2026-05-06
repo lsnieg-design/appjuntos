@@ -217,17 +217,23 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
           </div>
       </div>
 
-      {/* 1. MODAL DETALLE ESTUDIANTE (INFO RÁPIDA) */}
+    {/* 1. MODAL DETALLE ESTUDIANTE (INFO RÁPIDA) */}
       {selectedStudent && (
         <StudentDetailView 
-          student={selectedStudent} user={user} db={db} appId={appId}
+          student={selectedStudent} 
+          user={user} 
+          db={db} 
+          appId={appId}
           onClose={() => setSelectedStudent(null)} 
-          onEdit={(s) => { setSelectedStudent(null); setFullFileStudent(s); }}
+          onEdit={(s) => {
+             // Al tocar "Ver Legajo", cerramos este y abrimos el completo gris
+             setSelectedStudent(null);
+             setFullFileStudent(s); 
+          }}
         />
       )}
 
-      {/* 2. MODAL LEGAJO DIGITAL COMPLETO */}
-     {/* MODAL LEGAJO DIGITAL COMPLETO DENTRO DE MI AULA */}
+      {/* 2. MODAL LEGAJO DIGITAL COMPLETO DENTRO DE MI AULA */}
       {fullFileStudent && (
         <div className="fixed inset-0 bg-black/80 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-[40px] w-full max-w-4xl h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in zoom-in-95">
@@ -253,8 +259,8 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
                     <div className="space-y-4">
                       <h4 className="text-blue-600 font-black text-[10px] uppercase tracking-widest border-b-2 border-blue-100 pb-1 flex items-center gap-2"><Users size={14}/> Familia y Salud</h4>
                       <div className="space-y-3">
-                        <p className="text-sm"><b>Madre:</b> <span className="text-slate-600">{fullFileStudent.motherName || '-'}</span> {fullFileStudent.motherContact && <span className="text-blue-500 font-bold ml-1">({fullFileStudent.motherContact})</span>}</p>
-                        <p className="text-sm"><b>Padre:</b> <span className="text-slate-600">{fullFileStudent.fatherName || '-'}</span> {fullFileStudent.fatherContact && <span className="text-blue-500 font-bold ml-1">({fullFileStudent.fatherContact})</span>}</p>
+                        <p className="text-sm"><b>Madre:</b> <span className="text-slate-600">{fullFileStudent.motherName || '-'}</span></p>
+                        <p className="text-sm"><b>Padre:</b> <span className="text-slate-600">{fullFileStudent.fatherName || '-'}</span></p>
                         <p className="text-sm"><b>Obra Social:</b> <span className="text-slate-600">{fullFileStudent.healthInsurance || 'No declara'}</span></p>
                       </div>
                     </div>
@@ -366,13 +372,13 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
         </div>
       )}
 
+      {/* 5. DIÁLOGO DE EDICIÓN DE GRUPO (SOLO GESTIÓN) */}
       {editingGroup && (
          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
             <form onSubmit={handleUpdateGroup} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto no-scrollbar">
                <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-black text-violet-900 uppercase italic">Editar Grupo</h3><button type="button" onClick={() => setEditingGroup(null)}><X size={20}/></button></div>
                <div className="space-y-4">
                   <div><label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Nombre Grupo</label><input name="groupName" defaultValue={editingGroup.name} className="w-full p-3 bg-slate-50 rounded-xl font-black text-sm uppercase outline-none focus:ring-2 ring-violet-100 border-b-2 border-violet-200" /></div>
-                  <div><label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Docente Titular</label><select name="teacher" defaultValue={editingGroup.teacherId || ""} className="w-full p-3 bg-slate-50 rounded-xl font-bold text-xs uppercase outline-none">{usersList.map(u => <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>)}</select></div>
                   <div><label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Aula Física</label><input name="classroom" defaultValue={editingGroup.classroom || ""} className="w-full p-3 bg-slate-50 rounded-xl font-bold text-sm outline-none" /></div>
                   <div><label className="text-[10px] font-black text-emerald-600 uppercase ml-1 tracking-widest">Link Carpeta Fotos</label><input name="driveLink" defaultValue={editingGroup.driveLink || ""} className="w-full p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-xs font-bold text-emerald-800 outline-none" /></div>
                   <div><label className="text-[10px] font-black text-blue-600 uppercase ml-1 tracking-widest">Drive Institucional</label><input name="institucionalDrive" defaultValue={editingGroup.institucionalDrive || ""} className="w-full p-3 bg-blue-50 border border-blue-100 rounded-xl text-xs font-bold text-blue-800 outline-none" /></div>
