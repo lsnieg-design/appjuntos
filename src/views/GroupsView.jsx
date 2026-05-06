@@ -17,7 +17,7 @@ import { doc, updateDoc, collection, query, orderBy, onSnapshot, addDoc, serverT
 // Solo esta cabecera, con todos los parámetros que necesita el resto del código
 export function GroupsView({ user, db, appId, setActiveTab }) {
   const [students, setStudents] = useState([]);
-  const [activeTabModal, setActiveTabModal] = useState("info"); // <--- AGREGÁ ESTA LÍNEA
+ 
   const [isWriting, setIsWriting] = useState(false);           // <--- AGREGÁ ESTA LÍNEA
   const [newNote, setNewNote] = useState('');
   const [usersList, setUsersList] = useState([]);
@@ -31,8 +31,7 @@ const [showGroupChat, setShowGroupChat] = useState(null); // Qué chat de grupo 
   const [showMobileChat, setShowMobileChat] = useState(false);
 const [informeEpoca, setInformeEpoca] = useState(1); // Para filtrar 1°, 2° o 3°
   
-  const [newNote, setNewNote] = useState("");
-  const [isWriting, setIsWriting] = useState(false);
+
   const [editingGroup, setEditingGroup] = useState(null);
   
   const userRoleStr = (user?.role || '').toLowerCase();
