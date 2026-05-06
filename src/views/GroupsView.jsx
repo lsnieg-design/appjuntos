@@ -16,7 +16,7 @@ import {
   increment, where, deleteDoc 
 } from 'firebase/firestore';
 
-export function GroupsView({ user, db, appId, setActiveTab }) {
+export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
   // --- ESTADOS ---
   const [fullFileStudent, setFullFileStudent] = useState(null);
   const [students, setStudents] = useState([]);
@@ -76,7 +76,7 @@ export function GroupsView({ user, db, appId, setActiveTab }) {
     return () => { unsubS(); unsubU(); unsubGM(); };
   }, [db, appId]);
 
-  // --- LÓGICA ---
+  // --- LÓGICA DE AGRUPAMIENTO ---
   const groupedData = students.reduce((acc, s) => {
     const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
     const groupName = s[`group${suf}`];
@@ -119,8 +119,8 @@ export function GroupsView({ user, db, appId, setActiveTab }) {
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', activeStudent.id), { incidents: arrayUnion(newInc) }); 
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { score: increment(10) });
       setNewNote(""); setIsWriting(false); setShowBitacoraModal(null);
-      alert("✅ Guardado (+10 pts).");
-    } catch (e) { alert(e.message); } 
+      alert("✅ Registro guardado (+10 pts).");
+    } catch (e) { alert("Error: " + e.message); } 
     finally { setSavingIncident(false); }
   };
 
@@ -165,6 +165,7 @@ export function GroupsView({ user, db, appId, setActiveTab }) {
 
   return (
     <div className="flex flex-col h-full bg-slate-100 animate-in fade-in relative">
+      {/* HEADER */}
       <div className="bg-white p-4 shadow-sm z-10 sticky top-0 flex flex-col gap-3">
           <div className="flex justify-between items-center px-2">
               <div>
@@ -179,6 +180,7 @@ export function GroupsView({ user, db, appId, setActiveTab }) {
           </div>
       </div>
       
+      {/* LISTADO DE GRUPOS */}
       <div className="flex-1 overflow-hidden relative">
           <div ref={scrollRef} className="h-full overflow-x-auto p-6 scroll-smooth flex gap-6 items-start no-scrollbar">
             {groups.map((g) => (
@@ -215,6 +217,7 @@ export function GroupsView({ user, db, appId, setActiveTab }) {
           </div>
       </div>
 
+      {/* 1. MODAL DETALLE ESTUDIANTE (INFO RÁPIDA) */}
       {selectedStudent && (
         <StudentDetailView 
           student={selectedStudent} user={user} db={db} appId={appId}
@@ -223,9 +226,11 @@ export function GroupsView({ user, db, appId, setActiveTab }) {
         />
       )}
 
+      {/* 2. MODAL LEGAJO DIGITAL COMPLETO */}
+     {/* MODAL LEGAJO DIGITAL COMPLETO DENTRO DE MI AULA */}
       {fullFileStudent && (
         <div className="fixed inset-0 bg-black/80 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-[40px] w-full max-w-3xl h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in zoom-in-95">
+          <div className="bg-white rounded-[40px] w-full max-w-4xl h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in zoom-in-95">
             <div className="p-5 bg-slate-900 text-white flex justify-between items-center shrink-0">
                <div className="flex items-center gap-3">
                   <div className="bg-orange-500 p-2 rounded-xl"><GraduationCap size={20}/></div>
@@ -233,43 +238,52 @@ export function GroupsView({ user, db, appId, setActiveTab }) {
                </div>
                <button onClick={() => setFullFileStudent(null)} className="p-2 bg-white/10 rounded-full hover:bg-red-500 transition"><X size={20}/></button>
             </div>
+            
             <div className="flex-1 overflow-y-auto bg-gray-100 p-6 no-scrollbar">
                <div className="bg-white rounded-[35px] p-8 shadow-sm border border-gray-200">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-4">
-                      <h4 className="text-orange-600 font-black text-[10px] uppercase tracking-widest border-b-2 border-orange-100 pb-1 flex items-center gap-2"><User size={14}/> Identidad</h4>
-                      <p className="text-sm"><b>DNI:</b> {fullFileStudent.dni || '-'}</p>
-                      <p className="text-sm"><b>Nacimiento:</b> {fullFileStudent.birthDate || '-'}</p>
-                      <p className="text-sm"><b>DX:</b> <span className="bg-purple-100 text-purple-700 px-2 rounded font-black text-xs uppercase">{fullFileStudent.dx || 'S/D'}</span></p>
+                      <h4 className="text-orange-600 font-black text-[10px] uppercase tracking-widest border-b-2 border-orange-100 pb-1 flex items-center gap-2"><User size={14}/> Datos de Identidad</h4>
+                      <div className="space-y-3">
+                        <p className="text-sm"><b>DNI:</b> <span className="text-slate-600">{fullFileStudent.dni || '-'}</span></p>
+                        <p className="text-sm"><b>Nacimiento:</b> <span className="text-slate-600">{fullFileStudent.birthDate || '-'}</span></p>
+                        <p className="text-sm"><b>Diagnóstico:</b> <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-black uppercase">{fullFileStudent.dx || 'S/D'}</span></p>
+                      </div>
                     </div>
                     <div className="space-y-4">
-                      <h4 className="text-blue-600 font-black text-[10px] uppercase tracking-widest border-b-2 border-blue-100 pb-1 flex items-center gap-2"><Users size={14}/> Familia</h4>
-                      <p className="text-sm"><b>Madre:</b> {fullFileStudent.motherName || '-'} ({fullFileStudent.motherContact || '-'})</p>
-                      <p className="text-sm"><b>Padre:</b> {fullFileStudent.fatherName || '-'} ({fullFileStudent.fatherContact || '-'})</p>
+                      <h4 className="text-blue-600 font-black text-[10px] uppercase tracking-widest border-b-2 border-blue-100 pb-1 flex items-center gap-2"><Users size={14}/> Familia y Salud</h4>
+                      <div className="space-y-3">
+                        <p className="text-sm"><b>Madre:</b> <span className="text-slate-600">{fullFileStudent.motherName || '-'}</span> {fullFileStudent.motherContact && <span className="text-blue-500 font-bold ml-1">({fullFileStudent.motherContact})</span>}</p>
+                        <p className="text-sm"><b>Padre:</b> <span className="text-slate-600">{fullFileStudent.fatherName || '-'}</span> {fullFileStudent.fatherContact && <span className="text-blue-500 font-bold ml-1">({fullFileStudent.fatherContact})</span>}</p>
+                        <p className="text-sm"><b>Obra Social:</b> <span className="text-slate-600">{fullFileStudent.healthInsurance || 'No declara'}</span></p>
+                      </div>
                     </div>
                   </div>
-                  <div className="mt-8 p-5 bg-amber-50 border-2 border-dashed border-amber-200 rounded-3xl text-sm italic text-slate-600">
-                    <p className="font-black text-amber-600 uppercase text-[9px] not-italic mb-1">Autorizados Retiro</p>
-                    {fullFileStudent.pickupInfo || 'No hay información cargada.'}
+                  <div className="mt-8 p-5 bg-amber-50 border-2 border-dashed border-amber-200 rounded-3xl">
+                    <p className="text-[9px] font-black text-amber-600 uppercase mb-2 tracking-widest">Autorizados a retirar</p>
+                    <p className="text-sm font-medium text-slate-700 leading-relaxed">{fullFileStudent.pickupInfo || 'No hay información de retiro cargada.'}</p>
                   </div>
                </div>
             </div>
-            <div className="p-5 bg-white border-t flex justify-center"><button onClick={() => setFullFileStudent(null)} className="px-10 py-4 bg-slate-800 text-white rounded-2xl font-black uppercase text-xs">Cerrar Legajo</button></div>
+            <div className="p-5 bg-white border-t flex justify-center">
+                <button onClick={() => setFullFileStudent(null)} className="px-10 py-4 bg-slate-800 text-white rounded-2xl font-black uppercase text-xs shadow-lg active:scale-95 transition-all">Cerrar Legajo</button>
+            </div>
           </div>
         </div>
       )}
 
+      {/* 3. MODAL BITÁCORA EXPRESS (RAYITO) */}
       {showBitacoraModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
           <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl border-t-8 border-emerald-500">
             <div className="flex justify-between items-center mb-4">
               <div><h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3><p className="text-xs text-gray-500 font-bold">{showBitacoraModal.firstName}</p></div>
-              <button onClick={() => setShowBitacoraModal(null)}><X size={20}/></button>
+              <button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button>
             </div>
             {!isWriting ? (
               <div className="grid grid-cols-2 gap-3">
                 {INCIDENT_TYPES.map((type) => (
-                  <button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color}`}>
+                  <button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color}`}>
                     <span className="text-2xl">{type.emoji}</span>
                     <span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span>
                   </button>
@@ -289,6 +303,7 @@ export function GroupsView({ user, db, appId, setActiveTab }) {
         </div>
       )}
 
+      {/* 4. PANEL ENFOQUE GRUPO (CHAT + INFORMES) */}
       {selectedGroupDetails && (
         <div className="fixed inset-0 bg-white z-[500] flex flex-col animate-in fade-in">
            <div className="p-4 border-b-4 border-violet-100 flex justify-between items-center bg-white shrink-0">
@@ -361,7 +376,7 @@ export function GroupsView({ user, db, appId, setActiveTab }) {
                   <div><label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Aula Física</label><input name="classroom" defaultValue={editingGroup.classroom || ""} className="w-full p-3 bg-slate-50 rounded-xl font-bold text-sm outline-none" /></div>
                   <div><label className="text-[10px] font-black text-emerald-600 uppercase ml-1 tracking-widest">Link Carpeta Fotos</label><input name="driveLink" defaultValue={editingGroup.driveLink || ""} className="w-full p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-xs font-bold text-emerald-800 outline-none" /></div>
                   <div><label className="text-[10px] font-black text-blue-600 uppercase ml-1 tracking-widest">Drive Institucional</label><input name="institucionalDrive" defaultValue={editingGroup.institucionalDrive || ""} className="w-full p-3 bg-blue-50 border border-blue-100 rounded-xl text-xs font-bold text-blue-800 outline-none" /></div>
-                  <button type="submit" className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs mt-4">Aplicar Cambios</button>
+                  <button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs mt-4 hover:scale-[1.02] transition-all">{updatingGroup ? "Guardando..." : "Aplicar Cambios"}</button>
                </div>
             </form>
          </div>
