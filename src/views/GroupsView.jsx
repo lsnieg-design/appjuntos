@@ -401,19 +401,78 @@ const handleUpdateGroup = async (e) => {
       )}
 
       {/* 5. DIÁLOGO DE EDICIÓN DE GRUPO */}
+     {/* 5. DIÁLOGO DE EDICIÓN DE GRUPO (COMPLETO) */}
       {editingGroup && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
           <form onSubmit={handleUpdateGroup} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto no-scrollbar">
-            <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-black text-violet-900 uppercase italic">Editar Grupo</h3><button type="button" onClick={() => setEditingGroup(null)}><X size={20}/></button></div>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-violet-900 uppercase italic">Editar Grupo</h3>
+              <button type="button" onClick={() => setEditingGroup(null)}><X size={20}/></button>
+            </div>
+            
             <div className="space-y-4">
-              <div><label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Nombre Grupo</label><input name="groupName" defaultValue={editingGroup.name} className="w-full p-3 bg-slate-50 rounded-xl font-black text-sm uppercase outline-none focus:ring-2 ring-violet-100 border-b-2 border-violet-200" /></div>
-              <div><label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Aula Física</label><input name="classroom" defaultValue={editingGroup.classroom || ""} className="w-full p-3 bg-slate-50 rounded-xl font-bold text-sm outline-none" /></div>
-              <button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs mt-4 hover:scale-[1.02] transition-all">{updatingGroup ? "Guardando..." : "Aplicar Cambios"}</button>
+              {/* NOMBRE Y AULA */}
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Nombre Grupo</label>
+                <input name="groupName" defaultValue={editingGroup.name} className="w-full p-3 bg-slate-50 rounded-xl font-black text-sm uppercase outline-none border-b-2 border-violet-200" />
+              </div>
+              
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Aula Física</label>
+                <input name="classroom" defaultValue={editingGroup.classroom || ""} className="w-full p-3 bg-slate-50 rounded-xl font-bold text-sm outline-none" />
+              </div>
+
+              {/* SELECTOR DOCENTE 1 */}
+              <div>
+                <label className="text-[10px] font-black text-violet-600 uppercase ml-1 tracking-widest">Docente Titular</label>
+                <select name="teacher" defaultValue={editingGroup.teacherId || ""} className="w-full p-3 bg-violet-50 rounded-xl font-bold text-xs uppercase outline-none border border-violet-100">
+                  <option value="">Seleccionar...</option>
+                  {usersList.map(u => (
+                    <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* SELECTOR DOCENTE 2 (PAREJA) */}
+              <div>
+                <label className="text-[10px] font-black text-violet-400 uppercase ml-1 tracking-widest">Docente Pareja (Opcional)</label>
+                <select name="teacher2Id" defaultValue={editingGroup.teacherId2 || ""} className="w-full p-3 bg-slate-50 rounded-xl font-bold text-xs uppercase outline-none">
+                  <option value="">Ninguno / Vacante</option>
+                  {usersList.map(u => (
+                    <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* SELECTOR AUXILIAR */}
+              <div>
+                <label className="text-[10px] font-black text-orange-600 uppercase ml-1 tracking-widest">Auxiliar / Preceptor</label>
+                <select name="auxId" defaultValue={editingGroup.auxId || ""} className="w-full p-3 bg-orange-50 rounded-xl font-bold text-xs uppercase outline-none border border-orange-100">
+                  <option value="">Sin asignar</option>
+                  {usersList.map(u => (
+                    <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* LINKS DRIVE */}
+              <div>
+                <label className="text-[10px] font-black text-emerald-600 uppercase ml-1 tracking-widest">Link Carpeta Fotos</label>
+                <input name="driveLink" defaultValue={editingGroup.driveLink || ""} className="w-full p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-xs font-bold text-emerald-800 outline-none" />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-blue-600 uppercase ml-1 tracking-widest">Drive Institucional</label>
+                <input name="institucionalDrive" defaultValue={editingGroup.institucionalDrive || ""} className="w-full p-3 bg-blue-50 border border-blue-100 rounded-xl text-xs font-bold text-blue-800 outline-none" />
+              </div>
+
+              <button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs mt-4 hover:scale-[1.02] transition-all">
+                {updatingGroup ? "Guardando..." : "Aplicar Cambios en todo el Grupo"}
+              </button>
             </div>
           </form>
         </div>
       )}
-
       {/* 6. MODAL DE OPCIONES DE IMPRESIÓN */}
       {showPrintOptions && (
         <div className="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm">
