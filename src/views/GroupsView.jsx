@@ -708,31 +708,15 @@ return (
         <div className="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl border-t-8 border-violet-600">
             <h3 className="text-xl font-black text-violet-900 uppercase italic mb-4">¿Qué imprimir?</h3>
-            
             <div className="flex flex-col gap-3 mb-6">
-              <button 
-                onClick={() => setPrintMode('students')}
-                className={`p-4 rounded-2xl border-2 text-left transition-all ${printMode === 'students' ? 'border-violet-600 bg-violet-50' : 'border-slate-100'}`}
-              >
-                <p className="font-black text-xs uppercase text-violet-900">Listado de Alumnos</p>
-                <p className="text-[10px] text-slate-500">DNI, Fecha de nacimiento y contactos.</p>
-              </button>
-
-              <button 
-                onClick={() => setPrintMode('staff')}
-                className={`p-4 rounded-2xl border-2 text-left transition-all ${printMode === 'staff' ? 'border-violet-600 bg-violet-50' : 'border-slate-100'}`}
-              >
-                <p className="font-black text-xs uppercase text-violet-900">Listado de Staff</p>
-                <p className="text-[10px] text-slate-500">Grilla de Docentes, Auxiliares y Aulas.</p>
-              </button>
+              <button onClick={() => setPrintMode('students')} className={`p-4 rounded-2xl border-2 text-left transition-all ${printMode === 'students' ? 'border-violet-600 bg-violet-50' : 'border-slate-100'}`}><p className="font-black text-xs uppercase text-violet-900">Listado de Alumnos</p><p className="text-[10px] text-slate-500">DNI, Fecha de nacimiento y contactos.</p></button>
+              <button onClick={() => setPrintMode('staff')} className={`p-4 rounded-2xl border-2 text-left transition-all ${printMode === 'staff' ? 'border-violet-600 bg-violet-50' : 'border-slate-100'}`}><p className="font-black text-xs uppercase text-violet-900">Listado de Staff</p><p className="text-[10px] text-slate-500">Grilla de Docentes, Auxiliares y Aulas.</p></button>
             </div>
-
             <button onClick={() => { printGroups(groupsToPrint); setShowPrintOptions(false); }} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg mb-2">Confirmar e Imprimir</button>
             <button onClick={() => setShowPrintOptions(false)} className="w-full py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
           </div>
         </div>
       )}
-    </div>
+    </div> 
   );
 }
-
