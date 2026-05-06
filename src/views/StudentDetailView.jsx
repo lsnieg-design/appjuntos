@@ -27,6 +27,7 @@ const INCIDENT_TYPES = [
     { label: "Convulsión / Salud", emoji: "🚑", severity: "high", color: "bg-indigo-100 border-indigo-300 text-indigo-800" }, 
 ];
   if (!student) return null;
+  
 
   const calculateAge = (d) => {
     if (!d) return '-';
