@@ -21,6 +21,9 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
   const [savingIncident, setSavingIncident] = useState(false);
   const [editingGroup, setEditingGroup] = useState(null);
   const [updatingGroup, setUpdatingGroup] = useState(false);
+  const [printColumns, setPrintColumns] = useState({
+    dni: true, birthDate: true, healthInsurance: false, contacts: true, photo: false
+  });
 
   const scrollRef = useRef(null);
   const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scrollRef.current.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' }); } };
@@ -45,7 +48,105 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     });
     return () => { unsubS(); unsubU(); unsubGM(); };
   }, [db, appId]);
+// --- ESTADOS PARA IMPRESIÓN (Asegurate de tener estos arriba) ---
+  const [showPrintOptions, setShowPrintOptions] = useState(false);
+  const [groupsToPrint, setGroupsToPrint] = useState([]);
+  const [printColumns, setPrintColumns] = useState({
+    dni: true, birthDate: true, healthInsurance: false, contacts: true, photo: false
+  });
 
+  // --- FUNCIÓN DE IMPRESIÓN INTELIGENTE ---
+  const printGroups = (groupsList) => {
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
+    document.body.appendChild(iframe);
+    
+    let h = `<html><head><style>
+      body{font-family:sans-serif; padding:20px;}
+      .header{background:#f3f4f6; padding:10px; border-left:5px solid #7c3aed; margin-bottom:10px;}
+      table{width:100%; border-collapse:collapse; font-size:10px;}
+      th{background:#7c3aed; color:white; padding:5px; text-align:left;}
+      td{border:1px solid #ddd; padding:5px;}
+      .photo-img{width:30px; height:30px; object-fit:cover; border-radius:4px;}
+    </style></head><body>`;
+
+    groupsList.forEach(g => {
+        h += `<div class="header"><h2>${g.name}</h2><p>Doc: ${g.teacher || 'S/D'} | Aula: ${g.classroom || '-'}</p></div>
+        <table><thead><tr>
+          <th>#</th>
+          ${printColumns.photo ? '<th>Foto</th>' : ''}
+          <th>Nombre y Apellido</th>
+          ${printColumns.dni ? '<th>DNI</th>' : ''}
+          ${printColumns.birthDate ? '<th>Nacimiento</th>' : ''}
+          ${printColumns.healthInsurance ? '<th>OS</th>' : ''}
+          ${printColumns.contacts ? '<th>Contacto</th>' : ''}
+        </tr></thead><tbody>`;
+        
+        g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).forEach((s, i) => {
+            h += `<tr>
+              <td>${i+1}</td>
+              ${printColumns.photo ? `<td>${s.photoUrl ? `<img src="${s.photoUrl}" class="photo-img"/>` : '-'}</td>` : ''}
+              <td><b>${s.lastName}, ${s.firstName}</b></td>
+              ${printColumns.dni ? `<td>${s.dni || '-'}</td>` : ''}
+              ${printColumns.birthDate ? `<td>${s.birthDate || '-'}</td>` : ''}
+              ${printColumns.healthInsurance ? `<td>${s.healthInsurance || '-'}</td>` : ''}
+              ${printColumns.contacts ? `<td>M: ${s.motherContact || '-'} / P: ${s.fatherContact || '-'}</td>` : ''}
+            </tr>`;
+        });
+        h += `</tbody></table><br/>`;
+    });
+    h += `</body></html>`;
+    const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
+    const campo = `informe${numeroInforme}`;
+    const estadoActual = estudiante[campo] || { status: 'Pendiente' };
+    let proximo = 'Pendiente';
+    
+    // Ciclo: Pendiente -> Hecho -> Impreso -> Enviado -> Archivado
+    if (estadoActual.status === 'Pendiente') proximo = 'Hecho';
+    else if (estadoActual.status === 'Hecho') proximo = 'Impreso';
+    else if (estadoActual.status === 'Impreso') proximo = 'Enviado';
+    else if (estadoActual.status === 'Enviado') proximo = 'Archivado';
+
+    try {
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', estudiante.id), { 
+        [campo]: { status: proximo, updatedAt: new Date().toISOString() } 
+      });
+      // Actualizamos visualmente el estado local para que no tengas que recargar
+      const nuevosEstudiantes = selectedGroupDetails.students.map(s => 
+        s.id === estudiante.id ? { ...s, [campo]: { status: proximo } } : s
+      );
+      setSelectedGroupDetails({ ...selectedGroupDetails, students: nuevosEstudiantes });
+    } catch (e) { console.error(e); }
+  };
+    const docIframe = iframe.contentWindow.document; docIframe.open(); docIframe.write(h); docIframe.close();
+    setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); document.body.removeChild(iframe); }, 500);
+  };
+
+  // --- ACTUALIZACIÓN MASIVA DE GRUPO ---
+  const handleUpdateGroup = async (e) => {
+    e.preventDefault(); 
+    if (!editingGroup) return; 
+    setUpdatingGroup(true);
+    const fd = new FormData(e.target);
+    const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
+    
+    // Capturamos los campos del formulario de tu código
+    const updates = { 
+      [`group${suf}`]: fd.get('groupName'), 
+      classroom: fd.get('classroom'),
+      // Agregamos actualización de docente si el select está presente
+      [`teacherId${suf}`]: fd.get('teacherId') || editingGroup.teacherId 
+    };
+
+    try {
+      const promises = editingGroup.students.map(s => 
+        updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)
+      );
+      await Promise.all(promises);
+      setEditingGroup(null);
+      alert("✅ Grupo y alumnos actualizados.");
+    } catch (err) { alert(err.message); } finally { setUpdatingGroup(false); }
+  };
   const groupedData = students.reduce((acc, s) => {
     const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
     const gName = s[`group${suf}`];
@@ -110,7 +211,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
       <div className="bg-white p-4 shadow-sm z-10 sticky top-0 flex flex-col gap-3">
         <div className="flex justify-between items-center px-2">
           <div><h2 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2"><Grid size={24} className="text-orange-500"/> Mis Grupos</h2></div>
-          <button onClick={() => printGroups(groups)} className="bg-violet-100 text-violet-700 p-2.5 rounded-xl"><Printer size={24}/></button>
+          <button onClick={() => { setGroupsToPrint(gruposFinales); setShowPrintOptions(true); }} className="bg-violet-100 text-violet-700 p-2.5 rounded-xl"><Printer size={24}/></button>
         </div>
         <div className="flex bg-gray-100 p-1 rounded-xl mx-2">
           <button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'morning' ? 'bg-white text-orange-50 shadow-sm' : 'text-gray-400'}`}>☀️ MAÑANA</button>
@@ -124,7 +225,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
             <div key={g.name} className="flex flex-col min-w-[320px] bg-white rounded-[35px] border border-gray-200 shadow-sm overflow-hidden h-[calc(100vh-250px)]">
               <div className={`p-5 border-b-4 relative ${turn === 'morning' ? 'border-orange-400 bg-orange-50' : 'border-indigo-400 bg-indigo-50'}`}>
                 <div className="absolute top-4 right-4 flex gap-1">
-                  <button onClick={() => printGroups([g])} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm"><Printer size={14}/></button>
+                  <button onClick={() => { setGroupsToPrint([g]); setShowPrintOptions(true); }} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm"><Printer size={14}/></button>
                   <button onClick={() => setSelectedGroupDetails(g)} className="p-2 bg-violet-600 text-white rounded-full shadow-lg"><Plus size={16}/></button>
                   {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"><Edit3 size={14}/></button>}
                 </div>
@@ -223,8 +324,8 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
            <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-white">
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 <div className="grid grid-cols-2 gap-3">
-                    <button onClick={() => window.open(selectedGroupDetails.driveLink, '_blank')} className="p-4 bg-emerald-50 text-emerald-700 rounded-3xl font-black text-[10px] uppercase border border-emerald-100 flex items-center justify-center gap-2 shadow-sm"><Folder size={18}/> Fotos</button>
-                    <button onClick={() => window.open(selectedGroupDetails.institucionalDrive, '_blank')} className="p-4 bg-blue-50 text-blue-700 rounded-3xl font-black text-[10px] uppercase border border-blue-100 flex items-center justify-center gap-2 shadow-sm"><FileText size={18}/> Drive</button>
+                    <button onClick={() => window.open(selectedGroupDetails.institucionalDrive, '_blank')} className="p-4 bg-emerald-50 text-emerald-700 rounded-3xl font-black text-[10px] uppercase border border-emerald-100 flex items-center justify-center gap-2 shadow-sm"><Folder size={18}/> Fotos</button>
+                    <button onClick={() => window.open(selectedGroupDetails.driveLink, '_blank')} className="p-4 bg-blue-50 text-blue-700 rounded-3xl font-black text-[10px] uppercase border border-blue-100 flex items-center justify-center gap-2 shadow-sm"><FileText size={18}/> Drive</button>
                 </div>
                 <div className="flex bg-slate-100 p-1 rounded-2xl mb-4">
                     {[1, 2, 3].map(n => (
@@ -280,3 +381,20 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     </div>
   );
 }
+{showPrintOptions && (
+        <div className="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl border-t-8 border-violet-600">
+            <h3 className="text-xl font-black text-violet-900 uppercase italic mb-4">Opciones de Impresión</h3>
+            <div className="space-y-2 mb-6">
+              {Object.keys(printColumns).map(col => (
+                <label key={col} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl cursor-pointer">
+                  <span className="text-xs font-bold uppercase text-gray-600">{col === 'healthInsurance' ? 'Obra Social' : col}</span>
+                  <input type="checkbox" checked={printColumns[col]} onChange={() => setPrintColumns({...printColumns, [col]: !printColumns[col]})} className="w-5 h-5 accent-violet-600" />
+                </label>
+              ))}
+            </div>
+            <button onClick={() => { printGroups(groupsToPrint); setShowPrintOptions(false); }} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg mb-2">Imprimir</button>
+            <button onClick={() => setShowPrintOptions(false)} className="w-full py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
+          </div>
+        </div>
+      )}
