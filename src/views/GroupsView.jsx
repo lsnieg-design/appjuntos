@@ -250,31 +250,50 @@ const INCIDENT_TYPES = [
           <button onClick={() => scroll('right')} className="hidden md:flex absolute right-2 top-1/2 z-20 bg-white/90 text-violet-600 p-3 rounded-full shadow-xl border border-gray-100 hover:scale-110 transition -translate-y-1/2"><ChevronRight size={24}/></button>
           <div ref={scrollRef} className="h-full overflow-x-auto p-6 scroll-smooth flex gap-6 items-start">
             {groups.map((g) => (
-              {/* PARCHE: CABECERA DE TARJETA CON ETIQUETAS */}
-<div className={`p-5 border-b-4 relative ${turn==='morning'?'border-orange-400 bg-orange-50':'border-indigo-400 bg-indigo-50'}`}>
-  <div className="absolute top-4 right-4 flex gap-1">
-    {/* Botón de imprimir individual */}
-    <button onClick={() => printGroups([g])} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>
-    {/* Botón Plus para ver seguimiento */}
-    <button onClick={() => setSelectedGroupDetails(g)} className="p-2 bg-violet-600 text-white rounded-full shadow-lg hover:scale-110 transition active:scale-95"><Plus size={16}/></button>
-  </div>
-  
-  <h3 className="font-black text-slate-800 text-lg leading-tight uppercase pr-16">{g.name}</h3>
-  
-  <div className="flex items-center gap-2 mt-2">
-    {/* Etiqueta de cantidad */}
-    <span className="bg-white/80 text-violet-700 px-2 py-0.5 rounded-md text-[9px] font-black shadow-sm border border-violet-100 uppercase">
-      {g.students.length} Estudiantes
-    </span>
-    {/* Etiqueta de Aula */}
-    {g.classroom && (
-      <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-md text-[9px] font-black border border-orange-200 uppercase">
-        Aula {g.classroom}
-      </span>
-    )}
-  </div>
-  <p className="text-[10px] text-gray-500 font-bold uppercase mt-2 italic tracking-tighter">Doc: {g.teacher || 'Vacante'}</p>
-</div>
+  <div key={g.name} className="flex flex-col min-w-[320px] bg-white rounded-[35px] border border-gray-200 shadow-sm relative overflow-hidden transition-all hover:shadow-lg h-[calc(100vh-250px)]">
+    
+    <div className={`p-5 border-b-4 relative ${turn === 'morning' ? 'border-orange-400 bg-orange-50' : 'border-indigo-400 bg-indigo-50'}`}>
+      <div className="absolute top-4 right-4 flex gap-1">
+        <button 
+          onClick={() => printGroups([g])} 
+          className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"
+        >
+          <Printer size={14}/>
+        </button>
+        
+        <button 
+          onClick={() => setSelectedGroupDetails(g)} 
+          className="p-2 bg-violet-600 text-white rounded-full shadow-lg hover:scale-110 transition active:scale-95"
+        >
+          <Plus size={16}/>
+        </button>
+        
+        {isManagement && (
+          <button 
+            onClick={() => setEditingGroup(g)} 
+            className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"
+          >
+            <Edit3 size={14}/>
+          </button>
+        )}
+      </div>
+      
+      <h3 className="font-black text-slate-800 text-lg leading-tight uppercase pr-16">{g.name}</h3>
+      
+      <div className="flex items-center gap-2 mt-2">
+        <span className="bg-white/80 text-violet-700 px-2 py-0.5 rounded-md text-[9px] font-black shadow-sm border border-violet-100 uppercase">
+          {g.students.length} Estudiantes
+        </span>
+        {g.classroom && (
+          <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-md text-[9px] font-black border border-orange-200 uppercase">
+            Aula {g.classroom}
+          </span>
+        )}
+      </div>
+      <p className="text-[10px] text-gray-500 font-bold uppercase mt-2 italic tracking-tighter">
+        Doc: {g.teacher || 'Vacante'}
+      </p>
+    </div>
 
                 <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50 space-y-2 content-start">
                   {g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
