@@ -1,18 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StudentDetailView } from './StudentDetailView';
 import { 
-  User, FileText, Plus, Trash2, Users, Grid, ChevronRight, 
-  ChevronLeft, Printer, MessageSquare, Send, Folder, 
-  Edit3, X, Search, GraduationCap, Activity
+  User, FileText, Plus, Users, Grid, ChevronRight, ChevronLeft, Printer, MessageSquare, Send, Folder, Edit3, X, Search, GraduationCap, Activity 
 } from 'lucide-react';
-import { 
-  doc, updateDoc, collection, query, orderBy, 
-  onSnapshot, addDoc, serverTimestamp, arrayUnion, 
-  increment, where 
-} from 'firebase/firestore';
+import { doc, updateDoc, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, arrayUnion, increment, where } from 'firebase/firestore';
 
 export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
-  // ESTOS SON LOS ÚNICOS ESTADOS QUE DEBE HABER:
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
   const [turn, setTurn] = useState('morning'); 
@@ -36,18 +29,10 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
 
   const INCIDENT_TYPES = [
     { label: "Trabajó Muy Bien", emoji: "🌟", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
-    { label: "Ayudó a un amigo", emoji: "🤝", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
-    { label: "Logro de Aprendizaje", emoji: "🚀", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
     { label: "Buena Conducta", emoji: "😇", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
     { label: "Crisis Llanto", emoji: "😭", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" },
-    { label: "Higiene / Esfínter", emoji: "💩", severity: "medium", color: "bg-blue-100 border-blue-300 text-blue-800" }, 
-    { label: "No trabajó", emoji: "💤", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
-    { label: "Llegada Tarde", emoji: "🕑", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
-    { label: "No comió", emoji: "🍽️", severity: "low", color: "bg-blue-50 border-blue-200 text-blue-700" }, 
     { label: "Agresión / Violencia", emoji: "👊", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
-    { label: "Brote / Gritos", emoji: "🤬", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
     { label: "Fuga / Intento", emoji: "🏃", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
-    { label: "Convulsión / Salud", emoji: "🚑", severity: "high", color: "bg-indigo-100 border-indigo-300 text-indigo-800" }, 
   ];
 
   useEffect(() => {
@@ -103,7 +88,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     e.preventDefault(); if (!editingGroup) return; setUpdatingGroup(true);
     const fd = new FormData(e.target);
     const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-    const updates = { [`group${suf}`]: fd.get('groupName'), classroom: fd.get('classroom'), [`driveLink${suf}`]: fd.get('driveLink'), institucionalDrive: fd.get('institucionalDrive') };
+    const updates = { [`group${suf}`]: fd.get('groupName'), classroom: fd.get('classroom') };
     try {
       await Promise.all(editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)));
       setEditingGroup(null);
@@ -125,11 +110,11 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
       <div className="bg-white p-4 shadow-sm z-10 sticky top-0 flex flex-col gap-3">
         <div className="flex justify-between items-center px-2">
           <div><h2 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2"><Grid size={24} className="text-orange-500"/> Mis Grupos</h2></div>
-          <button onClick={() => printGroups(groups)} className="bg-violet-100 text-violet-700 p-2.5 rounded-xl hover:bg-violet-200 transition shadow-sm"><Printer size={24}/></button>
+          <button onClick={() => printGroups(groups)} className="bg-violet-100 text-violet-700 p-2.5 rounded-xl"><Printer size={24}/></button>
         </div>
         <div className="flex bg-gray-100 p-1 rounded-xl mx-2">
-          <button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-lg text-xs font-black ${turn === 'morning' ? 'bg-white text-orange-50 shadow-sm' : 'text-gray-400'}`}>☀️ MAÑANA</button>
-          <button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-lg text-xs font-black ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 TARDE</button>
+          <button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'morning' ? 'bg-white text-orange-50 shadow-sm' : 'text-gray-400'}`}>☀️ MAÑANA</button>
+          <button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 TARDE</button>
         </div>
       </div>
 
@@ -139,7 +124,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
             <div key={g.name} className="flex flex-col min-w-[320px] bg-white rounded-[35px] border border-gray-200 shadow-sm overflow-hidden h-[calc(100vh-250px)]">
               <div className={`p-5 border-b-4 relative ${turn === 'morning' ? 'border-orange-400 bg-orange-50' : 'border-indigo-400 bg-indigo-50'}`}>
                 <div className="absolute top-4 right-4 flex gap-1">
-                  <button onClick={() => printGroups([g])} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>
+                  <button onClick={() => printGroups([g])} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm"><Printer size={14}/></button>
                   <button onClick={() => setSelectedGroupDetails(g)} className="p-2 bg-violet-600 text-white rounded-full shadow-lg"><Plus size={16}/></button>
                   {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"><Edit3 size={14}/></button>}
                 </div>
@@ -153,10 +138,10 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
                 {g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
                   <div key={s.id} onClick={() => setSelectedStudent(s)} className="bg-white p-3 rounded-2xl shadow-sm flex items-center justify-between cursor-pointer border border-transparent hover:border-violet-100 transition-all">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-slate-100 overflow-hidden flex items-center justify-center font-black text-slate-400 border border-slate-200 uppercase text-sm">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName[0]}</div>
+                      <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-400 border border-slate-200 text-sm">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover rounded-xl"/> : s.firstName[0]}</div>
                       <span className="font-bold text-xs text-slate-700 uppercase">{s.lastName}, {s.firstName}</span>
                     </div>
-                    <button onClick={(e) => {e.stopPropagation(); setShowBitacoraModal(s); setIsWriting(false);}} className="w-8 h-8 bg-violet-50 text-violet-400 rounded-full flex items-center justify-center shadow-sm">⚡</button>
+                    <button onClick={(e) => {e.stopPropagation(); setShowBitacoraModal(s); setIsWriting(false);}} className="w-8 h-8 bg-violet-50 text-violet-400 rounded-full flex items-center justify-center">⚡</button>
                   </div>
                 ))}
               </div>
@@ -174,31 +159,24 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
           <div className="bg-white rounded-[40px] w-full max-w-4xl h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in zoom-in-95">
             <div className="p-5 bg-slate-900 text-white flex justify-between items-center shrink-0">
                <div className="flex items-center gap-3"><div className="bg-orange-500 p-2 rounded-xl"><GraduationCap size={20}/></div><h3 className="font-black uppercase italic tracking-tighter">Legajo Digital: {fullFileStudent.lastName}, {fullFileStudent.firstName}</h3></div>
-               <button onClick={() => setFullFileStudent(null)} className="p-2 bg-white/10 rounded-full hover:bg-red-500 transition"><X size={20}/></button>
+               <button onClick={() => setFullFileStudent(null)} className="p-2 bg-white/10 rounded-full hover:bg-red-500"><X size={20}/></button>
             </div>
             <div className="flex-1 overflow-y-auto bg-gray-100 p-6 no-scrollbar">
                <div className="bg-white rounded-[35px] p-8 shadow-sm border border-gray-200">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-4">
-                      <h4 className="text-orange-600 font-black text-[10px] uppercase tracking-widest border-b-2 border-orange-100 pb-1 flex items-center gap-2"><User size={14}/> Datos de Identidad</h4>
-                      <p className="text-sm"><b>DNI:</b> <span className="text-slate-600">{fullFileStudent.dni || '-'}</span></p>
-                      <p className="text-sm"><b>Nacimiento:</b> <span className="text-slate-600">{fullFileStudent.birthDate || '-'}</span></p>
+                      <h4 className="text-orange-600 font-black text-[10px] uppercase border-b-2 border-orange-100 pb-1 flex items-center gap-2"><User size={14}/> Identidad</h4>
+                      <p className="text-sm"><b>DNI:</b> <span>{fullFileStudent.dni || '-'}</span></p>
                       <p className="text-sm"><b>DX:</b> <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-black uppercase">{fullFileStudent.dx || 'S/D'}</span></p>
                     </div>
                     <div className="space-y-4">
-                      <h4 className="text-blue-600 font-black text-[10px] uppercase tracking-widest border-b-2 border-blue-100 pb-1 flex items-center gap-2"><Users size={14}/> Familia y Salud</h4>
-                      <p className="text-sm"><b>Madre:</b> <span className="text-slate-600">{fullFileStudent.motherName || '-'}</span></p>
-                      <p className="text-sm"><b>Padre:</b> <span className="text-slate-600">{fullFileStudent.fatherName || '-'}</span></p>
-                      <p className="text-sm"><b>Obra Social:</b> <span className="text-slate-600">{fullFileStudent.healthInsurance || 'No declara'}</span></p>
+                      <h4 className="text-blue-600 font-black text-[10px] uppercase border-b-2 border-blue-100 pb-1 flex items-center gap-2"><Users size={14}/> Familia</h4>
+                      <p className="text-sm"><b>Madre:</b> <span>{fullFileStudent.motherName || '-'}</span></p>
                     </div>
-                  </div>
-                  <div className="mt-8 p-5 bg-amber-50 border-2 border-dashed border-amber-200 rounded-3xl">
-                    <p className="text-[9px] font-black text-amber-600 uppercase mb-2 tracking-widest">Autorizados a retirar</p>
-                    <p className="text-sm font-medium text-slate-700 leading-relaxed">{fullFileStudent.pickupInfo || 'No hay información cargada.'}</p>
                   </div>
                </div>
             </div>
-            <div className="p-5 bg-white border-t flex justify-center"><button onClick={() => setFullFileStudent(null)} className="px-10 py-4 bg-slate-800 text-white rounded-2xl font-black uppercase text-xs shadow-lg">Cerrar Legajo</button></div>
+            <div className="p-5 bg-white border-t flex justify-center"><button onClick={() => setFullFileStudent(null)} className="px-10 py-4 bg-slate-800 text-white rounded-2xl font-black uppercase text-xs">Cerrar Legajo</button></div>
           </div>
         </div>
       )}
@@ -221,7 +199,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
               </div>
             ) : (
               <div className="animate-in slide-in-from-bottom">
-                <textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="¿Qué pasó?..." className="w-full p-4 bg-gray-50 border rounded-2xl text-sm mb-3 h-32 outline-none focus:ring-2 ring-violet-200" />
+                <textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="¿Qué pasó?..." className="w-full p-4 bg-gray-50 border rounded-2xl text-sm mb-3 h-32 outline-none" />
                 <div className="flex gap-2">
                   <button onClick={() => setIsWriting(false)} className="flex-1 py-4 text-gray-400 font-black uppercase text-[10px]">Cancelar</button>
                   <button onClick={() => handleSaveIncident("Nota", "medium", newNote)} disabled={!newNote.trim() || savingIncident} className="flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase text-[10px] shadow-lg">Guardar</button>
