@@ -253,13 +253,19 @@ export function GroupsView({ user, db, appId, setActiveTab }) {
       </div>
 
       {/* MODAL DETALLE ESTUDIANTE (NUEVO ARCHIVO) */}
-      {selectedStudent && (
-        <StudentDetailView 
-          student={selectedStudent} user={user} db={db} appId={appId}
-          onClose={() => setSelectedStudent(null)} 
-          onEdit={() => setActiveTab('matricula')}
-        />
-      )}
+     {selectedStudent && (
+  <StudentDetailView 
+    student={selectedStudent} 
+    user={user}
+    db={db}             // <--- IMPORTANTE: Asegurate que esto esté acá
+    appId={appId}       // <--- IMPORTANTE: Asegurate que esto esté acá
+    onClose={() => setSelectedStudent(null)} 
+    onEdit={() => {
+       setSelectedStudent(null);
+       setActiveTab('matricula'); 
+    }}
+  />
+)}
 
       {/* MODAL BITÁCORA EXPRESS */}
       {showBitacoraModal && (
