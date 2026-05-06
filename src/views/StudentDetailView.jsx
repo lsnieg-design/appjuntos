@@ -1,11 +1,16 @@
 import React, { useState } from 'react';
 import { 
-  X, Phone, MessageSquare, MapPin, Calendar, 
-  User, Shield, FileText, Activity, Heart, Printer,
-  CheckCircle2, AlertTriangle, Send, RefreshCw, Star,
-  Users, Edit3
+  Calendar as CalendarIcon, CheckSquare, Settings, User, FileText, CheckCircle, 
+  Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, 
+  Lock, List, Grid, ChevronLeft, ChevronRight, Bell, Check, HelpCircle, Mail, Camera, MapPin, 
+  Send, Key, Filter, LayoutDashboard, Link as LinkIcon, ExternalLink, Zap,
+  AlertTriangle, Clock, Shield, Crown, Activity, Share, PlusSquare, 
+  Smartphone, GraduationCap, Search, X, UploadCloud, PieChart, Eye, Edit3, Trophy,
+  Folder, MessageSquare, Globe, BookOpen, Lightbulb, ChevronDown, PlusCircle, Printer,
+  AlignLeft, AlignCenter, AlignRight, AlignJustify, Phone, CheckCircle2, Clock3, UserCheck,
+  ChevronUp // <--- ESTE ES EL QUE FALTABA
 } from 'lucide-react';
-import { doc, updateDoc, arrayUnion, serverTimestamp, increment } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, increment } from 'firebase/firestore';
 
 const INCIDENT_TYPES = [
   { label: 'Llegada Tarde', emoji: '⏰', color: 'bg-amber-50 border-amber-200 text-amber-700', severity: 'low' },
@@ -34,7 +39,9 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
     return a;
   };
 
+  // --- FUNCIÓN 1: GUARDAR INCIDENTE/BITÁCORA ---
   const handleSaveIncident = async (type, severity, text = "") => {
+    if (!db || !appId) return;
     setLoading(true);
     try {
       const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', student.id);
@@ -43,18 +50,48 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
         type: type,
         text: text || type,
         severity: severity,
-        author: user.fullName || user.firstName,
+        author: user.fullName || `${user.firstName} ${user.lastName || ''}`,
         authorId: user.id
       };
+      
       await updateDoc(studentRef, { incidents: arrayUnion(entry) });
       
-      // Premio Mayo
+      // Premio Mayo: 5 puntos por registro pedagógico
       const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
       await updateDoc(userRef, { score: increment(5) });
 
       setNewNote('');
       setIsWriting(false);
       alert(`✅ Registrado: ${type}. ¡Sumaste 5 puntos!`);
+    } catch (e) { 
+      console.error(e);
+      alert("Error al guardar: " + e.message); 
+    } finally { setLoading(false); }
+  };
+
+  // --- FUNCIÓN 2: REPORTAR AUSENTISMO ---
+  const handleReportAbsenteeism = async () => {
+    const reason = prompt("¿Motivo del ausentismo prolongado? (Ej: Salud, Viaje, etc.)");
+    if (!reason) return;
+
+    setLoading(true);
+    try {
+      const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', student.id);
+      const entry = {
+        date: new Date().toISOString(),
+        type: 'AUSENTISMO PROLONGADO',
+        text: `Alerta de ausentismo: ${reason}`,
+        severity: 'medium',
+        author: user.firstName,
+        authorId: user.id
+      };
+      
+      await updateDoc(studentRef, { 
+        incidents: arrayUnion(entry),
+        absenteeismAlert: true // Marca para el equipo técnico
+      });
+
+      alert("⚠️ Alerta enviada al Equipo Técnico.");
     } catch (e) { alert(e.message); }
     finally { setLoading(false); }
   };
@@ -63,11 +100,11 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[250] flex items-center justify-center p-4">
       <div className="bg-white rounded-[40px] w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95">
         
-        {/* CABECERA (Tu diseño original) */}
+        {/* CABECERA */}
         <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white relative shrink-0">
           <button onClick={onClose} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-2 rounded-full transition"><X size={20}/></button>
           <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center font-black text-3xl">
+            <div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center font-black text-3xl shadow-inner">
               {student.photoUrl ? <img src={student.photoUrl} className="w-full h-full object-cover"/> : student.firstName?.[0]}
             </div>
             <div>
@@ -83,20 +120,20 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
         </div>
 
         {/* CONTENIDO */}
-        <div className="p-6 overflow-y-auto space-y-6 no-scrollbar">
+        <div className="p-6 overflow-y-auto space-y-6 no-scrollbar flex-1">
           {activeTabModal === "info" ? (
             <div className="space-y-5 animate-in fade-in">
               <div className="grid grid-cols-3 gap-2">
                 <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center shadow-sm">
-                  <p className="text-[8px] font-black text-slate-400 uppercase mb-1">DNI</p>
+                  <p className="text-[8px] font-black text-slate-400 uppercase mb-1 tracking-widest">DNI</p>
                   <p className="font-bold text-slate-800 text-xs">{student.dni || '-'}</p>
                 </div>
                 <div className="bg-blue-50 p-3 rounded-2xl border border-blue-100 text-center shadow-sm">
-                  <p className="text-[8px] font-black text-blue-400 uppercase mb-1">Edad Actual</p>
+                  <p className="text-[8px] font-black text-blue-400 uppercase mb-1 tracking-widest">Edad</p>
                   <p className="font-bold text-blue-700 text-xs">{calculateAge(student.birthDate)} años</p>
                 </div>
                 <div className="bg-orange-50 p-3 rounded-2xl border border-orange-100 text-center shadow-sm">
-                   <p className="text-[8px] font-black text-orange-400 uppercase mb-1">Alergias</p>
+                   <p className="text-[8px] font-black text-orange-400 uppercase mb-1 tracking-widest">Alergias</p>
                    <p className="font-bold text-orange-700 text-[10px] truncate">{student.allergies || 'No'}</p>
                 </div>
               </div>
@@ -108,14 +145,17 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
                   <p className="text-sm text-slate-700">Padre: <b className="text-slate-900">{student.fatherName || 'S/D'}</b> {student.fatherContact && <span className="text-blue-600 font-bold ml-1">({student.fatherContact})</span>}</p>
                 </div>
               </div>
+
+              <button onClick={handleReportAbsenteeism} className="w-full py-4 bg-red-50 text-red-700 font-black rounded-2xl border border-red-200 flex items-center justify-center gap-2 hover:bg-red-100 transition shadow-sm uppercase text-[10px] tracking-widest">
+                <AlertTriangle size={18}/> Reportar Ausentismo (+3 días)
+              </button>
             </div>
           ) : (
             <div className="space-y-4 animate-in fade-in pb-10">
-              {/* BOTONERA EMOJIS */}
               {!isWriting && (
                 <div className="grid grid-cols-3 gap-2">
                   {INCIDENT_TYPES.map((type) => (
-                    <button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color}`}>
+                    <button key={type.label} disabled={loading} onClick={() => handleSaveIncident(type.label, type.severity)} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${loading ? 'opacity-50' : ''}`}>
                       <span className="text-2xl">{type.emoji}</span>
                       <span className="text-[9px] font-black uppercase text-center leading-tight">{type.label}</span>
                     </button>
@@ -123,28 +163,26 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
                 </div>
               )}
 
-              {/* NOTA MANUAL */}
-              <div className="bg-slate-100 p-4 rounded-2xl border border-slate-200">
+              <div className="bg-slate-100 p-4 rounded-2xl border border-slate-200 shadow-inner">
                 {isWriting ? (
                   <div className="space-y-2">
-                    <textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Detalles de la nota..." className="w-full p-3 bg-white border rounded-xl text-sm h-24 outline-none" />
+                    <textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Detalles de la nota..." className="w-full p-3 bg-white border rounded-xl text-sm h-24 outline-none shadow-sm" />
                     <div className="flex gap-2">
                       <button onClick={() => setIsWriting(false)} className="flex-1 py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
-                      <button onClick={() => handleSaveIncident('Nota Manual', 'medium', newNote)} className="flex-[2] py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-[10px]">Guardar</button>
+                      <button onClick={() => handleSaveIncident('Nota Manual', 'medium', newNote)} className="flex-[2] py-3 bg-violet-600 text-white rounded-xl font-bold uppercase text-[10px] shadow-lg">Guardar</button>
                     </div>
                   </div>
                 ) : (
-                  <button onClick={() => setIsWriting(true)} className="w-full py-3 bg-slate-800 text-white rounded-xl font-bold uppercase text-[10px] flex items-center justify-center gap-2">
+                  <button onClick={() => setIsWriting(true)} className="w-full py-3 bg-slate-800 text-white rounded-xl font-bold uppercase text-[10px] flex items-center justify-center gap-2 hover:bg-slate-700 transition shadow-md">
                     <Edit3 size={16}/> Escribir Nota Detallada
                   </button>
                 )}
               </div>
 
-              {/* HISTORIAL */}
               <div className="space-y-2 mt-4">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Historial</h4>
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Historial Reciente</h4>
                 {student.incidents?.slice().reverse().map((inc, i) => (
-                  <div key={i} className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                  <div key={i} className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm border-l-4 border-l-violet-200">
                     <div className="flex justify-between items-center mb-1">
                       <span className="text-[10px] font-black text-violet-400 uppercase">{new Date(inc.date).toLocaleDateString('es-AR')}</span>
                       <span className="text-[9px] font-bold text-slate-400 uppercase italic">Por: {inc.author}</span>
@@ -157,8 +195,9 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
           )}
         </div>
 
-        <div className="p-4 border-t bg-white shrink-0">
-           <button onClick={() => { onClose(); onEdit(student); }} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg">Ver Legajo Completo</button>
+        {/* PIE */}
+        <div className="p-4 border-t bg-gray-50 shrink-0">
+           <button onClick={() => { onClose(); onEdit(student); }} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-black transition">Ver Legajo Completo</button>
         </div>
       </div>
     </div>
