@@ -255,21 +255,26 @@ const INCIDENT_TYPES = [
       </div>
 
       {/* MODAL DETALLE ESTUDIANTE (NUEVO ARCHIVO) */}
-     {selectedStudent && (
-  <StudentDetailView 
-    student={selectedStudent} 
-    user={user}
-    db={db}
-    appId={appId}
-    onClose={() => setSelectedStudent(null)} 
-    onEdit={(s) => {
-       // Este es el puente con App.jsx que arreglaste
-       setSelectedStudent(null);
-       if (typeof onSelectStudent === 'function') onSelectStudent(s.id); 
-       setActiveTab('matricula'); 
-    }}
-  />
-)}
+ {/* MODAL DETALLE ESTUDIANTE (NUEVO ARCHIVO) */}
+      {selectedStudent && (
+        <StudentDetailView 
+          student={selectedStudent} 
+          user={user} 
+          db={db} 
+          appId={appId}
+          onClose={() => setSelectedStudent(null)} 
+          onEdit={(s) => {
+             // CERRAMOS EL MODAL ACTUAL
+             setSelectedStudent(null);
+             // GUARDAMOS EL ID EN EL ESTADO GLOBAL DE APP.JSX
+             if (typeof onSelectStudent === 'function') {
+                onSelectStudent(s.id);
+             }
+             // REDIRECCIONAMOS
+             setActiveTab('matricula'); 
+          }}
+        />
+      )}
       {/* MODAL BITÁCORA EXPRESS */}
       {showBitacoraModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
