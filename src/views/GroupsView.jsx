@@ -194,24 +194,21 @@ const handleUpdateGroup = async (e) => {
       return found ? found.fullName : "";
     };
 
-    // Capturamos los valores del formulario
     const teacherId = fd.get('teacher');
     const teacher2Id = fd.get('teacher2Id');
     const auxId = fd.get('auxId');
-    const groupName = fd.get('groupName');
-    const classroom = fd.get('classroom');
 
     const updates = { 
-      [`group${suf}`]: groupName, 
-      classroom: classroom,
+      [`group${suf}`]: fd.get('groupName'), 
+      classroom: fd.get('classroom'),
       [`teacherId${suf}`]: teacherId,
       [`teacher${suf}`]: getName(teacherId),
       [`teacherId2${suf}`]: teacher2Id,
       [`teacher2${suf}`]: getName(teacher2Id),
       [`auxId${suf}`]: auxId,
-      [`aux${suf}`]: getName(auxId), // ESTE ES EL CAMPO QUE USAMOS EN LA TARJETA
-      institucionalDrive: fd.get('institucionalDrive'),
-      [`driveLink${suf}`]: fd.get('driveLink')
+      [`aux${suf}`]: getName(auxId),
+      [`driveLink${suf}`]: fd.get('driveLink'),
+      institucionalDrive: fd.get('institucionalDrive')
     };
 
     try {
@@ -221,8 +218,9 @@ const handleUpdateGroup = async (e) => {
       
       await Promise.all(promises);
       setEditingGroup(null);
-      alert("✅ Staff y Grupo actualizados correctamente.");
+      alert("✅ Datos del grupo actualizados en todos los legajos.");
     } catch (err) { 
+      console.error(err);
       alert("Error: " + err.message); 
     } finally { 
       setUpdatingGroup(false); 
