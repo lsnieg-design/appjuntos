@@ -703,7 +703,8 @@ return (
         </div>
       )}
       {/* 6. MODAL DE OPCIONES DE IMPRESIÓN */}
-     {showPrintOptions && (
+   {/* 6. MODAL DE OPCIONES DE IMPRESIÓN */}
+      {showPrintOptions && (
         <div className="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl border-t-8 border-violet-600">
             <h3 className="text-xl font-black text-violet-900 uppercase italic mb-4">¿Qué imprimir?</h3>
@@ -731,7 +732,7 @@ return (
           </div>
         </div>
       )}
-    </div> // Fin del div principal
+    </div> // Este cierra el div principal (className="flex flex-col h-full...")
   );
-} // Fin de la función
+} // Este cierra la función export function GroupsView
 
