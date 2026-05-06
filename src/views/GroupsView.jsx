@@ -325,7 +325,7 @@ return (
         <StudentDetailView student={selectedStudent} user={user} db={db} appId={appId} onClose={() => setSelectedStudent(null)} onEdit={(s) => { setSelectedStudent(null); setFullFileStudent(s); }} />
       )}
 
-      {/* 3. MODAL LEGAJO DIGITAL (REDISEÑADO PARA PC) */}
+     {/* 3. MODAL LEGAJO DIGITAL (REDISEÑADO PARA PC) */}
       {fullFileStudent && (
         <div className="fixed inset-0 bg-slate-900/60 z-[1000] flex items-center justify-center p-4 lg:p-10 backdrop-blur-md animate-in fade-in">
           <div className="bg-white rounded-[40px] w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] border border-white/20">
@@ -435,20 +435,21 @@ return (
                         </div>
                       </div>
                     </section>
+
                     {/* Mini Muro de Grupo en Legajo Individual */}
-  <div className="mt-4 p-4 bg-orange-50 rounded-2xl border border-orange-100">
-    <p className="text-[9px] font-black text-orange-600 uppercase mb-2 flex items-center gap-1">
-      <MessageSquare size={12}/> Últimas novedades del grupo
-    </p>
-    <div className="space-y-2 max-h-32 overflow-y-auto no-scrollbar">
-      {groupMessages[viewMode === 'Sede' ? (fullFileStudent[`group${turn === 'morning' ? 'Morning' : 'Afternoon'}`]) : (fullFileStudent[`dai${turn === 'morning' ? 'Morning' : 'Afternoon'}`])]?.slice(0, 3).map(m => (
-        <div key={m.id} className="bg-white p-2 rounded-xl shadow-sm border border-orange-50">
-          <p className="text-[8px] font-bold text-slate-400 uppercase">{m.author}</p>
-          <p className="text-[10px] text-slate-600 leading-tight">{m.text}</p>
-        </div>
-      )) || <p className="text-[10px] text-orange-300 italic">Sin novedades recientes.</p>}
-    </div>
-  </div>
+                    <div className="mt-4 p-4 bg-orange-50 rounded-2xl border border-orange-100">
+                      <p className="text-[9px] font-black text-orange-600 uppercase mb-2 flex items-center gap-1">
+                        <MessageSquare size={12}/> Últimas novedades del grupo
+                      </p>
+                      <div className="space-y-2 max-h-32 overflow-y-auto no-scrollbar">
+                        {groupMessages[viewMode === 'Sede' ? (fullFileStudent[`group${turn === 'morning' ? 'Morning' : 'Afternoon'}`]) : (fullFileStudent[`dai${turn === 'morning' ? 'Morning' : 'Afternoon'}`])]?.slice(0, 3).map(m => (
+                          <div key={m.id} className="bg-white p-2 rounded-xl shadow-sm border border-orange-50">
+                            <p className="text-[8px] font-bold text-slate-400 uppercase">{m.author}</p>
+                            <p className="text-[10px] text-slate-600 leading-tight">{m.text}</p>
+                          </div>
+                        )) || <p className="text-[10px] text-orange-300 italic">Sin novedades recientes.</p>}
+                      </div>
+                    </div>
 
                     <section className="bg-emerald-50 p-6 rounded-[35px] border border-emerald-100 h-fit">
                       <h4 className="text-emerald-700 font-black text-[11px] uppercase mb-4 flex items-center gap-2 border-b border-emerald-200 pb-2">
@@ -468,7 +469,7 @@ return (
             {/* BOTONERA INFERIOR */}
             <div className="p-6 bg-white border-t border-slate-100 flex justify-center gap-4 shrink-0">
                 <button onClick={() => setFullFileStudent(null)} className="px-8 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-xs hover:bg-slate-200 transition-all">Cerrar</button>
-                <button onClick={() => { imprimirListado([fullFileStudent]) }} className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs shadow-lg flex items-center gap-2 hover:scale-105 transition-all"><Printer size={16}/> Imprimir Legajo</button>
+                <button onClick={() => { printGroups([fullFileStudent]) }} className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs shadow-lg flex items-center gap-2 hover:scale-105 transition-all"><Printer size={16}/> Imprimir Legajo</button>
             </div>
           </div>
         </div>
