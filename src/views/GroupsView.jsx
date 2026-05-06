@@ -187,98 +187,226 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden relative">
-  <div ref={scrollRef} className="h-full overflow-x-auto p-6 scroll-smooth flex gap-6 items-start no-scrollbar">
-    {gruposFinales.map((g) => (
-      <div key={g.name} className="flex flex-col min-w-[320px] bg-white rounded-[35px] border border-gray-200 shadow-sm overflow-hidden h-[calc(100vh-250px)]">
-        {/* CABECERA DE TARJETA */}
-        <div className={`p-5 border-b-4 relative ${turn === 'morning' ? 'border-orange-400 bg-orange-50' : 'border-indigo-400 bg-indigo-50'}`}>
-          <div className="absolute top-4 right-4 flex gap-1">
-            <button onClick={() => { setGroupsToPrint([g]); setShowPrintOptions(true); }} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>
-            <button onClick={() => setSelectedGroupDetails(g)} className="p-2 bg-violet-600 text-white rounded-full shadow-lg hover:scale-110 transition active:scale-95"><Plus size={16}/></button>
-            {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"><Edit3 size={14}/></button>}
-          </div>
-          
-          <h3 className="font-black text-slate-800 text-lg leading-tight pr-16 uppercase">{g.name}</h3>
-          
-          {/* ETIQUETAS */}
-          <div className="flex flex-wrap gap-2 mt-3">
-            <span className="bg-white/80 text-violet-700 px-2 py-0.5 rounded-md text-[9px] font-black uppercase shadow-sm border border-violet-100">
-              {g.students.length} Estudiantes
-            </span>
-            {g.classroom && (
-              <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-md text-[9px] font-black border border-orange-200 uppercase">
-                Aula {g.classroom}
-              </span>
-            )}
-          </div>
+     {/* SECCIÓN DE GRUPOS CON NAVEGACIÓN POR FLECHAS */}
+      <div className="flex-1 overflow-hidden relative group/scroll">
+        
+        {/* FLECHA IZQUIERDA */}
+        <button 
+          onClick={() => scroll('left')}
+          className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-white p-4 rounded-full shadow-xl text-violet-600 border border-slate-100 transition-all opacity-0 group-hover/scroll:opacity-100 hidden lg:flex active:scale-90"
+        >
+          <ChevronLeft size={30} strokeWidth={3} />
+        </button>
 
-          {/* STAFF RESPONSABLE */}
-          <div className="mt-3 space-y-1">
-            <p className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
-              <User size={10} className="text-violet-500"/> Doc: <span className="text-slate-800 font-black">{g.teacher || 'Sin asignar'}</span>
-            </p>
-            <p className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
-              <Users size={10} className="text-orange-500"/> Aux: <span className="text-slate-800 font-black">{g.aux || 'S/D'}</span>
-            </p>
-          </div>
-        </div>
-
-        {/* LISTADO DE ALUMNOS */}
-        <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50 space-y-2 content-start">
-          {g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
-            <div key={s.id} onClick={() => setSelectedStudent(s)} className="bg-white p-3 rounded-2xl shadow-sm flex items-center justify-between cursor-pointer border border-transparent hover:border-violet-100 transition-all group">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-400 border border-slate-200 text-sm overflow-hidden">
-                  {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover transition-transform group-hover:scale-110"/> : s.firstName[0]}
+        {/* CONTENEDOR DE GRUPOS */}
+        <div 
+          ref={scrollRef} 
+          className="h-full overflow-x-auto p-6 scroll-smooth flex gap-6 items-start no-scrollbar"
+        >
+          {gruposFinales.map((g) => (
+            <div key={g.name} className="flex flex-col min-w-[320px] bg-white rounded-[35px] border border-gray-200 shadow-sm overflow-hidden h-[calc(100vh-250px)]">
+              {/* CABECERA DE TARJETA */}
+              <div className={`p-5 border-b-4 relative ${turn === 'morning' ? 'border-orange-400 bg-orange-50' : 'border-indigo-400 bg-indigo-50'}`}>
+                <div className="absolute top-4 right-4 flex gap-1">
+                  <button onClick={() => { setGroupsToPrint([g]); setShowPrintOptions(true); }} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>
+                  <button onClick={() => setSelectedGroupDetails(g)} className="p-2 bg-violet-600 text-white rounded-full shadow-lg hover:scale-110 transition active:scale-95"><Plus size={16}/></button>
+                  {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"><Edit3 size={14}/></button>}
                 </div>
-                <span className="font-bold text-xs text-slate-700 uppercase">{s.lastName}, {s.firstName}</span>
+                
+                <h3 className="font-black text-slate-800 text-lg leading-tight pr-16 uppercase">{g.name}</h3>
+                
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <span className="bg-white/80 text-violet-700 px-2 py-0.5 rounded-md text-[9px] font-black uppercase shadow-sm border border-violet-100">
+                    {g.students.length} Estudiantes
+                  </span>
+                  {g.classroom && (
+                    <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-md text-[9px] font-black border border-orange-200 uppercase">
+                      Aula {g.classroom}
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-3 space-y-1">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                    <User size={10} className="text-violet-500"/> Doc: <span className="text-slate-800 font-black">{g.teacher || 'Sin asignar'}</span>
+                  </p>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                    <Users size={10} className="text-orange-500"/> Aux: <span className="text-slate-800 font-black">{g.aux || 'S/D'}</span>
+                  </p>
+                </div>
               </div>
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation(); 
-                  setShowBitacoraModal(s); 
-                  setIsWriting(false);
-                }} 
-                className="w-8 h-8 bg-violet-50 text-violet-400 rounded-full flex items-center justify-center hover:bg-violet-600 hover:text-white transition-colors"
-              >
-                ⚡
-              </button>
+
+              {/* LISTADO DE ALUMNOS */}
+              <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50 space-y-2 content-start">
+                {g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
+                  <div key={s.id} onClick={() => setSelectedStudent(s)} className="bg-white p-3 rounded-2xl shadow-sm flex items-center justify-between cursor-pointer border border-transparent hover:border-violet-100 transition-all group/item">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-400 border border-slate-200 text-sm overflow-hidden">
+                        {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover transition-transform group-hover/item:scale-110"/> : s.firstName[0]}
+                      </div>
+                      <span className="font-bold text-xs text-slate-700 uppercase">{s.lastName}, {s.firstName}</span>
+                    </div>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation(); 
+                        setShowBitacoraModal(s); 
+                        setIsWriting(false);
+                      }} 
+                      className="w-8 h-8 bg-violet-50 text-violet-400 rounded-full flex items-center justify-center hover:bg-violet-600 hover:text-white transition-colors shadow-sm"
+                    >
+                      ⚡
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </div>
+
+        {/* FLECHA DERECHA */}
+        <button 
+          onClick={() => scroll('right')}
+          className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-white p-4 rounded-full shadow-xl text-violet-600 border border-slate-100 transition-all opacity-0 group-hover/scroll:opacity-100 hidden lg:flex active:scale-90"
+        >
+          <ChevronRight size={30} strokeWidth={3} />
+        </button>
       </div>
-    ))}
-  </div>
-</div>
 
       {selectedStudent && (
         <StudentDetailView student={selectedStudent} user={user} db={db} appId={appId} onClose={() => setSelectedStudent(null)} onEdit={(s) => { setSelectedStudent(null); setFullFileStudent(s); }} />
       )}
 
+      {/* 3. MODAL LEGAJO DIGITAL (REDISEÑADO PARA PC) */}
       {fullFileStudent && (
-        <div className="fixed inset-0 bg-black/80 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-[40px] w-full max-w-4xl h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in zoom-in-95">
-            <div className="p-5 bg-slate-900 text-white flex justify-between items-center shrink-0">
-               <div className="flex items-center gap-3"><div className="bg-orange-500 p-2 rounded-xl"><GraduationCap size={20}/></div><h3 className="font-black uppercase italic tracking-tighter">Legajo Digital: {fullFileStudent.lastName}, {fullFileStudent.firstName}</h3></div>
-               <button onClick={() => setFullFileStudent(null)} className="p-2 bg-white/10 rounded-full hover:bg-red-500"><X size={20}/></button>
-            </div>
-            <div className="flex-1 overflow-y-auto bg-gray-100 p-6 no-scrollbar">
-               <div className="bg-white rounded-[35px] p-8 shadow-sm border border-gray-200">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-4">
-                      <h4 className="text-orange-600 font-black text-[10px] uppercase border-b-2 border-orange-100 pb-1 flex items-center gap-2"><User size={14}/> Identidad</h4>
-                      <p className="text-sm"><b>DNI:</b> <span>{fullFileStudent.dni || '-'}</span></p>
-                      <p className="text-sm"><b>DX:</b> <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-black uppercase">{fullFileStudent.dx || 'S/D'}</span></p>
-                    </div>
-                    <div className="space-y-4">
-                      <h4 className="text-blue-600 font-black text-[10px] uppercase border-b-2 border-blue-100 pb-1 flex items-center gap-2"><Users size={14}/> Familia</h4>
-                      <p className="text-sm"><b>Madre:</b> <span>{fullFileStudent.motherName || '-'}</span></p>
+        <div className="fixed inset-0 bg-slate-900/60 z-[1000] flex items-center justify-center p-4 lg:p-10 backdrop-blur-md animate-in fade-in">
+          <div className="bg-white rounded-[40px] w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] border border-white/20">
+            
+            {/* CABECERA ESTILO PREMIUM */}
+            <div className="p-6 lg:p-8 bg-slate-900 text-white flex justify-between items-center shrink-0">
+                <div className="flex items-center gap-5">
+                  <div className="w-16 h-16 lg:w-20 lg:h-20 rounded-3xl bg-gradient-to-br from-orange-400 to-orange-600 p-1 shadow-lg">
+                    {fullFileStudent.photoUrl ? 
+                      <img src={fullFileStudent.photoUrl} className="w-full h-full object-cover rounded-[22px]"/> : 
+                      <div className="w-full h-full flex items-center justify-center bg-slate-800 rounded-[22px] font-black text-2xl">{fullFileStudent.firstName[0]}</div>
+                    }
+                  </div>
+                  <div>
+                    <h3 className="text-xl lg:text-3xl font-black uppercase italic tracking-tighter leading-none">
+                      {fullFileStudent.lastName}, {fullFileStudent.firstName}
+                    </h3>
+                    <div className="flex gap-2 mt-2">
+                      <span className="bg-white/10 text-orange-400 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/5">Legajo Digital</span>
+                      <span className="bg-white/10 text-slate-400 px-3 py-1 rounded-full text-[10px] font-bold border border-white/5">DNI: {fullFileStudent.dni || '-'}</span>
                     </div>
                   </div>
-               </div>
+                </div>
+                <button onClick={() => setFullFileStudent(null)} className="p-3 bg-white/5 rounded-full hover:bg-red-500 transition-all hover:rotate-90"><X size={24}/></button>
             </div>
-            <div className="p-5 bg-white border-t flex justify-center"><button onClick={() => setFullFileStudent(null)} className="px-10 py-4 bg-slate-800 text-white rounded-2xl font-black uppercase text-xs">Cerrar Legajo</button></div>
+
+            {/* CUERPO RE-ORDENADO */}
+            <div className="flex-1 overflow-y-auto bg-slate-50 p-6 lg:p-10 custom-scrollbar">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+                  
+                  {/* COLUMNA 1: IDENTIDAD Y SALUD */}
+                  <div className="space-y-6">
+                    <section className="bg-white p-6 rounded-[35px] shadow-sm border border-slate-100">
+                      <h4 className="text-violet-600 font-black text-[11px] uppercase mb-4 flex items-center gap-2 border-b border-violet-50 pb-2">
+                        <User size={16}/> Información Base
+                      </h4>
+                      <div className="space-y-4">
+                        <div><p className="text-[9px] text-slate-400 font-bold uppercase">Diagnóstico (DX)</p><p className="font-black text-slate-700 bg-violet-50 p-2 rounded-xl text-sm mt-1 uppercase inline-block">{fullFileStudent.dx || 'S/D'}</p></div>
+                        <div><p className="text-[9px] text-slate-400 font-bold uppercase">Edad Actual</p><p className="font-black text-slate-700 text-base">{calculateAge(fullFileStudent.birthDate)} años</p></div>
+                        <div><p className="text-[9px] text-slate-400 font-bold uppercase">Fecha de Nacimiento</p><p className="font-bold text-slate-600 text-sm">{getSafeDate(fullFileStudent.birthDate)}</p></div>
+                      </div>
+                    </section> section
+
+                    <section className="bg-white p-6 rounded-[35px] shadow-sm border border-slate-100">
+                      <h4 className="text-emerald-600 font-black text-[11px] uppercase mb-4 flex items-center gap-2 border-b border-emerald-50 pb-2">
+                        <Activity size={16}/> Cobertura Médica
+                      </h4>
+                      <div className="space-y-4">
+                        <div><p className="text-[9px] text-slate-400 font-bold uppercase">Obra Social</p><p className="font-black text-slate-700 text-sm mt-1">{fullFileStudent.healthInsurance || 'No declarada'}</p></div>
+                        <div>
+                          <p className="text-[9px] text-slate-400 font-bold uppercase">Vencimiento CUD</p>
+                          <p className={`font-black text-sm mt-1 ${checkCudStatus(fullFileStudent.cudExpiration).status === 'expired' ? 'text-red-500' : 'text-slate-700'}`}>
+                            {getSafeDate(fullFileStudent.cudExpiration) || 'Sin fecha cargada'}
+                          </p>
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+
+                  {/* COLUMNA 2: FAMILIA Y CONTACTO */}
+                  <div className="space-y-6">
+                    <section className="bg-white p-6 rounded-[35px] shadow-sm border border-slate-100 h-full">
+                      <h4 className="text-orange-600 font-black text-[11px] uppercase mb-4 flex items-center gap-2 border-b border-orange-50 pb-2">
+                        <Users size={16}/> Grupo Familiar
+                      </h4>
+                      <div className="space-y-6">
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                          <p className="text-[9px] text-orange-500 font-black uppercase mb-1">Madre / Tutor 1</p>
+                          <p className="font-black text-slate-700 text-sm">{fullFileStudent.motherName || 'No cargado'}</p>
+                          <p className="text-blue-600 font-bold text-xs mt-1 flex items-center gap-1"><Phone size={10}/> {fullFileStudent.motherContact || '-'}</p>
+                        </div>
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                          <p className="text-[9px] text-orange-500 font-black uppercase mb-1">Padre / Tutor 2</p>
+                          <p className="font-black text-slate-700 text-sm">{fullFileStudent.fatherName || 'No cargado'}</p>
+                          <p className="text-blue-600 font-bold text-xs mt-1 flex items-center gap-1"><Phone size={10}/> {fullFileStudent.fatherContact || '-'}</p>
+                        </div>
+                        <div className="pt-2">
+                          <p className="text-[9px] text-slate-400 font-bold uppercase">Domicilio</p>
+                          <div className="flex items-start gap-2 mt-1">
+                            <MapPin size={14} className="text-slate-300 shrink-0 mt-1"/>
+                            <p className="font-bold text-slate-600 text-sm leading-tight">{fullFileStudent.address || 'Sin dirección registrada'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+
+                  {/* COLUMNA 3: ESCOLARIDAD Y RETIRO */}
+                  <div className="space-y-6">
+                    <section className="bg-indigo-900 text-white p-6 rounded-[35px] shadow-xl">
+                      <h4 className="text-indigo-300 font-black text-[11px] uppercase mb-4 flex items-center gap-2 border-b border-white/10 pb-2">
+                        <GraduationCap size={16}/> Situación Escolar
+                      </h4>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] font-bold text-indigo-300 uppercase">Modalidad</span>
+                          <span className="font-black text-sm uppercase">{fullFileStudent.modality || 'Sede'}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] font-bold text-indigo-300 uppercase">Nivel Actual</span>
+                          <span className="font-black text-sm uppercase">{fullFileStudent.level || '-'}</span>
+                        </div>
+                        <div className="mt-4 p-3 bg-white/5 rounded-2xl border border-white/10">
+                          <p className="text-[9px] font-black text-indigo-300 uppercase mb-2">Responsables de Aula</p>
+                          <p className="text-[10px] font-bold mb-1">TM: <span className="text-white">{fullFileStudent.teacherMorning || '-'}</span></p>
+                          <p className="text-[10px] font-bold">TT: <span className="text-white">{fullFileStudent.teacherAfternoon || '-'}</span></p>
+                        </div>
+                      </div>
+                    </section>
+
+                    <section className="bg-emerald-50 p-6 rounded-[35px] border border-emerald-100 h-fit">
+                      <h4 className="text-emerald-700 font-black text-[11px] uppercase mb-4 flex items-center gap-2 border-b border-emerald-200 pb-2">
+                        <Shield size={16}/> Autorizaciones
+                      </h4>
+                      <div>
+                        <p className="text-[9px] text-emerald-600 font-black uppercase mb-2">Retira de la Institución:</p>
+                        <div className="bg-white/60 p-4 rounded-2xl text-xs font-bold text-slate-600 italic leading-relaxed">
+                          "{fullFileStudent.pickupInfo || 'No hay información de retiro cargada.'}"
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </div>
+            </div>
+
+            {/* BOTONERA INFERIOR */}
+            <div className="p-6 bg-white border-t border-slate-100 flex justify-center gap-4 shrink-0">
+                <button onClick={() => setFullFileStudent(null)} className="px-8 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-xs hover:bg-slate-200 transition-all">Cerrar</button>
+                <button onClick={() => { imprimirListado([fullFileStudent]) }} className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs shadow-lg flex items-center gap-2 hover:scale-105 transition-all"><Printer size={16}/> Imprimir Legajo</button>
+            </div>
           </div>
         </div>
       )}
