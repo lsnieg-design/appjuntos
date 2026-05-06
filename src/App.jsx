@@ -355,6 +355,7 @@ function NavButton({ active, onClick, icon, label }) {
 // --- APP PRINCIPAL (FINAL: CON ADMIN INTEGRADO + MANTENIMIENTO + NOTIFS) ---
 function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [selectedStudentId, setSelectedStudentId] = useState(null);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [tasks, setTasks] = useState([]);
   const [events, setEvents] = useState([]);
@@ -512,11 +513,12 @@ function MainApp({ user, onLogout }) {
     appId={appId} 
   />
 )}
-        {activeTab === 'matricula' && (
+      {activeTab === 'matricula' && (
   <MatriculaView 
     user={user} 
     db={db} 
     appId={appId} 
+    initStudentId={selectedStudentId} // <--- PASALE ESTO
   />
 )}
        {activeTab === 'resources' && (
@@ -572,6 +574,15 @@ function MainApp({ user, onLogout }) {
     user={user} 
     db={db} 
     appId={appId} 
+  />
+)}
+        {activeTab === 'groups' && (
+  <GroupsView 
+    user={user} 
+    db={db} 
+    appId={appId} 
+    setActiveTab={setActiveTab} 
+    onSelectStudent={setSelectedStudentId} // <--- AGREGÁ ESTO
   />
 )}
       </main>
