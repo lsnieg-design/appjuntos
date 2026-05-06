@@ -16,7 +16,6 @@ import {
   increment, where, deleteDoc 
 } from 'firebase/firestore';
 
-
 export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
   // --- ESTADOS ---
   const [fullFileStudent, setFullFileStudent] = useState(null);
