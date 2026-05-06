@@ -221,7 +221,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
       <div className="bg-white p-4 shadow-sm z-10 sticky top-0 flex flex-col gap-3">
         <div className="flex justify-between items-center px-2">
           <div><h2 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2"><Grid size={24} className="text-orange-500"/> Mis Grupos</h2></div>
-          <button onClick={() => { setGroupsToPrint(gruposFinales); setShowPrintOptions(true); }} className="bg-violet-100 text-violet-700 p-2.5 rounded-xl"><Printer size={24}/></button>
+          <button onClick={() => { setGroupsToPrint(gruposFinales); setShowPrintOptions(true); }} className="bg-violet-100 text-violet-700 p-2.5 rounded-xl hover:bg-violet-200 transition shadow-sm"><Printer size={24}/></button>
         </div>
         <div className="flex bg-gray-100 p-1 rounded-xl mx-2">
           <button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-lg text-xs font-black uppercase ${turn === 'morning' ? 'bg-white text-orange-50 shadow-sm' : 'text-gray-400'}`}>☀️ MAÑANA</button>
@@ -231,7 +231,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
 
       <div className="flex-1 overflow-hidden relative">
         <div ref={scrollRef} className="h-full overflow-x-auto p-6 scroll-smooth flex gap-6 items-start no-scrollbar">
-          {groups.map((g) => (
+          {gruposFinales.map((g) => (
             <div key={g.name} className="flex flex-col min-w-[320px] bg-white rounded-[35px] border border-gray-200 shadow-sm overflow-hidden h-[calc(100vh-250px)]">
               <div className={`p-5 border-b-4 relative ${turn === 'morning' ? 'border-orange-400 bg-orange-50' : 'border-indigo-400 bg-indigo-50'}`}>
                 <div className="absolute top-4 right-4 flex gap-1">
