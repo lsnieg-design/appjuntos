@@ -41,7 +41,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     { label: "Fuga / Intento", emoji: "🏃", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
   ];
 
-  useEffect(() => {
+ useEffect(() => {
     if (!db || !appId) return;
     const unsubS = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true)), (snap) => setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const unsubU = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('lastName', 'asc')), (snap) => setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
@@ -51,7 +51,8 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     });
     return () => { unsubS(); unsubU(); unsubGM(); };
   }, [db, appId]);
-// --- LÓGICA DE AGRUPAMIENTO ---
+
+  // --- LÓGICA DE AGRUPAMIENTO ---
   const groupedData = students.reduce((acc, s) => {
     const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
     const gName = s[`group${suf}`];
@@ -82,15 +83,29 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     
     let h = `<html><head><style>
       body{font-family:sans-serif; padding:20px;}
-      .header{background:#f3f4f6; padding:10px; border-left:5px solid #7c3aed; margin-bottom:10px;}
-      table{width:100%; border-collapse:collapse; font-size:10px;}
+      .header{background:#f3f4f6; padding:15px; border-left:5px solid #7c3aed; margin-bottom:10px; border-radius: 0 15px 15px 0;}
+      .header h2 { margin: 0; color: #7c3aed; text-transform: uppercase; font-size: 18px; }
+      .staff-info { margin-top: 5px; font-size: 11px; font-weight: bold; color: #444; text-transform: uppercase; }
+      table{width:100%; border-collapse:collapse; font-size:10px; margin-top: 10px;}
       th{background:#7c3aed; color:white; padding:5px; text-align:left; text-transform:uppercase;}
       td{border:1px solid #ddd; padding:5px;}
       .photo-img{width:30px; height:30px; object-fit:cover; border-radius:4px;}
     </style></head><body>`;
 
     groupsList.forEach(g => {
-        h += `<div class="header"><h2>${g.name}</h2><p>Doc: ${g.teacher || 'S/D'} | Aula: ${g.classroom || '-'}</p></div>
+        // Obtenemos los nombres del staff del primer alumno para el encabezado
+        const staff = g.students[0] || {};
+        const turnoTexto = turn === 'morning' ? 'TURNO MAÑANA' : 'TURNO TARDE';
+        const auxNombre = turn === 'morning' ? (staff.auxMorning || 'S/D') : (staff.auxAfternoon || 'S/D');
+
+        h += `<div class="header">
+                <h2>${g.name}</h2>
+                <div class="staff-info">
+                  DOCENTE: ${g.teacher || 'S/D'} | 
+                  AUX/PRECEP: ${auxNombre} | 
+                  JORNADA: ${turnoTexto}
+                </div>
+              </div>
         <table><thead><tr>
           <th>#</th>
           ${printColumns.photo ? '<th>Foto</th>' : ''}
@@ -148,11 +163,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     setUpdatingGroup(true);
     const fd = new FormData(e.target);
     const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-    
-    const updates = { 
-      [`group${suf}`]: fd.get('groupName'), 
-      classroom: fd.get('classroom')
-    };
+    const updates = { [`group${suf}`]: fd.get('groupName'), classroom: fd.get('classroom') };
 
     try {
       const promises = editingGroup.students.map(s => 
@@ -161,11 +172,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
       await Promise.all(promises);
       setEditingGroup(null);
       alert("✅ Grupo actualizado correctamente.");
-    } catch (err) { 
-      alert("Error al actualizar: " + err.message); 
-    } finally { 
-      setUpdatingGroup(false); 
-    }
+    } catch (err) { alert(err.message); } finally { setUpdatingGroup(false); }
   };
 
   const handleSaveIncident = async (type, severity = "medium", text = "") => {
@@ -173,22 +180,17 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     if (!activeStudent) return;
     setSavingIncident(true);
     try {
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', activeStudent.id), { 
-        incidents: arrayUnion({ 
-          date: new Date().toISOString(), 
-          type: text ? "Nota" : type, 
-          severity, 
-          text: text || type, 
-          author: user.fullName || user.firstName, 
-          authorId: user.id 
-        }) 
-      });
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { 
-        score: increment(10) 
-      });
-      setShowBitacoraModal(null); 
-      setIsWriting(false); 
-      setNewNote("");
+      const entry = {
+        date: new Date().toISOString(),
+        type: text ? "Nota" : type,
+        severity,
+        text: text || type,
+        author: user.fullName || user.firstName,
+        authorId: user.id
+      };
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', activeStudent.id), { incidents: arrayUnion(entry) });
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { score: increment(10) });
+      setShowBitacoraModal(null); setIsWriting(false); setNewNote("");
       alert("✅ Registro guardado.");
     } catch (e) { 
       alert(e.message); 
@@ -203,18 +205,11 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     if (!text.trim()) return;
     try {
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'group_mural'), {
-        groupName,
-        text,
-        author: user.firstName,
-        authorId: user.id,
-        createdAt: serverTimestamp()
+        groupName, text, author: user.firstName, authorId: user.id, createdAt: serverTimestamp()
       });
       e.target.reset();
-    } catch (err) { 
-      alert(err.message); 
-    }
+    } catch (err) { alert(err.message); }
   };
- 
 
   return (
     <div className="flex flex-col h-full bg-slate-100 animate-in fade-in relative">
