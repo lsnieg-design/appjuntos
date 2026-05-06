@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore';
 
 export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
-  // --- ESTADOS REALES (SANEADOS) ---
+  // ESTOS SON LOS ÚNICOS ESTADOS QUE DEBE HABER:
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
   const [turn, setTurn] = useState('morning'); 
@@ -29,7 +29,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
   const [editingGroup, setEditingGroup] = useState(null);
   const [updatingGroup, setUpdatingGroup] = useState(false);
 
-  const scrollRef = useRef(null); 
+  const scrollRef = useRef(null);
   const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scrollRef.current.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' }); } };
 
   const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración', 'Dirección Inclusión', 'Equipo Técnico Inclusión'].includes(user.role) || user.rol === 'admin';
