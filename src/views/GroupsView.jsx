@@ -367,7 +367,7 @@ return (
                         <div><p className="text-[9px] text-slate-400 font-bold uppercase">Edad Actual</p><p className="font-black text-slate-700 text-base">{calculateAge(fullFileStudent.birthDate)} años</p></div>
                         <div><p className="text-[9px] text-slate-400 font-bold uppercase">Fecha de Nacimiento</p><p className="font-bold text-slate-600 text-sm">{getSafeDate(fullFileStudent.birthDate)}</p></div>
                       </div>
-                    </section> section
+                    </section>
 
                     <section className="bg-white p-6 rounded-[35px] shadow-sm border border-slate-100">
                       <h4 className="text-emerald-600 font-black text-[11px] uppercase mb-4 flex items-center gap-2 border-b border-emerald-50 pb-2">
