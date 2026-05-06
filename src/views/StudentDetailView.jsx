@@ -205,7 +205,15 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
 
         {/* PIE */}
         <div className="p-4 border-t bg-gray-50 shrink-0">
-           <button onClick={() => { onClose(); onEdit(student); }} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-black transition">Ver Legajo Completo</button>
+<button 
+  onClick={() => { 
+    onClose();      // Cierra la ficha rápida azul
+    onEdit(student); // Avisa a GroupsView que abra la ficha completa gris
+  }} 
+  className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-black transition"
+>
+  Ver Legajo Completo
+</button>
         </div>
       </div>
     </div>
