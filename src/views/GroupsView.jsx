@@ -26,6 +26,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
   const [printColumns, setPrintColumns] = useState({
     dni: true, birthDate: true, healthInsurance: false, contacts: true, photo: false
   });
+  const [printMode, setPrintMode] = useState('students'); // 'students' o 'staff'
   
 
   const scrollRef = useRef(null);
@@ -98,28 +99,45 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
     document.body.appendChild(iframe);
+    
     let h = `<html><head><style>
       body{font-family:sans-serif; padding:20px;}
       .header{background:#f3f4f6; padding:15px; border-left:5px solid #7c3aed; margin-bottom:10px; border-radius: 0 15px 15px 0;}
-      .header h2 { margin: 0; color: #7c3aed; text-transform: uppercase; font-size: 18px; }
-      .staff-info { margin-top: 5px; font-size: 11px; font-weight: bold; color: #444; text-transform: uppercase; }
+      .header h2 { margin: 0; color: #7c3aed; text-transform: uppercase; font-size: 16px; }
       table{width:100%; border-collapse:collapse; font-size:10px; margin-top: 10px;}
-      th{background:#7c3aed; color:white; padding:5px; text-align:left; text-transform:uppercase;}
-      td{border:1px solid #ddd; padding:5px;}
-      .photo-img{width:30px; height:30px; object-fit:cover; border-radius:4px;}
+      th{background:#7c3aed; color:white; padding:8px; text-align:left; text-transform:uppercase;}
+      td{border:1px solid #ddd; padding:8px;}
     </style></head><body>`;
 
-    groupsList.forEach(g => {
-        const staff = g.students[0] || {};
-        const turnoTexto = turn === 'morning' ? 'TURNO MAÑANA' : 'TURNO TARDE';
-        const auxNombre = turn === 'morning' ? (staff.auxMorning || 'S/D') : (staff.auxAfternoon || 'S/D');
-        h += `<div class="header"><h2>${g.name}</h2><div class="staff-info">DOCENTE: ${g.teacher || 'S/D'} | AUX/PRECEP: ${auxNombre} | JORNADA: ${turnoTexto}</div></div>
-        <table><thead><tr><th>#</th>${printColumns.photo ? '<th>Foto</th>' : ''}<th>Nombre y Apellido</th>${printColumns.dni ? '<th>DNI</th>' : ''}${printColumns.birthDate ? '<th>Nacimiento</th>' : ''}${printColumns.healthInsurance ? '<th>OS</th>' : ''}${printColumns.contacts ? '<th>Familia</th>' : ''}</tr></thead><tbody>`;
-        g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).forEach((s, i) => {
-            h += `<tr><td>${i+1}</td>${printColumns.photo ? `<td>${s.photoUrl ? `<img src="${s.photoUrl}" class="photo-img"/>` : '-'}</td>` : ''}<td><b>${s.lastName}, ${s.firstName}</b></td>${printColumns.dni ? `<td>${s.dni || '-'}</td>` : ''}${printColumns.birthDate ? `<td>${s.birthDate || '-'}</td>` : ''}${printColumns.healthInsurance ? `<td>${s.healthInsurance || '-'}</td>` : ''}${printColumns.contacts ? `<td>M: ${s.motherContact || '-'} / P: ${s.fatherContact || '-'}</td>` : ''}</tr>`;
-        });
-        h += `</tbody></table><br/>`;
-    });
+    if (printMode === 'staff') {
+      h += `<h1>Listado de Organización de Staff - 2026</h1>
+            <table><thead><tr>
+              <th>Grupo / DAI</th>
+              <th>Docente Titular</th>
+              <th>Docente Pareja / Escuela</th>
+              <th>Auxiliar / Preceptor</th>
+              <th>Aula / Grado</th>
+            </tr></thead><tbody>`;
+      groupsList.forEach(g => {
+        h += `<tr>
+          <td><b>${g.name}</b></td>
+          <td>${g.teacher || '-'}</td>
+          <td>${g.teacher2 || g.aux || '-'}</td>
+          <td>${g.aux || '-'}</td>
+          <td>${g.classroom || '-'}</td>
+        </tr>`;
+      });
+      h += `</tbody></table>`;
+    } else {
+      groupsList.forEach(g => {
+          h += `<div class="header"><h2>${g.name}</h2></div>
+          <table><thead><tr><th>#</th><th>Nombre y Apellido</th><th>DNI</th><th>Nacimiento</th><th>Familia</th></tr></thead><tbody>`;
+          g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).forEach((s, i) => {
+              h += `<tr><td>${i+1}</td><td><b>${s.lastName}, ${s.firstName}</b></td><td>${s.dni || '-'}</td><td>${s.birthDate || '-'}</td><td>${s.motherContact || '-'}</td></tr>`;
+          });
+          h += `</tbody></table><br/>`;
+      });
+    }
     h += `</body></html>`;
     const docIframe = iframe.contentWindow.document; docIframe.open(); docIframe.write(h); docIframe.close();
     setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); document.body.removeChild(iframe); }, 500);
@@ -417,6 +435,20 @@ return (
                         </div>
                       </div>
                     </section>
+                    {/* Mini Muro de Grupo en Legajo Individual */}
+  <div className="mt-4 p-4 bg-orange-50 rounded-2xl border border-orange-100">
+    <p className="text-[9px] font-black text-orange-600 uppercase mb-2 flex items-center gap-1">
+      <MessageSquare size={12}/> Últimas novedades del grupo
+    </p>
+    <div className="space-y-2 max-h-32 overflow-y-auto no-scrollbar">
+      {groupMessages[viewMode === 'Sede' ? (fullFileStudent[`group${turn === 'morning' ? 'Morning' : 'Afternoon'}`]) : (fullFileStudent[`dai${turn === 'morning' ? 'Morning' : 'Afternoon'}`])]?.slice(0, 3).map(m => (
+        <div key={m.id} className="bg-white p-2 rounded-xl shadow-sm border border-orange-50">
+          <p className="text-[8px] font-bold text-slate-400 uppercase">{m.author}</p>
+          <p className="text-[10px] text-slate-600 leading-tight">{m.text}</p>
+        </div>
+      )) || <p className="text-[10px] text-orange-300 italic">Sin novedades recientes.</p>}
+    </div>
+  </div>
 
                     <section className="bg-emerald-50 p-6 rounded-[35px] border border-emerald-100 h-fit">
                       <h4 className="text-emerald-700 font-black text-[11px] uppercase mb-4 flex items-center gap-2 border-b border-emerald-200 pb-2">
@@ -671,21 +703,30 @@ return (
         </div>
       )}
       {/* 6. MODAL DE OPCIONES DE IMPRESIÓN */}
-      {showPrintOptions && (
+     {showPrintOptions && (
         <div className="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl border-t-8 border-violet-600">
-            <h3 className="text-xl font-black text-violet-900 uppercase italic mb-4">Opciones de Impresión</h3>
-            <div className="space-y-2 mb-6">
-              {Object.keys(printColumns).map(col => (
-                <label key={col} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl cursor-pointer">
-                  <span className="text-xs font-bold uppercase text-gray-600">
-                    {col === 'healthInsurance' ? 'Obra Social' : col === 'birthDate' ? 'Nacimiento' : col === 'contacts' ? 'Familia' : col === 'photo' ? 'Foto' : col}
-                  </span>
-                  <input type="checkbox" checked={printColumns[col]} onChange={() => setPrintColumns({...printColumns, [col]: !printColumns[col]})} className="w-5 h-5 accent-violet-600" />
-                </label>
-              ))}
+            <h3 className="text-xl font-black text-violet-900 uppercase italic mb-4">¿Qué imprimir?</h3>
+            
+            <div className="flex flex-col gap-3 mb-6">
+              <button 
+                onClick={() => setPrintMode('students')}
+                className={`p-4 rounded-2xl border-2 text-left transition-all ${printMode === 'students' ? 'border-violet-600 bg-violet-50' : 'border-slate-100'}`}
+              >
+                <p className="font-black text-xs uppercase text-violet-900">Listado de Alumnos</p>
+                <p className="text-[10px] text-slate-500">DNI, Fecha de nacimiento y contactos.</p>
+              </button>
+
+              <button 
+                onClick={() => setPrintMode('staff')}
+                className={`p-4 rounded-2xl border-2 text-left transition-all ${printMode === 'staff' ? 'border-violet-600 bg-violet-50' : 'border-slate-100'}`}
+              >
+                <p className="font-black text-xs uppercase text-violet-900">Listado de Staff</p>
+                <p className="text-[10px] text-slate-500">Grilla de Docentes, Auxiliares y Aulas.</p>
+              </button>
             </div>
-            <button onClick={() => { printGroups(groupsToPrint); setShowPrintOptions(false); }} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg mb-2">Imprimir</button>
+
+            <button onClick={() => { printGroups(groupsToPrint); setShowPrintOptions(false); }} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg mb-2">Confirmar e Imprimir</button>
             <button onClick={() => setShowPrintOptions(false)} className="w-full py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
           </div>
         </div>
