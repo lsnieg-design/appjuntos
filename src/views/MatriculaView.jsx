@@ -17,10 +17,7 @@ import {
   arrayUnion, arrayRemove, getDocs, increment 
 } from 'firebase/firestore';
 
-export function MatriculaView({ user, db, appId }) {
-  // ==========================================
-  // 1. ESTADOS Y CONFIGURACIÓN
-  // ==========================================
+export function MatriculaView({ user, db, appId, initStudentId }) { 
   const [students, setStudents] = useState([]);
   const [savingIncident, setSavingIncident] = useState(false);
   const [usersList, setUsersList] = useState([]); 
@@ -135,7 +132,18 @@ const [statOnlyPreTaller, setStatOnlyPreTaller] = useState(false);
         if (typeof uSocial === 'function') uSocial(); 
     };
   }, [appId]);
-
+useEffect(() => {
+    if (initStudentId && students.length > 0) {
+      const target = students.find(s => s.id === initStudentId);
+      if (target) {
+        setViewingStudent(target);
+        setActiveModalTab('info');
+        // Limpiamos filtros para que no haya conflictos visuales
+        setFilterText(''); 
+        setShowArchived(false);
+      }
+    }
+}, [initStudentId, students]);
   // Listas auxiliares para selects
   const staffSede = (usersList||[]).filter(u => ['Docente', 'Auxiliar/Preceptor', 'Equipo Técnico'].includes(u.role));
   const staffInclusion = (usersList||[]).filter(u => ['DAI', 'Equipo Técnico Inclusión', 'Inclusión'].includes(u.role));
