@@ -21,9 +21,12 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
   const [savingIncident, setSavingIncident] = useState(false);
   const [editingGroup, setEditingGroup] = useState(null);
   const [updatingGroup, setUpdatingGroup] = useState(false);
+  const [showPrintOptions, setShowPrintOptions] = useState(false);
+  const [groupsToPrint, setGroupsToPrint] = useState([]);
   const [printColumns, setPrintColumns] = useState({
     dni: true, birthDate: true, healthInsurance: false, contacts: true, photo: false
   });
+  
 
   const scrollRef = useRef(null);
   const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scrollRef.current.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' }); } };
@@ -65,7 +68,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
       body{font-family:sans-serif; padding:20px;}
       .header{background:#f3f4f6; padding:10px; border-left:5px solid #7c3aed; margin-bottom:10px;}
       table{width:100%; border-collapse:collapse; font-size:10px;}
-      th{background:#7c3aed; color:white; padding:5px; text-align:left;}
+      th{background:#7c3aed; color:white; padding:5px; text-align:left; text-transform:uppercase;}
       td{border:1px solid #ddd; padding:5px;}
       .photo-img{width:30px; height:30px; object-fit:cover; border-radius:4px;}
     </style></head><body>`;
@@ -79,7 +82,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
           ${printColumns.dni ? '<th>DNI</th>' : ''}
           ${printColumns.birthDate ? '<th>Nacimiento</th>' : ''}
           ${printColumns.healthInsurance ? '<th>OS</th>' : ''}
-          ${printColumns.contacts ? '<th>Contacto</th>' : ''}
+          ${printColumns.contacts ? '<th>Familia</th>' : ''}
         </tr></thead><tbody>`;
         
         g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).forEach((s, i) => {
@@ -96,7 +99,30 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
         h += `</tbody></table><br/>`;
     });
     h += `</body></html>`;
+    const docIframe = iframe.contentWindow.document; docIframe.open(); docIframe.write(h); docIframe.close();
+    setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); document.body.removeChild(iframe); }, 500);
+  };
     const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
+    const campo = `informe${numeroInforme}`;
+    const info = estudiante[campo] || { status: 'Pendiente' };
+    let proximo = 'Pendiente';
+    
+    if (info.status === 'Pendiente') proximo = 'Hecho';
+    else if (info.status === 'Hecho') proximo = 'Impreso';
+    else if (info.status === 'Impreso') proximo = 'Enviado';
+    else if (info.status === 'Enviado') proximo = 'Archivado';
+
+    try {
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', estudiante.id), { 
+        [campo]: { status: proximo, updatedAt: new Date().toISOString() } 
+      });
+      // Esto actualiza el modal abierto en el momento
+      const nuevosEstudiantes = selectedGroupDetails.students.map(s => 
+        s.id === estudiante.id ? { ...s, [campo]: { status: proximo } } : s
+      );
+      setSelectedGroupDetails({ ...selectedGroupDetails, students: nuevosEstudiantes });
+    } catch (e) { console.error(e); }
+  };
     const campo = `informe${numeroInforme}`;
     const estadoActual = estudiante[campo] || { status: 'Pendiente' };
     let proximo = 'Pendiente';
@@ -196,15 +222,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     } catch (err) { alert(err.message); } finally { setUpdatingGroup(false); }
   };
 
-  const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
-    const campo = `informe${numeroInforme}`;
-    const info = estudiante[campo] || { status: 'Pendiente' };
-    const nextStatus = { 'Pendiente': 'Hecho', 'Hecho': 'Impreso', 'Impreso': 'Enviado', 'Enviado': 'Archivado' }[info.status] || 'Pendiente';
-    try {
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', estudiante.id), { [campo]: { status: nextStatus } });
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { score: increment(5) });
-    } catch (e) { console.error(e); }
-  };
+ 
 
   return (
     <div className="flex flex-col h-full bg-slate-100 animate-in fade-in relative">
@@ -379,9 +397,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
          </div>
       )}
     </div>
-  );
-}
-{showPrintOptions && (
+    {showPrintOptions && (
         <div className="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl border-t-8 border-violet-600">
             <h3 className="text-xl font-black text-violet-900 uppercase italic mb-4">Opciones de Impresión</h3>
@@ -398,3 +414,6 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
           </div>
         </div>
       )}
+  );
+}
+
