@@ -12,7 +12,8 @@ import {
 } from 'lucide-react';
 import { 
   doc, updateDoc, collection, query, orderBy, 
-  onSnapshot, addDoc, serverTimestamp, arrayUnion, increment, where 
+  onSnapshot, addDoc, serverTimestamp, arrayUnion, 
+  increment, where, deleteDoc // <--- AGREGAR deleteDoc ACÁ
 } from 'firebase/firestore';
 
 export function GroupsView({ user, db, appId, setActiveTab }) {
@@ -258,16 +259,17 @@ const INCIDENT_TYPES = [
   <StudentDetailView 
     student={selectedStudent} 
     user={user}
-    db={db}             // <--- IMPORTANTE: Asegurate que esto esté acá
-    appId={appId}       // <--- IMPORTANTE: Asegurate que esto esté acá
+    db={db}
+    appId={appId}
     onClose={() => setSelectedStudent(null)} 
-    onEdit={() => {
+    onEdit={(s) => {
+       // Este es el puente con App.jsx que arreglaste
        setSelectedStudent(null);
+       if (typeof onSelectStudent === 'function') onSelectStudent(s.id); 
        setActiveTab('matricula'); 
     }}
   />
 )}
-
       {/* MODAL BITÁCORA EXPRESS */}
       {showBitacoraModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
