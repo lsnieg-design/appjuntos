@@ -4,6 +4,13 @@ import {
 } from 'lucide-react';
 import { doc, updateDoc, arrayUnion, increment } from 'firebase/firestore';
 
+
+export function StudentDetailView({ student, onClose, onEdit, db, appId, user }) {
+  const [activeTabModal, setActiveTabModal] = useState("info");
+  const [isWriting, setIsWriting] = useState(false);
+  const [newNote, setNewNote] = useState('');
+  const [loading, setLoading] = useState(false);
+  
 const INCIDENT_TYPES = [
     { label: "Trabajó Muy Bien", emoji: "🌟", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
     { label: "Ayudó a un amigo", emoji: "🤝", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
@@ -19,13 +26,6 @@ const INCIDENT_TYPES = [
     { label: "Fuga / Intento", emoji: "🏃", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
     { label: "Convulsión / Salud", emoji: "🚑", severity: "high", color: "bg-indigo-100 border-indigo-300 text-indigo-800" }, 
 ];
-
-export function StudentDetailView({ student, onClose, onEdit, db, appId, user }) {
-  const [activeTabModal, setActiveTabModal] = useState("info");
-  const [isWriting, setIsWriting] = useState(false);
-  const [newNote, setNewNote] = useState('');
-  const [loading, setLoading] = useState(false);
-
   if (!student) return null;
 
   const calculateAge = (d) => {
