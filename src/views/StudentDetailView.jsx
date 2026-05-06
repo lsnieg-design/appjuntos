@@ -1,18 +1,17 @@
 import React, { useState } from 'react';
 import { 
-  Calendar as CalendarIcon, CheckSquare, Settings, User, FileText, CheckCircle, 
-  Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, 
-  Lock, List, Grid, ChevronLeft, ChevronRight, Bell, Check, HelpCircle, Mail, Camera, MapPin, 
-  Send, Key, Filter, LayoutDashboard, Link as LinkIcon, ExternalLink, Zap,
-  AlertTriangle, Clock, Shield, Crown, Activity, Share, PlusSquare, 
-  Smartphone, GraduationCap, Search, X, UploadCloud, PieChart, Eye, Edit3, Trophy,
-  Folder, MessageSquare, Globe, BookOpen, Lightbulb, ChevronDown, PlusCircle, Printer,
-  AlignLeft, AlignCenter, AlignRight, AlignJustify, Phone, CheckCircle2, Clock3, UserCheck,
-  ChevronUp // <--- ESTE ES EL QUE FALTABA
+  X, Users, AlertTriangle, Edit3, Trash2
 } from 'lucide-react';
 import { doc, updateDoc, arrayUnion, increment } from 'firebase/firestore';
 
-const INCIDENT_TYPES = [
+export function StudentDetailView({ student, onClose, onEdit, db, appId, user }) {
+  const [activeTabModal, setActiveTabModal] = useState("info");
+  const [isWriting, setIsWriting] = useState(false);
+  const [newNote, setNewNote] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Lista de 13 botones para coincidir con Mi Aula
+  const INCIDENT_TYPES = [
     { label: "Trabajó Muy Bien", emoji: "🌟", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
     { label: "Ayudó a un amigo", emoji: "🤝", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
     { label: "Logro de Aprendizaje", emoji: "🚀", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
@@ -26,14 +25,7 @@ const INCIDENT_TYPES = [
     { label: "Brote / Gritos", emoji: "🤬", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
     { label: "Fuga / Intento", emoji: "🏃", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
     { label: "Convulsión / Salud", emoji: "🚑", severity: "high", color: "bg-indigo-100 border-indigo-300 text-indigo-800" }, 
-];
-
-
-export function StudentDetailView({ student, onClose, onEdit, db, appId, user }) {
-  const [activeTabModal, setActiveTabModal] = useState("info");
-  const [isWriting, setIsWriting] = useState(false);
-  const [newNote, setNewNote] = useState('');
-  const [loading, setLoading] = useState(false);
+  ];
 
   if (!student) return null;
 
@@ -47,9 +39,8 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
     return a;
   };
 
-  // --- FUNCIÓN 1: GUARDAR INCIDENTE/BITÁCORA ---
   const handleSaveIncident = async (type, severity, text = "") => {
-    if (!db || !appId) return;
+    if (!db || !appId || !user) return;
     setLoading(true);
     try {
       const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', student.id);
@@ -64,24 +55,22 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
       
       await updateDoc(studentRef, { incidents: arrayUnion(entry) });
       
-      // Premio Mayo: 5 puntos por registro pedagógico
+      // Premio Mayo: 10 puntos por registro pedagógico
       const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-      await updateDoc(userRef, { score: increment(5) });
+      await updateDoc(userRef, { score: increment(10) });
 
       setNewNote('');
       setIsWriting(false);
-      alert(`✅ Registrado: ${type}. ¡Sumaste 5 puntos!`);
+      alert(`✅ Registrado correctamente. ¡Sumaste 10 puntos!`);
     } catch (e) { 
       console.error(e);
       alert("Error al guardar: " + e.message); 
     } finally { setLoading(false); }
   };
 
-  // --- FUNCIÓN 2: REPORTAR AUSENTISMO ---
   const handleReportAbsenteeism = async () => {
     const reason = prompt("¿Motivo del ausentismo prolongado? (Ej: Salud, Viaje, etc.)");
     if (!reason) return;
-
     setLoading(true);
     try {
       const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', student.id);
@@ -93,12 +82,10 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
         author: user.firstName,
         authorId: user.id
       };
-      
       await updateDoc(studentRef, { 
         incidents: arrayUnion(entry),
-        absenteeismAlert: true // Marca para el equipo técnico
+        absenteeismAlert: true 
       });
-
       alert("⚠️ Alerta enviada al Equipo Técnico.");
     } catch (e) { alert(e.message); }
     finally { setLoading(false); }
@@ -113,7 +100,7 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
           <button onClick={onClose} className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 p-2 rounded-full transition"><X size={20}/></button>
           <div className="flex items-center gap-4">
             <div className="w-20 h-20 rounded-2xl bg-white/20 border-2 border-white/30 overflow-hidden flex items-center justify-center font-black text-3xl shadow-inner">
-              {student.photoUrl ? <img src={student.photoUrl} className="w-full h-full object-cover"/> : student.firstName?.[0]}
+              {student.photoUrl ? <img src={student.photoUrl} className="w-full h-full object-cover" alt="pibe"/> : student.firstName?.[0]}
             </div>
             <div>
               <h2 className="text-2xl font-bold uppercase tracking-tight leading-tight">{student.lastName}, {student.firstName}</h2>
@@ -128,29 +115,29 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
         </div>
 
         {/* CONTENIDO */}
-        <div className="p-6 overflow-y-auto space-y-6 no-scrollbar flex-1">
+        <div className="p-6 overflow-y-auto space-y-6 no-scrollbar flex-1 bg-gray-50">
           {activeTabModal === "info" ? (
             <div className="space-y-5 animate-in fade-in">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center shadow-sm">
-                  <p className="text-[8px] font-black text-slate-400 uppercase mb-1 tracking-widest">DNI</p>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-white p-3 rounded-2xl border border-slate-100 text-center shadow-sm">
+                  <p className="text-[8px] font-black text-slate-400 uppercase mb-1">DNI</p>
                   <p className="font-bold text-slate-800 text-xs">{student.dni || '-'}</p>
                 </div>
                 <div className="bg-blue-50 p-3 rounded-2xl border border-blue-100 text-center shadow-sm">
-                  <p className="text-[8px] font-black text-blue-400 uppercase mb-1 tracking-widest">Edad</p>
+                  <p className="text-[8px] font-black text-blue-400 uppercase mb-1">Edad</p>
                   <p className="font-bold text-blue-700 text-xs">{calculateAge(student.birthDate)} años</p>
                 </div>
                 <div className="bg-orange-50 p-3 rounded-2xl border border-orange-100 text-center shadow-sm">
-                   <p className="text-[8px] font-black text-orange-400 uppercase mb-1 tracking-widest">Alergias</p>
-                   <p className="font-bold text-orange-700 text-[10px] truncate">{student.allergies || 'No'}</p>
+                   <p className="text-[8px] font-black text-orange-400 uppercase mb-1">DX</p>
+                   <p className="font-bold text-orange-700 text-[10px] truncate">{student.dx || '-'}</p>
                 </div>
               </div>
 
-              <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 shadow-sm">
-                <h3 className="font-black text-orange-800 text-[10px] uppercase mb-2 tracking-widest flex items-center gap-1"><Users size={12}/> Contacto Familiar</h3>
+              <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+                <h3 className="font-black text-slate-400 text-[10px] uppercase mb-2 tracking-widest flex items-center gap-1"><Users size={12}/> Contacto Familiar</h3>
                 <div className="space-y-1">
-                  <p className="text-sm text-slate-700">Madre: <b className="text-slate-900">{student.motherName || 'S/D'}</b> {student.motherContact && <span className="text-blue-600 font-bold ml-1">({student.motherContact})</span>}</p>
-                  <p className="text-sm text-slate-700">Padre: <b className="text-slate-900">{student.fatherName || 'S/D'}</b> {student.fatherContact && <span className="text-blue-600 font-bold ml-1">({student.fatherContact})</span>}</p>
+                  <p className="text-sm text-slate-700">M: <b className="text-slate-900">{student.motherName || 'S/D'}</b></p>
+                  <p className="text-sm text-slate-700">P: <b className="text-slate-900">{student.fatherName || 'S/D'}</b></p>
                 </div>
               </div>
 
@@ -161,7 +148,7 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
           ) : (
             <div className="space-y-4 animate-in fade-in pb-10">
               {!isWriting && (
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2 max-h-[40vh] overflow-y-auto pr-1 custom-scrollbar">
                   {INCIDENT_TYPES.map((type) => (
                     <button key={type.label} disabled={loading} onClick={() => handleSaveIncident(type.label, type.severity)} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${loading ? 'opacity-50' : ''}`}>
                       <span className="text-2xl">{type.emoji}</span>
@@ -204,16 +191,16 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
         </div>
 
         {/* PIE */}
-        <div className="p-4 border-t bg-gray-50 shrink-0">
-<button 
-  onClick={() => { 
-    onClose();      // Cierra la ficha rápida azul
-    onEdit(student); // Avisa a GroupsView que abra la ficha completa gris
-  }} 
-  className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-black transition"
->
-  Ver Legajo Completo
-</button>
+        <div className="p-4 border-t bg-white shrink-0">
+          <button 
+            onClick={() => { 
+              onClose(); 
+              onEdit(student); 
+            }} 
+            className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-black transition"
+          >
+            Ver Legajo Completo
+          </button>
         </div>
       </div>
     </div>
