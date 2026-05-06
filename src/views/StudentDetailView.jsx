@@ -28,6 +28,7 @@ const INCIDENT_TYPES = [
     { label: "Convulsión / Salud", emoji: "🚑", severity: "high", color: "bg-indigo-100 border-indigo-300 text-indigo-800" }, 
 ];
 
+
 export function StudentDetailView({ student, onClose, onEdit, db, appId, user }) {
   const [activeTabModal, setActiveTabModal] = useState("info");
   const [isWriting, setIsWriting] = useState(false);
