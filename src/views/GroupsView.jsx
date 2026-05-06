@@ -157,22 +157,50 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     }
   };
 
-  const handleUpdateGroup = async (e) => {
+const handleUpdateGroup = async (e) => {
     e.preventDefault(); 
     if (!editingGroup) return; 
     setUpdatingGroup(true);
+    
     const fd = new FormData(e.target);
     const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-    const updates = { [`group${suf}`]: fd.get('groupName'), classroom: fd.get('classroom') };
+    
+    // Función auxiliar para obtener el nombre completo del staff mediante su ID
+    const getName = (id) => {
+      if (!id) return "";
+      const found = usersList.find(u => u.id === id);
+      return found ? found.fullName : "";
+    };
+
+    const updates = { 
+      [`group${suf}`]: fd.get('groupName'), 
+      classroom: fd.get('classroom'),
+      // Actualización masiva de Staff
+      [`teacherId${suf}`]: fd.get('teacher'),
+      [`teacher${suf}`]: getName(fd.get('teacher')),
+      [`teacherId2${suf}`]: fd.get('teacher2Id'),
+      [`teacher2${suf}`]: getName(fd.get('teacher2Id')),
+      [`auxId${suf}`]: fd.get('auxId'),
+      [`aux${suf}`]: getName(fd.get('auxId')),
+      // Links de Drive
+      [`driveLink${suf}`]: fd.get('driveLink'),
+      institucionalDrive: fd.get('institucionalDrive')
+    };
 
     try {
+      // Ejecutamos la actualización en todos los alumnos que pertenecen a este grupo
       const promises = editingGroup.students.map(s => 
         updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)
       );
+      
       await Promise.all(promises);
       setEditingGroup(null);
-      alert("✅ Grupo actualizado correctamente.");
-    } catch (err) { alert(err.message); } finally { setUpdatingGroup(false); }
+      alert("✅ Datos del grupo actualizados en todos los legajos individuales.");
+    } catch (err) { 
+      alert("Error en actualización masiva: " + err.message); 
+    } finally { 
+      setUpdatingGroup(false); 
+    }
   };
 
   const handleSaveIncident = async (type, severity = "medium", text = "") => {
