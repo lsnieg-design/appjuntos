@@ -51,9 +51,30 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     });
     return () => { unsubS(); unsubU(); unsubGM(); };
   }, [db, appId]);
+// --- LÓGICA DE AGRUPAMIENTO ---
+  const groupedData = students.reduce((acc, s) => {
+    const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
+    const gName = s[`group${suf}`];
+    if (!gName) return acc;
+    if (!acc[gName]) acc[gName] = { 
+      name: gName, 
+      students: [], 
+      teacher: s[`teacher${suf}`], 
+      teacherId: s[`teacherId${suf}`],
+      classroom: s.classroom, 
+      driveLink: s[`driveLink${suf}`], 
+      institucionalDrive: s.institucionalDrive 
+    };
+    acc[gName].students.push(s);
+    return acc;
+  }, {});
 
+  const gruposFinales = Object.values(groupedData).sort((a, b) => 
+    a.name.includes("INICIAL") ? -1 : a.name.localeCompare(b.name)
+  );
 
-  // --- FUNCIÓN DE IMPRESIÓN INTELIGENTE (Corregida) ---
+  // --- FUNCIONES DE ACCIÓN ---
+
   const printGroups = (groupsList) => {
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
@@ -96,9 +117,8 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     h += `</body></html>`;
     const docIframe = iframe.contentWindow.document; docIframe.open(); docIframe.write(h); docIframe.close();
     setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); document.body.removeChild(iframe); }, 500);
-  }; // <--- AQUÍ TERMINA LA FUNCIÓN DE IMPRESIÓN
+  };
 
-  // --- FUNCIÓN DE INFORMES (AHORA FUERA DE LA OTRA) ---
   const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
     const campo = `informe${numeroInforme}`;
     const info = estudiante[campo] || { status: 'Pendiente' };
@@ -113,57 +133,15 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', estudiante.id), { 
         [campo]: { status: proximo, updatedAt: new Date().toISOString() } 
       });
-      
       const nuevosEstudiantes = selectedGroupDetails.students.map(s => 
         s.id === estudiante.id ? { ...s, [campo]: { status: proximo } } : s
       );
       setSelectedGroupDetails({ ...selectedGroupDetails, students: nuevosEstudiantes });
-    } catch (e) { console.error(e); }
-  };
-   
-    
-    if (info.status === 'Pendiente') proximo = 'Hecho';
-    else if (info.status === 'Hecho') proximo = 'Impreso';
-    else if (info.status === 'Impreso') proximo = 'Enviado';
-    else if (info.status === 'Enviado') proximo = 'Archivado';
-
-    try {
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', estudiante.id), { 
-        [campo]: { status: proximo, updatedAt: new Date().toISOString() } 
-      });
-      // Esto actualiza el modal abierto en el momento
-      const nuevosEstudiantes = selectedGroupDetails.students.map(s => 
-        s.id === estudiante.id ? { ...s, [campo]: { status: proximo } } : s
-      );
-      setSelectedGroupDetails({ ...selectedGroupDetails, students: nuevosEstudiantes });
-    } catch (e) { console.error(e); }
-  };
-    const campo = `informe${numeroInforme}`;
-    const estadoActual = estudiante[campo] || { status: 'Pendiente' };
-    let proximo = 'Pendiente';
-    
-    // Ciclo: Pendiente -> Hecho -> Impreso -> Enviado -> Archivado
-    if (estadoActual.status === 'Pendiente') proximo = 'Hecho';
-    else if (estadoActual.status === 'Hecho') proximo = 'Impreso';
-    else if (estadoActual.status === 'Impreso') proximo = 'Enviado';
-    else if (estadoActual.status === 'Enviado') proximo = 'Archivado';
-
-    try {
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', estudiante.id), { 
-        [campo]: { status: proximo, updatedAt: new Date().toISOString() } 
-      });
-      // Actualizamos visualmente el estado local para que no tengas que recargar
-      const nuevosEstudiantes = selectedGroupDetails.students.map(s => 
-        s.id === estudiante.id ? { ...s, [campo]: { status: proximo } } : s
-      );
-      setSelectedGroupDetails({ ...selectedGroupDetails, students: nuevosEstudiantes });
-    } catch (e) { console.error(e); }
-  };
-    const docIframe = iframe.contentWindow.document; docIframe.open(); docIframe.write(h); docIframe.close();
-    setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); document.body.removeChild(iframe); }, 500);
+    } catch (e) { 
+      console.error("Error al actualizar informe:", e); 
+    }
   };
 
-  // --- ACTUALIZACIÓN MASIVA DE GRUPO ---
   const handleUpdateGroup = async (e) => {
     e.preventDefault(); 
     if (!editingGroup) return; 
@@ -171,12 +149,9 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     const fd = new FormData(e.target);
     const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
     
-    // Capturamos los campos del formulario de tu código
     const updates = { 
       [`group${suf}`]: fd.get('groupName'), 
-      classroom: fd.get('classroom'),
-      // Agregamos actualización de docente si el select está presente
-      [`teacherId${suf}`]: fd.get('teacherId') || editingGroup.teacherId 
+      classroom: fd.get('classroom')
     };
 
     try {
@@ -185,33 +160,12 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
       );
       await Promise.all(promises);
       setEditingGroup(null);
-      alert("✅ Grupo y alumnos actualizados.");
-    } catch (err) { alert(err.message); } finally { setUpdatingGroup(false); }
-  };
-  const groupedData = students.reduce((acc, s) => {
-    const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-    const gName = s[`group${suf}`];
-    if (!gName) return acc;
-    if (!acc[gName]) acc[gName] = { name: gName, students: [], teacher: s[`teacher${suf}`], classroom: s.classroom, driveLink: s[`driveLink${suf}`], institucionalDrive: s.institucionalDrive };
-    acc[gName].students.push(s);
-    return acc;
-  }, {});
-
-  const groups = Object.values(groupedData).sort((a, b) => a.name.includes("INICIAL") ? -1 : a.name.localeCompare(b.name));
-
-  const printGroups = (list) => {
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
-    document.body.appendChild(iframe);
-    let h = `<html><head><style>body{font-family:sans-serif;padding:20px;}.header{background:#f3f4f6;padding:10px;border-left:5px solid #7c3aed;margin-bottom:10px;}table{width:100%;border-collapse:collapse;font-size:11px;}th{background:#7c3aed;color:white;padding:8px;text-align:left;}td{border:1px solid #ddd;padding:8px;}</style></head><body>`;
-    list.forEach(g => {
-      h += `<div class="header"><h2>${g.name}</h2><p>Doc: ${g.teacher || 'S/D'} | Aula: ${g.classroom || '-'}</p></div><table><thead><tr><th>Alumno</th><th>DNI</th></tr></thead><tbody>`;
-      g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).forEach(s => { h += `<tr><td>${s.lastName}, ${s.firstName}</td><td>${s.dni || '-'}</td></tr>`; });
-      h += `</tbody></table><br/>`;
-    });
-    h += `</body></html>`;
-    const doc = iframe.contentWindow.document; doc.open(); doc.write(h); doc.close();
-    setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); document.body.removeChild(iframe); }, 500);
+      alert("✅ Grupo actualizado correctamente.");
+    } catch (err) { 
+      alert("Error al actualizar: " + err.message); 
+    } finally { 
+      setUpdatingGroup(false); 
+    }
   };
 
   const handleSaveIncident = async (type, severity = "medium", text = "") => {
@@ -219,24 +173,47 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     if (!activeStudent) return;
     setSavingIncident(true);
     try {
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', activeStudent.id), { incidents: arrayUnion({ date: new Date().toISOString(), type: text ? "Nota" : type, severity, text: text || type, author: user.fullName || user.firstName, authorId: user.id }) });
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { score: increment(10) });
-      setShowBitacoraModal(null); setIsWriting(false); setNewNote("");
-      alert("✅ Guardado.");
-    } catch (e) { alert(e.message); } finally { setSavingIncident(false); }
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', activeStudent.id), { 
+        incidents: arrayUnion({ 
+          date: new Date().toISOString(), 
+          type: text ? "Nota" : type, 
+          severity, 
+          text: text || type, 
+          author: user.fullName || user.firstName, 
+          authorId: user.id 
+        }) 
+      });
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { 
+        score: increment(10) 
+      });
+      setShowBitacoraModal(null); 
+      setIsWriting(false); 
+      setNewNote("");
+      alert("✅ Registro guardado.");
+    } catch (e) { 
+      alert(e.message); 
+    } finally { 
+      setSavingIncident(false); 
+    }
   };
 
-  const handleUpdateGroup = async (e) => {
-    e.preventDefault(); if (!editingGroup) return; setUpdatingGroup(true);
-    const fd = new FormData(e.target);
-    const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-    const updates = { [`group${suf}`]: fd.get('groupName'), classroom: fd.get('classroom') };
+  const handleAddGroupComment = async (e, groupName) => {
+    e.preventDefault();
+    const text = e.target.comment.value;
+    if (!text.trim()) return;
     try {
-      await Promise.all(editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)));
-      setEditingGroup(null);
-    } catch (err) { alert(err.message); } finally { setUpdatingGroup(false); }
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'group_mural'), {
+        groupName,
+        text,
+        author: user.firstName,
+        authorId: user.id,
+        createdAt: serverTimestamp()
+      });
+      e.target.reset();
+    } catch (err) { 
+      alert(err.message); 
+    }
   };
-
  
 
   return (
