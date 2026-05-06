@@ -13,12 +13,19 @@ import {
 import { doc, updateDoc, arrayUnion, increment } from 'firebase/firestore';
 
 const INCIDENT_TYPES = [
-  { label: 'Llegada Tarde', emoji: '⏰', color: 'bg-amber-50 border-amber-200 text-amber-700', severity: 'low' },
-  { label: 'Retiro Ant.', emoji: '🏃', color: 'bg-blue-50 border-blue-200 text-blue-700', severity: 'low' },
-  { label: 'Crisis/Berrinche', emoji: '🌋', color: 'bg-red-50 border-red-200 text-red-700', severity: 'high' },
-  { label: 'Logro Pedag.', emoji: '🌟', color: 'bg-emerald-50 border-emerald-200 text-emerald-700', severity: 'low' },
-  { label: 'Accidente', emoji: '🩹', color: 'bg-orange-50 border-orange-200 text-orange-700', severity: 'medium' },
-  { label: 'Material Falta', emoji: '🎒', color: 'bg-slate-50 border-slate-200 text-slate-700', severity: 'low' }
+    { label: "Trabajó Muy Bien", emoji: "🌟", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
+    { label: "Ayudó a un amigo", emoji: "🤝", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
+    { label: "Logro de Aprendizaje", emoji: "🚀", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
+    { label: "Buena Conducta", emoji: "😇", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
+    { label: "Crisis Llanto", emoji: "😭", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" },
+    { label: "Higiene / Esfínter", emoji: "💩", severity: "medium", color: "bg-blue-100 border-blue-300 text-blue-800" }, 
+    { label: "No trabajó", emoji: "💤", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
+    { label: "Llegada Tarde", emoji: "🕑", severity: "low", color: "bg-yellow-50 border-yellow-200 text-yellow-700" },
+    { label: "No comió", emoji: "🍽️", severity: "low", color: "bg-blue-50 border-blue-200 text-blue-700" }, 
+    { label: "Agresión / Violencia", emoji: "👊", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
+    { label: "Brote / Gritos", emoji: "🤬", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
+    { label: "Fuga / Intento", emoji: "🏃", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
+    { label: "Convulsión / Salud", emoji: "🚑", severity: "high", color: "bg-indigo-100 border-indigo-300 text-indigo-800" }, 
 ];
 
 export function StudentDetailView({ student, onClose, onEdit, db, appId, user }) {
@@ -123,7 +130,7 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
         <div className="p-6 overflow-y-auto space-y-6 no-scrollbar flex-1">
           {activeTabModal === "info" ? (
             <div className="space-y-5 animate-in fade-in">
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center shadow-sm">
                   <p className="text-[8px] font-black text-slate-400 uppercase mb-1 tracking-widest">DNI</p>
                   <p className="font-bold text-slate-800 text-xs">{student.dni || '-'}</p>
