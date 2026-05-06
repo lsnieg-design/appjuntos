@@ -51,12 +51,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     });
     return () => { unsubS(); unsubU(); unsubGM(); };
   }, [db, appId]);
-// --- ESTADOS PARA IMPRESIÓN (Asegurate de tener estos arriba) ---
-  const [showPrintOptions, setShowPrintOptions] = useState(false);
-  const [groupsToPrint, setGroupsToPrint] = useState([]);
-  const [printColumns, setPrintColumns] = useState({
-    dni: true, birthDate: true, healthInsurance: false, contacts: true, photo: false
-  });
+
 
   // --- FUNCIÓN DE IMPRESIÓN INTELIGENTE ---
   const printGroups = (groupsList) => {
