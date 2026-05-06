@@ -231,26 +231,42 @@ const filteredStudents = students.filter(s => {
       e.preventDefault(); 
       const fd = new FormData(e.target); 
       const d = Object.fromEntries(fd.entries()); 
+      
       d.isActive = d.isActive === 'true'; 
       d.photoUrl = photoPreview || editingStudent?.photoUrl || ''; 
       d.modality = formModalidad; 
       
+      // Función para obtener nombre por ID
+      const getStaffName = (id) => usersList.find(u => u.id === id)?.fullName || "";
+
+      // Mapeo automático de nombres para Sede
+      if (formModalidad === 'Sede') {
+          d.teacherMorning = getStaffName(d.teacherIdMorning);
+          d.teacherAfternoon = getStaffName(d.teacherIdAfternoon);
+          d.auxMorning = getStaffName(d.auxIdMorning);
+          d.auxAfternoon = getStaffName(d.auxIdAfternoon);
+      }
+      
       try { 
           if (editingStudent) { 
               await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', editingStudent.id), d);
-              // Actualiza la ficha abierta para que veas los cambios al instante
               if (viewingStudent?.id === editingStudent.id) {
                   setViewingStudent({ ...editingStudent, ...d });
               }
           } else { 
-              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { ...d, isActive: true, createdAt: serverTimestamp(), incidents: [] }); 
+              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'students'), { 
+                ...d, 
+                isActive: true, 
+                createdAt: serverTimestamp(), 
+                incidents: [] 
+              }); 
           } 
           setShowForm(false); 
           setEditingStudent(null); 
           setPhotoPreview(null); 
       } catch (err) { alert("Error: " + err.message); } 
-  }; // <--- ESTA ERA LA LLAVE QUE FALTABA
-
+  };
+  
   const handleDelete = async (id) => { 
       if(confirm("⚠️ ¿Eliminar definitivamente?")) { 
           await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', id)); 
@@ -865,24 +881,39 @@ const findDuplicates = () => {
                         </div>
 
                         {/* SUB-SECCIÓN POR MODALIDAD */}
-                        {formModalidad === 'Sede' ? (
-                            <>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <input name="groupMorning" defaultValue={editingStudent?.groupMorning} placeholder="Grupo TM" className="p-2 rounded-lg border text-xs w-full bg-white" />
-                                    <input name="groupAfternoon" defaultValue={editingStudent?.groupAfternoon} placeholder="Grupo TT" className="p-2 rounded-lg border text-xs w-full bg-white" />
-                                </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <select name="teacherMorning" defaultValue={editingStudent?.teacherMorning} className="p-2 rounded-lg border text-xs w-full bg-white">
-                                        <option value="">Docente TM...</option>
-                                        {staffSede.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
-                                    </select>
-                                    <select name="teacherAfternoon" defaultValue={editingStudent?.teacherAfternoon} className="p-2 rounded-lg border text-xs w-full bg-white">
-                                        <option value="">Docente TT...</option>
-                                        {staffSede.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
-                                    </select>
-                                </div>
-                            </>
-                        ) : (
+                     {formModalidad === 'Sede' ? (
+    <>
+        {/* GRUPOS */}
+        <div className="grid grid-cols-2 gap-2">
+            <input name="groupMorning" defaultValue={editingStudent?.groupMorning} placeholder="Grupo TM" className="p-2 rounded-lg border text-xs w-full bg-white" />
+            <input name="groupAfternoon" defaultValue={editingStudent?.groupAfternoon} placeholder="Grupo TT" className="p-2 rounded-lg border text-xs w-full bg-white" />
+        </div>
+        
+        {/* DOCENTES TITULARES */}
+        <div className="grid grid-cols-2 gap-2">
+            <select name="teacherIdMorning" defaultValue={editingStudent?.teacherIdMorning} className="p-2 rounded-lg border text-xs w-full bg-white">
+                <option value="">Docente TM...</option>
+                {staffSede.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+            </select>
+            <select name="teacherIdAfternoon" defaultValue={editingStudent?.teacherIdAfternoon} className="p-2 rounded-lg border text-xs w-full bg-white">
+                <option value="">Docente TT...</option>
+                {staffSede.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+            </select>
+        </div>
+
+        {/* AUXILIARES / PRECEPTORES (Campos faltantes) */}
+        <div className="grid grid-cols-2 gap-2">
+            <select name="auxIdMorning" defaultValue={editingStudent?.auxIdMorning} className="p-2 rounded-lg border text-xs w-full bg-orange-50 border-orange-100">
+                <option value="">Auxiliar TM...</option>
+                {staffSede.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+            </select>
+            <select name="auxIdAfternoon" defaultValue={editingStudent?.auxIdAfternoon} className="p-2 rounded-lg border text-xs w-full bg-orange-50 border-orange-100">
+                <option value="">Auxiliar TT...</option>
+                {staffSede.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+            </select>
+        </div>
+    </>
+) : (
                             <>
                                 <input name="originSchool" defaultValue={editingStudent?.originSchool} placeholder="Escuela de Origen" className="w-full p-2 rounded-lg border text-xs font-bold bg-white" />
                                 <input name="originGrade" defaultValue={editingStudent?.originGrade} placeholder="Grado/Año" className="w-full p-2 rounded-lg border text-xs bg-white" />
