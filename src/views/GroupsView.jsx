@@ -53,19 +53,32 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
   }, [db, appId]);
 
   // --- LÓGICA DE AGRUPAMIENTO OPTIMIZADA ---
+// Nueva variable de estado para alternar vista (agregala arriba con los otros useState)
+  const [viewMode, setViewMode] = useState('Sede'); 
+
   const gruposFinales = React.useMemo(() => {
     const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
+    
     const grouped = students.reduce((acc, s) => {
-      const gName = s[`group${suf}`];
+      // Si el alumno no coincide con la modalidad seleccionada, lo saltamos
+      const studentModality = s.modality || 'Sede';
+      if (studentModality !== viewMode) return acc;
+
+      // Definimos el nombre del grupo según la modalidad
+      // Sede: usa el nombre del grupo | Inclusión: usa el nombre de la DAI
+      const gName = viewMode === 'Sede' 
+        ? s[`group${suf}`] 
+        : (s[`dai${suf}`] || 'SIN DAI ASIGNADA');
+
       if (!gName) return acc;
+      
       if (!acc[gName]) {
         acc[gName] = { 
           name: gName, 
           students: [], 
-          teacher: s[`teacher${suf}`], 
-          teacherId: s[`teacherId${suf}`],
-          aux: s[`aux${suf}`] || 'S/D',
-          classroom: s.classroom, 
+          teacher: viewMode === 'Sede' ? (s[`teacher${suf}`] || 'Sin asignar') : gName, 
+          aux: viewMode === 'Sede' ? (s[`aux${suf}`] || 'S/D') : (s.originSchool || 'Escuela común'),
+          classroom: viewMode === 'Sede' ? s.classroom : s.originGrade, 
           driveLink: s[`driveLink${suf}`], 
           institucionalDrive: s.institucionalDrive 
         };
@@ -73,10 +86,11 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
       acc[gName].students.push(s);
       return acc;
     }, {});
+
     return Object.values(grouped).sort((a, b) => 
       a.name.includes("INICIAL") ? -1 : a.name.localeCompare(b.name)
     );
-  }, [students, turn]);
+  }, [students, turn, viewMode]);
 
   // --- FUNCIONES DE ACCIÓN ---
 
@@ -194,13 +208,21 @@ return (
           </button>
         </div>
 
-        <div className="flex bg-gray-100 p-1 rounded-2xl mx-2">
-          <button onClick={() => setTurn('morning')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-400'}`}>☀️ MAÑANA</button>
-          <button onClick={() => setTurn('afternoon')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase transition-all ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 TARDE</button>
-        </div>
-      </div>
+      <div className="flex flex-col md:flex-row gap-2 mx-2">
+          {/* Selector de Turno */}
+          <div className="flex bg-gray-100 p-1 rounded-2xl flex-1">
+            <button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-400'}`}>☀️ MAÑANA</button>
+            <button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 TARDE</button>
+          </div>
 
-     {/* 2. ÁREA DE GRUPOS CON FLECHAS FLOTANTES */}
+          {/* Selector de Modalidad (NUEVO) */}
+          <div className="flex bg-gray-200 p-1 rounded-2xl">
+            <button onClick={() => setViewMode('Sede')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${viewMode === 'Sede' ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-500'}`}>Sede</button>
+            <button onClick={() => setViewMode('Inclusión')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${viewMode === 'Inclusión' ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-500'}`}>Inclusión</button>
+          </div>
+        </div>
+
+  {/* 2. ÁREA DE GRUPOS CON FLECHAS FLOTANTES */}
       <div className="flex-1 relative flex items-start overflow-hidden">
         
         {/* FLECHA IZQUIERDA */}
@@ -211,7 +233,7 @@ return (
           <ChevronLeft size={32} strokeWidth={3} />
         </button>
 
-        {/* CONTENEDOR PRINCIPAL: Ahora permite que el contenido crezca */}
+        {/* CONTENEDOR PRINCIPAL */}
         <div 
           ref={scrollRef} 
           className="h-full w-full overflow-x-auto flex gap-6 p-6 scroll-smooth no-scrollbar items-start"
@@ -220,7 +242,7 @@ return (
           {gruposFinales.map((g) => (
             <div key={g.name} className="flex flex-col min-w-[340px] bg-white rounded-[40px] border border-slate-200 shadow-sm overflow-hidden h-fit mb-10">
               
-              {/* CABECERA TARJETA */}
+              {/* CABECERA TARJETA: AJUSTADA PARA INCLUSIÓN/SEDE */}
               <div className={`p-6 border-b-4 relative ${turn === 'morning' ? 'border-orange-400 bg-orange-50/50' : 'border-indigo-400 bg-indigo-50/50'}`}>
                 <div className="absolute top-4 right-4 flex gap-1">
                   <button onClick={() => { setGroupsToPrint([g]); setShowPrintOptions(true); }} className="p-2 bg-white/80 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>
@@ -228,20 +250,33 @@ return (
                   {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/80 hover:bg-white rounded-full text-slate-400 shadow-sm transition"><Edit3 size={14}/></button>}
                 </div>
                 
+                {/* Nombre del Grupo o Nombre de la DAI */}
                 <h3 className="font-black text-slate-800 text-xl leading-tight pr-16 uppercase">{g.name}</h3>
                 
+                {/* ETIQUETAS DINÁMICAS */}
                 <div className="flex flex-wrap gap-2 mt-3">
-                  <span className="bg-white text-violet-700 px-2 py-1 rounded-lg text-[9px] font-black uppercase shadow-sm border border-violet-100">{g.students.length} Alumnxs</span>
-                  {g.classroom && <span className="bg-white text-orange-700 px-2 py-1 rounded-lg text-[9px] font-black border border-orange-100 uppercase">Aula {g.classroom}</span>}
+                  <span className="bg-white text-violet-700 px-2 py-1 rounded-lg text-[9px] font-black uppercase shadow-sm border border-violet-100">
+                    {g.students.length} {viewMode === 'Sede' ? 'Alumnxs' : 'Integradxs'}
+                  </span>
+                  {g.classroom && (
+                    <span className="bg-white text-orange-700 px-2 py-1 rounded-lg text-[9px] font-black border border-orange-100 uppercase">
+                      {viewMode === 'Sede' ? `Aula ${g.classroom}` : `Grado: ${g.classroom}`}
+                    </span>
+                  )}
                 </div>
 
+                {/* STAFF DINÁMICO (Aquí es donde se hace el ajuste visual que pedías) */}
                 <div className="mt-4 pt-3 border-t border-slate-200/50 space-y-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">DOC: <span className="text-slate-700 font-black">{g.teacher || 'Sin asignar'}</span></p>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">AUX: <span className="text-slate-700 font-black">{g.aux || 'S/D'}</span></p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
+                    {viewMode === 'Sede' ? 'DOC:' : 'DAI:'} <span className="text-slate-700 font-black">{g.teacher || 'Sin asignar'}</span>
+                  </p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
+                    {viewMode === 'Sede' ? 'AUX:' : 'ESCUELA:'} <span className="text-slate-700 font-black">{g.aux || 'S/D'}</span>
+                  </p>
                 </div>
               </div>
 
-              {/* LISTADO ALUMNOS: h-fit y sin scroll interno */}
+              {/* LISTADO ALUMNOS */}
               <div className="p-4 bg-slate-50/30 space-y-2 h-fit">
                 {g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
                   <div key={s.id} onClick={() => setSelectedStudent(s)} className="bg-white p-3 rounded-[24px] shadow-sm flex items-center justify-between cursor-pointer border-2 border-transparent hover:border-violet-200 transition-all group/item">
