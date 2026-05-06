@@ -179,9 +179,32 @@ const INCIDENT_TYPES = [
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', estudiante.id), { [campo]: { status: nextStatus } });
       if (new Date() >= new Date('2026-05-01')) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { score: increment(5) });
     } catch (e) { console.error(e); }
-  };
+  };// --- PARCHE: LÓGICA DE IMPRESIÓN ---
+  const printGroups = (groupsList) => {
+    const iframe = document.createElement('iframe'); 
+    iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0'; 
+    document.body.appendChild(iframe);
+    
+    let h = `<html><head><title>Listado</title><style>
+      body{font-family:sans-serif; padding:20px;} 
+      .header { background: #f3f4f6; border-left: 5px solid #7c3aed; padding: 10px; margin-bottom: 10px; }
+      table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 30px; }
+      th { background: #7c3aed; color: white; padding: 8px; text-align: left; }
+      td { border: 1px solid #ddd; padding: 8px; }
+    </style></head><body><h1>Listado de Alumnos - Turno ${turn === 'morning' ? 'Mañana' : 'Tarde'}</h1>`;
 
- // ... (arriba queda todo igual)
+    groupsList.forEach(g => {
+        h += `<div class="header"><h2>${g.name}</h2><p>Docente: ${g.teacher || 'S/D'} | Aula: ${g.classroom || '-'}</p></div>
+        <table><thead><tr><th>Nombre y Apellido</th><th>DNI</th><th>Contacto</th></tr></thead><tbody>`;
+        g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).forEach(s => {
+            h += `<tr><td>${s.lastName}, ${s.firstName}</td><td>${s.dni || '-'}</td><td>${s.motherContact || s.fatherContact || '-'}</td></tr>`;
+        });
+        h += `</tbody></table>`;
+    });
+    h += `</body></html>`;
+    const doc = iframe.contentWindow.document; doc.open(); doc.write(h); doc.close();
+    setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); document.body.removeChild(iframe); }, 500);
+  };
 
   return (
     <div className="flex flex-col h-full bg-slate-100 animate-in fade-in relative">
@@ -199,12 +222,19 @@ const INCIDENT_TYPES = [
 
       {/* BARRA DE NAVEGACIÓN Y FILTROS */}
       <div className="bg-white p-4 shadow-sm z-10 sticky top-0 flex flex-col gap-3">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center px-2">
               <div>
                   <h2 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2"><Grid size={24} className="text-orange-500"/> Mis Grupos</h2>
                   <p className="text-xs text-gray-400 font-bold uppercase">{isManagement ? "Vista Institucional" : `Espacio Docente`}</p>
               </div>
-              {isManagement && <button onClick={() => { setGroupsToPrint(groups); setShowPrintOptions(true); }} className="bg-violet-100 text-violet-700 p-2 rounded-xl shadow-sm hover:bg-violet-200 transition"><Printer size={24}/></button>}
+              {/* BOTÓN DE IMPRESIÓN GENERAL (ARREGLADO) */}
+              <button 
+                onClick={() => printGroups(groups)} 
+                className="bg-violet-100 text-violet-700 p-2.5 rounded-xl hover:bg-violet-200 transition shadow-sm"
+                title="Imprimir todos los grupos"
+              >
+                <Printer size={24}/>
+              </button>
           </div>
           <div className="flex gap-2">
               <div className="flex bg-gray-100 p-1 rounded-xl flex-1">
@@ -220,14 +250,31 @@ const INCIDENT_TYPES = [
           <button onClick={() => scroll('right')} className="hidden md:flex absolute right-2 top-1/2 z-20 bg-white/90 text-violet-600 p-3 rounded-full shadow-xl border border-gray-100 hover:scale-110 transition -translate-y-1/2"><ChevronRight size={24}/></button>
           <div ref={scrollRef} className="h-full overflow-x-auto p-6 scroll-smooth flex gap-6 items-start">
             {groups.map((g) => (
-              <div key={g.name} className="flex flex-col min-w-[320px] bg-white rounded-[35px] border shadow-sm relative overflow-hidden transition-all hover:shadow-md h-[calc(100vh-250px)]">
-                <div className={`p-5 border-b-4 relative ${turn==='morning'?'border-orange-400 bg-orange-50':'border-indigo-400 bg-indigo-50'}`}>
-                  <div className="absolute top-4 right-4 flex gap-1">
-                    <button onClick={() => setSelectedGroupDetails(g)} className="p-2 bg-violet-600 text-white rounded-full shadow-lg hover:scale-110 transition active:scale-95"><Plus size={16}/></button>
-                  </div>
-                  <h3 className="font-black text-gray-800 text-lg leading-tight uppercase">{g.name}</h3>
-                  <p className="text-[10px] text-gray-500 font-bold uppercase mt-1">Doc: {g.teacher || 'Vacante'}</p>
-                </div>
+              {/* PARCHE: CABECERA DE TARJETA CON ETIQUETAS */}
+<div className={`p-5 border-b-4 relative ${turn==='morning'?'border-orange-400 bg-orange-50':'border-indigo-400 bg-indigo-50'}`}>
+  <div className="absolute top-4 right-4 flex gap-1">
+    {/* Botón de imprimir individual */}
+    <button onClick={() => printGroups([g])} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>
+    {/* Botón Plus para ver seguimiento */}
+    <button onClick={() => setSelectedGroupDetails(g)} className="p-2 bg-violet-600 text-white rounded-full shadow-lg hover:scale-110 transition active:scale-95"><Plus size={16}/></button>
+  </div>
+  
+  <h3 className="font-black text-slate-800 text-lg leading-tight uppercase pr-16">{g.name}</h3>
+  
+  <div className="flex items-center gap-2 mt-2">
+    {/* Etiqueta de cantidad */}
+    <span className="bg-white/80 text-violet-700 px-2 py-0.5 rounded-md text-[9px] font-black shadow-sm border border-violet-100 uppercase">
+      {g.students.length} Estudiantes
+    </span>
+    {/* Etiqueta de Aula */}
+    {g.classroom && (
+      <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-md text-[9px] font-black border border-orange-200 uppercase">
+        Aula {g.classroom}
+      </span>
+    )}
+  </div>
+  <p className="text-[10px] text-gray-500 font-bold uppercase mt-2 italic tracking-tighter">Doc: {g.teacher || 'Vacante'}</p>
+</div>
 
                 <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50 space-y-2 content-start">
                   {g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
