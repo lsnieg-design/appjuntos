@@ -731,7 +731,7 @@ return (
           </div>
         </div>
       )}
-    </div> // Este cierra el div principal (className="flex flex-col h-full...")
+    </div>
   );
-} // Este cierra la función export function GroupsView
+}
 
