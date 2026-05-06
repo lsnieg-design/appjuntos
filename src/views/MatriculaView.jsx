@@ -19,6 +19,7 @@ import {
 
 export function MatriculaView({ user, db, appId, initStudentId }) { 
   const [students, setStudents] = useState([]);
+  const [viewingStudent, setViewingStudent] = useState(null);
   const [savingIncident, setSavingIncident] = useState(false);
   const [usersList, setUsersList] = useState([]); 
   const [showQuickFix, setShowQuickFix] = useState(false);
@@ -132,18 +133,23 @@ const [statOnlyPreTaller, setStatOnlyPreTaller] = useState(false);
         if (typeof uSocial === 'function') uSocial(); 
     };
   }, [appId]);
-useEffect(() => {
+
+  useEffect(() => {
     if (initStudentId && students.length > 0) {
       const target = students.find(s => s.id === initStudentId);
       if (target) {
-        setViewingStudent(target);
-        setActiveModalTab('info');
-        // Limpiamos filtros para que no haya conflictos visuales
-        setFilterText(''); 
-        setShowArchived(false);
+        // Usamos un pequeño timeout para dar tiempo a que React termine de renderizar la pestaña
+        const timer = setTimeout(() => {
+          setViewingStudent(target);
+          setActiveModalTab('info');
+          setFilterText(''); 
+          setShowArchived(false);
+        }, 100);
+        return () => clearTimeout(timer);
       }
     }
-}, [initStudentId, students]);
+  }, [initStudentId, students]);
+  
   // Listas auxiliares para selects
   const staffSede = (usersList||[]).filter(u => ['Docente', 'Auxiliar/Preceptor', 'Equipo Técnico'].includes(u.role));
   const staffInclusion = (usersList||[]).filter(u => ['DAI', 'Equipo Técnico Inclusión', 'Inclusión'].includes(u.role));
