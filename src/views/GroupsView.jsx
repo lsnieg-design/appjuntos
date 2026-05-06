@@ -188,13 +188,46 @@ const handleUpdateGroup = async (e) => {
     const fd = new FormData(e.target);
     const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
     
-    // Función auxiliar para obtener el nombre completo del staff mediante su ID
     const getName = (id) => {
       if (!id) return "";
       const found = usersList.find(u => u.id === id);
       return found ? found.fullName : "";
     };
 
+    // Capturamos los valores del formulario
+    const teacherId = fd.get('teacher');
+    const teacher2Id = fd.get('teacher2Id');
+    const auxId = fd.get('auxId');
+    const groupName = fd.get('groupName');
+    const classroom = fd.get('classroom');
+
+    const updates = { 
+      [`group${suf}`]: groupName, 
+      classroom: classroom,
+      [`teacherId${suf}`]: teacherId,
+      [`teacher${suf}`]: getName(teacherId),
+      [`teacherId2${suf}`]: teacher2Id,
+      [`teacher2${suf}`]: getName(teacher2Id),
+      [`auxId${suf}`]: auxId,
+      [`aux${suf}`]: getName(auxId), // ESTE ES EL CAMPO QUE USAMOS EN LA TARJETA
+      institucionalDrive: fd.get('institucionalDrive'),
+      [`driveLink${suf}`]: fd.get('driveLink')
+    };
+
+    try {
+      const promises = editingGroup.students.map(s => 
+        updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates)
+      );
+      
+      await Promise.all(promises);
+      setEditingGroup(null);
+      alert("✅ Staff y Grupo actualizados correctamente.");
+    } catch (err) { 
+      alert("Error: " + err.message); 
+    } finally { 
+      setUpdatingGroup(false); 
+    }
+  };
     const updates = { 
       [`group${suf}`]: fd.get('groupName'), 
       classroom: fd.get('classroom'),
