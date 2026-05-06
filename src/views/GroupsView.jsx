@@ -53,7 +53,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
   }, [db, appId]);
 
 
-  // --- FUNCIÓN DE IMPRESIÓN INTELIGENTE ---
+  // --- FUNCIÓN DE IMPRESIÓN INTELIGENTE (Corregida) ---
   const printGroups = (groupsList) => {
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
@@ -96,11 +96,31 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     h += `</body></html>`;
     const docIframe = iframe.contentWindow.document; docIframe.open(); docIframe.write(h); docIframe.close();
     setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); document.body.removeChild(iframe); }, 500);
-  };
-    const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
+  }; // <--- AQUÍ TERMINA LA FUNCIÓN DE IMPRESIÓN
+
+  // --- FUNCIÓN DE INFORMES (AHORA FUERA DE LA OTRA) ---
+  const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
     const campo = `informe${numeroInforme}`;
     const info = estudiante[campo] || { status: 'Pendiente' };
     let proximo = 'Pendiente';
+    
+    if (info.status === 'Pendiente') proximo = 'Hecho';
+    else if (info.status === 'Hecho') proximo = 'Impreso';
+    else if (info.status === 'Impreso') proximo = 'Enviado';
+    else if (info.status === 'Enviado') proximo = 'Archivado';
+
+    try {
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', estudiante.id), { 
+        [campo]: { status: proximo, updatedAt: new Date().toISOString() } 
+      });
+      
+      const nuevosEstudiantes = selectedGroupDetails.students.map(s => 
+        s.id === estudiante.id ? { ...s, [campo]: { status: proximo } } : s
+      );
+      setSelectedGroupDetails({ ...selectedGroupDetails, students: nuevosEstudiantes });
+    } catch (e) { console.error(e); }
+  };
+   
     
     if (info.status === 'Pendiente') proximo = 'Hecho';
     else if (info.status === 'Hecho') proximo = 'Impreso';
@@ -324,82 +344,87 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
         </div>
       )}
 
+      {/* 4. PANEL ENFOQUE GRUPO (CHAT + INFORMES) */}
       {selectedGroupDetails && (
         <div className="fixed inset-0 bg-white z-[500] flex flex-col animate-in fade-in">
-           <div className="p-4 border-b-4 border-violet-100 flex justify-between items-center bg-white shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="bg-violet-600 text-white p-2 rounded-xl shadow-lg"><Users size={20}/></div>
-                <div><h2 className="text-xl font-black uppercase italic text-slate-800 leading-none">{selectedGroupDetails.name}</h2><p className="text-[9px] font-bold text-violet-400 uppercase tracking-widest mt-1">Control de Gestión</p></div>
+          <div className="p-4 border-b-4 border-violet-100 flex justify-between items-center bg-white shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="bg-violet-600 text-white p-2 rounded-xl shadow-lg"><Users size={20}/></div>
+              <div><h2 className="text-xl font-black uppercase italic text-slate-800 leading-none">{selectedGroupDetails.name}</h2><p className="text-[9px] font-bold text-violet-400 uppercase tracking-widest mt-1">Control de Gestión</p></div>
+            </div>
+            <button onClick={() => setSelectedGroupDetails(null)} className="p-3 bg-slate-100 rounded-full text-slate-400 hover:text-red-500 transition-all"><X size={24}/></button>
+          </div>
+          
+          <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-white">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="grid grid-cols-2 gap-3">
+                <button onClick={() => window.open(selectedGroupDetails.institucionalDrive, '_blank')} className="p-4 bg-emerald-50 text-emerald-700 rounded-3xl font-black text-[10px] uppercase border border-emerald-100 flex items-center justify-center gap-2 shadow-sm"><Folder size={18}/> Drive Institucional</button>
+                <button onClick={() => window.open(selectedGroupDetails.driveLink, '_blank')} className="p-4 bg-blue-50 text-blue-700 rounded-3xl font-black text-[10px] uppercase border border-blue-100 flex items-center justify-center gap-2 shadow-sm"><FileText size={18}/> Fotos del Grupo</button>
               </div>
-              <button onClick={() => setSelectedGroupDetails(null)} className="p-3 bg-slate-100 rounded-full text-slate-400 hover:text-red-500 transition-all"><X size={24}/></button>
-           </div>
-           
-           <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-white">
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                <div className="grid grid-cols-2 gap-3">
-                    <button onClick={() => window.open(selectedGroupDetails.institucionalDrive, '_blank')} className="p-4 bg-emerald-50 text-emerald-700 rounded-3xl font-black text-[10px] uppercase border border-emerald-100 flex items-center justify-center gap-2 shadow-sm"><Folder size={18}/> Fotos</button>
-                    <button onClick={() => window.open(selectedGroupDetails.driveLink, '_blank')} className="p-4 bg-blue-50 text-blue-700 rounded-3xl font-black text-[10px] uppercase border border-blue-100 flex items-center justify-center gap-2 shadow-sm"><FileText size={18}/> Drive</button>
-                </div>
-                <div className="flex bg-slate-100 p-1 rounded-2xl mb-4">
-                    {[1, 2, 3].map(n => (
-                      <button key={n} onClick={() => setInformeEpoca(n)} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${informeEpoca === n ? 'bg-white text-violet-600 shadow-sm' : 'text-slate-400'}`}>Informe {n === 1 ? 'Inicial' : n === 2 ? 'Medio' : 'Final'}</button>
-                    ))}
-                </div>
-                <div className="space-y-3 pb-20">
-                  {selectedGroupDetails.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
-                    <div key={s.id} className="flex items-center justify-between p-5 bg-white rounded-[30px] border-2 border-slate-100 hover:border-violet-200 transition-all">
-                      <span className="font-black text-base text-slate-700 uppercase tracking-tighter">{s.lastName}, {s.firstName}</span>
-                      <button onClick={() => handleToggleInformeGrupo(s, informeEpoca)} className={`px-6 py-4 rounded-2xl text-[10px] font-black uppercase text-white shadow-md active:scale-95 transition-all ${s[`informe${informeEpoca}`]?.status === 'Pendiente' ? 'bg-slate-300' : 'bg-blue-600'}`}>{s[`informe${informeEpoca}`]?.status || 'Pendiente'}</button>
-                    </div>
-                  ))}
-                </div>
+              <div className="flex bg-slate-100 p-1 rounded-2xl mb-4">
+                {[1, 2, 3].map(n => (
+                  <button key={n} onClick={() => setInformeEpoca(n)} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${informeEpoca === n ? 'bg-white text-violet-600 shadow-sm' : 'text-slate-400'}`}>Informe {n === 1 ? 'Inicial' : n === 2 ? 'Medio' : 'Final'}</button>
+                ))}
               </div>
+              <div className="space-y-3 pb-20">
+                {selectedGroupDetails.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
+                  <div key={s.id} className="flex items-center justify-between p-5 bg-white rounded-[30px] border-2 border-slate-100 hover:border-violet-200 transition-all">
+                    <span className="font-black text-base text-slate-700 uppercase tracking-tighter">{s.lastName}, {s.firstName}</span>
+                    <button onClick={() => handleToggleInformeGrupo(s, informeEpoca)} className={`px-6 py-4 rounded-2xl text-[10px] font-black uppercase text-white shadow-md active:scale-95 transition-all ${s[`informe${informeEpoca}`]?.status === 'Pendiente' ? 'bg-slate-300' : 'bg-blue-600'}`}>{s[`informe${informeEpoca}`]?.status || 'Pendiente'}</button>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-              <div className="w-full lg:w-[450px] bg-slate-50 border-l border-slate-200 flex flex-col">
-                  <div className="p-5 bg-white/80 border-b flex items-center gap-3 shrink-0">
-                    <div className="p-2 bg-orange-500 text-white rounded-xl shadow-lg"><MessageSquare size={18}/></div>
-                    <div><h3 className="font-black text-slate-800 uppercase italic text-sm">Muro</h3></div>
-                  </div>
-                  <div className="flex-1 overflow-y-auto p-5 flex flex-col-reverse space-y-3 custom-scrollbar">
-                      {groupMessages[selectedGroupDetails.name]?.map(m => (
-                        <div key={m.id} className={`flex flex-col ${m.authorId === user.id ? 'items-end' : 'items-start'}`}>
-                          <div className={`max-w-[85%] p-4 rounded-[25px] shadow-sm ${m.authorId === user.id ? 'bg-violet-600 text-white rounded-tr-none' : 'bg-white text-slate-700 rounded-tl-none border border-slate-200'}`}>
-                            <p className="text-[9px] font-black uppercase mb-1">{m.author}</p>
-                            <p className="text-sm font-medium leading-tight">{m.text}</p>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                  <form onSubmit={(e) => handleAddGroupComment(e, selectedGroupDetails.name)} className="p-6 bg-white border-t-2 border-slate-100 flex gap-2">
-                    <input name="comment" autoComplete="off" placeholder="Escribir novedad..." className="flex-1 p-4 bg-slate-50 border-2 border-slate-200 rounded-[30px] text-sm font-bold text-slate-700 outline-none focus:border-orange-300" />
-                    <button type="submit" className="bg-orange-500 text-white p-4 rounded-full shadow-lg"><Send size={20}/></button>
-                  </form>
+            <div className="w-full lg:w-[450px] bg-slate-50 border-l border-slate-200 flex flex-col">
+              <div className="p-5 bg-white/80 border-b flex items-center gap-3 shrink-0">
+                <div className="p-2 bg-orange-500 text-white rounded-xl shadow-lg"><MessageSquare size={18}/></div>
+                <div><h3 className="font-black text-slate-800 uppercase italic text-sm">Muro de Intercambio</h3></div>
               </div>
-           </div>
+              <div className="flex-1 overflow-y-auto p-5 flex flex-col-reverse space-y-3 custom-scrollbar">
+                {groupMessages[selectedGroupDetails.name]?.map(m => (
+                  <div key={m.id} className={`flex flex-col ${m.authorId === user.id ? 'items-end' : 'items-start'}`}>
+                    <div className={`max-w-[85%] p-4 rounded-[25px] shadow-sm ${m.authorId === user.id ? 'bg-violet-600 text-white rounded-tr-none' : 'bg-white text-slate-700 rounded-tl-none border border-slate-200'}`}>
+                      <p className="text-[9px] font-black uppercase mb-1">{m.author}</p>
+                      <p className="text-sm font-medium leading-tight">{m.text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <form onSubmit={(e) => handleAddGroupComment(e, selectedGroupDetails.name)} className="p-6 bg-white border-t-2 border-slate-100 flex gap-2">
+                <input name="comment" autoComplete="off" placeholder="Escribir novedad..." className="flex-1 p-4 bg-slate-50 border-2 border-slate-200 rounded-[30px] text-sm font-bold text-slate-700 outline-none focus:border-orange-300" />
+                <button type="submit" className="bg-orange-500 text-white p-4 rounded-full shadow-lg"><Send size={20}/></button>
+              </form>
+            </div>
+          </div>
         </div>
       )}
 
+      {/* 5. DIÁLOGO DE EDICIÓN DE GRUPO */}
       {editingGroup && (
-         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
-            <form onSubmit={handleUpdateGroup} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto no-scrollbar">
-               <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-black text-violet-900 uppercase italic">Editar Grupo</h3><button type="button" onClick={() => setEditingGroup(null)}><X size={20}/></button></div>
-               <div className="space-y-4">
-                  <div><label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Nombre Grupo</label><input name="groupName" defaultValue={editingGroup.name} className="w-full p-3 bg-slate-50 rounded-xl font-black text-sm uppercase outline-none focus:ring-2 ring-violet-100 border-b-2 border-violet-200" /></div>
-                  <div><label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Aula Física</label><input name="classroom" defaultValue={editingGroup.classroom || ""} className="w-full p-3 bg-slate-50 rounded-xl font-bold text-sm outline-none" /></div>
-                  <button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs mt-4 hover:scale-[1.02] transition-all">{updatingGroup ? "Guardando..." : "Aplicar Cambios"}</button>
-               </div>
-            </form>
-         </div>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
+          <form onSubmit={handleUpdateGroup} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto no-scrollbar">
+            <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-black text-violet-900 uppercase italic">Editar Grupo</h3><button type="button" onClick={() => setEditingGroup(null)}><X size={20}/></button></div>
+            <div className="space-y-4">
+              <div><label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Nombre Grupo</label><input name="groupName" defaultValue={editingGroup.name} className="w-full p-3 bg-slate-50 rounded-xl font-black text-sm uppercase outline-none focus:ring-2 ring-violet-100 border-b-2 border-violet-200" /></div>
+              <div><label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Aula Física</label><input name="classroom" defaultValue={editingGroup.classroom || ""} className="w-full p-3 bg-slate-50 rounded-xl font-bold text-sm outline-none" /></div>
+              <button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs mt-4 hover:scale-[1.02] transition-all">{updatingGroup ? "Guardando..." : "Aplicar Cambios"}</button>
+            </div>
+          </form>
+        </div>
       )}
-    </div>
-    {showPrintOptions && (
+
+      {/* 6. MODAL DE OPCIONES DE IMPRESIÓN */}
+      {showPrintOptions && (
         <div className="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl border-t-8 border-violet-600">
             <h3 className="text-xl font-black text-violet-900 uppercase italic mb-4">Opciones de Impresión</h3>
             <div className="space-y-2 mb-6">
               {Object.keys(printColumns).map(col => (
                 <label key={col} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl cursor-pointer">
-                  <span className="text-xs font-bold uppercase text-gray-600">{col === 'healthInsurance' ? 'Obra Social' : col}</span>
+                  <span className="text-xs font-bold uppercase text-gray-600">
+                    {col === 'healthInsurance' ? 'Obra Social' : col === 'birthDate' ? 'Nacimiento' : col === 'contacts' ? 'Familia' : col === 'photo' ? 'Foto' : col}
+                  </span>
                   <input type="checkbox" checked={printColumns[col]} onChange={() => setPrintColumns({...printColumns, [col]: !printColumns[col]})} className="w-5 h-5 accent-violet-600" />
                 </label>
               ))}
@@ -409,6 +434,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
           </div>
         </div>
       )}
+    </div> // Fin del div principal
   );
-}
+} // Fin de la función
 
