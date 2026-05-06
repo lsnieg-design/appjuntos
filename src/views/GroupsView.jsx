@@ -254,16 +254,18 @@ const INCIDENT_TYPES = [
           </div>
       </div>
 
-      {/* MODAL DETALLE ESTUDIANTE (NUEVO ARCHIVO) */}
- {/* MODAL DETALLE ESTUDIANTE (NUEVO ARCHIVO) */}
-      {selectedStudent && (
-        <StudentDetailView 
-          student={selectedStudent} 
-          user={user} 
-          db={db} 
-          appId={appId}
-          onClose={() => setSelectedStudent(null)} 
-          onEdit={(s) => {
+   {selectedStudent && (
+  <StudentDetailView 
+    student={selectedStudent} 
+    user={user} db={db} appId={appId}
+    onClose={() => setSelectedStudent(null)} 
+    onEdit={(s) => {
+       setSelectedStudent(null);
+       onSelectStudent(s.id); // <--- ESTO SETEA EL ID GLOBALMENTE
+       setActiveTab('matricula'); // <--- ESTO CAMBIA LA PESTAÑA
+    }}
+  />
+)}
              // CERRAMOS EL MODAL ACTUAL
              setSelectedStudent(null);
              // GUARDAMOS EL ID EN EL ESTADO GLOBAL DE APP.JSX
