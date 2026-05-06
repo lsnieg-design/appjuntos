@@ -69,11 +69,34 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     acc[gName].students.push(s);
     return acc;
   }, {});
+// --- LÓGICA DE AGRUPAMIENTO OPTIMIZADA ---
+  const gruposFinales = React.useMemo(() => {
+    console.log("Calculando grupos..."); // Solo verás esto cuando realmente cambien los datos
+    const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
+    
+    const grouped = students.reduce((acc, s) => {
+      const gName = s[`group${suf}`];
+      if (!gName) return acc;
+      
+      if (!acc[gName]) {
+        acc[gName] = { 
+          name: gName, 
+          students: [], 
+          teacher: s[`teacher${suf}`], 
+          teacherId: s[`teacherId${suf}`],
+          classroom: s.classroom, 
+          driveLink: s[`driveLink${suf}`], 
+          institucionalDrive: s.institucionalDrive 
+        };
+      }
+      acc[gName].students.push(s);
+      return acc;
+    }, {});
 
-  const gruposFinales = Object.values(groupedData).sort((a, b) => 
-    a.name.includes("INICIAL") ? -1 : a.name.localeCompare(b.name)
-  );
-
+    return Object.values(grouped).sort((a, b) => 
+      a.name.includes("INICIAL") ? -1 : a.name.localeCompare(b.name)
+    );
+  }, [students, turn]); // SOLO se recalcula si cambian los alumnos o el turno
   // --- FUNCIONES DE ACCIÓN ---
 
   const printGroups = (groupsList) => {
@@ -253,36 +276,69 @@ const handleUpdateGroup = async (e) => {
       </div>
 
       <div className="flex-1 overflow-hidden relative">
-        <div ref={scrollRef} className="h-full overflow-x-auto p-6 scroll-smooth flex gap-6 items-start no-scrollbar">
-          {gruposFinales.map((g) => (
-            <div key={g.name} className="flex flex-col min-w-[320px] bg-white rounded-[35px] border border-gray-200 shadow-sm overflow-hidden h-[calc(100vh-250px)]">
-              <div className={`p-5 border-b-4 relative ${turn === 'morning' ? 'border-orange-400 bg-orange-50' : 'border-indigo-400 bg-indigo-50'}`}>
-                <div className="absolute top-4 right-4 flex gap-1">
-                  <button onClick={() => { setGroupsToPrint([g]); setShowPrintOptions(true); }} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm"><Printer size={14}/></button>
-                  <button onClick={() => setSelectedGroupDetails(g)} className="p-2 bg-violet-600 text-white rounded-full shadow-lg"><Plus size={16}/></button>
-                  {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"><Edit3 size={14}/></button>}
+  <div ref={scrollRef} className="h-full overflow-x-auto p-6 scroll-smooth flex gap-6 items-start no-scrollbar">
+    {gruposFinales.map((g) => (
+      <div key={g.name} className="flex flex-col min-w-[320px] bg-white rounded-[35px] border border-gray-200 shadow-sm overflow-hidden h-[calc(100vh-250px)]">
+        {/* CABECERA DE TARJETA */}
+        <div className={`p-5 border-b-4 relative ${turn === 'morning' ? 'border-orange-400 bg-orange-50' : 'border-indigo-400 bg-indigo-50'}`}>
+          <div className="absolute top-4 right-4 flex gap-1">
+            <button onClick={() => { setGroupsToPrint([g]); setShowPrintOptions(true); }} className="p-2 bg-white/50 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>
+            <button onClick={() => setSelectedGroupDetails(g)} className="p-2 bg-violet-600 text-white rounded-full shadow-lg hover:scale-110 transition active:scale-95"><Plus size={16}/></button>
+            {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/50 hover:bg-white rounded-full text-gray-600 shadow-sm transition"><Edit3 size={14}/></button>}
+          </div>
+          
+          <h3 className="font-black text-slate-800 text-lg leading-tight pr-16 uppercase">{g.name}</h3>
+          
+          {/* ETIQUETAS */}
+          <div className="flex flex-wrap gap-2 mt-3">
+            <span className="bg-white/80 text-violet-700 px-2 py-0.5 rounded-md text-[9px] font-black uppercase shadow-sm border border-violet-100">
+              {g.students.length} Estudiantes
+            </span>
+            {g.classroom && (
+              <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-md text-[9px] font-black border border-orange-200 uppercase">
+                Aula {g.classroom}
+              </span>
+            )}
+          </div>
+
+          {/* STAFF RESPONSABLE */}
+          <div className="mt-3 space-y-1">
+            <p className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+              <User size={10} className="text-violet-500"/> Doc: <span className="text-slate-800 font-black">{g.teacher || 'Sin asignar'}</span>
+            </p>
+            <p className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+              <Users size={10} className="text-orange-500"/> Aux: <span className="text-slate-800 font-black">{g.aux || 'S/D'}</span>
+            </p>
+          </div>
+        </div>
+
+        {/* LISTADO DE ALUMNOS */}
+        <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50 space-y-2 content-start">
+          {g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
+            <div key={s.id} onClick={() => setSelectedStudent(s)} className="bg-white p-3 rounded-2xl shadow-sm flex items-center justify-between cursor-pointer border border-transparent hover:border-violet-100 transition-all group">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-400 border border-slate-200 text-sm overflow-hidden">
+                  {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover transition-transform group-hover:scale-110"/> : s.firstName[0]}
                 </div>
-                <h3 className="font-black text-slate-800 text-lg leading-tight pr-16 uppercase">{g.name}</h3>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="bg-white/80 text-violet-700 px-2 py-0.5 rounded-md text-[9px] font-black uppercase">{g.students.length} Estudiantes</span>
-                  {g.classroom && <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-md text-[9px] font-black border border-orange-200 uppercase">Aula {g.classroom}</span>}
-                </div>
+                <span className="font-bold text-xs text-slate-700 uppercase">{s.lastName}, {s.firstName}</span>
               </div>
-              <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50 space-y-2 content-start">
-                {g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
-                  <div key={s.id} onClick={() => setSelectedStudent(s)} className="bg-white p-3 rounded-2xl shadow-sm flex items-center justify-between cursor-pointer border border-transparent hover:border-violet-100 transition-all">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-400 border border-slate-200 text-sm">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover rounded-xl"/> : s.firstName[0]}</div>
-                      <span className="font-bold text-xs text-slate-700 uppercase">{s.lastName}, {s.firstName}</span>
-                    </div>
-                    <button onClick={(e) => {e.stopPropagation(); setShowBitacoraModal(s); setIsWriting(false);}} className="w-8 h-8 bg-violet-50 text-violet-400 rounded-full flex items-center justify-center">⚡</button>
-                  </div>
-                ))}
-              </div>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation(); 
+                  setShowBitacoraModal(s); 
+                  setIsWriting(false);
+                }} 
+                className="w-8 h-8 bg-violet-50 text-violet-400 rounded-full flex items-center justify-center hover:bg-violet-600 hover:text-white transition-colors"
+              >
+                ⚡
+              </button>
             </div>
           ))}
         </div>
       </div>
+    ))}
+  </div>
+</div>
 
       {selectedStudent && (
         <StudentDetailView student={selectedStudent} user={user} db={db} appId={appId} onClose={() => setSelectedStudent(null)} onEdit={(s) => { setSelectedStudent(null); setFullFileStudent(s); }} />
