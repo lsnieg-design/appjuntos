@@ -386,11 +386,9 @@ return (
                   </div>
 
                   {/* COLUMNA 2: FAMILIA Y CONTACTO */}
-                  <div className="space-y-6">
+                 <div className="space-y-6">
                     <section className="bg-white p-6 rounded-[35px] shadow-sm border border-slate-100 h-full">
-                      <h4 className="text-orange-600 font-black text-[11px] uppercase mb-4 flex items-center gap-2 border-b border-orange-50 pb-2">
-                        <Users size={16}/> Grupo Familiar
-                      </h4>
+                      <h4 className="text-orange-600 font-black text-[11px] uppercase mb-4 flex items-center gap-2 border-b border-orange-50 pb-2"><Users size={16}/> Grupo Familiar</h4>
                       <div className="space-y-6">
                         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                           <p className="text-[9px] text-orange-500 font-black uppercase mb-1">Madre / Tutor 1</p>
@@ -402,13 +400,7 @@ return (
                           <p className="font-black text-slate-700 text-sm">{fullFileStudent.fatherName || 'No cargado'}</p>
                           <p className="text-blue-600 font-bold text-xs mt-1 flex items-center gap-1"><Phone size={10}/> {fullFileStudent.fatherContact || '-'}</p>
                         </div>
-                        <div className="pt-2">
-                          <p className="text-[9px] text-slate-400 font-bold uppercase">Domicilio</p>
-                          <div className="flex items-start gap-2 mt-1">
-                            <MapPin size={14} className="text-slate-300 shrink-0 mt-1"/>
-                            <p className="font-bold text-slate-600 text-sm leading-tight">{fullFileStudent.address || 'Sin dirección registrada'}</p>
-                          </div>
-                        </div>
+                        <div className="pt-2"><p className="text-[9px] text-slate-400 font-bold uppercase">Domicilio</p><div className="flex items-start gap-2 mt-1"><MapPin size={14} className="text-slate-300 shrink-0 mt-1"/><p className="font-bold text-slate-600 text-sm leading-tight">{fullFileStudent.address || 'Sin dirección registrada'}</p></div></div>
                       </div>
                     </section>
                   </div>
