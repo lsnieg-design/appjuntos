@@ -362,7 +362,7 @@ return (
                       <h4 className="text-violet-600 font-black text-[11px] uppercase mb-4 flex items-center gap-2 border-b border-violet-50 pb-2">
                         <User size={16}/> Información Base
                       </h4>
-                      <div className="space-y-4">
+                    <div className="space-y-4">
                         <div><p className="text-[9px] text-slate-400 font-bold uppercase">Diagnóstico (DX)</p><p className="font-black text-slate-700 bg-violet-50 p-2 rounded-xl text-sm mt-1 uppercase inline-block">{fullFileStudent.dx || 'S/D'}</p></div>
                         <div><p className="text-[9px] text-slate-400 font-bold uppercase">Edad Actual</p><p className="font-black text-slate-700 text-base">{calculateAge(fullFileStudent.birthDate)} años</p></div>
                         <div><p className="text-[9px] text-slate-400 font-bold uppercase">Fecha de Nacimiento</p><p className="font-bold text-slate-600 text-sm">{getSafeDate(fullFileStudent.birthDate)}</p></div>
@@ -622,7 +622,7 @@ return (
         </div>
       )}
 
-      {/* 5. DIÁLOGO DE EDICIÓN DE GRUPO */}
+   
      {/* 5. DIÁLOGO DE EDICIÓN DE GRUPO (COMPLETO) */}
       {editingGroup && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
