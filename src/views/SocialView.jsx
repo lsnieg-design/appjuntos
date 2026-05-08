@@ -72,7 +72,10 @@ export function SocialView({ user, db, appId }) {
       };
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', caseId), { history: arrayUnion(autoNote) });
     }
-
+const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+      await updateDoc(userRef, { score: increment(10) }); // Suma 10 puntos por el seguimiento
+      // ----------------------------------------------
+    }
     const newSteps = { 
       ...c.steps, 
       [stepName]: { ...c.steps?.[stepName], [field]: !currentValue, date: !currentValue ? new Date().toLocaleDateString('es-AR') : null, author: userFullName } 
