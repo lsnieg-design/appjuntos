@@ -14,8 +14,7 @@ import {
   collection, addDoc, doc, updateDoc, deleteDoc, serverTimestamp 
 } from 'firebase/firestore';
 
-
-export function ResourcesView({ resources, canEdit, db, appId }) {
+export function ResourcesView({ resources, canEdit, db, appId, user }) {
   const [showModal, setShowModal] = useState(false);
   const [editingRes, setEditingRes] = useState(null); 
   
@@ -293,55 +292,59 @@ export function ResourcesView({ resources, canEdit, db, appId }) {
                 <button onClick={() => setShowNotaModal(false)} className="flex-1 text-gray-400 font-black text-xs uppercase py-4">VOLVER</button>
                 <button 
                   onClick={async () => {
-  if(!notaData.title && !notaData.body) return alert("Escribí algo.");
-  
-  const element = document.getElementById('nota-canvas');
-  
-  try {
-    const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
-    
-    // OPCIONES ANTI-ENCIMAMIENTO PARA MÓVILES
-    const canvas = await html2canvas(element, { 
-      scale: 2, // Bajamos a 2 para que el móvil procese más rápido sin perder calidad
-      useCORS: true, 
-      allowTaint: true,
-      backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
-      logging: false,
-      // EL SECRETO: Forzamos el ancho para que no dependa de la pantalla del celu
-      width: 600,
-      windowWidth: 600, 
-      onclone: (clonedDoc) => {
-        const container = clonedDoc.getElementById('nota-canvas');
-        // Quitamos cualquier restricción de altura y forzamos el renderizado
-        container.style.transform = "none";
-        container.style.width = "600px";
-        
-        const txt = container.querySelector('.whitespace-pre-wrap');
-        if (txt) { 
-          // Limpiamos estilos que causan encimamiento en móviles
-          txt.style.wordSpacing = 'normal'; 
-          txt.style.letterSpacing = 'normal';
-          txt.style.lineHeight = '1.6';
-          txt.style.paddingLeft = '40px';
-          txt.style.paddingRight = '40px';
-          txt.style.display = "block";
-          txt.style.width = "100%";
-        }
-      }
-    }); 
+                    if(!notaData.title && !notaData.body) return alert("Escribí algo.");
+                    
+                    const element = document.getElementById('nota-canvas');
+                    
+                    try {
+                      // --- SUMA DE PUNTOS POR PROFESIONALIZAR LA COMUNICACIÓN ---
+                      const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+                      await updateDoc(userRef, { score: increment(15) });
+                      
+                      const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
+                      
+                      // OPCIONES ANTI-ENCIMAMIENTO PARA MÓVILES
+                      const canvas = await html2canvas(element, { 
+                        scale: 2, // Calidad óptima para procesamiento rápido
+                        useCORS: true, 
+                        allowTaint: true,
+                        backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
+                        logging: false,
+                        width: 600,
+                        windowWidth: 600, 
+                        onclone: (clonedDoc) => {
+                          const container = clonedDoc.getElementById('nota-canvas');
+                          // Forzamos el renderizado correcto para la captura
+                          container.style.transform = "none";
+                          container.style.width = "600px";
+                          
+                          const txt = container.querySelector('.whitespace-pre-wrap');
+                          if (txt) { 
+                            txt.style.wordSpacing = 'normal'; 
+                            txt.style.letterSpacing = 'normal';
+                            txt.style.lineHeight = '1.6';
+                            txt.style.paddingLeft = '40px';
+                            txt.style.paddingRight = '40px';
+                            txt.style.display = "block";
+                            txt.style.width = "100%";
+                          }
+                        }
+                      }); 
 
-    // Convertimos a imagen y descargamos
-    const imgData = canvas.toDataURL('image/jpeg', 0.9);
-    const link = document.createElement('a');
-    link.download = `Nota_${(notaData.title || 'Nota').substring(0,10)}.jpg`;
-    link.href = imgData;
-    link.click();
-    
-  } catch (error) { 
-    console.error(error);
-    alert("Error al generar imagen. Intenta de nuevo."); 
-  }
-}}
+                      // Convertimos a imagen y descargamos
+                      const imgData = canvas.toDataURL('image/jpeg', 0.9);
+                      const link = document.createElement('a');
+                      link.download = `Nota_${(notaData.title || 'Nota').substring(0,10)}.jpg`;
+                      link.href = imgData;
+                      link.click();
+                      
+                      alert("🚀 ¡Nota generada! Sumaste 15 puntos.");
+                      
+                    } catch (error) { 
+                      console.error("Error al generar nota:", error);
+                      alert("Error al generar imagen. Intenta de nuevo."); 
+                    }
+                  }}
                   className="flex-[3] bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-sm uppercase tracking-[4px] rounded-2xl shadow-xl hover:scale-[1.02] transition py-4 flex items-center justify-center gap-2"
                 >
                   <Download size={20}/> DESCARGAR NOTA OFICIAL
