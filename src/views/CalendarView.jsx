@@ -344,7 +344,8 @@ return (
         onTouchStart={onTouchStart} 
         onTouchMove={onTouchMove} 
         onTouchEnd={onTouchEnd} 
-        className="flex-1 grid grid-cols-7 overflow-y-auto bg-gray-100/50 no-scrollbar min-h-[500px]"
+        className="flex-1 grid grid-cols-7 overflow-y-auto bg-gray-100/50 no-scrollbar"
+        style={{ minHeight: '500px' }} 
       >
         {renderGrid()}
       </div>
