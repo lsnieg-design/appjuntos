@@ -300,7 +300,11 @@ return (
                   <div key={s.id} onClick={() => setSelectedStudent(s)} className="bg-white p-3 rounded-[24px] shadow-sm flex items-center justify-between cursor-pointer border-2 border-transparent hover:border-violet-200 transition-all group/item">
                     <div className="flex items-center gap-3">
                       <div className="w-11 h-11 rounded-2xl bg-slate-100 flex items-center justify-center font-black text-slate-400 border border-slate-200 text-sm overflow-hidden shadow-inner">
-                        {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover group-hover/item:scale-110 transition-transform"/> : s.firstName[0]}
+                        {s.photoUrl ? (
+                          <img src={s.photoUrl} className="w-full h-full object-cover group-hover/item:scale-110 transition-transform"/>
+                        ) : (
+                          <span>{s.firstName[0]}</span>
+                        )}
                       </div>
                       <span className="font-bold text-xs text-slate-700 uppercase tracking-tight">{s.lastName}, {s.firstName}</span>
                     </div>
@@ -308,9 +312,6 @@ return (
                   </div>
                 ))}
               </div>
-            </div>
-          ))}
-        </div>
 
         {/* FLECHA DERECHA */}
         <button 
@@ -705,10 +706,10 @@ return (
               <button onClick={() => setPrintMode('staff')} className={`p-4 rounded-2xl border-2 text-left transition-all ${printMode === 'staff' ? 'border-violet-600 bg-violet-50' : 'border-slate-100'}`}><p className="font-black text-xs uppercase text-violet-900">Listado de Staff</p><p className="text-[10px] text-slate-500">Grilla de Docentes, Auxiliares y Aulas.</p></button>
             </div>
             <button onClick={() => { printGroups(groupsToPrint); setShowPrintOptions(false); }} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg mb-2">Confirmar e Imprimir</button>
-            <button onClick={() => setShowPrintOptions(false)} className="w-full py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
+           <button onClick={() => setShowPrintOptions(false)} className="w-full py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
           </div>
         </div>
       )}
-    </div> // Cierra el div principal: flex flex-col h-full...
-  ); // Cierra el return
-} // Cierra la función GroupsView
+    </div> 
+  );
+}
