@@ -219,30 +219,59 @@ const handleQuickSave = async () => {
   const openNew = () => { setEditingEvent(null); setPhotoPreview(null); setShowModal(true); };
   const openEdit = (ev) => { setEditingEvent(ev); setPhotoPreview(ev.imageUrl || null); setShowModal(true); };
 
-  const renderGrid = () => {
-    const year = currentDate.getFullYear(); const month = currentDate.getMonth();
-    const days = []; const firstDay = new Date(year, month, 1).getDay();
-    for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} className="bg-gray-50/30 border-b border-r border-gray-100"></div>);
-    for (let d = 1; d <= new Date(year, month + 1, 0).getDate(); d++) {
-      const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      const dayEvents = events.filter(e => {
+ const renderGrid = () => {
+    const year = currentDate.getFullYear(); 
+    const month = currentDate.getMonth();
+    const days = []; 
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    // Huecos días mes anterior
+    for (let i = 0; i < firstDay; i++) {
+      days.push(<div key={`empty-${i}`} className="bg-gray-50/30 border-b border-r border-gray-100 min-h-[80px] md:min-h-[120px]"></div>);
+    }
+
+    // Días del mes actual
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      
+      const dayEvents = (events || []).filter(e => {
           if (e.date !== dateStr) return false;
-          const isPrivate = e.type === 'TECNICO';
-          if (isPrivate) return isTechTeam && calendarMode === 'technical';
+          if (e.type === 'TECNICO') return isTechTeam && calendarMode === 'technical';
           if (calendarMode === 'technical') return false; 
           if (filterType !== 'TODOS' && e.type !== filterType) return false;
           return true;
       });
+
       const isToday = new Date().toDateString() === new Date(year, month, d).toDateString();
+
       days.push(
-        <div key={d} onClick={() => handleDayClick(dateStr)} className={`relative border-b border-r border-gray-100 p-1 transition flex flex-col group cursor-pointer ${isToday ? 'bg-violet-50' : 'bg-white hover:bg-gray-50'}`}>
-          <div className="flex justify-center"><span className={`text-[10px] md:text-sm w-5 h-5 md:w-7 md:h-7 flex items-center justify-center rounded-full font-bold ${isToday ? 'bg-violet-600 text-white shadow-md' : 'text-gray-500'}`}>{d}</span></div>
-          <div className="flex flex-col gap-1 mt-1 overflow-y-auto no-scrollbar flex-1">{dayEvents.map((ev, idx) => { const style = EVENT_TYPES[ev.type] ? EVENT_TYPES[ev.type].color : EVENT_TYPES['GENERAL'].color; return (<div key={idx} className={`text-[9px] md:text-xs rounded-[3px] px-1 py-0.5 truncate font-bold uppercase border-l-2 shadow-sm flex items-center justify-between ${style}`}><span>{ev.title}</span>{ev.imageUrl && <span className="opacity-50 text-[8px]">📷</span>}</div>); })}</div>
+        <div 
+          key={d} 
+          onClick={() => handleDayClick(dateStr)} 
+          className={`relative border-b border-r border-gray-100 p-1 transition flex flex-col group cursor-pointer min-h-[80px] md:min-h-[120px] ${isToday ? 'bg-violet-50/50' : 'bg-white hover:bg-gray-50'}`}
+        >
+          <div className="flex justify-center mb-1">
+            <span className={`text-[10px] md:text-sm w-6 h-6 md:w-8 md:h-8 flex items-center justify-center rounded-full font-bold ${isToday ? 'bg-violet-600 text-white shadow-md' : 'text-gray-500'}`}>
+              {d}
+            </span>
+          </div>
+          <div className="flex flex-col gap-1 overflow-y-auto no-scrollbar flex-1">
+            {dayEvents.map((ev, idx) => { 
+              const style = EVENT_TYPES[ev.type]?.color || EVENT_TYPES['GENERAL'].color; 
+              return (
+                <div key={idx} className={`text-[8px] md:text-[10px] rounded-md px-1.5 py-0.5 truncate font-bold uppercase border-l-4 shadow-sm ${style}`}>
+                  {ev.title}
+                </div>
+              ); 
+            })}
+          </div>
         </div>
       );
     }
     return days;
   };
+     
 
 return (
     <div className="flex flex-col h-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden animate-in fade-in select-none relative">
@@ -310,12 +339,12 @@ return (
         ))}
       </div>
 
-      {/* Grilla del Calendario */}
+     {/* Grilla del Calendario */}
       <div 
         onTouchStart={onTouchStart} 
         onTouchMove={onTouchMove} 
         onTouchEnd={onTouchEnd} 
-        className="flex-1 grid grid-cols-7 auto-rows-fr overflow-y-auto bg-gray-50/30 no-scrollbar"
+        className="flex-1 grid grid-cols-7 overflow-y-auto bg-gray-100/50 no-scrollbar min-h-[500px]"
       >
         {renderGrid()}
       </div>
