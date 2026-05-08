@@ -220,47 +220,67 @@ return (
         </div>
       )}
 
-  {/* 2. SISTEMA DE PUNTOS MAYO (CON FRASE DE ACCIÓN) */}
-<div className="flex-1">
-  <h3 className="font-black text-xl uppercase italic tracking-tighter text-violet-200 mb-2">
-    Objetivo Mayo: Tabla de Puntos
-  </h3>
-  
-  <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3 mb-4">
-    <div className="flex flex-col">
-      <span className="text-yellow-400 font-black text-sm leading-none">20 pts</span>
-      <span className="text-[9px] uppercase font-bold text-slate-400">Informe Etapa</span>
-    </div>
-    <div className="flex flex-col">
-      <span className="text-yellow-400 font-black text-sm leading-none">15 pts</span>
-      <span className="text-[9px] uppercase font-bold text-slate-400">Nota Oficial</span>
-    </div>
-    <div className="flex flex-col">
-      <span className="text-yellow-400 font-black text-sm leading-none">10 pts</span>
-      <span className="text-[9px] uppercase font-bold text-slate-400">Bitácora / Social</span>
-    </div>
-    <div className="flex flex-col">
-      <span className="text-yellow-400 font-black text-sm leading-none">10 pts</span>
-      <span className="text-[9px] uppercase font-bold text-slate-400">Completar Tarea</span>
-    </div>
-    <div className="flex flex-col">
-      <span className="text-yellow-400 font-black text-sm leading-none">5 pts</span>
-      <span className="text-[9px] uppercase font-bold text-slate-400">Ausentismo / Tareas</span>
-    </div>
-    <div className="flex flex-col">
-      <span className="text-yellow-400 font-black text-sm leading-none">3 pts</span>
-      <span className="text-[9px] uppercase font-bold text-slate-400">Muro de Grupo</span>
-    </div>
-  </div>
+  {/* 2. SISTEMA DE PUNTOS MAYO (RESTAURADO CON CONTENEDOR) */}
+      <div className="bg-slate-900 p-6 rounded-[35px] text-white shadow-xl mx-1 border-b-8 border-violet-600 flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-4 flex-1">
+              <div className="bg-violet-500/20 p-4 rounded-2xl animate-pulse shrink-0">
+                <Star className="text-yellow-400" size={40} fill="currentColor"/>
+              </div>
+              <div className="flex-1">
+                <h3 className="font-black text-xl uppercase italic tracking-tighter text-violet-200 mb-2">
+                  Objetivo Mayo: Tabla de Puntos
+                </h3>
+                
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3 mb-4">
+                  <div className="flex flex-col">
+                    <span className="text-yellow-400 font-black text-sm leading-none">20 pts</span>
+                    <span className="text-[9px] uppercase font-bold text-slate-400">Informe Etapa</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-yellow-400 font-black text-sm leading-none">15 pts</span>
+                    <span className="text-[9px] uppercase font-bold text-slate-400">Nota Oficial</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-yellow-400 font-black text-sm leading-none">10 pts</span>
+                    <span className="text-[9px] uppercase font-bold text-slate-400">Bitácora / Social</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-yellow-400 font-black text-sm leading-none">10 pts</span>
+                    <span className="text-[9px] uppercase font-bold text-slate-400">Completar Tarea</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-yellow-400 font-black text-sm leading-none">5 pts</span>
+                    <span className="text-[9px] uppercase font-bold text-slate-400">Ausentismo / Tareas</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-yellow-400 font-black text-sm leading-none">3 pts</span>
+                    <span className="text-[9px] uppercase font-bold text-slate-400">Muro de Grupo</span>
+                  </div>
+                </div>
 
-  {/* LÍNEA ACLARATORIA */}
-  <div className="border-t border-white/10 pt-2">
-    <p className="text-[10px] text-violet-300 font-medium italic">
-      ✨ <span className="font-bold">¡Todo suma!</span> Cada registro en bitácora, mensaje en el muro o tarea completada te acerca al podio.
-    </p>
-  </div>
-</div>
-
+                <div className="border-t border-white/10 pt-2">
+                  <p className="text-[10px] text-violet-300 font-medium italic">
+                    ✨ <span className="font-bold">¡Todo suma!</span> Cada registro en bitácora, mensaje en el muro o tarea completada te acerca al podio.
+                  </p>
+                </div>
+              </div>
+          </div>
+          
+          <div className="flex items-center gap-6 bg-white/10 p-5 rounded-[28px] border border-white/10 shrink-0">
+              <div className="text-center">
+                  <p className="text-[10px] uppercase font-black text-violet-400 tracking-widest mb-1">Tus Puntos</p>
+                  <p className="text-4xl font-black text-white">{userScore} <span className="text-xs opacity-50">pts</span></p>
+              </div>
+              <div className="h-12 w-[1px] bg-white/20"></div>
+              <button 
+                onClick={() => setShowRanking(true)} 
+                className="bg-violet-600 hover:bg-violet-500 text-white px-6 py-3 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all shadow-lg active:scale-95"
+              >
+                Ver Ranking
+              </button>
+          </div>
+      </div>
+      
       {/* 3. CUMPLES Y CUENTA REGRESIVA */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 px-1">
           {studentBirthdays.length > 0 && (
