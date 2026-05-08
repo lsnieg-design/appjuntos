@@ -389,9 +389,17 @@ function MainApp({ user, onLogout }) {
   const isWideTab = ['groups', 'calendar', 'matricula', 'resources', 'users', 'admin'].includes(activeTab);
 
   useEffect(() => {
-      if (user?.id && db) { 
-      updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { lastLogin: serverTimestamp() }).catch(()=>{});
-    }
+    // --- ESCUDO ANTIBLOQUEO ---
+    // Si no hay usuario, base de datos o appId, no hacemos nada todavía
+    if (!db || !appId || !user?.id) return; 
+    // --------------------------
+
+    // Registro de último login (solo si hay conexión)
+    updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { 
+      lastLogin: serverTimestamp() 
+    }).catch(() => {});
+
+    // Escuchas en tiempo real (Blindadas)
     const unsubTasks = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('dueDate', 'asc')), (snap) => setTasks(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const unsubEvents = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc')), (snap) => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const unsubResources = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc')), (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
@@ -405,32 +413,41 @@ function MainApp({ user, onLogout }) {
 
     const qNotifs = query(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), where('toUserId', '==', user.id));
     const unsubNotifs = onSnapshot(qNotifs, (snap) => { 
-        const d = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); d.sort((a,b)=> (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)); 
-        const unread = d.filter(n=>!n.read); setNotifications(unread);
-        if (unread.length > prevNotifCount.current) { const latest = unread[0]; if (latest) { if ("Notification" in window && Notification.permission === "granted") { new Notification(`🔔 ${latest.title}`, { body: latest.message, icon: LOGO_URL }); } try { new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play().catch(()=>{}); } catch(e){} } }
+        const d = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
+        d.sort((a,b)=> (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)); 
+        const unread = d.filter(n=>!n.read); 
+        setNotifications(unread);
+        
+        // Solo notificar si hay nuevas reales
+        if (unread.length > prevNotifCount.current) { 
+          const latest = unread[0]; 
+          if (latest && "Notification" in window && Notification.permission === "granted") { 
+            new Notification(`🔔 ${latest.title}`, { body: latest.message, icon: LOGO_URL }); 
+          } 
+        } 
         prevNotifCount.current = unread.length;
     });
 
+    // Pedir permiso de notificaciones con delay para no molestar
     if ("Notification" in window && Notification.permission === 'default') {
-        setTimeout(() => setShowNotifRequest(true), 3500);
+        const timer = setTimeout(() => setShowNotifRequest(true), 5000);
+        return () => clearTimeout(timer);
     }
 
-    return () => { unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); unsubAnnounce(); unsubMaint(); };
-  }, [user.id]);
+    return () => { 
+      unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); unsubAnnounce(); unsubMaint(); 
+    };
+  }, [user.id, db, appId]); // <--- AGREGADOS db y appId PARA RE-INTENTO AUTOMÁTICO
 
-const handleGlobalSearch = async (text) => { 
+  const handleGlobalSearch = async (text) => { 
     setSearchQuery(text); 
-    if (text.length < 2) { setSearchResults([]); return; } 
+    if (text.length < 2 || !db || !appId) { setSearchResults([]); return; } 
     
-    // --- PROTECCIÓN ANTIBLOQUEO ---
-    if (!db || !appId) return; 
-    // ------------------------------
-
     try {
       const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students')); 
       const s = await getDocs(q); 
       const r = s.docs.map(d => ({ id: d.id, ...d.data() }))
-        .filter(s => (s.isActive===undefined || s.isActive) && 
+        .filter(s => (s.isActive === undefined || s.isActive) && 
                 (s.firstName.toLowerCase().includes(text.toLowerCase()) || 
                  s.lastName.toLowerCase().includes(text.toLowerCase()))); 
       setSearchResults(r.slice(0, 5)); 
@@ -438,7 +455,7 @@ const handleGlobalSearch = async (text) => {
   };
 
   const handleNotificationClick = async (n) => { 
-    if (!db) return;
+    if (!db || !appId) return;
     try {
       await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', n.id)); 
       if (n.targetTab) setActiveTab(n.targetTab); 
@@ -462,10 +479,14 @@ const handleGlobalSearch = async (text) => {
           try { 
               const { getMessaging, getToken } = await import("firebase/messaging"); 
               const messaging = getMessaging(); 
-              const token = await getToken(messaging, { vapidKey: 'BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw' }); 
+              const token = await getToken(messaging, { 
+                vapidKey: 'BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw' 
+              }); 
               
-              if(token && db) {
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { fcmTokens: arrayUnion(token) }); 
+              if(token && db && appId) {
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { 
+                  fcmTokens: arrayUnion(token) 
+                }); 
               }
           } catch(e) { console.log("FCM Error:", e); } 
           alert("✅ ¡Genial! Te avisaremos de las novedades."); 
