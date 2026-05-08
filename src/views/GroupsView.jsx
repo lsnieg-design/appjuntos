@@ -695,7 +695,7 @@ return (
           </form>
         </div>
       )}
-      {/* 6. MODAL DE OPCIONES DE IMPRESIÓN */}
+    {/* 6. MODAL DE OPCIONES DE IMPRESIÓN */}
       {showPrintOptions && (
         <div className="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl border-t-8 border-violet-600">
@@ -709,6 +709,6 @@ return (
           </div>
         </div>
       )}
-    </div> 
-  );
-}
+    </div> // Cierra el div principal: flex flex-col h-full...
+  ); // Cierra el return
+} // Cierra la función GroupsView
