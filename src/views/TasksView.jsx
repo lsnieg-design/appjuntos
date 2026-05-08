@@ -143,7 +143,17 @@ const handleSaveTask = async (e) => {  // <--- ASEGURATE QUE DIGA "async" AQUÍ
 
   const changeStatus = async (task, newStatus) => {
     if (newStatus === 'completed' && !confirm("¿Tarea terminada?")) return;
-    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus });
+    
+    try {
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id), { status: newStatus });
+      
+      // --- SUMAR PUNTOS POR TERMINAR LA TAREA ---
+      if (newStatus === 'completed') {
+        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+        await updateDoc(userRef, { score: increment(10) });
+        alert("🎉 ¡Tarea completada! Sumaste 10 puntos.");
+      }
+    } catch (err) { alert(err.message); }
   };
 
   const handleDelete = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', id)); };
