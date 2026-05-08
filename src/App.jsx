@@ -389,7 +389,9 @@ function MainApp({ user, onLogout }) {
   const isWideTab = ['groups', 'calendar', 'matricula', 'resources', 'users', 'admin'].includes(activeTab);
 
   useEffect(() => {
-    if (user?.id) updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { lastLogin: serverTimestamp() }).catch(()=>{});
+      if (user?.id && db) { 
+      updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { lastLogin: serverTimestamp() }).catch(()=>{});
+    }
     const unsubTasks = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('dueDate', 'asc')), (snap) => setTasks(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const unsubEvents = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc')), (snap) => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const unsubResources = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc')), (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
@@ -417,32 +419,59 @@ function MainApp({ user, onLogout }) {
   }, [user.id]);
 
 const handleGlobalSearch = async (text) => { 
-  setSearchQuery(text); 
-  if (text.length < 2) { setSearchResults([]); return; } 
-  
-  // --- AGREGÁ ESTA PROTECCIÓN ---
-  if (!db) return; 
-  // ------------------------------
+    setSearchQuery(text); 
+    if (text.length < 2) { setSearchResults([]); return; } 
+    
+    // --- PROTECCIÓN ANTIBLOQUEO ---
+    if (!db || !appId) return; 
+    // ------------------------------
 
-  const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students')); 
-  // ... resto del código ...
-};
-  const handleNotificationClick = async (n) => { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', n.id)); if (n.targetTab) setActiveTab(n.targetTab); setShowNotifPanel(false); };
-  const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
+    try {
+      const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students')); 
+      const s = await getDocs(q); 
+      const r = s.docs.map(d => ({ id: d.id, ...d.data() }))
+        .filter(s => (s.isActive===undefined || s.isActive) && 
+                (s.firstName.toLowerCase().includes(text.toLowerCase()) || 
+                 s.lastName.toLowerCase().includes(text.toLowerCase()))); 
+      setSearchResults(r.slice(0, 5)); 
+    } catch (err) { console.error("Search error:", err); }
+  };
+
+  const handleNotificationClick = async (n) => { 
+    if (!db) return;
+    try {
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', n.id)); 
+      if (n.targetTab) setActiveTab(n.targetTab); 
+      setShowNotifPanel(false); 
+    } catch (err) { console.error(err); }
+  };
+
+  const calculateAge = (d) => { 
+    if (!d) return '-'; 
+    const t = new Date(); 
+    const b = new Date(d); 
+    let a = t.getFullYear() - b.getFullYear(); 
+    const m = t.getMonth() - b.getMonth(); 
+    if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; 
+    return a; 
+  };
   
   const enableNotifications = async () => { 
       const permission = await Notification.requestPermission(); 
       if (permission === 'granted') { 
           try { 
-              const { getMessaging, getToken } = await import("firebase/messaging"); const messaging = getMessaging(); 
+              const { getMessaging, getToken } = await import("firebase/messaging"); 
+              const messaging = getMessaging(); 
               const token = await getToken(messaging, { vapidKey: 'BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw' }); 
-              if(token) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { fcmTokens: arrayUnion(token) }); 
-          } catch(e) {} 
+              
+              if(token && db) {
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { fcmTokens: arrayUnion(token) }); 
+              }
+          } catch(e) { console.log("FCM Error:", e); } 
           alert("✅ ¡Genial! Te avisaremos de las novedades."); 
       } 
       setShowNotifRequest(false); 
   };
-
   return (
     <div className="flex flex-col h-[100dvh] w-full bg-gray-50 font-sans text-slate-800 overflow-hidden relative">
       <header className="bg-violet-800 text-white shadow-lg px-4 py-3 flex justify-between items-center z-50 sticky top-0 shrink-0">
