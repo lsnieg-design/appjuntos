@@ -11,7 +11,8 @@ import {
   ChevronUp // <--- ESTE ES EL QUE FALTABA
 } from 'lucide-react';
 import { 
-  collection, query, where, onSnapshot, orderBy, limit 
+  collection, query, where, onSnapshot, orderBy, limit,
+  doc, updateDoc, deleteDoc, addDoc, serverTimestamp, getDocs // <--- AGREGAR ESTOS
 } from 'firebase/firestore';
 
 
@@ -218,10 +219,32 @@ useEffect(() => {
     } catch(err) { alert("Error: " + err.message); } 
   };
   const deleteAnnouncement = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'announcements', id)); };
-  const saveNote = async (e) => { e.preventDefault(); if (!newNote.trim()) return; await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), { text: newNote, userId: user.id, done: false, createdAt: serverTimestamp() }); setNewNote(''); };
-  const toggleNote = async (note) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', note.id), { done: !note.done });
-  const deleteNote = async (id) => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', id));
-  
+  const saveNote = async (e) => { 
+    e.preventDefault(); 
+    if (!newNote.trim()) return; 
+    try {
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'notes'), { 
+        text: newNote, 
+        userId: user.id, 
+        done: false, 
+        createdAt: serverTimestamp() 
+      }); 
+      setNewNote(''); 
+    } catch (err) { console.error(err); }
+  };
+
+  const toggleNote = async (note) => {
+    try {
+      const noteRef = doc(db, 'artifacts', appId, 'public', 'data', 'notes', note.id);
+      await updateDoc(noteRef, { done: !note.done });
+    } catch (err) { console.error(err); }
+  };
+
+  const deleteNote = async (id) => {
+    try {
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notes', id));
+    } catch (err) { console.error(err); }
+  };
 const handleSaveCountdown = async () => {
       if(!newCountdownTitle || !newCountdownDate) return;
       try {
@@ -307,7 +330,19 @@ const handleSaveCountdown = async () => {
     alert("🔄 Participación diaria reseteada. ¡Podés volver a jugar!");
   };
 
-  // --- LÓGICA DE PUNTOS Y RECOMPENSAS (PLAN DE MAYO) ---
+const resetAllScores = async () => {
+    if (!isSuperAdmin) return;
+    if (!confirm("⚠️ ¿Estás segura? Esto pondrá los puntos de TODO EL PERSONAL en 0.")) return;
+    try {
+      const qUsers = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
+      const querySnapshot = await getDocs(qUsers);
+      const promises = querySnapshot.docs.map(uDoc => 
+        updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', uDoc.id), { score: 0 })
+      );
+      await Promise.all(promises);
+      alert("✅ Ranking reseteado para el nuevo mes.");
+    } catch (err) { alert("Error al resetear: " + err.message); }
+  };
 // --- LÓGICA DE PUNTOS Y RECOMPENSAS (PLAN DE MAYO) ---
   const renderChallengeOrIncentives = () => {
     const hasPlayedToday = localStorage.getItem(`lastChallenge_${user.id}`) === new Date().toDateString();
@@ -328,7 +363,7 @@ const handleSaveCountdown = async () => {
     }
 
     return (
-      <div className="bg-white p-5 rounded-[35px] shadow-sm border border-violet-100 mx-1">
+    <div className="w-full max-w-7xl mx-auto space-y-6 animate-in fade-in pb-20 custom-scrollbar">
         <h3 className="font-black text-violet-900 uppercase text-xs mb-3 flex items-center gap-2">Desafío del Día</h3>
         {currentChallenge.url ? (
           <div className="space-y-4">
@@ -570,6 +605,35 @@ const handleSaveCountdown = async () => {
                   </div>
               </div>
           </div>
+      )}
+      {/* MODAL CUMPLEAÑOS (Alumnos y Profes) */}
+      {showBirthdayModal && (
+        <div className="fixed inset-0 bg-slate-900/90 z-[9999] flex items-center justify-center p-4 backdrop-blur-md" onClick={() => setShowBirthdayModal(false)}>
+          <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 relative" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowBirthdayModal(false)} className="absolute top-4 right-4 bg-gray-100 p-2 rounded-full"><X size={20}/></button>
+            <h3 className="text-xl font-black text-violet-900 uppercase italic mb-4">
+              {birthdayModalType === 'students' ? 'Cumples Alumnos' : 'Cumples Staff'}
+            </h3>
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+              {(birthdayModalType === 'students' ? studentBirthdays : staffBirthdays).map(person => (
+                <div key={person.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-violet-100 rounded-full flex items-center justify-center font-black text-violet-600">
+                      {person.firstName?.[0] || person.fullName?.[0]}
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-800 text-sm uppercase">{person.firstName || person.fullName} {person.lastName || ''}</p>
+                      <p className="text-[10px] text-violet-500 font-black uppercase">
+                        {person.nextBirthday.toLocaleDateString('es-AR', { day: 'numeric', month: 'long' })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-2xl">🎂</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* MODAL ANUNCIOS */}
