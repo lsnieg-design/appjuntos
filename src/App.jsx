@@ -416,7 +416,17 @@ function MainApp({ user, onLogout }) {
     return () => { unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); unsubAnnounce(); unsubMaint(); };
   }, [user.id]);
 
-  const handleGlobalSearch = async (text) => { setSearchQuery(text); if (text.length < 2) { setSearchResults([]); return; } const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students')); const s = await getDocs(q); const r = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(s => (s.isActive===undefined || s.isActive) && (s.firstName.toLowerCase().includes(text.toLowerCase()) || s.lastName.toLowerCase().includes(text.toLowerCase()))); setSearchResults(r.slice(0, 5)); };
+const handleGlobalSearch = async (text) => { 
+  setSearchQuery(text); 
+  if (text.length < 2) { setSearchResults([]); return; } 
+  
+  // --- AGREGÁ ESTA PROTECCIÓN ---
+  if (!db) return; 
+  // ------------------------------
+
+  const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students')); 
+  // ... resto del código ...
+};
   const handleNotificationClick = async (n) => { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', n.id)); if (n.targetTab) setActiveTab(n.targetTab); setShowNotifPanel(false); };
   const calculateAge = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
   
@@ -590,17 +600,18 @@ function MainApp({ user, onLogout }) {
     onSelectStudent={setSelectedStudentId} // <--- AGREGÁ ESTO
   />
 )}
-      </main>
-
-      <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-16 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] pb-safe shrink-0 text-center">
-        <div className="grid grid-cols-5 h-full max-w-3xl mx-auto px-2 relative">
-          <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Inicio" />
-          {activeTab === 'users' && isSuperAdmin && (
+   {activeTab === 'users' && isSuperAdmin && db && (
   <UsersAdminView 
     db={db} 
     appId={appId} 
   />
 )}
+      </main>
+
+      <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-16 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] pb-safe shrink-0 text-center">
+        <div className="grid grid-cols-5 h-full max-w-3xl mx-auto px-2 relative">
+          <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Inicio" />
+         
           <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={20} />} label="Tareas" />
           <div className="relative -top-5 flex justify-center">
             <button onClick={() => setActiveTab('groups')} className={`w-14 h-14 rounded-full flex flex-col items-center justify-center shadow-xl border-4 border-gray-50 transition-all transform active:scale-95 ${activeTab === 'groups' ? 'bg-orange-500 text-white scale-110' : 'bg-violet-600 text-white'}`}><Grid size={24} /></button>
