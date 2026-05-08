@@ -190,8 +190,8 @@ export function DashboardView({ user, db, appId, setActiveTab, tasks = [], event
       return isSuperAdmin || t.createdById === user.id || t.targetUserId === user.id || t.targetRoles?.some(r => r.toLowerCase() === user.role?.toLowerCase());
   }).length;
 
-  return (
-    <div className="w-full max-w-7xl mx-auto space-y-6 animate-in fade-in pb-20 no-scrollbar">
+return (
+    <div className="w-full max-w-7xl mx-auto space-y-6 animate-in fade-in pb-20 overflow-y-auto h-full [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
       {/* HEADER BIENVENIDA */}
       <div className="flex justify-between items-center px-2">
           <div>
@@ -219,19 +219,35 @@ export function DashboardView({ user, db, appId, setActiveTab, tasks = [], event
         </div>
       )}
 
-      {/* 2. SISTEMA DE PUNTOS MAYO */}
+    {/* 2. SISTEMA DE PUNTOS MAYO (RESTAURADO) */}
       <div className="bg-slate-900 p-6 rounded-[35px] text-white shadow-xl mx-1 border-b-8 border-violet-600 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-4">
-              <div className="bg-violet-500/20 p-4 rounded-2xl animate-pulse"><Star className="text-yellow-400" size={32} fill="currentColor"/></div>
-              <div>
-                <h3 className="font-black text-xl uppercase italic tracking-tighter text-violet-200">Objetivo Mayo</h3>
-                <p className="text-xs font-medium opacity-80 leading-relaxed max-w-md">Ganás <span className="text-yellow-400 font-bold">10 pts</span> por cada **Evolución Médica** o **Acta de Entrevista** cargada.</p>
+              <div className="bg-violet-500/20 p-4 rounded-2xl animate-pulse">
+                <Star className="text-yellow-400" size={32} fill="currentColor"/>
+              </div>
+              <div className="flex-1">
+                <h3 className="font-black text-xl uppercase italic tracking-tighter text-violet-200 mb-2">Objetivo Mayo: Sumá Puntos</h3>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                  <p className="text-[10px] font-bold"><span className="text-yellow-400">10 pts:</span> Evolución Médica</p>
+                  <p className="text-[10px] font-bold"><span className="text-yellow-400">15 pts:</span> Acta de Entrevista</p>
+                  <p className="text-[10px] font-bold"><span className="text-yellow-400">5 pts:</span> Registro Bitácora</p>
+                  <p className="text-[10px] font-bold"><span className="text-yellow-400">20 pts:</span> Informe Completo</p>
+                </div>
               </div>
           </div>
-          <div className="flex items-center gap-6 bg-white/10 p-4 rounded-2xl border border-white/10">
-              <div className="text-center"><p className="text-[10px] uppercase font-black text-violet-400 tracking-widest">Puntos Acumulados</p><p className="text-3xl font-black text-white">{userScore} <span className="text-xs opacity-50">pts</span></p></div>
+          
+          <div className="flex items-center gap-6 bg-white/10 p-4 rounded-2xl border border-white/10 shrink-0">
+              <div className="text-center">
+                  <p className="text-[10px] uppercase font-black text-violet-400 tracking-widest">Tus Puntos</p>
+                  <p className="text-3xl font-black text-white">{userScore} <span className="text-xs opacity-50">pts</span></p>
+              </div>
               <div className="h-10 w-[1px] bg-white/20"></div>
-              <button onClick={() => setShowRanking(true)} className="bg-violet-600 hover:bg-violet-500 text-white px-5 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all shadow-lg">Ver Ranking</button>
+              <button 
+                onClick={() => setShowRanking(true)} 
+                className="bg-violet-600 hover:bg-violet-500 text-white px-5 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all shadow-lg active:scale-95"
+              >
+                Ver Ranking
+              </button>
           </div>
       </div>
 
