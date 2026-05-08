@@ -147,15 +147,23 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     const campo = `informe${numeroInforme}`;
     const info = estudiante[campo] || { status: 'Pendiente' };
     const proximo = { 'Pendiente': 'Hecho', 'Hecho': 'Impreso', 'Impreso': 'Enviado', 'Enviado': 'Archivado' }[info.status] || 'Pendiente';
+    
     try {
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', estudiante.id), { 
         [campo]: { status: proximo, updatedAt: new Date().toISOString() } 
       });
+
+      // --- SUMAR PUNTOS SI COMPLETA O ARCHIVA ---
+      if (proximo === 'Hecho' || proximo === 'Archivado') {
+        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+        await updateDoc(userRef, { score: increment(20) });
+      }
+      // ------------------------------------------
+
       const nuevosEstudiantes = selectedGroupDetails.students.map(s => s.id === estudiante.id ? { ...s, [campo]: { status: proximo } } : s);
       setSelectedGroupDetails({ ...selectedGroupDetails, students: nuevosEstudiantes });
     } catch (e) { console.error(e); }
   };
-
   const handleUpdateGroup = async (e) => {
     e.preventDefault(); 
     if (!editingGroup) return; 
@@ -196,12 +204,24 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     } catch (e) { alert(e.message); } finally { setSavingIncident(false); }
   };
 
-  const handleAddGroupComment = async (e, groupName) => {
+const handleAddGroupComment = async (e, groupName) => {
     e.preventDefault();
     const text = e.target.comment.value;
     if (!text.trim()) return;
     try {
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'group_mural'), { groupName, text, author: user.firstName, authorId: user.id, createdAt: serverTimestamp() });
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'group_mural'), { 
+        groupName, 
+        text, 
+        author: user.firstName, 
+        authorId: user.id, 
+        createdAt: serverTimestamp() 
+      });
+
+      // --- SUMAR PUNTOS POR COMUNICACIÓN ---
+      const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+      await updateDoc(userRef, { score: increment(3) }); // 3 puntos por cada aviso al equipo
+      // -------------------------------------
+
       e.target.reset();
     } catch (err) { alert(err.message); }
   };
