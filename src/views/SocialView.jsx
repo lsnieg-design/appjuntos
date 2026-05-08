@@ -57,34 +57,59 @@ export function SocialView({ user, db, appId }) {
     localStorage.setItem(`lastSeenSocial_${c.id}_${user.id}`, c.history?.length || 0);
   };
 
-  const updateStep = async (caseId, stepName) => {
+ const updateStep = async (caseId, stepName) => {
     const c = cases.find(x => x.id === caseId);
     const field = stepName === 'continuidad' ? 'sent' : 'done';
     const currentValue = c.steps?.[stepName]?.[field] || false;
     const label = stepName === 'continuidad' ? 'CONTINUIDAD PEDAGÓGICA' : 'LLAMADA A LA FAMILIA';
     const userFullName = user.fullName || `${user.firstName} ${user.lastName}`;
 
+    // Solo sumamos puntos y registro si se está marcando como REALIZADO (de false a true)
     if (!currentValue) {
       const autoNote = { 
         date: new Date().toISOString(), 
         text: `📢 REGISTRO AUTOMÁTICO: ${userFullName} marcó como REALIZADA la acción de "${label}".`, 
         author: userFullName
       };
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', caseId), { history: arrayUnion(autoNote) });
+      
+      try {
+        // Registro en el historial del caso
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', caseId), { 
+          history: arrayUnion(autoNote) 
+        });
+
+        // Suma de puntos por acción social
+        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+        await updateDoc(userRef, { score: increment(10) });
+      } catch (err) {
+        console.error("Error en updateDoc:", err);
+      }
     }
-const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-      await updateDoc(userRef, { score: increment(10) }); // Suma 10 puntos por el seguimiento
-      // ----------------------------------------------
-    }
+
     const newSteps = { 
       ...c.steps, 
-      [stepName]: { ...c.steps?.[stepName], [field]: !currentValue, date: !currentValue ? new Date().toLocaleDateString('es-AR') : null, author: userFullName } 
+      [stepName]: { 
+        ...c.steps?.[stepName], 
+        [field]: !currentValue, 
+        date: !currentValue ? new Date().toLocaleDateString('es-AR') : null, 
+        author: userFullName 
+      } 
     };
-    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', caseId), { steps: newSteps });
+
+    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', caseId), { 
+      steps: newSteps 
+    });
+
     setSelectedCase(prev => ({ 
       ...prev, 
       steps: newSteps,
-      history: !currentValue ? [...(prev.history || []), { text: `📢 REGISTRO AUTOMÁTICO: Marcaron como realizada "${label}".`, author: userFullName, date: new Date().toISOString() }] : prev.history 
+      history: !currentValue 
+        ? [...(prev.history || []), { 
+            text: `📢 REGISTRO AUTOMÁTICO: Marcaron como realizada "${label}".`, 
+            author: userFullName, 
+            date: new Date().toISOString() 
+          }] 
+        : prev.history 
     }));
   };
 
