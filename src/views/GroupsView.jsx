@@ -321,7 +321,8 @@ return (
         </button>
       </div> 
     </div>
-      {selectedStudent && (
+
+    {selectedStudent && (
         <StudentDetailView student={selectedStudent} user={user} db={db} appId={appId} onClose={() => setSelectedStudent(null)} onEdit={(s) => { setSelectedStudent(null); setFullFileStudent(s); }} />
       )}
 
