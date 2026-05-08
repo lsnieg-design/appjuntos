@@ -15,6 +15,7 @@ import {
   doc, updateDoc, deleteDoc, addDoc, serverTimestamp, getDocs 
 } from 'firebase/firestore';
 
+
 export function DashboardView({ user, db, appId, setActiveTab, tasks = [], events = [], announcements = [] }) {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEvents = events.filter(e => e.date === todayStr);
