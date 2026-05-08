@@ -295,32 +295,33 @@ return (
                 </div>
               </div>
 
-              {/* LISTADO ALUMNOS */}
+           {/* LISTADO ALUMNOS */}
               <div className="p-4 bg-slate-50/30 space-y-2 h-fit">
                 {g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
                   <div key={s.id} onClick={() => setSelectedStudent(s)} className="bg-white p-3 rounded-[24px] shadow-sm flex items-center justify-between cursor-pointer border-2 border-transparent hover:border-violet-200 transition-all group/item">
                     <div className="flex items-center gap-3">
                       <div className="w-11 h-11 rounded-2xl bg-slate-100 flex items-center justify-center font-black text-slate-400 border border-slate-200 text-sm overflow-hidden shadow-inner">
-                        {s.photoUrl ? (
-                          <img src={s.photoUrl} className="w-full h-full object-cover group-hover/item:scale-110 transition-transform"/>
-                        ) : (
-                          <span>{s.firstName[0]}</span>
-                        )}
+                        {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover group-hover/item:scale-110 transition-transform"/> : s.firstName[0]}
                       </div>
                       <span className="font-bold text-xs text-slate-700 uppercase tracking-tight">{s.lastName}, {s.firstName}</span>
                     </div>
                     <button onClick={(e) => {e.stopPropagation(); setShowBitacoraModal(s); setIsWriting(false);}} className="w-9 h-9 bg-violet-50 text-violet-500 rounded-full flex items-center justify-center hover:bg-violet-600 hover:text-white transition-all shadow-sm">⚡</button>
                   </div>
                 ))}
-              </div>
+              </div> 
+            </div>   
+          ))}
+        </div>
+        
 {/* FLECHA DERECHA */}
-      <button 
+     <button 
           onClick={() => scroll('right')}
           className="absolute right-4 top-1/2 -translate-y-1/2 z-[200] bg-white text-violet-600 p-4 rounded-full shadow-2xl border border-slate-100 hover:scale-110 active:scale-95 transition-all hidden lg:flex"
         >
           <ChevronRight size={32} strokeWidth={3} />
         </button>
-      </div>
+      </div> 
+    </div>
 
     {selectedStudent && (
         <StudentDetailView student={selectedStudent} user={user} db={db} appId={appId} onClose={() => setSelectedStudent(null)} onEdit={(s) => { setSelectedStudent(null); setFullFileStudent(s); }} />
@@ -706,10 +707,10 @@ return (
               <button onClick={() => setPrintMode('staff')} className={`p-4 rounded-2xl border-2 text-left transition-all ${printMode === 'staff' ? 'border-violet-600 bg-violet-50' : 'border-slate-100'}`}><p className="font-black text-xs uppercase text-violet-900">Listado de Staff</p><p className="text-[10px] text-slate-500">Grilla de Docentes, Auxiliares y Aulas.</p></button>
             </div>
             <button onClick={() => { printGroups(groupsToPrint); setShowPrintOptions(false); }} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg mb-2">Confirmar e Imprimir</button>
-    <button onClick={() => setShowPrintOptions(false)} className="w-full py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
+<button onClick={() => setShowPrintOptions(false)} className="w-full py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
           </div>
         </div>
       )}
-    </div> 
+    </div>
   );
 }
