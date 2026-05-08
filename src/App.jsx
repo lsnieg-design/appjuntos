@@ -494,137 +494,51 @@ const handleGlobalSearch = async (text) => {
       )}
 
 <main className={`flex-1 overflow-y-auto no-scrollbar pb-24 pt-6 mx-auto w-full transition-all duration-300 ${isWideTab ? 'px-2 max-w-[98%]' : 'px-4 max-w-4xl'}`}>
-  {activeTab === 'dashboard' && (
-    <DashboardView 
-      user={user} db={db} appId={appId} 
-      tasks={tasks} events={events} announcements={announcements} 
-      setActiveTab={setActiveTab} 
-    />
-  )}
-  
-  
-  {activeTab === 'calendar' && (
-    <CalendarView 
-      events={events} 
-      user={user} 
-      db={db} 
-      appId={appId} 
-      canEdit={canManageContent} 
-    />
-  )}
-     {activeTab === 'tasks' && (
-  <TasksView 
-    tasks={tasks} 
-    user={user} 
-    db={db} 
-    appId={appId} 
-  />
-)}
-      {activeTab === 'matricula' && (
-  <MatriculaView 
-    user={user} 
-    db={db} 
-    appId={appId} 
-    initStudentId={selectedStudentId} // <--- PASALE ESTO
-  />
-)}
-       {activeTab === 'resources' && (
-  <ResourcesView 
-    resources={resources} 
-    canEdit={canManageContent} 
-    db={db} 
-    appId={appId} 
-  />
-)}
-       {activeTab === 'profile' && (
-  <ProfileView 
-    user={user} 
-    tasks={tasks} 
-    onLogout={onLogout} 
-    isSuperAdmin={isSuperAdmin} 
-    db={db} 
-    appId={appId} 
-  />
-)}
+        
+        {/* VISTAS PÚBLICAS / DOCENTES */}
+        {activeTab === 'dashboard' && <DashboardView user={user} db={db} appId={appId} tasks={tasks} events={events} announcements={announcements} setActiveTab={setActiveTab} />}
+        {activeTab === 'calendar' && <CalendarView events={events} user={user} db={db} appId={appId} canEdit={canManageContent} />}
+        {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} db={db} appId={appId} />}
+        {activeTab === 'matricula' && <MatriculaView user={user} db={db} appId={appId} initStudentId={selectedStudentId} />}
+        {activeTab === 'groups' && <GroupsView user={user} db={db} appId={appId} setActiveTab={setActiveTab} onSelectStudent={setSelectedStudentId} />}
+        {activeTab === 'resources' && <ResourcesView resources={resources} canEdit={canManageContent} db={db} appId={appId} user={user} />}
+        {activeTab === 'social' && <SocialView user={user} db={db} appId={appId} />}
+        {activeTab === 'profile' && <ProfileView user={user} tasks={tasks} onLogout={onLogout} isSuperAdmin={isSuperAdmin} db={db} appId={appId} />}
         {activeTab === 'proyecto' && <ProyectoView user={user} />}
         {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={isSuperAdmin} user={user} />}
-       {activeTab === 'equipo' && (
-  <EquipoTecnicoView 
-    user={user} 
-    db={db} 
-    appId={appId} 
-  />
-)}
-       {activeTab === 'admin' && (
-  <AdministracionView 
-    user={user} 
-    db={db} 
-    appId={appId} 
-  />
-)}
-      {activeTab === 'personal' && db && (
-  <PersonalView 
-    user={user} 
-    db={db} 
-    appId={appId} 
-    TURNS_LIST={TURNS_LIST} 
-    VALID_ROLES_OFFICIAL={VALID_ROLES_OFFICIAL} 
-  />
-)}
-       {activeTab === 'medical' && (
-  <MedicalView 
-    user={user} 
-    db={db} 
-    appId={appId} 
-  />
-)}
-        {activeTab === 'audit' && isSuperAdmin && (
-  <ActivityLogView 
-    db={db} 
-    appId={appId} 
-  />
-)}
-    {activeTab === 'social' && (
-  <SocialView 
-    user={user} 
-    db={db} 
-    appId={appId} 
-  />
-)}
-        {activeTab === 'groups' && (
-  <GroupsView 
-    user={user} 
-    db={db} 
-    appId={appId} 
-    setActiveTab={setActiveTab} 
-    onSelectStudent={setSelectedStudentId} // <--- AGREGÁ ESTO
-  />
-)}
-   {activeTab === 'users' && isSuperAdmin && db && (
-  <UsersAdminView 
-    db={db} 
-    appId={appId} 
-  />
-)}
+
+        {/* VISTAS PRIVADAS (PROTEGIDAS CON && db) */}
+        {activeTab === 'users' && isSuperAdmin && db && <UsersAdminView db={db} appId={appId} />}
+        {activeTab === 'personal' && isAdminRole && db && <PersonalView user={user} db={db} appId={appId} TURNS_LIST={TURNS_LIST} VALID_ROLES_OFFICIAL={VALID_ROLES_OFFICIAL} />}
+        {activeTab === 'admin' && isAdminRole && db && <AdministracionView user={user} db={db} appId={appId} />}
+        {activeTab === 'equipo' && isTechTeamRole && db && <EquipoTecnicoView user={user} db={db} appId={appId} />}
+        {activeTab === 'medical' && isMedicalRole && db && <MedicalView user={user} db={db} appId={appId} />}
+        {activeTab === 'audit' && isSuperAdmin && db && <ActivityLogView db={db} appId={appId} />}
       </main>
 
       <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-16 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] pb-safe shrink-0 text-center">
         <div className="grid grid-cols-5 h-full max-w-3xl mx-auto px-2 relative">
           <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Inicio" />
-         
           <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={20} />} label="Tareas" />
+          
           <div className="relative -top-5 flex justify-center">
-            <button onClick={() => setActiveTab('groups')} className={`w-14 h-14 rounded-full flex flex-col items-center justify-center shadow-xl border-4 border-gray-50 transition-all transform active:scale-95 ${activeTab === 'groups' ? 'bg-orange-500 text-white scale-110' : 'bg-violet-600 text-white'}`}><Grid size={24} /></button>
+            <button onClick={() => setActiveTab('groups')} className={`w-14 h-14 rounded-full flex flex-col items-center justify-center shadow-xl border-4 border-gray-50 transition-all transform active:scale-95 ${activeTab === 'groups' ? 'bg-orange-500 text-white scale-110' : 'bg-violet-600 text-white'}`}>
+              <Grid size={24} />
+            </button>
             <span className="absolute -bottom-4 text-[9px] font-black text-violet-900 uppercase tracking-wide whitespace-nowrap">Mi Aula</span>
           </div>
+
           <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={20} />} label="Agenda" />
+          
           <div className="relative">
-            <NavButton active={['matricula', 'resources', 'proyecto', 'admin', 'personal', 'medical', 'equipo', 'social'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={20} />} label="Más" />
+            <NavButton active={['matricula', 'resources', 'proyecto', 'admin', 'personal', 'medical', 'equipo', 'social', 'users'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={20} />} label="Más" />
+            
             {showMoreMenu && (
               <div className="absolute bottom-16 right-0 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 w-56 animate-in slide-in-from-bottom-5 zoom-in-95 origin-bottom-right z-50">
                 <button onClick={() => { setActiveTab('matricula'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition"><GraduationCap size={18} className="text-violet-500"/> Legajos</button>
                 <button onClick={() => { setActiveTab('resources'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition"><LinkIcon size={18} className="text-green-500"/> Recursos</button>
                 <button onClick={() => { setActiveTab('proyecto'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition"><PieChart size={18} className="text-orange-500"/> Proyecto Inst.</button>
+                
                 {showPrivateMenu && (
                   <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-3 mb-1 mt-1">Gestión Privada</p>
@@ -637,6 +551,13 @@ const handleGlobalSearch = async (text) => {
                     )}
                     {canAccessSocial && <button onClick={() => { setActiveTab('social'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition"><Users size={18} className="text-blue-500"/> Trabajo Social</button>}
                     {isMedicalRole && <button onClick={() => { setActiveTab('medical'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-red-50 flex items-center gap-3 text-sm font-bold text-red-600 transition"><Activity size={18} className="text-red-500"/> Médico</button>}
+                    
+                    {/* BOTÓN GESTIÓN DE USUARIOS SOLO PARA SUPER ADMIN */}
+                    {isSuperAdmin && (
+                      <button onClick={() => { setActiveTab('users'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-red-50 flex items-center gap-3 text-sm font-bold text-red-700 transition border-t border-red-50 mt-1">
+                        <Shield size={18} className="text-red-500"/> Gestión Usuarios
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -644,7 +565,6 @@ const handleGlobalSearch = async (text) => {
           </div>
         </div>
       </nav>
-
       {/* MODALES GLOBALES */}
       {showSearch && ( 
         <div className="fixed inset-0 bg-violet-900/90 z-[300] flex flex-col p-4 backdrop-blur-md animate-in fade-in">
