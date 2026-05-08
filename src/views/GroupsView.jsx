@@ -312,15 +312,14 @@ return (
                   </div>
                 ))}
               </div>
-
-        {/* FLECHA DERECHA */}
+{/* FLECHA DERECHA */}
         <button 
           onClick={() => scroll('right')}
           className="absolute right-4 top-1/2 -translate-y-1/2 z-[200] bg-white text-violet-600 p-4 rounded-full shadow-2xl border border-slate-100 hover:scale-110 active:scale-95 transition-all hidden lg:flex"
         >
           <ChevronRight size={32} strokeWidth={3} />
         </button>
-      </div>
+      </div> {/* <--- ESTA ES LA ETIQUETA QUE FALTA CERRAR. Agregala acá. */}
 
       {selectedStudent && (
         <StudentDetailView student={selectedStudent} user={user} db={db} appId={appId} onClose={() => setSelectedStudent(null)} onEdit={(s) => { setSelectedStudent(null); setFullFileStudent(s); }} />
