@@ -483,19 +483,25 @@ function MainApp({ user, onLogout }) {
          </div>
       )}
 
-      <main className={`flex-1 overflow-y-auto no-scrollbar pb-24 pt-6 mx-auto w-full transition-all duration-300 ${isWideTab ? 'px-2 max-w-[98%]' : 'px-4 max-w-4xl'}`}>
-        {activeTab === 'dashboard' && (
-  <DashboardView 
-    user={user} 
-    db={db} 
-    appId={appId} 
-    tasks={tasks}      // <--- IMPORTANTE
-    events={events}    // <--- IMPORTANTE
-    announcements={announcements} // <--- IMPORTANTE
-    setActiveTab={setActiveTab} 
-  />
-)}
-      
+<main className={`flex-1 overflow-y-auto no-scrollbar pb-24 pt-6 mx-auto w-full transition-all duration-300 ${isWideTab ? 'px-2 max-w-[98%]' : 'px-4 max-w-4xl'}`}>
+  {activeTab === 'dashboard' && (
+    <DashboardView 
+      user={user} db={db} appId={appId} 
+      tasks={tasks} events={events} announcements={announcements} 
+      setActiveTab={setActiveTab} 
+    />
+  )}
+  
+  
+  {activeTab === 'calendar' && (
+    <CalendarView 
+      events={events} 
+      user={user} 
+      db={db} 
+      appId={appId} 
+      canEdit={canManageContent} 
+    />
+  )}
      {activeTab === 'tasks' && (
   <TasksView 
     tasks={tasks} 
@@ -546,7 +552,15 @@ function MainApp({ user, onLogout }) {
     appId={appId} 
   />
 )}
-        {activeTab === 'personal' && <PersonalView user={user} db={db} appId={appId} TURNS_LIST={TURNS_LIST} VALID_ROLES_OFFICIAL={VALID_ROLES_OFFICIAL} />}
+      {activeTab === 'personal' && db && (
+  <PersonalView 
+    user={user} 
+    db={db} 
+    appId={appId} 
+    TURNS_LIST={TURNS_LIST} 
+    VALID_ROLES_OFFICIAL={VALID_ROLES_OFFICIAL} 
+  />
+)}
        {activeTab === 'medical' && (
   <MedicalView 
     user={user} 
