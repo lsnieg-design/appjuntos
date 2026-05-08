@@ -233,7 +233,7 @@ return (
             <button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 TARDE</button>
           </div>
 
-       {/* Selector de Modalidad */}
+      {/* Selector de Modalidad */}
           <div className="flex bg-gray-200 p-1 rounded-2xl">
             <button onClick={() => setViewMode('Sede')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${viewMode === 'Sede' ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-500'}`}>Sede</button>
             <button onClick={() => setViewMode('Inclusión')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${viewMode === 'Inclusión' ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-500'}`}>Inclusión</button>
@@ -314,7 +314,7 @@ return (
                 ))}
               </div>
 {/* FLECHA DERECHA */}
-       <button 
+      <button 
           onClick={() => scroll('right')}
           className="absolute right-4 top-1/2 -translate-y-1/2 z-[200] bg-white text-violet-600 p-4 rounded-full shadow-2xl border border-slate-100 hover:scale-110 active:scale-95 transition-all hidden lg:flex"
         >
@@ -710,9 +710,6 @@ return (
           </div>
         </div>
       )}
-    </div>
-  </div> 
-);
-}
+    </div> 
   );
 }
