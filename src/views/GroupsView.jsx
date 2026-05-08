@@ -233,14 +233,15 @@ return (
             <button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 TARDE</button>
           </div>
 
-          {/* Selector de Modalidad (NUEVO) */}
+       {/* Selector de Modalidad */}
           <div className="flex bg-gray-200 p-1 rounded-2xl">
             <button onClick={() => setViewMode('Sede')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${viewMode === 'Sede' ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-500'}`}>Sede</button>
-            <button onClick={() => setViewMode('Inclusión')} className={...}>Inclusión</button>
-</div>
-</div> 
-
-  {/* 2. ÁREA DE GRUPOS CON FLECHAS FLOTANTES */}
+            <button onClick={() => setViewMode('Inclusión')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${viewMode === 'Inclusión' ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-500'}`}>Inclusión</button>
+          </div>
+        </div>
+      </div>
+      
+      ÁREA DE GRUPOS CON FLECHAS FLOTANTES */}
       <div className="flex-1 relative flex items-start overflow-hidden">
         
         {/* FLECHA IZQUIERDA */}
