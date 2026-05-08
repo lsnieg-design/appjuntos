@@ -319,7 +319,7 @@ return (
         >
           <ChevronRight size={32} strokeWidth={3} />
         </button>
-      </div> {/* <--- ESTA ES LA ETIQUETA QUE FALTA CERRAR. Agregala acá. */}
+      </div> 
 
       {selectedStudent && (
         <StudentDetailView student={selectedStudent} user={user} db={db} appId={appId} onClose={() => setSelectedStudent(null)} onEdit={(s) => { setSelectedStudent(null); setFullFileStudent(s); }} />
