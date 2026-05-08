@@ -244,126 +244,148 @@ const handleQuickSave = async () => {
     return days;
   };
 
-  return (
+return (
     <div className="flex flex-col h-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden animate-in fade-in select-none relative">
+      {/* Cabecera */}
       <div className="flex justify-between items-center p-3 bg-white border-b border-gray-100 shrink-0">
         <div className="flex flex-col md:flex-row gap-2 md:items-center">
-             <h2 className="text-xl md:text-2xl font-black text-violet-900 uppercase italic tracking-tighter">{currentDate.toLocaleDateString('es-ES', { month: 'long' })} <span className="text-gray-400 text-sm md:text-lg not-italic font-medium">{currentDate.getFullYear()}</span></h2>
-             {isTechTeam && (<div className="flex bg-gray-100 p-1 rounded-lg"><button onClick={() => setCalendarMode('general')} className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition ${calendarMode === 'general' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>General</button><button onClick={() => setCalendarMode('technical')} className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition ${calendarMode === 'technical' ? 'bg-white shadow text-teal-600' : 'text-gray-400'}`}>Técnico</button></div>)}
+          <h2 className="text-xl md:text-2xl font-black text-violet-900 uppercase italic tracking-tighter">
+            {currentDate.toLocaleDateString('es-ES', { month: 'long' })} 
+            <span className="text-gray-400 text-sm md:text-lg not-italic font-medium ml-2">{currentDate.getFullYear()}</span>
+          </h2>
+          {isTechTeam && (
+            <div className="flex bg-gray-100 p-1 rounded-lg">
+              <button onClick={() => setCalendarMode('general')} className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition ${calendarMode === 'general' ? 'bg-white shadow text-violet-700' : 'text-gray-400'}`}>General</button>
+              <button onClick={() => setCalendarMode('technical')} className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition ${calendarMode === 'technical' ? 'bg-white shadow text-teal-600' : 'text-gray-400'}`}>Técnico</button>
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
-             <div className="flex bg-gray-100 rounded-lg p-0.5"><button onClick={() => changeMonth(-1)} className="p-2 text-gray-600 hover:bg-white hover:shadow-sm rounded-md transition"><ChevronLeft size={16}/></button><button onClick={() => setCurrentDate(new Date())} className="px-3 text-xs md:text-sm font-bold text-gray-600 hover:bg-white hover:shadow-sm rounded-md transition">HOY</button><button onClick={() => changeMonth(1)} className="p-2 text-gray-600 hover:bg-white hover:shadow-sm rounded-md transition"><ChevronRight size={16}/></button></div>
-             {/* BOTONES DISPONIBLES PARA TODOS EN MODO GENERAL */}
-             {(canAddGeneral || (isTechTeam && calendarMode === 'technical')) && (
-                 <div className="flex gap-1">
-                     <button onClick={() => setShowQuickLoad(!showQuickLoad)} className={`p-2 rounded-lg shadow transition ${showQuickLoad ? 'bg-yellow-400 text-white' : 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200'}`} title="Carga Rápida"><span className="font-bold text-lg leading-none">⚡</span></button>
-                     <button onClick={openNew} className="bg-orange-500 text-white p-2 rounded-lg shadow hover:bg-orange-600 transition"><Plus size={20}/></button>
-                 </div>
-             )}
+          <div className="flex bg-gray-100 rounded-lg p-0.5">
+            <button onClick={() => changeMonth(-1)} className="p-2 text-gray-600 hover:bg-white rounded-md transition"><ChevronLeft size={16}/></button>
+            <button onClick={() => setCurrentDate(new Date())} className="px-3 text-xs md:text-sm font-bold text-gray-600 hover:bg-white rounded-md transition">HOY</button>
+            <button onClick={() => changeMonth(1)} className="p-2 text-gray-600 hover:bg-white rounded-md transition"><ChevronRight size={16}/></button>
+          </div>
+          <div className="flex gap-1">
+            <button onClick={() => setShowQuickLoad(!showQuickLoad)} className={`p-2 rounded-lg shadow transition ${showQuickLoad ? 'bg-yellow-400 text-white' : 'bg-yellow-100 text-yellow-600'}`} title="Carga Rápida">
+              <span className="font-bold text-lg leading-none">⚡</span>
+            </button>
+            <button onClick={openNew} className="bg-orange-500 text-white p-2 rounded-lg shadow hover:bg-orange-600 transition"><Plus size={20}/></button>
+          </div>
         </div>
       </div>
 
-      {calendarMode === 'general' && (<div className="flex gap-2 overflow-x-auto p-2 bg-gray-50 border-b border-gray-200 no-scrollbar"><button onClick={() => setFilterType('TODOS')} className={`px-3 py-1 rounded-full text-[10px] md:text-xs font-bold uppercase whitespace-nowrap transition border ${filterType === 'TODOS' ? 'bg-violet-600 text-white border-violet-600 shadow-md' : 'bg-white text-gray-500 border-gray-200'}`}>Todos</button>{Object.keys(EVENT_TYPES).filter(t => t !== 'TECNICO').map(type => (<button key={type} onClick={() => setFilterType(type)} className={`px-3 py-1 rounded-full text-[10px] md:text-xs font-bold uppercase whitespace-nowrap transition border ${filterType === type ? `${EVENT_TYPES[type].color} ring-1 ring-offset-1` : 'bg-white text-gray-400 border-gray-200'}`}>{EVENT_TYPES[type].label}</button>))}</div>)}
-      {calendarMode === 'technical' && (<div className="bg-teal-50 border-b border-teal-100 p-2 text-center text-teal-800 text-xs font-bold uppercase tracking-widest flex justify-center items-center gap-2"><Lock size={12}/> Agenda Privada Equipo Técnico</div>)}
-      
-      {showQuickLoad && (<div className="bg-yellow-50 p-4 border-b border-yellow-200 animate-in slide-in-from-top-5"><div className="flex justify-between items-center mb-2"><h3 className="font-bold text-yellow-800 text-xs uppercase flex items-center gap-2">⚡ Carga Masiva Inteligente</h3><button onClick={() => setShowQuickLoad(false)}><X size={16} className="text-yellow-600"/></button></div><p className="text-[10px] text-yellow-700 mb-2 leading-relaxed">Pega tu lista abajo. Para asignar color, escribe la palabra clave (ej: FERIADO, ACTO, REUNIONES) junto al título.<br/>Ej: <b>10/02/2026 Carnaval (FERIADO)</b></p><textarea value={quickText} onChange={(e) => setQuickText(e.target.value)} className="w-full h-32 p-3 rounded-xl border border-yellow-300 text-xs font-medium focus:ring-2 focus:ring-yellow-400 outline-none bg-white" placeholder="12/03/2026 Inicio de clases (CALENDARIO ACADÉMICO)&#10;25/05/2026 Revolución de Mayo (ACTO)"/><button onClick={handleQuickSave} disabled={processing} className="mt-2 w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 rounded-xl text-xs uppercase shadow transition flex justify-center gap-2">{processing ? <RefreshCw className="animate-spin" size={14}/> : 'Procesar y Guardar'}</button></div>)}
-     <div className="grid grid-cols-7 bg-white border-b border-gray-200 shrink-0">
+      {/* Filtros */}
+      {calendarMode === 'general' ? (
+        <div className="flex gap-2 overflow-x-auto p-2 bg-gray-50 border-b border-gray-200 no-scrollbar">
+          <button onClick={() => setFilterType('TODOS')} className={`px-3 py-1 rounded-full text-[10px] md:text-xs font-bold uppercase whitespace-nowrap transition border ${filterType === 'TODOS' ? 'bg-violet-600 text-white border-violet-600 shadow-md' : 'bg-white text-gray-500 border-gray-200'}`}>Todos</button>
+          {Object.keys(EVENT_TYPES).filter(t => t !== 'TECNICO' && t !== 'GENERAL').map(type => (
+            <button key={type} onClick={() => setFilterType(type)} className={`px-3 py-1 rounded-full text-[10px] md:text-xs font-bold uppercase whitespace-nowrap transition border ${filterType === type ? `${EVENT_TYPES[type].color} ring-1 ring-offset-1` : 'bg-white text-gray-400 border-gray-200'}`}>{EVENT_TYPES[type].label}</button>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-teal-50 border-b border-teal-100 p-2 text-center text-teal-800 text-xs font-bold uppercase tracking-widest flex justify-center items-center gap-2">
+          <Lock size={12}/> Agenda Privada Equipo Técnico
+        </div>
+      )}
+
+      {/* Carga Rápida */}
+      {showQuickLoad && (
+        <div className="bg-yellow-50 p-4 border-b border-yellow-200 animate-in slide-in-from-top-5">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="font-bold text-yellow-800 text-xs uppercase flex items-center gap-2">⚡ Carga Masiva Inteligente</h3>
+            <button onClick={() => setShowQuickLoad(false)}><X size={16} className="text-yellow-600"/></button>
+          </div>
+          <textarea value={quickText} onChange={(e) => setQuickText(e.target.value)} className="w-full h-32 p-3 rounded-xl border border-yellow-300 text-xs font-medium outline-none bg-white" placeholder="Ej: 10/05/2026 Reunión (REUNIONES)"/>
+          <button onClick={handleQuickSave} disabled={processing} className="mt-2 w-full bg-yellow-500 text-white font-bold py-2 rounded-xl text-xs uppercase shadow transition flex justify-center gap-2">
+            {processing ? <RefreshCw className="animate-spin" size={14}/> : 'Procesar y Guardar'}
+          </button>
+        </div>
+      )}
+
+      {/* Días de la semana */}
+      <div className="grid grid-cols-7 bg-white border-b border-gray-200 shrink-0">
         {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d => (
           <div key={d} className="py-2 text-center text-[9px] md:text-xs font-black text-gray-300 uppercase tracking-widest">{d}</div>
         ))}
       </div>
-      
-      <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} className="flex-1 grid grid-cols-7 auto-rows-fr overflow-y-auto bg-gray-50/30">
+
+      {/* Grilla del Calendario */}
+      <div 
+        onTouchStart={onTouchStart} 
+        onTouchMove={onTouchMove} 
+        onTouchEnd={onTouchEnd} 
+        className="flex-1 grid grid-cols-7 auto-rows-fr overflow-y-auto bg-gray-50/30 no-scrollbar"
+      >
         {renderGrid()}
       </div>
+
+      {/* Modales */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
-          <form onSubmit={handleSaveEvent} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-black text-violet-900 uppercase italic">{editingEvent ? 'Editar Evento' : 'Nuevo Evento'}</h3>
-            {calendarMode === 'technical' && <div className="text-xs font-bold text-teal-600 bg-teal-50 p-2 rounded-lg text-center uppercase">Creando Evento Privado Técnico</div>}
-            
-            <input name="title" defaultValue={editingEvent?.title} placeholder="Título" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-sm border focus:border-violet-300" />
-            
+        <div className="fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-4 backdrop-blur-sm">
+          <form onSubmit={handleSaveEvent} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl space-y-4 animate-in zoom-in-95 border-t-8 border-violet-600">
+            <h3 className="text-lg font-black text-violet-900 uppercase italic">{editingEvent?.id ? 'Editar Evento' : 'Nuevo Evento'}</h3>
+            <input name="title" defaultValue={editingEvent?.title} placeholder="Título" required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-sm border" />
             <div className="grid grid-cols-2 gap-3">
               <input name="date" type="date" defaultValue={editingEvent?.date || selectedDayEvents?.date} required className="w-full p-3 bg-gray-50 rounded-xl outline-none font-bold text-xs border" />
-              {calendarMode === 'general' ? (
-                <select name="type" defaultValue={editingEvent?.type || 'GENERAL'} className="w-full p-3 bg-gray-50 rounded-xl outline-none text-[10px] font-bold border uppercase">{Object.keys(EVENT_TYPES).filter(t => t !== 'TECNICO').map(t => <option key={t} value={t}>{t}</option>)}</select>
-              ) : (
-                <div className="w-full p-3 bg-teal-100 rounded-xl text-[10px] font-bold border border-teal-200 text-teal-800 flex items-center justify-center uppercase">Técnico</div>
-              )}
+              <select name="type" defaultValue={editingEvent?.type || 'GENERAL'} className="w-full p-3 bg-gray-50 rounded-xl outline-none text-[10px] font-bold border uppercase">
+                {Object.keys(EVENT_TYPES).map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
             </div>
-            
             <textarea name="description" defaultValue={editingEvent?.description} placeholder="Detalles..." className="w-full p-3 bg-gray-50 rounded-xl outline-none text-xs border h-20 resize-none" />
             
-            {/* SUBIDA DE FOTO PARA EL EVENTO */}
-            <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 relative overflow-hidden flex flex-col items-center justify-center gap-2">
-                {photoPreview || editingEvent?.imageUrl ? (
-                    <div className="relative w-full h-32 rounded-lg overflow-hidden border border-gray-300">
-                        <img src={photoPreview || editingEvent?.imageUrl} className="w-full h-full object-cover" />
-                        <button type="button" onClick={() => setPhotoPreview(null)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-md shadow-md"><X size={12}/></button>
-                    </div>
-                ) : (
-                    <div className="text-center w-full py-4 text-gray-400">
-                        <FileText size={24} className="mx-auto mb-1 opacity-50"/>
-                        <span className="text-[10px] font-bold uppercase tracking-widest block">Agregar Flyer/Foto</span>
-                    </div>
-                )}
-                <input type="file" accept="image/*" onChange={handlePhotoChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                {uploading && <div className="absolute inset-0 bg-white/80 flex items-center justify-center"><RefreshCw className="animate-spin text-violet-500"/></div>}
+            <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 relative overflow-hidden flex flex-col items-center justify-center min-h-[60px]">
+              {photoPreview ? (
+                <div className="relative w-full h-32">
+                  <img src={photoPreview} className="w-full h-full object-cover rounded-lg" />
+                  <button type="button" onClick={() => setPhotoPreview(null)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-md"><X size={12}/></button>
+                </div>
+              ) : (
+                <span className="text-[10px] font-bold text-gray-400 uppercase">Subir Flyer</span>
+              )}
+              <input type="file" accept="image/*" onChange={handlePhotoChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
             </div>
 
-            <div className="flex gap-2 pt-2">
-                <button type="button" onClick={() => {setShowModal(false); setPhotoPreview(null);}} className="flex-1 py-3 text-gray-400 font-bold text-xs uppercase hover:bg-gray-50 rounded-xl">Cancelar</button>
-                <button type="submit" className="flex-1 py-3 bg-violet-600 text-white rounded-xl font-bold shadow-lg uppercase text-xs tracking-widest hover:bg-violet-700">Guardar</button>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 text-gray-400 font-bold text-xs uppercase">Cancelar</button>
+              <button type="submit" className="flex-1 py-3 bg-violet-600 text-white rounded-xl font-bold shadow-lg text-xs uppercase">Guardar</button>
             </div>
           </form>
         </div>
       )}
 
       {selectedDayEvents && (
-        <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setSelectedDayEvents(null)}>
+        <div className="fixed inset-0 bg-black/60 z-[250] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setSelectedDayEvents(null)}>
           <div className="bg-white rounded-[40px] w-full max-w-md p-6 shadow-2xl animate-in zoom-in-95 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-4 border-b pb-2 sticky top-0 bg-white z-10 pt-2">
-              <h2 className="text-lg font-black text-violet-900 uppercase italic">{new Date(selectedDayEvents.date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</h2>
-              <button onClick={() => setSelectedDayEvents(null)} className="p-1 bg-gray-100 rounded-full"><X size={18} className="text-gray-500"/></button>
+            <div className="flex justify-between items-center mb-4 border-b pb-2 sticky top-0 bg-white z-10">
+              <h2 className="text-lg font-black text-violet-900 uppercase italic">
+                {new Date(selectedDayEvents.date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+              </h2>
+              <button onClick={() => setSelectedDayEvents(null)} className="p-1 bg-gray-100 rounded-full"><X size={18}/></button>
             </div>
             
-            {/* Botón AGREGAR en el detalle */}
-            {(canAddGeneral || (isTechTeam && calendarMode === 'technical')) && <button onClick={()=>{ setEditingEvent({ date: selectedDayEvents.date }); setShowModal(true); }} className="w-full py-3 mb-4 border-2 border-dashed border-gray-200 text-gray-400 rounded-2xl font-bold text-xs hover:border-violet-400 hover:text-violet-600 transition flex items-center justify-center gap-2"><Plus size={14}/> Agregar Evento Aquí</button>}
+            <button onClick={()=>{ setEditingEvent({ date: selectedDayEvents.date }); setShowModal(true); }} className="w-full py-3 mb-4 border-2 border-dashed border-gray-200 text-gray-400 rounded-2xl font-bold text-xs flex items-center justify-center gap-2"><Plus size={14}/> Agregar Evento</button>
             
-            <div className="space-y-4 pb-4">
-              {selectedDayEvents.events.length === 0 ? <p className="text-center text-gray-400 text-xs py-4">No hay eventos para este día.</p> : selectedDayEvents.events.map(ev => { 
-                  const style = EVENT_TYPES[ev.type] ? EVENT_TYPES[ev.type].color : EVENT_TYPES['GENERAL'].color; 
-                  return (
-                    <div key={ev.id} className={`p-4 rounded-3xl border relative group overflow-hidden ${style}`}>
-                        <span className="text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest bg-white/50 border border-white/20 inline-block mb-2">{ev.type}</span>
-                        <h3 className="font-bold text-base leading-tight pr-14">{ev.title}</h3>
-                        
-                        {/* IMAGEN DEL EVENTO SI EXISTE */}
-                        {ev.imageUrl && (
-                            <div className="mt-3 mb-2 rounded-xl overflow-hidden border border-black/10 max-h-48 relative">
-                                <img src={ev.imageUrl} alt="Flyer" className="w-full object-cover" />
-                                <button onClick={() => window.open(ev.imageUrl, '_blank')} className="absolute top-2 right-2 bg-black/50 text-white p-1.5 rounded-md hover:bg-black/70 backdrop-blur-sm"><ExternalLink size={14}/></button>
-                            </div>
-                        )}
-                        
-                        {ev.description && <p className="text-xs opacity-90 mt-2 font-medium whitespace-pre-wrap leading-relaxed">{ev.description}</p>}
-                        <p className="text-[9px] opacity-50 mt-3 pt-2 border-t border-black/5 text-right uppercase font-bold">Por: {ev.author || 'Sistema'}</p>
-                        
-                        {/* BOTONES EDICIÓN */}
-                        {(user.firstName === ev.author || isTechTeam) && (
-                            <div className="absolute top-3 right-3 flex gap-1">
-                                <button onClick={() => openEdit(ev)} className="p-2 bg-white/50 hover:bg-white rounded-xl shadow-sm transition"><Edit3 size={14}/></button>
-                                <button onClick={() => deleteEvent(ev.id)} className="p-2 bg-white/50 hover:bg-white text-red-600 rounded-xl shadow-sm transition"><Trash2 size={14}/></button>
-                            </div>
-                        )}
+            <div className="space-y-4">
+              {selectedDayEvents.events.length === 0 ? (
+                <p className="text-center text-gray-400 text-xs py-4">No hay eventos.</p>
+              ) : (
+                selectedDayEvents.events.map(ev => (
+                  <div key={ev.id} className={`p-4 rounded-3xl border relative ${EVENT_TYPES[ev.type]?.color || 'bg-gray-50'}`}>
+                    <span className="text-[8px] font-black px-2 py-0.5 rounded-full uppercase bg-white/50 mb-2 inline-block">{ev.type}</span>
+                    <h3 className="font-bold text-base">{ev.title}</h3>
+                    {ev.imageUrl && <img src={ev.imageUrl} className="mt-2 rounded-xl w-full h-32 object-cover" />}
+                    {ev.description && <p className="text-xs mt-2 opacity-90">{ev.description}</p>}
+                    <div className="absolute top-3 right-3 flex gap-1">
+                      <button onClick={() => openEdit(ev)} className="p-2 bg-white/50 rounded-lg"><Edit3 size={14}/></button>
+                      <button onClick={() => deleteEvent(ev.id)} className="p-2 bg-white/50 text-red-600 rounded-lg"><Trash2 size={14}/></button>
                     </div>
-                  )
-              })}
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
       )}
     </div>
   );
-}
