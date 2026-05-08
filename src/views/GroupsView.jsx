@@ -236,9 +236,9 @@ return (
           {/* Selector de Modalidad (NUEVO) */}
           <div className="flex bg-gray-200 p-1 rounded-2xl">
             <button onClick={() => setViewMode('Sede')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${viewMode === 'Sede' ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-500'}`}>Sede</button>
-            <button onClick={() => setViewMode('Inclusión')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${viewMode === 'Inclusión' ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-500'}`}>Inclusión</button>
-          </div>
-        </div>
+            <button onClick={() => setViewMode('Inclusión')} className={...}>Inclusión</button>
+</div>
+</div> 
 
   {/* 2. ÁREA DE GRUPOS CON FLECHAS FLOTANTES */}
       <div className="flex-1 relative flex items-start overflow-hidden">
@@ -313,14 +313,13 @@ return (
                 ))}
               </div>
 {/* FLECHA DERECHA */}
-        <button 
+       <button 
           onClick={() => scroll('right')}
           className="absolute right-4 top-1/2 -translate-y-1/2 z-[200] bg-white text-violet-600 p-4 rounded-full shadow-2xl border border-slate-100 hover:scale-110 active:scale-95 transition-all hidden lg:flex"
         >
           <ChevronRight size={32} strokeWidth={3} />
         </button>
-      </div> 
-    </div>
+      </div>
 
     {selectedStudent && (
         <StudentDetailView student={selectedStudent} user={user} db={db} appId={appId} onClose={() => setSelectedStudent(null)} onEdit={(s) => { setSelectedStudent(null); setFullFileStudent(s); }} />
@@ -706,10 +705,13 @@ return (
               <button onClick={() => setPrintMode('staff')} className={`p-4 rounded-2xl border-2 text-left transition-all ${printMode === 'staff' ? 'border-violet-600 bg-violet-50' : 'border-slate-100'}`}><p className="font-black text-xs uppercase text-violet-900">Listado de Staff</p><p className="text-[10px] text-slate-500">Grilla de Docentes, Auxiliares y Aulas.</p></button>
             </div>
             <button onClick={() => { printGroups(groupsToPrint); setShowPrintOptions(false); }} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg mb-2">Confirmar e Imprimir</button>
-           <button onClick={() => setShowPrintOptions(false)} className="w-full py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
+    <button onClick={() => setShowPrintOptions(false)} className="w-full py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
           </div>
         </div>
       )}
     </div>
+  </div> 
+);
+}
   );
 }
