@@ -64,7 +64,7 @@ const INCIDENT_TYPES = [
     } finally { setLoading(false); }
   };
 
-  const handleReportAbsenteeism = async () => {
+const handleReportAbsenteeism = async () => {
     const reason = prompt("¿Motivo del ausentismo prolongado? (Ej: Salud, Viaje, etc.)");
     if (!reason) return;
     setLoading(true);
@@ -82,7 +82,13 @@ const INCIDENT_TYPES = [
         incidents: arrayUnion(entry),
         absenteeismAlert: true 
       });
-      alert("⚠️ Alerta enviada al Equipo Técnico.");
+
+      // --- AGREGÁ ESTO PARA QUE SUME PUNTOS ---
+      const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+      await updateDoc(userRef, { score: increment(5) }); // Suma 5 puntos por reportar
+      // ----------------------------------------
+
+      alert("⚠️ Alerta enviada al Equipo Técnico. ¡Sumaste 5 puntos por el seguimiento!");
     } catch (e) { alert(e.message); }
     finally { setLoading(false); }
   };
