@@ -63,10 +63,16 @@ export function TasksView({ tasks = [], user, db, appId }) {
   };
 
  // BUSCÁ ESTA LÍNEA (alrededor de la 1320):
-const handleSaveTask = async (e) => {  // <--- ASEGURATE QUE DIGA "async" AQUÍ
+const handleSaveTask = async (e) => {
     e.preventDefault();
     if (!db || !appId) return alert("Error: DB no lista");
     const fd = new FormData(e.target);
+    
+    // Generamos el nombre de los asignados dinámicamente
+    const assignedNames = assignType === 'user' 
+      ? selectedUsersObj.map(u => u.firstName || u.fullName).join(", ") 
+      : selectedRoles.join(", ");
+
     const taskData = {
       title: fd.get('title') || "Sin título",
       dueDate: fd.get('dueDate') || null,
@@ -76,25 +82,30 @@ const handleSaveTask = async (e) => {  // <--- ASEGURATE QUE DIGA "async" AQUÍ
       targetType: assignType,
       targetUserIds: selectedUsersObj.map(u => u.id),
       targetRoles: selectedRoles,
-      assignedToName: assignType === 'user' ? selectedUsersObj.map(u => u.firstName || u.fullName).join(", ") : selectedRoles.join(", "),
+      assignedToName: assignedNames || "Sin asignar",
     };
 
     try {
       if (editingTask && editingTask.id) {
         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', editingTask.id), taskData);
+        alert("✅ Tarea actualizada");
       } else {
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), {
-          ...taskData, createdByName: user.firstName || user.fullName || 'Directivo', createdById: user.id, status: 'pending', createdAt: serverTimestamp(), comments: []
+          ...taskData, 
+          createdByName: user.firstName || user.fullName || 'Directivo', 
+          createdById: user.id, 
+          status: 'pending', 
+          createdAt: serverTimestamp(), 
+          comments: []
         });
 
-        // --- LÓGICA DE PUNTOS DE MAYO (La que causaba el error) ---
         if (new Date() >= new Date('2026-05-01')) {
             const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
             await updateDoc(userRef, { score: increment(5) });
         }
+        alert("✅ Tarea creada (+5 pts)");
       }
       setShowModal(false); setEditingTask(null); setSelectedUsersObj([]); setSelectedRoles([]);
-      alert("✅ Tarea guardada");
     } catch (err) { alert("Error al guardar: " + err.message); }
 };
 
@@ -131,13 +142,27 @@ const handleSaveTask = async (e) => {  // <--- ASEGURATE QUE DIGA "async" AQUÍ
     } catch (err) { alert(err.message); }
   };
 
-  const visibleTasks = (tasks || []).filter(t => {
+ const visibleTasks = (tasks || []).filter(t => {
     if (!t) return false;
-    const isMine = (t.createdById === user.id || (t.targetUserIds && t.targetUserIds.includes(user.id)) || (user.role && t.targetRoles && t.targetRoles.includes(user.role)));
+
+    // 1. Si estás en modo 'all' (Auditoría) y sos Admin, ves TODO
+    if (isSuperAdmin && viewMode === 'all') {
+      return filter === 'completed' ? t.status === 'completed' : t.status !== 'completed';
+    }
+
+    // 2. Si no, solo ves lo que te involucra
+    const isMine = (
+      t.createdById === user.id || 
+      (t.targetUserIds && t.targetUserIds.includes(user.id)) || 
+      (user.role && t.targetRoles && t.targetRoles.includes(user.role))
+    );
+
     const now = new Date();
     const taskShowDate = t.showDate ? new Date(t.showDate + 'T' + (t.showTime || '00:00')) : null;
-    if (taskShowDate && taskShowDate > now && t.createdById !== user.id && !isSuperAdmin) return false;
-    if (isSuperAdmin && viewMode === 'all') return filter === 'completed' ? t.status === 'completed' : t.status !== 'completed';
+    
+    // Ocultar programadas para el resto, pero no para el creador
+    if (taskShowDate && taskShowDate > now && t.createdById !== user.id) return false;
+
     return filter === 'completed' ? (t.status === 'completed' && isMine) : (t.status !== 'completed' && isMine);
   }).sort((a,b) => (a.dueDate || '9999') > (b.dueDate || '9999') ? 1 : -1);
 
@@ -167,8 +192,8 @@ const handleSaveTask = async (e) => {  // <--- ASEGURATE QUE DIGA "async" AQUÍ
             <button onClick={() => setFilter('pending')} className={`text-[10px] px-2 py-1 rounded-lg font-bold ${filter==='pending'?'bg-violet-100 text-violet-700':'text-gray-400'}`}>Activas</button>
             <button onClick={() => setFilter('completed')} className={`text-[10px] px-2 py-1 rounded-lg font-bold ${filter==='completed'?'bg-green-100 text-green-700':'text-gray-400'}`}>Listas</button>
             {isSuperAdmin && (
-              <button onClick={() => setViewMode(viewMode === 'mine' ? 'all' : 'mine')} className={`text-[10px] px-2 py-1 rounded-lg font-bold border ${viewMode === 'all' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
-                {viewMode === 'mine' ? '👤 Mis Tareas' : '👁️ Auditoría'}
+              <button onClick={() => setViewMode(viewMode === 'mine' ? 'all' : 'mine')} className={`text-[10px] px-2 py-1 rounded-lg font-bold border ${viewMode === 'all' ? 'bg-orange-500 text-white border-orange-600 shadow-sm' : 'bg-gray-100 text-gray-500'}`}>
+                {viewMode === 'mine' ? '👤 Mis Tareas' : '👁️ Auditoría Global'}
               </button>
             )}
           </div>
@@ -177,81 +202,105 @@ const handleSaveTask = async (e) => {  // <--- ASEGURATE QUE DIGA "async" AQUÍ
       </div>
 
       <div className="grid gap-3 px-2">
-        {visibleTasks.map(t => (
-          <div key={t.id} className={`p-5 rounded-[30px] bg-white border-l-8 shadow-sm transition-all ${openCommentsId === t.id ? 'ring-2 ring-violet-200' : ''} ${t.priority === 'alta' ? 'border-red-500' : 'border-violet-500'}`}>
-            <div className="flex justify-between items-start">
-              <div className="flex-1 pr-6">
-                <div className="flex flex-wrap gap-2 mb-1">
-                   <p className="text-[9px] font-black text-violet-600 uppercase bg-violet-50 px-2 py-0.5 rounded-md border border-violet-100">Para: {t.assignedToName}</p>
-                   <p className="text-[9px] font-black text-gray-400 uppercase bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">Por: {t.createdByName || 'Directivo'}</p>
-                </div>
-                {t.showDate && new Date(t.showDate + 'T' + (t.showTime || '08:00')) > new Date() && (
-                  <span className="text-[8px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-black uppercase mb-1 inline-block border border-blue-200">⏳ Programada</span>
-                )}
-                <h3 className={`font-bold text-gray-800 text-sm uppercase italic leading-tight ${t.status==='completed'?'line-through opacity-50':''}`}>{t.title}</h3>
-                {t.dueDate && (
-                  <div className="mt-2">
-                    <p className="text-[10px] font-bold text-gray-400 flex items-center gap-1"><CalendarIcon size={12}/> Vence {new Date(t.dueDate + 'T12:00:00').toLocaleDateString('es-AR')}</p>
-                    {getFunnyCountdown(t.dueDate) && <div className={`inline-block px-2 py-0.5 rounded text-[9px] font-black mt-1 ${getFunnyCountdown(t.dueDate).color}`}>{getFunnyCountdown(t.dueDate).text}</div>}
-                  </div>
-                )}
-              </div>
-              <div className="flex gap-1">
-                {(t.createdById === user.id || isSuperAdmin) && (
-                  <>
-                    <button onClick={() => { setEditingTask(t); setAssignType(t.targetType || 'user'); setShowModal(true); }} className="p-2 bg-gray-50 rounded-full text-blue-500 hover:bg-blue-50"><Edit3 size={14}/></button>
-                    <button onClick={() => handleDelete(t.id)} className="p-2 bg-gray-50 rounded-full text-red-400 hover:bg-red-50"><Trash2 size={14}/></button>
-                  </>
-                )}
-              </div>
-            </div>
+        {visibleTasks.map(t => {
+          // LÓGICA DE ALERTA ROJA: Vencida y pendiente O prioridad alta y pendiente
+          const isOverdue = t.dueDate && new Date(t.dueDate + 'T23:59:59') < new Date() && t.status !== 'completed';
+          const isUrgent = t.priority === 'alta' && t.status !== 'completed';
+          const shouldAlert = isOverdue || isUrgent;
 
-            <div className="mt-4 pt-3 border-t border-gray-50 flex justify-between items-center">
-              <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className="flex items-center gap-1.5 group">
-                <div className="bg-gray-100 p-2 rounded-xl group-hover:bg-violet-100 transition-colors">
-                  <MessageSquare size={16} className="text-gray-400 group-hover:text-violet-600"/>
-                </div>
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.comments?.length || 0} msjs</span>
-              </button>
-              
-              <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
-                {['pending', 'completed'].map(st => (
-                  <button key={st} onClick={() => changeStatus(t, st)} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${t.status===st ? (st==='completed'?'bg-green-500 text-white shadow-md':'bg-white shadow text-violet-700') : 'text-gray-400'}`}>{st==='pending'?'Pend.':'Listo'}</button>
-                ))}
-              </div>
-            </div>
-
-            {openCommentsId === t.id && (
-              <div className="mt-4 bg-violet-50/50 rounded-2xl p-4 animate-in slide-in-from-top-2 border border-violet-100">
-                <div className="space-y-3 max-h-40 overflow-y-auto mb-4 pr-2 custom-scrollbar">
-                  {(t.comments || []).map(c => (
-                    <div key={c.id} className="bg-white p-3 rounded-2xl shadow-sm border border-violet-50">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-[10px] font-black text-violet-700 uppercase italic">{c.author}</span>
-                        <span className="text-[8px] font-bold text-gray-400">{c.date}</span>
-                      </div>
-                      <p className="text-xs text-gray-600 font-medium leading-relaxed">{c.text}</p>
+          return (
+            <div 
+              key={t.id} 
+              className={`p-5 rounded-[30px] bg-white border-l-8 shadow-sm transition-all duration-500 
+                ${openCommentsId === t.id ? 'ring-2 ring-violet-200' : ''} 
+                ${shouldAlert 
+                  ? 'border-red-600 bg-red-50/50 animate-pulse ring-1 ring-red-200' 
+                  : (t.priority === 'alta' ? 'border-red-500' : 'border-violet-500')
+                }`}
+            >
+              <div className="flex justify-between items-start">
+                <div className="flex-1 pr-6">
+                  {/* Cartel de Alerta Crítica */}
+                  {isOverdue && (
+                    <div className="flex items-center gap-1 mb-2 bg-red-600 text-white px-2 py-1 rounded-lg w-fit animate-bounce shadow-lg">
+                      <AlertTriangle size={12}/>
+                      <span className="text-[9px] font-black uppercase">¡TAREA VENCIDA!</span>
                     </div>
-                  ))}
-                  {(!t.comments || t.comments.length === 0) && <p className="text-[10px] text-center font-bold text-gray-400 uppercase py-4 italic">Sin mensajes todavía</p>}
+                  )}
+
+                  <div className="flex flex-wrap gap-2 mb-1">
+                     <p className="text-[9px] font-black text-violet-600 uppercase bg-violet-50 px-2 py-0.5 rounded-md border border-violet-100">Para: {t.assignedToName}</p>
+                     <p className="text-[9px] font-black text-gray-400 uppercase bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">Por: {t.createdByName || 'Directivo'}</p>
+                  </div>
+                  
+                  {t.showDate && new Date(t.showDate + 'T' + (t.showTime || '08:00')) > new Date() && (
+                    <span className="text-[8px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-black uppercase mb-1 inline-block border border-blue-200 text-center">⏳ Programada</span>
+                  )}
+                  <h3 className={`font-bold text-gray-800 text-sm uppercase italic leading-tight ${t.status==='completed'?'line-through opacity-50':''}`}>{t.title}</h3>
+                  {t.dueDate && (
+                    <div className="mt-2">
+                      <p className="text-[10px] font-bold text-gray-400 flex items-center gap-1"><CalendarIcon size={12}/> Vence {new Date(t.dueDate + 'T12:00:00').toLocaleDateString('es-AR')}</p>
+                      {getFunnyCountdown(t.dueDate) && <div className={`inline-block px-2 py-0.5 rounded text-[9px] font-black mt-1 ${getFunnyCountdown(t.dueDate).color}`}>{getFunnyCountdown(t.dueDate).text}</div>}
+                    </div>
+                  )}
                 </div>
-                <div className="flex gap-2">
-                  <input 
-                    value={newComment} 
-                    onChange={e => setNewComment(e.target.value)} 
-                    placeholder="Escribir mensaje..." 
-                    className="flex-1 p-3 bg-white rounded-xl text-xs font-bold outline-none border border-violet-100 focus:border-violet-300 shadow-inner"
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddComment(t.id, t.comments)}
-                  />
-                  <button onClick={() => handleAddComment(t.id, t.comments)} className="bg-violet-600 text-white p-3 rounded-xl shadow-lg hover:bg-violet-700 transition-all">
-                    <Send size={18}/>
-                  </button>
+                <div className="flex gap-1">
+                  {(t.createdById === user.id || isSuperAdmin) && (
+                    <>
+                      <button onClick={() => { setEditingTask(t); setAssignType(t.targetType || 'user'); setShowModal(true); }} className="p-2 bg-gray-50 rounded-full text-blue-500 hover:bg-blue-50"><Edit3 size={14}/></button>
+                      <button onClick={() => handleDelete(t.id)} className="p-2 bg-gray-50 rounded-full text-red-400 hover:bg-red-50"><Trash2 size={14}/></button>
+                    </>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
-        ))}
-      </div> {/* ESTE DIV CIERRA LA GRILLA DE TAREAS (El fix) */}
+
+              <div className="mt-4 pt-3 border-t border-gray-50 flex justify-between items-center">
+                <button onClick={() => setOpenCommentsId(openCommentsId === t.id ? null : t.id)} className="flex items-center gap-1.5 group text-left">
+                  <div className="bg-gray-100 p-2 rounded-xl group-hover:bg-violet-100 transition-colors">
+                    <MessageSquare size={16} className="text-gray-400 group-hover:text-violet-600"/>
+                  </div>
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.comments?.length || 0} msjs</span>
+                </button>
+                
+                <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+                  {['pending', 'completed'].map(st => (
+                    <button key={st} onClick={() => changeStatus(t, st)} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${t.status===st ? (st==='completed'?'bg-green-500 text-white shadow-md':'bg-white shadow text-violet-700') : 'text-gray-400'}`}>{st==='pending'?'Pend.':'Listo'}</button>
+                  ))}
+                </div>
+              </div>
+
+              {openCommentsId === t.id && (
+                <div className="mt-4 bg-violet-50/50 rounded-2xl p-4 animate-in slide-in-from-top-2 border border-violet-100">
+                  <div className="space-y-3 max-h-40 overflow-y-auto mb-4 pr-2 custom-scrollbar">
+                    {(t.comments || []).map(c => (
+                      <div key={c.id} className="bg-white p-3 rounded-2xl shadow-sm border border-violet-50">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-[10px] font-black text-violet-700 uppercase italic">{c.author}</span>
+                          <span className="text-[8px] font-bold text-gray-400">{c.date}</span>
+                        </div>
+                        <p className="text-xs text-gray-600 font-medium leading-relaxed">{c.text}</p>
+                      </div>
+                    ))}
+                    {(!t.comments || t.comments.length === 0) && <p className="text-[10px] text-center font-bold text-gray-400 uppercase py-4 italic">Sin mensajes todavía</p>}
+                  </div>
+                  <div className="flex gap-2">
+                    <input 
+                      value={newComment} 
+                      onChange={e => setNewComment(e.target.value)} 
+                      placeholder="Escribir mensaje..." 
+                      className="flex-1 p-3 bg-white rounded-xl text-xs font-bold outline-none border border-violet-100 focus:border-violet-300 shadow-inner"
+                      onKeyPress={(e) => e.key === 'Enter' && handleAddComment(t.id, t.comments)}
+                    />
+                    <button onClick={() => handleAddComment(t.id, t.comments)} className="bg-violet-600 text-white p-3 rounded-xl shadow-lg hover:bg-violet-700 transition-all">
+                      <Send size={18}/>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
 
       {showModal && (
         <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4 backdrop-blur-sm">
