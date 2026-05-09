@@ -58,31 +58,69 @@ export function AdministracionView({ user, db, appId }) {
   const toggleSelectAll = () => { if (selectedIds.length === filteredStudents.length) setSelectedIds([]); else setSelectedIds(filteredStudents.map(s => s.id)); };
   const toggleSelect = (id) => { if (selectedIds.includes(id)) setSelectedIds(selectedIds.filter(x => x !== id)); else setSelectedIds([...selectedIds, id]); };
 
- const generateDocument = async () => { // Agregamos el async
-      if (selectedIds.length === 0) return alert("Selecciona al menos un estudiante.");
-      setGenerating(true);
+const handleSaveEvent = async (e) => {
+      e.preventDefault(); 
+      const fd = new FormData(e.target);
+      const formType = fd.get('type');
+      const finalType = (calendarMode === 'technical') ? 'TECNICO' : formType;
+      const imgUrl = photoPreview || editingEvent?.imageUrl || '';
+
+      const data = { 
+          title: fd.get('title') || 'Sin título', 
+          date: fd.get('date'), 
+          type: finalType || 'GENERAL', 
+          description: fd.get('description') || '', 
+          author: user.firstName || 'Usuario',
+          imageUrl: String(imgUrl) 
+      };
       
-      const targets = students.filter(s => selectedIds.includes(s.id));
-      const dateObj = new Date(customDate + 'T12:00:00'); 
-      const day = dateObj.getDate();
-      const month = dateObj.toLocaleString('es-ES', { month: 'long' });
-      const year = dateObj.getFullYear();
-      const fullDate = `Villa Udaondo, ${day} de ${month} de ${year}`;
-      
-      // --- REGISTRO EN AUDITORÍA ---
       try {
-        const studentNames = targets.map(s => `${s.lastName} ${s.firstName}`).join(', ');
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'activity_log'), {
-          userName: user.firstName || user.fullName,
-          userId: user.id,
-          action: "Generación de Documentos",
-          details: `Generó "${template}" para: ${studentNames.substring(0, 100)}${studentNames.length > 100 ? '...' : ''}`,
-          timestamp: serverTimestamp()
-        });
+          setProcessing(true);
+          if (editingEvent?.id) {
+              await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', editingEvent.id), data);
+              
+              // --- REGISTRO AUDITORÍA (EDICIÓN) ---
+              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'activity_log'), {
+                userName: user.firstName || user.fullName,
+                userId: user.id,
+                action: "Edición en Agenda",
+                details: `Editó el evento: "${data.title}"`,
+                timestamp: serverTimestamp()
+              });
+
+              if (selectedDayEvents) {
+                  const updatedEvents = selectedDayEvents.events.map(ev => ev.id === editingEvent.id ? { ...ev, ...data } : ev);
+                  setSelectedDayEvents({ ...selectedDayEvents, events: updatedEvents });
+              }
+          } else {
+              const docRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), { 
+                ...data, 
+                createdAt: serverTimestamp() 
+              });
+
+              // --- REGISTRO AUDITORÍA (NUEVO) ---
+              await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'activity_log'), {
+                userName: user.firstName || user.fullName,
+                userId: user.id,
+                action: "Nuevo evento en Agenda",
+                details: `Creó el evento: "${data.title}" para el día ${data.date}`,
+                timestamp: serverTimestamp()
+              });
+              
+              if (selectedDayEvents) {
+                 const newEventLocal = { id: docRef.id, ...data };
+                 setSelectedDayEvents({ ...selectedDayEvents, events: [...selectedDayEvents.events, newEventLocal] });
+              }
+          }
+          setShowModal(false); 
+          setEditingEvent(null);
+          setPhotoPreview(null);
       } catch (err) {
-        console.error("Error al registrar auditoría:", err);
+          alert("Error al guardar: " + err.message);
+      } finally {
+          setProcessing(false);
       }
-      // ------------------------------
+  };
 
       let htmlContent = `<html><head><title>Documentos</title><style>
           @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
