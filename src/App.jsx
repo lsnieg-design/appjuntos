@@ -563,7 +563,9 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'admin' && isAdminRole && db && <AdministracionView user={user} db={db} appId={appId} />}
         {activeTab === 'equipo' && isTechTeamRole && db && <EquipoTecnicoView user={user} db={db} appId={appId} />}
         {activeTab === 'medical' && isMedicalRole && db && <MedicalView user={user} db={db} appId={appId} />}
-        {activeTab === 'audit' && isSuperAdmin && db && <ActivityLogView db={db} appId={appId} />}
+        {activeTab === 'audit' && isSuperAdmin && db && (
+      <ActivityLogView db={db} appId={appId} />
+    )}
       </main>
 
       <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-16 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] pb-safe shrink-0 text-center">
@@ -601,8 +603,12 @@ function MainApp({ user, onLogout }) {
                     )}
                     {canAccessSocial && <button onClick={() => { setActiveTab('social'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition"><Users size={18} className="text-blue-500"/> Trabajo Social</button>}
                     {isMedicalRole && <button onClick={() => { setActiveTab('medical'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-red-50 flex items-center gap-3 text-sm font-bold text-red-600 transition"><Activity size={18} className="text-red-500"/> Médico</button>}
-                    
-                    {/* BOTÓN GESTIÓN DE USUARIOS SOLO PARA SUPER ADMIN */}
+                    {isSuperAdmin && (
+  <button onClick={() => { setActiveTab('audit'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-slate-100 flex items-center gap-3 text-sm font-bold text-slate-700 transition border-t border-slate-50 mt-1">
+    <Activity size={18} className="text-slate-500"/> Auditoría Global
+  </button>
+)}
+                
                     {isSuperAdmin && (
                       <button onClick={() => { setActiveTab('users'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-red-50 flex items-center gap-3 text-sm font-bold text-red-700 transition border-t border-red-50 mt-1">
                         <Shield size={18} className="text-red-500"/> Gestión Usuarios
