@@ -11,7 +11,8 @@ import {
   ChevronUp // <--- ESTE ES EL QUE FALTABA
 } from 'lucide-react';
 import { 
-  collection, query, orderBy, onSnapshot 
+ import { 
+  collection, query, orderBy, onSnapshot, addDoc, serverTimestamp // <-- Agregá estos dos
 } from 'firebase/firestore';
 
 export function AdministracionView({ user, db, appId }) {
@@ -57,17 +58,32 @@ export function AdministracionView({ user, db, appId }) {
   const toggleSelectAll = () => { if (selectedIds.length === filteredStudents.length) setSelectedIds([]); else setSelectedIds(filteredStudents.map(s => s.id)); };
   const toggleSelect = (id) => { if (selectedIds.includes(id)) setSelectedIds(selectedIds.filter(x => x !== id)); else setSelectedIds([...selectedIds, id]); };
 
-  const generateDocument = () => {
+ const generateDocument = async () => { // Agregamos el async
       if (selectedIds.length === 0) return alert("Selecciona al menos un estudiante.");
       setGenerating(true);
       
       const targets = students.filter(s => selectedIds.includes(s.id));
       const dateObj = new Date(customDate + 'T12:00:00'); 
       const day = dateObj.getDate();
-      const month = dateObj.toLocaleString('es-AR', { month: 'long' });
+      const month = dateObj.toLocaleString('es-ES', { month: 'long' });
       const year = dateObj.getFullYear();
       const fullDate = `Villa Udaondo, ${day} de ${month} de ${year}`;
       
+      // --- REGISTRO EN AUDITORÍA ---
+      try {
+        const studentNames = targets.map(s => `${s.lastName} ${s.firstName}`).join(', ');
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'activity_log'), {
+          userName: user.firstName || user.fullName,
+          userId: user.id,
+          action: "Generación de Documentos",
+          details: `Generó "${template}" para: ${studentNames.substring(0, 100)}${studentNames.length > 100 ? '...' : ''}`,
+          timestamp: serverTimestamp()
+        });
+      } catch (err) {
+        console.error("Error al registrar auditoría:", err);
+      }
+      // ------------------------------
+
       let htmlContent = `<html><head><title>Documentos</title><style>
           @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
           body { font-family: 'Times New Roman', Times, serif; margin: 0; padding: 0; color: #000; }
@@ -221,7 +237,6 @@ export function AdministracionView({ user, db, appId }) {
                       </div>
                   </div>
                   
-                  {/* SECCIÓN DE FIRMAS Y SELLOS AÑADIDA NUEVAMENTE */}
                   <div class="signatures-section" style="padding-top: 15px; margin-top: auto; height: 130px; display: flex; justify-content: space-between; align-items: flex-end;">
                       <div class="sig-box" style="text-align: center; width: 220px;">
                           <img src="${FIRMA_URL}" class="sig-img" style="height: 90px; width: auto; display: block; margin: 0 auto -10px auto;"/>
@@ -279,17 +294,17 @@ export function AdministracionView({ user, db, appId }) {
       iframe.style.border = '0';
       document.body.appendChild(iframe);
       
-      const doc = iframe.contentWindow.document; 
-      doc.open(); 
-      doc.write(htmlContent); 
-      doc.close();
+      const docFrame = iframe.contentWindow.document; 
+      docFrame.open(); 
+      docFrame.write(htmlContent); 
+      docFrame.close();
 
       setTimeout(() => { 
         iframe.contentWindow.focus(); 
         iframe.contentWindow.print(); 
         setTimeout(() => { document.body.removeChild(iframe); setGenerating(false); }, 5000); 
       }, 1000);
-  }; 
+  };
 
   if (!canAccess) return <div className="p-10 text-center text-gray-400 font-bold">⛔ Acceso restringido.</div>;
 
