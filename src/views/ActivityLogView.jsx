@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Clock, Download, Printer, FileText, Search, X, Activity, User
+  Clock, Download, Printer, FileText, Search, X, Activity, RefreshCw, User
 } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, limit } from 'firebase/firestore';
 
