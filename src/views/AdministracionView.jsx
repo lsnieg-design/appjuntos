@@ -10,7 +10,7 @@ import {
   AlignLeft, AlignCenter, AlignRight, AlignJustify, Phone, CheckCircle2, Clock3, UserCheck,
   ChevronUp // <--- ESTE ES EL QUE FALTABA
 } from 'lucide-react';
-import { 
+
  import { 
   collection, query, orderBy, onSnapshot, addDoc, serverTimestamp // <-- Agregá estos dos
 } from 'firebase/firestore';
