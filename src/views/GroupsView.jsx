@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StudentDetailView } from './StudentDetailView';
 import { 
-  User, FileText, Plus, Users, Grid, ChevronRight, ChevronLeft, Printer, MessageSquare, Send, Folder, Edit3, X, Search, GraduationCap, Activity 
+  User, FileText, Plus, Users, Grid, CheckCircle, ChevronRight, RefreshCw, ChevronLeft, Printer, MessageSquare, Send, Folder, Edit3, X, Search, GraduationCap, Activity 
 } from 'lucide-react';
 import { doc, updateDoc, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, arrayUnion, increment, where } from 'firebase/firestore';
 
@@ -143,22 +143,23 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); document.body.removeChild(iframe); }, 500);
   };
 
-  const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
+ const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
     const campo = `informe${numeroInforme}`;
     const info = estudiante[campo] || { status: 'Pendiente' };
     const proximo = { 'Pendiente': 'Hecho', 'Hecho': 'Impreso', 'Impreso': 'Enviado', 'Enviado': 'Archivado' }[info.status] || 'Pendiente';
     
     try {
+      // El await ahora sí está dentro de una función async
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', estudiante.id), { 
         [campo]: { status: proximo, updatedAt: new Date().toISOString() } 
       });
 
-      // --- REGISTRO EN AUDITORÍA ---
+      // --- REGISTRO AUDITORÍA ---
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'activity_log'), {
         userName: user.firstName || user.fullName,
         userId: user.id,
         action: "Estado de Informe",
-        details: `Cambió Informe ${numeroInforme} de ${estudiante.lastName} a estado: ${proximo}`,
+        details: `Informe ${numeroInforme} de ${estudiante.lastName} pasó a: ${proximo}`,
         timestamp: serverTimestamp()
       });
 
@@ -166,22 +167,6 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
         const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
         await updateDoc(userRef, { score: increment(20) });
       }
-
-      const nuevosEstudiantes = selectedGroupDetails.students.map(s => s.id === estudiante.id ? { ...s, [campo]: { status: proximo } } : s);
-      setSelectedGroupDetails({ ...selectedGroupDetails, students: nuevosEstudiantes });
-    } catch (e) { console.error(e); }
-  };
-    try {
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', estudiante.id), { 
-        [campo]: { status: proximo, updatedAt: new Date().toISOString() } 
-      });
-
-      // --- SUMAR PUNTOS SI COMPLETA O ARCHIVA ---
-      if (proximo === 'Hecho' || proximo === 'Archivado') {
-        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-        await updateDoc(userRef, { score: increment(20) });
-      }
-      // ------------------------------------------
 
       const nuevosEstudiantes = selectedGroupDetails.students.map(s => s.id === estudiante.id ? { ...s, [campo]: { status: proximo } } : s);
       setSelectedGroupDetails({ ...selectedGroupDetails, students: nuevosEstudiantes });
@@ -222,12 +207,12 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
       const entry = { date: new Date().toISOString(), type: text ? "Nota" : type, severity, text: text || type, author: user.fullName || user.firstName, authorId: user.id };
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', activeStudent.id), { incidents: arrayUnion(entry) });
       
-      // --- REGISTRO EN AUDITORÍA ---
+      // --- REGISTRO AUDITORÍA ---
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'activity_log'), {
         userName: user.firstName || user.fullName,
         userId: user.id,
-        action: "Registro en Bitácora",
-        details: `Cargó incidencia "${text || type}" para ${activeStudent.lastName} ${activeStudent.firstName}`,
+        action: "Bitácora",
+        details: `Cargó: ${text || type} para ${activeStudent.lastName}`,
         timestamp: serverTimestamp()
       });
 
@@ -244,15 +229,14 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
         lastAttendanceDate: serverTimestamp() 
       });
 
-      // --- REGISTRO EN AUDITORÍA ---
+      // --- REGISTRO AUDITORÍA ---
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'activity_log'), {
         userName: user.firstName || user.fullName,
         userId: user.id,
-        action: "Cambio de Asistencia",
-        details: `Marcó como ${status === 'present' ? 'PRESENTE' : 'AUSENTE'} a ${student.lastName} ${student.firstName}`,
+        action: "Asistencia",
+        details: `${status === 'present' ? 'PRESENTE' : 'AUSENTE'} - ${student.lastName} ${student.firstName}`,
         timestamp: serverTimestamp()
       });
-      // ------------------------------
     } catch (e) { console.error(e); }
   };
 
