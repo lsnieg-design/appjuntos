@@ -261,7 +261,7 @@ return (
         </div>
       </div>
       
-      ÁREA DE GRUPOS CON FLECHAS FLOTANTES */}
+      
       <div className="flex-1 relative flex items-start overflow-hidden">
         
         {/* FLECHA IZQUIERDA */}
