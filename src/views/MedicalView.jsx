@@ -106,7 +106,7 @@ export function MedicalView({ user, db, appId }) {
       finally { setSaving(false); }
   };
       
-    const updatedEvos = [...(selectedStudent.medicalEvolutions || []), newEvo];
+    
       
       
 
