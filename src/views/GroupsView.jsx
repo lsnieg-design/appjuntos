@@ -153,6 +153,29 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
         [campo]: { status: proximo, updatedAt: new Date().toISOString() } 
       });
 
+      // --- REGISTRO EN AUDITORÍA ---
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'activity_log'), {
+        userName: user.firstName || user.fullName,
+        userId: user.id,
+        action: "Estado de Informe",
+        details: `Cambió Informe ${numeroInforme} de ${estudiante.lastName} a estado: ${proximo}`,
+        timestamp: serverTimestamp()
+      });
+
+      if (proximo === 'Hecho' || proximo === 'Archivado') {
+        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+        await updateDoc(userRef, { score: increment(20) });
+      }
+
+      const nuevosEstudiantes = selectedGroupDetails.students.map(s => s.id === estudiante.id ? { ...s, [campo]: { status: proximo } } : s);
+      setSelectedGroupDetails({ ...selectedGroupDetails, students: nuevosEstudiantes });
+    } catch (e) { console.error(e); }
+  };
+    try {
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', estudiante.id), { 
+        [campo]: { status: proximo, updatedAt: new Date().toISOString() } 
+      });
+
       // --- SUMAR PUNTOS SI COMPLETA O ARCHIVA ---
       if (proximo === 'Hecho' || proximo === 'Archivado') {
         const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
@@ -191,17 +214,46 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     } catch (err) { alert("Error: " + err.message); } finally { setUpdatingGroup(false); }
   };
 
-  const handleSaveIncident = async (type, severity = "medium", text = "") => {
+ const handleSaveIncident = async (type, severity = "medium", text = "") => {
     const activeStudent = showBitacoraModal || selectedStudent;
     if (!activeStudent) return;
     setSavingIncident(true);
     try {
       const entry = { date: new Date().toISOString(), type: text ? "Nota" : type, severity, text: text || type, author: user.fullName || user.firstName, authorId: user.id };
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', activeStudent.id), { incidents: arrayUnion(entry) });
+      
+      // --- REGISTRO EN AUDITORÍA ---
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'activity_log'), {
+        userName: user.firstName || user.fullName,
+        userId: user.id,
+        action: "Registro en Bitácora",
+        details: `Cargó incidencia "${text || type}" para ${activeStudent.lastName} ${activeStudent.firstName}`,
+        timestamp: serverTimestamp()
+      });
+
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { score: increment(10) });
       setShowBitacoraModal(null); setIsWriting(false); setNewNote("");
       alert("✅ Registro guardado.");
     } catch (e) { alert(e.message); } finally { setSavingIncident(false); }
+  };
+  const handleAttendance = async (student, status) => {
+    try {
+      const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', student.id);
+      await updateDoc(studentRef, { 
+        lastAttendance: status,
+        lastAttendanceDate: serverTimestamp() 
+      });
+
+      // --- REGISTRO EN AUDITORÍA ---
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'activity_log'), {
+        userName: user.firstName || user.fullName,
+        userId: user.id,
+        action: "Cambio de Asistencia",
+        details: `Marcó como ${status === 'present' ? 'PRESENTE' : 'AUSENTE'} a ${student.lastName} ${student.firstName}`,
+        timestamp: serverTimestamp()
+      });
+      // ------------------------------
+    } catch (e) { console.error(e); }
   };
 
 const handleAddGroupComment = async (e, groupName) => {
