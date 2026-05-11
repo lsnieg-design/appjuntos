@@ -199,7 +199,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     } catch (err) { alert("Error: " + err.message); } finally { setUpdatingGroup(false); }
   };
 
- const handleSaveIncident = async (type, severity = "medium", text = "") => {
+const handleSaveIncident = async (type, severity = "medium", text = "") => {
     const activeStudent = showBitacoraModal || selectedStudent;
     if (!activeStudent) return;
     setSavingIncident(true);
@@ -212,7 +212,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
         userName: user.firstName || user.fullName,
         userId: user.id,
         action: "Bitácora",
-        details: `Cargó: ${text || type} para ${activeStudent.lastName}`,
+        details: `Cargó incidencia "${text || type}" para ${activeStudent.lastName}`,
         timestamp: serverTimestamp()
       });
 
