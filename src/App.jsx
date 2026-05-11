@@ -13,6 +13,7 @@ import { UsersAdminView } from './views/UsersAdminView';
 import { EquipoTecnicoView } from './views/EquipoTecnicoView';
 import { ProfileView } from './views/ProfileView';
 import { ActivityLogView } from './views/ActivityLogView';
+import { ProyectoView } from './views/ProyectoView';
 
 
 import { 
@@ -132,6 +133,26 @@ function SplashScreen() {
         Juntos a la Par
       </h1>
       <p className="text-white/60 text-xs font-bold mt-2 uppercase tracking-[4px]">Cargando Sistema...</p>
+    </div>
+  );
+}
+// AGREGÁ ESTO JUSTO ANTES DE "export default function App()"
+function NotificationsView({ notifications }) {
+  return (
+    <div className="p-4">
+      <h2 className="text-2xl font-black text-violet-900 mb-6 uppercase italic">Notificaciones</h2>
+      <div className="space-y-3">
+        {notifications.length === 0 ? (
+          <p className="text-gray-400 italic">No hay avisos nuevos.</p>
+        ) : (
+          notifications.map(n => (
+            <div key={n.id} className="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-orange-500">
+              <p className="font-bold text-slate-800">{n.title}</p>
+              <p className="text-sm text-slate-500">{n.message}</p>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -554,7 +575,8 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'resources' && <ResourcesView resources={resources} canEdit={canManageContent} db={db} appId={appId} user={user} />}
         {activeTab === 'social' && <SocialView user={user} db={db} appId={appId} />}
         {activeTab === 'profile' && <ProfileView user={user} tasks={tasks} onLogout={onLogout} isSuperAdmin={isSuperAdmin} db={db} appId={appId} />}
-        {activeTab === 'proyecto' && <ProyectoView user={user} />}
+        // BUSCÁ ESTA LÍNEA Y REEMPLAZALA:
+{activeTab === 'proyecto' && <ProyectoView user={user} db={db} appId={appId} />}
         {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={isSuperAdmin} user={user} />}
 
         {/* VISTAS PRIVADAS (PROTEGIDAS CON && db) */}
@@ -562,7 +584,7 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'personal' && isAdminRole && db && <PersonalView user={user} db={db} appId={appId} TURNS_LIST={TURNS_LIST} VALID_ROLES_OFFICIAL={VALID_ROLES_OFFICIAL} />}
         {activeTab === 'admin' && isAdminRole && db && <AdministracionView user={user} db={db} appId={appId} />}
         {activeTab === 'equipo' && isTechTeamRole && db && <EquipoTecnicoView user={user} db={db} appId={appId} />}
-        {activeTab === 'medical' && isMedicalRole && db && <MedicalView user={user} db={db} appId={appId} />}
+     {activeTab === 'medical' && isMedicalRole && db && <MedicalView user={user} db={db} appId={appId} />}
         {activeTab === 'audit' && isSuperAdmin && db && (
       <ActivityLogView db={db} appId={appId} />
     )}
@@ -589,7 +611,9 @@ function MainApp({ user, onLogout }) {
               <div className="absolute bottom-16 right-0 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 w-56 animate-in slide-in-from-bottom-5 zoom-in-95 origin-bottom-right z-50">
                 <button onClick={() => { setActiveTab('matricula'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition"><GraduationCap size={18} className="text-violet-500"/> Legajos</button>
                 <button onClick={() => { setActiveTab('resources'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition"><LinkIcon size={18} className="text-green-500"/> Recursos</button>
-                <button onClick={() => { setActiveTab('proyecto'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition"><PieChart size={18} className="text-orange-500"/> Proyecto Inst.</button>
+                <button onClick={() => { setActiveTab('proyecto'); setShowMoreMenu(false); }} className="w-full text-left p-3 hover:bg-violet-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-600 transition">
+  <PieChart size={18} className="text-orange-500"/> Proyecto Inst.
+</button>
                 
                 {showPrivateMenu && (
                   <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
