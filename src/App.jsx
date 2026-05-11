@@ -42,7 +42,7 @@ const VALID_ROLES_OFFICIAL = [
 const TURNS_LIST = ["Mañana", "Tarde", "Alternado", "Vespertino", "Doble"];
  const LOGO_URL = "/icon-192.png";
 
-FUNCIÓN SEGURA PARA NOTIFICACIONES ---
+
 const triggerMobileNotification = (title, body) => {
   if (!("Notification" in window)) return;
   if (Notification.permission === "granted") {
@@ -55,7 +55,7 @@ const triggerMobileNotification = (title, body) => {
     }
   }
 };
-CONFIGURACIÓN DE FIREBASE ---
+
 const getFirebaseConfig = () => {
   try {
     if (import.meta.env && import.meta.env.VITE_FIREBASE_API_KEY) {
@@ -83,7 +83,7 @@ const auth = app ? getAuth(app) : null;
 const db = app ? getFirestore(app) : null;
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'escuela-app-prod';
 
- Constantes ---
+ 
 const ROLES = [
   'Docente', 
   'Equipo Directivo', 
@@ -116,7 +116,7 @@ const formatDate = (dateString) => {
   const date = new Date(dateString + 'T00:00:00');
   return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
-// --- COMPONENTE VISUAL: INTRO ---
+
 function SplashScreen() {
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-violet-600 to-indigo-700 z-[9999] flex flex-col items-center justify-center animate-out fade-out duration-1000 fill-mode-forwards">
@@ -134,7 +134,7 @@ function SplashScreen() {
     </div>
   );
 }
-// AGREGÁ ESTO JUSTO ANTES DE "export default function App()"
+
 function NotificationsView({ notifications }) {
   return (
     <div className="p-4">
@@ -154,7 +154,7 @@ function NotificationsView({ notifications }) {
     </div>
   );
 }
-// --- Componente Principal Wrapper (CORREGIDO) ---
+
 export default function App() {
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
@@ -193,11 +193,11 @@ export default function App() {
   if (configError) return <div className="flex flex-col items-center justify-center h-screen bg-red-50 p-6 text-center"><AlertCircle className="text-red-500 w-16 h-16 mb-4" /><h1 className="text-xl font-bold text-red-700">Error de Configuración</h1></div>;
   if (!currentUserProfile) return <LoginScreen onLogin={handleLogin} />;
 
-  // CORRECCIÓN: Agregado ""
+  
  return <MainApp user={currentUserProfile} onLogout={handleLogout} />;
 }
 
-// --- PANTALLA LOGIN (CON INSTALACIÓN PWA ROBUSTA Y CLARA) ---
+
 function LoginScreen({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
