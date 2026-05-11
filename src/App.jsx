@@ -41,10 +41,10 @@ const VALID_ROLES_OFFICIAL = [
   "Cocina", "Limpieza", "Mantenimiento", "Administración"
 ];
 const TURNS_LIST = ["Mañana", "Tarde", "Alternado", "Vespertino", "Doble"];
-// --- CONSTANTES GLOBALES ---
+ CONSTANTES GLOBALES ---
 const LOGO_URL = "/icon-192.png";
 
-// --- FUNCIÓN SEGURA PARA NOTIFICACIONES ---
+FUNCIÓN SEGURA PARA NOTIFICACIONES ---
 const triggerMobileNotification = (title, body) => {
   if (!("Notification" in window)) return;
   if (Notification.permission === "granted") {
@@ -57,7 +57,7 @@ const triggerMobileNotification = (title, body) => {
     }
   }
 };
-// --- CONFIGURACIÓN DE FIREBASE ---
+CONFIGURACIÓN DE FIREBASE ---
 const getFirebaseConfig = () => {
   try {
     if (import.meta.env && import.meta.env.VITE_FIREBASE_API_KEY) {
@@ -85,7 +85,7 @@ const auth = app ? getAuth(app) : null;
 const db = app ? getFirestore(app) : null;
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'escuela-app-prod';
 
-// --- Constantes ---
+ Constantes ---
 const ROLES = [
   'Docente', 
   'Equipo Directivo', 
@@ -94,7 +94,7 @@ const ROLES = [
   'Inclusión', 
   'Profes Especiales', 
   'Administración',
-  'Dirección Inclusión', // NUEVO
+  'Dirección Inclusión', 
   'Equipo Técnico Inclusión', // NUEVO
   'DAI' // NUEVO (Docente de Apoyo a la Inclusión)
 ];
@@ -574,9 +574,10 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'groups' && <GroupsView user={user} db={db} appId={appId} setActiveTab={setActiveTab} onSelectStudent={setSelectedStudentId} />}
         {activeTab === 'resources' && <ResourcesView resources={resources} canEdit={canManageContent} db={db} appId={appId} user={user} />}
         {activeTab === 'social' && <SocialView user={user} db={db} appId={appId} />}
-        {activeTab === 'profile' && <ProfileView user={user} tasks={tasks} onLogout={onLogout} isSuperAdmin={isSuperAdmin} db={db} appId={appId} />}
-        // BUSCÁ ESTA LÍNEA Y REEMPLAZALA:
-{activeTab === 'proyecto' && <ProyectoView user={user} db={db} appId={appId} />}
+       {activeTab === 'profile' && <ProfileView user={user} tasks={tasks} onLogout={onLogout} isSuperAdmin={isSuperAdmin} db={db} appId={appId} />}
+       {activeTab === 'proyecto' && <ProyectoView user={user} db={db} appId={appId} />}
+       
+
         {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={isSuperAdmin} user={user} />}
 
         {/* VISTAS PRIVADAS (PROTEGIDAS CON && db) */}
@@ -611,7 +612,10 @@ function MainApp({ user, onLogout }) {
               <div className="absolute bottom-16 right-0 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 w-56 animate-in slide-in-from-bottom-5 zoom-in-95 origin-bottom-right z-50">
                 <button onClick={() => { setActiveTab('matricula'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition"><GraduationCap size={18} className="text-violet-500"/> Legajos</button>
                 <button onClick={() => { setActiveTab('resources'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition"><LinkIcon size={18} className="text-green-500"/> Recursos</button>
-                <button onClick={() => { setActiveTab('proyecto'); setShowMoreMenu(false); }} className="w-full text-left p-3 hover:bg-violet-50 rounded-xl flex items-center gap-3 text-sm font-bold text-gray-600 transition">
+                <button 
+  onClick={() => { setActiveTab('proyecto'); setShowMoreMenu(false); }} 
+  className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition"
+>
   <PieChart size={18} className="text-orange-500"/> Proyecto Inst.
 </button>
                 
