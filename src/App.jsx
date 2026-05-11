@@ -41,8 +41,7 @@ const VALID_ROLES_OFFICIAL = [
   "Cocina", "Limpieza", "Mantenimiento", "Administración"
 ];
 const TURNS_LIST = ["Mañana", "Tarde", "Alternado", "Vespertino", "Doble"];
- CONSTANTES GLOBALES ---
-const LOGO_URL = "/icon-192.png";
+ const LOGO_URL = "/icon-192.png";
 
 FUNCIÓN SEGURA PARA NOTIFICACIONES ---
 const triggerMobileNotification = (title, body) => {
