@@ -15,7 +15,6 @@ import {
   doc, updateDoc, arrayUnion, increment 
 } from 'firebase/firestore';
 
-
 export function ProyectoView({ user, db, appId }) {
   const [periods, setPeriods] = useState([]);
   const [expandedPeriod, setExpandedPeriod] = useState(null);
