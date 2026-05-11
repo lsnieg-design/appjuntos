@@ -426,4 +426,3 @@ const handleSaveEvent = async (e) => {
         </div>
     </div>
   );
-}
