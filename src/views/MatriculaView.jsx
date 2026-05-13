@@ -564,6 +564,23 @@ const findDuplicates = () => {
         ? `Grupo: ${s.groupMorning || s.groupAfternoon}` 
         : <><AlertTriangle size={10} className="inline mr-1 mb-0.5"/> Sin grupo</>;
   };
+  const descargarTodasLasFotos = () => {
+    const confirmacion = confirm("Se van a descargar las fotos de todos los alumnos activos. ¿Continuar?");
+    if (!confirmacion) return;
+
+    students.forEach(s => {
+        if (s.photoUrl && s.photoUrl.startsWith('data:image')) {
+            const link = document.createElement('a');
+            link.href = s.photoUrl;
+            // El nombre del archivo será: Apellido_Nombre.jpg
+            link.download = `${s.lastName}_${s.firstName}.jpg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    });
+    alert("Proceso de descarga finalizado.");
+};
   // ==========================================
   // 8. RENDERIZADO (JSX)
   // ==========================================
@@ -578,7 +595,13 @@ const findDuplicates = () => {
                  {isSuperAdmin && <button onClick={()=>setShowDataManagement(true)} className="p-2 border border-white/30 rounded-xl hover:bg-white/10" title="Gestión (Nube)"><UploadCloud size={18}/></button>}
                  {isSuperAdmin && <button onClick={()=>setShowStats(true)} className="p-2 border border-white/30 rounded-xl hover:bg-white/10" title="Estadísticas"><PieChart size={18}/></button>}
                  <button onClick={() => imprimirListado(filteredStudents)} className="px-3 py-2 bg-white text-blue-600 rounded-xl text-xs font-black uppercase shadow hover:bg-blue-50 flex gap-2 items-center"><FileText size={14}/> Imprimir</button>
-                 <button onClick={exportFiltered} className="p-2 border border-white/30 rounded-xl hover:bg-white/10" title="Excel"><Download size={18}/></button>
+                 <button 
+  onClick={descargarTodasLasFotos} 
+  className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-md flex items-center gap-2 hover:bg-emerald-700 transition"
+>
+  <Download size={14}/> Descargar Fotos
+</button>
+               <button onClick={exportFiltered} className="p-2 border border-white/30 rounded-xl hover:bg-white/10" title="Excel"><Download size={18}/></button>
                  {!showArchived && <button onClick={openNew} className="px-4 py-2 bg-white text-blue-600 rounded-xl shadow hover:bg-blue-50 font-bold"><Plus size={20}/></button>}
              </div>
          </div>
