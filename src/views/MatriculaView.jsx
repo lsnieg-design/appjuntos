@@ -581,6 +581,59 @@ const findDuplicates = () => {
     });
     alert("Proceso de descarga finalizado.");
 };
+  const descargarFotosEnZip = async () => {
+    const confirmacion = confirm("Se va a generar un archivo ZIP con las 250+ fotos. Esto puede tardar un minuto según tu internet. ¿Continuar?");
+    if (!confirmacion) return;
+
+    setGenerating(true); // Usamos tu estado de carga para mostrar que está trabajando
+
+    try {
+        // 1. Cargamos JSZip dinámicamente
+        if (!window.JSZip) {
+            const script = document.createElement('script');
+            script.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+            document.head.appendChild(script);
+            await new Promise(resolve => script.onload = resolve);
+        }
+
+        const zip = new window.JSZip();
+        const folder = zip.folder("Fotos_Estudiantes_Juntos");
+        let contador = 0;
+
+        // 2. Recorremos los estudiantes y agregamos las fotos
+        students.forEach(s => {
+            if (s.photoUrl && s.photoUrl.startsWith('data:image')) {
+                // Extraemos la base64 pura (quitando el encabezado data:image/jpeg;base64,)
+                const base64Data = s.photoUrl.split(',')[1];
+                const nombreArchivo = `${s.lastName}_${s.firstName}.jpg`.replace(/\s+/g, '_');
+                folder.file(nombreArchivo, base64Data, {base64: true});
+                contador++;
+            }
+        });
+
+        if (contador === 0) {
+            alert("No se encontraron fotos para descargar.");
+            setGenerating(false);
+            return;
+        }
+
+        // 3. Generamos el archivo y lo disparamos
+        const content = await zip.generateAsync({type: "blob"});
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(content);
+        link.download = `Fotos_Juntos_a_la_Par_${new Date().toISOString().split('T')[0]}.zip`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        alert(`¡Listo! Se empaquetaron ${contador} fotos en el ZIP.`);
+    } catch (error) {
+        console.error(error);
+        alert("Hubo un error al generar el ZIP: " + error.message);
+    } finally {
+        setGenerating(false);
+    }
+};
   // ==========================================
   // 8. RENDERIZADO (JSX)
   // ==========================================
@@ -596,6 +649,13 @@ const findDuplicates = () => {
                  {isSuperAdmin && <button onClick={()=>setShowStats(true)} className="p-2 border border-white/30 rounded-xl hover:bg-white/10" title="Estadísticas"><PieChart size={18}/></button>}
                  <button onClick={() => imprimirListado(filteredStudents)} className="px-3 py-2 bg-white text-blue-600 rounded-xl text-xs font-black uppercase shadow hover:bg-blue-50 flex gap-2 items-center"><FileText size={14}/> Imprimir</button>
                  <button 
+  onClick={descargarFotosEnZip} 
+  disabled={generating}
+  className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-md flex items-center gap-2 hover:bg-emerald-700 transition disabled:opacity-50"
+>
+  {generating ? <RefreshCw className="animate-spin" size={14}/> : <><Download size={16}/> Descargar Todo (.ZIP)</>}
+</button>
+               <button 
   onClick={descargarTodasLasFotos} 
   className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-md flex items-center gap-2 hover:bg-emerald-700 transition"
 >
