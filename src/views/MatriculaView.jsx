@@ -25,6 +25,8 @@ export function MatriculaView({ user, db, appId, initStudentId }) {
   const [showQuickFix, setShowQuickFix] = useState(false);
   const [fixingField, setFixingField] = useState('gender'); // 'gender' o 'dx'
   const [socialCases, setSocialCases] = useState([])
+  const [generating, setGenerating] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
   
   // Estados de visualización y edición
   
