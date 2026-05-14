@@ -30,18 +30,35 @@ export function SocialView({ user, db, appId }) {
   const isAllowed = ['admin', 'super-admin', 'Docente', 'Auxiliar/Preceptor', 'Equipo Directivo', 'Equipo Técnico'].includes(user.role) || user.rol === 'admin';
 
   useEffect(() => {
-    if (!isAllowed) return;
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'));
-    const unsub = onSnapshot(q, (snap) => {
-      setCases(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
+    if (!isAllowed || !db || !appId) return;
+
+    // 1. Escuchar Casos Sociales (Ordenados por fecha de creación)
+    const qCases = collection(db, 'artifacts', appId, 'public', 'data', 'social_cases');
+    const unsubCases = onSnapshot(qCases, (snap) => {
+      const allCases = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      
+      // Ordenamos manualmente para que los nuevos (Pendientes) aparezcan arriba
+      allCases.sort((a, b) => {
+        const dateA = a.createdAt?.seconds || 0;
+        const dateB = b.createdAt?.seconds || 0;
+        return dateB - dateA;
+      });
+      
+      setCases(allCases);
       setLoading(false);
     });
-    const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
+
+    // 2. Escuchar Estudiantes Activos (Para cruzar datos de DNI/Foto)
+    const qStudents = query(
+      collection(db, 'artifacts', appId, 'public', 'data', 'students'), 
+      where('isActive', '==', true)
+    );
     const unsubStudents = onSnapshot(qStudents, (snap) => {
       setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
-    return () => { unsub(); unsubStudents(); };
-  }, [isAllowed]);
+
+    return () => { unsubCases(); unsubStudents(); };
+  }, [isAllowed, db, appId]);
 
   const hasNews = (c) => {
     const lastSeenCount = parseInt(localStorage.getItem(`lastSeenSocial_${c.id}_${user.id}`) || "0");
@@ -49,68 +66,73 @@ export function SocialView({ user, db, appId }) {
   };
 
   const handleOpenCase = (c) => {
+    // Buscamos la info completa del estudiante para mostrar la foto y DNI en el detalle
     const studentInfo = students.find(s => 
       s.id === c.studentId || 
-      `${s.lastName}, ${s.firstName}`.trim().toLowerCase() === c.studentName.trim().toLowerCase()
+      `${s.lastName}, ${s.firstName}`.trim().toLowerCase() === c.studentName?.trim().toLowerCase()
     );
     setSelectedCase({ ...c, fullInfo: studentInfo });
     localStorage.setItem(`lastSeenSocial_${c.id}_${user.id}`, c.history?.length || 0);
   };
 
- const updateStep = async (caseId, stepName) => {
+  const updateStep = async (caseId, stepName) => {
     const c = cases.find(x => x.id === caseId);
+    if (!c) return;
+
     const field = stepName === 'continuidad' ? 'sent' : 'done';
     const currentValue = c.steps?.[stepName]?.[field] || false;
     const label = stepName === 'continuidad' ? 'CONTINUIDAD PEDAGÓGICA' : 'LLAMADA A LA FAMILIA';
     const userFullName = user.fullName || `${user.firstName} ${user.lastName}`;
 
-    // Solo sumamos puntos y registro si se está marcando como REALIZADO (de false a true)
-    if (!currentValue) {
-      const autoNote = { 
-        date: new Date().toISOString(), 
-        text: `📢 REGISTRO AUTOMÁTICO: ${userFullName} marcó como REALIZADA la acción de "${label}".`, 
-        author: userFullName
-      };
+    try {
+      const caseRef = doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', caseId);
       
-      try {
-        // Registro en el historial del caso
-        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', caseId), { 
+      const newSteps = { 
+        ...c.steps, 
+        [stepName]: { 
+          ...c.steps?.[stepName], 
+          [field]: !currentValue, 
+          date: !currentValue ? new Date().toLocaleDateString('es-AR') : null, 
+          author: userFullName 
+        } 
+      };
+
+      // Si marcamos como hecho, agregamos nota al historial y sumamos puntos
+      if (!currentValue) {
+        const autoNote = { 
+          date: new Date().toISOString(), 
+          text: `📢 REGISTRO AUTOMÁTICO: ${userFullName} marcó como REALIZADA la acción de "${label}".`, 
+          author: userFullName
+        };
+        
+        await updateDoc(caseRef, { 
+          steps: newSteps,
           history: arrayUnion(autoNote) 
         });
 
-        // Suma de puntos por acción social
         const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
         await updateDoc(userRef, { score: increment(10) });
-      } catch (err) {
-        console.error("Error en updateDoc:", err);
+      } else {
+        await updateDoc(caseRef, { steps: newSteps });
       }
-    }
 
-    const newSteps = { 
-      ...c.steps, 
-      [stepName]: { 
-        ...c.steps?.[stepName], 
-        [field]: !currentValue, 
-        date: !currentValue ? new Date().toLocaleDateString('es-AR') : null, 
-        author: userFullName 
-      } 
-    };
-
-    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', caseId), { 
-      steps: newSteps 
-    });
-
-    setSelectedCase(prev => ({ 
-      ...prev, 
-      steps: newSteps,
-      history: !currentValue 
-        ? [...(prev.history || []), { 
+      // Actualizar el estado local para que se vea el cambio sin recargar
+      if (selectedCase && selectedCase.id === caseId) {
+        setSelectedCase(prev => ({
+          ...prev,
+          steps: newSteps,
+          history: !currentValue ? [...(prev.history || []), { 
             text: `📢 REGISTRO AUTOMÁTICO: Marcaron como realizada "${label}".`, 
             author: userFullName, 
             date: new Date().toISOString() 
-          }] 
-        : prev.history 
-    }));
+          }] : prev.history
+        }));
+      }
+
+    } catch (err) {
+      console.error("Error al actualizar paso:", err);
+      alert("Error al guardar el cambio.");
+    }
   };
 
  const handleAddComment = async (caseId) => {
