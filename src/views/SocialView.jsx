@@ -199,29 +199,38 @@ export function SocialView({ user, db, appId }) {
     if (!win) { window.location.href = url; }
   };
 
-  const filteredCases = cases.filter(c => {
-    // 1. Filtro por búsqueda de texto (ignora el modo de vista si se está buscando)
+ const filteredCases = cases.filter(c => {
+    // 1. Filtro por búsqueda de texto (Manda sobre todo lo demás)
     const isSearching = searchTerm.trim().length > 0;
-    const matchesSearch = !isSearching || 
-      c.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (c.fullInfo?.dni && c.fullInfo.dni.includes(searchTerm));
-
-    if (!matchesSearch) return false;
-
-    // 2. Filtro de vista (Activo vs Archivados) - Sólo se aplica si NO estamos buscando
-    if (!isSearching) {
-      const matchStatus = viewMode === 'archived' ? c.status === 'Reincorporado' : c.status !== 'Reincorporado';
-      if (!matchStatus) return false;
+    if (isSearching) {
+      return c.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             (c.fullInfo?.dni && c.fullInfo.dni.includes(searchTerm));
     }
 
-    // 3. Filtros por ciclo
-    const level = (c.level || '').toUpperCase();
-    if (filter === 'primeros' && !(level.includes('INICIAL') || level.includes('1°'))) return false;
-    if (filter === 'segundos' && !(level.includes('2°') || level.includes('CFI'))) return false;
+    // 2. Filtro de vista (Activo vs Archivados)
+    const isArchived = c.status === 'Reincorporado';
+    if (viewMode === 'archived' && !isArchived) return false;
+    if (viewMode === 'active' && isArchived) return false;
+
+    // 3. Filtro por Ciclo (Relajado para casos nuevos)
+    if (filter !== 'all') {
+      const level = (c.level || '').toUpperCase();
+      // Si el caso es nuevo (Pendiente) y no tiene nivel, lo mostramos igual para que no se pierda
+      if (c.status === 'Pendiente' && !level) return true; 
+
+      if (filter === 'primeros') {
+        const esPrimeros = level.includes('INICIAL') || level.includes('1°') || level.includes('1ERA') || level.includes('PRIMER');
+        if (!esPrimeros) return false;
+      }
+      if (filter === 'segundos') {
+        const esSegundos = level.includes('2°') || level.includes('2DA') || level.includes('SEGUNDO') || level.includes('CFI');
+        if (!esSegundos) return false;
+      }
+    }
     
     return true;
   });
-
+  
   return (
     <div className="h-full flex flex-col space-y-4 animate-in fade-in pb-20">
       {/* HEADER PRINCIPAL */}
