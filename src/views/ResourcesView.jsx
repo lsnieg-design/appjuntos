@@ -61,6 +61,66 @@ export function ResourcesView({ resources, canEdit, db, appId, user }) {
       await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', resId));
     } catch (err) { alert(err.message); }
   };
+  // --- PARCHE GENERADOR DE NOTAS ---
+  const handleDownloadNota = async () => {
+    if(!notaData.title && !notaData.body) return alert("Escribí algo.");
+    
+    setIsGeneratingImg(true);
+    // Forzamos un pequeño delay para que el DOM se asiente
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const element = document.getElementById('nota-canvas');
+    
+    if (!element) {
+      setIsGeneratingImg(false);
+      return alert("No se encontró el lienzo de la nota.");
+    }
+
+    try {
+      // 1. Cargamos html2canvas con un import dinámico más estable
+      const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
+      
+      // 2. Captura optimizada
+      const canvas = await html2canvas(element, { 
+        scale: 2, 
+        useCORS: true, 
+        allowTaint: true,
+        backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
+        logging: false,
+        onclone: (clonedDoc) => {
+          const container = clonedDoc.getElementById('nota-canvas');
+          if (container) {
+            container.style.transform = "none";
+            container.style.width = "600px";
+            // Aseguramos que el texto no se corte
+            const content = container.querySelector('.whitespace-pre-wrap');
+            if (content) content.style.display = "block";
+          }
+        }
+      }); 
+
+      // 3. Generamos el link de descarga
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const link = document.createElement('a');
+      link.download = `Nota_Juntos_${new Date().getTime()}.jpg`;
+      link.href = imgData;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // 4. Sumar puntos de auditoría
+      try {
+        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+        await updateDoc(userRef, { score: increment(15) });
+      } catch (e) { console.log("Error score"); }
+      
+      alert("🚀 ¡Nota descargada con éxito!");
+    } catch (error) { 
+      console.error("Error capturando nota:", error);
+      alert("Error al generar la imagen. Si persiste, intentá borrar el logo o usar el modo Blanco y Negro."); 
+    } finally {
+      setIsGeneratingImg(false);
+    }
+  };
 
   const aplicarPlantillaReunion = () => {
       if(!templateData.fechaReunion || !templateData.horaReunion) {
