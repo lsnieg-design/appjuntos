@@ -32,23 +32,27 @@ export function SocialView({ user, db, appId }) {
 useEffect(() => {
     if (!isAllowed || !db || !appId) return;
 
-    // Traemos la colección pura para evitar errores de índices de Firebase
-    const q = collection(db, 'artifacts', appId, 'public', 'data', 'social_cases');
+    // CONSULTA PURA: Traemos la colección sin filtros para evitar errores de índices
+    const socialRef = collection(db, 'artifacts', appId, 'public', 'data', 'social_cases');
     
-    const unsub = onSnapshot(q, (snap) => {
-      const allCases = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const unsub = onSnapshot(socialRef, (snap) => {
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       
-      // Ordenamos nosotros en la memoria (Lo más nuevo arriba)
-      allCases.sort((a, b) => {
-        const dateA = a.createdAt?.seconds || Date.now();
-        const dateB = b.createdAt?.seconds || Date.now();
+      // Ordenamos manualmente por fecha (lo más nuevo arriba)
+      docs.sort((a, b) => {
+        const dateA = a.createdAt?.seconds || Date.now() / 1000;
+        const dateB = b.createdAt?.seconds || Date.now() / 1000;
         return dateB - dateA;
       });
 
-      setCases(allCases);
+      console.log("🔥 Casos recibidos en Social:", docs.length);
+      setCases(docs);
       setLoading(false);
+    }, (error) => {
+      console.error("❌ Error de Firebase en SocialView:", error);
     });
 
+    // Escuchar estudiantes (esto ya funciona bien)
     const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
     const unsubStudents = onSnapshot(qStudents, (snap) => {
       setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -56,6 +60,8 @@ useEffect(() => {
 
     return () => { unsub(); unsubStudents(); };
   }, [isAllowed, db, appId]);
+
+  
   const hasNews = (c) => {
     const lastSeenCount = parseInt(localStorage.getItem(`lastSeenSocial_${c.id}_${user.id}`) || "0");
     return (c.history?.length || 0) > lastSeenCount;
