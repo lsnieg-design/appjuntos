@@ -61,67 +61,81 @@ export function ResourcesView({ resources, canEdit, db, appId, user }) {
       await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'resources', resId));
     } catch (err) { alert(err.message); }
   };
-  // --- PARCHE GENERADOR DE NOTAS ---
-  const handleDownloadNota = async () => {
+const handleDownloadNota = async () => {
     if(!notaData.title && !notaData.body) return alert("Escribí algo.");
     
     setIsGeneratingImg(true);
-    // Forzamos un pequeño delay para que el DOM se asiente
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 400));
     const element = document.getElementById('nota-canvas');
     
-    if (!element) {
-      setIsGeneratingImg(false);
-      return alert("No se encontró el lienzo de la nota.");
-    }
-
     try {
-      // 1. Cargamos html2canvas con un import dinámico más estable
       const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
       
-      // 2. Captura optimizada
       const canvas = await html2canvas(element, { 
-        scale: 2, 
+        scale: 3, // Más calidad
         useCORS: true, 
         allowTaint: true,
         backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
-        logging: false,
+        width: 600,
+        windowWidth: 600,
         onclone: (clonedDoc) => {
           const container = clonedDoc.getElementById('nota-canvas');
-          if (container) {
-            container.style.transform = "none";
-            container.style.width = "600px";
-            // Aseguramos que el texto no se corte
-            const content = container.querySelector('.whitespace-pre-wrap');
-            if (content) content.style.display = "block";
+          // --- FORZADO DE ESTILO PARA LA FOTO ---
+          container.style.transform = "none";
+          container.style.display = "block";
+          container.style.width = "600px";
+          container.style.height = "auto";
+          container.style.padding = "0";
+
+          // Forzamos el centrado manual de los textos
+          const title = container.querySelector('h1');
+          if (title) {
+            title.style.width = "100%";
+            title.style.textAlign = "center";
+            title.style.display = "block";
+            title.style.marginTop = "40px";
+          }
+
+          const bodyText = container.querySelector('.whitespace-pre-wrap');
+          if (bodyText) {
+            bodyText.style.width = "500px"; // Ancho fijo para que no se pegue a los bordes
+            bodyText.style.margin = "0 auto";
+            bodyText.style.display = "block";
+            bodyText.style.textAlign = notaData.textAlign.replace('text-', ''); // Convertimos 'text-center' a 'center'
+            bodyText.style.fontSize = notaData.fontSize === 'text-[18px]' ? '22px' : notaData.fontSize === 'text-[11px]' ? '14px' : '18px';
+            bodyText.style.lineHeight = "1.6";
+          }
+
+          const footer = container.querySelector('.mt-auto');
+          if (footer) {
+            footer.style.marginTop = "60px";
+            footer.style.textAlign = "center";
+            footer.style.width = "100%";
+            footer.style.display = "block";
           }
         }
       }); 
 
-      // 3. Generamos el link de descarga
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
       const link = document.createElement('a');
-      link.download = `Nota_Juntos_${new Date().getTime()}.jpg`;
+      link.download = `Nota_${new Date().getTime()}.jpg`;
       link.href = imgData;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
-      // 4. Sumar puntos de auditoría
-      try {
-        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-        await updateDoc(userRef, { score: increment(15) });
-      } catch (e) { console.log("Error score"); }
+      const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+      await updateDoc(userRef, { score: increment(15) });
       
-      alert("🚀 ¡Nota descargada con éxito!");
     } catch (error) { 
-      console.error("Error capturando nota:", error);
-      alert("Error al generar la imagen. Si persiste, intentá borrar el logo o usar el modo Blanco y Negro."); 
+      console.error(error);
+      alert("Error al generar. Reintentá."); 
     } finally {
       setIsGeneratingImg(false);
     }
   };
 
+  
   const aplicarPlantillaReunion = () => {
       if(!templateData.fechaReunion || !templateData.horaReunion) {
           alert("Completá fecha y hora."); return;
