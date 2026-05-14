@@ -11,7 +11,7 @@ import {
   ChevronUp // <--- ESTE ES EL QUE FALTABA
 } from 'lucide-react';
 import { 
-  collection, addDoc, doc, updateDoc, deleteDoc, serverTimestamp 
+  collection, addDoc, doc, updateDoc, deleteDoc, serverTimestamp, increment 
 } from 'firebase/firestore';
 
 export function ResourcesView({ resources, canEdit, db, appId, user }) {
