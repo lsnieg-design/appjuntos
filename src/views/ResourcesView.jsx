@@ -17,6 +17,8 @@ import {
 export function ResourcesView({ resources, canEdit, db, appId, user }) {
   const [showModal, setShowModal] = useState(false);
   const [editingRes, setEditingRes] = useState(null); 
+  const [showMobilePreview, setShowMobilePreview] = useState(false); // Para minimizar en celu
+  const [isGeneratingImg, setIsGeneratingImg] = useState(false); // Estado de carga
   
   const [showNotaModal, setShowNotaModal] = useState(false);
   const [notaData, setNotaData] = useState({ 
@@ -68,71 +70,46 @@ const handleDownloadNota = async () => {
     try {
       const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
 
-      // 1. Creamos un contenedor temporal fuera de la vista
-      const tempContainer = document.createElement('div');
-      tempContainer.style.position = 'absolute';
-      tempContainer.style.left = '-9999px';
-      tempContainer.style.top = '0';
-      tempContainer.style.width = '800px'; // Ancho de hoja real
-      document.body.appendChild(tempContainer);
+      // 1. Creamos hoja virtual tamaño PC
+      const tempDiv = document.createElement('div');
+      tempDiv.style.cssText = 'position:absolute; left:-9999px; top:0; width:800px;';
+      document.body.appendChild(tempDiv);
 
-      // 2. Clonamos la nota original dentro de este contenedor gigante
-      const originalNota = document.getElementById('nota-canvas');
-      const clonedNota = originalNota.cloneNode(true);
+      const source = document.getElementById('nota-canvas');
+      const clone = source.cloneNode(true);
       
-      // 3. Forzamos estilos de "Hoja Impresa" al clon
-      clonedNota.style.transform = "none";
-      clonedNota.style.width = "800px";
-      clonedNota.style.height = "auto";
-      clonedNota.style.minHeight = "600px";
-      clonedNota.style.padding = "40px";
-      clonedNota.style.margin = "0";
-      clonedNota.style.display = "block";
-      clonedNota.style.borderRadius = "0"; // Sin bordes redondeados para la foto oficial
+      // 2. Forzamos diseño perfecto en el clon
+      clone.style.cssText = 'transform:none; width:800px; height:auto; min-height:600px; padding:60px; display:block; background:' + (notaData.isPrintMode ? "#ffffff" : "#fefce8");
       
-      // Ajuste de textos dentro del clon para que no se amontonen
-      const title = clonedNota.querySelector('h1');
-      if(title) { title.style.textAlign = 'center'; title.style.fontSize = '32px'; title.style.marginBottom = '40px'; }
-      
-      const body = clonedNota.querySelector('.whitespace-pre-wrap');
-      if(body) { 
-        body.style.fontSize = notaData.fontSize === 'text-[18px]' ? '24px' : '18px';
-        body.style.textAlign = notaData.textAlign.replace('text-', '');
-        body.style.lineHeight = '1.8';
-        body.style.padding = '0 50px';
+      const content = clone.querySelector('.whitespace-pre-wrap');
+      if(content) {
+        content.style.cssText = `font-size:20px; line-height:1.8; text-align:${notaData.textAlign.replace('text-', '')}; width:100%; display:block;`;
       }
+      
+      tempDiv.appendChild(clone);
 
-      tempContainer.appendChild(clonedNota);
-
-      // 4. Sacamos la foto al contenedor gigante
-      const canvas = await html2canvas(clonedNota, {
+      // 3. Captura
+      const canvas = await html2canvas(clone, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8',
       });
 
-      // 5. Descarga y Limpieza
       const imgData = canvas.toDataURL('image/jpeg', 0.95);
       const link = document.createElement('a');
-      link.download = `Nota_Oficial_${new Date().getTime()}.jpg`;
+      link.download = `Nota_${new Date().getTime()}.jpg`;
       link.href = imgData;
       link.click();
 
-      document.body.removeChild(tempContainer);
-      
-      // Sumar puntos
+      document.body.removeChild(tempDiv);
       const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
       await updateDoc(userRef, { score: increment(15) });
-
+      alert("🚀 ¡Nota generada perfectamente!");
     } catch (error) {
-      console.error(error);
-      alert("Error en el renderizado. Reintentá.");
-    } finally {
-      setIsGeneratingImg(false);
-    }
+      alert("Error al procesar imagen.");
+    } finally { setIsGeneratingImg(false); }
   };
-
   
   const aplicarPlantillaReunion = () => {
       if(!templateData.fechaReunion || !templateData.horaReunion) {
@@ -217,11 +194,25 @@ const handleDownloadNota = async () => {
           <div className="bg-white rounded-t-[40px] md:rounded-[40px] w-full max-w-7xl flex flex-col h-[98vh] md:h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center shrink-0">
               <h3 className="text-xl font-black text-violet-900 uppercase italic">Editor Institucional</h3>
-              <button onClick={() => setShowNotaModal(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20}/></button>
+              <div className="flex gap-2">
+  <button onClick={() => setShowMobilePreview(!showMobilePreview)} className="md:hidden bg-violet-100 text-violet-700 px-3 py-1 rounded-lg flex items-center gap-1 font-bold text-[10px] uppercase">
+    {showMobilePreview ? <Edit3 size={14}/> : <Eye size={14}/>}
+    {showMobilePreview ? 'Escribir' : 'Ver Nota'}
+  </button>
+ <div className="flex gap-2">
+  <button onClick={() => setShowMobilePreview(!showMobilePreview)} className="md:hidden bg-violet-100 text-violet-700 px-3 py-1 rounded-lg flex items-center gap-1 font-bold text-[10px] uppercase">
+    {showMobilePreview ? <Edit3 size={14}/> : <Eye size={14}/>}
+    {showMobilePreview ? 'Escribir' : 'Ver Nota'}
+  </button>
+  <button onClick={() => setShowNotaModal(false)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"><X size={20}/></button>
+</div>
+</div>
             </div>
             
-            <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-              <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-6 border-r border-gray-50 relative">
+          <div className="flex-1 flex overflow-hidden">
+              
+              {/* LADO 1: EDITOR (Se oculta en celu si se está previsualizando) */}
+              <div className={`flex-1 overflow-y-auto p-4 md:p-10 space-y-4 ${showMobilePreview ? 'hidden md:block' : 'block'}`}>
                 
                 {/* BOTÓN DE PLANTILLAS */}
                 <button 
@@ -231,60 +222,18 @@ const handleDownloadNota = async () => {
                     <List size={16}/> {showTemplates ? 'Ocultar Plantillas' : 'Usar una Plantilla (Ej: Reunión)'}
                 </button>
 
-                {/* PANEL DE PLANTILLAS DESPLEGABLE */}
+                {/* PANEL DE PLANTILLAS */}
                 {showTemplates && (
                     <div className="bg-white p-4 rounded-2xl border border-blue-200 shadow-sm animate-in slide-in-from-top-2 space-y-3">
-                        <h4 className="font-black text-blue-900 text-xs uppercase italic border-b pb-2">Plantilla: Citación a Reunión</h4>
-                        
+                        <h4 className="font-black text-blue-900 text-xs uppercase italic border-b pb-2">Citación a Reunión</h4>
                         <div className="space-y-2">
-                            <div>
-                                <label className="text-[10px] font-bold text-gray-400 uppercase block ml-1 mb-1">Destinatario (Opcional)</label>
-                                <input 
-                                    type="text" 
-                                    placeholder="Ej: Pérez Juan / Grupo 1° Ciclo" 
-                                    value={templateData.destinatario} 
-                                    onChange={e => setTemplateData({...templateData, destinatario: e.target.value})} 
-                                    className="w-full p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs border border-gray-200"
-                                />
-                            </div>
+                            <input type="text" placeholder="Alumno / Grupo" value={templateData.destinatario} onChange={e => setTemplateData({...templateData, destinatario: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs border" />
                             <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase block ml-1 mb-1">Fecha</label>
-                                    <input 
-                                        type="date" 
-                                        value={templateData.fechaReunion} 
-                                        onChange={e => setTemplateData({...templateData, fechaReunion: e.target.value})} 
-                                        className="w-full p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs border border-gray-200 text-gray-600"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase block ml-1 mb-1">Hora</label>
-                                    <input 
-                                        type="time" 
-                                        value={templateData.horaReunion} 
-                                        onChange={e => setTemplateData({...templateData, horaReunion: e.target.value})} 
-                                        className="w-full p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs border border-gray-200 text-gray-600"
-                                    />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-bold text-gray-400 uppercase block ml-1 mb-1">Modalidad</label>
-                                <select 
-                                    value={templateData.modalidad} 
-                                    onChange={e => setTemplateData({...templateData, modalidad: e.target.value})} 
-                                    className="w-full p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs border border-gray-200 text-gray-600"
-                                >
-                                    <option value="Presencial en la Institución">Presencial</option>
-                                    <option value="Virtual (Se enviará enlace)">Virtual (Meet/Zoom)</option>
-                                </select>
+                                <input type="date" value={templateData.fechaReunion} onChange={e => setTemplateData({...templateData, fechaReunion: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs border" />
+                                <input type="time" value={templateData.horaReunion} onChange={e => setTemplateData({...templateData, horaReunion: e.target.value})} className="w-full p-2 bg-gray-50 rounded-lg outline-none font-bold text-xs border" />
                             </div>
                         </div>
-                        <button 
-                            onClick={aplicarPlantillaReunion} 
-                            className="w-full mt-2 bg-blue-600 text-white py-2 rounded-xl font-bold text-xs uppercase shadow-md hover:bg-blue-700"
-                        >
-                            Generar Texto
-                        </button>
+                        <button onClick={aplicarPlantillaReunion} className="w-full bg-blue-600 text-white py-2 rounded-xl font-bold text-xs uppercase shadow-md">Generar Texto</button>
                     </div>
                 )}
 
@@ -309,32 +258,30 @@ const handleDownloadNota = async () => {
                     <button onClick={() => setNotaData({...notaData, isPrintMode: false})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${!notaData.isPrintMode ? 'bg-orange-500 text-white shadow-md' : 'bg-white text-orange-400'}`}>🎨 COLOR</button>
                     <button onClick={() => setNotaData({...notaData, isPrintMode: true})} className={`flex-1 py-2 rounded-lg text-[10px] font-black transition-all ${notaData.isPrintMode ? 'bg-gray-800 text-white shadow-md' : 'bg-white text-gray-400'}`}>🖨️ BLANCO</button>
                   </div>
-                  {/* ALINEACIÓN DE TEXTO */}
                   <div className="flex gap-2 justify-center pt-2 border-t border-violet-200/50">
-                      <button onClick={() => setNotaData({...notaData, textAlign: 'text-left'})} className={`p-2 rounded-lg transition-colors ${notaData.textAlign === 'text-left' ? 'bg-violet-200 text-violet-800' : 'text-violet-400 hover:bg-violet-100'}`} title="Izquierda"><AlignLeft size={16}/></button>
-                      <button onClick={() => setNotaData({...notaData, textAlign: 'text-center'})} className={`p-2 rounded-lg transition-colors ${notaData.textAlign === 'text-center' ? 'bg-violet-200 text-violet-800' : 'text-violet-400 hover:bg-violet-100'}`} title="Centro"><AlignCenter size={16}/></button>
-                      <button onClick={() => setNotaData({...notaData, textAlign: 'text-justify'})} className={`p-2 rounded-lg transition-colors ${notaData.textAlign === 'text-justify' ? 'bg-violet-200 text-violet-800' : 'text-violet-400 hover:bg-violet-100'}`} title="Justificado"><AlignJustify size={16}/></button>
+                      <button onClick={() => setNotaData({...notaData, textAlign: 'text-left'})} className={`p-2 rounded-lg ${notaData.textAlign === 'text-left' ? 'bg-violet-200 text-violet-800' : 'text-violet-400'}`}><AlignLeft size={16}/></button>
+                      <button onClick={() => setNotaData({...notaData, textAlign: 'text-center'})} className={`p-2 rounded-lg ${notaData.textAlign === 'text-center' ? 'bg-violet-200 text-violet-800' : 'text-violet-400'}`}><AlignCenter size={16}/></button>
+                      <button onClick={() => setNotaData({...notaData, textAlign: 'text-justify'})} className={`p-2 rounded-lg ${notaData.textAlign === 'text-justify' ? 'bg-violet-200 text-violet-800' : 'text-violet-400'}`}><AlignJustify size={16}/></button>
                   </div>
                 </div>
 
-                <input type="text" placeholder="TÍTULO DE LA NOTA" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-4 bg-gray-50 rounded-xl outline-none font-black uppercase text-gray-700 border-2 border-transparent focus:border-orange-200 shadow-inner"/>
-                <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Escribe tu comunicado aquí o usa la plantilla de arriba..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-sm border-2 border-transparent focus:border-pink-200 h-[250px] resize-none font-medium text-gray-600 shadow-inner custom-scrollbar"/>
+                <input type="text" placeholder="TÍTULO" value={notaData.title} onChange={e => setNotaData({...notaData, title: e.target.value})} className="w-full p-4 bg-gray-50 rounded-xl outline-none font-black uppercase text-gray-700 shadow-inner"/>
+                <textarea value={notaData.body} onChange={e => setNotaData({...notaData, body: e.target.value})} placeholder="Mensaje..." className="w-full p-4 bg-gray-50 rounded-2xl outline-none text-sm h-[250px] resize-none font-medium text-gray-600 shadow-inner"/>
               </div>
 
-              {/* LADO DE VISTA PREVIA (CANVAS) */}
-              <div className="flex-1 bg-slate-100 flex flex-col items-center justify-center p-6 md:p-10 relative overflow-hidden">
+              {/* LADO 2: VISTA PREVIA (DERECHA) - Visible en celu solo si se activa showMobilePreview */}
+              <div className={`flex-1 bg-slate-100 flex items-start justify-center p-4 md:p-10 overflow-y-auto ${!showMobilePreview ? 'hidden md:flex' : 'flex'}`}>
                 <div className="scale-[0.5] sm:scale-[0.6] md:scale-[0.8] xl:scale-[0.95] origin-top transition-all">
-                  <div id="nota-canvas" className={`w-[600px] min-h-[400px] relative shadow-2xl rounded-[15px] flex flex-col overflow-hidden transition-all duration-300 ${notaData.isPrintMode ? 'bg-white border-[10px] border-gray-200' : 'bg-[#fefce8] border-[10px] border-white'}`} style={{ height: 'auto' }}>
-                    {!notaData.isPrintMode && <div className="absolute inset-0 opacity-[0.04]" style={{backgroundImage: 'radial-gradient(#f97316 2px, transparent 2px)', backgroundSize: '18px 18px'}}></div>}
-                    <div className={`absolute top-0 left-0 right-0 h-3 opacity-80 ${notaData.isPrintMode ? 'bg-gray-300' : 'bg-gradient-to-r from-violet-600 via-pink-500 to-orange-400'}`}></div>
+                  <div id="nota-canvas" className={`w-[600px] min-h-[400px] relative shadow-2xl rounded-[15px] flex flex-col overflow-hidden ${notaData.isPrintMode ? 'bg-white border-[10px] border-gray-200' : 'bg-[#fefce8] border-[10px] border-white'}`}>
+                    <div className={`absolute top-0 left-0 right-0 h-3 ${notaData.isPrintMode ? 'bg-gray-300' : 'bg-gradient-to-r from-violet-600 via-pink-500 to-orange-400'}`}></div>
                     
                     <div className="flex flex-col h-full px-12 pt-10 pb-12 z-10">
-                      <div className="flex justify-between items-start mb-6 shrink-0 text-gray-800">
+                      <div className="flex justify-between items-start mb-6">
                         <div className="flex items-center gap-4">
                           <img src={LOGO_SIN_FONDO} className="w-16 h-auto mix-blend-multiply" crossOrigin="anonymous"/>
                           <div className="leading-tight pt-1">
                             <h2 className="font-black text-[16px] text-violet-900 uppercase tracking-[2px]">JUNTOS A LA PAR</h2>
-                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest text-center">ESCUELA ESPECIAL</p>
+                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">ESCUELA ESPECIAL</p>
                           </div>
                         </div>
                         <p className={`text-[12px] font-black uppercase pt-2 ${notaData.isPrintMode ? 'text-gray-400' : 'text-orange-600'}`}>{notaData.date}</p>
@@ -343,7 +290,7 @@ const handleDownloadNota = async () => {
                       <h1 className="text-2xl font-black text-gray-800 uppercase leading-tight mb-6 text-center">{notaData.title || 'COMUNICADO'}</h1>
                       
                       <div className="flex-1 w-full mb-10">
-                        <div className={`text-slate-700 font-bold whitespace-pre-wrap leading-relaxed break-words w-full px-8 ${notaData.fontSize} ${notaData.textAlign}`} style={{ maxWidth: '540px', margin: '0 auto', wordSpacing: '0.15em', letterSpacing: '0.01em', textRendering: "optimizeLegibility" }}>
+                        <div className={`text-slate-700 font-bold whitespace-pre-wrap leading-relaxed break-words w-full px-8 ${notaData.fontSize} ${notaData.textAlign}`}>
                           {notaData.body || 'Vista previa del mensaje...'}
                         </div>
                       </div>
@@ -357,70 +304,64 @@ const handleDownloadNota = async () => {
                   </div>
                 </div>
               </div>
+
             </div>
 
             <div className="p-6 border-t bg-white shrink-0 z-20 shadow-2xl">
               <div className="flex gap-4 max-w-4xl mx-auto">
                 <button onClick={() => setShowNotaModal(false)} className="flex-1 text-gray-400 font-black text-xs uppercase py-4">VOLVER</button>
-                <button 
-                  onClick={async () => {
-                    if(!notaData.title && !notaData.body) return alert("Escribí algo.");
-                    
-                    const element = document.getElementById('nota-canvas');
-                    
-                    try {
-                      // --- SUMA DE PUNTOS POR PROFESIONALIZAR LA COMUNICACIÓN ---
-                      const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-                      await updateDoc(userRef, { score: increment(15) });
-                      
-                      const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
-                      
-                      // OPCIONES ANTI-ENCIMAMIENTO PARA MÓVILES
-                      const canvas = await html2canvas(element, { 
-                        scale: 2, // Calidad óptima para procesamiento rápido
-                        useCORS: true, 
-                        allowTaint: true,
-                        backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
-                        logging: false,
-                        width: 600,
-                        windowWidth: 600, 
-                        onclone: (clonedDoc) => {
-                          const container = clonedDoc.getElementById('nota-canvas');
-                          // Forzamos el renderizado correcto para la captura
-                          container.style.transform = "none";
-                          container.style.width = "600px";
-                          
-                          const txt = container.querySelector('.whitespace-pre-wrap');
-                          if (txt) { 
-                            txt.style.wordSpacing = 'normal'; 
-                            txt.style.letterSpacing = 'normal';
-                            txt.style.lineHeight = '1.6';
-                            txt.style.paddingLeft = '40px';
-                            txt.style.paddingRight = '40px';
-                            txt.style.display = "block";
-                            txt.style.width = "100%";
-                          }
-                        }
-                      }); 
+               <button 
+  disabled={isGeneratingImg}
+  onClick={async () => {
+    if(!notaData.title && !notaData.body) return alert("Escribí algo.");
+    setIsGeneratingImg(true);
+    
+    try {
+      const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
 
-                      // Convertimos a imagen y descargamos
-                      const imgData = canvas.toDataURL('image/jpeg', 0.9);
-                      const link = document.createElement('a');
-                      link.download = `Nota_${(notaData.title || 'Nota').substring(0,10)}.jpg`;
-                      link.href = imgData;
-                      link.click();
-                      
-                      alert("🚀 ¡Nota generada! Sumaste 15 puntos.");
-                      
-                    } catch (error) { 
-                      console.error("Error al generar nota:", error);
-                      alert("Error al generar imagen. Intenta de nuevo."); 
-                    }
-                  }}
-                  className="flex-[3] bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-sm uppercase tracking-[4px] rounded-2xl shadow-xl hover:scale-[1.02] transition py-4 flex items-center justify-center gap-2"
-                >
-                  <Download size={20}/> DESCARGAR NOTA OFICIAL
-                </button>
+      // TRUCO: Creamos una hoja virtual tamaño PC fuera de la pantalla
+      const tempDiv = document.createElement('div');
+      tempDiv.style.cssText = 'position:absolute; left:-9999px; top:0; width:800px;';
+      document.body.appendChild(tempDiv);
+
+      const source = document.getElementById('nota-canvas');
+      const clone = source.cloneNode(true);
+      
+      // Forzamos estilos de hoja real al clon para que en el celu no salga deformada
+      clone.style.cssText = `transform:none; width:800px; height:auto; min-height:800px; padding:60px; display:block; background:${notaData.isPrintMode ? "#ffffff" : "#fefce8"};`;
+      
+      const content = clone.querySelector('.whitespace-pre-wrap');
+      if(content) {
+        content.style.cssText = `font-size:22px; line-height:1.8; text-align:${notaData.textAlign.replace('text-', '')}; width:100%; display:block; padding:0 40px; color:#334155;`;
+      }
+      
+      tempDiv.appendChild(clone);
+
+      const canvas = await html2canvas(clone, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8',
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const link = document.createElement('a');
+      link.download = `Nota_${new Date().getTime()}.jpg`;
+      link.href = imgData;
+      link.click();
+
+      document.body.removeChild(tempDiv);
+      const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+      await updateDoc(userRef, { score: increment(15) });
+      alert("🚀 ¡Nota descargada perfectamente!");
+    } catch (error) {
+      alert("Error al generar imagen.");
+    } finally { setIsGeneratingImg(false); }
+  }}
+  className="flex-[3] bg-gradient-to-r from-pink-500 to-orange-400 text-white font-black text-sm uppercase tracking-[4px] rounded-2xl shadow-xl py-4 flex items-center justify-center gap-2"
+>
+  {isGeneratingImg ? <RefreshCw className="animate-spin" /> : <><Download size={20}/> DESCARGAR NOTA OFICIAL</>}
+</button>
               </div>
             </div>
           </div> 
