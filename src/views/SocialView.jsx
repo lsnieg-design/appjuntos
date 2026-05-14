@@ -29,30 +29,28 @@ export function SocialView({ user, db, appId }) {
 
   const isAllowed = ['admin', 'super-admin', 'Docente', 'Auxiliar/Preceptor', 'Equipo Directivo', 'Equipo Técnico'].includes(user.role) || user.rol === 'admin';
 
-  useEffect(() => {
+ useEffect(() => {
     if (!isAllowed || !db || !appId) return;
 
-    // 1. Escuchar Casos Sociales (Ordenados por fecha de creación)
-    const qCases = collection(db, 'artifacts', appId, 'public', 'data', 'social_cases');
-    const unsubCases = onSnapshot(qCases, (snap) => {
-      const allCases = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // Traemos la colección simple (sin query complejo para evitar error de índices)
+    const casesRef = collection(db, 'artifacts', appId, 'public', 'data', 'social_cases');
+    
+    const unsubCases = onSnapshot(casesRef, (snap) => {
+      const allDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       
-      // Ordenamos manualmente para que los nuevos (Pendientes) aparezcan arriba
-      allCases.sort((a, b) => {
-        const dateA = a.createdAt?.seconds || 0;
-        const dateB = b.createdAt?.seconds || 0;
-        return dateB - dateA;
+      // Ordenamos nosotros: los que no tienen fecha o son nuevos, arriba de todo
+      allDocs.sort((a, b) => {
+        const timeA = a.createdAt?.seconds || Date.now();
+        const timeB = b.createdAt?.seconds || Date.now();
+        return timeB - timeA;
       });
-      
-      setCases(allCases);
+
+      console.log("Casos cargados:", allDocs.length); // Esto te sirve para ver en consola si llegan
+      setCases(allDocs);
       setLoading(false);
     });
 
-    // 2. Escuchar Estudiantes Activos (Para cruzar datos de DNI/Foto)
-    const qStudents = query(
-      collection(db, 'artifacts', appId, 'public', 'data', 'students'), 
-      where('isActive', '==', true)
-    );
+    const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
     const unsubStudents = onSnapshot(qStudents, (snap) => {
       setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
