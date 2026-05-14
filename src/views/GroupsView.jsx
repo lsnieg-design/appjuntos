@@ -228,22 +228,27 @@ const handleSaveIncident = async (type, severity = "medium", text = "") => {
 
       // 3. ENLACE CON SOCIAL (Sin cambiar de pestaña)
       // Si el docente marca "Reportar Ausentismo", creamos el caso en la base de Trabajo Social
-   if (type === "Reportar Ausentismo") {
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'), {
+  // --- DENTRO DE handleSaveIncident EN GroupsView.jsx ---
+      if (type === "Reportar Ausentismo") {
+        // Aseguramos que la ruta sea: artifacts > appId > public > data > social_cases
+        const socialRef = collection(db, 'artifacts', appId, 'public', 'data', 'social_cases');
+        
+        await addDoc(socialRef, {
           studentId: activeStudent.id,
           studentName: `${activeStudent.lastName}, ${activeStudent.firstName}`,
           level: activeStudent.level || "SEDE", 
           reason: "REPORTE DESDE AULA: Ausentismo detectado.",
           status: "Pendiente",
           createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(), // Doble check de tiempo
           steps: { llamada: { done: false }, continuidad: { sent: false } },
           history: [{ 
             date: new Date().toISOString(), 
-            text: `Caso abierto automáticamente por reporte de ausentismo de ${user.firstName}.`, 
-            author: "SISTEMA"
+            text: `Caso abierto automáticamente por reporte de ${user.firstName}.`, 
+            author: "SISTEMA" 
           }]
         });
-        // Aquí NO ponemos setActiveTab, así el docente se queda donde está.
+        console.log("✅ Caso enviado a SocialView con ID de alumno:", activeStudent.id);
       }
 
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { score: increment(10) });
