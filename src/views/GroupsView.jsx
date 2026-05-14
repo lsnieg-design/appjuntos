@@ -204,10 +204,20 @@ const handleSaveIncident = async (type, severity = "medium", text = "") => {
     if (!activeStudent) return;
     setSavingIncident(true);
     try {
-      const entry = { date: new Date().toISOString(), type: text ? "Nota" : type, severity, text: text || type, author: user.fullName || user.firstName, authorId: user.id };
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', activeStudent.id), { incidents: arrayUnion(entry) });
+      // 1. Registro en la Bitácora Express (Legajo del alumno)
+      const entry = { 
+        date: new Date().toISOString(), 
+        type: text ? "Nota" : type, 
+        severity, 
+        text: text || type, 
+        author: user.fullName || user.firstName, 
+        authorId: user.id 
+      };
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', activeStudent.id), { 
+        incidents: arrayUnion(entry) 
+      });
       
-      // --- REGISTRO AUDITORÍA ---
+      // 2. Registro en Auditoría Global
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'activity_log'), {
         userName: user.firstName || user.fullName,
         userId: user.id,
@@ -216,10 +226,38 @@ const handleSaveIncident = async (type, severity = "medium", text = "") => {
         timestamp: serverTimestamp()
       });
 
+      // 3. ENLACE CON SOCIAL (Sin cambiar de pestaña)
+      // Si el docente marca "Reportar Ausentismo", creamos el caso en la base de Trabajo Social
+      if (type === "Reportar Ausentismo") {
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'), {
+          studentId: activeStudent.id,
+          studentName: `${activeStudent.lastName}, ${activeStudent.firstName}`,
+          level: activeStudent.level || "",
+          reason: "REPORTE DESDE AULA: Ausentismo detectado.",
+          status: "Pendiente",
+          createdAt: serverTimestamp(),
+          steps: { llamada: { done: false }, continuidad: { sent: false } },
+          history: [{ 
+            date: new Date().toISOString(), 
+            text: `Caso abierto automáticamente por reporte de ${user.firstName}.`, 
+            author: "SISTEMA" 
+          }]
+        });
+        // Aquí NO ponemos setActiveTab, así el docente se queda donde está.
+      }
+
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { score: increment(10) });
-      setShowBitacoraModal(null); setIsWriting(false); setNewNote("");
-      alert("✅ Registro guardado.");
-    } catch (e) { alert(e.message); } finally { setSavingIncident(false); }
+      setShowBitacoraModal(null); 
+      setIsWriting(false); 
+      setNewNote("");
+      
+      alert("✅ Registro guardado en Bitácora" + (type === "Reportar Ausentismo" ? " y enviado a Trabajo Social." : "."));
+
+    } catch (e) { 
+      alert(e.message); 
+    } finally { 
+      setSavingIncident(false); 
+    }
   };
   const handleAttendance = async (student, status) => {
     try {
