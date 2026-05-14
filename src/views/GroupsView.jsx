@@ -228,18 +228,22 @@ const handleSaveIncident = async (type, severity = "medium", text = "") => {
 
       // 3. ENLACE CON SOCIAL (Sin cambiar de pestaña)
       // Si el docente marca "Reportar Ausentismo", creamos el caso en la base de Trabajo Social
-      if (type === "Reportar Ausentismo") {
+    if (type === "Reportar Ausentismo") {
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'), {
           studentId: activeStudent.id,
           studentName: `${activeStudent.lastName}, ${activeStudent.firstName}`,
-          level: activeStudent.level || "",
+          level: activeStudent.level || "SEDE", // Aseguramos que tenga un nivel para el filtro
           reason: "REPORTE DESDE AULA: Ausentismo detectado.",
-          status: "Pendiente",
+          status: "Pendiente", // <-- ESTO ES CLAVE
           createdAt: serverTimestamp(),
-          steps: { llamada: { done: false }, continuidad: { sent: false } },
+          updatedAt: serverTimestamp(), // Agregamos esto por si el filtro ordena por update
+          steps: { 
+            llamada: { done: false }, 
+            continuidad: { sent: false } 
+          },
           history: [{ 
             date: new Date().toISOString(), 
-            text: `Caso abierto automáticamente por reporte de ${user.firstName}.`, 
+            text: `Caso abierto automáticamente por reporte de ausentismo de ${user.firstName}.`, 
             author: "SISTEMA" 
           }]
         });
