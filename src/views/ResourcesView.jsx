@@ -63,73 +63,71 @@ export function ResourcesView({ resources, canEdit, db, appId, user }) {
   };
 const handleDownloadNota = async () => {
     if(!notaData.title && !notaData.body) return alert("Escribí algo.");
-    
     setIsGeneratingImg(true);
-    await new Promise(resolve => setTimeout(resolve, 400));
-    const element = document.getElementById('nota-canvas');
-    
+
     try {
       const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
+
+      // 1. Creamos un contenedor temporal fuera de la vista
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.left = '-9999px';
+      tempContainer.style.top = '0';
+      tempContainer.style.width = '800px'; // Ancho de hoja real
+      document.body.appendChild(tempContainer);
+
+      // 2. Clonamos la nota original dentro de este contenedor gigante
+      const originalNota = document.getElementById('nota-canvas');
+      const clonedNota = originalNota.cloneNode(true);
       
-      const canvas = await html2canvas(element, { 
-        scale: 3, // Más calidad
-        useCORS: true, 
+      // 3. Forzamos estilos de "Hoja Impresa" al clon
+      clonedNota.style.transform = "none";
+      clonedNota.style.width = "800px";
+      clonedNota.style.height = "auto";
+      clonedNota.style.minHeight = "600px";
+      clonedNota.style.padding = "40px";
+      clonedNota.style.margin = "0";
+      clonedNota.style.display = "block";
+      clonedNota.style.borderRadius = "0"; // Sin bordes redondeados para la foto oficial
+      
+      // Ajuste de textos dentro del clon para que no se amontonen
+      const title = clonedNota.querySelector('h1');
+      if(title) { title.style.textAlign = 'center'; title.style.fontSize = '32px'; title.style.marginBottom = '40px'; }
+      
+      const body = clonedNota.querySelector('.whitespace-pre-wrap');
+      if(body) { 
+        body.style.fontSize = notaData.fontSize === 'text-[18px]' ? '24px' : '18px';
+        body.style.textAlign = notaData.textAlign.replace('text-', '');
+        body.style.lineHeight = '1.8';
+        body.style.padding = '0 50px';
+      }
+
+      tempContainer.appendChild(clonedNota);
+
+      // 4. Sacamos la foto al contenedor gigante
+      const canvas = await html2canvas(clonedNota, {
+        scale: 2,
+        useCORS: true,
         allowTaint: true,
-        backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8', 
-        width: 600,
-        windowWidth: 600,
-        onclone: (clonedDoc) => {
-          const container = clonedDoc.getElementById('nota-canvas');
-          // --- FORZADO DE ESTILO PARA LA FOTO ---
-          container.style.transform = "none";
-          container.style.display = "block";
-          container.style.width = "600px";
-          container.style.height = "auto";
-          container.style.padding = "0";
+        backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8',
+      });
 
-          // Forzamos el centrado manual de los textos
-          const title = container.querySelector('h1');
-          if (title) {
-            title.style.width = "100%";
-            title.style.textAlign = "center";
-            title.style.display = "block";
-            title.style.marginTop = "40px";
-          }
-
-          const bodyText = container.querySelector('.whitespace-pre-wrap');
-          if (bodyText) {
-            bodyText.style.width = "500px"; // Ancho fijo para que no se pegue a los bordes
-            bodyText.style.margin = "0 auto";
-            bodyText.style.display = "block";
-            bodyText.style.textAlign = notaData.textAlign.replace('text-', ''); // Convertimos 'text-center' a 'center'
-            bodyText.style.fontSize = notaData.fontSize === 'text-[18px]' ? '22px' : notaData.fontSize === 'text-[11px]' ? '14px' : '18px';
-            bodyText.style.lineHeight = "1.6";
-          }
-
-          const footer = container.querySelector('.mt-auto');
-          if (footer) {
-            footer.style.marginTop = "60px";
-            footer.style.textAlign = "center";
-            footer.style.width = "100%";
-            footer.style.display = "block";
-          }
-        }
-      }); 
-
-      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      // 5. Descarga y Limpieza
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
       const link = document.createElement('a');
-      link.download = `Nota_${new Date().getTime()}.jpg`;
+      link.download = `Nota_Oficial_${new Date().getTime()}.jpg`;
       link.href = imgData;
-      document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+
+      document.body.removeChild(tempContainer);
       
+      // Sumar puntos
       const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
       await updateDoc(userRef, { score: increment(15) });
-      
-    } catch (error) { 
+
+    } catch (error) {
       console.error(error);
-      alert("Error al generar. Reintentá."); 
+      alert("Error en el renderizado. Reintentá.");
     } finally {
       setIsGeneratingImg(false);
     }
