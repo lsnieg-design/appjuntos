@@ -29,24 +29,23 @@ export function SocialView({ user, db, appId }) {
 
   const isAllowed = ['admin', 'super-admin', 'Docente', 'Auxiliar/Preceptor', 'Equipo Directivo', 'Equipo Técnico'].includes(user.role) || user.rol === 'admin';
 
- useEffect(() => {
+useEffect(() => {
     if (!isAllowed || !db || !appId) return;
 
-    // Traemos la colección simple (sin query complejo para evitar error de índices)
-    const casesRef = collection(db, 'artifacts', appId, 'public', 'data', 'social_cases');
+    // Traemos la colección pura para evitar errores de índices de Firebase
+    const q = collection(db, 'artifacts', appId, 'public', 'data', 'social_cases');
     
-    const unsubCases = onSnapshot(casesRef, (snap) => {
-      const allDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const unsub = onSnapshot(q, (snap) => {
+      const allCases = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       
-      // Ordenamos nosotros: los que no tienen fecha o son nuevos, arriba de todo
-      allDocs.sort((a, b) => {
-        const timeA = a.createdAt?.seconds || Date.now();
-        const timeB = b.createdAt?.seconds || Date.now();
-        return timeB - timeA;
+      // Ordenamos nosotros en la memoria (Lo más nuevo arriba)
+      allCases.sort((a, b) => {
+        const dateA = a.createdAt?.seconds || Date.now();
+        const dateB = b.createdAt?.seconds || Date.now();
+        return dateB - dateA;
       });
 
-      console.log("Casos cargados:", allDocs.length); // Esto te sirve para ver en consola si llegan
-      setCases(allDocs);
+      setCases(allCases);
       setLoading(false);
     });
 
@@ -55,19 +54,18 @@ export function SocialView({ user, db, appId }) {
       setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
 
-    return () => { unsubCases(); unsubStudents(); };
+    return () => { unsub(); unsubStudents(); };
   }, [isAllowed, db, appId]);
-
   const hasNews = (c) => {
     const lastSeenCount = parseInt(localStorage.getItem(`lastSeenSocial_${c.id}_${user.id}`) || "0");
     return (c.history?.length || 0) > lastSeenCount;
   };
 
-  const handleOpenCase = (c) => {
-    // Buscamos la info completa del estudiante para mostrar la foto y DNI en el detalle
+ const handleOpenCase = (c) => {
+    // Buscamos al alumno por ID primero, y si no por Apellido (flexibilidad total)
     const studentInfo = students.find(s => 
       s.id === c.studentId || 
-      `${s.lastName}, ${s.firstName}`.trim().toLowerCase() === c.studentName?.trim().toLowerCase()
+      c.studentName?.toLowerCase().includes(s.lastName?.toLowerCase())
     );
     setSelectedCase({ ...c, fullInfo: studentInfo });
     localStorage.setItem(`lastSeenSocial_${c.id}_${user.id}`, c.history?.length || 0);
@@ -220,29 +218,22 @@ export function SocialView({ user, db, appId }) {
   };
 
 const filteredCases = cases.filter(c => {
-    // 1. Buscador (Manda sobre todo)
+    // 1. Si hay buscador, ignoramos todo lo demás y mostramos coincidencias
     const term = searchTerm.trim().toLowerCase();
     if (term) {
-      return c.studentName?.toLowerCase().includes(term) || (c.fullInfo?.dni && c.fullInfo.dni.includes(term));
+      return c.studentName?.toLowerCase().includes(term);
     }
 
-    // 2. Filtro de Pestaña (Activo vs Archivo)
-    // Para el sistema, un caso está ARCHIVADO solo si el status es exactamente 'Reincorporado'
+    // 2. Lógica de Pestañas (Activos vs Archivo)
+    // Un caso solo se oculta de 'activos' si dice exactamente 'Reincorporado'
     const isArchived = c.status === 'Reincorporado';
-    
-    if (viewMode === 'archived') {
-      if (!isArchived) return false;
-    } else {
-      // Si no es archivado, es ACTIVO (incluye 'Pendiente', 'Citado', o sin status)
-      if (isArchived) return false;
-    }
+    if (viewMode === 'archived' && !isArchived) return false;
+    if (viewMode === 'active' && isArchived) return false;
 
-    // 3. Filtro de Ciclo (Permisivo para casos nuevos)
-    if (filter !== 'all') {
+    // 3. Filtro de Ciclo (Solo si NO es un caso nuevo 'Pendiente')
+    // Esto asegura que los reportes de ausentismo aparezcan SIEMPRE
+    if (filter !== 'all' && c.status !== 'Pendiente') {
       const level = (c.level || '').toUpperCase();
-      // Si el caso es Pendiente (nuevo desde aula) y no tiene nivel, LO MOSTRAMOS IGUAL
-      if (!level || c.status === 'Pendiente') return true;
-
       if (filter === 'primeros') {
         const esPrimeros = level.includes('INICIAL') || level.includes('1°') || level.includes('1ERA');
         if (!esPrimeros) return false;
