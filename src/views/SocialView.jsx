@@ -221,32 +221,29 @@ export function SocialView({ user, db, appId }) {
     if (!win) { window.location.href = url; }
   };
 
- const filteredCases = cases.filter(c => {
-    // 1. PRIORIDAD: Buscador de texto (Si escribís algo, ignoramos el resto de los filtros)
+const filteredCases = cases.filter(c => {
+    // 1. Buscador (Manda sobre todo)
     const term = searchTerm.trim().toLowerCase();
-    if (term.length > 0) {
-      return c.studentName.toLowerCase().includes(term) || 
-             (c.fullInfo?.dni && c.fullInfo.dni.includes(term));
+    if (term) {
+      return c.studentName?.toLowerCase().includes(term) || (c.fullInfo?.dni && c.fullInfo.dni.includes(term));
     }
 
-    // 2. FILTRO DE VISTA (Activos vs Archivo)
-    // Definimos qué es un caso "Archivado"
-    const isArchived = c.status === 'Reincorporado' || c.status === 'Archivado';
+    // 2. Filtro de Pestaña (Activo vs Archivo)
+    // Para el sistema, un caso está ARCHIVADO solo si el status es exactamente 'Reincorporado'
+    const isArchived = c.status === 'Reincorporado';
     
     if (viewMode === 'archived') {
-      if (!isArchived) return false; // Si busco archivo y no está archivado, afuera.
+      if (!isArchived) return false;
     } else {
-      // Si estoy en la vista 'active', mostramos TODO lo que NO esté archivado
-      // Esto incluye: "Pendiente", "En Proceso", "Citado", etc.
-      if (isArchived) return false; 
+      // Si no es archivado, es ACTIVO (incluye 'Pendiente', 'Citado', o sin status)
+      if (isArchived) return false;
     }
 
-    // 3. FILTRO DE CICLO (Relajado)
+    // 3. Filtro de Ciclo (Permisivo para casos nuevos)
     if (filter !== 'all') {
       const level = (c.level || '').toUpperCase();
-      // Si el caso NO tiene nivel (pasa mucho en reportes nuevos), lo dejamos pasar 
-      // para que la trabajadora social lo vea y lo asigne.
-      if (!level) return true; 
+      // Si el caso es Pendiente (nuevo desde aula) y no tiene nivel, LO MOSTRAMOS IGUAL
+      if (!level || c.status === 'Pendiente') return true;
 
       if (filter === 'primeros') {
         const esPrimeros = level.includes('INICIAL') || level.includes('1°') || level.includes('1ERA');
