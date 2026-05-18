@@ -25,7 +25,7 @@ import {
   Smartphone, GraduationCap, Search, X, UploadCloud, PieChart, Eye, Edit3, Trophy,
   Folder, MessageSquare, Globe, BookOpen, Lightbulb, ChevronDown, PlusCircle, Printer,
   AlignLeft, AlignCenter, AlignRight, AlignJustify, Phone, CheckCircle2, Clock3, UserCheck,
-  ChevronUp // <--- ESTE ES EL QUE FALTABA
+  ChevronUp, ClipboardCheck // <--- ¡AQUÍ ESTÁ EL FALTANTE IMPORTADO CORRECTAMENTE!
 } from 'lucide-react';
 
 import { initializeApp } from 'firebase/app';
