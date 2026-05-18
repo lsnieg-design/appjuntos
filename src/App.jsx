@@ -14,6 +14,7 @@ import { EquipoTecnicoView } from './views/EquipoTecnicoView';
 import { ProfileView } from './views/ProfileView';
 import { ActivityLogView } from './views/ActivityLogView';
 import { ProyectoView } from './views/ProyectoView';
+import { EvaluationsView } from './views/EvaluationsView';
 
 import { 
   Calendar as CalendarIcon, CheckSquare, Settings, User, FileText, CheckCircle, 
@@ -574,6 +575,7 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'social' && <SocialView user={user} db={db} appId={appId} />}
        {activeTab === 'profile' && <ProfileView user={user} tasks={tasks} onLogout={onLogout} isSuperAdmin={isSuperAdmin} db={db} appId={appId} />}
        {activeTab === 'proyecto' && <ProyectoView user={user} db={db} appId={appId} />}
+       {activeTab === 'evaluations' && isTechTeamRole && <EvaluationsView user={user} db={db} appId={appId} />}
        
 
         {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={isSuperAdmin} user={user} />}
@@ -627,6 +629,7 @@ function MainApp({ user, onLogout }) {
                         <button onClick={() => { setActiveTab('personal'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-violet-700 transition"><Users size={18} className="text-violet-500"/> Personal</button>
                       </>
                     )}
+                    {isTechTeamRole && <button onClick={() => { setActiveTab('evaluations'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl bg-orange-50 text-orange-950 flex items-center gap-3 text-sm font-black transition border border-orange-100/50 shadow-inner"><ClipboardCheck size={18} className="text-orange-600"/> Evaluación Áreas</button>}
                     {canAccessSocial && <button onClick={() => { setActiveTab('social'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition"><Users size={18} className="text-blue-500"/> Trabajo Social</button>}
                     {isMedicalRole && <button onClick={() => { setActiveTab('medical'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-red-50 flex items-center gap-3 text-sm font-bold text-red-600 transition"><Activity size={18} className="text-red-500"/> Médico</button>}
                     {isSuperAdmin && (
