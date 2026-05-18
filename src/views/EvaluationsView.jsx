@@ -620,5 +620,5 @@ export function EvaluationsView({ user, db, appId }) {
         </div>
       </div>
     </div> 
-  );
+  )
 }
