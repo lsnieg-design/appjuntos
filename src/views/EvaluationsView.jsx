@@ -371,7 +371,7 @@ export function EvaluationsView({ user, db, appId }) {
           </div>
         </div>
 
-        {/* PASO 3: BUSCADOR DE ESTUDIANTE */}
+       {/* PASO 3: BUSCADOR DE ESTUDIANTE */}
         <div className="bg-white p-6 rounded-[35px] border shadow-sm space-y-4">
           <h3 className="font-black text-xs text-slate-400 uppercase tracking-widest flex items-center gap-2">Seleccionar Estudiante</h3>
           <div className="bg-slate-50 rounded-xl flex items-center px-3 border focus-within:bg-white transition-all shadow-inner">
@@ -386,37 +386,55 @@ export function EvaluationsView({ user, db, appId }) {
           </div>
 
           <div className="max-h-64 overflow-y-auto space-y-1.5 custom-scrollbar pr-1 bg-slate-50/50 p-2 rounded-2xl border border-slate-100/60">
-            {selectedLevel && sortedStudents.map(s => {
-              const statusDoc = getExistingEvaluation(s.id);
-              const areasCount = statusDoc ? Object.keys(statusDoc.areas || {}).length : 0;
-              return (
-                <div 
-                  key={s.id} 
-                  onClick={() => handleSelectStudent(s)} 
-                  className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all duration-200 ${
-                    selectedStudent?.id === s.id 
-                      ? 'bg-orange-50 border-orange-200 text-orange-950 font-black shadow-sm' 
-                      : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200/60 font-bold'
-                  } text-xs uppercase`}
-                >
-                  <span>{s.lastName}, {s.firstName}</span>
-                  <span className={`text-[8px] px-2 py-0.5 rounded font-black tracking-wider transition-colors ${
-                    areasCount === 5 ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'
-                  }`}>
-                    {areasCount}/5 ÁREAS
-                  </span>
-                </div>
-              );
-            })}
-            {selectedLevel && sortedStudents.length === 0 && (
+            {selectedLevel && students
+              .filter(s => {
+                // 1. Filtrar de manera estricta por el nivel del Paso 2
+                const matchLevel = s.level?.toLowerCase().trim() === selectedLevel?.toLowerCase().trim();
+                if (!matchLevel) return false;
+
+                // 2. Filtrar por buscador escrito
+                const term = searchTerm.trim().toLowerCase();
+                if (term) {
+                  return `${s.lastName} ${s.firstName}`.toLowerCase().includes(term) || (s.dni && s.dni.includes(term));
+                }
+                return true;
+              })
+              // 3. Ordenar alfabéticamente de la A a la Z por Apellido
+              .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''))
+              // 4. Renderizar a todos los alumnos sin cortes de slice
+              .map(s => {
+                const statusDoc = getExistingEvaluation(s.id);
+                const areasCount = statusDoc ? Object.keys(statusDoc.areas || {}).length : 0;
+                return (
+                  <div 
+                    key={s.id} 
+                    onClick={() => handleSelectStudent(s)} 
+                    className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all duration-200 ${
+                      selectedStudent?.id === s.id 
+                        ? 'bg-orange-50 border-orange-200 text-orange-950 font-black shadow-sm' 
+                        : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200/60 font-bold'
+                    } text-xs uppercase`}
+                  >
+                    <span>{s.lastName}, {s.firstName}</span>
+                    <span className={`text-[8px] px-2 py-0.5 rounded font-black tracking-wider transition-colors ${
+                      areasCount === 5 ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'
+                    }`}>
+                      {areasCount}/5 ÁREAS
+                    </span>
+                  </div>
+                );
+              })
+            }
+
+            {/* Mensajes de aviso */}
+            {selectedLevel && students.filter(s => s.level?.toLowerCase().trim() === selectedLevel?.toLowerCase().trim()).length === 0 && (
               <p className="text-center text-xs text-slate-400 italic py-6">No hay alumnos registrados en {selectedLevel}.</p>
             )}
-          </div>
-              );
-            })}
+            {!selectedLevel && (
+              <p className="text-center text-[10px] text-slate-400 font-bold uppercase py-8">Define Nivel en Paso 2 para desplegar la lista</p>
+            )}
           </div>
         </div>
-      </div>
 
       {/* FORMULARIO DE VALORACIÓN MÚLTIPLE CHOICE */}
       {selectedStudent && (
