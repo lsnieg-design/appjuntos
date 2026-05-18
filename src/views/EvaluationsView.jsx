@@ -576,49 +576,26 @@ export function EvaluationsView({ user, db, appId }) {
                 <th className="p-4">Estudiante</th>
                 <th className="p-4">Nivel</th>
                 <th className="p-4">Mes / Año</th>
-                <th className="p-4">Estado de Especialidades</th>
-                <th className="p-4 text-center">Acciones de Impresión</th>
+                <th className="p-4">Estado</th>
+                <th className="p-4 text-center">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y text-xs font-bold text-slate-600 uppercase">
-              {monthlyEvaluations.map(ev => {
-                const totalAreas = Object.keys(ev.areas || {}).length;
-                return (
-                  <tr key={ev.id} className="hover:bg-slate-50/50">
-                    <td className="p-4 font-black text-slate-800">{ev.studentName}</td>
-                    <td className="p-4">{ev.level}</td>
-                    <td className="p-4 font-mono text-orange-600">{ev.month} / {ev.year}</td>
-                    <td className="p-4">
-                      <div className="flex gap-1.5 flex-wrap">
-                        {SPECIALTIES.map(sp => {
-                          const completo = ev.areas?.[sp.id];
-                          return (
-                            <span key={sp.id} className={`px-2 py-0.5 rounded text-[8px] font-black ${completo ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-400'}`}>
-                              {sp.label.substring(0, 4)}.
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </td>
-                    <td className="p-4 text-center">
-                      <button 
-                        onClick={() => handlePrintFullEvaluation(ev)}
-                        className={`px-4 py-2 rounded-xl font-black text-[10px] uppercase shadow-sm flex items-center gap-2 mx-auto ${
-                          totalAreas === 5 
-                            ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:brightness-105' 
-                            : 'bg-slate-800 text-white hover:bg-slate-900'
-                        }`}
-                      >
-                        <Printer size={12} /> {totalAreas === 5 ? '🖨️ IMPRIMIR COMPLETO' : 'IMPRIMIR AVANCE'}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+              {monthlyEvaluations.map(ev => (
+                <tr key={ev.id} className="hover:bg-slate-50/50">
+                  <td className="p-4 font-black text-slate-800">{ev.studentName}</td>
+                  <td className="p-4">{ev.level}</td>
+                  <td className="p-4 font-mono text-orange-600">{ev.month} / {ev.year}</td>
+                  <td className="p-4">Cargado</td>
+                  <td className="p-4 text-center">
+                    <button onClick={() => handlePrintFullEvaluation(ev)} className="px-4 py-2 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase">Imprimir</button>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
       </div>
-    </div> 
-  )
+    </div>
+  );
 }
