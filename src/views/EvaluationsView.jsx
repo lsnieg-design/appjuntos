@@ -566,7 +566,7 @@ export function EvaluationsView({ user, db, appId }) {
         )}
 
             
-      {/* HISTORIAL: GRILLA DE INFORMES UNIFICADOS POR ESTUDIANTE */}
+{/* HISTORIAL: GRILLA DE INFORMES UNIFICADOS POR ESTUDIANTE */}
       <div className="bg-white p-6 rounded-[40px] border shadow-sm space-y-4">
         <h3 className="font-black text-sm text-violet-950 uppercase italic border-b pb-3 flex items-center gap-2">Registros del Período</h3>
         <div className="overflow-x-auto">
@@ -619,6 +619,6 @@ export function EvaluationsView({ user, db, appId }) {
           </table>
         </div>
       </div>
-    </div>
+    </div> 
   );
 }
