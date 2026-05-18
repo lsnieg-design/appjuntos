@@ -438,7 +438,7 @@ export function EvaluationsView({ user, db, appId }) {
               <p className="text-center text-[10px] text-slate-400 font-bold uppercase py-8">Define Nivel en Paso 2 para desplegar la lista</p>
             )}
           </div>
-        </div>
+    
       {/* FORMULARIO DE VALORACIÓN MÚLTIPLE CHOICE */}
         {selectedStudent && (
           <div className="bg-white p-6 md:p-8 rounded-[40px] border shadow-md space-y-8 animate-in slide-in-from-bottom-4">
