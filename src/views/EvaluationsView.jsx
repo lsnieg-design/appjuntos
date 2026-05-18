@@ -371,7 +371,7 @@ export function EvaluationsView({ user, db, appId }) {
           </div>
         </div>
 
-       {/* PASO 3: BUSCADOR DE ESTUDIANTE (REPARADO, ALFABÉTICO Y SIN RESTRICCIÓN DE CONTEO) */}
+    {/* PASO 3: BUSCADOR DE ESTUDIANTE (REPARADO, ALFABÉTICO Y SIN RESTRICCIÓN DE CONTEO) */}
         <div className="bg-white p-6 rounded-[35px] border shadow-sm space-y-4">
           <h3 className="font-black text-xs text-slate-400 uppercase tracking-widest flex items-center gap-2">
             Seleccionar Estudiante
@@ -438,7 +438,6 @@ export function EvaluationsView({ user, db, appId }) {
             )}
           </div>
         </div>
-
       {/* FORMULARIO DE VALORACIÓN MÚLTIPLE CHOICE */}
       {selectedStudent && (
         <div className="bg-white p-6 md:p-8 rounded-[40px] border shadow-md space-y-8 animate-in slide-in-from-bottom-4">
