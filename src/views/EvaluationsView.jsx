@@ -282,10 +282,23 @@ export function EvaluationsView({ user, db, appId }) {
       document.body.removeChild(iframe);
     }, 500);
   };
-
+// 1. FILTRADO INTELIGENTE POR TEXTO Y POR NIVEL SELECCIONADO
   const filteredStudents = students.filter(s => {
-    return `${s.lastName} ${s.firstName}`.toLowerCase().includes(searchTerm.toLowerCase()) || (s.dni && s.dni.includes(searchTerm));
+    // Forzamos que coincida el nivel elegido en el Paso 2 con el del alumno
+    const matchLevel = s.level?.toLowerCase().trim() === selectedLevel?.toLowerCase().trim();
+    if (!matchLevel) return false;
+
+    // Si hay texto en el buscador, filtramos también por nombre/DNI
+    const term = searchTerm.trim().toLowerCase();
+    if (term) {
+      return `${s.lastName} ${s.firstName}`.toLowerCase().includes(term) || (s.dni && s.dni.includes(term));
+    }
+
+    return true;
   });
+
+  // Ordenamos de la A a la Z por apellido antes de mostrar la grilla
+  const sortedStudents = [...filteredStudents].sort((a, b) => a.lastName.localeCompare(b.lastName));
 
   if (!isAllowed) {
     return <div className="p-8 text-center font-bold text-red-600">⛔ Acceso exclusivo para el Equipo Directivo o Técnico de la institución.</div>;
@@ -372,24 +385,33 @@ export function EvaluationsView({ user, db, appId }) {
             />
           </div>
 
-          <div className="max-h-48 overflow-y-auto space-y-1.5 custom-scrollbar pr-1">
-            {selectedLevel && filteredStudents.slice(0, 8).map(s => {
+          <div className="max-h-64 overflow-y-auto space-y-1.5 custom-scrollbar pr-1 bg-slate-50/50 p-2 rounded-2xl border border-slate-100/60">
+            {selectedLevel && sortedStudents.map(s => {
               const statusDoc = getExistingEvaluation(s.id);
-              const areasCompletas = statusDoc ? Object.keys(statusDoc.areas || {}).length : 0;
-              
+              const areasCount = statusDoc ? Object.keys(statusDoc.areas || {}).length : 0;
               return (
                 <div 
                   key={s.id} 
-                  onClick={() => handleSelectStudent(s)}
-                  className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
-                    selectedStudent?.id === s.id ? 'bg-orange-50 border-orange-200 text-orange-950 font-black' : 'bg-white text-slate-700 border-slate-100 font-bold'
+                  onClick={() => handleSelectStudent(s)} 
+                  className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all duration-200 ${
+                    selectedStudent?.id === s.id 
+                      ? 'bg-orange-50 border-orange-200 text-orange-950 font-black shadow-sm' 
+                      : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200/60 font-bold'
                   } text-xs uppercase`}
                 >
                   <span>{s.lastName}, {s.firstName}</span>
-                  <span className={`text-[9px] px-2 py-0.5 rounded font-black ${areasCompletas === 5 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                    {areasCompletas}/5 ÁREAS
+                  <span className={`text-[8px] px-2 py-0.5 rounded font-black tracking-wider transition-colors ${
+                    areasCount === 5 ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'
+                  }`}>
+                    {areasCount}/5 ÁREAS
                   </span>
                 </div>
+              );
+            })}
+            {selectedLevel && sortedStudents.length === 0 && (
+              <p className="text-center text-xs text-slate-400 italic py-6">No hay alumnos registrados en {selectedLevel}.</p>
+            )}
+          </div>
               );
             })}
           </div>
