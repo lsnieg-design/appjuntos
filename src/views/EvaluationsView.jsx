@@ -48,40 +48,88 @@ export function EvaluationsView({ user, db, appId }) {
   ];
 
   // CATEGORÍAS E INDICADORES OFICIALES POR NIVEL
-  const EVALUATION_CRITERIA = {
-    'Inicial': [
-      { id: 'ini_1', category: 'ÁREA SOCIO-EMOCIONAL', label: 'Tolerancia a la frustración durante propuestas lúdicas y dirigidas.' },
-      { id: 'ini_2', category: 'ÁREA SOCIO-EMOCIONAL', label: 'Interacción y respuesta social frente a pares y adultos del aula.' },
-      { id: 'ini_3', category: 'ÁREA COMUNICATIVO-LINGÜÍSTICA', label: 'Sostiene la atención conjunta y contacto visual con el interlocutor.' },
-      { id: 'ini_4', category: 'ÁREA COMUNICATIVO-LINGÜÍSTICA', label: 'Comprensión y ejecución de consignas simples de carácter contextual.' },
-      { id: 'ini_5', category: 'ÁREA SENSORIOMOTRIZ Y AUTONOMÍA', label: 'Manipulación instrumental básica y prensiones visomotrices finas.' },
-      { id: 'ini_6', category: 'ÁREA SENSORIOMOTRIZ Y AUTONOMÍA', label: 'Regulación frente a estímulos táctiles, auditivos o ambientales de la sala.' }
-    ],
-    '1° Ciclo': [
-      { id: 'c1_1', category: 'ÁREA SOCIO-EMOCIONAL', label: 'Reconocimiento y expresión de estados emocionales primarios.' },
-      { id: 'c1_2', category: 'ÁREA SOCIO-EMOCIONAL', label: 'Aceptación de pautas de convivencia elementales y límites en grupo.' },
-      { id: 'c1_3', category: 'ÁREA COMUNICATIVO-LINGÜÍSTICA', label: 'Uso funcional de lenguaje (o SAAC) para peticiones de necesidad básica.' },
-      { id: 'c1_4', category: 'ÁREA COMUNICATIVO-LINGÜÍSTICA', label: 'Seguimiento de secuencias operacionales breves dadas por consigna.' },
-      { id: 'c1_5', category: 'ÁREA SENSORIOMOTRIZ Y AUTONOMÍA', label: 'Nivel de independencia en hábitos de higiene personal y alimentación.' },
-      { id: 'c1_6', category: 'ÁREA SENSORIOMOTRIZ Y AUTONOMÍA', label: 'Organización espacial del material escolar y cuidado de pertenencias.' }
-    ],
-    '2° Ciclo': [
-      { id: 'c2_1', category: 'ÁREA SOCIO-EMOCIONAL', label: 'Despliegue de estrategias adaptativas ante resolución de conflictos.' },
-      { id: 'c2_2', category: 'ÁREA SOCIO-EMOCIONAL', label: 'Sostenimiento de la actividad compartida y colaboración de tareas.' },
-      { id: 'c2_3', category: 'ÁREA COMUNICATIVO-LINGÜÍSTICA', label: 'Habilidades pragmáticas y discursivas en intercambios de pares.' },
-      { id: 'c2_4', category: 'ÁREA COMUNICATIVO-LINGÜÍSTICA', label: 'Comprensión de enunciados verbales o gráficos abstractos e instructivos.' },
-      { id: 'c2_5', category: 'ÁREA SENSORIOMOTRIZ Y AUTONOMÍA', label: 'Coordinación visomotriz gruesa y fina orientada al trabajo escolar.' },
-      { id: 'c2_6', category: 'ÁREA SENSORIOMOTRIZ Y AUTONOMÍA', label: 'Autonomía en traslados internos e instrumentación de rutinas institucionales.' }
-    ],
-    'CFI': [
-      { id: 'cfi_1', category: 'ÁREA SOCIO-EMOCIONAL', label: 'Habilidades sociolaborales, perfil ocupacional y tolerancia al trabajo sostenido.' },
-      { id: 'cfi_2', category: 'ÁREA SOCIO-EMOCIONAL', label: 'Autorregulación emocional frente a la corrección o demanda técnica.' },
-      { id: 'cfi_3', category: 'ÁREA COMUNICATIVO-LINGÜÍSTICA', label: 'Claridad en la expresión funcional orientada a entornos laborales/comunitarios.' },
-      { id: 'cfi_4', category: 'ÁREA COMUNICATIVO-LINGÜÍSTICA', label: 'Decodificación y acatamiento de directivas complejas de jerarquía.' },
-      { id: 'cfi_5', category: 'ÁREA SENSORIOMOTRIZ Y AUTONOMÍA', label: 'Uso seguro y ergonómico de herramientas complejas de talleres formativos.' },
-      { id: 'cfi_6', category: 'ÁREA SENSORIOMOTRIZ Y AUTONOMÍA', label: 'Autonomía instrumental y planificación de tareas de manera independiente.' }
-    ]
-  };
+ const EVALUATION_CRITERIA = {
+  'Inicial': [
+    { id: 'ini_psi_1', category: 'Psicología', label: 'Regulación emocional', options: ['Logra autorregularse', 'Requiere contención', 'Desregulación frecuente'] },
+    { id: 'ini_psi_2', category: 'Psicología', label: 'Vínculo con adultos de referencia', options: ['Busca contacto', 'Selectivo', 'No muestra interés'] },
+    { id: 'ini_psi_3', category: 'Psicología', label: 'Juego compartido', options: ['Participa', 'Imitativo', 'Individual'] },
+    { id: 'ini_psipe_1', category: 'Psicopedagogía', label: 'Exploración del entorno', options: ['Activa', 'Guiada', 'Escasa'] },
+    { id: 'ini_psipe_2', category: 'Psicopedagogía', label: 'Escritura inicial', options: ['Realiza grafismos/trazos', 'Escribe con apoyo', 'Escritura espontánea'] },
+    { id: 'ini_psipe_3', category: 'Psicopedagogía', label: 'Atención en propuestas', options: ['Sostiene', 'Intermitente', 'Disperso'] },
+    { id: 'ini_to_1', category: 'Terapia Ocupacional', label: 'Participación en rutinas diarias', options: ['Autónomo', 'Requiere asistencia', 'No presenta interés'] },
+    { id: 'ini_to_2', category: 'Terapia Ocupacional', label: 'Realización de propuestas grafo-motoras', options: ['Las realiza con interés', 'Requiere asistencia', 'No presenta interés'] },
+    { id: 'ini_to_3', category: 'Terapia Ocupacional', label: 'Participación y juego', options: ['Permanece en actividad grupal', 'Explora materiales', 'Inicia juego espontáneo'] },
+    { id: 'ini_fo_1', category: 'Fonoaudiología', label: 'Comprensión de órdenes simples', options: ['Responde', 'Con apoyo visual', 'Con indicación verbal'] },
+    { id: 'ini_fo_2', category: 'Fonoaudiología', label: 'Emisión de sonidos/palabras', options: ['Variada', 'Escasa', 'Ausente'] },
+    { id: 'ini_fo_3', category: 'Fonoaudiología', label: 'Intención comunicativa', options: ['Espontánea', 'A demanda', 'No evidente'] },
+    { id: 'ini_mt_1', category: 'Musicoterapia', label: 'Respuesta a estímulos sonoros', options: ['Activa', 'Selectiva', 'Nula'] },
+    { id: 'ini_mt_2', category: 'Musicoterapia', label: 'Exploración corporal', options: ['Se involucra', 'Guiada', 'Pasiva'] },
+    { id: 'ini_mt_3', category: 'Musicoterapia', label: 'Exploración sonora', options: ['Espontánea', 'Imitativa', 'Limitada'] },
+    { id: 'ini_ts_1', category: 'Trabajo Social', label: 'Vínculo Escuela/Familia', options: ['Activo', 'Intermitente', 'Escaso'] },
+    { id: 'ini_ts_2', category: 'Trabajo Social', label: 'Asistencia', options: ['Regular', 'Irregular', 'Inasistencias'] },
+    { id: 'ini_ts_3', category: 'Trabajo Social', label: 'Inclusión socio-comunitaria', options: ['Vinculado', 'En gestión', 'Sin acceso'] }
+  ],
+  '1° Ciclo': [
+    { id: 'c1_psi_1', category: 'Psicología', label: 'Regulación emocional', options: ['Autónoma', 'Con apoyo', 'Desregulación'] },
+    { id: 'c1_psi_2', category: 'Psicología', label: 'Vínculo con pares y adultos', options: ['Adecuado', 'Selectivo', 'Conflictivo'] },
+    { id: 'c1_psi_3', category: 'Psicología', label: 'Expresión emocional', options: ['Verbal', 'Conductual', 'Limitada'] },
+    { id: 'c1_psipe_1', category: 'Psicopedagogía', label: 'Comprensión de consignas', options: ['Autónomo', 'Con apoyo', 'Requiere guía'] },
+    { id: 'c1_psipe_2', category: 'Psicopedagogía', label: 'Proceso de lectoescritura', options: ['Realiza grafismos/trazos', 'Escribe con apoyo', 'Escritura espontánea'] },
+    { id: 'c1_psipe_3', category: 'Psicopedagogía', label: 'Atención en las propuestas', options: ['Sostenida', 'Intermitente', 'Dispersa'] },
+    { id: 'c1_to_1', category: 'Terapia Ocupacional', label: 'Motricidad/praxis', options: ['Usa útiles escolares', 'Planifica acciones simples', 'Coordinación bimanual'] },
+    { id: 'c1_to_2', category: 'Terapia Ocupacional', label: 'Autonomía en rutinas escolares', options: ['Organiza materiales', 'Realiza higiene básica', 'Requiere asistencia'] },
+    { id: 'c1_to_3', category: 'Terapia Ocupacional', label: 'Procesamiento sensorial', options: ['Tolera entorno áulico', 'Requiere pausas', 'Utiliza otras estrategias'] },
+    { id: 'c1_fo_1', category: 'Fonoaudiología', label: 'Comprensión del lenguaje', options: ['Adecuada', 'Con apoyo', 'Limitada'] },
+    { id: 'c1_fo_2', category: 'Fonoaudiología', label: 'Expresión verbal', options: ['Clara', 'Poco inteligible', 'Escasa'] },
+    { id: 'c1_fo_3', category: 'Fonoaudiología', label: 'Comunicación funcional', options: ['Espontánea', 'A demanda', 'No funcional'] },
+    { id: 'c1_mt_1', category: 'Musicoterapia', label: 'Expresión sonora', options: ['Activa', 'Guiada', 'Pasiva'] },
+    { id: 'c1_mt_2', category: 'Musicoterapia', label: 'Expresión corporal', options: ['Espontánea', 'Imitativa', 'Limitada'] },
+    { id: 'c1_mt_3', category: 'Musicoterapia', label: 'Juegos rítmicos sonoros', options: ['Espontáneo', 'Variable', 'Pasivo'] },
+    { id: 'c1_ts_1', category: 'Trabajo Social', label: 'Vínculo Escuela/Familia', options: ['Activo', 'Intermitente', 'Escaso'] },
+    { id: 'c1_ts_2', category: 'Trabajo Social', label: 'Asistencia', options: ['Regular', 'Irregular', 'Inasistencias'] },
+    { id: 'c1_ts_3', category: 'Trabajo Social', label: 'Inclusión socio-comunitaria', options: ['Vinculado', 'En gestión', 'Sin acceso'] }
+  ],
+  '2° Ciclo': [
+    { id: 'c2_psi_1', category: 'Psicología', label: 'Regulación emocional autónoma', options: ['Adecuada', 'Con apoyo', 'Desregulación'] },
+    { id: 'c2_psi_2', category: 'Psicología', label: 'Habilidades sociales', options: ['Adecuadas', 'Selectivas', 'Dificultosas'] },
+    { id: 'c2_psi_3', category: 'Psicología', label: 'Expresión emocional adecuada', options: ['Pertinente', 'Variable', 'Inadecuada'] },
+    { id: 'c2_psipe_1', category: 'Psicopedagogía', label: 'Comprensión de consignas', options: ['Autónomo', 'Con apoyo', 'Requiere andamiaje'] },
+    { id: 'c2_psipe_2', category: 'Psicopedagogía', label: 'Producción escrita', options: ['Alfabetizado', 'En proceso', 'Requiere apoyo'] },
+    { id: 'c2_psipe_3', category: 'Psicopedagogía', label: 'Organización en las propuestas', options: ['Sostenida', 'Variable', 'Dispersa'] },
+    { id: 'c2_to_1', category: 'Terapia Ocupacional', label: 'Motricidad/praxis', options: ['Organiza materiales', 'Realiza higiene básica', 'Requiere asistencia'] },
+    { id: 'c2_to_2', category: 'Terapia Ocupacional', label: 'Autonomía en rutinas escolares', options: ['Organiza materiales', 'Realiza higiene básica', 'Requiere asistencia'] },
+    { id: 'c2_to_3', category: 'Terapia Ocupacional', label: 'Procesamiento sensorial', options: ['Tolera entorno áulico', 'Requiere pausas', 'Utiliza otras estrategias'] },
+    { id: 'c2_fo_1', category: 'Fonoaudiología', label: 'Comprensión del lenguaje', options: ['Adecuada', 'Con apoyo', 'Limitada'] },
+    { id: 'c2_fo_2', category: 'Fonoaudiología', label: 'Expresión verbal', options: ['Clara', 'Poco inteligible', 'Escasa'] },
+    { id: 'c2_fo_3', category: 'Fonoaudiología', label: 'Comunicación funcional', options: ['Espontánea', 'A demanda', 'No funcional'] },
+    { id: 'c2_mt_1', category: 'Musicoterapia', label: 'Participación musical', options: ['Activa', 'Guiada', 'Pasiva'] },
+    { id: 'c2_mt_2', category: 'Musicoterapia', label: 'Expresión corporal', options: ['Creativa', 'Imitativa', 'Limitada'] },
+    { id: 'c2_mt_3', category: 'Musicoterapia', label: 'Participación rítmica sonora', options: ['Adecuada', 'Variable', 'Dificultosa'] },
+    { id: 'c2_ts_1', category: 'Trabajo Social', label: 'Acompañamiento familiar', options: ['Activo', 'Intermitente', 'Escaso'] },
+    { id: 'c2_ts_2', category: 'Trabajo Social', label: 'Asistencia escolar', options: ['Regular', 'Irregular', 'Inasistencias'] },
+    { id: 'c2_ts_3', category: 'Trabajo Social', label: 'Inclusión socio-comunitaria', options: ['Vinculado', 'En gestión', 'Sin acceso'] }
+  ],
+  'CFI': [
+    { id: 'cfi_psi_1', category: 'Psicología', label: 'Regulación emocional en contextos sociales', options: ['Adecuada', 'Con apoyo', 'Dificultosa'] },
+    { id: 'cfi_psi_2', category: 'Psicología', label: 'Habilidades sociales', options: ['Adecuadas', 'Selectivas', 'Conflictivas'] },
+    { id: 'cfi_psi_3', category: 'Psicología', label: 'Toma de decisiones', options: ['Autónoma', 'Guiada', 'Dependiente'] },
+    { id: 'cfi_psipe_1', category: 'Psicopedagogía', label: 'Comprensión de propuestas', options: ['Autónomo', 'Con apoyo', 'Requiere guía'] },
+    { id: 'cfi_psipe_2', category: 'Psicopedagogía', label: 'Lectoescritura', options: ['Alfabetizado', 'En proceso', 'Requiere apoyo'] },
+    { id: 'cfi_psipe_3', category: 'Psicopedagogía', label: 'Resolución de situaciones cotidianas', options: ['Autónoma', 'Con guía/apoyos', 'Requiere asistencia'] },
+    { id: 'cfi_to_1', category: 'Terapia Ocupacional', label: 'Autonomía en rutinas escolares', options: ['Administra su tiempo', 'Organiza materiales', 'Requiere asistencia'] },
+    { id: 'cfi_to_2', category: 'Terapia Ocupacional', label: 'Habilidades', options: ['Logra organizarse', 'Inicia las tareas', 'Requiere asistencia'] },
+    { id: 'cfi_to_3', category: 'Terapia Ocupacional', label: 'Aspecto interpersonal', options: ['Trabaja en grupos', 'Respeta turnos', 'Requiere ser motivado'] },
+    { id: 'cfi_fo_1', category: 'Fonoaudiología', label: 'Comunicación funcional', options: ['Adecuada', 'Con apoyo', 'Limitada'] },
+    { id: 'cfi_fo_2', category: 'Fonoaudiología', label: 'Comprensión compleja', options: ['Adecuada', 'Parcial', 'Limitada'] },
+    { id: 'cfi_fo_3', category: 'Fonoaudiología', label: 'Expresión efectiva', options: ['Clara', 'Poco clara', 'Escasa'] },
+    { id: 'cfi_mt_1', category: 'Musicoterapia', label: 'Participación y expresión musical', options: ['Activa', 'Guiada', 'Pasiva'] },
+    { id: 'cfi_mt_2', category: 'Musicoterapia', label: 'Expresión corporal', options: ['Creativa', 'Imitativa', 'Limitada'] },
+    { id: 'cfi_mt_3', category: 'Musicoterapia', label: 'Participación rítmica sonora', options: ['Adecuada', 'Variable', 'Dificultosa'] },
+    { id: 'cfi_ts_1', category: 'Trabajo Social', label: 'Acompañamiento familiar', options: ['Activo', 'Intermitente', 'Escaso'] },
+    { id: 'cfi_ts_2', category: 'Trabajo Social', label: 'Asistencia', options: ['Regular', 'Irregular', 'Inasistencias'] },
+    { id: 'cfi_ts_3', category: 'Trabajo Social', label: 'Inclusión socio-comunitaria', options: ['Vinculado', 'En gestión', 'Sin acceso'] }
+  ]
+};
 
   useEffect(() => {
     if (!isAllowed || !db || !appId) return;
