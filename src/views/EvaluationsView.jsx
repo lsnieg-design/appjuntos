@@ -522,51 +522,79 @@ const availableGroups = [...new Set(monthlyEvaluations.map(ev => ev.group).filte
             )}
           </div>
     
-    
-      
-      {/* MENSAJE SI NO HAY PREGUNTAS (Para detectar errores) */}
-      {EVALUATION_CRITERIA[selectedLevel]?.filter(q => q.category.toLowerCase() === SPECIALTIES.find(s => s.id === selectedSpecialty)?.label.toLowerCase()).length === 0 && (
-        <p className="text-center text-xs font-bold text-red-500 py-4">No se encontraron indicadores para esta área.</p>
+     
+
+     {/* FORMULARIO DE VALORACIÓN MÚLTIPLE CHOICE (Solo una vez) */}
+      {selectedStudent && (
+        <div className="bg-white p-6 md:p-8 rounded-[40px] border shadow-md space-y-8 animate-in slide-in-from-bottom-4">
+          <div className="bg-slate-950 text-white p-6 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <span className="text-[9px] font-black tracking-widest text-orange-400 uppercase bg-white/10 px-2.5 py-1 rounded-md">Carga Express Activada</span>
+              <h4 className="text-xl font-black uppercase mt-2">{selectedStudent.lastName}, {selectedStudent.firstName}</h4>
+              <p className="text-xs font-bold text-slate-400">DNI: {selectedStudent.dni || '-'} • Nivel: {selectedLevel}</p>
+            </div>
+            <div className="text-right md:border-l-2 border-white/20 md:pl-4">
+              <p className="text-lg font-black text-white uppercase italic">{selectedMonth} {selectedYear}</p>
+              <p className="text-[10px] font-black text-violet-300 uppercase">Área: {SPECIALTIES.find(s => s.id === selectedSpecialty)?.label}</p>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            {EVALUATION_CRITERIA[selectedLevel]
+              ?.filter(q => q.category.toLowerCase() === SPECIALTIES.find(s => s.id === selectedSpecialty)?.label.toLowerCase())
+              .map((q, idx) => (
+                <div key={q.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
+                  <div className="flex flex-col">
+                    <span className="text-[8px] font-black text-orange-600 uppercase tracking-wider">{q.category}</span>
+                    <p className="font-black text-sm text-slate-800 mt-0.5">{idx + 1}. {q.label}</p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {q.options.map(optLabel => (
+                      <button
+                        key={optLabel}
+                        onClick={() => setAnswers(p => ({ ...p, [q.id]: optLabel }))}
+                        className={`p-3 rounded-xl font-black text-[10px] uppercase border transition-all ${
+                          answers[q.id] === optLabel ? 'bg-violet-700 text-white border-transparent' : 'bg-white text-slate-600 border-slate-200'
+                        }`}
+                      >
+                        {optLabel}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+            ))}
+          </div>
+
+          <textarea
+            value={observations}
+            onChange={e => setObservations(e.target.value)}
+            placeholder="Registrar evolución..."
+            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium h-24 outline-none focus:bg-white focus:border-violet-400 transition-all"
+          />
+
+          <div className="flex justify-end gap-2 border-t pt-4">
+            <button onClick={() => setSelectedStudent(null)} className="px-5 py-3 font-black text-xs text-slate-400 uppercase">Cerrar</button>
+            <button onClick={handleSaveArea} disabled={isSaving} className="px-6 py-3 bg-violet-700 text-white font-black text-xs uppercase rounded-xl shadow hover:bg-violet-800 transition-all">
+              {isSaving ? 'Guardando...' : '💾 Guardar esta especialidad'}
+            </button>
+          </div>
+        </div>
       )}
-    </div>
 
-    <div className="space-y-2">
-      <label className="font-black text-xs text-slate-500 uppercase block">Observaciones y Evaluación Cualitativa</label>
-      <textarea
-        value={observations}
-        onChange={e => setObservations(e.target.value)}
-        placeholder="Registrar evolución..."
-        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium h-24 outline-none focus:bg-white focus:border-violet-400 transition-all"
-      />
-    </div>
-
-    <div className="flex justify-end gap-2 border-t pt-4">
-      <button onClick={() => setSelectedStudent(null)} className="px-5 py-3 font-black text-xs text-slate-400 uppercase">Cerrar</button>
-      <button onClick={handleSaveArea} disabled={isSaving} className="px-6 py-3 bg-violet-700 text-white font-black text-xs uppercase rounded-xl shadow hover:bg-violet-800 transition-all">
-        {isSaving ? 'Guardando...' : '💾 Guardar esta especialidad'}
-      </button>
-    </div>
-  </div>
-)}
-            
-{/* HISTORIAL: GRILLA DE INFORMES UNIFICADOS POR ESTUDIANTE */}
+      {/* HISTORIAL: GRILLA DE INFORMES UNIFICADOS */}
       <div className="bg-white p-6 rounded-[40px] border shadow-sm space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 gap-4">
           <h3 className="font-black text-sm text-violet-950 uppercase italic flex items-center gap-2">Registros del Período</h3>
-          
-          {/* BARRA DE FILTROS */}
           <div className="flex flex-wrap gap-2 w-full md:w-auto">
             <select onChange={(e) => setFilterLevel(e.target.value)} className="bg-slate-50 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase border">
               <option value="">Todos los Niveles</option>
               {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
-            
             <select onChange={(e) => setFilterTurn(e.target.value)} className="bg-slate-50 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase border">
               <option value="">Todos los Turnos</option>
               <option value="Mañana">Mañana</option>
               <option value="Tarde">Tarde</option>
             </select>
-
             <select onChange={(e) => setFilterGroup(e.target.value)} className="bg-slate-50 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase border">
               <option value="">Todos los Grupos</option>
               {availableGroups.map(g => <option key={g} value={g}>{g}</option>)}
@@ -587,12 +615,7 @@ const availableGroups = [...new Set(monthlyEvaluations.map(ev => ev.group).filte
             </thead>
             <tbody className="divide-y text-xs font-bold text-slate-600 uppercase">
               {monthlyEvaluations
-                .filter(ev => {
-                  const matchLevel = !filterLevel || ev.level === filterLevel;
-                  const matchTurn = !filterTurn || ev.group?.includes(filterTurn);
-                  const matchGroup = !filterGroup || ev.group === filterGroup; // Filtro exacto por grupo
-                  return matchLevel && matchTurn && matchGroup;
-                })
+                .filter(ev => (!filterLevel || ev.level === filterLevel) && (!filterTurn || ev.group?.includes(filterTurn)) && (!filterGroup || ev.group === filterGroup))
                 .map(ev => (
                   <tr key={ev.id} className="hover:bg-slate-50/50">
                     <td className="p-4 font-black text-slate-800">{ev.studentName}</td>
@@ -602,12 +625,7 @@ const availableGroups = [...new Set(monthlyEvaluations.map(ev => ev.group).filte
                     <td className="p-4 text-center flex gap-2 justify-center">
                       <button onClick={() => handlePrintFullEvaluation(ev)} className="px-3 py-1 bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase">Imprimir</button>
                       <button onClick={() => handleEditEvaluation(ev)} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-[9px] font-black uppercase">Editar</button>
-                      <button 
-    onClick={() => handleDeleteEvaluation(ev.id)} 
-    className="px-3 py-2 bg-red-500 text-white rounded-xl text-[9px] font-black uppercase hover:bg-red-600 transition-all"
-  >
-    Borrar
-  </button>
+                      <button onClick={() => handleDeleteEvaluation(ev.id)} className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-[9px] font-black uppercase">Borrar</button>
                     </td>
                   </tr>
                 ))}
@@ -616,6 +634,8 @@ const availableGroups = [...new Set(monthlyEvaluations.map(ev => ev.group).filte
         </div>
       </div>
     </div>
+  );
+}
   );
 }
     
