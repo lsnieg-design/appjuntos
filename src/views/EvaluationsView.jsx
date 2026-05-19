@@ -3,8 +3,8 @@ import {
   ClipboardCheck, Search, X, Printer, Save, FileText, 
   CheckCircle2, AlertCircle, Calendar, User, ChevronRight
 } from 'lucide-react';
-import { 
-  collection, doc, setDoc, onSnapshot, serverTimestamp, updateDoc, increment, query, where 
+import {  
+  collection, doc, setDoc, onSnapshot, serverTimestamp, updateDoc, increment, query, where, deleteDoc 
 } from 'firebase/firestore';
 
 export function EvaluationsView({ user, db, appId }) {
