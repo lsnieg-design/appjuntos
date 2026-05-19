@@ -596,43 +596,40 @@ const availableGroups = [...new Set(monthlyEvaluations.map(ev => ev.group).filte
                 <th className="p-4 text-center">Acciones</th>
               </tr>
             </thead>
-           <tbody className="divide-y text-xs font-bold text-slate-600 uppercase">
+        <tbody className="divide-y text-xs font-bold text-slate-600 uppercase">
   {monthlyEvaluations
     .filter(ev => {
       const matchLevel = !filterLevel || ev.level === filterLevel;
-      
-      // Filtramos considerando tanto turno como grupo para ser más flexibles
-      const matchTurn = !filterTurn || 
-        (ev.turno && ev.turno.toLowerCase().includes(filterTurn.toLowerCase())) || 
-        (ev.group && ev.group.toLowerCase().includes(filterTurn.toLowerCase()));
-      
-      const matchGroup = !filterGroup || (ev.group && ev.group === filterGroup);
-      
+      // Filtro flexible que busca en el grupo O en el turno
+      const matchTurn = !filterTurn || (ev.group?.toLowerCase().includes(filterTurn.toLowerCase()));
+      const matchGroup = !filterGroup || (ev.group?.toLowerCase().includes(filterGroup.toLowerCase()));
       return matchLevel && matchTurn && matchGroup;
     })
-    .map(ev => (
-      <tr key={ev.id} className="hover:bg-slate-50/50">
-  <td className="p-4 font-black text-slate-800">{ev.studentName}</td>
-  <td className="p-4">{ev.level}</td>
-  {/* Renderizado inteligente de grupos y turnos */}
-  <td className="p-4 text-[10px] leading-tight">
-    {ev.group?.split('|').map((g, i) => (
-      <div key={i} className="mb-1 bg-slate-100 px-2 py-0.5 rounded">{g.trim()}</div>
-    )) || '-'}
-  </td>
-  <td className="p-4 text-[10px] leading-tight">
-    {ev.turno?.split('|').map((t, i) => (
-      <div key={i} className="mb-1 bg-violet-50 px-2 py-0.5 rounded text-violet-700">{t.trim()}</div>
-    )) || '-'}
-  </td>
-  <td className="p-4 text-emerald-600">Cargado</td>
-  <td className="p-4 text-center flex gap-2 justify-center">
-    <button onClick={() => handlePrintFullEvaluation(ev)} className="px-3 py-1 bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase">Imprimir</button>
-    <button onClick={() => handleEditEvaluation(ev)} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-[9px] font-black uppercase">Editar</button>
-    <button onClick={() => handleDeleteEvaluation(ev.id)} className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-[9px] font-black uppercase">Borrar</button>
-  </td>
-</tr>
-    ))}
+    .map(ev => {
+      // BUSCAMOS LOS DATOS REALES DEL ALUMNO
+      const estudiante = students.find(s => s.id === ev.studentId);
+      
+      // Construimos el string de grupos/turnos dinámicamente
+      const grupos = [estudiante?.groupMorning, estudiante?.groupAfternoon].filter(Boolean).join(' / ');
+      const turnos = [estudiante?.groupMorning ? 'Mañana' : null, estudiante?.groupAfternoon ? 'Tarde' : null].filter(Boolean).join(' / ');
+
+      return (
+        <tr key={ev.id} className="hover:bg-slate-50/50">
+          <td className="p-4 font-black text-slate-800">{ev.studentName}</td>
+          <td className="p-4">{ev.level}</td>
+          {/* Mostramos los grupos encontrados */}
+          <td className="p-4 text-[10px]">{grupos || ev.group || '-'}</td>
+          {/* Mostramos los turnos encontrados */}
+          <td className="p-4 text-[10px]">{turnos || ev.turno || '-'}</td>
+          <td className="p-4 text-emerald-600">Cargado</td>
+          <td className="p-4 text-center flex gap-2 justify-center">
+            <button onClick={() => handlePrintFullEvaluation(ev)} className="px-3 py-1 bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase">Imprimir</button>
+            <button onClick={() => handleEditEvaluation(ev)} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-[9px] font-black uppercase">Editar</button>
+            <button onClick={() => handleDeleteEvaluation(ev.id)} className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-[9px] font-black uppercase">Borrar</button>
+          </td>
+        </tr>
+      );
+    })}
 </tbody>
           </table>
         </div>
