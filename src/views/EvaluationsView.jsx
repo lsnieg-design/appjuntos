@@ -636,6 +636,4 @@ const availableGroups = [...new Set(monthlyEvaluations.map(ev => ev.group).filte
     </div>
   );
 }
-  );
-}
     
