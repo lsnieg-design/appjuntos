@@ -262,87 +262,41 @@ const handleSaveArea = async () => {
     }
   };
 
-  // FUNCIÓN MAESTRA DE IMPRESIÓN CON ESTRELLA INSTITUTIONAL UNIFICADA
   const handlePrintFullEvaluation = (evalDoc) => {
-    const criteria = EVALUATION_CRITERIA[evalDoc.level] || [];
+    // Obtenemos todos los criterios del nivel
+    const allCriteria = EVALUATION_CRITERIA[evalDoc.level] || [];
+    
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
     document.body.appendChild(iframe);
 
-    let htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>SEGUIMIENTO MENSUAL - EQUIPO TECNICO</title>
-        <style>
-          body { font-family: 'Arial', sans-serif; padding: 30px; color: #1e293b; font-size: 11px; }
-          .header { border-bottom: 4px solid #4c1d95; padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-          .logo-img { height: 50px; width: auto; mix-blend-multiply: true; }
-          .main-title { margin: 0; font-size: 18px; font-weight: 900; color: #4c1d95; text-transform: uppercase; }
-          .subtitle { margin: 2px 0 0 0; font-size: 10px; font-weight: bold; color: #ea580c; text-transform: uppercase; }
-          
-          .student-card { border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; margin-bottom: 20px; background: #f8fafc; display: grid; grid-template-cols: 1fr 1fr; gap: 8px; }
-          .data-box { font-weight: bold; color: #475569; }
-          .data-box span { color: #0f172a; font-weight: 900; text-transform: uppercase; }
-          
-          .section-area-title { background: #4c1d95; color: white; padding: 6px 12px; font-weight: 900; text-transform: uppercase; font-size: 11px; margin-top: 25px; border-radius: 4px; }
-          
-          table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-          th { background: #cbd5e1; color: #1e293b; padding: 8px; text-align: left; font-weight: 900; font-size: 10px; border: 1px solid #cbd5e1; }
-          td { border: 1px solid #cbd5e1; padding: 8px; font-weight: bold; }
-          
-          .badge { font-weight: 900; text-transform: uppercase; font-size: 9px; }
-          
-          .obs-box { margin-top: 8px; background: #f1f5f9; padding: 10px; border-radius: 8px; border-left: 4px solid #ea580c; font-style: italic; }
-          .author-footer { text-align: right; font-size: 9px; color: #64748b; font-weight: bold; margin-top: 4px; }
-          
-          .page-break { page-break-before: always; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div style="display:flex; align-items:center; gap:10px;">
-            <img src="${LOGO_INSTITUCIONAL}" class="logo-img" />
-            <div>
-              <h3 style="margin:0; font-size:12px; font-weight:900; color:#4c1d95;">ESCUELA ESPECIAL</h3>
-              <p style="margin:0; font-size:9px; font-weight:bold; color:#64748b;">JUNTOS A LA PAR</p>
-            </div>
-          </div>
-          <div style="text-align: right;">
-            <h1 class="main-title">SEGUIMIENTO MENSUAL</h1>
-            <p class="subtitle">DOCUMENTO UNIFICADO EQUIPO TÉCNICO</p>
-          </div>
-        </div>
+    let htmlContent = `... (aquí va todo tu header y student-card que ya tenías) ...`;
 
-        <div class="student-card">
-          <div class="data-box">ESTUDIANTE: <span>${evalDoc.studentName}</span></div>
-          <div class="data-box">DNI: <span>${evalDoc.studentDni}</span></div>
-          <div class="data-box">NIVEL / CICLO: <span>${evalDoc.level}</span></div>
-          <div class="data-box">GRUPO / AULA: <span>${evalDoc.group}</span></div>
-          <div class="data-box">PERÍODO EVALUADO: <span>${evalDoc.month} ${evalDoc.year}</span></div>
-          <div class="data-box">EMISIÓN DIGITAL: <span>${new Date().toLocaleDateString()}</span></div>
-        </div>
-    `;
-
-    // Procesamos cada una de las especialidades completas dentro de la misma hoja de impresión
+    // Procesamos cada área que tiene datos guardados en el informe
     Object.keys(evalDoc.areas).forEach((areaKey) => {
       const areaData = evalDoc.areas[areaKey];
       const specLabel = SPECIALTIES.find(s => s.id === areaKey)?.label || areaKey;
+
+      // --- CORRECCIÓN AQUÍ ---
+      // Filtramos los criterios para que solo contengan los indicadores de esta área
+      const indicadoresArea = allCriteria.filter(q => 
+        q.category.toLowerCase() === specLabel.toLowerCase()
+      );
 
       htmlContent += `
         <div class="section-area-title">INFORME DE ÁREA: ${specLabel.toUpperCase()}</div>
         <table>
           <thead>
             <tr>
-              <th style="width: 75%;">Indicadores de Evaluación de Categoría</th>
+              <th style="width: 75%;">Indicadores de ${specLabel}</th>
               <th style="width: 25%; text-align: center;">Valoración</th>
             </tr>
           </thead>
           <tbody>
-            ${criteria.map(q => `
+            ${indicadoresArea.map(q => `
               <tr>
-                <td><small style="color:#ea580c; font-weight:900; block">${q.category}</small> ${q.label}</td>
-                <td style="text-align:center;" class="badge">${areaData.answers[q.id] || 'No Observado'}</td>
+                <td>${q.label}</td>
+                <td style="text-align:center;" class="badge">${areaData.answers[q.id] || '-'}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -356,11 +310,13 @@ const handleSaveArea = async () => {
     });
 
     htmlContent += `</body></html>`;
+    
     const docIframe = iframe.contentWindow.document;
     docIframe.open(); docIframe.write(htmlContent); docIframe.close();
     
     setTimeout(() => {
-      iframe.contentWindow.focus(); iframe.contentWindow.print();
+      iframe.contentWindow.focus(); 
+      iframe.contentWindow.print();
       document.body.removeChild(iframe);
     }, 500);
   };
@@ -602,25 +558,32 @@ const availableGroups = [...new Set(monthlyEvaluations.map(ev => ev.group).filte
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+       <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b text-[10px] font-black text-slate-400 uppercase bg-slate-50/50">
                 <th className="p-4">Estudiante</th>
                 <th className="p-4">Nivel</th>
-                <th className="p-4">Grupo/Turno</th>
+                <th className="p-4">Grupo</th>
+                <th className="p-4">Turno</th>
                 <th className="p-4">Estado</th>
                 <th className="p-4 text-center">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y text-xs font-bold text-slate-600 uppercase">
               {monthlyEvaluations
-                .filter(ev => (!filterLevel || ev.level === filterLevel) && (!filterTurn || ev.group?.includes(filterTurn)) && (!filterGroup || ev.group === filterGroup))
+                .filter(ev => {
+                  const matchLevel = !filterLevel || ev.level === filterLevel;
+                  const matchTurn = !filterTurn || ev.turno === filterTurn; // Asumimos que guardas el turno
+                  const matchGroup = !filterGroup || ev.group === filterGroup;
+                  return matchLevel && matchTurn && matchGroup;
+                })
                 .map(ev => (
                   <tr key={ev.id} className="hover:bg-slate-50/50">
                     <td className="p-4 font-black text-slate-800">{ev.studentName}</td>
                     <td className="p-4">{ev.level}</td>
                     <td className="p-4">{ev.group || '-'}</td>
+                    <td className="p-4">{ev.turno || '-'}</td>
                     <td className="p-4 text-emerald-600">Cargado</td>
                     <td className="p-4 text-center flex gap-2 justify-center">
                       <button onClick={() => handlePrintFullEvaluation(ev)} className="px-3 py-1 bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase">Imprimir</button>
