@@ -515,66 +515,74 @@ const availableGroups = [...new Set(monthlyEvaluations.map(ev => ev.group).filte
     
      
 
-          {/* FORMULARIO DE VALORACIÓN MÚLTIPLE CHOICE */}
-        {selectedStudent && (
-          <div className="bg-white p-6 md:p-8 rounded-[40px] border shadow-md space-y-8 animate-in slide-in-from-bottom-4">
-            <div className="bg-slate-950 text-white p-6 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <div>
-                <span className="text-[9px] font-black tracking-widest text-orange-400 uppercase bg-white/10 px-2.5 py-1 rounded-md">Carga Express Activada</span>
-                <h4 className="text-xl font-black uppercase mt-2">{selectedStudent.lastName}, {selectedStudent.firstName}</h4>
-                <p className="text-xs font-bold text-slate-400">DNI: {selectedStudent.dni || '-'} • Nivel base: {selectedLevel}</p>
-              </div>
-              <div className="text-right md:border-l-2 border-white/20 md:pl-4">
-                <p className="text-lg font-black text-white uppercase italic">{selectedMonth} {selectedYear}</p>
-                <p className="text-[10px] font-black text-violet-300 uppercase">Área: {SPECIALTIES.find(s => s.id === selectedSpecialty)?.label}</p>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              {/* FILTRAMOS LOS CRITERIOS PARA QUE SOLO SALGA EL ÁREA ELEGIDA */}
-             {EVALUATION_CRITERIA[selectedLevel]
-  ?.filter(q => q.category.toLowerCase().includes(selectedSpecialty.toLowerCase()))
-  .map((q, idx) => (
-    <div key={q.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
-      <p className="font-black text-sm text-slate-800">{idx + 1}. {q.label}</p>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-        {q.options.map(optLabel => (
-          <button
-            key={optLabel}
-            onClick={() => setAnswers(p => ({ ...p, [q.id]: optLabel }))}
-            className={`p-3 rounded-xl font-black text-[10px] uppercase border transition-all ${
-              answers[q.id] === optLabel 
-                ? 'bg-violet-700 text-white border-transparent' 
-                : 'bg-white text-slate-600 border-slate-200'
-            }`}
-          >
-            {optLabel}
-          </button>
-        ))}
+      {/* FORMULARIO DE VALORACIÓN MÚLTIPLE CHOICE */}
+{selectedStudent && (
+  <div className="bg-white p-6 md:p-8 rounded-[40px] border shadow-md space-y-8 animate-in slide-in-from-bottom-4">
+    <div className="bg-slate-950 text-white p-6 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div>
+        <span className="text-[9px] font-black tracking-widest text-orange-400 uppercase bg-white/10 px-2.5 py-1 rounded-md">Carga Express Activada</span>
+        <h4 className="text-xl font-black uppercase mt-2">{selectedStudent.lastName}, {selectedStudent.firstName}</h4>
+        <p className="text-xs font-bold text-slate-400">DNI: {selectedStudent.dni || '-'} • Nivel: {selectedLevel}</p>
+      </div>
+      <div className="text-right md:border-l-2 border-white/20 md:pl-4">
+        <p className="text-lg font-black text-white uppercase italic">{selectedMonth} {selectedYear}</p>
+        <p className="text-[10px] font-black text-violet-300 uppercase">Área: {SPECIALTIES.find(s => s.id === selectedSpecialty)?.label}</p>
       </div>
     </div>
-))}
-            </div>
 
-            <div className="space-y-2">
-              <label className="font-black text-xs text-slate-500 uppercase block">Observaciones y Evaluación Cualitativa</label>
-              <textarea
-                value={observations}
-                onChange={e => setObservations(e.target.value)}
-                placeholder="Registrar evolución cualitativa observada en este mes..."
-                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium h-24 outline-none focus:bg-white focus:border-violet-400 transition-all"
-              />
+    <div className="space-y-6">
+      {/* FILTRO EXACTO POR CATEGORÍA */}
+      {EVALUATION_CRITERIA[selectedLevel]
+        ?.filter(q => q.category.toLowerCase() === SPECIALTIES.find(s => s.id === selectedSpecialty)?.label.toLowerCase())
+        .map((q, idx) => (
+          <div key={q.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
+            <div className="flex flex-col">
+              <span className="text-[8px] font-black text-orange-600 uppercase tracking-wider">{q.category}</span>
+              <p className="font-black text-sm text-slate-800 mt-0.5">{idx + 1}. {q.label}</p>
             </div>
-
-            <div className="flex justify-end gap-2 border-t pt-4">
-              <button onClick={() => setSelectedStudent(null)} className="px-5 py-3 font-black text-xs text-slate-400 uppercase">Cerrar</button>
-              <button onClick={handleSaveArea} disabled={isSaving} className="px-6 py-3 bg-violet-700 text-white font-black text-xs uppercase rounded-xl shadow hover:bg-violet-800 transition-all">
-                {isSaving ? 'Guardando...' : '💾 Guardar esta especialidad'}
-              </button>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {q.options.map(optLabel => (
+                <button
+                  key={optLabel}
+                  onClick={() => setAnswers(p => ({ ...p, [q.id]: optLabel }))}
+                  className={`p-3 rounded-xl font-black text-[10px] uppercase border transition-all ${
+                    answers[q.id] === optLabel 
+                      ? 'bg-violet-700 text-white border-transparent shadow-lg' 
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-violet-300'
+                  }`}
+                >
+                  {optLabel}
+                </button>
+              ))}
             </div>
           </div>
-        )}
+      ))}
+      
+      {/* MENSAJE SI NO HAY PREGUNTAS (Para detectar errores) */}
+      {EVALUATION_CRITERIA[selectedLevel]?.filter(q => q.category.toLowerCase() === SPECIALTIES.find(s => s.id === selectedSpecialty)?.label.toLowerCase()).length === 0 && (
+        <p className="text-center text-xs font-bold text-red-500 py-4">No se encontraron indicadores para esta área.</p>
+      )}
+    </div>
 
+    <div className="space-y-2">
+      <label className="font-black text-xs text-slate-500 uppercase block">Observaciones y Evaluación Cualitativa</label>
+      <textarea
+        value={observations}
+        onChange={e => setObservations(e.target.value)}
+        placeholder="Registrar evolución..."
+        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium h-24 outline-none focus:bg-white focus:border-violet-400 transition-all"
+      />
+    </div>
+
+    <div className="flex justify-end gap-2 border-t pt-4">
+      <button onClick={() => setSelectedStudent(null)} className="px-5 py-3 font-black text-xs text-slate-400 uppercase">Cerrar</button>
+      <button onClick={handleSaveArea} disabled={isSaving} className="px-6 py-3 bg-violet-700 text-white font-black text-xs uppercase rounded-xl shadow hover:bg-violet-800 transition-all">
+        {isSaving ? 'Guardando...' : '💾 Guardar esta especialidad'}
+      </button>
+    </div>
+  </div>
+)}
             
 {/* HISTORIAL: GRILLA DE INFORMES UNIFICADOS POR ESTUDIANTE */}
       <div className="bg-white p-6 rounded-[40px] border shadow-sm space-y-6">
