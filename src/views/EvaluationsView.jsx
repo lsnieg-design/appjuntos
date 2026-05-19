@@ -195,14 +195,23 @@ const EVALUATION_CRITERIA = {
       }
     }
   };
-  const handleSaveArea = async () => {
+const handleSaveArea = async () => {
     if (!selectedStudent || !selectedSpecialty || !selectedLevel) {
       return alert("Falta definir la especialidad, nivel o estudiante.");
     }
 
-    const criteria = EVALUATION_CRITERIA[selectedLevel] || [];
-    if (Object.keys(answers).length < criteria.length) {
-      return alert("Por favor responde todos los indicadores múltiple opción.");
+    // AQUI ESTA EL CAMBIO: Filtramos los criterios solo del área seleccionada
+    const criteriaDelArea = EVALUATION_CRITERIA[selectedLevel].filter(
+      q => q.category.toLowerCase() === SPECIALTIES.find(s => s.id === selectedSpecialty)?.label.toLowerCase()
+    );
+
+    // Comparamos las respuestas solo contra las preguntas del área filtrada
+    const respuestasCargadas = Object.keys(answers).filter(key => 
+      criteriaDelArea.some(q => q.id === key)
+    );
+
+    if (respuestasCargadas.length < criteriaDelArea.length) {
+      return alert(`Por favor responde todos los indicadores de esta área (${respuestasCargadas.length}/${criteriaDelArea.length} completados).`);
     }
 
     setIsSaving(true);
