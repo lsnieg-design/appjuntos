@@ -522,51 +522,7 @@ const availableGroups = [...new Set(monthlyEvaluations.map(ev => ev.group).filte
             )}
           </div>
     
-     
-
-      {/* FORMULARIO DE VALORACIÓN MÚLTIPLE CHOICE */}
-{selectedStudent && (
-  <div className="bg-white p-6 md:p-8 rounded-[40px] border shadow-md space-y-8 animate-in slide-in-from-bottom-4">
-    <div className="bg-slate-950 text-white p-6 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-      <div>
-        <span className="text-[9px] font-black tracking-widest text-orange-400 uppercase bg-white/10 px-2.5 py-1 rounded-md">Carga Express Activada</span>
-        <h4 className="text-xl font-black uppercase mt-2">{selectedStudent.lastName}, {selectedStudent.firstName}</h4>
-        <p className="text-xs font-bold text-slate-400">DNI: {selectedStudent.dni || '-'} • Nivel: {selectedLevel}</p>
-      </div>
-      <div className="text-right md:border-l-2 border-white/20 md:pl-4">
-        <p className="text-lg font-black text-white uppercase italic">{selectedMonth} {selectedYear}</p>
-        <p className="text-[10px] font-black text-violet-300 uppercase">Área: {SPECIALTIES.find(s => s.id === selectedSpecialty)?.label}</p>
-      </div>
-    </div>
-
-    <div className="space-y-6">
-      {/* FILTRO EXACTO POR CATEGORÍA */}
-      {EVALUATION_CRITERIA[selectedLevel]
-        ?.filter(q => q.category.toLowerCase() === SPECIALTIES.find(s => s.id === selectedSpecialty)?.label.toLowerCase())
-        .map((q, idx) => (
-          <div key={q.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
-            <div className="flex flex-col">
-              <span className="text-[8px] font-black text-orange-600 uppercase tracking-wider">{q.category}</span>
-              <p className="font-black text-sm text-slate-800 mt-0.5">{idx + 1}. {q.label}</p>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              {q.options.map(optLabel => (
-                <button
-                  key={optLabel}
-                  onClick={() => setAnswers(p => ({ ...p, [q.id]: optLabel }))}
-                  className={`p-3 rounded-xl font-black text-[10px] uppercase border transition-all ${
-                    answers[q.id] === optLabel 
-                      ? 'bg-violet-700 text-white border-transparent shadow-lg' 
-                      : 'bg-white text-slate-600 border-slate-200 hover:border-violet-300'
-                  }`}
-                >
-                  {optLabel}
-                </button>
-              ))}
-            </div>
-          </div>
-      ))}
+    
       
       {/* MENSAJE SI NO HAY PREGUNTAS (Para detectar errores) */}
       {EVALUATION_CRITERIA[selectedLevel]?.filter(q => q.category.toLowerCase() === SPECIALTIES.find(s => s.id === selectedSpecialty)?.label.toLowerCase()).length === 0 && (
