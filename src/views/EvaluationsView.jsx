@@ -14,6 +14,7 @@ export function EvaluationsView({ user, db, appId }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLevel, setFilterLevel] = useState('');
   const [filterTurn, setFilterTurn] = useState('');
+  const [filterGroup, setFilterGroup] = useState(''); // Nuevo estado
   
   // Filtros de organización inicial
   const [selectedSpecialty, setSelectedSpecialty] = useState('');
@@ -551,7 +552,6 @@ const EVALUATION_CRITERIA = {
 
             
 {/* HISTORIAL: GRILLA DE INFORMES UNIFICADOS POR ESTUDIANTE */}
-     {/* HISTORIAL: GRILLA CON FILTROS AVANZADOS */}
       <div className="bg-white p-6 rounded-[40px] border shadow-sm space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 gap-4">
           <h3 className="font-black text-sm text-violet-950 uppercase italic flex items-center gap-2">Registros del Período</h3>
@@ -567,6 +567,12 @@ const EVALUATION_CRITERIA = {
               <option value="Mañana">Mañana</option>
               <option value="Tarde">Tarde</option>
             </select>
+            <input 
+              type="text" 
+              placeholder="Buscar grupo (ej: 1° CICLO C)..." 
+              onChange={(e) => setFilterGroup(e.target.value)}
+              className="bg-slate-50 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase border w-40"
+            />
           </div>
         </div>
 
@@ -583,7 +589,11 @@ const EVALUATION_CRITERIA = {
             </thead>
             <tbody className="divide-y text-xs font-bold text-slate-600 uppercase">
               {monthlyEvaluations
-                .filter(ev => (!filterLevel || ev.level === filterLevel) && (!filterTurn || ev.group?.includes(filterTurn)))
+                .filter(ev => 
+                  (!filterLevel || ev.level === filterLevel) && 
+                  (!filterTurn || ev.group?.includes(filterTurn)) &&
+                  (!filterGroup || ev.group?.toLowerCase().includes(filterGroup.toLowerCase()))
+                )
                 .map(ev => (
                   <tr key={ev.id} className="hover:bg-slate-50/50">
                     <td className="p-4 font-black text-slate-800">{ev.studentName}</td>
@@ -602,3 +612,4 @@ const EVALUATION_CRITERIA = {
     </div>
   );
 }
+    
