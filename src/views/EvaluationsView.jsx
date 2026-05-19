@@ -234,14 +234,19 @@ const handleSaveArea = async () => {
         author: user.fullName || user.firstName,
         updatedAt: new Date().toISOString()
       };
-
+     const grupoMañana = selectedStudent.groupMorning || '';
+const grupoTarde = selectedStudent.groupAfternoon || '';
+const grupoCompleto = [grupoMañana, grupoTarde].filter(Boolean).join(' / ');
       const finalPayload = {
         id: docId,
         studentId: selectedStudent.id,
         studentName: `${selectedStudent.lastName}, ${selectedStudent.firstName}`,
         studentDni: selectedStudent.dni || '-',
         level: selectedLevel,
-        group: selectedStudent.groupMorning || selectedStudent.groupAfternoon || '-',
+       group: selectedStudent.groupMorning || selectedStudent.groupAfternoon || '-',
+       turno: selectedStudent.turno || 'Mañana', // O la lógica que uses para definir el turno
+        group: grupoCompleto || '-', 
+  turno: 'Doble Turno',
         month: selectedMonth,
         year: selectedYear,
         areas: updatedAreas,
@@ -267,90 +272,74 @@ const handleSaveArea = async () => {
     }
   };
 
-// FUNCIÓN MAESTRA DE IMPRESIÓN CON FILTRADO POR ÁREA
-  const handlePrintFullEvaluation = (evalDoc) => {
+const handlePrintFullEvaluation = (evalDoc) => {
     const allCriteria = EVALUATION_CRITERIA[evalDoc.level] || [];
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
-    document.body.appendChild(iframe);
-
+    
+    // Abrimos ventana nueva
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    
+    // Contenido HTML con los datos de áreas y turnos
     let htmlContent = `
-      <!DOCTYPE html>
       <html>
       <head>
-        <title>SEGUIMIENTO MENSUAL</title>
+        <title>Seguimiento - ${evalDoc.studentName}</title>
         <style>
-          body { font-family: 'Arial', sans-serif; padding: 30px; color: #1e293b; font-size: 11px; }
-          .header { border-bottom: 4px solid #4c1d95; padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-          .logo-img { height: 50px; width: auto; }
-          .main-title { margin: 0; font-size: 18px; font-weight: 900; color: #4c1d95; text-transform: uppercase; }
-          .section-area-title { background: #4c1d95; color: white; padding: 6px 12px; font-weight: 900; text-transform: uppercase; font-size: 11px; margin-top: 25px; border-radius: 4px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-          th { background: #cbd5e1; padding: 8px; text-align: left; font-size: 10px; border: 1px solid #cbd5e1; }
-          td { border: 1px solid #cbd5e1; padding: 8px; font-weight: bold; }
-          .obs-box { margin-top: 8px; background: #f1f5f9; padding: 10px; border-radius: 8px; border-left: 4px solid #ea580c; font-style: italic; }
-          .author-footer { text-align: right; font-size: 9px; color: #64748b; font-weight: bold; margin-top: 4px; }
+          body { font-family: sans-serif; padding: 20px; font-size: 12px; }
+          .header { border-bottom: 2px solid #4c1d95; padding-bottom: 10px; display: flex; justify-content: space-between; }
+          .student-info { margin: 20px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th { background: #f3f4f6; padding: 8px; text-align: left; border: 1px solid #ddd; }
+          td { border: 1px solid #ddd; padding: 8px; }
+          h3 { background: #4c1d95; color: white; padding: 5px; margin-top: 20px; }
         </style>
       </head>
       <body>
         <div class="header">
-          <div><h1 class="main-title">SEGUIMIENTO MENSUAL</h1></div>
-          <div style="text-align: right;"><b>${evalDoc.studentName}</b><br/>${evalDoc.month} ${evalDoc.year}</div>
+          <div><h1>SEGUIMIENTO</h1><p>${evalDoc.studentName}</p></div>
+          <div style="text-align:right">
+            <b>Turno:</b> ${evalDoc.turno || 'Sin asignar'}<br/>
+            <b>Grupo:</b> ${evalDoc.group || '-'}
+          </div>
+        </div>
+        <div class="student-info">
+          <div><b>Nivel:</b> ${evalDoc.level}</div>
+          <div><b>Período:</b> ${evalDoc.month} ${evalDoc.year}</div>
         </div>
     `;
 
-    // Procesamos cada área que tiene datos guardados en el informe
     Object.keys(evalDoc.areas).forEach((areaKey) => {
       const areaData = evalDoc.areas[areaKey];
       const specLabel = SPECIALTIES.find(s => s.id === areaKey)?.label || areaKey;
-
-      // FILTRADO: Solo tomamos las preguntas que pertenecen a esta área
+      
+      // Filtramos los criterios específicos del nivel para esta área
       const indicadoresArea = allCriteria.filter(q => 
         q.category.toLowerCase() === specLabel.toLowerCase()
       );
 
       htmlContent += `
-        <div class="section-area-title">INFORME DE ÁREA: ${specLabel.toUpperCase()}</div>
+        <h3>ÁREA: ${specLabel.toUpperCase()}</h3>
         <table>
-          <thead>
-            <tr>
-              <th style="width: 75%;">Indicadores de ${specLabel}</th>
-              <th style="width: 25%; text-align: center;">Valoración</th>
-            </tr>
-          </thead>
+          <thead><tr><th>Indicador</th><th>Valoración</th></tr></thead>
           <tbody>
             ${indicadoresArea.map(q => `
-              <tr>
-                <td>${q.label}</td>
-                <td style="text-align:center;">${areaData.answers[q.id] || '-'}</td>
-              </tr>
+              <tr><td>${q.label}</td><td>${areaData.answers[q.id] || '-'}</td></tr>
             `).join('')}
           </tbody>
         </table>
-        
-        ${areaData.observations ? `
-          <div class="obs-box"><b>Observaciones de ${specLabel}:</b> ${areaData.observations}</div>
-        ` : ''}
-        <div class="author-footer">Evaluación realizada por: ${areaData.author}</div>
+        <p><i>Observaciones: ${areaData.observations || 'Sin observaciones'}</i></p>
       `;
     });
 
     htmlContent += `</body></html>`;
     
-    // ... (dentro de handlePrintFullEvaluation)
-    const docIframe = iframe.contentWindow.document;
-    docIframe.open(); 
-    docIframe.write(htmlContent); 
-    docIframe.close();
+    // Escribimos el contenido
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
     
-    // IMPORTANTE: Esperamos a que la imagen y el HTML carguen completamente
-    iframe.contentWindow.onload = () => {
-      setTimeout(() => {
-        iframe.contentWindow.focus(); 
-        iframe.contentWindow.print();
-        // Esperamos un poco más antes de borrar el iframe para asegurar la impresión
-        setTimeout(() => document.body.removeChild(iframe), 1000);
-      }, 500);
+    // Esperamos a que los recursos de la ventana carguen antes de imprimir
+    printWindow.onload = () => {
+      printWindow.focus();
+      printWindow.print();
     };
   };
 // 1. FILTRADO INTELIGENTE POR TEXTO Y POR NIVEL SELECCIONADO
@@ -603,29 +592,35 @@ const availableGroups = [...new Set(monthlyEvaluations.map(ev => ev.group).filte
                 <th className="p-4 text-center">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y text-xs font-bold text-slate-600 uppercase">
-              {monthlyEvaluations
-                .filter(ev => {
-                  const matchLevel = !filterLevel || ev.level === filterLevel;
-                  const matchTurn = !filterTurn || ev.turno === filterTurn; // Asumimos que guardas el turno
-                  const matchGroup = !filterGroup || ev.group === filterGroup;
-                  return matchLevel && matchTurn && matchGroup;
-                })
-                .map(ev => (
-                  <tr key={ev.id} className="hover:bg-slate-50/50">
-                    <td className="p-4 font-black text-slate-800">{ev.studentName}</td>
-                    <td className="p-4">{ev.level}</td>
-                    <td className="p-4">{ev.group || '-'}</td>
-                    <td className="p-4">{ev.turno || '-'}</td>
-                    <td className="p-4 text-emerald-600">Cargado</td>
-                    <td className="p-4 text-center flex gap-2 justify-center">
-                      <button onClick={() => handlePrintFullEvaluation(ev)} className="px-3 py-1 bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase">Imprimir</button>
-                      <button onClick={() => handleEditEvaluation(ev)} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-[9px] font-black uppercase">Editar</button>
-                      <button onClick={() => handleDeleteEvaluation(ev.id)} className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-[9px] font-black uppercase">Borrar</button>
-                    </td>
-                  </tr>
-                ))}
-            </tbody>
+           <tbody className="divide-y text-xs font-bold text-slate-600 uppercase">
+  {monthlyEvaluations
+    .filter(ev => {
+      const matchLevel = !filterLevel || ev.level === filterLevel;
+      
+      // Filtramos considerando tanto turno como grupo para ser más flexibles
+      const matchTurn = !filterTurn || 
+        (ev.turno && ev.turno.toLowerCase().includes(filterTurn.toLowerCase())) || 
+        (ev.group && ev.group.toLowerCase().includes(filterTurn.toLowerCase()));
+      
+      const matchGroup = !filterGroup || (ev.group && ev.group === filterGroup);
+      
+      return matchLevel && matchTurn && matchGroup;
+    })
+    .map(ev => (
+      <tr key={ev.id} className="hover:bg-slate-50/50">
+        <td className="p-4 font-black text-slate-800">{ev.studentName}</td>
+        <td className="p-4">{ev.level}</td>
+        <td className="p-4">{ev.group || '-'}</td>
+        <td className="p-4">{ev.turno || '-'}</td>
+        <td className="p-4 text-emerald-600">Cargado</td>
+        <td className="p-4 text-center flex gap-2 justify-center">
+          <button onClick={() => handlePrintFullEvaluation(ev)} className="px-3 py-1 bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase">Imprimir</button>
+          <button onClick={() => handleEditEvaluation(ev)} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-[9px] font-black uppercase">Editar</button>
+          <button onClick={() => handleDeleteEvaluation(ev.id)} className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-[9px] font-black uppercase">Borrar</button>
+        </td>
+      </tr>
+    ))}
+</tbody>
           </table>
         </div>
       </div>
