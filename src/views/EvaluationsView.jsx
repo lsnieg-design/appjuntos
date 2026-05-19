@@ -262,23 +262,44 @@ const handleSaveArea = async () => {
     }
   };
 
+// FUNCIÓN MAESTRA DE IMPRESIÓN CON FILTRADO POR ÁREA
   const handlePrintFullEvaluation = (evalDoc) => {
-    // Obtenemos todos los criterios del nivel
     const allCriteria = EVALUATION_CRITERIA[evalDoc.level] || [];
-    
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
     document.body.appendChild(iframe);
 
-    let htmlContent = `... (aquí va todo tu header y student-card que ya tenías) ...`;
+    let htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>SEGUIMIENTO MENSUAL</title>
+        <style>
+          body { font-family: 'Arial', sans-serif; padding: 30px; color: #1e293b; font-size: 11px; }
+          .header { border-bottom: 4px solid #4c1d95; padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+          .logo-img { height: 50px; width: auto; }
+          .main-title { margin: 0; font-size: 18px; font-weight: 900; color: #4c1d95; text-transform: uppercase; }
+          .section-area-title { background: #4c1d95; color: white; padding: 6px 12px; font-weight: 900; text-transform: uppercase; font-size: 11px; margin-top: 25px; border-radius: 4px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+          th { background: #cbd5e1; padding: 8px; text-align: left; font-size: 10px; border: 1px solid #cbd5e1; }
+          td { border: 1px solid #cbd5e1; padding: 8px; font-weight: bold; }
+          .obs-box { margin-top: 8px; background: #f1f5f9; padding: 10px; border-radius: 8px; border-left: 4px solid #ea580c; font-style: italic; }
+          .author-footer { text-align: right; font-size: 9px; color: #64748b; font-weight: bold; margin-top: 4px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div><h1 class="main-title">SEGUIMIENTO MENSUAL</h1></div>
+          <div style="text-align: right;"><b>${evalDoc.studentName}</b><br/>${evalDoc.month} ${evalDoc.year}</div>
+        </div>
+    `;
 
     // Procesamos cada área que tiene datos guardados en el informe
     Object.keys(evalDoc.areas).forEach((areaKey) => {
       const areaData = evalDoc.areas[areaKey];
       const specLabel = SPECIALTIES.find(s => s.id === areaKey)?.label || areaKey;
 
-      // --- CORRECCIÓN AQUÍ ---
-      // Filtramos los criterios para que solo contengan los indicadores de esta área
+      // FILTRADO: Solo tomamos las preguntas que pertenecen a esta área
       const indicadoresArea = allCriteria.filter(q => 
         q.category.toLowerCase() === specLabel.toLowerCase()
       );
@@ -296,14 +317,14 @@ const handleSaveArea = async () => {
             ${indicadoresArea.map(q => `
               <tr>
                 <td>${q.label}</td>
-                <td style="text-align:center;" class="badge">${areaData.answers[q.id] || '-'}</td>
+                <td style="text-align:center;">${areaData.answers[q.id] || '-'}</td>
               </tr>
             `).join('')}
           </tbody>
         </table>
         
         ${areaData.observations ? `
-          <div class="obs-box"><b>Observaciones del área:</b> ${areaData.observations}</div>
+          <div class="obs-box"><b>Observaciones de ${specLabel}:</b> ${areaData.observations}</div>
         ` : ''}
         <div class="author-footer">Evaluación realizada por: ${areaData.author}</div>
       `;
