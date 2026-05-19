@@ -171,6 +171,30 @@ const EVALUATION_CRITERIA = {
     }
   };
 
+  // 1. Edición: Carga los datos del informe seleccionado al formulario para editar
+  const handleEditEvaluation = (ev) => {
+    // Buscamos al estudiante para cargarlo al formulario
+    const student = students.find(s => s.id === ev.studentId);
+    if (student) {
+      setSelectedStudent(student);
+      setSelectedSpecialty(Object.keys(ev.areas)[0]); // Opcional: podrías preguntar qué área editar
+      setAnswers(ev.areas[Object.keys(ev.areas)[0]].answers);
+      setObservations(ev.areas[Object.keys(ev.areas)[0]].observations);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  // 2. Borrado: Elimina el registro de la base de datos
+  const handleDeleteEvaluation = async (evId) => {
+    if (window.confirm("¿Estás segura de que quieres eliminar este registro permanentemente?")) {
+      try {
+        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'unified_monthly_evaluations', evId));
+        alert("🗑️ Registro eliminado.");
+      } catch (err) {
+        alert("Error al eliminar: " + err.message);
+      }
+    }
+  };
   const handleSaveArea = async () => {
     if (!selectedStudent || !selectedSpecialty || !selectedLevel) {
       return alert("Falta definir la especialidad, nivel o estudiante.");
@@ -352,7 +376,8 @@ const EVALUATION_CRITERIA = {
   if (!isAllowed) {
     return <div className="p-8 text-center font-bold text-red-600">⛔ Acceso exclusivo para el Equipo Directivo o Técnico de la institución.</div>;
   }
-
+// Extraemos grupos únicos de los datos existentes para el dropdown
+const availableGroups = [...new Set(monthlyEvaluations.map(ev => ev.group).filter(Boolean))].sort();
   return (
     <div className="space-y-6 animate-in fade-in pb-16 px-2 max-w-7xl mx-auto">
       {/* SECCIÓN CABECERA */}
@@ -562,17 +587,17 @@ const EVALUATION_CRITERIA = {
               <option value="">Todos los Niveles</option>
               {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
+            
             <select onChange={(e) => setFilterTurn(e.target.value)} className="bg-slate-50 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase border">
               <option value="">Todos los Turnos</option>
               <option value="Mañana">Mañana</option>
               <option value="Tarde">Tarde</option>
             </select>
-            <input 
-              type="text" 
-              placeholder="Buscar grupo..." 
-              onChange={(e) => setFilterGroup(e.target.value)}
-              className="bg-slate-50 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase border w-40"
-            />
+
+            <select onChange={(e) => setFilterGroup(e.target.value)} className="bg-slate-50 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase border">
+              <option value="">Todos los Grupos</option>
+              {availableGroups.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
           </div>
         </div>
 
@@ -592,7 +617,7 @@ const EVALUATION_CRITERIA = {
                 .filter(ev => {
                   const matchLevel = !filterLevel || ev.level === filterLevel;
                   const matchTurn = !filterTurn || ev.group?.includes(filterTurn);
-                  const matchGroup = !filterGroup || ev.group?.toLowerCase().includes(filterGroup.toLowerCase());
+                  const matchGroup = !filterGroup || ev.group === filterGroup; // Filtro exacto por grupo
                   return matchLevel && matchTurn && matchGroup;
                 })
                 .map(ev => (
@@ -601,8 +626,9 @@ const EVALUATION_CRITERIA = {
                     <td className="p-4">{ev.level}</td>
                     <td className="p-4">{ev.group || '-'}</td>
                     <td className="p-4 text-emerald-600">Cargado</td>
-                    <td className="p-4 text-center">
-                      <button onClick={() => handlePrintFullEvaluation(ev)} className="px-4 py-2 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase">Imprimir</button>
+                    <td className="p-4 text-center flex gap-2 justify-center">
+                      <button onClick={() => handlePrintFullEvaluation(ev)} className="px-3 py-1 bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase">Imprimir</button>
+                      <button onClick={() => handleEditEvaluation(ev)} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-[9px] font-black uppercase">Editar</button>
                     </td>
                   </tr>
                 ))}
