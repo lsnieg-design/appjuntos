@@ -158,9 +158,14 @@ const EVALUATION_CRITERIA = {
   };
 
   // Al seleccionar un estudiante, precargamos lo que ya esté escrito en su área
-  const handleSelectStudent = (student) => {
+const handleSelectStudent = (student) => {
     setSelectedStudent(student);
-    const existingDoc = getExistingEvaluation(student.id);
+    // Buscamos coincidencia exacta por ID de estudiante, mes y año
+    const existingDoc = monthlyEvaluations.find(ev => 
+      ev.studentId === student.id && 
+      ev.month === selectedMonth && 
+      ev.year === selectedYear
+    );
     
     if (existingDoc && existingDoc.areas?.[selectedSpecialty]) {
       setAnswers(existingDoc.areas[selectedSpecialty].answers || {});
@@ -332,14 +337,21 @@ const handleSaveArea = async () => {
 
     htmlContent += `</body></html>`;
     
+    // ... (dentro de handlePrintFullEvaluation)
     const docIframe = iframe.contentWindow.document;
-    docIframe.open(); docIframe.write(htmlContent); docIframe.close();
+    docIframe.open(); 
+    docIframe.write(htmlContent); 
+    docIframe.close();
     
-    setTimeout(() => {
-      iframe.contentWindow.focus(); 
-      iframe.contentWindow.print();
-      document.body.removeChild(iframe);
-    }, 500);
+    // IMPORTANTE: Esperamos a que la imagen y el HTML carguen completamente
+    iframe.contentWindow.onload = () => {
+      setTimeout(() => {
+        iframe.contentWindow.focus(); 
+        iframe.contentWindow.print();
+        // Esperamos un poco más antes de borrar el iframe para asegurar la impresión
+        setTimeout(() => document.body.removeChild(iframe), 1000);
+      }, 500);
+    };
   };
 // 1. FILTRADO INTELIGENTE POR TEXTO Y POR NIVEL SELECCIONADO
   const filteredStudents = students.filter(s => {
