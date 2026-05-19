@@ -486,20 +486,7 @@ export function EvaluationsView({ user, db, appId }) {
             )}
           </div>
     
-      {/* FORMULARIO DE VALORACIÓN MÚLTIPLE CHOICE */}
-        {selectedStudent && (
-          <div className="bg-white p-6 md:p-8 rounded-[40px] border shadow-md space-y-8 animate-in slide-in-from-bottom-4">
-            <div className="bg-slate-950 text-white p-6 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <div>
-                <span className="text-[9px] font-black tracking-widest text-orange-400 uppercase bg-white/10 px-2.5 py-1 rounded-md">Carga Express Activada</span>
-                <h4 className="text-xl font-black uppercase mt-2">{selectedStudent.lastName}, {selectedStudent.firstName}</h4>
-                <p className="text-xs font-bold text-slate-400">DNI: {selectedStudent.dni || '-'} • Nivel base: {selectedLevel}</p>
-              </div>
-              <div className="text-right md:border-l-2 border-white/20 md:pl-4">
-                <p className="text-lg font-black text-white uppercase italic">{selectedMonth} {selectedYear}</p>
-                <p className="text-[10px] font-black text-violet-300 uppercase">Área: {SPECIALTIES.find(s => s.id === selectedSpecialty)?.label}</p>
-              </div>
-            </div>
+     
 
           {/* FORMULARIO DE VALORACIÓN MÚLTIPLE CHOICE */}
         {selectedStudent && (
