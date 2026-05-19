@@ -47,89 +47,88 @@ export function EvaluationsView({ user, db, appId }) {
     { value: 'No Observado', label: 'No Observado' }
   ];
 
-  // CATEGORÍAS E INDICADORES OFICIALES POR NIVEL
- const EVALUATION_CRITERIA = {
-    'Inicial': [
-      { id: 'ini_psi_1', category: 'Psicología', label: 'Regulación emocional', options: ['Logra autorregularse', 'Requiere contención', 'Desregulación frecuente'] },
-      { id: 'ini_psi_2', category: 'Psicología', label: 'Vínculo con adultos', options: ['Busca contacto', 'Selectivo', 'No muestra interés'] },
-      { id: 'ini_psi_3', category: 'Psicología', label: 'Juego compartido', options: ['Participa', 'Imitativo', 'Individual'] },
-      { id: 'ini_pp_1', category: 'Psicopedagogía', label: 'Exploración del entorno', options: ['Activa', 'Guiada', 'Escasa'] },
-      { id: 'ini_pp_2', category: 'Psicopedagogía', label: 'Escritura inicial', options: ['Realiza grafismos/trazos', 'Escribe con apoyo', 'Escritura espontánea'] },
-      { id: 'ini_pp_3', category: 'Psicopedagogía', label: 'Atención en propuestas', options: ['Sostiene', 'Intermitente', 'Disperso'] },
-      { id: 'ini_to_1', category: 'Terapia Ocupacional', label: 'Participación en rutinas', options: ['Autónomo', 'Requiere asistencia', 'No presenta interés'] },
-      { id: 'ini_to_2', category: 'Terapia Ocupacional', label: 'Propuestas grafo-motoras', options: ['Las realiza con interés', 'Requiere asistencia', 'No presenta interés'] },
-      { id: 'ini_to_3', category: 'Terapia Ocupacional', label: 'Participación y juego', options: ['Permanece en actividad grupal', 'Explora materiales', 'Inicia juego espontáneo'] },
-      { id: 'ini_fo_1', category: 'Fonoaudiología', label: 'Comprensión de órdenes', options: ['Responde', 'Con apoyo visual', 'Con indicación verbal'] },
-      { id: 'ini_fo_2', category: 'Fonoaudiología', label: 'Emisión de sonidos', options: ['Variada', 'Escasa', 'Ausente'] },
-      { id: 'ini_fo_3', category: 'Fonoaudiología', label: 'Intención comunicativa', options: ['Espontánea', 'A demanda', 'No evidente'] },
-      { id: 'ini_mt_1', category: 'Musicoterapia', label: 'Respuesta estímulos sonoros', options: ['Activa', 'Selectiva', 'Nula'] },
-      { id: 'ini_mt_2', category: 'Musicoterapia', label: 'Exploración corporal', options: ['Se involucra', 'Guiada', 'Pasiva'] },
-      { id: 'ini_mt_3', category: 'Musicoterapia', label: 'Exploración sonora', options: ['Espontánea', 'Imitativa', 'Limitada'] },
-      { id: 'ini_ts_1', category: 'Trabajo Social', label: 'Vínculo Escuela/Familia', options: ['Activo', 'Intermitente', 'Escaso'] },
-      { id: 'ini_ts_2', category: 'Trabajo Social', label: 'Asistencia', options: ['Regular', 'Irregular', 'Inasistencias'] },
-      { id: 'ini_ts_3', category: 'Trabajo Social', label: 'Inclusión socio-comunitaria', options: ['Vinculado', 'En gestión', 'Sin acceso'] }
-    ],
-    '1° Ciclo': [
-      { id: 'c1_psi_1', category: 'Psicología', label: 'Regulación emocional', options: ['Autónoma', 'Con apoyo', 'Desregulación'] },
-      { id: 'c1_psi_2', category: 'Psicología', label: 'Vínculo pares y adultos', options: ['Adecuado', 'Selectivo', 'Conflictivo'] },
-      { id: 'c1_psi_3', category: 'Psicología', label: 'Expresión emocional', options: ['Verbal', 'Conductual', 'Limitada'] },
-      { id: 'c1_pp_1', category: 'Psicopedagogía', label: 'Comprensión de consignas', options: ['Autónomo', 'Con apoyo', 'Requiere guía'] },
-      { id: 'c1_pp_2', category: 'Psicopedagogía', label: 'Proceso de lectoescritura', options: ['Realiza grafismos/trazos', 'Escribe con apoyo', 'Escritura espontánea'] },
-      { id: 'c1_pp_3', category: 'Psicopedagogía', label: 'Atención en propuestas', options: ['Sostenida', 'Intermitente', 'Dispersa'] },
-      { id: 'c1_to_1', category: 'Terapia Ocupacional', label: 'Motricidad/praxis', options: ['Usa útiles escolares', 'Planifica acciones simples', 'Coordinación bimanual'] },
-      { id: 'c1_to_2', category: 'Terapia Ocupacional', label: 'Autonomía en rutinas', options: ['Organiza materiales', 'Realiza higiene básica', 'Requiere asistencia'] },
-      { id: 'c1_to_3', category: 'Terapia Ocupacional', label: 'Procesamiento sensorial', options: ['Tolera entorno áulico', 'Requiere pausas', 'Utiliza estrategias'] },
-      { id: 'c1_fo_1', category: 'Fonoaudiología', label: 'Comprensión del lenguaje', options: ['Adecuada', 'Con apoyo', 'Limitada'] },
-      { id: 'c1_fo_2', category: 'Fonoaudiología', label: 'Expresión verbal', options: ['Clara', 'Poco inteligible', 'Escasa'] },
-      { id: 'c1_fo_3', category: 'Fonoaudiología', label: 'Comunicación funcional', options: ['Espontánea', 'A demanda', 'No funcional'] },
-      { id: 'c1_mt_1', category: 'Musicoterapia', label: 'Expresión sonora', options: ['Activa', 'Guiada', 'Pasiva'] },
-      { id: 'c1_mt_2', category: 'Musicoterapia', label: 'Expresión corporal', options: ['Espontánea', 'Imitativa', 'Limitada'] },
-      { id: 'c1_mt_3', category: 'Musicoterapia', label: 'Juegos rítmicos sonoros', options: ['Espontáneo', 'Variable', 'Pasivo'] },
-      { id: 'c1_ts_1', category: 'Trabajo Social', label: 'Vínculo Escuela/Familia', options: ['Activo', 'Intermitente', 'Escaso'] },
-      { id: 'c1_ts_2', category: 'Trabajo Social', label: 'Asistencia', options: ['Regular', 'Irregular', 'Inasistencias'] },
-      { id: 'c1_ts_3', category: 'Trabajo Social', label: 'Inclusión socio-comunitaria', options: ['Vinculado', 'En gestión', 'Sin acceso'] }
-    ],
-    '2° Ciclo': [
-      { id: 'c2_psi_1', category: 'Psicología', label: 'Regulación emocional autónoma', options: ['Adecuada', 'Con apoyo', 'Desregulación'] },
-      { id: 'c2_psi_2', category: 'Psicología', label: 'Habilidades sociales', options: ['Adecuadas', 'Selectivas', 'Dificultosas'] },
-      { id: 'c2_psi_3', category: 'Psicología', label: 'Expresión emocional', options: ['Pertinente', 'Variable', 'Inadecuada'] },
-      { id: 'c2_pp_1', category: 'Psicopedagogía', label: 'Comprensión de consignas', options: ['Autónomo', 'Con apoyo', 'Requiere andamiaje'] },
-      { id: 'c2_pp_2', category: 'Psicopedagogía', label: 'Producción escrita', options: ['Alfabetizado', 'En proceso', 'Requiere apoyo'] },
-      { id: 'c2_pp_3', category: 'Psicopedagogía', label: 'Organización en propuestas', options: ['Sostenida', 'Variable', 'Dispersa'] },
-      { id: 'c2_to_1', category: 'Terapia Ocupacional', label: 'Motricidad/praxis', options: ['Organiza materiales', 'Realiza higiene básica', 'Requiere asistencia'] },
-      { id: 'c2_to_2', category: 'Terapia Ocupacional', label: 'Autonomía en rutinas', options: ['Organiza materiales', 'Realiza higiene básica', 'Requiere asistencia'] },
-      { id: 'c2_to_3', category: 'Terapia Ocupacional', label: 'Procesamiento sensorial', options: ['Tolera entorno áulico', 'Requiere pausas', 'Utiliza estrategias'] },
-      { id: 'c2_fo_1', category: 'Fonoaudiología', label: 'Comprensión del lenguaje', options: ['Adecuada', 'Con apoyo', 'Limitada'] },
-      { id: 'c2_fo_2', category: 'Fonoaudiología', label: 'Expresión verbal', options: ['Clara', 'Poco inteligible', 'Escasa'] },
-      { id: 'c2_fo_3', category: 'Fonoaudiología', label: 'Comunicación funcional', options: ['Espontánea', 'A demanda', 'No funcional'] },
-      { id: 'c2_mt_1', category: 'Musicoterapia', label: 'Participación musical', options: ['Activa', 'Guiada', 'Pasiva'] },
-      { id: 'c2_mt_2', category: 'Musicoterapia', label: 'Expresión corporal', options: ['Creativa', 'Imitativa', 'Limitada'] },
-      { id: 'c2_mt_3', category: 'Musicoterapia', label: 'Participación rítmica', options: ['Adecuada', 'Variable', 'Dificultosa'] },
-      { id: 'c2_ts_1', category: 'Trabajo Social', label: 'Acompañamiento familiar', options: ['Activo', 'Intermitente', 'Escaso'] },
-      { id: 'c2_ts_2', category: 'Trabajo Social', label: 'Asistencia escolar', options: ['Regular', 'Irregular', 'Inasistencias'] },
-      { id: 'c2_ts_3', category: 'Trabajo Social', label: 'Inclusión socio-comunitaria', options: ['Vinculado', 'En gestión', 'Sin acceso'] }
-    ],
-    'CFI': [
-      { id: 'cfi_psi_1', category: 'Psicología', label: 'Regulación emocional contextos sociales', options: ['Adecuada', 'Con apoyo', 'Dificultosa'] },
-      { id: 'cfi_psi_2', category: 'Psicología', label: 'Habilidades sociales', options: ['Adecuadas', 'Selectivas', 'Conflictivas'] },
-      { id: 'cfi_psi_3', category: 'Psicología', label: 'Toma de decisiones', options: ['Autónoma', 'Guiada', 'Dependiente'] },
-      { id: 'cfi_pp_1', category: 'Psicopedagogía', label: 'Comprensión de propuestas', options: ['Autónomo', 'Con apoyo', 'Requiere guía'] },
-      { id: 'cfi_pp_2', category: 'Psicopedagogía', label: 'Lectoescritura', options: ['Alfabetizado', 'En proceso', 'Requiere apoyo'] },
-      { id: 'cfi_pp_3', category: 'Psicopedagogía', label: 'Resolución situaciones cotidianas', options: ['Autónoma', 'Con guía/apoyos', 'Requiere asistencia'] },
-      { id: 'cfi_to_1', category: 'Terapia Ocupacional', label: 'Autonomía en rutinas', options: ['Administra su tiempo', 'Organiza materiales', 'Requiere asistencia'] },
-      { id: 'cfi_to_2', category: 'Terapia Ocupacional', label: 'Habilidades', options: ['Logra organizarse', 'Inicia tareas', 'Requiere asistencia'] },
-      { id: 'cfi_to_3', category: 'Terapia Ocupacional', label: 'Aspecto interpersonal', options: ['Trabaja en grupos', 'Respeta turnos', 'Requiere ser motivado'] },
-      { id: 'cfi_fo_1', category: 'Fonoaudiología', label: 'Comunicación funcional', options: ['Adecuada', 'Con apoyo', 'Limitada'] },
-      { id: 'cfi_fo_2', category: 'Fonoaudiología', label: 'Comprensión compleja', options: ['Adecuada', 'Parcial', 'Limitada'] },
-      { id: 'cfi_fo_3', category: 'Fonoaudiología', label: 'Expresión efectiva', options: ['Clara', 'Poco clara', 'Escasa'] },
-      { id: 'cfi_mt_1', category: 'Musicoterapia', label: 'Participación y expresión', options: ['Activa', 'Guiada', 'Pasiva'] },
-      { id: 'cfi_mt_2', category: 'Musicoterapia', label: 'Expresión corporal', options: ['Creativa', 'Imitativa', 'Limitada'] },
-      { id: 'cfi_mt_3', category: 'Musicoterapia', label: 'Participación rítmica sonora', options: ['Adecuada', 'Variable', 'Dificultosa'] },
-      { id: 'cfi_ts_1', category: 'Trabajo Social', label: 'Acompañamiento familiar', options: ['Activo', 'Intermitente', 'Escaso'] },
-      { id: 'cfi_ts_2', category: 'Trabajo Social', label: 'Asistencia', options: ['Regular', 'Irregular', 'Inasistencias'] },
-      { id: 'cfi_ts_3', category: 'Trabajo Social', label: 'Inclusión socio-comunitaria', options: ['Vinculado', 'En gestión', 'Sin acceso'] }
-    ]
-  };
+const EVALUATION_CRITERIA = {
+  'Inicial': [
+    { id: 'ini_psi_1', category: 'Psicología', label: 'Regulación emocional', options: ['Logra autorregularse', 'Requiere contención', 'Desregulación frecuente'] },
+    { id: 'ini_psi_2', category: 'Psicología', label: 'Vínculo con adultos', options: ['Busca contacto', 'Selectivo', 'No muestra interés'] },
+    { id: 'ini_psi_3', category: 'Psicología', label: 'Juego compartido', options: ['Participa', 'Imitativo', 'Individual'] },
+    { id: 'ini_pp_1', category: 'Psicopedagogía', label: 'Exploración del entorno', options: ['Activa', 'Guiada', 'Escasa'] },
+    { id: 'ini_pp_2', category: 'Psicopedagogía', label: 'Escritura inicial', options: ['Realiza grafismos/trazos', 'Escribe con apoyo', 'Escritura espontánea'] },
+    { id: 'ini_pp_3', category: 'Psicopedagogía', label: 'Atención en propuestas', options: ['Sostiene', 'Intermitente', 'Disperso'] },
+    { id: 'ini_to_1', category: 'Terapia Ocupacional', label: 'Participación en rutinas', options: ['Autónomo', 'Requiere asistencia', 'No presenta interés'] },
+    { id: 'ini_to_2', category: 'Terapia Ocupacional', label: 'Propuestas grafo-motoras', options: ['Las realiza con interés', 'Requiere asistencia', 'No presenta interés'] },
+    { id: 'ini_to_3', category: 'Terapia Ocupacional', label: 'Participación y juego', options: ['Permanece en actividad grupal', 'Explora materiales', 'Inicia juego espontáneo'] },
+    { id: 'ini_fo_1', category: 'Fonoaudiología', label: 'Comprensión de órdenes', options: ['Responde', 'Con apoyo visual', 'Con indicación verbal'] },
+    { id: 'ini_fo_2', category: 'Fonoaudiología', label: 'Emisión de sonidos', options: ['Variada', 'Escasa', 'Ausente'] },
+    { id: 'ini_fo_3', category: 'Fonoaudiología', label: 'Intención comunicativa', options: ['Espontánea', 'A demanda', 'No evidente'] },
+    { id: 'ini_mt_1', category: 'Musicoterapia', label: 'Respuesta a estímulos', options: ['Activa', 'Selectiva', 'Nula'] },
+    { id: 'ini_mt_2', category: 'Musicoterapia', label: 'Exploración corporal', options: ['Se involucra', 'Guiada', 'Pasiva'] },
+    { id: 'ini_mt_3', category: 'Musicoterapia', label: 'Exploración sonora', options: ['Espontánea', 'Imitativa', 'Limitada'] },
+    { id: 'ini_ts_1', category: 'Trabajo Social', label: 'Vínculo Escuela/Familia', options: ['Activo', 'Intermitente', 'Escaso'] },
+    { id: 'ini_ts_2', category: 'Trabajo Social', label: 'Asistencia', options: ['Regular', 'Irregular', 'Inasistencias'] },
+    { id: 'ini_ts_3', category: 'Trabajo Social', label: 'Inclusión socio-comunitaria', options: ['Vinculado', 'En gestión', 'Sin acceso'] }
+  ],
+  '1° Ciclo': [
+    { id: 'c1_psi_1', category: 'Psicología', label: 'Regulación emocional', options: ['Autónoma', 'Con apoyo', 'Desregulación'] },
+    { id: 'c1_psi_2', category: 'Psicología', label: 'Vínculo pares y adultos', options: ['Adecuado', 'Selectivo', 'Conflictivo'] },
+    { id: 'c1_psi_3', category: 'Psicología', label: 'Expresión emocional', options: ['Verbal', 'Conductual', 'Limitada'] },
+    { id: 'c1_pp_1', category: 'Psicopedagogía', label: 'Comprensión de consignas', options: ['Autónomo', 'Con apoyo', 'Requiere guía'] },
+    { id: 'c1_pp_2', category: 'Psicopedagogía', label: 'Proceso de lectoescritura', options: ['Realiza grafismos/trazos', 'Escribe con apoyo', 'Escritura espontánea'] },
+    { id: 'c1_pp_3', category: 'Psicopedagogía', label: 'Atención en las propuestas', options: ['Sostenida', 'Intermitente', 'Dispersa'] },
+    { id: 'c1_to_1', category: 'Terapia Ocupacional', label: 'Motricidad/praxis', options: ['Usa útiles escolares', 'Planifica acciones simples', 'Coordinación bimanual'] },
+    { id: 'c1_to_2', category: 'Terapia Ocupacional', label: 'Autonomía en rutinas', options: ['Organiza materiales', 'Realiza higiene básica', 'Requiere asistencia'] },
+    { id: 'c1_to_3', category: 'Terapia Ocupacional', label: 'Procesamiento sensorial', options: ['Tolera entorno áulico', 'Requiere pausas', 'Utiliza estrategias'] },
+    { id: 'c1_fo_1', category: 'Fonoaudiología', label: 'Comprensión del lenguaje', options: ['Adecuada', 'Con apoyo', 'Limitada'] },
+    { id: 'c1_fo_2', category: 'Fonoaudiología', label: 'Expresión verbal', options: ['Clara', 'Poco inteligible', 'Escasa'] },
+    { id: 'c1_fo_3', category: 'Fonoaudiología', label: 'Comunicación funcional', options: ['Espontánea', 'A demanda', 'No funcional'] },
+    { id: 'c1_mt_1', category: 'Musicoterapia', label: 'Expresión sonora', options: ['Activa', 'Guiada', 'Pasiva'] },
+    { id: 'c1_mt_2', category: 'Musicoterapia', label: 'Expresión corporal', options: ['Espontánea', 'Imitativa', 'Limitada'] },
+    { id: 'c1_mt_3', category: 'Musicoterapia', label: 'Juegos rítmicos sonoros', options: ['Espontáneo', 'Variable', 'Pasivo'] },
+    { id: 'c1_ts_1', category: 'Trabajo Social', label: 'Vínculo Escuela/Familia', options: ['Activo', 'Intermitente', 'Escaso'] },
+    { id: 'c1_ts_2', category: 'Trabajo Social', label: 'Asistencia', options: ['Regular', 'Irregular', 'Inasistencias'] },
+    { id: 'c1_ts_3', category: 'Trabajo Social', label: 'Inclusión socio-comunitaria', options: ['Vinculado', 'En gestión', 'Sin acceso'] }
+  ],
+  '2° Ciclo': [
+    { id: 'c2_psi_1', category: 'Psicología', label: 'Regulación emocional autónoma', options: ['Adecuada', 'Con apoyo', 'Desregulación'] },
+    { id: 'c2_psi_2', category: 'Psicología', label: 'Habilidades sociales', options: ['Adecuadas', 'Selectivas', 'Dificultosas'] },
+    { id: 'c2_psi_3', category: 'Psicología', label: 'Expresión emocional', options: ['Pertinente', 'Variable', 'Inadecuada'] },
+    { id: 'c2_pp_1', category: 'Psicopedagogía', label: 'Comprensión de consignas', options: ['Autónomo', 'Con apoyo', 'Requiere andamiaje'] },
+    { id: 'c2_pp_2', category: 'Psicopedagogía', label: 'Producción escrita', options: ['Alfabetizado', 'En proceso', 'Requiere apoyo'] },
+    { id: 'c2_pp_3', category: 'Psicopedagogía', label: 'Organización en propuestas', options: ['Sostenida', 'Variable', 'Dispersa'] },
+    { id: 'c2_to_1', category: 'Terapia Ocupacional', label: 'Motricidad/praxis', options: ['Organiza materiales', 'Realiza higiene básica', 'Requiere asistencia'] },
+    { id: 'c2_to_2', category: 'Terapia Ocupacional', label: 'Autonomía en rutinas', options: ['Organiza materiales', 'Realiza higiene básica', 'Requiere asistencia'] },
+    { id: 'c2_to_3', category: 'Terapia Ocupacional', label: 'Procesamiento sensorial', options: ['Tolera entorno áulico', 'Requiere pausas', 'Utiliza estrategias'] },
+    { id: 'c2_fo_1', category: 'Fonoaudiología', label: 'Comprensión del lenguaje', options: ['Adecuada', 'Con apoyo', 'Limitada'] },
+    { id: 'c2_fo_2', category: 'Fonoaudiología', label: 'Expresión verbal', options: ['Clara', 'Poco inteligible', 'Escasa'] },
+    { id: 'c2_fo_3', category: 'Fonoaudiología', label: 'Comunicación funcional', options: ['Espontánea', 'A demanda', 'No funcional'] },
+    { id: 'c2_mt_1', category: 'Musicoterapia', label: 'Participación musical', options: ['Activa', 'Guiada', 'Pasiva'] },
+    { id: 'c2_mt_2', category: 'Musicoterapia', label: 'Expresión corporal', options: ['Creativa', 'Imitativa', 'Limitada'] },
+    { id: 'c2_mt_3', category: 'Musicoterapia', label: 'Participación rítmica', options: ['Adecuada', 'Variable', 'Dificultosa'] },
+    { id: 'c2_ts_1', category: 'Trabajo Social', label: 'Acompañamiento familiar', options: ['Activo', 'Intermitente', 'Escaso'] },
+    { id: 'c2_ts_2', category: 'Trabajo Social', label: 'Asistencia escolar', options: ['Regular', 'Irregular', 'Inasistencias'] },
+    { id: 'c2_ts_3', category: 'Trabajo Social', label: 'Inclusión socio-comunitaria', options: ['Vinculado', 'En gestión', 'Sin acceso'] }
+  ],
+  'CFI': [
+    { id: 'cfi_psi_1', category: 'Psicología', label: 'Regulación emocional contextos sociales', options: ['Adecuada', 'Con apoyo', 'Dificultosa'] },
+    { id: 'cfi_psi_2', category: 'Psicología', label: 'Habilidades sociales', options: ['Adecuadas', 'Selectivas', 'Conflictivas'] },
+    { id: 'cfi_psi_3', category: 'Psicología', label: 'Toma de decisiones', options: ['Autónoma', 'Guiada', 'Dependiente'] },
+    { id: 'cfi_pp_1', category: 'Psicopedagogía', label: 'Comprensión de propuestas', options: ['Autónomo', 'Con apoyo', 'Requiere guía'] },
+    { id: 'cfi_pp_2', category: 'Psicopedagogía', label: 'Lectoescritura', options: ['Alfabetizado', 'En proceso', 'Requiere apoyo'] },
+    { id: 'cfi_pp_3', category: 'Psicopedagogía', label: 'Resolución situaciones cotidianas', options: ['Autónoma', 'Con guía/apoyos', 'Requiere asistencia'] },
+    { id: 'cfi_to_1', category: 'Terapia Ocupacional', label: 'Autonomía en rutinas', options: ['Administra su tiempo', 'Organiza materiales', 'Requiere asistencia'] },
+    { id: 'cfi_to_2', category: 'Terapia Ocupacional', label: 'Habilidades', options: ['Logra organizarse', 'Inicia tareas', 'Requiere asistencia'] },
+    { id: 'cfi_to_3', category: 'Terapia Ocupacional', label: 'Aspecto interpersonal', options: ['Trabaja en grupos', 'Respeta turnos', 'Requiere ser motivado'] },
+    { id: 'cfi_fo_1', category: 'Fonoaudiología', label: 'Comunicación funcional', options: ['Adecuada', 'Con apoyo', 'Limitada'] },
+    { id: 'cfi_fo_2', category: 'Fonoaudiología', label: 'Comprensión compleja', options: ['Adecuada', 'Parcial', 'Limitada'] },
+    { id: 'cfi_fo_3', category: 'Fonoaudiología', label: 'Expresión efectiva', options: ['Clara', 'Poco clara', 'Escasa'] },
+    { id: 'cfi_mt_1', category: 'Musicoterapia', label: 'Participación y expresión', options: ['Activa', 'Guiada', 'Pasiva'] },
+    { id: 'cfi_mt_2', category: 'Musicoterapia', label: 'Expresión corporal', options: ['Creativa', 'Imitativa', 'Limitada'] },
+    { id: 'cfi_mt_3', category: 'Musicoterapia', label: 'Participación rítmica sonora', options: ['Adecuada', 'Variable', 'Dificultosa'] },
+    { id: 'cfi_ts_1', category: 'Trabajo Social', label: 'Acompañamiento familiar', options: ['Activo', 'Intermitente', 'Escaso'] },
+    { id: 'cfi_ts_2', category: 'Trabajo Social', label: 'Asistencia', options: ['Regular', 'Irregular', 'Inasistencias'] },
+    { id: 'cfi_ts_3', category: 'Trabajo Social', label: 'Inclusión socio-comunitaria', options: ['Vinculado', 'En gestión', 'Sin acceso'] }
+  ]
+};
   useEffect(() => {
     if (!isAllowed || !db || !appId) return;
 
@@ -505,32 +504,28 @@ export function EvaluationsView({ user, db, appId }) {
 
             <div className="space-y-6">
               {/* FILTRAMOS LOS CRITERIOS PARA QUE SOLO SALGA EL ÁREA ELEGIDA */}
-              {EVALUATION_CRITERIA[selectedLevel]
-                ?.filter(q => q.category.toLowerCase().includes(selectedSpecialty.toLowerCase()))
-                .map((q, idx) => (
-                  <div key={q.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
-                    <div className="flex flex-col">
-                      <span className="text-[8px] font-black text-orange-600 uppercase tracking-wider">{q.category}</span>
-                      <p className="font-black text-sm text-slate-800 mt-0.5">{idx + 1}. {q.label}</p>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {q.options.map(optLabel => (
-                        <button
-                          key={optLabel}
-                          onClick={() => setAnswers(p => ({ ...p, [q.id]: optLabel }))}
-                          className={`p-3 rounded-xl font-black text-[11px] uppercase border transition-all ${
-                            answers[q.id] === optLabel 
-                              ? 'bg-violet-700 text-white border-transparent shadow' 
-                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100/50'
-                          }`}
-                        >
-                          {optLabel}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-              ))}
+             {EVALUATION_CRITERIA[selectedLevel]
+  ?.filter(q => q.category.toLowerCase().includes(selectedSpecialty.toLowerCase()))
+  .map((q, idx) => (
+    <div key={q.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
+      <p className="font-black text-sm text-slate-800">{idx + 1}. {q.label}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        {q.options.map(optLabel => (
+          <button
+            key={optLabel}
+            onClick={() => setAnswers(p => ({ ...p, [q.id]: optLabel }))}
+            className={`p-3 rounded-xl font-black text-[10px] uppercase border transition-all ${
+              answers[q.id] === optLabel 
+                ? 'bg-violet-700 text-white border-transparent' 
+                : 'bg-white text-slate-600 border-slate-200'
+            }`}
+          >
+            {optLabel}
+          </button>
+        ))}
+      </div>
+    </div>
+))}
             </div>
 
             <div className="space-y-2">
