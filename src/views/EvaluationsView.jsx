@@ -186,12 +186,12 @@ const EVALUATION_CRITERIA = {
 
   // 2. Borrado: Elimina el registro de la base de datos
   const handleDeleteEvaluation = async (evId) => {
-    if (window.confirm("¿Estás segura de que quieres eliminar este registro permanentemente?")) {
+    if (window.confirm("¿Estás segura de que quieres eliminar este informe completo? Esta acción no se puede deshacer.")) {
       try {
         await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'unified_monthly_evaluations', evId));
-        alert("🗑️ Registro eliminado.");
+        alert("✅ Informe eliminado correctamente.");
       } catch (err) {
-        alert("Error al eliminar: " + err.message);
+        alert("Error al borrar: " + err.message);
       }
     }
   };
