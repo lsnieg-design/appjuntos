@@ -160,7 +160,8 @@ const EVALUATION_CRITERIA = {
   // Al seleccionar un estudiante, precargamos lo que ya esté escrito en su área
 const handleSelectStudent = (student) => {
     setSelectedStudent(student);
-    // Buscamos coincidencia exacta por ID de estudiante, mes y año
+    
+    // Buscamos el documento existente
     const existingDoc = monthlyEvaluations.find(ev => 
       ev.studentId === student.id && 
       ev.month === selectedMonth && 
@@ -234,17 +235,20 @@ const handleSaveArea = async () => {
         author: user.fullName || user.firstName,
         updatedAt: new Date().toISOString()
       };
-     const grupoMañana = selectedStudent.groupMorning || '';
-const grupoTarde = selectedStudent.groupAfternoon || '';
-const grupoCompleto = [grupoMañana, grupoTarde].filter(Boolean).join(' / ');
+    // Capturamos ambos turnos si existen
+const infoMañana = selectedStudent.groupMorning ? `${selectedStudent.groupMorning} (Mañana)` : null;
+const infoTarde = selectedStudent.groupAfternoon ? `${selectedStudent.groupAfternoon} (Tarde)` : null;
+
+// Unimos los turnos que existan
+const gruposVisuales = [infoMañana, infoTarde].filter(Boolean).join(' | ');
       const finalPayload = {
         id: docId,
         studentId: selectedStudent.id,
         studentName: `${selectedStudent.lastName}, ${selectedStudent.firstName}`,
         studentDni: selectedStudent.dni || '-',
         level: selectedLevel,
-       group: selectedStudent.groupMorning || selectedStudent.groupAfternoon || '-',
-       turno: selectedStudent.turno || 'Mañana', // O la lógica que uses para definir el turno
+      group: gruposVisuales, // Aquí guardamos ambos grupos/turnos juntos
+  turno: 'Doble Turno',  // O el turno que corresponda al informe
         group: grupoCompleto || '-', 
   turno: 'Doble Turno',
         month: selectedMonth,
@@ -608,17 +612,26 @@ const availableGroups = [...new Set(monthlyEvaluations.map(ev => ev.group).filte
     })
     .map(ev => (
       <tr key={ev.id} className="hover:bg-slate-50/50">
-        <td className="p-4 font-black text-slate-800">{ev.studentName}</td>
-        <td className="p-4">{ev.level}</td>
-        <td className="p-4">{ev.group || '-'}</td>
-        <td className="p-4">{ev.turno || '-'}</td>
-        <td className="p-4 text-emerald-600">Cargado</td>
-        <td className="p-4 text-center flex gap-2 justify-center">
-          <button onClick={() => handlePrintFullEvaluation(ev)} className="px-3 py-1 bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase">Imprimir</button>
-          <button onClick={() => handleEditEvaluation(ev)} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-[9px] font-black uppercase">Editar</button>
-          <button onClick={() => handleDeleteEvaluation(ev.id)} className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-[9px] font-black uppercase">Borrar</button>
-        </td>
-      </tr>
+  <td className="p-4 font-black text-slate-800">{ev.studentName}</td>
+  <td className="p-4">{ev.level}</td>
+  {/* Renderizado inteligente de grupos y turnos */}
+  <td className="p-4 text-[10px] leading-tight">
+    {ev.group?.split('|').map((g, i) => (
+      <div key={i} className="mb-1 bg-slate-100 px-2 py-0.5 rounded">{g.trim()}</div>
+    )) || '-'}
+  </td>
+  <td className="p-4 text-[10px] leading-tight">
+    {ev.turno?.split('|').map((t, i) => (
+      <div key={i} className="mb-1 bg-violet-50 px-2 py-0.5 rounded text-violet-700">{t.trim()}</div>
+    )) || '-'}
+  </td>
+  <td className="p-4 text-emerald-600">Cargado</td>
+  <td className="p-4 text-center flex gap-2 justify-center">
+    <button onClick={() => handlePrintFullEvaluation(ev)} className="px-3 py-1 bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase">Imprimir</button>
+    <button onClick={() => handleEditEvaluation(ev)} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-[9px] font-black uppercase">Editar</button>
+    <button onClick={() => handleDeleteEvaluation(ev.id)} className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-[9px] font-black uppercase">Borrar</button>
+  </td>
+</tr>
     ))}
 </tbody>
           </table>
