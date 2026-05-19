@@ -12,6 +12,8 @@ export function EvaluationsView({ user, db, appId }) {
   const [monthlyEvaluations, setMonthlyEvaluations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterLevel, setFilterLevel] = useState('');
+  const [filterTurn, setFilterTurn] = useState('');
   
   // Filtros de organización inicial
   const [selectedSpecialty, setSelectedSpecialty] = useState('');
@@ -549,31 +551,50 @@ const EVALUATION_CRITERIA = {
 
             
 {/* HISTORIAL: GRILLA DE INFORMES UNIFICADOS POR ESTUDIANTE */}
-      <div className="bg-white p-6 rounded-[40px] border shadow-sm space-y-4">
-        <h3 className="font-black text-sm text-violet-950 uppercase italic border-b pb-3 flex items-center gap-2">Registros del Período</h3>
+     {/* HISTORIAL: GRILLA CON FILTROS AVANZADOS */}
+      <div className="bg-white p-6 rounded-[40px] border shadow-sm space-y-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 gap-4">
+          <h3 className="font-black text-sm text-violet-950 uppercase italic flex items-center gap-2">Registros del Período</h3>
+          
+          {/* BARRA DE FILTROS */}
+          <div className="flex flex-wrap gap-2 w-full md:w-auto">
+            <select onChange={(e) => setFilterLevel(e.target.value)} className="bg-slate-50 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase border">
+              <option value="">Todos los Niveles</option>
+              {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+            </select>
+            <select onChange={(e) => setFilterTurn(e.target.value)} className="bg-slate-50 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase border">
+              <option value="">Todos los Turnos</option>
+              <option value="Mañana">Mañana</option>
+              <option value="Tarde">Tarde</option>
+            </select>
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b text-[10px] font-black text-slate-400 uppercase bg-slate-50/50">
                 <th className="p-4">Estudiante</th>
                 <th className="p-4">Nivel</th>
-                <th className="p-4">Mes / Año</th>
+                <th className="p-4">Grupo/Turno</th>
                 <th className="p-4">Estado</th>
                 <th className="p-4 text-center">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y text-xs font-bold text-slate-600 uppercase">
-              {monthlyEvaluations.map(ev => (
-                <tr key={ev.id} className="hover:bg-slate-50/50">
-                  <td className="p-4 font-black text-slate-800">{ev.studentName}</td>
-                  <td className="p-4">{ev.level}</td>
-                  <td className="p-4 font-mono text-orange-600">{ev.month} / {ev.year}</td>
-                  <td className="p-4">Cargado</td>
-                  <td className="p-4 text-center">
-                    <button onClick={() => handlePrintFullEvaluation(ev)} className="px-4 py-2 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase">Imprimir</button>
-                  </td>
-                </tr>
-              ))}
+              {monthlyEvaluations
+                .filter(ev => (!filterLevel || ev.level === filterLevel) && (!filterTurn || ev.group?.includes(filterTurn)))
+                .map(ev => (
+                  <tr key={ev.id} className="hover:bg-slate-50/50">
+                    <td className="p-4 font-black text-slate-800">{ev.studentName}</td>
+                    <td className="p-4">{ev.level}</td>
+                    <td className="p-4">{ev.group || '-'}</td>
+                    <td className="p-4 text-emerald-600">Cargado</td>
+                    <td className="p-4 text-center">
+                      <button onClick={() => handlePrintFullEvaluation(ev)} className="px-4 py-2 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase">Imprimir</button>
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>
