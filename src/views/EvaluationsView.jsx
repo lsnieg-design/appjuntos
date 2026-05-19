@@ -646,6 +646,12 @@ const availableGroups = [...new Set(monthlyEvaluations.map(ev => ev.group).filte
                     <td className="p-4 text-center flex gap-2 justify-center">
                       <button onClick={() => handlePrintFullEvaluation(ev)} className="px-3 py-1 bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase">Imprimir</button>
                       <button onClick={() => handleEditEvaluation(ev)} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-[9px] font-black uppercase">Editar</button>
+                      <button 
+    onClick={() => handleDeleteEvaluation(ev.id)} 
+    className="px-3 py-2 bg-red-500 text-white rounded-xl text-[9px] font-black uppercase hover:bg-red-600 transition-all"
+  >
+    Borrar
+  </button>
                     </td>
                   </tr>
                 ))}
