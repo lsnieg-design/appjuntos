@@ -274,18 +274,16 @@ const grupoCompleto = [grupoMañana, grupoTarde].filter(Boolean).join(' / ');
 
 const handlePrintFullEvaluation = (evalDoc) => {
     const allCriteria = EVALUATION_CRITERIA[evalDoc.level] || [];
-    
-    // Abrimos ventana nueva
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     
-    // Contenido HTML con los datos de áreas y turnos
     let htmlContent = `
       <html>
       <head>
         <title>Seguimiento - ${evalDoc.studentName}</title>
         <style>
           body { font-family: sans-serif; padding: 20px; font-size: 12px; }
-          .header { border-bottom: 2px solid #4c1d95; padding-bottom: 10px; display: flex; justify-content: space-between; }
+          .header { border-bottom: 2px solid #4c1d95; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+          .logo-img { height: 60px; }
           .student-info { margin: 20px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
           table { width: 100%; border-collapse: collapse; margin-top: 10px; }
           th { background: #f3f4f6; padding: 8px; text-align: left; border: 1px solid #ddd; }
@@ -295,13 +293,17 @@ const handlePrintFullEvaluation = (evalDoc) => {
       </head>
       <body>
         <div class="header">
-          <div><h1>SEGUIMIENTO</h1><p>${evalDoc.studentName}</p></div>
+          <img src="${LOGO_INSTITUCIONAL}" class="logo-img" />
           <div style="text-align:right">
+            <h1>SEGUIMIENTO</h1>
             <b>Turno:</b> ${evalDoc.turno || 'Sin asignar'}<br/>
             <b>Grupo:</b> ${evalDoc.group || '-'}
           </div>
         </div>
+        
         <div class="student-info">
+          <div><b>Estudiante:</b> ${evalDoc.studentName}</div>
+          <div><b>DNI:</b> ${evalDoc.studentDni || '-'}</div>
           <div><b>Nivel:</b> ${evalDoc.level}</div>
           <div><b>Período:</b> ${evalDoc.month} ${evalDoc.year}</div>
         </div>
@@ -311,7 +313,6 @@ const handlePrintFullEvaluation = (evalDoc) => {
       const areaData = evalDoc.areas[areaKey];
       const specLabel = SPECIALTIES.find(s => s.id === areaKey)?.label || areaKey;
       
-      // Filtramos los criterios específicos del nivel para esta área
       const indicadoresArea = allCriteria.filter(q => 
         q.category.toLowerCase() === specLabel.toLowerCase()
       );
@@ -332,7 +333,6 @@ const handlePrintFullEvaluation = (evalDoc) => {
 
     htmlContent += `</body></html>`;
     
-    // Escribimos el contenido
     printWindow.document.write(htmlContent);
     printWindow.document.close();
     
