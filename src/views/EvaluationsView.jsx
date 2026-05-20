@@ -206,18 +206,16 @@ const handleSaveArea = async () => {
       return alert("Falta definir la especialidad, nivel o estudiante.");
     }
 
-    // AQUI ESTA EL CAMBIO: Filtramos los criterios solo del área seleccionada
     const criteriaDelArea = EVALUATION_CRITERIA[selectedLevel].filter(
       q => q.category.toLowerCase() === SPECIALTIES.find(s => s.id === selectedSpecialty)?.label.toLowerCase()
     );
 
-    // Comparamos las respuestas solo contra las preguntas del área filtrada
     const respuestasCargadas = Object.keys(answers).filter(key => 
       criteriaDelArea.some(q => q.id === key)
     );
 
     if (respuestasCargadas.length < criteriaDelArea.length) {
-      return alert(`Por favor responde todos los indicadores de esta área (${respuestasCargadas.length}/${criteriaDelArea.length} completados).`);
+      return alert(`Por favor responde todos los indicadores.`);
     }
 
     setIsSaving(true);
@@ -225,8 +223,6 @@ const handleSaveArea = async () => {
     
     try {
       const existingDoc = getExistingEvaluation(selectedStudent.id);
-      
-      // Armamos o actualizamos la estructura de áreas en el mismo archivo físico
       const updatedAreas = existingDoc ? { ...existingDoc.areas } : {};
       
       updatedAreas[selectedSpecialty] = {
@@ -235,22 +231,18 @@ const handleSaveArea = async () => {
         author: user.fullName || user.firstName,
         updatedAt: new Date().toISOString()
       };
-    // Capturamos ambos turnos si existen
-const infoMañana = selectedStudent.groupMorning ? `${selectedStudent.groupMorning} (Mañana)` : null;
-const infoTarde = selectedStudent.groupAfternoon ? `${selectedStudent.groupAfternoon} (Tarde)` : null;
 
-// Unimos los turnos que existan
-const gruposVisuales = [infoMañana, infoTarde].filter(Boolean).join(' | ');
+      // Unimos turnos y grupos correctamente
+      const grupos = [selectedStudent.groupMorning, selectedStudent.groupAfternoon].filter(Boolean).join(' / ');
+      const turnos = [selectedStudent.groupMorning ? 'Mañana' : null, selectedStudent.groupAfternoon ? 'Tarde' : null].filter(Boolean).join(' / ');
+
       const finalPayload = {
         id: docId,
         studentId: selectedStudent.id,
         studentName: `${selectedStudent.lastName}, ${selectedStudent.firstName}`,
-        studentDni: selectedStudent.dni || '-',
         level: selectedLevel,
-      group: gruposVisuales, // Aquí guardamos ambos grupos/turnos juntos
-  turno: 'Doble Turno',  // O el turno que corresponda al informe
-        group: grupoCompleto || '-', 
-  turno: 'Doble Turno',
+        group: grupos || '-', 
+        turno: turnos || '-',
         month: selectedMonth,
         year: selectedYear,
         areas: updatedAreas,
@@ -259,14 +251,10 @@ const gruposVisuales = [infoMañana, infoTarde].filter(Boolean).join(' | ');
       };
 
       await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'unified_monthly_evaluations', docId), finalPayload);
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { score: increment(25) });
 
-      // Sumar puntos
-      const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-      await updateDoc(userRef, { score: increment(25) });
-
-      alert(`✅ Área de ${SPECIALTIES.find(s => s.id === selectedSpecialty)?.label} guardada con éxito en la ficha mensual del estudiante.`);
+      alert(`✅ Área guardada con éxito.`);
       setSelectedStudent(null);
-      setSearchTerm('');
       setAnswers({});
       setObservations('');
     } catch (err) {
@@ -600,27 +588,17 @@ const availableGroups = [...new Set(monthlyEvaluations.map(ev => ev.group).filte
   {monthlyEvaluations
     .filter(ev => {
       const matchLevel = !filterLevel || ev.level === filterLevel;
-      // Filtro flexible que busca en el grupo O en el turno
-      const matchTurn = !filterTurn || (ev.group?.toLowerCase().includes(filterTurn.toLowerCase()));
+      const matchTurn = !filterTurn || (ev.turno?.toLowerCase().includes(filterTurn.toLowerCase()));
       const matchGroup = !filterGroup || (ev.group?.toLowerCase().includes(filterGroup.toLowerCase()));
       return matchLevel && matchTurn && matchGroup;
     })
     .map(ev => {
-      // BUSCAMOS LOS DATOS REALES DEL ALUMNO
-      const estudiante = students.find(s => s.id === ev.studentId);
-      
-      // Construimos el string de grupos/turnos dinámicamente
-      const grupos = [estudiante?.groupMorning, estudiante?.groupAfternoon].filter(Boolean).join(' / ');
-      const turnos = [estudiante?.groupMorning ? 'Mañana' : null, estudiante?.groupAfternoon ? 'Tarde' : null].filter(Boolean).join(' / ');
-
       return (
         <tr key={ev.id} className="hover:bg-slate-50/50">
           <td className="p-4 font-black text-slate-800">{ev.studentName}</td>
           <td className="p-4">{ev.level}</td>
-          {/* Mostramos los grupos encontrados */}
-          <td className="p-4 text-[10px]">{grupos || ev.group || '-'}</td>
-          {/* Mostramos los turnos encontrados */}
-          <td className="p-4 text-[10px]">{turnos || ev.turno || '-'}</td>
+          <td className="p-4">{ev.group || '-'}</td>
+          <td className="p-4">{ev.turno || '-'}</td>
           <td className="p-4 text-emerald-600">Cargado</td>
           <td className="p-4 text-center flex gap-2 justify-center">
             <button onClick={() => handlePrintFullEvaluation(ev)} className="px-3 py-1 bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase">Imprimir</button>
