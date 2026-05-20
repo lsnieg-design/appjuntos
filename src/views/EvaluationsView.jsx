@@ -257,44 +257,39 @@ const handlePrintFullEvaluation = (evalDoc) => {
         
         <div class="student-info">
           <div><b>Estudiante:</b> ${evalDoc.studentName}</div>
-          <div><b>DNI:</b> ${evalDoc.studentDni || '-'}</div>
           <div><b>Nivel:</b> ${evalDoc.level}</div>
           <div><b>Período:</b> ${evalDoc.month} ${evalDoc.year}</div>
         </div>
-    `;
 
-    Object.keys(evalDoc.areas).forEach((areaKey) => {
-      const areaData = evalDoc.areas[areaKey];
-      const specLabel = SPECIALTIES.find(s => s.id === areaKey)?.label || areaKey;
-      
-      const indicadoresArea = allCriteria.filter(q => 
-        q.category.toLowerCase() === specLabel.toLowerCase()
-      );
-
-      htmlContent += `
-        <h3>ÁREA: ${specLabel.toUpperCase()}</h3>
+        <h3>INDICADORES</h3>
         <table>
-          <thead><tr><th>Indicador</th><th>Valoración</th></tr></thead>
+          <thead><tr><th>Categoría</th><th>Indicador</th><th>Valoración</th></tr></thead>
           <tbody>
-            ${indicadoresArea.map(q => `
-              <tr><td>${q.label}</td><td>${areaData.answers[q.id] || '-'}</td></tr>
+            ${allCriteria.map(q => `
+              <tr>
+                <td>${q.category}</td>
+                <td>${q.label}</td>
+                <td>${evalDoc.answers?.[q.id] || '-'}</td>
+              </tr>
             `).join('')}
           </tbody>
         </table>
-        <p><i>Observaciones: ${areaData.observations || 'Sin observaciones'}</i></p>
-      `;
-    });
+        
+        <h3>Observaciones Generales</h3>
+        <p>${evalDoc.observations || 'Sin observaciones'}</p>
+      </body>
+      </html>
+    `;
 
-    htmlContent += `</body></html>`;
-    
+    // Parche para evitar la ventana en blanco
     printWindow.document.write(htmlContent);
-    printWindow.document.close();
+    printWindow.document.close(); 
     
-    // Esperamos a que los recursos de la ventana carguen antes de imprimir
-    printWindow.onload = () => {
+    // Esperamos a que los recursos carguen antes de disparar la impresión
+    setTimeout(() => {
       printWindow.focus();
       printWindow.print();
-    };
+    }, 500);
   };
 // 1. FILTRADO INTELIGENTE POR TEXTO Y POR NIVEL SELECCIONADO
   const filteredStudents = students.filter(s => {
