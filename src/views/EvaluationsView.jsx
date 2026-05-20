@@ -178,18 +178,15 @@ const handleSelectStudent = (student) => {
   };
 
   // 1. Edición: Carga los datos del informe seleccionado al formulario para editar
-  const handleEditEvaluation = (ev) => {
-    // Buscamos al estudiante para cargarlo al formulario
+ const handleEditEvaluation = (ev) => {
     const student = students.find(s => s.id === ev.studentId);
     if (student) {
       setSelectedStudent(student);
-      setSelectedSpecialty(Object.keys(ev.areas)[0]); // Opcional: podrías preguntar qué área editar
-      setAnswers(ev.areas[Object.keys(ev.areas)[0]].answers);
-      setObservations(ev.areas[Object.keys(ev.areas)[0]].observations);
+      setAnswers(ev.answers || {}); // Ahora lee directamente del objeto unificado
+      setObservations(ev.observations || '');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
-
   // 2. Borrado: Elimina el registro de la base de datos
   const handleDeleteEvaluation = async (evId) => {
     if (window.confirm("¿Estás segura de que quieres eliminar este informe completo? Esta acción no se puede deshacer.")) {
@@ -201,21 +198,19 @@ const handleSelectStudent = (student) => {
       }
     }
   };
-const handleSaveArea = async () => {
+const handleSaveAll = async () => {
     if (!selectedStudent || !selectedLevel) {
       return alert("Falta definir nivel o estudiante.");
     }
-
-    // Unimos los turnos/grupos del alumno para guardarlos como un solo registro
-    const grupos = [selectedStudent.groupMorning, selectedStudent.groupAfternoon].filter(Boolean).join(' / ');
-    const turnos = [selectedStudent.groupMorning ? 'Mañana' : null, selectedStudent.groupAfternoon ? 'Tarde' : null].filter(Boolean).join(' / ');
 
     setIsSaving(true);
     const docId = `${selectedStudent.id}_${selectedMonth}_${selectedYear}`;
     
     try {
-      const existingDoc = getExistingEvaluation(selectedStudent.id);
-      
+      // Unimos turnos y grupos desde el objeto estudiante
+      const grupos = [selectedStudent.groupMorning, selectedStudent.groupAfternoon].filter(Boolean).join(' / ');
+      const turnos = [selectedStudent.groupMorning ? 'Mañana' : null, selectedStudent.groupAfternoon ? 'Tarde' : null].filter(Boolean).join(' / ');
+
       const finalPayload = {
         id: docId,
         studentId: selectedStudent.id,
@@ -225,8 +220,8 @@ const handleSaveArea = async () => {
         turno: turnos || '-',
         month: selectedMonth,
         year: selectedYear,
-        answers: answers, // Guardamos todo junto
-        observations: observations, // Observación general única
+        answers: answers, 
+        observations: observations,
         lastUpdatedBy: user.firstName,
         serverUpdatedAt: serverTimestamp()
       };
@@ -475,62 +470,50 @@ const availableGroups = [...new Set(monthlyEvaluations.map(ev => ev.group).filte
      
 
      {/* FORMULARIO DE VALORACIÓN MÚLTIPLE CHOICE (Solo una vez) */}
-      {selectedStudent && (
-        <div className="bg-white p-6 md:p-8 rounded-[40px] border shadow-md space-y-8 animate-in slide-in-from-bottom-4">
-          <div className="bg-slate-950 text-white p-6 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <span className="text-[9px] font-black tracking-widest text-orange-400 uppercase bg-white/10 px-2.5 py-1 rounded-md">Carga Express Activada</span>
-              <h4 className="text-xl font-black uppercase mt-2">{selectedStudent.lastName}, {selectedStudent.firstName}</h4>
-              <p className="text-xs font-bold text-slate-400">DNI: {selectedStudent.dni || '-'} • Nivel: {selectedLevel}</p>
-            </div>
-            <div className="text-right md:border-l-2 border-white/20 md:pl-4">
-              <p className="text-lg font-black text-white uppercase italic">{selectedMonth} {selectedYear}</p>
-              <p className="text-[10px] font-black text-violet-300 uppercase">Área: {SPECIALTIES.find(s => s.id === selectedSpecialty)?.label}</p>
-            </div>
-          </div>
+    {selectedStudent && (
+  <div className="bg-white p-8 rounded-[40px] border shadow-md space-y-8 animate-in slide-in-from-bottom-4">
+    <div className="bg-slate-950 text-white p-6 rounded-3xl">
+      <h4 className="text-xl font-black uppercase">{selectedStudent.lastName}, {selectedStudent.firstName}</h4>
+      <p className="text-xs font-bold text-slate-400">Nivel: {selectedLevel} | {selectedMonth} {selectedYear}</p>
+    </div>
 
-          <div className="space-y-6">
-            {EVALUATION_CRITERIA[selectedLevel]
-              ?.filter(q => q.category.toLowerCase() === SPECIALTIES.find(s => s.id === selectedSpecialty)?.label.toLowerCase())
-              .map((q, idx) => (
-                <div key={q.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
-                  <div className="flex flex-col">
-                    <span className="text-[8px] font-black text-orange-600 uppercase tracking-wider">{q.category}</span>
-                    <p className="font-black text-sm text-slate-800 mt-0.5">{idx + 1}. {q.label}</p>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {q.options.map(optLabel => (
-                      <button
-                        key={optLabel}
-                        onClick={() => setAnswers(p => ({ ...p, [q.id]: optLabel }))}
-                        className={`p-3 rounded-xl font-black text-[10px] uppercase border transition-all ${
-                          answers[q.id] === optLabel ? 'bg-violet-700 text-white border-transparent' : 'bg-white text-slate-600 border-slate-200'
-                        }`}
-                      >
-                        {optLabel}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+    <div className="space-y-6">
+      {/* Muestra TODO el criterio del nivel seleccionado sin filtrar por área */}
+      {EVALUATION_CRITERIA[selectedLevel]?.map((q, idx) => (
+        <div key={q.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
+          <div className="flex flex-col">
+            <span className="text-[8px] font-black text-orange-600 uppercase tracking-wider">{q.category}</span>
+            <p className="font-black text-sm text-slate-800">{q.label}</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+            {q.options.map(optLabel => (
+              <button
+                key={optLabel}
+                onClick={() => setAnswers(p => ({ ...p, [q.id]: optLabel }))}
+                className={`p-2 rounded-lg font-black text-[9px] uppercase border transition-all ${
+                  answers[q.id] === optLabel ? 'bg-violet-700 text-white border-transparent' : 'bg-white text-slate-600 border-slate-200'
+                }`}
+              >
+                {optLabel}
+              </button>
             ))}
           </div>
-
-          <textarea
-            value={observations}
-            onChange={e => setObservations(e.target.value)}
-            placeholder="Registrar evolución..."
-            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium h-24 outline-none focus:bg-white focus:border-violet-400 transition-all"
-          />
-
-          <div className="flex justify-end gap-2 border-t pt-4">
-            <button onClick={() => setSelectedStudent(null)} className="px-5 py-3 font-black text-xs text-slate-400 uppercase">Cerrar</button>
-            <button onClick={handleSaveArea} disabled={isSaving} className="px-6 py-3 bg-violet-700 text-white font-black text-xs uppercase rounded-xl shadow hover:bg-violet-800 transition-all">
-              {isSaving ? 'Guardando...' : '💾 Guardar esta especialidad'}
-            </button>
-          </div>
         </div>
-      )}
+      ))}
+    </div>
 
+    <textarea
+      value={observations}
+      onChange={e => setObservations(e.target.value)}
+      placeholder="Observación general..."
+      className="w-full p-4 bg-slate-50 border rounded-2xl text-sm h-32"
+    />
+
+    <button onClick={handleSaveAll} disabled={isSaving} className="w-full py-4 bg-violet-700 text-white font-black uppercase rounded-xl">
+      {isSaving ? 'Guardando...' : '💾 Guardar Informe Completo'}
+    </button>
+  </div>
+)}
       {/* HISTORIAL: GRILLA DE INFORMES UNIFICADOS */}
       <div className="bg-white p-6 rounded-[40px] border shadow-sm space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 gap-4">
