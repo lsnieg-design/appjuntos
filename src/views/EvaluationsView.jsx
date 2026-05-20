@@ -9,6 +9,7 @@ import { 
 
 export function EvaluationsView({ user, db, appId }) {
   const [students, setStudents] = useState([]);
+  const selectedSpecialty = '';
   const [monthlyEvaluations, setMonthlyEvaluations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
