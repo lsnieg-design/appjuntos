@@ -227,70 +227,75 @@ const handleSaveAll = async () => {
     } catch (err) { alert("Error: " + err.message); } finally { setIsSaving(false); }
 };
 const handlePrintFullEvaluation = (evalDoc) => {
-    const allCriteria = EVALUATION_CRITERIA[evalDoc.level] || [];
-    const printWindow = window.open('', '_blank', 'width=800,height=600');
-    
-    let htmlContent = `
-      <html>
-      <head>
-        <title>Seguimiento - ${evalDoc.studentName}</title>
-        <style>
-          body { font-family: sans-serif; padding: 20px; font-size: 12px; }
-          .header { border-bottom: 2px solid #4c1d95; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-          .logo-img { height: 60px; }
-          .student-info { margin: 20px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-          th { background: #f3f4f6; padding: 8px; text-align: left; border: 1px solid #ddd; }
-          td { border: 1px solid #ddd; padding: 8px; }
-          h3 { background: #4c1d95; color: white; padding: 5px; margin-top: 20px; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <img src="${LOGO_INSTITUCIONAL}" class="logo-img" />
-          <div style="text-align:right">
-            <h1>SEGUIMIENTO</h1>
-            <b>Turno:</b> ${evalDoc.turno || 'Sin asignar'}<br/>
-            <b>Grupo:</b> ${evalDoc.group || '-'}
-          </div>
-        </div>
-        
-        <div class="student-info">
-          <div><b>Estudiante:</b> ${evalDoc.studentName}</div>
-          <div><b>Nivel:</b> ${evalDoc.level}</div>
-          <div><b>Período:</b> ${evalDoc.month} ${evalDoc.year}</div>
-        </div>
+  const allCriteria = EVALUATION_CRITERIA[evalDoc.level] || [];
+  const printWindow = window.open('', '_blank', 'width=800,height=600');
+  
+  // Obtenemos las categorías únicas presentes en este nivel, descartando Musicoterapia
+  const areasDisponibles = [...new Set(allCriteria.map(q => q.category))]
+    .filter(cat => cat !== 'Musicoterapia');
 
-        <h3>INDICADORES</h3>
-        <table>
-          <thead><tr><th>Categoría</th><th>Indicador</th><th>Valoración</th></tr></thead>
-          <tbody>
-            ${allCriteria.map(q => `
-              <tr>
-                <td>${q.category}</td>
-                <td>${q.label}</td>
-                <td>${evalDoc.answers?.[q.id] || '-'}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        
-        <h3>Observaciones Generales</h3>
-        <p>${evalDoc.observations || 'Sin observaciones'}</p>
-      </body>
-      </html>
+  let htmlContent = `
+    <html>
+    <head>
+      <title>Seguimiento - ${evalDoc.studentName}</title>
+      <style>
+        body { font-family: sans-serif; padding: 40px; }
+        .header { border-bottom: 2px solid #4c1d95; padding-bottom: 20px; display: flex; justify-content: space-between; }
+        .student-info { margin: 20px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; }
+        th { background: #ede9fe; color: #4c1d95; padding: 10px; text-align: left; border: 1px solid #ddd; }
+        td { border: 1px solid #ddd; padding: 8px; font-size: 13px; }
+        h3 { background: #4c1d95; color: white; padding: 10px; margin-top: 30px; text-transform: uppercase; font-size: 16px; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div><h1>SEGUIMIENTO</h1><p>${evalDoc.studentName}</p></div>
+        <div style="text-align:right"><b>Mes:</b> ${evalDoc.month} ${evalDoc.year}</div>
+      </div>
+      
+      <div class="student-info">
+        <div><b>Estudiante:</b> ${evalDoc.studentName}</div>
+        <div><b>DNI:</b> ${evalDoc.studentDni || '-'}</div>
+        <div><b>Nivel:</b> ${evalDoc.level}</div>
+        <div><b>Grupo/Turno:</b> ${evalDoc.group || '-'} / ${evalDoc.turno || '-'}</div>
+      </div>
+  `;
+
+  // Imprimimos cada área por separado con su encabezado violeta
+  areasDisponibles.forEach((cat) => {
+    const indicadores = allCriteria.filter(q => q.category === cat);
+    
+    htmlContent += `
+      <h3>ÁREA: ${cat.toUpperCase()}</h3>
+      <table>
+        <thead><tr><th>Indicador</th><th>Valoración</th></tr></thead>
+        <tbody>
+          ${indicadores.map(q => `
+            <tr>
+              <td>${q.label}</td>
+              <td><b>${evalDoc.answers?.[q.id] || '-'}</b></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
     `;
+  });
 
-    // Parche para evitar la ventana en blanco
-    printWindow.document.write(htmlContent);
-    printWindow.document.close(); 
-    
-    // Esperamos a que los recursos carguen antes de disparar la impresión
-    setTimeout(() => {
-      printWindow.focus();
-      printWindow.print();
-    }, 500);
-  };
+  htmlContent += `
+      <h3>Observaciones Generales</h3>
+      <p style="padding: 10px; border: 1px solid #ddd;">${evalDoc.observations || 'Sin observaciones'}</p>
+    </body>
+    </html>
+  `;
+
+  printWindow.document.write(htmlContent);
+  printWindow.document.close();
+  setTimeout(() => {
+    printWindow.focus();
+    printWindow.print();
+  }, 500);
+};
 // 1. FILTRADO INTELIGENTE POR TEXTO Y POR NIVEL SELECCIONADO
   const filteredStudents = students.filter(s => {
     // Forzamos que coincida el nivel elegido en el Paso 2 con el del alumno
