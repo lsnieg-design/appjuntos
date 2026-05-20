@@ -202,40 +202,20 @@ const handleSelectStudent = (student) => {
     }
   };
 const handleSaveArea = async () => {
-    if (!selectedStudent || !selectedSpecialty || !selectedLevel) {
-      return alert("Falta definir la especialidad, nivel o estudiante.");
+    if (!selectedStudent || !selectedLevel) {
+      return alert("Falta definir nivel o estudiante.");
     }
 
-    const criteriaDelArea = EVALUATION_CRITERIA[selectedLevel].filter(
-      q => q.category.toLowerCase() === SPECIALTIES.find(s => s.id === selectedSpecialty)?.label.toLowerCase()
-    );
-
-    const respuestasCargadas = Object.keys(answers).filter(key => 
-      criteriaDelArea.some(q => q.id === key)
-    );
-
-    if (respuestasCargadas.length < criteriaDelArea.length) {
-      return alert(`Por favor responde todos los indicadores.`);
-    }
+    // Unimos los turnos/grupos del alumno para guardarlos como un solo registro
+    const grupos = [selectedStudent.groupMorning, selectedStudent.groupAfternoon].filter(Boolean).join(' / ');
+    const turnos = [selectedStudent.groupMorning ? 'Mañana' : null, selectedStudent.groupAfternoon ? 'Tarde' : null].filter(Boolean).join(' / ');
 
     setIsSaving(true);
     const docId = `${selectedStudent.id}_${selectedMonth}_${selectedYear}`;
     
     try {
       const existingDoc = getExistingEvaluation(selectedStudent.id);
-      const updatedAreas = existingDoc ? { ...existingDoc.areas } : {};
       
-      updatedAreas[selectedSpecialty] = {
-        answers: answers,
-        observations: observations,
-        author: user.fullName || user.firstName,
-        updatedAt: new Date().toISOString()
-      };
-
-      // Unimos turnos y grupos correctamente
-      const grupos = [selectedStudent.groupMorning, selectedStudent.groupAfternoon].filter(Boolean).join(' / ');
-      const turnos = [selectedStudent.groupMorning ? 'Mañana' : null, selectedStudent.groupAfternoon ? 'Tarde' : null].filter(Boolean).join(' / ');
-
       const finalPayload = {
         id: docId,
         studentId: selectedStudent.id,
@@ -245,7 +225,8 @@ const handleSaveArea = async () => {
         turno: turnos || '-',
         month: selectedMonth,
         year: selectedYear,
-        areas: updatedAreas,
+        answers: answers, // Guardamos todo junto
+        observations: observations, // Observación general única
         lastUpdatedBy: user.firstName,
         serverUpdatedAt: serverTimestamp()
       };
@@ -253,7 +234,7 @@ const handleSaveArea = async () => {
       await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'unified_monthly_evaluations', docId), finalPayload);
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { score: increment(25) });
 
-      alert(`✅ Área guardada con éxito.`);
+      alert(`✅ Informe guardado con éxito.`);
       setSelectedStudent(null);
       setAnswers({});
       setObservations('');
@@ -263,7 +244,6 @@ const handleSaveArea = async () => {
       setIsSaving(false);
     }
   };
-
 const handlePrintFullEvaluation = (evalDoc) => {
     const allCriteria = EVALUATION_CRITERIA[evalDoc.level] || [];
     const printWindow = window.open('', '_blank', 'width=800,height=600');
@@ -584,7 +564,9 @@ const availableGroups = [...new Set(monthlyEvaluations.map(ev => ev.group).filte
                 <th className="p-4 text-center">Acciones</th>
               </tr>
             </thead>
-        <tbody className="divide-y text-xs font-bold text-slate-600 uppercase">
+      
+            
+            <tbody className="divide-y text-xs font-bold text-slate-600 uppercase">
   {monthlyEvaluations
     .filter(ev => {
       const matchLevel = !filterLevel || ev.level === filterLevel;
@@ -592,23 +574,23 @@ const availableGroups = [...new Set(monthlyEvaluations.map(ev => ev.group).filte
       const matchGroup = !filterGroup || (ev.group?.toLowerCase().includes(filterGroup.toLowerCase()));
       return matchLevel && matchTurn && matchGroup;
     })
-    .map(ev => {
-      return (
-        <tr key={ev.id} className="hover:bg-slate-50/50">
-          <td className="p-4 font-black text-slate-800">{ev.studentName}</td>
-          <td className="p-4">{ev.level}</td>
-          <td className="p-4">{ev.group || '-'}</td>
-          <td className="p-4">{ev.turno || '-'}</td>
-          <td className="p-4 text-emerald-600">Cargado</td>
-          <td className="p-4 text-center flex gap-2 justify-center">
-            <button onClick={() => handlePrintFullEvaluation(ev)} className="px-3 py-1 bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase">Imprimir</button>
-            <button onClick={() => handleEditEvaluation(ev)} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-[9px] font-black uppercase">Editar</button>
-            <button onClick={() => handleDeleteEvaluation(ev.id)} className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-[9px] font-black uppercase">Borrar</button>
-          </td>
-        </tr>
-      );
-    })}
+    .map(ev => (
+      <tr key={ev.id} className="hover:bg-slate-50/50">
+        <td className="p-4 font-black text-slate-800">{ev.studentName}</td>
+        <td className="p-4">{ev.level}</td>
+        <td className="p-4">{ev.group || '-'}</td>
+        <td className="p-4">{ev.turno || '-'}</td>
+        <td className="p-4 text-emerald-600">Cargado</td>
+        <td className="p-4 text-center flex gap-2 justify-center">
+          <button onClick={() => handlePrintFullEvaluation(ev)} className="px-3 py-1 bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase">Imprimir</button>
+          <button onClick={() => handleEditEvaluation(ev)} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-[9px] font-black uppercase">Editar</button>
+          <button onClick={() => handleDeleteEvaluation(ev.id)} className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-[9px] font-black uppercase">Borrar</button>
+        </td>
+      </tr>
+    ))}
 </tbody>
+
+            
           </table>
         </div>
       </div>
