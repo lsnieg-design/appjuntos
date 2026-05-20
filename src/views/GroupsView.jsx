@@ -203,6 +203,7 @@ const handleSaveIncident = async (type, severity = "medium", text = "") => {
     const activeStudent = showBitacoraModal || selectedStudent;
     if (!activeStudent) return;
     setSavingIncident(true);
+    
     try {
       // 1. Registro en la Bitácora Express (Legajo del alumno)
       const entry = { 
@@ -210,8 +211,8 @@ const handleSaveIncident = async (type, severity = "medium", text = "") => {
         type: text ? "Nota" : type, 
         severity, 
         text: text || type, 
-        author: user.fullName || user.firstName, 
-        authorId: user.id 
+        author: user?.fullName || user?.firstName || "Docente", 
+        authorId: user?.id || "unknown" 
       };
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', activeStudent.id), { 
         incidents: arrayUnion(entry) 
@@ -219,18 +220,18 @@ const handleSaveIncident = async (type, severity = "medium", text = "") => {
       
       // 2. Registro en Auditoría Global
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'activity_log'), {
-        userName: user.firstName || user.fullName,
-        userId: user.id,
+        userName: user?.firstName || user?.fullName || "Docente",
+        userId: user?.id || "unknown",
         action: "Bitácora",
         details: `Cargó incidencia "${text || type}" para ${activeStudent.lastName}`,
         timestamp: serverTimestamp()
       });
 
-      // 3. ENLACE CON SOCIAL (Sin cambiar de pestaña)
-      // Si el docente marca "Reportar Ausentismo", creamos el caso en la base de Trabajo Social
-  // --- DENTRO DE handleSaveIncident EN GroupsView.jsx ---
-      if (type === "Reportar Ausentismo") {
-        // Aseguramos que la ruta sea: artifacts > appId > public > data > social_cases
+      // 3. ENLACE CON SOCIAL (Filtro a prueba de balas)
+      // Buscamos la palabra clave en lugar de usar coincidencia exacta
+      const esAusentismo = type && type.toLowerCase().includes("ausentismo");
+
+      if (esAusentismo) {
         const socialRef = collection(db, 'artifacts', appId, 'public', 'data', 'social_cases');
         
         await addDoc(socialRef, {
@@ -240,26 +241,30 @@ const handleSaveIncident = async (type, severity = "medium", text = "") => {
           reason: "REPORTE DESDE AULA: Ausentismo detectado.",
           status: "Pendiente",
           createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(), // Doble check de tiempo
+          updatedAt: serverTimestamp(),
           steps: { llamada: { done: false }, continuidad: { sent: false } },
           history: [{ 
             date: new Date().toISOString(), 
-            text: `Caso abierto automáticamente por reporte de ${user.firstName}.`, 
+            text: `Caso abierto automáticamente por reporte de aula.`, 
             author: "SISTEMA" 
           }]
         });
-        console.log("✅ Caso enviado a SocialView con ID de alumno:", activeStudent.id);
       }
 
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { score: increment(10) });
+      // 4. Sumar Puntos
+      if (user?.id) {
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { score: increment(10) });
+      }
+
       setShowBitacoraModal(null); 
       setIsWriting(false); 
       setNewNote("");
       
-      alert("✅ Registro guardado en Bitácora" + (type === "Reportar Ausentismo" ? " y enviado a Trabajo Social." : "."));
+      // EL CARTEL TE AVISARÁ SI LOGRÓ ENVIARLO A TRABAJO SOCIAL
+      alert(`✅ Registro guardado en Bitácora${esAusentismo ? " y derivado a Trabajo Social." : "."}`);
 
     } catch (e) { 
-      alert(e.message); 
+      alert("Error al guardar: " + e.message); 
     } finally { 
       setSavingIncident(false); 
     }
