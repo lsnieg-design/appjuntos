@@ -340,42 +340,18 @@ const availableGroups = [...new Set(monthlyEvaluations.map(ev => ev.group).filte
         </div>
       </div>
 
-      {/* RUTA DE PASOS COMPLETAMENTE LIMPIA */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+     {/* RUTA DE PASOS SIMPLIFICADA (SIN ÁREAS) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* PASO 1: ESPECIALIDAD */}
-        <div className="bg-white p-6 rounded-[35px] border shadow-sm space-y-4">
-          <h3 className="font-black text-xs text-slate-400 uppercase tracking-widest flex items-center gap-2">Área Terapéutica</h3>
-          <div className="flex flex-col gap-2">
-            {SPECIALTIES.map(spec => (
-              <button 
-                key={spec.id}
-                onClick={() => { setSelectedSpecialty(spec.id); setSelectedStudent(null); setAnswers({}); setObservations(''); }}
-                className={`w-full p-4 rounded-2xl font-black text-sm uppercase text-left transition-all flex justify-between items-center border-2 ${
-                  selectedSpecialty === spec.id 
-                    ? 'bg-gradient-to-r ' + spec.color + ' text-white border-transparent shadow-md' 
-                    : 'bg-slate-50 text-slate-700 border-slate-100 hover:bg-slate-100/70'
-                }`}
-              >
-                {spec.label}
-                {selectedSpecialty === spec.id && <CheckCircle2 size={18} />}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* PASO 2: NIVEL */}
+        {/* PASO 1: NIVEL (Ahora es el primero) */}
         <div className="bg-white p-6 rounded-[35px] border shadow-sm space-y-4">
           <h3 className="font-black text-xs text-slate-400 uppercase tracking-widest flex items-center gap-2">Nivel Técnico</h3>
           <div className="grid grid-cols-2 gap-2">
             {LEVELS.map(lvl => (
               <button
                 key={lvl}
-                disabled={!selectedSpecialty}
                 onClick={() => { setSelectedLevel(lvl); setSelectedStudent(null); }}
                 className={`p-6 rounded-2xl font-black text-xs uppercase transition-all flex flex-col items-center justify-center gap-2 border-2 ${
-                  !selectedSpecialty ? 'opacity-40 cursor-not-allowed' : ''
-                } ${
                   selectedLevel === lvl ? 'bg-violet-950 text-white border-transparent shadow-md' : 'bg-slate-50 text-slate-600 border-slate-100'
                 }`}
               >
@@ -386,7 +362,7 @@ const availableGroups = [...new Set(monthlyEvaluations.map(ev => ev.group).filte
           </div>
         </div>
 
-  {/* PASO 3: BUSCADOR DE ESTUDIANTE */}
+        {/* PASO 2: BUSCADOR DE ESTUDIANTE */}
         <div className="bg-white p-6 rounded-[35px] border shadow-sm space-y-4">
           <h3 className="font-black text-xs text-slate-400 uppercase tracking-widest flex items-center gap-2">Seleccionar Estudiante</h3>
           <div className="bg-slate-50 rounded-xl flex items-center px-3 border focus-within:bg-white transition-all shadow-inner">
@@ -400,64 +376,20 @@ const availableGroups = [...new Set(monthlyEvaluations.map(ev => ev.group).filte
             />
           </div>
 
-          <div className="max-h-64 overflow-y-auto space-y-1.5 custom-scrollbar pr-1 bg-slate-50/50 p-2 rounded-2xl border border-slate-100/60">
+          <div className="max-h-64 overflow-y-auto custom-scrollbar p-2 rounded-2xl bg-slate-50/50">
             {selectedLevel && students
-              .filter(s => {
-                const matchLevel = s.level?.toLowerCase().trim() === selectedLevel?.toLowerCase().trim();
-                if (!matchLevel) return false;
-                
-                const term = searchTerm.trim().toLowerCase();
-                if (term) {
-                  return `${s.lastName} ${s.firstName}`.toLowerCase().includes(term) || (s.dni && s.dni.includes(term));
-                }
-                return true;
-              })
-              .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''))
-              .map(s => {
-                const statusDoc = getExistingEvaluation(s.id);
-                const areasCount = statusDoc ? Object.keys(statusDoc.areas || {}).length : 0;
-                return (
-                  <div 
-                    key={s.id} 
-                    onClick={() => handleSelectStudent(s)} 
-                    className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all duration-200 ${
-                      selectedStudent?.id === s.id 
-                        ? 'bg-orange-50 border-orange-200 text-orange-950 font-black shadow-sm' 
-                        : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200/60 font-bold'
-                    } text-xs uppercase`}
-                  >
-                    <span>{s.lastName}, {s.firstName}</span>
-                    <span className={`text-[8px] px-2 py-0.5 rounded font-black tracking-wider transition-colors ${
-                      areasCount === 5 ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'
-                    }`}>
-                      {areasCount}/5 ÁREAS
-                    </span>
-                  </div>
-                );
-              })
-            }
-            {selectedLevel && students.filter(s => s.level?.toLowerCase().trim() === selectedLevel?.toLowerCase().trim()).length === 0 && (
-              <p className="text-center text-xs text-slate-400 italic py-6">No hay alumnos registrados en {selectedLevel}.</p>
-            )}
-            {!selectedLevel && (
-              <p className="text-center text-[10px] text-slate-400 font-bold uppercase py-8">Define Nivel en Paso 2 para desplegar la lista</p>
-            )}
+              .filter(s => s.level?.toLowerCase().trim() === selectedLevel?.toLowerCase().trim())
+              .filter(s => searchTerm === '' || `${s.lastName} ${s.firstName}`.toLowerCase().includes(searchTerm.toLowerCase()))
+              .map(s => (
+                <div key={s.id} onClick={() => handleSelectStudent(s)} className={`p-3 mb-1 rounded-xl cursor-pointer text-xs uppercase font-bold ${selectedStudent?.id === s.id ? 'bg-orange-500 text-white' : 'bg-white'}`}>
+                  {s.lastName}, {s.firstName}
+                </div>
+              ))}
           </div>
         </div>
-            
-            {/* Mensajes dinámicos informativos para el usuario */}
-            {selectedLevel && students.filter(s => s.level?.toLowerCase().trim() === selectedLevel?.toLowerCase().trim()).length === 0 && (
-              <p className="text-center text-xs text-slate-400 italic py-6">No hay alumnos registrados en {selectedLevel}.</p>
-            )}
-            {!selectedLevel && (
-              <p className="text-center text-[10px] text-slate-400 font-bold uppercase py-8">Define Nivel en Paso 2 para desplegar la lista</p>
-            )}
-          </div>
-    
-     
+      </div>
 
-     {/* FORMULARIO DE VALORACIÓN MÚLTIPLE CHOICE (Solo una vez) */}
-  {/* FORMULARIO UNIFICADO: MUESTRA TODO */}
+      {/* FORMULARIO UNIFICADO (Todo el nivel junto) */}
       {selectedStudent && (
         <div className="bg-white p-8 rounded-[40px] border shadow-md space-y-8 animate-in slide-in-from-bottom-4">
           <div className="bg-slate-950 text-white p-6 rounded-3xl">
@@ -468,17 +400,14 @@ const availableGroups = [...new Set(monthlyEvaluations.map(ev => ev.group).filte
           <div className="space-y-6">
             {EVALUATION_CRITERIA[selectedLevel]?.map((q, idx) => (
               <div key={q.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
-                <div className="flex flex-col">
-                  <span className="text-[8px] font-black text-orange-600 uppercase tracking-wider">{q.category}</span>
-                  <p className="font-black text-sm text-slate-800">{q.label}</p>
-                </div>
+                <p className="font-black text-sm text-slate-800">{idx + 1}. {q.label}</p>
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                   {q.options.map(optLabel => (
                     <button
                       key={optLabel}
                       onClick={() => setAnswers(p => ({ ...p, [q.id]: optLabel }))}
                       className={`p-2 rounded-lg font-black text-[9px] uppercase border transition-all ${
-                        answers[q.id] === optLabel ? 'bg-violet-700 text-white border-transparent' : 'bg-white text-slate-600 border-slate-200'
+                        answers[q.id] === optLabel ? 'bg-violet-700 text-white' : 'bg-white'
                       }`}
                     >
                       {optLabel}
@@ -488,17 +417,8 @@ const availableGroups = [...new Set(monthlyEvaluations.map(ev => ev.group).filte
               </div>
             ))}
           </div>
-
-          <textarea
-            value={observations}
-            onChange={e => setObservations(e.target.value)}
-            placeholder="Observación general..."
-            className="w-full p-4 bg-slate-50 border rounded-2xl text-sm h-32"
-          />
-
-          <button onClick={handleSaveAll} disabled={isSaving} className="w-full py-4 bg-violet-700 text-white font-black uppercase rounded-xl">
-            {isSaving ? 'Guardando...' : '💾 Guardar Informe Completo'}
-          </button>
+          <textarea value={observations} onChange={e => setObservations(e.target.value)} placeholder="Observación general..." className="w-full p-4 border rounded-2xl" />
+          <button onClick={handleSaveAll} className="w-full py-4 bg-violet-700 text-white font-black uppercase rounded-xl">Guardar Informe Completo</button>
         </div>
       )}
       {/* HISTORIAL: GRILLA DE INFORMES UNIFICADOS */}
