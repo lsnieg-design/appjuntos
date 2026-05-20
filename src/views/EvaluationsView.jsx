@@ -237,7 +237,7 @@ const handlePrintFullEvaluation = (evalDoc) => {
   let htmlContent = `
     <html>
     <head>
-      <title>Seguimiento - ${evalDoc.studentName}</title>
+      <title>Seguimiento Equipo Técnico - ${evalDoc.studentName}</title>
       <style>
         body { font-family: sans-serif; padding: 40px; }
         .header { border-bottom: 2px solid #4c1d95; padding-bottom: 20px; display: flex; justify-content: space-between; }
