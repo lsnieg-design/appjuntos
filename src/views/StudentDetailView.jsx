@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { 
   X, Users, AlertTriangle, Edit3, Trash2
 } from 'lucide-react';
-import { doc, updateDoc, arrayUnion, increment } from 'firebase/firestore';
+// Agregué addDoc, collection, serverTimestamp para que la lógica de Social funcione
+import { doc, updateDoc, arrayUnion, increment, addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
 
 export function StudentDetailView({ student, onClose, onEdit, db, appId, user }) {
@@ -11,7 +12,7 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
   const [newNote, setNewNote] = useState('');
   const [loading, setLoading] = useState(false);
   
-const INCIDENT_TYPES = [
+  const INCIDENT_TYPES = [
     { label: "Trabajó Muy Bien", emoji: "🌟", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
     { label: "Ayudó a un amigo", emoji: "🤝", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
     { label: "Logro de Aprendizaje", emoji: "🚀", severity: "positive", color: "bg-emerald-100 border-emerald-300 text-emerald-800" },
@@ -25,9 +26,9 @@ const INCIDENT_TYPES = [
     { label: "Brote / Gritos", emoji: "🤬", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
     { label: "Fuga / Intento", emoji: "🏃", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
     { label: "Convulsión / Salud", emoji: "🚑", severity: "high", color: "bg-indigo-100 border-indigo-300 text-indigo-800" }, 
-];
+  ];
+
   if (!student) return null;
-  
 
   const calculateAge = (d) => {
     if (!d) return '-';
@@ -55,16 +56,30 @@ const INCIDENT_TYPES = [
       await updateDoc(studentRef, { incidents: arrayUnion(entry) });
       const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
       await updateDoc(userRef, { score: increment(10) });
+      
+      // PARCHE TRABAJO SOCIAL
+      if (type.includes("Ausentismo")) {
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'), {
+            studentId: student.id,
+            studentName: `${student.lastName}, ${student.firstName}`,
+            level: student.level || "SEDE",
+            reason: "REPORTE DESDE AULA: Ausentismo detectado.",
+            status: "Pendiente",
+            createdAt: serverTimestamp(),
+            history: [{ date: new Date().toISOString(), text: `Reporte: ${text || type}`, author: user.firstName }]
+        });
+      }
+
       setNewNote('');
       setIsWriting(false);
-      alert(`✅ Registrado correctamente. ¡Sumaste 10 puntos!`);
+      alert(`✅ Registrado correctamente.`);
     } catch (e) { 
       console.error(e);
       alert("Error al guardar: " + e.message); 
     } finally { setLoading(false); }
   };
 
-const handleReportAbsenteeism = async () => {
+  const handleReportAbsenteeism = async () => {
     const reason = prompt("¿Motivo del ausentismo prolongado? (Ej: Salud, Viaje, etc.)");
     if (!reason) return;
     setLoading(true);
@@ -83,12 +98,21 @@ const handleReportAbsenteeism = async () => {
         absenteeismAlert: true 
       });
 
-      // --- AGREGÁ ESTO PARA QUE SUME PUNTOS ---
-      const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-      await updateDoc(userRef, { score: increment(5) }); // Suma 5 puntos por reportar
-      // ----------------------------------------
+      // Lógica de Trabajo Social (duplicada aquí por seguridad)
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'), {
+          studentId: student.id,
+          studentName: `${student.lastName}, ${student.firstName}`,
+          level: student.level || "SEDE",
+          reason: "REPORTE DESDE AULA: Ausentismo detectado.",
+          status: "Pendiente",
+          createdAt: serverTimestamp(),
+          history: [{ date: new Date().toISOString(), text: `Alerta de ausentismo: ${reason}`, author: user.firstName }]
+      });
 
-      alert("⚠️ Alerta enviada al Equipo Técnico. ¡Sumaste 5 puntos por el seguimiento!");
+      const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+      await updateDoc(userRef, { score: increment(5) });
+
+      alert("⚠️ Alerta enviada al Equipo Técnico. ¡Sumaste 5 puntos!");
     } catch (e) { alert(e.message); }
     finally { setLoading(false); }
   };
@@ -117,21 +141,21 @@ const handleReportAbsenteeism = async () => {
           {activeTabModal === "info" ? (
             <div className="space-y-5 animate-in fade-in">
               <div className="grid grid-cols-3 gap-2">
-                <div className="bg-white p-3 rounded-2xl border border-slate-100 text-center shadow-sm">
+                <div className="bg-white p-3 rounded-2xl border text-center shadow-sm">
                   <p className="text-[8px] font-black text-slate-400 uppercase mb-1">DNI</p>
                   <p className="font-bold text-slate-800 text-xs">{student.dni || '-'}</p>
                 </div>
-                <div className="bg-blue-50 p-3 rounded-2xl border border-blue-100 text-center shadow-sm">
+                <div className="bg-blue-50 p-3 rounded-2xl border text-center shadow-sm">
                   <p className="text-[8px] font-black text-blue-400 uppercase mb-1">Edad</p>
                   <p className="font-bold text-blue-700 text-xs">{calculateAge(student.birthDate)} años</p>
                 </div>
-                <div className="bg-orange-50 p-3 rounded-2xl border border-orange-100 text-center shadow-sm">
+                <div className="bg-orange-50 p-3 rounded-2xl border text-center shadow-sm">
                    <p className="text-[8px] font-black text-orange-400 uppercase mb-1">DX</p>
                    <p className="font-bold text-orange-700 text-[10px] truncate">{student.dx || '-'}</p>
                 </div>
               </div>
-              <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
-                <h3 className="font-black text-slate-400 text-[10px] uppercase mb-2 tracking-widest flex items-center gap-1"><Users size={12}/> Familia</h3>
+              <div className="bg-white p-4 rounded-xl border text-center shadow-sm">
+                <h3 className="font-black text-slate-400 text-[10px] uppercase mb-2 tracking-widest"><Users size={12}/> Familia</h3>
                 <div className="space-y-1">
                   <p className="text-sm text-slate-700">M: <b className="text-slate-900">{student.motherName || 'S/D'}</b></p>
                   <p className="text-sm text-slate-700">P: <b className="text-slate-900">{student.fatherName || 'S/D'}</b></p>
