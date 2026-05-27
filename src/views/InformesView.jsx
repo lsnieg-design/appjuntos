@@ -4,7 +4,7 @@ import { doc, setDoc, onSnapshot, serverTimestamp, collection, query, deleteDoc 
 
 const CONFIG_INDICADORES = {
   pedagogico: {
-    'Inicial': [
+     'Inicial': [
       { 
         id: 'lectoescritura', 
         label: 'Lectoescritura', 
@@ -265,9 +265,131 @@ const CONFIG_INDICADORES = {
           'Autónomo; requiere apoyos mínimos solo para organización avanzada.'
         ] 
       }
+ laboral: {
+    'CFI': [
+      { 
+        id: 'herramientas_reconocimiento', 
+        label: 'Herramientas: Reconocimiento', 
+        options: [
+          'No identifica herramientas; requiere asistencia para seleccionarlas.',
+          'Identifica herramientas básicas con apoyo visual o señalamiento.',
+          'Identifica y nombra herramientas de uso frecuente en el taller.',
+          'Reconoce y diferencia una amplia gama de herramientas según su función.'
+        ] 
+      },
+      { 
+        id: 'herramientas_uso', 
+        label: 'Herramientas: Uso adecuado', 
+        options: [
+          'Requiere guía física total para manipular cualquier herramienta.',
+          'Manipula herramientas con supervisión constante y seguridad asistida.',
+          'Usa herramientas con autonomía bajo supervisión mínima de seguridad.',
+          'Manipula herramientas con destreza, seguridad y total autonomía.'
+        ] 
+      },
+      { 
+        id: 'produccion_proceso', 
+        label: 'Producción: Proceso', 
+        options: [
+          'No logra seguir pasos; requiere mediación en cada acción.',
+          'Sigue pasos simples mediante apoyos visuales o instrucciones cortas.',
+          'Realiza tareas productivas siguiendo secuencias establecidas.',
+          'Desarrolla productos terminados cumpliendo el proceso completo solo.'
+        ] 
+      },
+      { 
+        id: 'produccion_calidad', 
+        label: 'Producción: Calidad/Terminación', 
+        options: [
+          'Requiere que el docente finalice o corrija su producción.',
+          'Realiza producciones con supervisión frecuente de los detalles.',
+          'Logra acabados de buena calidad con revisiones esporádicas.',
+          'Realiza producciones con alta calidad y atención a los detalles.'
+        ] 
+      },
+      { 
+        id: 'autonomia_trabajo', 
+        label: 'Autonomía: Trabajo autónomo', 
+        options: [
+          'Dependencia absoluta del adulto para iniciar y sostener la tarea.',
+          'Sostiene la tarea por tiempos breves con recordatorio docente.',
+          'Mantiene el ritmo de trabajo con supervisión intermitente.',
+          'Trabaja con autonomía, organizando sus tiempos y tareas solo.'
+        ] 
+      },
+      { 
+        id: 'autonomia_seguridad', 
+        label: 'Autonomía: Seguridad e Higiene', 
+        options: [
+          'Desconoce las normas; requiere control físico constante.',
+          'Conoce las normas básicas si se le recuerdan antes de empezar.',
+          'Respeta las normas de seguridad e higiene de forma consistente.',
+          'Es referente en normas de seguridad y cuida su espacio de trabajo.'
+        ] 
+      },
+      { 
+        id: 'rol_pautas', 
+        label: 'Rol Laboral: Respeto de pautas', 
+        options: [
+          'No respeta pautas; interrumpe el trabajo de otros.',
+          'Respeta pautas y horarios con supervisión frecuente.',
+          'Cumple con las pautas de trabajo y los tiempos del taller.',
+          'Demuestra compromiso y sentido de responsabilidad laboral.'
+        ] 
+      },
+      { 
+        id: 'rol_equipo', 
+        label: 'Rol Laboral: Trabajo en equipo', 
+        options: [
+          'Realiza su tarea de forma aislada sin considerar el entorno.',
+          'Participa en tareas compartidas cuando el docente lo coordina.',
+          'Colabora con pares en producciones grupales de forma fluida.',
+          'Propone tareas colaborativas y ayuda a otros en el taller.'
+        ] 
+      },
+      { 
+        id: 'comprension_proceso', 
+        label: 'Comprensión del proceso', 
+        options: [
+          'Ejecuta acciones aisladas sin comprender el resultado final del producto.',
+          'Comprende una parte del proceso con mediación docente constante.',
+          'Comprende la secuencia del proceso productivo y su lugar en el mismo.',
+          'Entiende el proceso productivo integral y cómo su tarea aporta al resultado.'
+        ] 
+      },
+      { 
+        id: 'responsabilidad_rol', 
+        label: 'Responsabilidad de rol', 
+        options: [
+          'Requiere supervisión para mantenerse en su puesto o función asignada.',
+          'Asume un rol simple con supervisión; cumple tareas asignadas por terceros.',
+          'Mantiene su rol y función con autonomía dentro del grupo de trabajo.',
+          'Identifica necesidades del sistema y asume funciones de forma proactiva.'
+        ] 
+      },
+      { 
+        id: 'adaptabilidad', 
+        label: 'Adaptabilidad al cambio', 
+        options: [
+          'Presenta rigidez frente a variaciones en la tarea o en el puesto de trabajo.',
+          'Acepta cambios en su función tras una explicación y acompañamiento.',
+          'Se adapta a diferentes roles o tareas dentro del taller con mínima guía.',
+          'Muestra gran versatilidad; cambia de función según la necesidad del sistema.'
+        ] 
+      },
+      { 
+        id: 'gestion_tiempos', 
+        label: 'Gestión de tiempos', 
+        options: [
+          'No registra el tiempo; requiere guía para iniciar, pausar o terminar.',
+          'Realiza la tarea respetando ritmos mínimos bajo supervisión externa.',
+          'Regula su propio ritmo de trabajo para cumplir con los tiempos de entrega.',
+          'Planifica su tiempo y recursos para optimizar la producción del sistema.'
+        ] 
+      }
     ]
   }
-};
+
 export function InformesView({ user, db, appId }) {
   const [stage, setStage] = useState('main'); 
   const [tipoInforme, setTipoInforme] = useState('pedagogico');
