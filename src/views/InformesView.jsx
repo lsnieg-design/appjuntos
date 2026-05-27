@@ -48,7 +48,6 @@ export function InformesView({ user, db, appId }) {
 
   const estudiantesSede = students.filter(s => !s.modalidad || s.modalidad === 'Sede');
   
-  // Lógica de filtrado jerárquico
   const filteredStudents = estudiantesSede.filter(s => {
     const matchSearch = `${s.lastName || ''} ${s.firstName || ''}`.toLowerCase().includes(searchTerm.toLowerCase());
     const matchTurno = turnoFiltro === 'Todos' || (turnoFiltro === 'Mañana' ? s.groupMorning : s.groupAfternoon);
@@ -66,7 +65,6 @@ export function InformesView({ user, db, appId }) {
 
   const handleSaveInforme = async () => {
     setIsSaving(true);
-    // El ID único asegura que el informe sea por grupo, permitiendo doble jornada
     const idUnico = `${selectedStudent.id}_${tipoInforme}_${grupoFiltro}`; 
     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pedagogical_reports', idUnico), {
       studentId: selectedStudent.id,
@@ -113,7 +111,6 @@ export function InformesView({ user, db, appId }) {
             ))}
           </div>
 
-          {/* FILTROS JERÁRQUICOS */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
              <input className="p-4 rounded-2xl border bg-white text-sm" placeholder="Buscar alumno..." onChange={e => setSearchTerm(e.target.value)} />
              
@@ -159,10 +156,10 @@ export function InformesView({ user, db, appId }) {
         <div className="bg-white p-8 rounded-[40px] shadow-lg border space-y-4 animate-in fade-in">
           <button onClick={() => setStage('main')} className="bg-gray-100 p-2 rounded-full"><X size={18}/></button>
           <h3 className="font-black text-xl">{selectedStudent.lastName}, {selectedStudent.firstName}</h3>
-          <p className="text-xs font-bold text-violet-600">GRUPO: {grupoFiltro}</p>
+          <p className="text-xs font-bold text-violet-600 uppercase">GRUPO: {grupoFiltro}</p>
           {renderCriterios()}
           <textarea className="w-full p-4 bg-gray-50 rounded-2xl text-sm border" placeholder="Observaciones..." value={observations} onChange={e => setObservations(e.target.value)} rows={4}/>
-          <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 bg-violet-800 text-white font-black rounded-2xl">Guardar</button>
+          <button onClick={handleSaveInforme} className="w-full py-4 bg-violet-800 text-white font-black rounded-2xl">Guardar</button>
         </div>
       )}
     </div>
