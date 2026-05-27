@@ -588,7 +588,7 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'admin' && isAdminRole && db && <AdministracionView user={user} db={db} appId={appId} />}
         {activeTab === 'equipo' && isTechTeamRole && db && <EquipoTecnicoView user={user} db={db} appId={appId} />}
      {activeTab === 'medical' && isMedicalRole && db && <MedicalView user={user} db={db} appId={appId} />}
- // BUSCÁ ESTA LÍNEA Y MODIFICALA:
+ 
 {activeTab === 'informes' && (
   <InformesView 
     user={user} 
