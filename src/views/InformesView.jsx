@@ -7,6 +7,10 @@ const CONFIG_INDICADORES = {
     'Inicial': [
       { id: 'p1', label: 'Lectoescritura', options: ['Presilábico', 'Silábico', 'Alfabético'] },
       { id: 'p2', label: 'Comprensión', options: ['No logra', 'Con ayuda', 'Autónoma'] }
+    ],
+    '1° Ciclo': [
+      { id: 'p3', label: 'Producción escrita', options: ['Grafismos', 'Copia', 'Autónoma'] },
+      { id: 'p4', label: 'Comprensión lectora', options: ['No logra', 'Con apoyo', 'Autónoma'] }
     ]
   },
   laboral: {
@@ -42,7 +46,6 @@ export function InformesView({ user, db, appId }) {
     return () => { unsubS(); unsubR(); };
   }, [db, appId]);
 
-  // Listas dinámicas para los filtros
   const nivelesDisponibles = ['Todos', ...new Set(students.map(s => s.level).filter(Boolean))];
   const gruposDisponibles = ['Todos', ...new Set(students.flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean)))];
 
@@ -71,6 +74,7 @@ export function InformesView({ user, db, appId }) {
     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pedagogical_reports', `${selectedStudent.id}_${tipoInforme}_${informeNum}`), {
       studentId: selectedStudent.id,
       studentName: `${selectedStudent.lastName}, ${selectedStudent.firstName}`,
+      level: selectedStudent.level || 'Inicial',
       tipoInforme, informeNum, answers, observations, updatedAt: serverTimestamp()
     }, { merge: true });
     setStage('main');
@@ -95,8 +99,8 @@ export function InformesView({ user, db, appId }) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-6 pb-20">
-      <div className="bg-white p-6 rounded-[40px] shadow-sm border flex justify-between items-center">
+    <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in">
+      <div className="bg-white p-6 rounded-[40px] shadow-sm border flex justify-between items-center mb-6">
         <h2 className="text-xl font-black text-violet-900 uppercase italic">Gestión de Informes</h2>
         {stage !== 'main' && <button onClick={() => setStage('main')} className="bg-gray-100 p-2 rounded-full"><X/></button>}
       </div>
@@ -108,15 +112,10 @@ export function InformesView({ user, db, appId }) {
               <button key={t} onClick={() => setTipoInforme(t)} className={`flex-1 p-3 rounded-xl font-black capitalize ${tipoInforme === t ? 'bg-violet-600 text-white' : 'bg-gray-100'}`}>{t}</button>
             ))}
           </div>
-          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-            <input className="p-4 rounded-2xl border" placeholder="Buscar..." onChange={e => setSearchTerm(e.target.value)} />
-            <select className="p-4 rounded-2xl border bg-white" onChange={e => setNivelFiltro(e.target.value)}>
-              {nivelesDisponibles.map(n => <option key={n}>{n}</option>)}
-            </select>
-            <select className="p-4 rounded-2xl border bg-white" onChange={e => setGrupoFiltro(e.target.value)}>
-              {gruposDisponibles.map(g => <option key={g}>{g}</option>)}
-            </select>
+            <input className="p-4 rounded-2xl border bg-white" placeholder="Buscar..." onChange={e => setSearchTerm(e.target.value)} />
+            <select className="p-4 rounded-2xl border bg-white" onChange={e => setNivelFiltro(e.target.value)}>{nivelesDisponibles.map(n => <option key={n}>{n}</option>)}</select>
+            <select className="p-4 rounded-2xl border bg-white" onChange={e => setGrupoFiltro(e.target.value)}>{gruposDisponibles.map(g => <option key={g}>{g}</option>)}</select>
           </div>
           
           <div className="bg-white rounded-3xl shadow-sm border divide-y">
@@ -149,7 +148,7 @@ export function InformesView({ user, db, appId }) {
           <h3 className="font-black text-xl">{selectedStudent.lastName}, {selectedStudent.firstName}</h3>
           {renderCriterios()}
           <textarea className="w-full p-4 bg-gray-50 rounded-2xl text-sm border" placeholder="Observaciones..." value={observations} onChange={e => setObservations(e.target.value)} rows={4}/>
-          <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 bg-violet-800 text-white font-black rounded-2xl">Finalizar</button>
+          <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 bg-violet-800 text-white font-black rounded-2xl">Guardar</button>
         </div>
       )}
     </div>
