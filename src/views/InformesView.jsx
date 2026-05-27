@@ -97,7 +97,7 @@ export function InformesView({ user, db, appId }) {
     ));
   };
 
-  return (
+return (
     <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in">
       <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-8 rounded-[40px] shadow-xl text-white mb-8">
         <h2 className="text-2xl font-black mb-2 flex items-center gap-3"><BookOpen size={28} /> Gestión de Informes</h2>
@@ -128,38 +128,21 @@ export function InformesView({ user, db, appId }) {
                 </select>
              )}
 
-            {nivelFiltro !== 'Todos' && (
-                <select 
-                    className="p-4 rounded-2xl border bg-white text-sm font-bold w-full" 
-                    value={grupoFiltro} 
-                    onChange={e => setGrupoFiltro(e.target.value)}
-                >
+             {nivelFiltro !== 'Todos' && (
+                <select className="p-4 rounded-2xl border bg-white text-sm font-bold w-full" value={grupoFiltro} onChange={e => setGrupoFiltro(e.target.value)}>
                     <option value="Todos">Grupo: Todos</option>
                     {students
-                        .filter(s => {
-                            // Filtramos alumnos que coincidan con el NIVEL seleccionado
-                            const matchNivel = s.level && s.level.toUpperCase() === nivelFiltro.toUpperCase();
-                            // Filtramos alumnos que coincidan con el TURNO seleccionado
-                            const matchTurno = turnoFiltro === 'Todos' || 
-                                              (turnoFiltro === 'Mañana' ? !!s.groupMorning : !!s.groupAfternoon);
-                            return matchNivel && matchTurno;
-                        })
-                        .flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean))
-                        .filter((v, i, a) => a.indexOf(v) === i) // Filtro de únicos
-                        .filter(g => {
-                            // Bloqueo de seguridad:
-                            if (nivelFiltro.toUpperCase() === '1° CICLO' && g.toUpperCase().includes('PRE TALLER')) {
-                                return false; 
-                            }
-                            return true;
-                        })
-                        .map(g => <option key={g} value={g}>{g}</option>)
-                    }
+                      .filter(s => s.level && s.level.toUpperCase() === nivelFiltro.toUpperCase())
+                      .flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean))
+                      .filter((v, i, a) => a.indexOf(v) === i)
+                      .filter(g => !(nivelFiltro.toUpperCase() === '1° CICLO' && g.toUpperCase().includes('PRE TALLER')))
+                      .map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
              )}
+          </div>
+          
           <div className="bg-white rounded-3xl shadow-sm border divide-y">
             {filteredStudents.map(s => {
-              // Si grupoFiltro es "Todos", report es null para evitar buscar reportes con nombre "Todos"
               const report = grupoFiltro === 'Todos' ? null : savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro);
               return (
                 <div key={`${s.id}-${grupoFiltro}`} className="p-5 flex justify-between items-center hover:bg-violet-50/50">
@@ -168,9 +151,9 @@ export function InformesView({ user, db, appId }) {
                     <p className="text-[10px] text-gray-400 font-bold uppercase">{s.level} | {report ? 'Cargado' : 'Pendiente'}</p>
                   </div>
                   {grupoFiltro !== 'Todos' && (
-                      <button onClick={() => handleEdit(s, report)} className={`p-2 rounded-lg ${report ? 'bg-blue-50 text-blue-600' : 'bg-violet-600 text-white'}`}>
-                        {report ? <Edit3 size={16}/> : <Plus size={16}/>}
-                      </button>
+                    <button onClick={() => handleEdit(s, report)} className={`p-2 rounded-lg ${report ? 'bg-blue-50 text-blue-600' : 'bg-violet-600 text-white'}`}>
+                      {report ? <Edit3 size={16}/> : <Plus size={16}/>}
+                    </button>
                   )}
                 </div>
               );
@@ -179,15 +162,13 @@ export function InformesView({ user, db, appId }) {
         </div>
       ) : (
         <div className="bg-white p-8 rounded-[40px] shadow-lg border space-y-4 animate-in fade-in">
-      <button 
-            onClick={handleSaveInforme} 
-            disabled={isSaving} 
-            className="w-full py-4 bg-violet-800 text-white font-black rounded-2xl"
-          >
-            Guardar
-          </button>
+          <button onClick={() => setStage('main')} className="bg-gray-100 p-2 rounded-full"><X size={18}/></button>
+          <h3 className="font-black text-xl">{selectedStudent.lastName}, {selectedStudent.firstName}</h3>
+          <p className="text-xs font-bold text-violet-600 uppercase">GRUPO: {grupoFiltro}</p>
+          {renderCriterios()}
+          <textarea className="w-full p-4 bg-gray-50 rounded-2xl text-sm border" placeholder="Observaciones..." value={observations} onChange={e => setObservations(e.target.value)} rows={4}/>
+          <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 bg-violet-800 text-white font-black rounded-2xl">Guardar</button>
         </div>
       )}
     </div>
   );
-}
