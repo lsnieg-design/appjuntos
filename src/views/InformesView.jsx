@@ -180,32 +180,59 @@ export function InformesView({ user, db, appId }) {
   const nivelActual = selectedStudent?.level || 'Inicial';
   const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || [];
 
-  // Transformador inteligente de texto para la impresión
+ // Transformador inteligente de texto para la impresión
   const formatearTextoImpresion = (respuesta, firstNameRaw) => {
     if (!respuesta) return '';
     
-    // Extraemos solo el primer nombre (Ej: "Mateo Alejandro" -> "Mateo")
+    // Extraemos solo el primer nombre
     const primerNombre = firstNameRaw ? firstNameRaw.split(' ')[0] : 'El/la estudiante';
 
-    // 1. Casos literales que me pediste (Lectoescritura)
-    if (respuesta.startsWith('Presilábico:')) return `${primerNombre} se encuentra en una etapa presilábica de la escritura, en donde explora la misma a través de dibujos o grafismos sin valor sonoro aún.`;
-    if (respuesta.startsWith('Silábico:')) return `${primerNombre} se encuentra en una etapa silábica de la escritura, donde comienza a asignar valor sonoro a las letras, mayormente vocales.`;
-    if (respuesta.startsWith('Silábico-alfabético:')) return `${primerNombre} transita una etapa silábico-alfabética de transición, combinando sílabas completas con letras aisladas.`;
-    if (respuesta.startsWith('Alfabético:')) return `${primerNombre} escribe de forma autónoma en una etapa alfabética, representando los fonemas con coherencia.`;
+    // 1. Casos específicos de Lectoescritura
+    if (respuesta.startsWith('Presilábico:')) return `${primerNombre} se encuentra en una etapa presilábica de la escritura, en donde explora la misma a través de dibujos o grafismos sin valor sonoro aún. Este es un primer acercamiento lúdico y de descubrimiento muy valioso hacia el mundo de la comunicación escrita.`;
+    if (respuesta.startsWith('Silábico:')) return `${primerNombre} transita una etapa silábica de la escritura, donde comienza a asignar valor sonoro a las letras, mayormente vocales. Se observa un avance significativo en su comprensión de la relación fonema-grafema, vital para su proceso de alfabetización.`;
+    if (respuesta.startsWith('Silábico-alfabético:')) return `${primerNombre} transita una etapa silábico-alfabética de transición, combinando sílabas completas con letras aisladas. Esto demuestra una consolidación progresiva en su discriminación fonológica, dando pasos firmes hacia la escritura convencional.`;
+    if (respuesta.startsWith('Alfabético:')) return `${primerNombre} escribe de forma autónoma en una etapa alfabética, representando los fonemas con coherencia. Ha logrado plasmar sus ideas de manera clara, demostrando una excelente apropiación del sistema de escritura.`;
 
-    // 2. Transformación dinámica para el resto de los indicadores
+    // 2. Transformación dinámica para el resto
     let textoMinuscula = respuesta.charAt(0).toLowerCase() + respuesta.slice(1);
+    
+    // Limpiamos el punto final si lo tiene para que la concatenación no quede con doble punto
+    if (textoMinuscula.endsWith('.')) {
+      textoMinuscula = textoMinuscula.slice(0, -1);
+    }
 
-    // Ajustes gramaticales según cómo empieza tu frase
+    // Armamos la primera parte de la oración hilada
+    let oracionBase = '';
     if (respuesta.startsWith('Su ')) {
-      return `En este aspecto, el perfil de ${primerNombre} indica que ${textoMinuscula}`;
-    }
-    if (respuesta.startsWith('Atención ') || respuesta.startsWith('Comunicación ') || respuesta.startsWith('Dependencia ') || respuesta.startsWith('Gran dificultad ') || respuesta.startsWith('Alta ')) {
-      return `${primerNombre} presenta ${textoMinuscula}`;
+      oracionBase = `En este aspecto, el perfil de ${primerNombre} indica que ${textoMinuscula}`;
+    } else if (respuesta.startsWith('Atención ') || respuesta.startsWith('Comunicación ') || respuesta.startsWith('Dependencia ') || respuesta.startsWith('Gran dificultad ') || respuesta.startsWith('Alta ')) {
+      oracionBase = `En relación a su desempeño, ${primerNombre} presenta ${textoMinuscula}`;
+    } else {
+      oracionBase = `Se observa que ${primerNombre} ${textoMinuscula}`;
     }
 
-    // Por defecto (Para los verbos: Identifica, Resuelve, Requiere, etc.)
-    return `${primerNombre} ${textoMinuscula}`;
+    // 3. Ampliación pedagógica inteligente según la connotación de tu respuesta
+    const respLower = respuesta.toLowerCase();
+    let ampliacion = '';
+
+    // Si el indicador habla de dificultades o falta de autonomía
+    if (respLower.includes('no logra') || respLower.includes('gran dificultad') || respLower.includes('dependencia total') || respLower.includes('no respeta') || respLower.startsWith('solo ') || respLower.includes('desconectado') || respLower.includes('se bloquea')) {
+      ampliacion = '. Desde el equipo continuaremos brindando las herramientas, los apoyos y el andamiaje necesario para acompañar sus propios tiempos y fomentar mayores niveles de autonomía.';
+    } 
+    // Si el indicador habla de que requiere supervisión o mediación
+    else if (respLower.includes('requiere') || respLower.includes('precisa') || respLower.includes('con supervisión') || respLower.includes('con apoyo') || respLower.includes('mediación') || respLower.includes('ante malestar')) {
+      ampliacion = '. Se continuará ofreciendo una guía cercana, contención y anticipación para seguir fortaleciendo progresivamente su seguridad y confianza en este proceso.';
+    } 
+    // Si el indicador habla de autonomía, proactividad o dominio complejo
+    else if (respLower.includes('autónomo') || respLower.includes('autónomamente') || respLower.includes('total autonomía') || respLower.includes('proactivo') || respLower.includes('lidera') || respLower.includes('alta flexibilidad') || respLower.includes('complejas') || respLower.includes('fluidez')) {
+      ampliacion = '. Su desempeño en este punto es sumamente destacable, mostrando una gran iniciativa personal que enriquece de forma muy positiva la dinámica de trabajo grupal.';
+    } 
+    // Desarrollo normal / en proceso / participación activa
+    else {
+      ampliacion = '. Este nivel de desarrollo refleja un avance muy positivo, producto de su esfuerzo sostenido y de las propuestas implementadas en el espacio escolar cotidiano.';
+    }
+
+    return oracionBase + ampliacion;
   };
   return (
     <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in relative">
