@@ -127,23 +127,17 @@ export function InformesView({ user, db, appId }) {
                 </select>
              )}
 
-         {nivelFiltro !== 'Todos' && (
-    <select 
-        className="p-4 rounded-2xl border bg-white text-sm font-bold" 
-        value={grupoFiltro} 
-        onChange={e => setGrupoFiltro(e.target.value)}
-    >
-        <option value="Todos">Grupo: Todos</option>
-        {students
-            // 1. PRIMERO filtramos los alumnos por el nivel seleccionado
-            .filter(s => s.level === nivelFiltro) 
-            // 2. LUEGO extraemos sus grupos únicos
-            .flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean))
-            .filter((v, i, a) => a.indexOf(v) === i)
-            .map(g => <option key={g} value={g}>{g}</option>)
-        }
-    </select>
-)}
+             {nivelFiltro !== 'Todos' && (
+                <select className="p-4 rounded-2xl border bg-white text-sm font-bold" value={grupoFiltro} onChange={e => setGrupoFiltro(e.target.value)}>
+                    <option value="Todos">Grupo: Todos</option>
+                    {students
+                      .filter(s => s.level && s.level.toUpperCase() === nivelFiltro.toUpperCase())
+                      .flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean))
+                      .filter((v, i, a) => a.indexOf(v) === i)
+                      .map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+             )}
+          </div>
           
           <div className="bg-white rounded-3xl shadow-sm border divide-y">
             {filteredStudents.map(s => {
@@ -162,27 +156,14 @@ export function InformesView({ user, db, appId }) {
             })}
           </div>
         </div>
-    // ... (dentro de tu return, al final del stage === 'main' / stage === 'form')
-
       ) : (
         <div className="bg-white p-8 rounded-[40px] shadow-lg border space-y-4 animate-in fade-in">
           <button onClick={() => setStage('main')} className="bg-gray-100 p-2 rounded-full"><X size={18}/></button>
           <h3 className="font-black text-xl">{selectedStudent.lastName}, {selectedStudent.firstName}</h3>
           <p className="text-xs font-bold text-violet-600 uppercase">GRUPO: {grupoFiltro}</p>
           {renderCriterios()}
-          <textarea 
-            className="w-full p-4 bg-gray-50 rounded-2xl text-sm border" 
-            placeholder="Observaciones..." 
-            value={observations} 
-            onChange={e => setObservations(e.target.value)} 
-            rows={4}
-          />
-          <button 
-            onClick={handleSaveInforme} 
-            className="w-full py-4 bg-violet-800 text-white font-black rounded-2xl"
-          >
-            Guardar
-          </button>
+          <textarea className="w-full p-4 bg-gray-50 rounded-2xl text-sm border" placeholder="Observaciones..." value={observations} onChange={e => setObservations(e.target.value)} rows={4}/>
+          <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 bg-violet-800 text-white font-black rounded-2xl">Guardar</button>
         </div>
       )}
     </div>
