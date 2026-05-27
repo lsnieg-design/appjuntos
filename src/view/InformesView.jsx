@@ -31,7 +31,8 @@ export function InformesView({ user, students, db, appId }) {
   const [informeNum, setInformeNum] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  
+  const [students, setStudents] = useState([]);
+  const [savedReports, setSavedReports] = useState([]);
   const [answers, setAnswers] = useState({});
   const [observations, setObservations] = useState('');
   const [isSaving, setIsSaving] = useState(false);
