@@ -24,10 +24,10 @@ const CONFIG_INDICADORES = {
 export function InformesView({ user, db, appId }) {
   const [stage, setStage] = useState('main'); 
   const [tipoInforme, setTipoInforme] = useState('pedagogico');
-  const [informeNum, setInformeNum] = useState('1');
   const [selectedStudent, setSelectedStudent] = useState(null);
   
   const [searchTerm, setSearchTerm] = useState('');
+  const [turnoFiltro, setTurnoFiltro] = useState('Todos');
   const [nivelFiltro, setNivelFiltro] = useState('Todos');
   const [grupoFiltro, setGrupoFiltro] = useState('Todos');
   
@@ -47,28 +47,14 @@ export function InformesView({ user, db, appId }) {
   }, [db, appId]);
 
   const estudiantesSede = students.filter(s => !s.modalidad || s.modalidad === 'Sede');
-  const nivelesDisponibles = ['Todos', ...new Set(estudiantesSede.map(s => s.level).filter(Boolean))];
   
-  // Obtenemos todos los grupos posibles
-  const allGrupos = [...new Set(estudiantesSede.flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean)))].sort();
-
-  // Filtramos grupos según el nivel seleccionado
-  const gruposFiltradosPorNivel = grupoFiltro === 'Todos' && nivelFiltro !== 'Todos' 
-    ? allGrupos.filter(g => g.toLowerCase().includes(nivelFiltro.toLowerCase()))
-    : allGrupos;
-
-  const esGrupoCompleto = (grupo) => {
-    if (grupo === 'Todos') return false;
-    const alumnosDelGrupo = estudiantesSede.filter(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].includes(grupo));
-    const reportes = savedReports.filter(r => r.tipoInforme === tipoInforme && r.grupo === grupo);
-    return reportes.length >= alumnosDelGrupo.length && alumnosDelGrupo.length > 0;
-  };
-
+  // Lógica de filtrado jerárquico
   const filteredStudents = estudiantesSede.filter(s => {
     const matchSearch = `${s.lastName || ''} ${s.firstName || ''}`.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchTurno = turnoFiltro === 'Todos' || (turnoFiltro === 'Mañana' ? s.groupMorning : s.groupAfternoon);
     const matchNivel = nivelFiltro === 'Todos' || s.level === nivelFiltro;
     const matchGrupo = grupoFiltro === 'Todos' || [s.groupMorning, s.groupAfternoon, s.laboralGroup].includes(grupoFiltro);
-    return matchSearch && matchNivel && matchGrupo;
+    return matchSearch && matchTurno && matchNivel && matchGrupo;
   });
 
   const handleEdit = (student, report) => {
@@ -78,19 +64,15 @@ export function InformesView({ user, db, appId }) {
     setStage('form');
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("¿Eliminar este informe?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pedagogical_reports', id));
-  };
-
   const handleSaveInforme = async () => {
     setIsSaving(true);
-    const idUnico = `${selectedStudent.id}_${tipoInforme}_${informeNum}_${grupoFiltro}`; 
+    // El ID único asegura que el informe sea por grupo, permitiendo doble jornada
+    const idUnico = `${selectedStudent.id}_${tipoInforme}_${grupoFiltro}`; 
     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pedagogical_reports', idUnico), {
       studentId: selectedStudent.id,
       studentName: `${selectedStudent.lastName}, ${selectedStudent.firstName}`,
       grupo: grupoFiltro,
       tipoInforme,
-      informeNum,
       answers,
       observations,
       updatedAt: serverTimestamp()
@@ -131,16 +113,29 @@ export function InformesView({ user, db, appId }) {
             ))}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-             <input className="p-4 rounded-2xl border bg-white" placeholder="Buscar..." onChange={e => setSearchTerm(e.target.value)} />
-             <select className="p-4 rounded-2xl border bg-white" value={nivelFiltro} onChange={e => {setNivelFiltro(e.target.value); setGrupoFiltro('Todos');}}>
-                <option value="Todos">Todos los niveles</option>
-                {nivelesDisponibles.filter(n => n !== 'Todos').map(n => <option key={n} value={n}>{n}</option>)}
+          {/* FILTROS JERÁRQUICOS */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+             <input className="p-4 rounded-2xl border bg-white text-sm" placeholder="Buscar alumno..." onChange={e => setSearchTerm(e.target.value)} />
+             
+             <select className="p-4 rounded-2xl border bg-white text-sm font-bold" value={turnoFiltro} onChange={e => {setTurnoFiltro(e.target.value); setNivelFiltro('Todos'); setGrupoFiltro('Todos');}}>
+                <option value="Todos">Turno: Todos</option>
+                <option value="Mañana">Mañana</option>
+                <option value="Tarde">Tarde</option>
              </select>
-             <select className="p-4 rounded-2xl border bg-white" value={grupoFiltro} onChange={e => setGrupoFiltro(e.target.value)}>
-                <option value="Todos">Todos los grupos</option>
-                {gruposFiltradosPorNivel.map(g => <option key={g} value={g}>{g}</option>)}
-             </select>
+
+             {turnoFiltro !== 'Todos' && (
+                <select className="p-4 rounded-2xl border bg-white text-sm font-bold" value={nivelFiltro} onChange={e => {setNivelFiltro(e.target.value); setGrupoFiltro('Todos');}}>
+                    <option value="Todos">Nivel: Todos</option>
+                    {['Inicial', '1° Ciclo', '2° Ciclo', 'CFI'].map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+             )}
+
+             {nivelFiltro !== 'Todos' && (
+                <select className="p-4 rounded-2xl border bg-white text-sm font-bold" value={grupoFiltro} onChange={e => setGrupoFiltro(e.target.value)}>
+                    <option value="Todos">Grupo: Todos</option>
+                    {students.filter(s => s.level === nivelFiltro).flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean)).filter((v, i, a) => a.indexOf(v) === i).map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+             )}
           </div>
           
           <div className="bg-white rounded-3xl shadow-sm border divide-y">
@@ -150,7 +145,7 @@ export function InformesView({ user, db, appId }) {
                 <div key={`${s.id}-${grupoFiltro}`} className="p-5 flex justify-between items-center hover:bg-violet-50/50">
                   <div>
                     <p className="font-bold">{s.lastName}, {s.firstName}</p>
-                    <p className="text-[10px] uppercase font-bold text-gray-400">{s.level} | {report ? 'Cargado' : 'Pendiente'}</p>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase">{s.level} | {report ? 'Cargado' : 'Pendiente'}</p>
                   </div>
                   <button onClick={() => handleEdit(s, report)} className={`p-2 rounded-lg ${report ? 'bg-blue-50 text-blue-600' : 'bg-violet-600 text-white'}`}>
                     {report ? <Edit3 size={16}/> : <Plus size={16}/>}
@@ -161,9 +156,10 @@ export function InformesView({ user, db, appId }) {
           </div>
         </div>
       ) : (
-        <div className="bg-white p-8 rounded-[40px] shadow-lg border space-y-4">
+        <div className="bg-white p-8 rounded-[40px] shadow-lg border space-y-4 animate-in fade-in">
           <button onClick={() => setStage('main')} className="bg-gray-100 p-2 rounded-full"><X size={18}/></button>
           <h3 className="font-black text-xl">{selectedStudent.lastName}, {selectedStudent.firstName}</h3>
+          <p className="text-xs font-bold text-violet-600">GRUPO: {grupoFiltro}</p>
           {renderCriterios()}
           <textarea className="w-full p-4 bg-gray-50 rounded-2xl text-sm border" placeholder="Observaciones..." value={observations} onChange={e => setObservations(e.target.value)} rows={4}/>
           <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 bg-violet-800 text-white font-black rounded-2xl">Guardar</button>
