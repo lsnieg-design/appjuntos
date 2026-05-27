@@ -68,7 +68,6 @@ export function InformesView({ user, db, appId }) {
   const [answers, setAnswers] = useState({});
   const [observations, setObservations] = useState('');
   
-  // Nuevos estados para poder editar e imprimir Docente y Preceptora
   const [docentePrint, setDocentePrint] = useState('');
   const [preceptoraPrint, setPreceptoraPrint] = useState('');
 
@@ -95,7 +94,6 @@ export function InformesView({ user, db, appId }) {
     setSelectedStudent(student);
     setAnswers(report?.answers || {});
     setObservations(report?.observations || '');
-    // Pre-cargamos docente y preceptora desde Firebase, pero permitimos editarlos en el state
     setDocentePrint(student.teacher || student.docente || '');
     setPreceptoraPrint(student.auxiliary || student.auxiliar || student.preceptora || '');
     setStage('form');
@@ -118,14 +116,40 @@ export function InformesView({ user, db, appId }) {
     setIsSaving(false);
   };
 
-  // Variable para obtener indicadores según nivel seleccionado
   const nivelActual = selectedStudent?.level || 'Inicial';
   const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || [];
 
   return (
-    <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in">
+    <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in relative">
       
-      {/* VISTA PRINCIPAL (Oculta al imprimir) */}
+      {/* ESTILOS DE IMPRESIÓN MÁGICOS: 
+        Esto fuerza al navegador a ocultar TODO en la app excepto el div con id="informe-imprimir"
+      */}
+      <style type="text/css">
+        {`
+          @media print {
+            body * {
+              visibility: hidden !important;
+            }
+            #informe-imprimir, #informe-imprimir * {
+              visibility: visible !important;
+            }
+            #informe-imprimir {
+              position: absolute !important;
+              left: 0 !important;
+              top: 0 !important;
+              width: 100% !important;
+              margin: 0 !important;
+              padding: 20px !important;
+            }
+            @page {
+              margin: 1.5cm;
+            }
+          }
+        `}
+      </style>
+
+      {/* VISTA PRINCIPAL */}
       <div className={`${stage === 'main' ? 'block' : 'hidden'} print:hidden`}>
         <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-8 rounded-[40px] shadow-xl text-white mb-8">
           <h2 className="text-2xl font-black mb-2 flex items-center gap-3"><BookOpen size={28} /> Gestión de Informes</h2>
@@ -189,7 +213,7 @@ export function InformesView({ user, db, appId }) {
         </div>
       </div>
 
-      {/* INTERFAZ DE EDICIÓN EN PANTALLA (Visible al editar, Oculta al imprimir) */}
+      {/* INTERFAZ DE EDICIÓN (Oculta al imprimir) */}
       {stage === 'form' && (
         <div className="bg-white p-8 rounded-[40px] shadow-lg border space-y-6 print:hidden animate-in fade-in">
           <div className="flex justify-between items-center mb-4">
@@ -205,7 +229,6 @@ export function InformesView({ user, db, appId }) {
              <h3 className="font-black text-2xl text-violet-900">{selectedStudent.lastName}, {selectedStudent.firstName}</h3>
              <p className="text-sm font-bold text-violet-600 uppercase mb-4">GRUPO: {grupoFiltro} | INFORME: {tipoInforme}</p>
              
-             {/* CAMPOS PARA COMPLETAR DOCENTE Y PRECEPTORA ANTES DE IMPRIMIR */}
              <div className="grid grid-cols-2 gap-4">
                <div>
                   <label className="text-[10px] font-black uppercase text-violet-800">Docente a cargo</label>
@@ -259,16 +282,15 @@ export function InformesView({ user, db, appId }) {
         </div>
       )}
 
-      {/* DOCUMENTO REAL DE IMPRESIÓN (Solo visible cuando tocas Imprimir) */}
+      {/* DOCUMENTO REAL DE IMPRESIÓN (Solo es visible al hacer Ctrl+P o tocar Imprimir) */}
       {stage === 'form' && (
-        <div className="hidden print:block w-full bg-white text-black p-8 font-sans">
+        <div id="informe-imprimir" className="hidden print:block w-full bg-white text-black font-sans">
           
-          {/* ENCABEZADO INSTITUCIONAL */}
-          <div className="border-b-2 border-black pb-6 mb-6">
+          <div className="border-b-2 border-black pb-4 mb-6">
             <h1 className="text-3xl font-black text-center uppercase tracking-widest mb-1">INFORME MEDIO 2026</h1>
             <p className="text-center text-sm font-bold uppercase tracking-widest text-gray-600 mb-6">Área: {tipoInforme}</p>
             
-            <div className="grid grid-cols-2 gap-y-2 text-sm">
+            <div className="grid grid-cols-2 gap-y-3 text-sm">
               <p><strong className="font-bold">Alumno/a:</strong> {selectedStudent.lastName}, {selectedStudent.firstName}</p>
               <p><strong className="font-bold">DNI:</strong> {selectedStudent.dni || '....................................'}</p>
               <p><strong className="font-bold">Fecha de Nac.:</strong> {selectedStudent.birthDate || selectedStudent.fechaNac || '....................................'}</p>
@@ -279,22 +301,20 @@ export function InformesView({ user, db, appId }) {
             </div>
           </div>
 
-          {/* LISTADO DE INDICADORES EN FORMATO DOCUMENTO */}
           <div className="space-y-4 mb-8">
             <h3 className="font-black uppercase text-lg border-b border-gray-300 pb-1 mb-4">Desarrollo {tipoInforme}</h3>
             {indicadoresActuales.map(c => {
               const answer = answers[c.id];
-              if (!answer) return null; // Si no hay respuesta seleccionada, no se imprime ese indicador
+              if (!answer) return null;
               return (
-                <div key={c.id} className="text-sm break-inside-avoid flex gap-2">
-                  <span className="font-bold min-w-[200px]">{c.label}:</span>
-                  <span className="text-gray-800">{answer}</span>
+                <div key={c.id} className="text-sm break-inside-avoid flex gap-3 mb-3">
+                  <span className="font-bold min-w-[220px]">{c.label}:</span>
+                  <span className="text-gray-800 leading-snug">{answer}</span>
                 </div>
               );
             })}
           </div>
 
-          {/* OBSERVACIONES EN FORMATO DOCUMENTO */}
           {observations && (
             <div className="mt-8 pt-4 border-t border-gray-300 break-inside-avoid">
               <h3 className="font-black uppercase mb-2">Observaciones:</h3>
@@ -302,9 +322,8 @@ export function InformesView({ user, db, appId }) {
             </div>
           )}
 
-          {/* PIE CON FIRMAS Y LOGO */}
           <div className="mt-16 pt-8 flex flex-col items-center justify-center break-inside-avoid border-t-2 border-black">
-            <img src="/firmasylogo.png" alt="Firmas institucionales" className="max-w-[500px]" />
+            <img src="/firmasylogo.png" alt="Firmas institucionales" className="max-w-[450px]" />
           </div>
 
         </div>
