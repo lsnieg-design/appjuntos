@@ -15,7 +15,7 @@ import { ProfileView } from './views/ProfileView';
 import { ActivityLogView } from './views/ActivityLogView';
 import { ProyectoView } from './views/ProyectoView';
 import { EvaluationsView } from './views/EvaluationsView';
-import { InformesView } from './InformesView'; // Asegúrate que el path sea correcto
+import { InformesView } from './view/InformesView';
 
 import { 
   Calendar as CalendarIcon, CheckSquare, Settings, User, FileText, CheckCircle, 
