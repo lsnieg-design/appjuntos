@@ -24,13 +24,12 @@ export function InformesView({ user, db, appId }) {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // YA NO DECLARAMOS const [students, setStudents] = useState([]); 
-  // Usamos directamente 'students' que viene por props
-  
+
   const [savedReports, setSavedReports] = useState([]);
   const [answers, setAnswers] = useState({});
   const [observations, setObservations] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const allStudents = students.length > 0 ? students : studentsProp; // O simplemente usa el useEffect que ya tienes
 
   useEffect(() => {
     if (!db || !appId) return;
