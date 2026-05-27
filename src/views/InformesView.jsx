@@ -48,6 +48,7 @@ export function InformesView({ user, db, appId }) {
 
   // FILTRO ESTRICTO: Solo Sede
   const estudiantesSede = students.filter(s => s.modalidad === 'Sede');
+  
   const nivelesDisponibles = ['Todos', ...new Set(estudiantesSede.map(s => s.level).filter(Boolean))];
   const gruposDisponibles = ['Todos', ...new Set(estudiantesSede.flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean)))];
 
@@ -102,10 +103,9 @@ export function InformesView({ user, db, appId }) {
 
   return (
     <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in">
-      {/* Banner de bienvenida */}
       <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-8 rounded-[40px] shadow-xl text-white mb-8">
         <h2 className="text-2xl font-black mb-2 flex items-center gap-3"><BookOpen size={28} /> Gestión de Informes</h2>
-        <p className="text-violet-100 text-sm font-medium opacity-90">Bienvenida. Seleccioná el tipo de informe, buscá al estudiante y gestioná sus evaluaciones pedagógicas o laborales.</p>
+        <p className="text-violet-100 text-sm font-medium opacity-90">Seleccioná el tipo de informe, buscá al estudiante y gestioná sus evaluaciones pedagógicas o laborales.</p>
       </div>
 
       {stage === 'main' ? (
@@ -116,9 +116,9 @@ export function InformesView({ user, db, appId }) {
             ))}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-            <input className="p-4 rounded-2xl border bg-gray-50" placeholder="Buscar alumno..." onChange={e => setSearchTerm(e.target.value)} />
-            <select className="p-4 rounded-2xl border bg-gray-50" onChange={e => setNivelFiltro(e.target.value)}>{nivelesDisponibles.map(n => <option key={n}>{n}</option>)}</select>
-            <select className="p-4 rounded-2xl border bg-gray-50" onChange={e => setGrupoFiltro(e.target.value)}>{gruposDisponibles.map(g => <option key={g}>{g}</option>)}</select>
+            <input className="p-4 rounded-2xl border bg-white" placeholder="Buscar alumno..." onChange={e => setSearchTerm(e.target.value)} />
+            <select className="p-4 rounded-2xl border bg-white" onChange={e => setNivelFiltro(e.target.value)}>{nivelesDisponibles.map(n => <option key={n}>{n}</option>)}</select>
+            <select className="p-4 rounded-2xl border bg-white" onChange={e => setGrupoFiltro(e.target.value)}>{gruposDisponibles.map(g => <option key={g}>{g}</option>)}</select>
           </div>
           
           <div className="bg-white rounded-3xl shadow-sm border divide-y">
@@ -154,7 +154,7 @@ export function InformesView({ user, db, appId }) {
           </div>
           {renderCriterios()}
           <textarea className="w-full p-4 bg-gray-50 rounded-2xl text-sm border" placeholder="Observaciones..." value={observations} onChange={e => setObservations(e.target.value)} rows={4}/>
-          <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 bg-violet-800 text-white font-black rounded-2xl">{isSaving ? 'Guardando...' : 'Finalizar Informe'}</button>
+          <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 bg-violet-800 text-white font-black rounded-2xl">{isSaving ? 'Guardando...' : 'Guardar'}</button>
         </div>
       )}
     </div>
