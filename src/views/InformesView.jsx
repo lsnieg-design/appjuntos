@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronRight, X, ClipboardCheck, Briefcase } from 'lucide-react';
 import { doc, setDoc, onSnapshot, serverTimestamp, collection, query, where } from 'firebase/firestore';
 
+
 const CONFIG_INDICADORES = {
   pedagogico: {
     'Inicial': [
