@@ -4,392 +4,52 @@ import { doc, setDoc, onSnapshot, serverTimestamp, collection, query, deleteDoc 
 
 const CONFIG_INDICADORES = {
   pedagogico: {
-     'Inicial': [
-      { 
-        id: 'lectoescritura', 
-        label: 'Lectoescritura', 
-        options: [
-          'Presilábico: Explora la escritura con dibujos o grafismos sin valor sonoro aún.',
-          'Silábico: Comienza a asignar valor sonoro a las letras, mayormente vocales.',
-          'Silábico-alfabético: Transición; combina sílabas completas con letras aisladas.',
-          'Alfabético: Escribe de forma autónoma representando los fonemas con coherencia.'
-        ] 
-      },
-      { 
-        id: 'escritura', 
-        label: 'Escritura', 
-        options: [
-          'Requiere guía física constante (mano-sobre-mano) para realizar grafismos.',
-          'Escribe mediante copia fiel o dictado fonético sencillo con apoyo docente.',
-          'Escribe frases cortas mediante dictado fonético con supervisión frecuente.',
-          'Escribe de forma autónoma y creativa, expresando ideas con sentido completo.'
-        ] 
-      },
-      { 
-        id: 'comprension', 
-        label: 'Comprensión', 
-        options: [
-          'No logra significar el texto, se limita a identificar imágenes.',
-          'Comprende textos breves y sencillos mediante lectura compartida.',
-          'Comprende el sentido global de textos breves de manera guiada.',
-          'Realiza lectura autónoma y comprende el sentido global de textos diversos.'
-        ] 
-      },
-      { 
-        id: 'reconocimiento', 
-        label: 'Reconocimiento', 
-        options: [
-          'Solo identifica su propio nombre entre otras palabras.',
-          'Reconoce nombre propio y de sus pares con facilidad.',
-          'Reconoce palabras de uso frecuente y frases cortas.',
-          'Lee palabras y frases con sentido completo de forma autónoma.'
-        ] 
-      },
-      { 
-        id: 'serie_numerica', 
-        label: 'Serie numérica', 
-        options: [
-          'Realiza conteo hasta 10, precisando apoyo con material concreto.',
-          'Realiza conteo hasta 20 y reconoce números en contextos cotidianos.',
-          'Maneja series numéricas amplias y reconoce familias numéricas.',
-          'Domina series numéricas complejas con total autonomía.'
-        ] 
-      },
-      { 
-        id: 'operaciones', 
-        label: 'Operaciones', 
-        options: [
-          'Identifica cantidades, pero no logra realizar operaciones.',
-          'Resuelve sumas y restas simples utilizando material didáctico.',
-          'Resuelve sumas y restas complejas con apoyo esporádico.',
-          'Resuelve problemas cotidianos con operaciones complejas autónomamente.'
-        ] 
-      },
-      { 
-        id: 'figuras', 
-        label: 'Figuras y lógica', 
-        options: [
-          'Identifica figuras básicas, pero requiere mediación para clasificarlas.',
-          'Clasifica elementos por forma, tamaño o color con supervisión.',
-          'Resuelve problemas simples de lógica y comparación.',
-          'Resuelve problemas de alta complejidad de forma autónoma.'
-        ] 
-      },
-      { 
-        id: 'rutinas', 
-        label: 'Rutinas / Higiene', 
-        options: [
-          'Requiere asistencia total y acompañamiento cercano en toda rutina.',
-          'Realiza rutinas básicas con supervisión constante y apoyo puntual.',
-          'Realiza rutinas con supervisión mínima y esporádica.',
-          'Es totalmente autónomo en sus rutinas escolares y cuidado personal.'
-        ] 
-      },
-      { 
-        id: 'organizacion', 
-        label: 'Organización', 
-        options: [
-          'Precisa que el adulto organice sus materiales de trabajo siempre.',
-          'Organiza sus materiales solo ante el recordatorio del docente.',
-          'Mantiene sus materiales organizados de forma independiente.',
-          'Anticipa y organiza todos los materiales necesarios antes de iniciar.'
-        ] 
-      },
-      { 
-        id: 'pedido_ayuda', 
-        label: 'Pedido de ayuda', 
-        options: [
-          'Ante la dificultad, se bloquea y espera la intervención externa.',
-          'Solicita ayuda mediante mediación o sugerencia del docente.',
-          'Identifica cuando necesita ayuda y la solicita ante la duda.',
-          'Es proactivo; ante un obstáculo busca soluciones antes de pedir ayuda.'
-        ] 
-      },
-      { 
-        id: 'vinculo_pares', 
-        label: 'Vínculo con pares', 
-        options: [
-          'Su juego es paralelo o solitario; le cuesta integrar a otros.',
-          'Interactúa con pares principalmente en actividades guiadas.',
-          'Se integra espontáneamente a juegos cooperativos grupales.',
-          'Lidera o propone actividades grupales de forma activa.'
-        ] 
-      },
-      { 
-        id: 'vinculo_adulto', 
-        label: 'Vínculo adulto', 
-        options: [
-          'Dependencia total del adulto para iniciar cualquier tarea.',
-          'Busca apoyo y validación constante de figuras adultas.',
-          'Busca apoyo solo ante dudas específicas o situaciones nuevas.',
-          'Establece un vínculo saludable de referencia, con autonomía.'
-        ] 
-      },
-      { 
-        id: 'emocional', 
-        label: 'Expresión emocional', 
-        options: [
-          'Ante malestar reacciona con impulsividad o conductas físicas.',
-          'Expresa su malestar verbalmente solo mediante mediación.',
-          'Expresa sus sentimientos de forma verbal con claridad.',
-          'Posee autorregulación y gestiona sus emociones de forma autónoma.'
-        ] 
-      },
-      { 
-        id: 'pautas', 
-        label: 'Pautas / Turnos', 
-        options: [
-          'No respeta pautas de convivencia ni turnos de habla.',
-          'Respeta pautas y turnos solo ante el recordatorio frecuente.',
-          'Respeta pautas y turnos con mínima guía docente.',
-          'Respeta los turnos y acuerdos de convivencia autónomamente.'
-        ] 
-      },
-      { 
-        id: 'escucha', 
-        label: 'Escucha activa', 
-        options: [
-          'Se encuentra desconectado de las consignas grupales.',
-          'Escucha si se lo interpela o busca individualmente.',
-          'Participa en la escucha de relatos o propuestas grupales.',
-          'Se muestra atento y responde correctamente a consignas grupales.'
-        ] 
-      },
-      { 
-        id: 'conflictos', 
-        label: 'Conflictos', 
-        options: [
-          'Reacciona con conductas físicas o impulsivas ante el conflicto.',
-          'Expresa el malestar pero requiere mediación docente directa.',
-          'Resuelve conflictos mediante el diálogo con intervención mínima.',
-          'Resuelve conflictos de forma autónoma, aceptando acuerdos de paz.'
-        ] 
-      },
-      { 
-        id: 'desplazamiento', 
-        label: 'Desplazamiento', 
-        options: [
-          'Necesita guía física permanente para transitar la escuela.',
-          'Reconoce los espacios, pero requiere recordatorios constantes.',
-          'Se desplaza por la escuela con recordatorios esporádicos.',
-          'Autónomo en toda la institución con sentido de pertenencia.'
-        ] 
-      },
-      { 
-        id: 'juego', 
-        label: 'Tipo de juego', 
-        options: [
-          'Su juego es puramente exploratorio y sensorial.',
-          'Desarrolla juego simbólico (imaginativo con elementos).',
-          'Participa en juegos reglados simples respetando turnos.',
-          'Propone y participa en juegos reglados complejos y creativos.'
-        ] 
-      },
-      { 
-        id: 'ciencias', 
-        label: 'Ciencias / Indagación', 
-        options: [
-          'Precisa modelado paso a paso para usar materiales. Muestra curiosidad puntual sin lograr sostener la observación.',
-          'Manipula los materiales con intención clara y sentido. Indaga sobre el entorno con mediación y preguntas docentes.',
-          'Realiza producciones propias con intención creativa. Manifiesta curiosidad, investiga fenómenos y busca explicaciones.',
-          'Utiliza y cuida los materiales con creatividad y autonomía. Investiga de forma independiente, proponiendo explicaciones propias.'
-        ] 
-      },
-      { 
-        id: 'cuidado', 
-        label: 'Cuidado del entorno', 
-        options: [
-          'No registra el entorno ni las pautas de cuidado.',
-          'Identifica normas de cuidado con supervisión constante.',
-          'Identifica y aplica normas de cuidado con mínima guía.',
-          'Autónomo en el cuidado del medio ambiente y los seres vivos.'
-        ] 
-      },
-      { 
-        id: 'comunicacion', 
-        label: 'Comunicación', 
-        options: [
-          'Comunicación reactiva; utiliza gestos básicos ante necesidad inmediata.',
-          'Comunicación funcional; usa señas, pictogramas o habla simple con apoyo.',
-          'Comunicación activa; comunica deseos y necesidades con frases breves.',
-          'Comunicación compleja; relata eventos y sostiene conversaciones con fluidez.'
-        ] 
-      },
-      { 
-        id: 'funciones', 
-        label: 'Funciones Ejecutivas', 
-        options: [
-          'Atención muy dispersa; requiere estímulos constantes para focalizar.',
-          'Atención breve; sigue instrucciones de un solo paso con mediación.',
-          'Atención sostenida en tareas cortas; sigue instrucciones de dos pasos.',
-          'Atención focalizada; sigue secuencias complejas con autonomía total.'
-        ] 
-      },
-      { 
-        id: 'flexibilidad', 
-        label: 'Flexibilidad Cognitiva', 
-        options: [
-          'Gran dificultad ante cambios: desregulación frente a lo imprevisto.',
-          'Acepta cambios en la rutina si se anticipan con apoyo visual.',
-          'Adapta su conducta ante cambios moderados con mínima mediación.',
-          'Alta flexibilidad; se ajusta a cambios imprevistos de forma autónoma.'
-        ] 
-      },
-      { 
-        id: 'sensorial', 
-        label: 'Procesamiento Sensorial', 
-        options: [
-          'Responde con desregulación ante estímulos ambientales (ruidos/luces).',
-          'Presenta sensibilidad alta; requiere espacios tranquilos para calmarse.',
-          'Registra estímulos ambientales sin que afecten significativamente su tarea.',
-          'Alta tolerancia sensorial; se autorregula adecuadamente en entornos activos.'
-        ] 
-      },
-      { 
-        id: 'intereses', 
-        label: 'Intereses y Fortalezas', 
-        options: [
-          'Su interés es restringido a objetos únicos sin variante.',
-          'Presenta intereses identificables que sirven como motivadores de tarea.',
-          'Utiliza sus pasiones para realizar actividades y socializar con pares.',
-          'Transfiere sus habilidades destacadas a múltiples contextos escolares.'
-        ] 
-      },
-      { 
-        id: 'apoyos', 
-        label: 'Apoyos eficaces', 
-        options: [
-          'Requiere apoyos físicos y contacto directo constante.',
-          'Requiere agendas visuales y soportes concretos permanentes.',
-          'Utiliza apoyos puntuales ante tareas nuevas o de alta complejidad.',
-          'Autónomo; requiere apoyos mínimos solo para organización avanzada.'
-        ] 
-      }
- laboral: {
+    'Inicial': [
+      { id: 'lectoescritura', label: 'Lectoescritura', options: ['Presilábico: Explora la escritura con dibujos o grafismos sin valor sonoro aún.', 'Silábico: Comienza a asignar valor sonoro a las letras, mayormente vocales.', 'Silábico-alfabético: Transición; combina sílabas completas con letras aisladas.', 'Alfabético: Escribe de forma autónoma representando los fonemas con coherencia.'] },
+      { id: 'escritura', label: 'Escritura', options: ['Requiere guía física constante (mano-sobre-mano) para realizar grafismos.', 'Escribe mediante copia fiel o dictado fonético sencillo con apoyo docente.', 'Escribe frases cortas mediante dictado fonético con supervisión frecuente.', 'Escribe de forma autónoma y creativa, expresando ideas con sentido completo.'] },
+      { id: 'comprension', label: 'Comprensión', options: ['No logra significar el texto, se limita a identificar imágenes.', 'Comprende textos breves y sencillos mediante lectura compartida.', 'Comprende el sentido global de textos breves de manera guiada.', 'Realiza lectura autónoma y comprende el sentido global de textos diversos.'] },
+      { id: 'reconocimiento', label: 'Reconocimiento', options: ['Solo identifica su propio nombre entre otras palabras.', 'Reconoce nombre propio y de sus pares con facilidad.', 'Reconoce palabras de uso frecuente y frases cortas.', 'Lee palabras y frases con sentido completo de forma autónoma.'] },
+      { id: 'serie_numerica', label: 'Serie numérica', options: ['Realiza conteo hasta 10, precisando apoyo con material concreto.', 'Realiza conteo hasta 20 y reconoce números en contextos cotidianos.', 'Maneja series numéricas amplias y reconoce familias numéricas.', 'Domina series numéricas complejas con total autonomía.'] },
+      { id: 'operaciones', label: 'Operaciones', options: ['Identifica cantidades, pero no logra realizar operaciones.', 'Resuelve sumas y restas simples utilizando material didáctico.', 'Resuelve sumas y restas complejas con apoyo esporádico.', 'Resuelve problemas cotidianos con operaciones complejas autónomamente.'] },
+      { id: 'figuras', label: 'Figuras y lógica', options: ['Identifica figuras básicas, pero requiere mediación para clasificarlas.', 'Clasifica elementos por forma, tamaño o color con supervisión.', 'Resuelve problemas simples de lógica y comparación.', 'Resuelve problemas de alta complejidad de forma autónoma.'] },
+      { id: 'rutinas', label: 'Rutinas / Higiene', options: ['Requiere asistencia total y acompañamiento cercano en toda rutina.', 'Realiza rutinas básicas con supervisión constante y apoyo puntual.', 'Realiza rutinas con supervisión mínima y esporádica.', 'Es totalmente autónomo en sus rutinas escolares y cuidado personal.'] },
+      { id: 'organizacion', label: 'Organización', options: ['Precisa que el adulto organice sus materiales de trabajo siempre.', 'Organiza sus materiales solo ante el recordatorio del docente.', 'Mantiene sus materiales organizados de forma independiente.', 'Anticipa y organiza todos los materiales necesarios antes de iniciar.'] },
+      { id: 'pedido_ayuda', label: 'Pedido de ayuda', options: ['Ante la dificultad, se bloquea y espera la intervención externa.', 'Solicita ayuda mediante mediación o sugerencia del docente.', 'Identifica cuando necesita ayuda y la solicita ante la duda.', 'Es proactivo; ante un obstáculo busca soluciones antes de pedir ayuda.'] },
+      { id: 'vinculo_pares', label: 'Vínculo con pares', options: ['Su juego es paralelo o solitario; le cuesta integrar a otros.', 'Interactúa con pares principalmente en actividades guiadas.', 'Se integra espontáneamente a juegos cooperativos grupales.', 'Lidera o propone actividades grupales de forma activa.'] },
+      { id: 'vinculo_adulto', label: 'Vínculo adulto', options: ['Dependencia total del adulto para iniciar cualquier tarea.', 'Busca apoyo y validación constante de figuras adultas.', 'Busca apoyo solo ante dudas específicas o situaciones nuevas.', 'Establece un vínculo saludable de referencia, con autonomía.'] },
+      { id: 'emocional', label: 'Expresión emocional', options: ['Ante malestar reacciona con impulsividad o conductas físicas.', 'Expresa su malestar verbalmente solo mediante mediación.', 'Expresa sus sentimientos de forma verbal con claridad.', 'Posee autorregulación y gestiona sus emociones de forma autónoma.'] },
+      { id: 'pautas', label: 'Pautas / Turnos', options: ['No respeta pautas de convivencia ni turnos de habla.', 'Respeta pautas y turnos solo ante el recordatorio frecuente.', 'Respeta pautas y turnos con mínima guía docente.', 'Respeta los turnos y acuerdos de convivencia autónomamente.'] },
+      { id: 'escucha', label: 'Escucha activa', options: ['Se encuentra desconectado de las consignas grupales.', 'Escucha si se lo interpela o busca individualmente.', 'Participa en la escucha de relatos o propuestas grupales.', 'Se muestra atento y responde correctamente a consignas grupales.'] },
+      { id: 'conflictos', label: 'Conflictos', options: ['Reacciona con conductas físicas o impulsivas ante el conflicto.', 'Expresa el malestar pero requiere mediación docente directa.', 'Resuelve conflictos mediante el diálogo con intervención mínima.', 'Resuelve conflictos de forma autónoma, aceptando acuerdos de paz.'] },
+      { id: 'desplazamiento', label: 'Desplazamiento', options: ['Necesita guía física permanente para transitar la escuela.', 'Reconoce los espacios, pero requiere recordatorios constantes.', 'Se desplaza por la escuela con recordatorios esporádicos.', 'Autónomo en toda la institución con sentido de pertenencia.'] },
+      { id: 'juego', label: 'Tipo de juego', options: ['Su juego es puramente exploratorio y sensorial.', 'Desarrolla juego simbólico (imaginativo con elementos).', 'Participa en juegos reglados simples respetando turnos.', 'Propone y participa en juegos reglados complejos y creativos.'] },
+      { id: 'ciencias', label: 'Ciencias / Indagación', options: ['Precisa modelado paso a paso para usar materiales. Muestra curiosidad puntual sin lograr sostener la observación.', 'Manipula los materiales con intención clara y sentido. Indaga sobre el entorno con mediación y preguntas docentes.', 'Realiza producciones propias con intención creativa. Manifiesta curiosidad, investiga fenómenos y busca explicaciones.', 'Utiliza y cuida los materiales con creatividad y autonomía. Investiga de forma independiente, proponiendo explicaciones propias.'] },
+      { id: 'cuidado', label: 'Cuidado del entorno', options: ['No registra el entorno ni las pautas de cuidado.', 'Identifica normas de cuidado con supervisión constante.', 'Identifica y aplica normas de cuidado con mínima guía.', 'Autónomo en el cuidado del medio ambiente y los seres vivos.'] },
+      { id: 'comunicacion', label: 'Comunicación', options: ['Comunicación reactiva; utiliza gestos básicos ante necesidad inmediata.', 'Comunicación funcional; usa señas, pictogramas o habla simple con apoyo.', 'Comunicación activa; comunica deseos y necesidades con frases breves.', 'Comunicación compleja; relata eventos y sostiene conversaciones con fluidez.'] },
+      { id: 'funciones', label: 'Funciones Ejecutivas', options: ['Atención muy dispersa; requiere estímulos constantes para focalizar.', 'Atención breve; sigue instrucciones de un solo paso con mediación.', 'Atención sostenida en tareas cortas; sigue instrucciones de dos pasos.', 'Atención focalizada; sigue secuencias complejas con autonomía total.'] },
+      { id: 'flexibilidad', label: 'Flexibilidad Cognitiva', options: ['Gran dificultad ante cambios: desregulación frente a lo imprevisto.', 'Acepta cambios en la rutina si se anticipan con apoyo visual.', 'Adapta su conducta ante cambios moderados con mínima mediación.', 'Alta flexibilidad; se ajusta a cambios imprevistos de forma autónoma.'] },
+      { id: 'sensorial', label: 'Procesamiento Sensorial', options: ['Responde con desregulación ante estímulos ambientales (ruidos/luces).', 'Presenta sensibilidad alta; requiere espacios tranquilos para calmarse.', 'Registra estímulos ambientales sin que afecten significativamente su tarea.', 'Alta tolerancia sensorial; se autorregula adecuadamente en entornos activos.'] },
+      { id: 'intereses', label: 'Intereses y Fortalezas', options: ['Su interés es restringido a objetos únicos sin variante.', 'Presenta intereses identificables que sirven como motivadores de tarea.', 'Utiliza sus pasiones para realizar actividades y socializar con pares.', 'Transfiere sus habilidades destacadas a múltiples contextos escolares.'] },
+      { id: 'apoyos', label: 'Apoyos eficaces', options: ['Requiere apoyos físicos y contacto directo constante.', 'Requiere agendas visuales y soportes concretos permanentes.', 'Utiliza apoyos puntuales ante tareas nuevas o de alta complejidad.', 'Autónomo; requiere apoyos mínimos solo para organización avanzada.'] }
+    ]
+  },
+  laboral: {
     'CFI': [
-      { 
-        id: 'herramientas_reconocimiento', 
-        label: 'Herramientas: Reconocimiento', 
-        options: [
-          'No identifica herramientas; requiere asistencia para seleccionarlas.',
-          'Identifica herramientas básicas con apoyo visual o señalamiento.',
-          'Identifica y nombra herramientas de uso frecuente en el taller.',
-          'Reconoce y diferencia una amplia gama de herramientas según su función.'
-        ] 
-      },
-      { 
-        id: 'herramientas_uso', 
-        label: 'Herramientas: Uso adecuado', 
-        options: [
-          'Requiere guía física total para manipular cualquier herramienta.',
-          'Manipula herramientas con supervisión constante y seguridad asistida.',
-          'Usa herramientas con autonomía bajo supervisión mínima de seguridad.',
-          'Manipula herramientas con destreza, seguridad y total autonomía.'
-        ] 
-      },
-      { 
-        id: 'produccion_proceso', 
-        label: 'Producción: Proceso', 
-        options: [
-          'No logra seguir pasos; requiere mediación en cada acción.',
-          'Sigue pasos simples mediante apoyos visuales o instrucciones cortas.',
-          'Realiza tareas productivas siguiendo secuencias establecidas.',
-          'Desarrolla productos terminados cumpliendo el proceso completo solo.'
-        ] 
-      },
-      { 
-        id: 'produccion_calidad', 
-        label: 'Producción: Calidad/Terminación', 
-        options: [
-          'Requiere que el docente finalice o corrija su producción.',
-          'Realiza producciones con supervisión frecuente de los detalles.',
-          'Logra acabados de buena calidad con revisiones esporádicas.',
-          'Realiza producciones con alta calidad y atención a los detalles.'
-        ] 
-      },
-      { 
-        id: 'autonomia_trabajo', 
-        label: 'Autonomía: Trabajo autónomo', 
-        options: [
-          'Dependencia absoluta del adulto para iniciar y sostener la tarea.',
-          'Sostiene la tarea por tiempos breves con recordatorio docente.',
-          'Mantiene el ritmo de trabajo con supervisión intermitente.',
-          'Trabaja con autonomía, organizando sus tiempos y tareas solo.'
-        ] 
-      },
-      { 
-        id: 'autonomia_seguridad', 
-        label: 'Autonomía: Seguridad e Higiene', 
-        options: [
-          'Desconoce las normas; requiere control físico constante.',
-          'Conoce las normas básicas si se le recuerdan antes de empezar.',
-          'Respeta las normas de seguridad e higiene de forma consistente.',
-          'Es referente en normas de seguridad y cuida su espacio de trabajo.'
-        ] 
-      },
-      { 
-        id: 'rol_pautas', 
-        label: 'Rol Laboral: Respeto de pautas', 
-        options: [
-          'No respeta pautas; interrumpe el trabajo de otros.',
-          'Respeta pautas y horarios con supervisión frecuente.',
-          'Cumple con las pautas de trabajo y los tiempos del taller.',
-          'Demuestra compromiso y sentido de responsabilidad laboral.'
-        ] 
-      },
-      { 
-        id: 'rol_equipo', 
-        label: 'Rol Laboral: Trabajo en equipo', 
-        options: [
-          'Realiza su tarea de forma aislada sin considerar el entorno.',
-          'Participa en tareas compartidas cuando el docente lo coordina.',
-          'Colabora con pares en producciones grupales de forma fluida.',
-          'Propone tareas colaborativas y ayuda a otros en el taller.'
-        ] 
-      },
-      { 
-        id: 'comprension_proceso', 
-        label: 'Comprensión del proceso', 
-        options: [
-          'Ejecuta acciones aisladas sin comprender el resultado final del producto.',
-          'Comprende una parte del proceso con mediación docente constante.',
-          'Comprende la secuencia del proceso productivo y su lugar en el mismo.',
-          'Entiende el proceso productivo integral y cómo su tarea aporta al resultado.'
-        ] 
-      },
-      { 
-        id: 'responsabilidad_rol', 
-        label: 'Responsabilidad de rol', 
-        options: [
-          'Requiere supervisión para mantenerse en su puesto o función asignada.',
-          'Asume un rol simple con supervisión; cumple tareas asignadas por terceros.',
-          'Mantiene su rol y función con autonomía dentro del grupo de trabajo.',
-          'Identifica necesidades del sistema y asume funciones de forma proactiva.'
-        ] 
-      },
-      { 
-        id: 'adaptabilidad', 
-        label: 'Adaptabilidad al cambio', 
-        options: [
-          'Presenta rigidez frente a variaciones en la tarea o en el puesto de trabajo.',
-          'Acepta cambios en su función tras una explicación y acompañamiento.',
-          'Se adapta a diferentes roles o tareas dentro del taller con mínima guía.',
-          'Muestra gran versatilidad; cambia de función según la necesidad del sistema.'
-        ] 
-      },
-      { 
-        id: 'gestion_tiempos', 
-        label: 'Gestión de tiempos', 
-        options: [
-          'No registra el tiempo; requiere guía para iniciar, pausar o terminar.',
-          'Realiza la tarea respetando ritmos mínimos bajo supervisión externa.',
-          'Regula su propio ritmo de trabajo para cumplir con los tiempos de entrega.',
-          'Planifica su tiempo y recursos para optimizar la producción del sistema.'
-        ] 
-      }
+      { id: 'herramientas_reconocimiento', label: 'Herramientas: Reconocimiento', options: ['No identifica herramientas; requiere asistencia para seleccionarlas.', 'Identifica herramientas básicas con apoyo visual o señalamiento.', 'Identifica y nombra herramientas de uso frecuente en el taller.', 'Reconoce y diferencia una amplia gama de herramientas según su función.'] },
+      { id: 'herramientas_uso', label: 'Herramientas: Uso adecuado', options: ['Requiere guía física total para manipular cualquier herramienta.', 'Manipula herramientas con supervisión constante y seguridad asistida.', 'Usa herramientas con autonomía bajo supervisión mínima de seguridad.', 'Manipula herramientas con destreza, seguridad y total autonomía.'] },
+      { id: 'produccion_proceso', label: 'Producción: Proceso', options: ['No logra seguir pasos; requiere mediación en cada acción.', 'Sigue pasos simples mediante apoyos visuales o instrucciones cortas.', 'Realiza tareas productivas siguiendo secuencias establecidas.', 'Desarrolla productos terminados cumpliendo el proceso completo solo.'] },
+      { id: 'produccion_calidad', label: 'Producción: Calidad/Terminación', options: ['Requiere que el docente finalice o corrija su producción.', 'Realiza producciones con supervisión frecuente de los detalles.', 'Logra acabados de buena calidad con revisiones esporádicas.', 'Realiza producciones con alta calidad y atención a los detalles.'] },
+      { id: 'autonomia_trabajo', label: 'Autonomía: Trabajo autónomo', options: ['Dependencia absoluta del adulto para iniciar y sostener la tarea.', 'Sostiene la tarea por tiempos breves con recordatorio docente.', 'Mantiene el ritmo de trabajo con supervisión intermitente.', 'Trabaja con autonomía, organizando sus tiempos y tareas solo.'] },
+      { id: 'autonomia_seguridad', label: 'Autonomía: Seguridad e Higiene', options: ['Desconoce las normas; requiere control físico constante.', 'Conoce las normas básicas si se le recuerdan antes de empezar.', 'Respeta las normas de seguridad e higiene de forma consistente.', 'Es referente en normas de seguridad y cuida su espacio de trabajo.'] },
+      { id: 'rol_pautas', label: 'Rol Laboral: Respeto de pautas', options: ['No respeta pautas; interrumpe el trabajo de otros.', 'Respeta pautas y horarios con supervisión frecuente.', 'Cumple con las pautas de trabajo y los tiempos del taller.', 'Demuestra compromiso y sentido de responsabilidad laboral.'] },
+      { id: 'rol_equipo', label: 'Rol Laboral: Trabajo en equipo', options: ['Realiza su tarea de forma aislada sin considerar el entorno.', 'Participa en tareas compartidas cuando el docente lo coordina.', 'Colabora con pares en producciones grupales de forma fluida.', 'Propone tareas colaborativas y ayuda a otros en el taller.'] },
+      { id: 'comprension_proceso', label: 'Comprensión del proceso', options: ['Ejecuta acciones aisladas sin comprender el resultado final del producto.', 'Comprende una parte del proceso con mediación docente constante.', 'Comprende la secuencia del proceso productivo y su lugar en el mismo.', 'Entiende el proceso productivo integral y cómo su tarea aporta al resultado.'] },
+      { id: 'responsabilidad_rol', label: 'Responsabilidad de rol', options: ['Requiere supervisión para mantenerse en su puesto o función asignada.', 'Asume un rol simple con supervisión; cumple tareas asignadas por terceros.', 'Mantiene su rol y función con autonomía dentro del grupo de trabajo.', 'Identifica necesidades del sistema y asume funciones de forma proactiva.'] },
+      { id: 'adaptabilidad', label: 'Adaptabilidad al cambio', options: ['Presenta rigidez frente a variaciones en la tarea o en el puesto de trabajo.', 'Acepta cambios en su función tras una explicación y acompañamiento.', 'Se adapta a diferentes roles o tareas dentro del taller con mínima guía.', 'Muestra gran versatilidad; cambia de función según la necesidad del sistema.'] },
+      { id: 'gestion_tiempos', label: 'Gestión de tiempos', options: ['No registra el tiempo; requiere guía para iniciar, pausar o terminar.', 'Realiza la tarea respetando ritmos mínimos bajo supervisión externa.', 'Regula su propio ritmo de trabajo para cumplir con los tiempos de entrega.', 'Planifica su tiempo y recursos para optimizar la producción del sistema.'] }
     ]
   }
-
+};
 export function InformesView({ user, db, appId }) {
   const [stage, setStage] = useState('main'); 
   const [tipoInforme, setTipoInforme] = useState('pedagogico');
