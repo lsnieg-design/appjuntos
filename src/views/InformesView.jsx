@@ -180,7 +180,7 @@ export function InformesView({ user, db, appId }) {
   const nivelActual = selectedStudent?.level || 'Inicial';
   const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || [];
 
- // Transformador inteligente de texto para la impresión
+ // Transformador inteligente y VARIADO de texto para la impresión
   const formatearTextoImpresion = (respuesta, firstNameRaw) => {
     if (!respuesta) return '';
     
@@ -193,15 +193,10 @@ export function InformesView({ user, db, appId }) {
     if (respuesta.startsWith('Silábico-alfabético:')) return `${primerNombre} transita una etapa silábico-alfabética de transición, combinando sílabas completas con letras aisladas. Esto demuestra una consolidación progresiva en su discriminación fonológica, dando pasos firmes hacia la escritura convencional.`;
     if (respuesta.startsWith('Alfabético:')) return `${primerNombre} escribe de forma autónoma en una etapa alfabética, representando los fonemas con coherencia. Ha logrado plasmar sus ideas de manera clara, demostrando una excelente apropiación del sistema de escritura.`;
 
-    // 2. Transformación dinámica para el resto
+    // 2. Transformación dinámica de la oración base
     let textoMinuscula = respuesta.charAt(0).toLowerCase() + respuesta.slice(1);
-    
-    // Limpiamos el punto final si lo tiene para que la concatenación no quede con doble punto
-    if (textoMinuscula.endsWith('.')) {
-      textoMinuscula = textoMinuscula.slice(0, -1);
-    }
+    if (textoMinuscula.endsWith('.')) textoMinuscula = textoMinuscula.slice(0, -1);
 
-    // Armamos la primera parte de la oración hilada
     let oracionBase = '';
     if (respuesta.startsWith('Su ')) {
       oracionBase = `En este aspecto, el perfil de ${primerNombre} indica que ${textoMinuscula}`;
@@ -211,25 +206,49 @@ export function InformesView({ user, db, appId }) {
       oracionBase = `Se observa que ${primerNombre} ${textoMinuscula}`;
     }
 
-    // 3. Ampliación pedagógica inteligente según la connotación de tu respuesta
+    // 3. Ampliación pedagógica con VARIACIONES (evita la repetición robótica)
     const respLower = respuesta.toLowerCase();
+    
+    // Un truco matemático simple para elegir una de las 3 opciones de forma variada pero estable
+    const variante = respuesta.length % 3; 
+
     let ampliacion = '';
 
-    // Si el indicador habla de dificultades o falta de autonomía
+    // A. Nivel de Alta Dependencia / Dificultad
     if (respLower.includes('no logra') || respLower.includes('gran dificultad') || respLower.includes('dependencia total') || respLower.includes('no respeta') || respLower.startsWith('solo ') || respLower.includes('desconectado') || respLower.includes('se bloquea')) {
-      ampliacion = '. Desde el equipo continuaremos brindando las herramientas, los apoyos y el andamiaje necesario para acompañar sus propios tiempos y fomentar mayores niveles de autonomía.';
+      const opciones = [
+        `. Desde el equipo continuaremos brindando las herramientas, los apoyos y el andamiaje necesario para acompañar sus propios tiempos y fomentar mayores niveles de autonomía.`,
+        `. Se sostendrán las estrategias de intervención directa, priorizando su bienestar emocional y respetando su ritmo singular de aprendizaje en cada propuesta escolar.`,
+        `. Nuestro objetivo a corto plazo será seguir estimulando esta área mediante apoyos y configuraciones específicas, para que paulatinamente gane mayor confianza y seguridad en sí mismo/a.`
+      ];
+      ampliacion = opciones[variante];
     } 
-    // Si el indicador habla de que requiere supervisión o mediación
+    // B. Nivel de Transición / Requiere Supervisión
     else if (respLower.includes('requiere') || respLower.includes('precisa') || respLower.includes('con supervisión') || respLower.includes('con apoyo') || respLower.includes('mediación') || respLower.includes('ante malestar')) {
-      ampliacion = '. Se continuará ofreciendo una guía cercana, contención y anticipación para seguir fortaleciendo progresivamente su seguridad y confianza en este proceso.';
+      const opciones = [
+        `. Se continuará ofreciendo una guía cercana, contención y anticipación para seguir fortaleciendo progresivamente su seguridad en este proceso.`,
+        `. Con la mediación docente adecuada, se espera que logre consolidar estos saberes, con la intención de ir retirando los apoyos de manera paulatina a medida que avance.`,
+        `. El acompañamiento focalizado y la mirada atenta en estas instancias resultan fundamentales para que logre apropiarse de la dinámica y alcance un mayor grado de independencia.`
+      ];
+      ampliacion = opciones[variante];
     } 
-    // Si el indicador habla de autonomía, proactividad o dominio complejo
+    // C. Nivel de Alta Autonomía / Proactividad
     else if (respLower.includes('autónomo') || respLower.includes('autónomamente') || respLower.includes('total autonomía') || respLower.includes('proactivo') || respLower.includes('lidera') || respLower.includes('alta flexibilidad') || respLower.includes('complejas') || respLower.includes('fluidez')) {
-      ampliacion = '. Su desempeño en este punto es sumamente destacable, mostrando una gran iniciativa personal que enriquece de forma muy positiva la dinámica de trabajo grupal.';
+      const opciones = [
+        `. Su desempeño en este punto es sumamente destacable, mostrando una gran iniciativa personal que enriquece de forma muy positiva la dinámica de trabajo grupal.`,
+        `. Demuestra un manejo fluido y sostenido en este aspecto, logrando desenvolverse con gran destreza y aportando activamente al trabajo compartido del aula.`,
+        `. Este altísimo nivel de autonomía le permite no solo resolver las consignas con éxito, sino también posicionarse como un referente positivo y colaborador para sus pares.`
+      ];
+      ampliacion = opciones[variante];
     } 
-    // Desarrollo normal / en proceso / participación activa
+    // D. Desarrollo Normal / En Proceso Positivo
     else {
-      ampliacion = '. Este nivel de desarrollo refleja un avance muy positivo, producto de su esfuerzo sostenido y de las propuestas implementadas en el espacio escolar cotidiano.';
+      const opciones = [
+        `. Este nivel de desarrollo refleja un avance muy positivo, producto de su esfuerzo sostenido y de las propuestas implementadas en el espacio escolar cotidiano.`,
+        `. Se evidencia un recorrido muy favorable en la apropiación de estas pautas, lo que demuestra su permeabilidad y excelente disposición frente a la tarea.`,
+        `. Seguiremos potenciando estas habilidades para que continúe afianzando su trayectoria educativa con el mismo entusiasmo y compromiso demostrado hasta ahora.`
+      ];
+      ampliacion = opciones[variante];
     }
 
     return oracionBase + ampliacion;
