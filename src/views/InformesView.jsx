@@ -113,23 +113,41 @@ export function InformesView({ user, db, appId }) {
   const renderCriterios = () => {
     const nivel = selectedStudent?.level || 'Inicial';
     const indicadores = CONFIG_INDICADORES[tipoInforme]?.[nivel] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || [];
-    return indicadores.map(c => (
-      <div key={c.id} className="space-y-2 mb-4">
-        <label className="text-xs font-black uppercase text-gray-500">{c.label}</label>
-        <div className="grid grid-cols-2 gap-2">
-          {c.options.map(opt => (
-            <button key={opt} onClick={() => setAnswers(p => ({...p, [c.id]: opt}))} className={`p-3 rounded-xl font-black text-[10px] uppercase border-2 ${answers[c.id] === opt ? 'bg-violet-600 text-white border-violet-700' : 'bg-gray-50 border-gray-100'}`}>
-              {opt}
-            </button>
-          ))}
+    
+    return indicadores.map(c => {
+      // Si el indicador no tiene respuesta, lo ocultamos en la impresión para que quede más limpio.
+      // Si preferís que se impriman todos aunque estén vacíos, podés quitar la clase print:hidden aquí.
+      const hasAnswer = answers[c.id]; 
+      
+      return (
+        <div key={c.id} className={`space-y-2 mb-4 break-inside-avoid ${!hasAnswer ? 'print:hidden' : ''}`}>
+          <label className="text-xs font-black uppercase text-gray-500 print:text-black">{c.label}</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {c.options.map(opt => {
+              const isSelected = answers[c.id] === opt;
+              return (
+                <button 
+                  key={opt} 
+                  onClick={() => setAnswers(p => ({...p, [c.id]: opt}))} 
+                  className={`p-3 rounded-xl font-bold text-[10px] uppercase border-2 text-left transition-all
+                    ${isSelected 
+                      ? 'bg-violet-600 text-white border-violet-700 print:border-black print:text-black print:bg-gray-100 print:border-2' 
+                      : 'bg-gray-50 border-gray-100 print:hidden'}
+                  `}
+                >
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
-    ));
+      );
+    });
   };
 
   return (
     <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in">
-      <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-8 rounded-[40px] shadow-xl text-white mb-8">
+      <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-8 rounded-[40px] shadow-xl text-white mb-8 print:hidden">
         <h2 className="text-2xl font-black mb-2 flex items-center gap-3"><BookOpen size={28} /> Gestión de Informes</h2>
         <p className="text-violet-100 text-sm">Mostrando: {filteredStudents.length} alumnos.</p>
       </div>
@@ -191,21 +209,74 @@ export function InformesView({ user, db, appId }) {
           </div>
         </div>
       ) : (
-        <div className="printable-area bg-white p-8 rounded-[40px] shadow-lg border space-y-4 animate-in fade-in">
-          <div className="flex justify-between items-center print:hidden">
-            <button onClick={() => setStage('main')} className="bg-gray-100 p-2 rounded-full"><X size={18}/></button>
+        <div className="bg-white p-8 print:p-0 rounded-[40px] print:rounded-none shadow-lg print:shadow-none border print:border-none space-y-4 animate-in fade-in">
+          
+          {/* Botonera superior (Oculta en impresión) */}
+          <div className="flex justify-between items-center print:hidden mb-6">
+            <button onClick={() => setStage('main')} className="bg-gray-100 p-3 rounded-full hover:bg-gray-200 transition-colors">
+              <X size={20}/>
+            </button>
             <button 
               onClick={() => window.print()} 
-              className="flex items-center gap-2 bg-blue-100 text-blue-700 py-2 px-4 rounded-xl font-bold"
+              className="flex items-center gap-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors py-2 px-5 rounded-xl font-bold"
             >
-              <Printer size={16} /> Imprimir
+              <Printer size={18} /> Imprimir Informe
             </button>
           </div>
-          <h3 className="font-black text-xl">{selectedStudent.lastName}, {selectedStudent.firstName}</h3>
-          <p className="text-xs font-bold text-violet-600 uppercase">GRUPO: {grupoFiltro} | INFORME: {tipoInforme}</p>
-          {renderCriterios()}
-          <textarea className="w-full p-4 bg-gray-50 rounded-2xl text-sm border" placeholder="Observaciones..." value={observations} onChange={e => setObservations(e.target.value)} rows={4}/>
-          <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 bg-violet-800 text-white font-black rounded-2xl print:hidden">Guardar</button>
+
+          {/* ENCABEZADO INSTITUCIONAL (Siempre visible, optimizado para impresión) */}
+          <div className="mb-8 border-2 border-gray-800 rounded-2xl p-6 bg-white print:border-black print:rounded-none print:border-0 print:border-b-2">
+            <div className="text-center mb-6 border-b-2 border-gray-200 pb-4 print:border-black">
+              <h1 className="text-3xl font-black uppercase tracking-widest text-gray-900">INFORME MEDIO 2026</h1>
+              <p className="text-sm font-bold text-gray-500 uppercase mt-1">ÁREA: {tipoInforme}</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-8 text-sm text-gray-800">
+              <p><strong className="font-black">Alumno/a:</strong> {selectedStudent.lastName}, {selectedStudent.firstName}</p>
+              <p><strong className="font-black">DNI:</strong> {selectedStudent.dni || '....................................'}</p>
+              <p><strong className="font-black">Fecha de Nacimiento:</strong> {selectedStudent.birthDate || selectedStudent.fechaNac || '....................................'}</p>
+              <p><strong className="font-black">Grupo:</strong> {grupoFiltro}</p>
+              <p><strong className="font-black">Docente:</strong> {selectedStudent.teacher || selectedStudent.docente || '....................................'}</p>
+              <p><strong className="font-black">Auxiliar/Preceptor:</strong> {selectedStudent.auxiliary || selectedStudent.auxiliar || '....................................'}</p>
+              <p><strong className="font-black">Año Actual:</strong> 2026</p>
+            </div>
+          </div>
+
+          {/* RENDER DE OPCIONES */}
+          <div className="print:text-sm">
+            {renderCriterios()}
+          </div>
+          
+          {/* OBSERVACIONES */}
+          <div className="mt-6 break-inside-avoid">
+            <label className="text-xs font-black uppercase text-gray-500 print:text-black mb-2 block">Observaciones Generales</label>
+            <textarea 
+              className="w-full p-4 bg-gray-50 print:bg-white rounded-2xl print:rounded-none text-sm border print:border-black" 
+              placeholder="Escriba aquí las observaciones..." 
+              value={observations} 
+              onChange={e => setObservations(e.target.value)} 
+              rows={6}
+            />
+          </div>
+
+          {/* BOTÓN DE GUARDAR (Oculto en impresión) */}
+          <button 
+            onClick={handleSaveInforme} 
+            disabled={isSaving} 
+            className="w-full py-4 mt-6 bg-violet-800 hover:bg-violet-900 transition-colors text-white font-black rounded-2xl print:hidden"
+          >
+            {isSaving ? 'Guardando...' : 'Guardar Informe'}
+          </button>
+
+          {/* PIE CON FIRMAS Y LOGO (Visible SOLO al imprimir) */}
+          <div className="hidden print:flex flex-col items-center justify-center mt-12 pt-8 w-full break-inside-avoid border-t-2 border-black">
+            <img 
+              src="/firmasylogo.png" 
+              alt="Firmas y Sello Institucional" 
+              className="max-w-[400px] w-full object-contain" 
+            />
+          </div>
+
         </div>
       )}
     </div>
