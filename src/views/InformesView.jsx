@@ -46,10 +46,13 @@ export function InformesView({ user, db, appId }) {
     return () => { unsubS(); unsubR(); };
   }, [db, appId]);
 
-  const nivelesDisponibles = ['Todos', ...new Set(students.map(s => s.level).filter(Boolean))];
-  const gruposDisponibles = ['Todos', ...new Set(students.flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean)))];
+  // FILTRO ESTRICTO: Solo Sede y dinámico para los selectores
+  const estudiantesSede = students.filter(s => s.modalidad === 'Sede');
+  
+  const nivelesDisponibles = ['Todos', ...new Set(estudiantesSede.map(s => s.level).filter(Boolean))];
+  const gruposDisponibles = ['Todos', ...new Set(estudiantesSede.flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean)))];
 
-  const filteredStudents = students.filter(s => {
+  const filteredStudents = estudiantesSede.filter(s => {
     const matchSearch = `${s.lastName || ''} ${s.firstName || ''}`.toLowerCase().includes(searchTerm.toLowerCase());
     const matchNivel = nivelFiltro === 'Todos' || s.level === nivelFiltro;
     const matchGrupo = grupoFiltro === 'Todos' || s.groupMorning === grupoFiltro || s.groupAfternoon === grupoFiltro || s.laboralGroup === grupoFiltro;
