@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ClipboardCheck, Briefcase, Printer, Trash2, Edit3, Plus, BookOpen, CheckCircle } from 'lucide-react';
+import { X, Printer, Trash2, Edit3, Plus, BookOpen, CheckCircle } from 'lucide-react';
 import { doc, setDoc, onSnapshot, serverTimestamp, collection, query, deleteDoc } from 'firebase/firestore';
 
 const CONFIG_INDICADORES = {
@@ -33,9 +33,9 @@ export function InformesView({ user, db, appId }) {
   
   const [students, setStudents] = useState([]);
   const [savedReports, setSavedReports] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
   const [answers, setAnswers] = useState({});
   const [observations, setObservations] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!db || !appId) return;
@@ -46,18 +46,20 @@ export function InformesView({ user, db, appId }) {
     return () => { unsubS(); unsubR(); };
   }, [db, appId]);
 
-  const nivelesDisponibles = ['Todos', ...new Set(students.map(s => s.level).filter(Boolean))];
-  const gruposDisponibles = ['Todos', ...new Set(students.flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean)))];
+  // Filtramos solo Sede (o quienes no tengan modalidad definida para no borrarlos)
+  const estudiantesSede = students.filter(s => !s.modalidad || s.modalidad === 'Sede');
+  const nivelesDisponibles = ['Todos', ...new Set(estudiantesSede.map(s => s.level).filter(Boolean))];
+  const gruposDisponibles = ['Todos', ...new Set(estudiantesSede.flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean)))];
 
   const esGrupoCompleto = (grupo) => {
     if (grupo === 'Todos') return false;
-    const alumnosDelGrupo = students.filter(s => s.groupMorning === grupo || s.groupAfternoon === grupo || s.laboralGroup === grupo);
+    const alumnosDelGrupo = estudiantesSede.filter(s => s.groupMorning === grupo || s.groupAfternoon === grupo || s.laboralGroup === grupo);
     if (alumnosDelGrupo.length === 0) return false;
     const reportes = savedReports.filter(r => r.tipoInforme === tipoInforme && alumnosDelGrupo.some(s => s.id === r.studentId));
     return reportes.length >= alumnosDelGrupo.length;
   };
 
-  const filteredStudents = students.filter(s => {
+  const filteredStudents = estudiantesSede.filter(s => {
     const matchSearch = `${s.lastName || ''} ${s.firstName || ''}`.toLowerCase().includes(searchTerm.toLowerCase());
     const matchNivel = nivelFiltro === 'Todos' || s.level === nivelFiltro;
     const matchGrupo = grupoFiltro === 'Todos' || s.groupMorning === grupoFiltro || s.groupAfternoon === grupoFiltro || s.laboralGroup === grupoFiltro;
@@ -108,7 +110,7 @@ export function InformesView({ user, db, appId }) {
     <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in">
       <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-8 rounded-[40px] shadow-xl text-white mb-8">
         <h2 className="text-2xl font-black mb-2 flex items-center gap-3"><BookOpen size={28} /> Gestión de Informes</h2>
-        <p className="text-violet-100 text-sm font-medium opacity-90">DEBUG: Total alumnos: {students.length} | Mostrando: {filteredStudents.length}</p>
+        <p className="text-violet-100 text-sm font-medium opacity-90">Total alumnos detectados: {students.length} | Mostrando sede: {filteredStudents.length}</p>
       </div>
 
       {stage === 'main' ? (
@@ -118,6 +120,7 @@ export function InformesView({ user, db, appId }) {
               <button key={t} onClick={() => setTipoInforme(t)} className={`flex-1 p-3 rounded-xl font-black capitalize ${tipoInforme === t ? 'bg-violet-600 text-white' : 'bg-gray-100'}`}>{t}</button>
             ))}
           </div>
+
           <div className="flex gap-2 overflow-x-auto pb-2">
             {gruposDisponibles.map(g => (
               <button key={g} onClick={() => setGrupoFiltro(g)} className={`px-6 py-3 rounded-2xl font-black text-xs whitespace-nowrap border-2 ${grupoFiltro === g ? 'bg-violet-600 text-white border-violet-700' : esGrupoCompleto(g) ? 'bg-green-100 text-green-700 border-green-500' : 'bg-white border-gray-100'}`}>
@@ -125,11 +128,13 @@ export function InformesView({ user, db, appId }) {
               </button>
             ))}
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
             <input className="p-4 rounded-2xl border bg-white" placeholder="Buscar..." onChange={e => setSearchTerm(e.target.value)} />
             <select className="p-4 rounded-2xl border bg-white" onChange={e => setNivelFiltro(e.target.value)}>{nivelesDisponibles.map(n => <option key={n}>{n}</option>)}</select>
             <select className="p-4 rounded-2xl border bg-white" onChange={e => setGrupoFiltro(e.target.value)}>{gruposDisponibles.map(g => <option key={g}>{g}</option>)}</select>
           </div>
+          
           <div className="bg-white rounded-3xl shadow-sm border divide-y">
             {filteredStudents.map(s => {
               const report = savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme);
@@ -157,13 +162,11 @@ export function InformesView({ user, db, appId }) {
         </div>
       ) : (
         <div className="bg-white p-8 rounded-[40px] shadow-lg border space-y-4">
-          <div className="flex items-center gap-4 border-b pb-4">
-             <button onClick={() => setStage('main')} className="bg-gray-100 p-2 rounded-full"><X size={18}/></button>
-             <h3 className="font-black text-xl">{selectedStudent.lastName}, {selectedStudent.firstName}</h3>
-          </div>
+          <button onClick={() => setStage('main')} className="bg-gray-100 p-2 rounded-full"><X size={18}/></button>
+          <h3 className="font-black text-xl">{selectedStudent.lastName}, {selectedStudent.firstName}</h3>
           {renderCriterios()}
           <textarea className="w-full p-4 bg-gray-50 rounded-2xl text-sm border" placeholder="Observaciones..." value={observations} onChange={e => setObservations(e.target.value)} rows={4}/>
-          <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 bg-violet-800 text-white font-black rounded-2xl">{isSaving ? 'Guardando...' : 'Guardar'}</button>
+          <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 bg-violet-800 text-white font-black rounded-2xl">Guardar</button>
         </div>
       )}
     </div>
