@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, ClipboardCheck, Briefcase, Printer, Trash2, Edit3, Plus, BookOpen, CheckCircle } from 'lucide-react';
-import { doc, setDoc, onSnapshot, serverTimestamp, collection, query, where, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, serverTimestamp, collection, query, deleteDoc } from 'firebase/firestore';
 
 const CONFIG_INDICADORES = {
   pedagogico: {
@@ -39,26 +39,25 @@ export function InformesView({ user, db, appId }) {
 
   useEffect(() => {
     if (!db || !appId) return;
-    const qS = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
+    const qS = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'));
     const unsubS = onSnapshot(qS, (snap) => setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const qR = collection(db, 'artifacts', appId, 'public', 'data', 'pedagogical_reports');
     const unsubR = onSnapshot(qR, (snap) => setSavedReports(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     return () => { unsubS(); unsubR(); };
   }, [db, appId]);
 
-  const estudiantesSede = students.filter(s => s.modalidad === 'Sede');
-  const nivelesDisponibles = ['Todos', ...new Set(estudiantesSede.map(s => s.level).filter(Boolean))];
-  const gruposDisponibles = ['Todos', ...new Set(estudiantesSede.flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean)))];
+  const nivelesDisponibles = ['Todos', ...new Set(students.map(s => s.level).filter(Boolean))];
+  const gruposDisponibles = ['Todos', ...new Set(students.flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean)))];
 
   const esGrupoCompleto = (grupo) => {
     if (grupo === 'Todos') return false;
-    const alumnosDelGrupo = estudiantesSede.filter(s => s.groupMorning === grupo || s.groupAfternoon === grupo || s.laboralGroup === grupo);
+    const alumnosDelGrupo = students.filter(s => s.groupMorning === grupo || s.groupAfternoon === grupo || s.laboralGroup === grupo);
     if (alumnosDelGrupo.length === 0) return false;
     const reportes = savedReports.filter(r => r.tipoInforme === tipoInforme && alumnosDelGrupo.some(s => s.id === r.studentId));
     return reportes.length >= alumnosDelGrupo.length;
   };
 
-  const filteredStudents = estudiantesSede.filter(s => {
+  const filteredStudents = students.filter(s => {
     const matchSearch = `${s.lastName || ''} ${s.firstName || ''}`.toLowerCase().includes(searchTerm.toLowerCase());
     const matchNivel = nivelFiltro === 'Todos' || s.level === nivelFiltro;
     const matchGrupo = grupoFiltro === 'Todos' || s.groupMorning === grupoFiltro || s.groupAfternoon === grupoFiltro || s.laboralGroup === grupoFiltro;
@@ -109,7 +108,7 @@ export function InformesView({ user, db, appId }) {
     <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in">
       <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-8 rounded-[40px] shadow-xl text-white mb-8">
         <h2 className="text-2xl font-black mb-2 flex items-center gap-3"><BookOpen size={28} /> Gestión de Informes</h2>
-        <p className="text-violet-100 text-sm font-medium opacity-90">Gestioná informes por grupo. Los grupos en verde indican que todos los alumnos ya tienen su informe cargado.</p>
+        <p className="text-violet-100 text-sm font-medium opacity-90">DEBUG: Total alumnos: {students.length} | Mostrando: {filteredStudents.length}</p>
       </div>
 
       {stage === 'main' ? (
@@ -126,7 +125,11 @@ export function InformesView({ user, db, appId }) {
               </button>
             ))}
           </div>
-          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <input className="p-4 rounded-2xl border bg-white" placeholder="Buscar..." onChange={e => setSearchTerm(e.target.value)} />
+            <select className="p-4 rounded-2xl border bg-white" onChange={e => setNivelFiltro(e.target.value)}>{nivelesDisponibles.map(n => <option key={n}>{n}</option>)}</select>
+            <select className="p-4 rounded-2xl border bg-white" onChange={e => setGrupoFiltro(e.target.value)}>{gruposDisponibles.map(g => <option key={g}>{g}</option>)}</select>
+          </div>
           <div className="bg-white rounded-3xl shadow-sm border divide-y">
             {filteredStudents.map(s => {
               const report = savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme);
