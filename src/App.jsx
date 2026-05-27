@@ -589,7 +589,14 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'equipo' && isTechTeamRole && db && <EquipoTecnicoView user={user} db={db} appId={appId} />}
      {activeTab === 'medical' && isMedicalRole && db && <MedicalView user={user} db={db} appId={appId} />}
  // BUSCÁ ESTA LÍNEA Y MODIFICALA:
-{activeTab === 'informes' && <InformesView user={user} students={students} db={db} appId={appId} />}
+{activeTab === 'informes' && (
+  <InformesView 
+    user={user} 
+    students={students} // <--- Asegúrate que este sea el array de alumnos que usas en matricula
+    db={db} 
+    appId={appId} 
+  />
+)}
         {activeTab === 'audit' && isSuperAdmin && db && (
       <ActivityLogView db={db} appId={appId} />
     )}
