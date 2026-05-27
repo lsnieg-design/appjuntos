@@ -71,6 +71,67 @@ export function InformesView({ user, db, appId }) {
   const [docentePrint, setDocentePrint] = useState('');
   const [preceptoraPrint, setPreceptoraPrint] = useState('');
 
+  // --------------------------------------------------------------------------
+  // LÓGICA DE AISLAMIENTO DE IMPRESIÓN (La magia para que no salgan los menúes)
+  // --------------------------------------------------------------------------
+  useEffect(() => {
+    let printClone = null;
+    const originalDisplays = new Map();
+
+    const handleBeforePrint = () => {
+      const printElement = document.getElementById('informe-imprimir');
+      if (!printElement) return;
+
+      // Clonamos el reporte
+      printClone = printElement.cloneNode(true);
+      printClone.classList.remove('hidden', 'print:block');
+      printClone.style.display = 'block';
+      printClone.id = 'informe-imprimir-clone';
+
+      // Ocultamos TODO el resto de la aplicación
+      const bodyChildren = Array.from(document.body.children);
+      bodyChildren.forEach(child => {
+        if (child.tagName !== 'SCRIPT' && child.tagName !== 'STYLE' && child.id !== 'informe-imprimir-clone') {
+          originalDisplays.set(child, child.style.display);
+          child.style.display = 'none';
+        }
+      });
+
+      // Pegamos el reporte solo y aislado en el body
+      document.body.appendChild(printClone);
+    };
+
+    const handleAfterPrint = () => {
+      // Destruimos el clon
+      if (printClone && printClone.parentNode) {
+        printClone.parentNode.removeChild(printClone);
+      }
+      // Restauramos la app
+      const bodyChildren = Array.from(document.body.children);
+      bodyChildren.forEach(child => {
+        if (originalDisplays.has(child)) {
+          child.style.display = originalDisplays.get(child);
+        }
+      });
+      originalDisplays.clear();
+      printClone = null;
+    };
+
+    window.addEventListener('beforeprint', handleBeforePrint);
+    window.addEventListener('afterprint', handleAfterPrint);
+
+    return () => {
+      window.removeEventListener('beforeprint', handleBeforePrint);
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
+  }, []);
+
+  const triggerPrint = () => {
+    window.print();
+  };
+
+  // --------------------------------------------------------------------------
+
   useEffect(() => {
     if (!db || !appId) return;
     const qS = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'));
@@ -120,27 +181,16 @@ export function InformesView({ user, db, appId }) {
   const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || [];
 
   return (
-    <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in">
+    <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in relative">
       
-      {/* MAGIA CSS PARA IMPRESIÓN */}
+      {/* MAGIA CSS PARA ASEGURAR COLORES EN IMPRESIÓN */}
       <style type="text/css">
         {`
           @media print {
-            /* Forzar a que TODO el documento fluya naturalmente y no se corte en la página 1 */
-            html, body, #root, main {
-              height: auto !important;
-              overflow: visible !important;
-              background-color: white !important;
+            * {
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
             }
-            
-            /* Ocultar barras de scroll al imprimir */
-            ::-webkit-scrollbar {
-                display: none;
-            }
-
-            /* Configurar márgenes de la página física */
             @page {
               margin: 1.5cm;
               size: A4 portrait;
@@ -150,7 +200,7 @@ export function InformesView({ user, db, appId }) {
       </style>
 
       {/* ------------------------------------------------------------- */}
-      {/* VISTA PRINCIPAL (Oculta al imprimir) */}
+      {/* VISTA PRINCIPAL */}
       {/* ------------------------------------------------------------- */}
       <div className={`${stage === 'main' ? 'block' : 'hidden'} print:hidden`}>
         <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-8 rounded-[40px] shadow-xl text-white mb-8">
@@ -225,7 +275,7 @@ export function InformesView({ user, db, appId }) {
             <button onClick={() => setStage('main')} className="bg-gray-100 p-3 rounded-full hover:bg-gray-200">
               <X size={20}/>
             </button>
-            <button onClick={() => window.print()} className="flex items-center gap-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 py-2 px-5 rounded-xl font-bold transition-all">
+            <button onClick={triggerPrint} className="flex items-center gap-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 py-2 px-5 rounded-xl font-bold transition-all">
               <Printer size={18} /> Imprimir Documento Final
             </button>
           </div>
@@ -288,10 +338,10 @@ export function InformesView({ user, db, appId }) {
       )}
 
       {/* ------------------------------------------------------------- */}
-      {/* DOCUMENTO REAL DE IMPRESIÓN (Visible ÚNICAMENTE al imprimir)  */}
+      {/* DOCUMENTO REAL DE IMPRESIÓN (Aislado gracias al UseEffect)    */}
       {/* ------------------------------------------------------------- */}
       {stage === 'form' && (
-        <div className="hidden print:block w-full bg-white text-black font-sans pb-10">
+        <div id="informe-imprimir" className="hidden print:block w-full bg-white text-black font-sans pb-10">
           
           {/* ENCABEZADO INSTITUCIONAL CON COLOR */}
           <div className="flex flex-col items-center justify-center border-b-4 border-violet-800 pb-6 mb-8 bg-violet-50 p-6 rounded-t-2xl">
@@ -302,7 +352,7 @@ export function InformesView({ user, db, appId }) {
           </div>
 
           {/* DATOS DEL ESTUDIANTE RECUADRADOS */}
-          <div className="border-2 border-violet-200 rounded-2xl p-6 mb-10 bg-white break-inside-avoid shadow-sm">
+          <div className="border-2 border-violet-200 rounded-2xl p-6 mb-10 bg-white shadow-sm" style={{ breakInside: 'avoid' }}>
             <h2 className="text-lg font-black text-violet-900 uppercase border-b-2 border-violet-100 pb-2 mb-4">Datos del Estudiante</h2>
             <div className="grid grid-cols-2 gap-y-4 gap-x-8 text-sm">
               <p><strong className="font-black text-gray-900">Alumno/a:</strong> <span className="text-gray-700">{selectedStudent.lastName}, {selectedStudent.firstName}</span></p>
@@ -317,16 +367,16 @@ export function InformesView({ user, db, appId }) {
 
           {/* SECCIÓN DE DESARROLLO (INDICADORES) */}
           <div className="mb-10">
-            <h2 className="text-xl font-black text-white bg-violet-800 uppercase px-6 py-2 rounded-lg mb-6 break-inside-avoid shadow-sm inline-block">
+            <h2 className="text-xl font-black text-white bg-violet-800 uppercase px-6 py-2 rounded-lg mb-6 shadow-sm inline-block" style={{ breakInside: 'avoid' }}>
               Desarrollo {tipoInforme}
             </h2>
             
             <div className="space-y-0 border-l-2 border-violet-200 ml-2 pl-4">
-              {indicadoresActuales.map((c, idx) => {
+              {indicadoresActuales.map(c => {
                 const answer = answers[c.id];
-                if (!answer) return null; // Ocultar si no se seleccionó opción
+                if (!answer) return null; // Solo imprimimos lo que se evaluó
                 return (
-                  <div key={c.id} className="text-sm break-inside-avoid flex flex-col md:flex-row gap-1 md:gap-4 mb-4 pb-4 border-b border-gray-100 last:border-0">
+                  <div key={c.id} className="text-sm flex flex-col md:flex-row gap-1 md:gap-4 mb-4 pb-4 border-b border-gray-100 last:border-0" style={{ breakInside: 'avoid' }}>
                     <span className="font-black text-violet-900 min-w-[220px] uppercase text-xs tracking-wide pt-1">{c.label}:</span>
                     <span className="text-gray-800 leading-relaxed font-medium">{answer}</span>
                   </div>
@@ -337,14 +387,14 @@ export function InformesView({ user, db, appId }) {
 
           {/* SECCIÓN DE OBSERVACIONES */}
           {observations && (
-            <div className="mt-10 break-inside-avoid bg-violet-50 p-6 rounded-2xl border border-violet-200 shadow-sm">
+            <div className="mt-10 bg-violet-50 p-6 rounded-2xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
               <h2 className="font-black uppercase text-violet-900 mb-3 text-lg border-b border-violet-200 pb-2">Observaciones Generales:</h2>
               <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed font-medium">{observations}</p>
             </div>
           )}
 
           {/* SECCIÓN DE FIRMAS Y LOGO INSTITUCIONAL */}
-          <div className="mt-16 pt-10 flex flex-col items-center justify-center break-inside-avoid border-t-2 border-dashed border-gray-300">
+          <div className="mt-16 pt-10 flex flex-col items-center justify-center border-t-2 border-dashed border-gray-300" style={{ breakInside: 'avoid' }}>
             <img src="/firmasylogo.png" alt="Firmas y Logo Institucional Juntos a la Par" className="max-w-[500px] w-full object-contain" />
           </div>
 
