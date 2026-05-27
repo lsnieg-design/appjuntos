@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Printer, Trash2, Edit3, Plus, BookOpen, CheckCircle } from 'lucide-react';
+import { X, Edit3, Plus, BookOpen } from 'lucide-react';
 import { doc, setDoc, onSnapshot, serverTimestamp, collection, query, deleteDoc } from 'firebase/firestore';
 
 const CONFIG_INDICADORES = {
@@ -64,6 +64,7 @@ export function InformesView({ user, db, appId }) {
   };
 
   const handleSaveInforme = async () => {
+    if (grupoFiltro === 'Todos') { alert("Por favor, seleccioná un grupo específico para guardar."); return; }
     setIsSaving(true);
     const idUnico = `${selectedStudent.id}_${tipoInforme}_${grupoFiltro}`; 
     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pedagogical_reports', idUnico), {
@@ -141,16 +142,19 @@ export function InformesView({ user, db, appId }) {
           
           <div className="bg-white rounded-3xl shadow-sm border divide-y">
             {filteredStudents.map(s => {
-              const report = savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro);
+              // Si grupoFiltro es "Todos", report es null para evitar buscar reportes con nombre "Todos"
+              const report = grupoFiltro === 'Todos' ? null : savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro);
               return (
                 <div key={`${s.id}-${grupoFiltro}`} className="p-5 flex justify-between items-center hover:bg-violet-50/50">
                   <div>
                     <p className="font-bold">{s.lastName}, {s.firstName}</p>
                     <p className="text-[10px] text-gray-400 font-bold uppercase">{s.level} | {report ? 'Cargado' : 'Pendiente'}</p>
                   </div>
-                  <button onClick={() => handleEdit(s, report)} className={`p-2 rounded-lg ${report ? 'bg-blue-50 text-blue-600' : 'bg-violet-600 text-white'}`}>
-                    {report ? <Edit3 size={16}/> : <Plus size={16}/>}
-                  </button>
+                  {grupoFiltro !== 'Todos' && (
+                      <button onClick={() => handleEdit(s, report)} className={`p-2 rounded-lg ${report ? 'bg-blue-50 text-blue-600' : 'bg-violet-600 text-white'}`}>
+                        {report ? <Edit3 size={16}/> : <Plus size={16}/>}
+                      </button>
+                  )}
                 </div>
               );
             })}
@@ -163,7 +167,7 @@ export function InformesView({ user, db, appId }) {
           <p className="text-xs font-bold text-violet-600 uppercase">GRUPO: {grupoFiltro}</p>
           {renderCriterios()}
           <textarea className="w-full p-4 bg-gray-50 rounded-2xl text-sm border" placeholder="Observaciones..." value={observations} onChange={e => setObservations(e.target.value)} rows={4}/>
-          <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 bg-violet-800 text-white font-black rounded-2xl">Guardar</button>
+          <button onClick={handleSaveInforme} className="w-full py-4 bg-violet-800 text-white font-black rounded-2xl">Guardar</button>
         </div>
       )}
     </div>
