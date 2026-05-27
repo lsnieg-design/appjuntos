@@ -180,6 +180,33 @@ export function InformesView({ user, db, appId }) {
   const nivelActual = selectedStudent?.level || 'Inicial';
   const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || [];
 
+  // Transformador inteligente de texto para la impresión
+  const formatearTextoImpresion = (respuesta, firstNameRaw) => {
+    if (!respuesta) return '';
+    
+    // Extraemos solo el primer nombre (Ej: "Mateo Alejandro" -> "Mateo")
+    const primerNombre = firstNameRaw ? firstNameRaw.split(' ')[0] : 'El/la estudiante';
+
+    // 1. Casos literales que me pediste (Lectoescritura)
+    if (respuesta.startsWith('Presilábico:')) return `${primerNombre} se encuentra en una etapa presilábica de la escritura, en donde explora la misma a través de dibujos o grafismos sin valor sonoro aún.`;
+    if (respuesta.startsWith('Silábico:')) return `${primerNombre} se encuentra en una etapa silábica de la escritura, donde comienza a asignar valor sonoro a las letras, mayormente vocales.`;
+    if (respuesta.startsWith('Silábico-alfabético:')) return `${primerNombre} transita una etapa silábico-alfabética de transición, combinando sílabas completas con letras aisladas.`;
+    if (respuesta.startsWith('Alfabético:')) return `${primerNombre} escribe de forma autónoma en una etapa alfabética, representando los fonemas con coherencia.`;
+
+    // 2. Transformación dinámica para el resto de los indicadores
+    let textoMinuscula = respuesta.charAt(0).toLowerCase() + respuesta.slice(1);
+
+    // Ajustes gramaticales según cómo empieza tu frase
+    if (respuesta.startsWith('Su ')) {
+      return `En este aspecto, el perfil de ${primerNombre} indica que ${textoMinuscula}`;
+    }
+    if (respuesta.startsWith('Atención ') || respuesta.startsWith('Comunicación ') || respuesta.startsWith('Dependencia ') || respuesta.startsWith('Gran dificultad ') || respuesta.startsWith('Alta ')) {
+      return `${primerNombre} presenta ${textoMinuscula}`;
+    }
+
+    // Por defecto (Para los verbos: Identifica, Resuelve, Requiere, etc.)
+    return `${primerNombre} ${textoMinuscula}`;
+  };
   return (
     <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in relative">
       
@@ -337,24 +364,29 @@ export function InformesView({ user, db, appId }) {
         </div>
       )}
 
-     {/* ------------------------------------------------------------- */}
+    {/* ------------------------------------------------------------- */}
       {/* DOCUMENTO REAL DE IMPRESIÓN (Aislado gracias al UseEffect)    */}
       {/* ------------------------------------------------------------- */}
       {stage === 'form' && (
         <div id="informe-imprimir" className="hidden print:block w-full bg-white text-black font-sans pb-4">
           
-          {/* ENCABEZADO INSTITUCIONAL CON COLOR */}
-          <div className="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-4 bg-violet-50 p-4 rounded-t-xl">
-            <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME MEDIO 2026</h1>
-            <p className="text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
-              Área: {tipoInforme}
-            </p>
+          {/* ENCABEZADO INSTITUCIONAL CON LOGO Y COLOR */}
+          <div className="flex items-center justify-between border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
+            {/* LOGO SUPERIOR: Asegurate de tener "logo.png" en tu carpeta public */}
+            <img src="/logo.png" alt="Logo Institucional" className="h-16 object-contain" />
+            
+            <div className="text-right">
+              <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME MEDIO 2026</h1>
+              <p className="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
+                Área: {tipoInforme}
+              </p>
+            </div>
           </div>
 
           {/* DATOS DEL ESTUDIANTE RECUADRADOS */}
-          <div className="border border-violet-200 rounded-xl p-4 mb-5 bg-white shadow-sm" style={{ breakInside: 'avoid' }}>
-            <h2 className="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-2">Datos del Estudiante</h2>
-            <div className="grid grid-cols-2 gap-y-2 gap-x-6 text-xs">
+          <div className="border border-violet-200 rounded-xl p-5 mb-6 bg-white shadow-sm" style={{ breakInside: 'avoid' }}>
+            <h2 className="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Datos del Estudiante</h2>
+            <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
               <p><strong className="font-black text-gray-900">Alumno/a:</strong> <span className="text-gray-700">{selectedStudent.lastName}, {selectedStudent.firstName}</span></p>
               <p><strong className="font-black text-gray-900">DNI:</strong> <span className="text-gray-700">{selectedStudent.dni || '....................................'}</span></p>
               <p><strong className="font-black text-gray-900">Fecha de Nac.:</strong> <span className="text-gray-700">{selectedStudent.birthDate || selectedStudent.fechaNac || '....................................'}</span></p>
@@ -365,20 +397,24 @@ export function InformesView({ user, db, appId }) {
             </div>
           </div>
 
-          {/* SECCIÓN DE DESARROLLO (INDICADORES) */}
+          {/* SECCIÓN DE DESARROLLO (ORACIONES DESCRIPTIVAS) */}
           <div className="mb-6">
             <h2 className="text-sm font-black text-white bg-violet-800 uppercase px-4 py-1.5 rounded-md mb-4 shadow-sm inline-block" style={{ breakInside: 'avoid' }}>
               Desarrollo {tipoInforme}
             </h2>
             
-            <div className="space-y-0 border-l-2 border-violet-200 ml-1 pl-3">
+            <div className="space-y-4 border-l-2 border-violet-200 ml-1 pl-4">
               {indicadoresActuales.map(c => {
                 const answer = answers[c.id];
-                if (!answer) return null; // Solo imprimimos lo que se evaluó
+                if (!answer) return null; 
+                
+                // Aplicamos la magia de transformar el botón en oración
+                const textoDescriptivo = formatearTextoImpresion(answer, selectedStudent.firstName);
+
                 return (
-                  <div key={c.id} className="text-xs flex flex-col md:flex-row gap-1 md:gap-3 mb-2.5 pb-2.5 border-b border-gray-100 last:border-0" style={{ breakInside: 'avoid' }}>
-                    <span className="font-black text-violet-900 min-w-[180px] uppercase text-[10px] tracking-wide pt-0.5">{c.label}:</span>
-                    <span className="text-gray-800 leading-snug font-medium">{answer}</span>
+                  <div key={c.id} className="text-xs flex flex-col mb-2 pb-3 border-b border-gray-100 last:border-0" style={{ breakInside: 'avoid' }}>
+                    <span className="font-black text-violet-900 uppercase text-[10px] tracking-widest mb-1">{c.label}</span>
+                    <span className="text-gray-800 leading-relaxed font-medium text-[11px]">{textoDescriptivo}</span>
                   </div>
                 );
               })}
@@ -387,18 +423,16 @@ export function InformesView({ user, db, appId }) {
 
           {/* SECCIÓN DE OBSERVACIONES */}
           {observations && (
-            <div className="mt-6 bg-violet-50 p-4 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
-              <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Observaciones Generales:</h2>
+            <div className="mt-6 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
+              <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Observaciones Generales</h2>
               <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium">{observations}</p>
             </div>
           )}
 
-         {/* SECCIÓN DE FIRMAS Y LOGO INSTITUCIONAL */}
+          {/* SECCIÓN DE FIRMAS Y LOGO INSTITUCIONAL */}
           <div className="mt-10 pt-6 flex flex-col items-center justify-center border-t border-dashed border-gray-300" style={{ breakInside: 'avoid' }}>
-            {/* Imagen del sello/firmas (Asegurate de que esté en la carpeta 'public') */}
             <img src="/firmasylogo.png" alt="Firmas y Logo Institucional" className="max-w-[300px] w-full object-contain mb-10" />
             
-            {/* Espacio para firmas de Docente y Familia */}
             <div className="w-full flex justify-between px-12 mt-12">
               <div className="flex flex-col items-center w-48">
                 <div className="w-full border-t-2 border-black mb-2"></div>
