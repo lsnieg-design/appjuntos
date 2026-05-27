@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Edit3, Plus, BookOpen } from 'lucide-react';
+import { X, Edit3, Plus, BookOpen, Printer } from 'lucide-react';
 import { doc, setDoc, onSnapshot, serverTimestamp, collection, query, deleteDoc } from 'firebase/firestore';
 
 const CONFIG_INDICADORES = {
@@ -50,6 +50,7 @@ const CONFIG_INDICADORES = {
     ]
   }
 };
+
 export function InformesView({ user, db, appId }) {
   const [stage, setStage] = useState('main'); 
   const [tipoInforme, setTipoInforme] = useState('pedagogico');
@@ -126,7 +127,7 @@ export function InformesView({ user, db, appId }) {
     ));
   };
 
-return (
+  return (
     <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in">
       <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-8 rounded-[40px] shadow-xl text-white mb-8">
         <h2 className="text-2xl font-black mb-2 flex items-center gap-3"><BookOpen size={28} /> Gestión de Informes</h2>
@@ -190,13 +191,21 @@ return (
           </div>
         </div>
       ) : (
-        <div className="bg-white p-8 rounded-[40px] shadow-lg border space-y-4 animate-in fade-in">
-          <button onClick={() => setStage('main')} className="bg-gray-100 p-2 rounded-full"><X size={18}/></button>
+        <div className="printable-area bg-white p-8 rounded-[40px] shadow-lg border space-y-4 animate-in fade-in">
+          <div className="flex justify-between items-center print:hidden">
+            <button onClick={() => setStage('main')} className="bg-gray-100 p-2 rounded-full"><X size={18}/></button>
+            <button 
+              onClick={() => window.print()} 
+              className="flex items-center gap-2 bg-blue-100 text-blue-700 py-2 px-4 rounded-xl font-bold"
+            >
+              <Printer size={16} /> Imprimir
+            </button>
+          </div>
           <h3 className="font-black text-xl">{selectedStudent.lastName}, {selectedStudent.firstName}</h3>
-          <p className="text-xs font-bold text-violet-600 uppercase">GRUPO: {grupoFiltro}</p>
+          <p className="text-xs font-bold text-violet-600 uppercase">GRUPO: {grupoFiltro} | INFORME: {tipoInforme}</p>
           {renderCriterios()}
           <textarea className="w-full p-4 bg-gray-50 rounded-2xl text-sm border" placeholder="Observaciones..." value={observations} onChange={e => setObservations(e.target.value)} rows={4}/>
-          <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 bg-violet-800 text-white font-black rounded-2xl">Guardar</button>
+          <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 bg-violet-800 text-white font-black rounded-2xl print:hidden">Guardar</button>
         </div>
       )}
     </div>
