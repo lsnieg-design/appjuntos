@@ -18,12 +18,15 @@ const CONFIG_INDICADORES = {
 };
 
 export function InformesView({ user, db, appId }) {
-  const [stage, setStage] = useState('main'); // 'main' (lista) o 'form' (edición)
+  const [stage, setStage] = useState('main'); 
   const [tipoInforme, setTipoInforme] = useState('pedagogico');
   const [informeNum, setInformeNum] = useState('1');
   const [selectedStudent, setSelectedStudent] = useState(null);
+  
+  // Filtros Avanzados
   const [searchTerm, setSearchTerm] = useState('');
   const [nivelFiltro, setNivelFiltro] = useState('Todos');
+  const [grupoFiltro, setGrupoFiltro] = useState('Todos');
   
   const [students, setStudents] = useState([]);
   const [savedReports, setSavedReports] = useState([]);
@@ -39,6 +42,14 @@ export function InformesView({ user, db, appId }) {
     const unsubR = onSnapshot(qR, (snap) => setSavedReports(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     return () => { unsubS(); unsubR(); };
   }, [db, appId]);
+
+  // Lógica de filtrado multicriterio
+  const filteredStudents = students.filter(s => {
+    const matchSearch = `${s.lastName} ${s.firstName}`.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchNivel = nivelFiltro === 'Todos' || s.level === nivelFiltro;
+    const matchGrupo = grupoFiltro === 'Todos' || s.groupMorning === grupoFiltro || s.groupAfternoon === grupoFiltro || s.laboralGroup === grupoFiltro;
+    return matchSearch && matchNivel && matchGrupo;
+  });
 
   const handleEdit = (student, report) => {
     setSelectedStudent(student);
@@ -64,10 +75,27 @@ export function InformesView({ user, db, appId }) {
     setIsSaving(false);
   };
 
+  const renderCriterios = () => {
+    const nivel = selectedStudent?.level || 'Inicial';
+    const indicadores = CONFIG_INDICADORES[tipoInforme]?.[nivel] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || [];
+    return indicadores.map(c => (
+      <div key={c.id} className="space-y-2 mb-4">
+        <label className="text-xs font-black uppercase text-gray-500">{c.label}</label>
+        <div className="grid grid-cols-2 gap-2">
+          {c.options.map(opt => (
+            <button key={opt} onClick={() => setAnswers(p => ({...p, [c.id]: opt}))} className={`p-3 rounded-xl font-black text-[10px] uppercase border-2 ${answers[c.id] === opt ? 'bg-violet-600 text-white border-violet-700' : 'bg-gray-50 border-gray-100'}`}>
+              {opt}
+            </button>
+          ))}
+        </div>
+      </div>
+    ));
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-6 pb-20">
       <div className="bg-white p-6 rounded-[40px] shadow-sm border flex justify-between items-center">
-        <h2 className="text-xl font-black text-violet-900 uppercase italic">Gestión de Informes</h2>
+        <h2 className="text-xl font-black text-violet-900 uppercase italic">Informes</h2>
         {stage !== 'main' && <button onClick={() => setStage('main')} className="bg-gray-100 p-2 rounded-full"><X/></button>}
       </div>
 
@@ -78,16 +106,24 @@ export function InformesView({ user, db, appId }) {
               <button key={t} onClick={() => setTipoInforme(t)} className={`flex-1 p-3 rounded-xl font-black capitalize ${tipoInforme === t ? 'bg-violet-600 text-white' : 'bg-gray-100'}`}>{t}</button>
             ))}
           </div>
-          <input className="w-full p-4 rounded-2xl border" placeholder="Buscar estudiante..." onChange={e => setSearchTerm(e.target.value)} />
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <input className="p-4 rounded-2xl border" placeholder="Buscar..." onChange={e => setSearchTerm(e.target.value)} />
+            <select className="p-4 rounded-2xl border" onChange={e => setNivelFiltro(e.target.value)}>
+              <option>Todos los niveles</option>
+              {['Inicial', 'CFI'].map(n => <option key={n}>{n}</option>)}
+            </select>
+            <input className="p-4 rounded-2xl border" placeholder="Grupo..." onChange={e => setGrupoFiltro(e.target.value)} />
+          </div>
           
           <div className="bg-white rounded-3xl shadow-sm border divide-y">
-            {students.filter(s => `${s.lastName} ${s.firstName}`.toLowerCase().includes(searchTerm.toLowerCase())).map(s => {
+            {filteredStudents.map(s => {
               const report = savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme);
               return (
                 <div key={s.id} className="p-4 flex justify-between items-center">
                   <div>
                     <p className="font-bold">{s.lastName}, {s.firstName}</p>
-                    <p className="text-xs text-gray-400">{report ? 'Informe cargado' : 'Sin informe'}</p>
+                    <p className="text-[10px] text-gray-400">{s.level} | {report ? 'Cargado' : 'Pendiente'}</p>
                   </div>
                   <div className="flex gap-2">
                     {report ? (
@@ -107,8 +143,10 @@ export function InformesView({ user, db, appId }) {
         </div>
       ) : (
         <div className="bg-white p-6 rounded-[40px] shadow-lg border space-y-4">
-          {/* Aquí iría tu renderCriterios y el botón de finalizar */}
-          <button onClick={handleSaveInforme} className="w-full py-4 bg-violet-800 text-white font-black rounded-2xl">Guardar</button>
+          <h3 className="font-black text-xl">{selectedStudent.lastName}, {selectedStudent.firstName}</h3>
+          {renderCriterios()}
+          <textarea className="w-full p-4 bg-gray-50 rounded-2xl text-sm border" placeholder="Observaciones..." value={observations} onChange={e => setObservations(e.target.value)} rows={4}/>
+          <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 bg-violet-800 text-white font-black rounded-2xl">Guardar Informe</button>
         </div>
       )}
     </div>
