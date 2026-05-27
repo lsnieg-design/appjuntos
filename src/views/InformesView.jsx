@@ -393,9 +393,22 @@ export function InformesView({ user, db, appId }) {
             </div>
           )}
 
-          {/* SECCIÓN DE FIRMAS Y LOGO INSTITUCIONAL */}
-          <div className="mt-8 pt-6 flex flex-col items-center justify-center border-t border-dashed border-gray-300" style={{ breakInside: 'avoid' }}>
-            <img src="/firmasylogo.png" alt="Firmas y Logo Institucional Juntos a la Par" className="max-w-[350px] w-full object-contain" />
+         {/* SECCIÓN DE FIRMAS Y LOGO INSTITUCIONAL */}
+          <div className="mt-10 pt-6 flex flex-col items-center justify-center border-t border-dashed border-gray-300" style={{ breakInside: 'avoid' }}>
+            {/* Imagen del sello/firmas (Asegurate de que esté en la carpeta 'public') */}
+            <img src="/firmasylogo.png" alt="Firmas y Logo Institucional" className="max-w-[300px] w-full object-contain mb-10" />
+            
+            {/* Espacio para firmas de Docente y Familia */}
+            <div className="w-full flex justify-between px-12 mt-12">
+              <div className="flex flex-col items-center w-48">
+                <div className="w-full border-t-2 border-black mb-2"></div>
+                <span className="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
+              </div>
+              <div className="flex flex-col items-center w-48">
+                <div className="w-full border-t-2 border-black mb-2"></div>
+                <span className="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
+              </div>
+            </div>
           </div>
 
         </div>
