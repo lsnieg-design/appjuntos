@@ -383,6 +383,7 @@ function MainApp({ user, onLogout }) {
   const [resources, setResources] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
+  const [students, setStudents] = useState([]);
   
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -587,7 +588,8 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'admin' && isAdminRole && db && <AdministracionView user={user} db={db} appId={appId} />}
         {activeTab === 'equipo' && isTechTeamRole && db && <EquipoTecnicoView user={user} db={db} appId={appId} />}
      {activeTab === 'medical' && isMedicalRole && db && <MedicalView user={user} db={db} appId={appId} />}
- {activeTab === 'informes' && <InformesView user={user} students={students} db={db} appId={appId} />}
+ // BUSCÁ ESTA LÍNEA Y MODIFICALA:
+{activeTab === 'informes' && <InformesView user={user} students={students} db={db} appId={appId} />}
         {activeTab === 'audit' && isSuperAdmin && db && (
       <ActivityLogView db={db} appId={appId} />
     )}
@@ -689,12 +691,6 @@ function MainApp({ user, onLogout }) {
     </div>
   );
 }
-
-
-
-
-
-
 
 const StartIcon = ({size}) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
