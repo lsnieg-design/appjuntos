@@ -162,14 +162,27 @@ export function InformesView({ user, db, appId }) {
             })}
           </div>
         </div>
+    // ... (dentro de tu return, al final del stage === 'main' / stage === 'form')
+
       ) : (
         <div className="bg-white p-8 rounded-[40px] shadow-lg border space-y-4 animate-in fade-in">
           <button onClick={() => setStage('main')} className="bg-gray-100 p-2 rounded-full"><X size={18}/></button>
           <h3 className="font-black text-xl">{selectedStudent.lastName}, {selectedStudent.firstName}</h3>
           <p className="text-xs font-bold text-violet-600 uppercase">GRUPO: {grupoFiltro}</p>
           {renderCriterios()}
-          <textarea className="w-full p-4 bg-gray-50 rounded-2xl text-sm border" placeholder="Observaciones..." value={observations} onChange={e => setObservations(e.target.value)} rows={4}/>
-          <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 bg-violet-800 text-white font-black rounded-2xl">Guardar</button>
+          <textarea 
+            className="w-full p-4 bg-gray-50 rounded-2xl text-sm border" 
+            placeholder="Observaciones..." 
+            value={observations} 
+            onChange={e => setObservations(e.target.value)} 
+            rows={4}
+          />
+          <button 
+            onClick={handleSaveInforme} 
+            className="w-full py-4 bg-violet-800 text-white font-black rounded-2xl"
+          >
+            Guardar
+          </button>
         </div>
       )}
     </div>
