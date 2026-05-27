@@ -77,13 +77,19 @@ export function InformesView({ user, db, appId }) {
     if (window.confirm("¿Eliminar este informe?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pedagogical_reports', id));
   };
 
-  const handleSaveInforme = async () => {
+const handleSaveInforme = async () => {
     setIsSaving(true);
-    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pedagogical_reports', `${selectedStudent.id}_${tipoInforme}_${informeNum}`), {
+    // Cambiamos el ID para incluir el turno o grupo, así no se sobrescriben
+    const idUnico = `${selectedStudent.id}_${tipoInforme}_${informeNum}_${grupoFiltro}`; 
+    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pedagogical_reports', idUnico), {
       studentId: selectedStudent.id,
       studentName: `${selectedStudent.lastName}, ${selectedStudent.firstName}`,
-      level: selectedStudent.level || 'Inicial',
-      tipoInforme, informeNum, answers, observations, updatedAt: serverTimestamp()
+      grupo: grupoFiltro, // Guardamos a qué grupo pertenece este informe
+      tipoInforme, 
+      informeNum, 
+      answers, 
+      observations, 
+      updatedAt: serverTimestamp()
     }, { merge: true });
     setStage('main');
     setIsSaving(false);
