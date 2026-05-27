@@ -127,17 +127,23 @@ export function InformesView({ user, db, appId }) {
                 </select>
              )}
 
-             {nivelFiltro !== 'Todos' && (
-                <select className="p-4 rounded-2xl border bg-white text-sm font-bold" value={grupoFiltro} onChange={e => setGrupoFiltro(e.target.value)}>
-                    <option value="Todos">Grupo: Todos</option>
-                    {students
-                      .filter(s => s.level && s.level.toUpperCase() === nivelFiltro.toUpperCase())
-                      .flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean))
-                      .filter((v, i, a) => a.indexOf(v) === i)
-                      .map(g => <option key={g} value={g}>{g}</option>)}
-                </select>
-             )}
-          </div>
+         {nivelFiltro !== 'Todos' && (
+    <select 
+        className="p-4 rounded-2xl border bg-white text-sm font-bold" 
+        value={grupoFiltro} 
+        onChange={e => setGrupoFiltro(e.target.value)}
+    >
+        <option value="Todos">Grupo: Todos</option>
+        {students
+            // 1. PRIMERO filtramos los alumnos por el nivel seleccionado
+            .filter(s => s.level === nivelFiltro) 
+            // 2. LUEGO extraemos sus grupos únicos
+            .flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean))
+            .filter((v, i, a) => a.indexOf(v) === i)
+            .map(g => <option key={g} value={g}>{g}</option>)
+        }
+    </select>
+)}
           
           <div className="bg-white rounded-3xl shadow-sm border divide-y">
             {filteredStudents.map(s => {
