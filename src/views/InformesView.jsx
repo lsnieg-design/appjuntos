@@ -128,18 +128,35 @@ export function InformesView({ user, db, appId }) {
                 </select>
              )}
 
-             {nivelFiltro !== 'Todos' && (
-                <select className="p-4 rounded-2xl border bg-white text-sm font-bold" value={grupoFiltro} onChange={e => setGrupoFiltro(e.target.value)}>
+            {nivelFiltro !== 'Todos' && (
+                <select 
+                    className="p-4 rounded-2xl border bg-white text-sm font-bold w-full" 
+                    value={grupoFiltro} 
+                    onChange={e => setGrupoFiltro(e.target.value)}
+                >
                     <option value="Todos">Grupo: Todos</option>
                     {students
-                      .filter(s => s.level && s.level.toUpperCase() === nivelFiltro.toUpperCase())
-                      .flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean))
-                      .filter((v, i, a) => a.indexOf(v) === i)
-                      .map(g => <option key={g} value={g}>{g}</option>)}
+                        .filter(s => {
+                            // Filtramos alumnos que coincidan con el NIVEL seleccionado
+                            const matchNivel = s.level && s.level.toUpperCase() === nivelFiltro.toUpperCase();
+                            // Filtramos alumnos que coincidan con el TURNO seleccionado
+                            const matchTurno = turnoFiltro === 'Todos' || 
+                                              (turnoFiltro === 'Mañana' ? !!s.groupMorning : !!s.groupAfternoon);
+                            return matchNivel && matchTurno;
+                        })
+                        .flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean))
+                        .filter((v, i, a) => a.indexOf(v) === i) // Filtro de únicos
+                        .filter(g => {
+                            // Bloqueo de seguridad:
+                            if (nivelFiltro.toUpperCase() === '1° CICLO' && g.toUpperCase().includes('PRE TALLER')) {
+                                return false; 
+                            }
+                            return true;
+                        })
+                        .map(g => <option key={g} value={g}>{g}</option>)
+                    }
                 </select>
              )}
-          </div>
-          
           <div className="bg-white rounded-3xl shadow-sm border divide-y">
             {filteredStudents.map(s => {
               // Si grupoFiltro es "Todos", report es null para evitar buscar reportes con nombre "Todos"
