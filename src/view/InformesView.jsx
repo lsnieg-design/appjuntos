@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, X, ClipboardCheck, Briefcase, Search } from 'lucide-react';
-import { doc, setDoc, onSnapshot, serverTimestamp, collection } from 'firebase/firestore';
+import { ChevronRight, X, ClipboardCheck, Briefcase, Search, Printer, Edit3, Trash2 } from 'lucide-react';
+import { doc, setDoc, onSnapshot, serverTimestamp, collection, deleteDoc } from 'firebase/firestore';
 
-// --- CONFIGURACIÓN DE INDICADORES (Basado en tus PDFs) ---
+// --- CONFIGURACIÓN DE INDICADORES ---
 const CONFIG_INDICADORES = {
   pedagogico: {
     'Inicial': [
       { id: 'p_ini_1', label: 'Lectoescritura', options: ['Presilábico', 'Silábico', 'Silábico-alfabético', 'Alfabético'] },
       { id: 'p_ini_2', label: 'Escritura', options: ['Grafismos', 'Copia', 'Dictado', 'Autónoma'] },
-      { id: 'p_ini_3', label: 'Comprensión', options: ['No logra', 'Con ayuda', 'Sentido global', 'Autónoma'] },
-      { id: 'p_ini_4', label: 'Reconocimiento', options: ['Solo nombre', 'Nombre y pares', 'Palabras frec.', 'Fluida'] }
+      { id: 'p_ini_3', label: 'Comprensión', options: ['No logra', 'Con ayuda', 'Sentido global', 'Autónoma'] }
     ],
     '1° Ciclo': [
-      { id: 'p_c1_1', label: 'Producción escrita', options: ['Grafismos', 'Copia', 'Dictado', 'Autónoma'] },
+      { id: 'p_c1_1', label: 'Producción escrita', options: ['Grafismos', 'Copia', 'Autónoma'] },
       { id: 'p_c1_2', label: 'Comprensión lectora', options: ['No logra', 'Con apoyo', 'Autónoma'] }
     ]
   },
@@ -25,17 +24,24 @@ const CONFIG_INDICADORES = {
   }
 };
 
-export function InformesView({ user, students, db, appId }) {
-  const [stage, setStage] = useState('select_type'); // select_type, select_number, select_student, form
+export function InformesView({ user, students, db, appId }) { // <--- 'students' viene de acá, no lo redeclares
+  const [stage, setStage] = useState('select_type');
   const [tipoInforme, setTipoInforme] = useState(null);
-  const [informeNum, setInformeNum] = useState(null);
+  const [informeNum, setInformeNum] = useState('1');
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [students, setStudents] = useState([]);
   const [savedReports, setSavedReports] = useState([]);
   const [answers, setAnswers] = useState({});
   const [observations, setObservations] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (!db || !appId) return;
+    const q = collection(db, 'artifacts', appId, 'public', 'data', 'pedagogical_reports');
+    return onSnapshot(q, (snap) => {
+      setSavedReports(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+  }, [db, appId]);
 
   const handleSaveInforme = async () => {
     if (!selectedStudent) return;
@@ -52,10 +58,8 @@ export function InformesView({ user, students, db, appId }) {
         observations,
         updatedAt: serverTimestamp()
       }, { merge: true });
-      alert("✅ Informe guardado con éxito.");
+      alert("✅ Informe guardado.");
       setStage('select_type');
-      setAnswers({});
-      setObservations('');
     } catch (e) { alert("Error: " + e.message); } finally { setIsSaving(false); }
   };
 
@@ -68,15 +72,7 @@ export function InformesView({ user, students, db, appId }) {
         <label className="font-black text-[10px] uppercase text-slate-500 tracking-widest">{c.label}</label>
         <div className="grid grid-cols-2 gap-2">
           {c.options.map(opt => (
-            <button 
-              key={opt}
-              onClick={() => setAnswers(p => ({ ...p, [c.id]: opt }))}
-              className={`py-3 px-2 rounded-xl font-black text-[9px] uppercase border-2 transition-all ${
-                answers[c.id] === opt 
-                ? (tipoInforme === 'pedagogico' ? 'bg-blue-600 text-white border-blue-700' : 'bg-emerald-600 text-white border-emerald-700') 
-                : 'bg-gray-50 border-transparent hover:bg-gray-100'
-              }`}
-            >
+            <button key={opt} onClick={() => setAnswers(p => ({ ...p, [c.id]: opt }))} className={`py-3 px-2 rounded-xl font-black text-[9px] uppercase border-2 transition-all ${answers[c.id] === opt ? 'bg-violet-600 text-white border-violet-700' : 'bg-gray-50 border-transparent'}`}>
               {opt}
             </button>
           ))}
@@ -87,17 +83,18 @@ export function InformesView({ user, students, db, appId }) {
 
   return (
     <div className="max-w-2xl mx-auto p-4 space-y-6 pb-20 animate-in fade-in">
+      {/* HEADER */}
       <div className="bg-white p-6 rounded-[40px] shadow-sm border flex justify-between items-center">
-        <h2 className="text-xl font-black text-violet-900 uppercase italic">Informes</h2>
+        <h2 className="text-xl font-black text-violet-900 uppercase italic">Gestión de Informes</h2>
         {stage !== 'select_type' && <button onClick={() => setStage('select_type')} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button>}
       </div>
 
       {stage === 'select_type' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[{t:'pedagogico', l:'PEDAGÓGICO', color:'bg-blue-50', icon: ClipboardCheck}, {t:'laboral', l:'LABORAL', color:'bg-emerald-50', icon: Briefcase}].map(item => (
-            <button key={item.t} onClick={() => { setTipoInforme(item.t); setStage('select_number'); }} className={`p-8 ${item.color} rounded-3xl border-2 border-transparent hover:border-violet-300 flex items-center gap-4 shadow-sm transition-all`}>
-              <div className="bg-white/50 p-4 rounded-2xl"><item.icon size={32}/></div>
+          {[{t:'pedagogico', l:'PEDAGÓGICO', color:'bg-blue-50'}, {t:'laboral', l:'LABORAL', color:'bg-emerald-50'}].map(item => (
+            <button key={item.t} onClick={() => { setTipoInforme(item.t); setStage('select_number'); }} className={`p-8 ${item.color} rounded-3xl border-2 hover:border-violet-300 flex items-center justify-between shadow-sm`}>
               <span className="font-black text-violet-900 text-lg">{item.l}</span>
+              <ChevronRight className="text-violet-400" />
             </button>
           ))}
         </div>
@@ -114,12 +111,12 @@ export function InformesView({ user, students, db, appId }) {
       )}
 
       {stage === 'select_student' && (
-        <div className="bg-white rounded-3xl shadow-sm border p-6">
+        <div className="bg-white rounded-3xl shadow-sm border p-4">
           <input className="w-full p-4 bg-gray-50 rounded-xl mb-4 font-bold text-sm" placeholder="Buscar estudiante..." onChange={(e) => setSearchTerm(e.target.value)} />
           <div className="space-y-1">
             {students.filter(s => `${s.lastName} ${s.firstName}`.toLowerCase().includes(searchTerm.toLowerCase())).map(s => (
               <button key={s.id} onClick={() => { setSelectedStudent(s); setStage('form'); }} className="w-full text-left p-3 hover:bg-violet-50 rounded-xl font-bold text-sm">
-                {s.lastName}, {s.firstName} <span className="text-[10px] text-gray-400">({s.level})</span>
+                {s.lastName}, {s.firstName}
               </button>
             ))}
           </div>
@@ -127,18 +124,14 @@ export function InformesView({ user, students, db, appId }) {
       )}
 
       {stage === 'form' && selectedStudent && (
-        <div className="bg-white p-6 rounded-[40px] shadow-lg border space-y-6 animate-in slide-in-from-bottom-4">
+        <div className="bg-white p-6 rounded-[40px] shadow-lg border space-y-6">
           <div className="border-b pb-4">
             <h3 className="font-black text-xl uppercase italic">{selectedStudent.lastName}, {selectedStudent.firstName}</h3>
             <p className="text-xs font-bold text-gray-400 uppercase">{tipoInforme} • {informeNum}° Informe</p>
           </div>
-
           {renderCriterios()}
-
-          <textarea className="w-full p-4 bg-gray-50 rounded-2xl text-sm border outline-none" placeholder="Observaciones adicionales..." value={observations} onChange={e => setObservations(e.target.value)} rows={4}/>
-          <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 bg-violet-800 text-white font-black uppercase rounded-2xl shadow-xl hover:bg-violet-900 transition">
-            {isSaving ? 'Guardando...' : 'Finalizar Informe'}
-          </button>
+          <textarea className="w-full p-4 bg-gray-50 rounded-2xl text-sm border outline-none" placeholder="Observaciones..." value={observations} onChange={e => setObservations(e.target.value)} rows={4}/>
+          <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 bg-violet-800 text-white font-black uppercase rounded-2xl shadow-xl">{isSaving ? 'Guardando...' : 'Finalizar'}</button>
         </div>
       )}
     </div>
