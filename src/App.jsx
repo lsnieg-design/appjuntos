@@ -15,6 +15,7 @@ import { ProfileView } from './views/ProfileView';
 import { ActivityLogView } from './views/ActivityLogView';
 import { ProyectoView } from './views/ProyectoView';
 import { EvaluationsView } from './views/EvaluationsView';
+import { InformesView } from './InformesView'; // Asegúrate que el path sea correcto
 
 import { 
   Calendar as CalendarIcon, CheckSquare, Settings, User, FileText, CheckCircle, 
@@ -586,6 +587,7 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'admin' && isAdminRole && db && <AdministracionView user={user} db={db} appId={appId} />}
         {activeTab === 'equipo' && isTechTeamRole && db && <EquipoTecnicoView user={user} db={db} appId={appId} />}
      {activeTab === 'medical' && isMedicalRole && db && <MedicalView user={user} db={db} appId={appId} />}
+  {activeTab === 'informes' && <InformesView user={user} students={students} db={db} appId={appId} />}
         {activeTab === 'audit' && isSuperAdmin && db && (
       <ActivityLogView db={db} appId={appId} />
     )}
@@ -617,6 +619,9 @@ function MainApp({ user, onLogout }) {
   className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition"
 >
   <PieChart size={18} className="text-orange-500"/> Proyecto Inst.
+</button>
+                <button onClick={() => { setActiveTab('informes'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
+    <ClipboardCheck size={18} className="text-violet-500"/> Informes Pedagógicos
 </button>
                 
                 {showPrivateMenu && (
