@@ -587,7 +587,7 @@ function MainApp({ user, onLogout }) {
         {activeTab === 'admin' && isAdminRole && db && <AdministracionView user={user} db={db} appId={appId} />}
         {activeTab === 'equipo' && isTechTeamRole && db && <EquipoTecnicoView user={user} db={db} appId={appId} />}
      {activeTab === 'medical' && isMedicalRole && db && <MedicalView user={user} db={db} appId={appId} />}
-  {activeTab === 'informes' && <InformesView user={user} students={students} db={db} appId={appId} />}
+ {activeTab === 'informes' && <InformesView user={user} students={students} db={db} appId={appId} />}
         {activeTab === 'audit' && isSuperAdmin && db && (
       <ActivityLogView db={db} appId={appId} />
     )}
