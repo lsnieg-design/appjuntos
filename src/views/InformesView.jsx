@@ -337,24 +337,24 @@ export function InformesView({ user, db, appId }) {
         </div>
       )}
 
-      {/* ------------------------------------------------------------- */}
+     {/* ------------------------------------------------------------- */}
       {/* DOCUMENTO REAL DE IMPRESIÓN (Aislado gracias al UseEffect)    */}
       {/* ------------------------------------------------------------- */}
       {stage === 'form' && (
-        <div id="informe-imprimir" className="hidden print:block w-full bg-white text-black font-sans pb-10">
+        <div id="informe-imprimir" className="hidden print:block w-full bg-white text-black font-sans pb-4">
           
           {/* ENCABEZADO INSTITUCIONAL CON COLOR */}
-          <div className="flex flex-col items-center justify-center border-b-4 border-violet-800 pb-6 mb-8 bg-violet-50 p-6 rounded-t-2xl">
-            <h1 className="text-4xl font-black uppercase tracking-widest text-violet-900 mb-2">INFORME MEDIO 2026</h1>
-            <p className="text-md font-bold uppercase tracking-widest text-violet-600 bg-white px-4 py-1 rounded-full border border-violet-200 shadow-sm">
+          <div className="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-4 bg-violet-50 p-4 rounded-t-xl">
+            <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME MEDIO 2026</h1>
+            <p className="text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
               Área: {tipoInforme}
             </p>
           </div>
 
           {/* DATOS DEL ESTUDIANTE RECUADRADOS */}
-          <div className="border-2 border-violet-200 rounded-2xl p-6 mb-10 bg-white shadow-sm" style={{ breakInside: 'avoid' }}>
-            <h2 className="text-lg font-black text-violet-900 uppercase border-b-2 border-violet-100 pb-2 mb-4">Datos del Estudiante</h2>
-            <div className="grid grid-cols-2 gap-y-4 gap-x-8 text-sm">
+          <div className="border border-violet-200 rounded-xl p-4 mb-5 bg-white shadow-sm" style={{ breakInside: 'avoid' }}>
+            <h2 className="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-2">Datos del Estudiante</h2>
+            <div className="grid grid-cols-2 gap-y-2 gap-x-6 text-xs">
               <p><strong className="font-black text-gray-900">Alumno/a:</strong> <span className="text-gray-700">{selectedStudent.lastName}, {selectedStudent.firstName}</span></p>
               <p><strong className="font-black text-gray-900">DNI:</strong> <span className="text-gray-700">{selectedStudent.dni || '....................................'}</span></p>
               <p><strong className="font-black text-gray-900">Fecha de Nac.:</strong> <span className="text-gray-700">{selectedStudent.birthDate || selectedStudent.fechaNac || '....................................'}</span></p>
@@ -366,19 +366,19 @@ export function InformesView({ user, db, appId }) {
           </div>
 
           {/* SECCIÓN DE DESARROLLO (INDICADORES) */}
-          <div className="mb-10">
-            <h2 className="text-xl font-black text-white bg-violet-800 uppercase px-6 py-2 rounded-lg mb-6 shadow-sm inline-block" style={{ breakInside: 'avoid' }}>
+          <div className="mb-6">
+            <h2 className="text-sm font-black text-white bg-violet-800 uppercase px-4 py-1.5 rounded-md mb-4 shadow-sm inline-block" style={{ breakInside: 'avoid' }}>
               Desarrollo {tipoInforme}
             </h2>
             
-            <div className="space-y-0 border-l-2 border-violet-200 ml-2 pl-4">
+            <div className="space-y-0 border-l-2 border-violet-200 ml-1 pl-3">
               {indicadoresActuales.map(c => {
                 const answer = answers[c.id];
                 if (!answer) return null; // Solo imprimimos lo que se evaluó
                 return (
-                  <div key={c.id} className="text-sm flex flex-col md:flex-row gap-1 md:gap-4 mb-4 pb-4 border-b border-gray-100 last:border-0" style={{ breakInside: 'avoid' }}>
-                    <span className="font-black text-violet-900 min-w-[220px] uppercase text-xs tracking-wide pt-1">{c.label}:</span>
-                    <span className="text-gray-800 leading-relaxed font-medium">{answer}</span>
+                  <div key={c.id} className="text-xs flex flex-col md:flex-row gap-1 md:gap-3 mb-2.5 pb-2.5 border-b border-gray-100 last:border-0" style={{ breakInside: 'avoid' }}>
+                    <span className="font-black text-violet-900 min-w-[180px] uppercase text-[10px] tracking-wide pt-0.5">{c.label}:</span>
+                    <span className="text-gray-800 leading-snug font-medium">{answer}</span>
                   </div>
                 );
               })}
@@ -387,15 +387,15 @@ export function InformesView({ user, db, appId }) {
 
           {/* SECCIÓN DE OBSERVACIONES */}
           {observations && (
-            <div className="mt-10 bg-violet-50 p-6 rounded-2xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
-              <h2 className="font-black uppercase text-violet-900 mb-3 text-lg border-b border-violet-200 pb-2">Observaciones Generales:</h2>
-              <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed font-medium">{observations}</p>
+            <div className="mt-6 bg-violet-50 p-4 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
+              <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Observaciones Generales:</h2>
+              <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium">{observations}</p>
             </div>
           )}
 
           {/* SECCIÓN DE FIRMAS Y LOGO INSTITUCIONAL */}
-          <div className="mt-16 pt-10 flex flex-col items-center justify-center border-t-2 border-dashed border-gray-300" style={{ breakInside: 'avoid' }}>
-            <img src="/firmasylogo.png" alt="Firmas y Logo Institucional Juntos a la Par" className="max-w-[500px] w-full object-contain" />
+          <div className="mt-8 pt-6 flex flex-col items-center justify-center border-t border-dashed border-gray-300" style={{ breakInside: 'avoid' }}>
+            <img src="/firmasylogo.png" alt="Firmas y Logo Institucional Juntos a la Par" className="max-w-[350px] w-full object-contain" />
           </div>
 
         </div>
