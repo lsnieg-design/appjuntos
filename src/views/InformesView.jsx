@@ -120,36 +120,38 @@ export function InformesView({ user, db, appId }) {
   const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || [];
 
   return (
-    <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in relative">
+    <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in">
       
-      {/* ESTILOS DE IMPRESIÓN MÁGICOS: 
-        Esto fuerza al navegador a ocultar TODO en la app excepto el div con id="informe-imprimir"
-      */}
+      {/* MAGIA CSS PARA IMPRESIÓN */}
       <style type="text/css">
         {`
           @media print {
-            body * {
-              visibility: hidden !important;
+            /* Forzar a que TODO el documento fluya naturalmente y no se corte en la página 1 */
+            html, body, #root, main {
+              height: auto !important;
+              overflow: visible !important;
+              background-color: white !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
-            #informe-imprimir, #informe-imprimir * {
-              visibility: visible !important;
+            
+            /* Ocultar barras de scroll al imprimir */
+            ::-webkit-scrollbar {
+                display: none;
             }
-            #informe-imprimir {
-              position: absolute !important;
-              left: 0 !important;
-              top: 0 !important;
-              width: 100% !important;
-              margin: 0 !important;
-              padding: 20px !important;
-            }
+
+            /* Configurar márgenes de la página física */
             @page {
               margin: 1.5cm;
+              size: A4 portrait;
             }
           }
         `}
       </style>
 
-      {/* VISTA PRINCIPAL */}
+      {/* ------------------------------------------------------------- */}
+      {/* VISTA PRINCIPAL (Oculta al imprimir) */}
+      {/* ------------------------------------------------------------- */}
       <div className={`${stage === 'main' ? 'block' : 'hidden'} print:hidden`}>
         <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-8 rounded-[40px] shadow-xl text-white mb-8">
           <h2 className="text-2xl font-black mb-2 flex items-center gap-3"><BookOpen size={28} /> Gestión de Informes</h2>
@@ -213,15 +215,18 @@ export function InformesView({ user, db, appId }) {
         </div>
       </div>
 
-      {/* INTERFAZ DE EDICIÓN (Oculta al imprimir) */}
+      {/* ------------------------------------------------------------- */}
+      {/* INTERFAZ DE EDICIÓN EN PANTALLA (Oculta al imprimir) */}
+      {/* ------------------------------------------------------------- */}
       {stage === 'form' && (
         <div className="bg-white p-8 rounded-[40px] shadow-lg border space-y-6 print:hidden animate-in fade-in">
+          
           <div className="flex justify-between items-center mb-4">
             <button onClick={() => setStage('main')} className="bg-gray-100 p-3 rounded-full hover:bg-gray-200">
               <X size={20}/>
             </button>
-            <button onClick={() => window.print()} className="flex items-center gap-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 py-2 px-5 rounded-xl font-bold">
-              <Printer size={18} /> Imprimir Documento
+            <button onClick={() => window.print()} className="flex items-center gap-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 py-2 px-5 rounded-xl font-bold transition-all">
+              <Printer size={18} /> Imprimir Documento Final
             </button>
           </div>
           
@@ -232,11 +237,11 @@ export function InformesView({ user, db, appId }) {
              <div className="grid grid-cols-2 gap-4">
                <div>
                   <label className="text-[10px] font-black uppercase text-violet-800">Docente a cargo</label>
-                  <input type="text" className="w-full p-3 rounded-xl bg-white border border-violet-200 text-sm" value={docentePrint} onChange={e => setDocentePrint(e.target.value)} placeholder="Ej. Alejandra..." />
+                  <input type="text" className="w-full p-3 rounded-xl bg-white border border-violet-200 text-sm font-bold text-gray-700" value={docentePrint} onChange={e => setDocentePrint(e.target.value)} placeholder="Ej. Alejandra..." />
                </div>
                <div>
                   <label className="text-[10px] font-black uppercase text-violet-800">Auxiliar / Preceptora</label>
-                  <input type="text" className="w-full p-3 rounded-xl bg-white border border-violet-200 text-sm" value={preceptoraPrint} onChange={e => setPreceptoraPrint(e.target.value)} placeholder="Ej. Andrea..." />
+                  <input type="text" className="w-full p-3 rounded-xl bg-white border border-violet-200 text-sm font-bold text-gray-700" value={preceptoraPrint} onChange={e => setPreceptoraPrint(e.target.value)} placeholder="Ej. Andrea..." />
                </div>
              </div>
           </div>
@@ -282,48 +287,65 @@ export function InformesView({ user, db, appId }) {
         </div>
       )}
 
-      {/* DOCUMENTO REAL DE IMPRESIÓN (Solo es visible al hacer Ctrl+P o tocar Imprimir) */}
+      {/* ------------------------------------------------------------- */}
+      {/* DOCUMENTO REAL DE IMPRESIÓN (Visible ÚNICAMENTE al imprimir)  */}
+      {/* ------------------------------------------------------------- */}
       {stage === 'form' && (
-        <div id="informe-imprimir" className="hidden print:block w-full bg-white text-black font-sans">
+        <div className="hidden print:block w-full bg-white text-black font-sans pb-10">
           
-          <div className="border-b-2 border-black pb-4 mb-6">
-            <h1 className="text-3xl font-black text-center uppercase tracking-widest mb-1">INFORME MEDIO 2026</h1>
-            <p className="text-center text-sm font-bold uppercase tracking-widest text-gray-600 mb-6">Área: {tipoInforme}</p>
-            
-            <div className="grid grid-cols-2 gap-y-3 text-sm">
-              <p><strong className="font-bold">Alumno/a:</strong> {selectedStudent.lastName}, {selectedStudent.firstName}</p>
-              <p><strong className="font-bold">DNI:</strong> {selectedStudent.dni || '....................................'}</p>
-              <p><strong className="font-bold">Fecha de Nac.:</strong> {selectedStudent.birthDate || selectedStudent.fechaNac || '....................................'}</p>
-              <p><strong className="font-bold">Grupo:</strong> {grupoFiltro}</p>
-              <p><strong className="font-bold">Docente:</strong> {docentePrint || '....................................'}</p>
-              <p><strong className="font-bold">Aux/Preceptora:</strong> {preceptoraPrint || '....................................'}</p>
-              <p className="col-span-2"><strong className="font-bold">Año Actual:</strong> 2026</p>
+          {/* ENCABEZADO INSTITUCIONAL CON COLOR */}
+          <div className="flex flex-col items-center justify-center border-b-4 border-violet-800 pb-6 mb-8 bg-violet-50 p-6 rounded-t-2xl">
+            <h1 className="text-4xl font-black uppercase tracking-widest text-violet-900 mb-2">INFORME MEDIO 2026</h1>
+            <p className="text-md font-bold uppercase tracking-widest text-violet-600 bg-white px-4 py-1 rounded-full border border-violet-200 shadow-sm">
+              Área: {tipoInforme}
+            </p>
+          </div>
+
+          {/* DATOS DEL ESTUDIANTE RECUADRADOS */}
+          <div className="border-2 border-violet-200 rounded-2xl p-6 mb-10 bg-white break-inside-avoid shadow-sm">
+            <h2 className="text-lg font-black text-violet-900 uppercase border-b-2 border-violet-100 pb-2 mb-4">Datos del Estudiante</h2>
+            <div className="grid grid-cols-2 gap-y-4 gap-x-8 text-sm">
+              <p><strong className="font-black text-gray-900">Alumno/a:</strong> <span className="text-gray-700">{selectedStudent.lastName}, {selectedStudent.firstName}</span></p>
+              <p><strong className="font-black text-gray-900">DNI:</strong> <span className="text-gray-700">{selectedStudent.dni || '....................................'}</span></p>
+              <p><strong className="font-black text-gray-900">Fecha de Nac.:</strong> <span className="text-gray-700">{selectedStudent.birthDate || selectedStudent.fechaNac || '....................................'}</span></p>
+              <p><strong className="font-black text-gray-900">Grupo:</strong> <span className="text-gray-700 font-bold">{grupoFiltro}</span></p>
+              <p><strong className="font-black text-gray-900">Docente a cargo:</strong> <span className="text-gray-700">{docentePrint || '....................................'}</span></p>
+              <p><strong className="font-black text-gray-900">Auxiliar/Preceptora:</strong> <span className="text-gray-700">{preceptoraPrint || '....................................'}</span></p>
+              <p className="col-span-2"><strong className="font-black text-gray-900">Año de cursada:</strong> <span className="text-gray-700">2026</span></p>
             </div>
           </div>
 
-          <div className="space-y-4 mb-8">
-            <h3 className="font-black uppercase text-lg border-b border-gray-300 pb-1 mb-4">Desarrollo {tipoInforme}</h3>
-            {indicadoresActuales.map(c => {
-              const answer = answers[c.id];
-              if (!answer) return null;
-              return (
-                <div key={c.id} className="text-sm break-inside-avoid flex gap-3 mb-3">
-                  <span className="font-bold min-w-[220px]">{c.label}:</span>
-                  <span className="text-gray-800 leading-snug">{answer}</span>
-                </div>
-              );
-            })}
+          {/* SECCIÓN DE DESARROLLO (INDICADORES) */}
+          <div className="mb-10">
+            <h2 className="text-xl font-black text-white bg-violet-800 uppercase px-6 py-2 rounded-lg mb-6 break-inside-avoid shadow-sm inline-block">
+              Desarrollo {tipoInforme}
+            </h2>
+            
+            <div className="space-y-0 border-l-2 border-violet-200 ml-2 pl-4">
+              {indicadoresActuales.map((c, idx) => {
+                const answer = answers[c.id];
+                if (!answer) return null; // Ocultar si no se seleccionó opción
+                return (
+                  <div key={c.id} className="text-sm break-inside-avoid flex flex-col md:flex-row gap-1 md:gap-4 mb-4 pb-4 border-b border-gray-100 last:border-0">
+                    <span className="font-black text-violet-900 min-w-[220px] uppercase text-xs tracking-wide pt-1">{c.label}:</span>
+                    <span className="text-gray-800 leading-relaxed font-medium">{answer}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
+          {/* SECCIÓN DE OBSERVACIONES */}
           {observations && (
-            <div className="mt-8 pt-4 border-t border-gray-300 break-inside-avoid">
-              <h3 className="font-black uppercase mb-2">Observaciones:</h3>
-              <p className="text-sm text-gray-800 whitespace-pre-wrap">{observations}</p>
+            <div className="mt-10 break-inside-avoid bg-violet-50 p-6 rounded-2xl border border-violet-200 shadow-sm">
+              <h2 className="font-black uppercase text-violet-900 mb-3 text-lg border-b border-violet-200 pb-2">Observaciones Generales:</h2>
+              <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed font-medium">{observations}</p>
             </div>
           )}
 
-          <div className="mt-16 pt-8 flex flex-col items-center justify-center break-inside-avoid border-t-2 border-black">
-            <img src="/firmasylogo.png" alt="Firmas institucionales" className="max-w-[450px]" />
+          {/* SECCIÓN DE FIRMAS Y LOGO INSTITUCIONAL */}
+          <div className="mt-16 pt-10 flex flex-col items-center justify-center break-inside-avoid border-t-2 border-dashed border-gray-300">
+            <img src="/firmasylogo.png" alt="Firmas y Logo Institucional Juntos a la Par" className="max-w-[500px] w-full object-contain" />
           </div>
 
         </div>
