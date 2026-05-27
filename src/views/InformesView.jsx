@@ -51,7 +51,7 @@ export function InformesView({ user, db, appId }) {
   const filteredStudents = estudiantesSede.filter(s => {
     const matchSearch = `${s.lastName || ''} ${s.firstName || ''}`.toLowerCase().includes(searchTerm.toLowerCase());
     const matchTurno = turnoFiltro === 'Todos' || (turnoFiltro === 'Mañana' ? s.groupMorning : s.groupAfternoon);
-    const matchNivel = nivelFiltro === 'Todos' || s.level === nivelFiltro;
+    const matchNivel = nivelFiltro === 'Todos' || (s.level && s.level.toUpperCase() === nivelFiltro.toUpperCase());
     const matchGrupo = grupoFiltro === 'Todos' || [s.groupMorning, s.groupAfternoon, s.laboralGroup].includes(grupoFiltro);
     return matchSearch && matchTurno && matchNivel && matchGrupo;
   });
@@ -130,7 +130,11 @@ export function InformesView({ user, db, appId }) {
              {nivelFiltro !== 'Todos' && (
                 <select className="p-4 rounded-2xl border bg-white text-sm font-bold" value={grupoFiltro} onChange={e => setGrupoFiltro(e.target.value)}>
                     <option value="Todos">Grupo: Todos</option>
-                    {students.filter(s => s.level === nivelFiltro).flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean)).filter((v, i, a) => a.indexOf(v) === i).map(g => <option key={g} value={g}>{g}</option>)}
+                    {students
+                      .filter(s => s.level && s.level.toUpperCase() === nivelFiltro.toUpperCase())
+                      .flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean))
+                      .filter((v, i, a) => a.indexOf(v) === i)
+                      .map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
              )}
           </div>
@@ -159,7 +163,7 @@ export function InformesView({ user, db, appId }) {
           <p className="text-xs font-bold text-violet-600 uppercase">GRUPO: {grupoFiltro}</p>
           {renderCriterios()}
           <textarea className="w-full p-4 bg-gray-50 rounded-2xl text-sm border" placeholder="Observaciones..." value={observations} onChange={e => setObservations(e.target.value)} rows={4}/>
-          <button onClick={handleSaveInforme} className="w-full py-4 bg-violet-800 text-white font-black rounded-2xl">Guardar</button>
+          <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 bg-violet-800 text-white font-black rounded-2xl">Guardar</button>
         </div>
       )}
     </div>
