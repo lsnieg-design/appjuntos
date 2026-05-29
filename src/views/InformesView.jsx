@@ -368,131 +368,114 @@ const DICCIONARIO = {
     return textoFinal;
   };
 
-  return (
-    <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in relative">
-      
-      {/* MAGIA CSS PARA IMPRESIÓN */}
-      <style>{`
-        @media print {
-          body * { visibility: hidden; }
-          #impresion-masiva, #impresion-masiva * { visibility: visible; }
-          #impresion-masiva { position: absolute; left: 0; top: 0; width: 100%; }
-          .pagina { page-break-after: always; }
-        }
-      `}</style>
+return (
+  <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in relative">
+    
+    {/* MAGIA CSS PARA IMPRESIÓN */}
+    <style>{`
+      @media print {
+        body * { visibility: hidden; }
+        #impresion-masiva, #impresion-masiva * { visibility: visible; }
+        #impresion-masiva { position: absolute; left: 0; top: 0; width: 100%; }
+        .pagina { page-break-after: always; }
+      }
+    `}</style>
 
-      {/* ------------------------------------------------------------- */}
-      {/* VISTA PRINCIPAL (Oculta al imprimir) */}
-      {/* ------------------------------------------------------------- */}
-      <div className={`${stage === 'main' ? 'block' : 'hidden'} print:hidden`}>
-        <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-8 rounded-[40px] shadow-xl text-white mb-8 flex flex-col md:flex-row items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-black mb-2 flex items-center gap-3"><BookOpen size={28} /> Gestión de Informes</h2>
-            <p className="text-violet-100 text-sm">Mostrando: {filteredStudents.length} alumnos.</p>
-          </div>
-          
-          <div className="mt-4 md:mt-0 bg-white/10 p-2 rounded-2xl border border-white/20">
-              <label className="text-xs font-bold uppercase tracking-widest text-violet-200 block mb-1 px-1">Período del Informe:</label>
-              <select 
-                className="bg-white text-violet-900 font-black p-3 rounded-xl outline-none" 
-                value={periodoInforme} 
-                onChange={e => setPeriodoInforme(e.target.value)}
-              >
-                <option value="Inicial" disabled>Informe Inicial 2026 (Cerrado)</option>
-                <option value="Medio">Informe Medio 2026</option>
-                <option value="Final" disabled>Informe Final 2026 (Próximamente)</option>
-              </select>
-          </div>
+    {/* VISTA PRINCIPAL (Oculta al imprimir) */}
+    <div className={`${stage === 'main' ? 'block' : 'hidden'} print:hidden`}>
+      <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-8 rounded-[40px] shadow-xl text-white mb-8 flex flex-col md:flex-row items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-black mb-2 flex items-center gap-3"><BookOpen size={28} /> Gestión de Informes</h2>
+          <p className="text-violet-100 text-sm">Mostrando: {filteredStudents.length} alumnos.</p>
+        </div>
+        <div className="mt-4 md:mt-0 bg-white/10 p-2 rounded-2xl border border-white/20">
+            <label className="text-xs font-bold uppercase tracking-widest text-violet-200 block mb-1 px-1">Período del Informe:</label>
+            <select className="bg-white text-violet-900 font-black p-3 rounded-xl outline-none" value={periodoInforme} onChange={e => setPeriodoInforme(e.target.value)}>
+              <option value="Inicial" disabled>Informe Inicial 2026 (Cerrado)</option>
+              <option value="Medio">Informe Medio 2026</option>
+              <option value="Final" disabled>Informe Final 2026 (Próximamente)</option>
+            </select>
+        </div>
+      </div>
+
+      <div className="space-y-6">
+        <div className="flex gap-2 p-2 bg-white rounded-2xl border">
+          {['pedagogico', 'laboral'].map(t => (
+            <button key={t} onClick={() => setTipoInforme(t)} className={`flex-1 p-3 rounded-xl font-black capitalize ${tipoInforme === t ? 'bg-violet-600 text-white' : 'bg-gray-100'}`}>{t}</button>
+          ))}
         </div>
 
-        <div className="space-y-6">
-          <div className="flex gap-2 p-2 bg-white rounded-2xl border">
-            {['pedagogico', 'laboral'].map(t => (
-              <button key={t} onClick={() => setTipoInforme(t)} className={`flex-1 p-3 rounded-xl font-black capitalize ${tipoInforme === t ? 'bg-violet-600 text-white' : 'bg-gray-100'}`}>{t}</button>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
              <input className="p-4 rounded-2xl border bg-white text-sm" placeholder="Buscar alumno..." onChange={e => setSearchTerm(e.target.value)} />
-             
              <select className="p-4 rounded-2xl border bg-white text-sm font-bold" value={turnoFiltro} onChange={e => {setTurnoFiltro(e.target.value); setNivelFiltro('Todos'); setGrupoFiltro('Todos');}}>
                 <option value="Todos">Turno: Todos</option>
                 <option value="Mañana">Mañana</option>
                 <option value="Tarde">Tarde</option>
              </select>
-
              {turnoFiltro !== 'Todos' && (
                 <select className="p-4 rounded-2xl border bg-white text-sm font-bold" value={nivelFiltro} onChange={e => {setNivelFiltro(e.target.value); setGrupoFiltro('Todos');}}>
                     <option value="Todos">Nivel: Todos</option>
                     {['Inicial', '1° Ciclo', '2° Ciclo', 'CFI'].map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
              )}
-
              {nivelFiltro !== 'Todos' && (
                 <select className="p-4 rounded-2xl border bg-white text-sm font-bold w-full" value={grupoFiltro} onChange={e => setGrupoFiltro(e.target.value)}>
                     <option value="Todos">Grupo: Todos</option>
-                    {students
-                      .filter(s => s.level && s.level.toUpperCase() === nivelFiltro.toUpperCase())
-                      .flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean))
-                      .filter((v, i, a) => a.indexOf(v) === i)
-                      .filter(g => !(nivelFiltro.toUpperCase() === '1° CICLO' && g.toUpperCase().includes('PRE TALLER')))
-                      .map(g => <option key={g} value={g}>{g}</option>)}
+                    {students.filter(s => s.level && s.level.toUpperCase() === nivelFiltro.toUpperCase()).flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean)).filter((v, i, a) => a.indexOf(v) === i).map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
              )}
-          </div>
+        </div>
 
-          {grupoFiltro !== 'Todos' && filteredStudents.length > 0 && (
-            <button 
-              onClick={() => {
-                let contenedor = document.getElementById('impresion-masiva');
-                if (!contenedor) {
-                  contenedor = document.createElement('div');
-                  contenedor.id = 'impresion-masiva';
-                  document.body.appendChild(contenedor);
-                }
-                contenedor.innerHTML = '';
-                const template = document.getElementById('informe-imprimir');
-                if (!template) return alert("Primero selecciona un estudiante para cargar la plantilla.");
+        {grupoFiltro !== 'Todos' && filteredStudents.length > 0 && (
+          <button 
+            onClick={() => {
+              let contenedor = document.getElementById('impresion-masiva');
+              if (!contenedor) {
+                contenedor = document.createElement('div');
+                contenedor.id = 'impresion-masiva';
+                document.body.appendChild(contenedor);
+              }
+              contenedor.innerHTML = '';
+              const template = document.getElementById('informe-imprimir');
+              if (!template) return alert("Primero selecciona un estudiante.");
 
-                filteredStudents.forEach(s => {
-                    const report = savedReports.find(r => r.studentId === s.id && r.grupo === grupoFiltro && r.periodo === periodoInforme);
-                    if(report) {
-                        const div = document.createElement('div');
-                        div.className = 'pagina';
-                        div.innerHTML = template.innerHTML;
-                        contenedor.appendChild(div);
-                    }
-                });
-                window.print();
-              }}
-              className="w-full mt-4 mb-4 bg-emerald-600 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-emerald-700 transition"
-            >
-              <Printer size={20} /> Imprimir todos ({filteredStudents.filter(s => savedReports.find(r => r.studentId === s.id && r.grupo === grupoFiltro)).length})
-            </button>
-          )}
-          
-          <div className="bg-white rounded-3xl shadow-sm border divide-y">
-            {filteredStudents.map(s => {
-              const report = grupoFiltro === 'Todos' ? null : savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
-              return (
-                <div key={`${s.id}-${grupoFiltro}`} className={`p-5 flex justify-between items-center transition-colors ${report ? 'bg-emerald-50' : 'hover:bg-violet-50/50'}`}>
-                  <div>
-                    <p className={`font-bold ${report ? 'text-emerald-900' : 'text-gray-900'}`}>{s.lastName}, {s.firstName}</p>
-                    <p className={`text-[10px] font-bold uppercase ${report ? 'text-emerald-600' : 'text-gray-400'}`}>
-                      {s.level} | {report ? `Cargado (${periodoInforme})` : 'Pendiente'}
-                    </p>
-                  </div>
-                  {grupoFiltro !== 'Todos' && (
-                    <button onClick={() => handleEdit(s, report)} className={`p-2 rounded-lg ${report ? 'bg-blue-50 text-blue-600' : 'bg-violet-600 text-white'}`}>
-                      {report ? <Edit3 size={16}/> : <Plus size={16}/>}
-                    </button>
-                  )}
+              filteredStudents.forEach(s => {
+                  const report = savedReports.find(r => r.studentId === s.id && r.grupo === grupoFiltro && r.periodo === periodoInforme);
+                  if(report) {
+                      const div = document.createElement('div');
+                      div.className = 'pagina';
+                      div.innerHTML = template.innerHTML;
+                      contenedor.appendChild(div);
+                  }
+              });
+              window.print();
+            }}
+            className="w-full mt-4 mb-4 bg-emerald-600 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-emerald-700 transition"
+          >
+            <Printer size={20} /> Imprimir todos ({filteredStudents.filter(s => savedReports.find(r => r.studentId === s.id && r.grupo === grupoFiltro)).length})
+          </button>
+        )}
+        
+        <div className="bg-white rounded-3xl shadow-sm border divide-y">
+          {filteredStudents.map(s => {
+            const report = grupoFiltro === 'Todos' ? null : savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
+            return (
+              <div key={`${s.id}-${grupoFiltro}`} className={`p-5 flex justify-between items-center transition-colors ${report ? 'bg-emerald-50' : 'hover:bg-violet-50/50'}`}>
+                <div>
+                  <p className={`font-bold ${report ? 'text-emerald-900' : 'text-gray-900'}`}>{s.lastName}, {s.firstName}</p>
+                  <p className={`text-[10px] font-bold uppercase ${report ? 'text-emerald-600' : 'text-gray-400'}`}>{s.level} | {report ? `Cargado` : 'Pendiente'}</p>
                 </div>
-              );
-            })}
-          </div>
+                {grupoFiltro !== 'Todos' && (
+                  <button onClick={() => handleEdit(s, report)} className={`p-2 rounded-lg ${report ? 'bg-blue-50 text-blue-600' : 'bg-violet-600 text-white'}`}>
+                    {report ? <Edit3 size={16}/> : <Plus size={16}/>}
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
+    </div>
       {/* ------------------------------------------------------------- */}
       {/* INTERFAZ DE EDICIÓN EN PANTALLA (Oculta al imprimir) */}
       {/* ------------------------------------------------------------- */}
