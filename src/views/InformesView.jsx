@@ -43,7 +43,7 @@ const CONFIG_INDICADORES = {
       { id: 'autonomia_seguridad', label: 'Autonomía: Seguridad e Higiene', options: ['Desconoce las normas; requiere control físico constante.', 'Conoce las normas básicas si se le recuerdan antes de empezar.', 'Respeta las normas de seguridad e higiene de forma consistente.', 'Es referente en normas de seguridad y cuida su espacio de trabajo.'] },
       { id: 'rol_pautas', label: 'Rol Laboral: Respeto de pautas', options: ['No respeta pautas; interrumpe el trabajo de otros.', 'Respeta pautas y horarios con supervisión frecuente.', 'Cumple con las pautas de trabajo y los tiempos del taller.', 'Demuestra compromiso y sentido de responsabilidad laboral.'] },
       { id: 'rol_equipo', label: 'Rol Laboral: Trabajo en equipo', options: ['Realiza su tarea de forma aislada sin considerar el entorno.', 'Participa en tareas compartidas cuando el docente lo coordina.', 'Colabora con pares en producciones grupales de forma fluida.', 'Propone tareas colaborativas y ayuda a otros en el taller.'] },
-      { id: 'comprension_proceso', label: 'Comprensión del proceso', options: ['Ejecuta acciones aisladas sin comprender el resultado final del producto.', 'Comprende una parte del proceso con mediación docente constante.', 'Comprende la secuencia del proceso productivo y su lugar en el mismo.', 'Entiende el proceso productivo integral y cómo su tarea aporta al resultado.'] },
+      { id: 'comprension_proceso', label: 'Comprensión del proceso', options: ['Ejecuta acciones aisladas sin comprender el resultado final del producto.', 'Comprende una parte del proceso con mediación docente constante.', 'Comprende la sequence del proceso productivo y su lugar en el mismo.', 'Entiende el proceso productivo integral y cómo su tarea aporta al resultado.'] },
       { id: 'responsabilidad_rol', label: 'Responsabilidad de rol', options: ['Requiere supervisión para mantenerse en su puesto o función asignada.', 'Asume un rol simple con supervisión; cumple tareas asignadas por terceros.', 'Mantiene su rol y función con autonomía dentro del grupo de trabajo.', 'Identifica necesidades del sistema y asume funciones de forma proactiva.'] },
       { id: 'adaptabilidad', label: 'Adaptabilidad al cambio', options: ['Presenta rigidez frente a variaciones en la tarea o en el puesto de trabajo.', 'Acepta cambios en su función tras una explicación y acompañamiento.', 'Se adapta a diferentes roles o tareas dentro del taller con mínima guía.', 'Muestra gran versatilidad; cambia de función según la necesidad del sistema.'] },
       { id: 'gestion_tiempos', label: 'Gestión de tiempos', options: ['No registra el tiempo; requiere guía para iniciar, pausar o terminar.', 'Realiza la tarea respetando ritmos mínimos bajo supervisión externa.', 'Regula su propio ritmo de trabajo para cumplir con los tiempos de entrega.', 'Planifica su tiempo y recursos para optimizar la producción del sistema.'] }
@@ -66,13 +66,16 @@ export function InformesView({ user, db, appId }) {
   const [isSaving, setIsSaving] = useState(false);
   
   const [answers, setAnswers] = useState({});
-  const [observations, setObservations] = useState('');
+  
+  // NUEVO: Dos campos de observaciones reemplazando al general
+  const [obsCuatrimestre1, setObsCuatrimestre1] = useState('');
+  const [obsCuatrimestre2, setObsCuatrimestre2] = useState('');
   
   const [docentePrint, setDocentePrint] = useState('');
   const [preceptoraPrint, setPreceptoraPrint] = useState('');
 
   // --------------------------------------------------------------------------
-  // LÓGICA DE AISLAMIENTO DE IMPRESIÓN (La magia para que no salgan los menúes)
+  // LÓGICA DE AISLAMIENTO DE IMPRESIÓN
   // --------------------------------------------------------------------------
   useEffect(() => {
     let printClone = null;
@@ -82,13 +85,11 @@ export function InformesView({ user, db, appId }) {
       const printElement = document.getElementById('informe-imprimir');
       if (!printElement) return;
 
-      // Clonamos el reporte
       printClone = printElement.cloneNode(true);
       printClone.classList.remove('hidden', 'print:block');
       printClone.style.display = 'block';
       printClone.id = 'informe-imprimir-clone';
 
-      // Ocultamos TODO el resto de la aplicación
       const bodyChildren = Array.from(document.body.children);
       bodyChildren.forEach(child => {
         if (child.tagName !== 'SCRIPT' && child.tagName !== 'STYLE' && child.id !== 'informe-imprimir-clone') {
@@ -97,16 +98,13 @@ export function InformesView({ user, db, appId }) {
         }
       });
 
-      // Pegamos el reporte solo y aislado en el body
       document.body.appendChild(printClone);
     };
 
     const handleAfterPrint = () => {
-      // Destruimos el clon
       if (printClone && printClone.parentNode) {
         printClone.parentNode.removeChild(printClone);
       }
-      // Restauramos la app
       const bodyChildren = Array.from(document.body.children);
       bodyChildren.forEach(child => {
         if (originalDisplays.has(child)) {
@@ -131,7 +129,8 @@ export function InformesView({ user, db, appId }) {
   };
 
   // --------------------------------------------------------------------------
-
+  // CARGA DE DATOS DESDE FIREBASE
+  // --------------------------------------------------------------------------
   useEffect(() => {
     if (!db || !appId) return;
     const qS = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'));
@@ -154,7 +153,9 @@ export function InformesView({ user, db, appId }) {
   const handleEdit = (student, report) => {
     setSelectedStudent(student);
     setAnswers(report?.answers || {});
-    setObservations(report?.observations || '');
+    // Cargamos los dos campos de objetivos (o vacíos si es nuevo)
+    setObsCuatrimestre1(report?.obsCuatrimestre1 || '');
+    setObsCuatrimestre2(report?.obsCuatrimestre2 || '');
     setDocentePrint(student.teacher || student.docente || '');
     setPreceptoraPrint(student.auxiliary || student.auxiliar || student.preceptora || '');
     setStage('form');
@@ -170,7 +171,8 @@ export function InformesView({ user, db, appId }) {
       grupo: grupoFiltro,
       tipoInforme,
       answers,
-      observations,
+      obsCuatrimestre1, // Guardamos el objetivo 1
+      obsCuatrimestre2, // Guardamos el objetivo 2
       updatedAt: serverTimestamp()
     }, { merge: true });
     setStage('main');
@@ -180,20 +182,34 @@ export function InformesView({ user, db, appId }) {
   const nivelActual = selectedStudent?.level || 'Inicial';
   const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || [];
 
- // Transformador inteligente con TUS textos exactos y sujetos dinámicos
+  // --------------------------------------------------------------------------
+  // Transformador Inteligente (Con Identificación de Género y Diccionario)
+  // --------------------------------------------------------------------------
   const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firstNameRaw) => {
-    // RED DE SEGURIDAD: Si no hay respuesta, devolvemos vacío para no romper la pantalla
     if (!respuestaCorta || typeof respuestaCorta !== 'string') return '';
 
     const nombreReal = firstNameRaw ? firstNameRaw.split(' ')[0] : 'El/la estudiante';
 
-    // Función para no sonar robóticos: alterna cómo llamamos al estudiante
+    // HEURÍSTICA DE GÉNERO: Identifica varón o mujer según la terminación del nombre
     const obtenerSujeto = () => {
+      const nom = nombreReal.trim().toLowerCase();
+      // Nombres comunes de varón que terminan en A
+      const excepcionesMasculinas = ['bautista', 'luca', 'noa', 'sasha', 'borja', 'mika', 'andrea'];
+      let esMujer = false;
+      
+      if (nom.endsWith('a') && !excepcionesMasculinas.includes(nom)) {
+          esMujer = true;
+      }
+      
+      const articuloEstudiante = esMujer ? 'La estudiante' : 'El estudiante';
+      const articuloAlumno = esMujer ? 'Nuestra alumna' : 'Nuestro alumno';
+
+      // Sorteamos entre opciones que ahora ya tienen el género correcto
       const opciones = [
         nombreReal, 
-        'El/la estudiante', 
-        'Nuestro/a alumno/a', 
-        nombreReal // Doble chance para el nombre real
+        articuloEstudiante, 
+        articuloAlumno, 
+        nombreReal // Doble chance para el nombre
       ];
       return opciones[Math.floor(Math.random() * opciones.length)];
     };
@@ -222,7 +238,7 @@ export function InformesView({ user, db, appId }) {
         `Nombre está comenzando a identificar su propio nombre entre otras palabras. Este es un hito sumamente especial en su proceso, ya que su nombre es la primera palabra con significado personal y afectivo para él/ella. Desde este reconocimiento inicial, estamos trabajando para ampliar su capacidad de observar otras palabras y empezar a distinguir sus formas dentro del universo escrito.`,
         `Nombre ya reconoce su nombre propio y el de sus pares con mucha facilidad. Este avance demuestra un interés genuino por el mundo que lo/la rodea y por su grupo de pertenencia en la escuela. El hecho de identificar los nombres de sus compañeros no solo es un gran paso en su alfabetización, sino también un gesto muy valioso de integración y fortalecimiento de los vínculos afectivos en el aula.`,
         `Nombre ha comenzado a reconocer palabras de uso frecuente y frases cortas. Esto significa que ya identifica conceptos que ve habitualmente en clase o en su entorno cercano, lo cual le brinda mucha seguridad al leer. Este logro nos indica que está empezando a dar sentido a la lectura de manera más fluida, permitiéndole conectar lo que lee con situaciones de la vida diaria.`,
-        `Nombre ya lee palabras y frases con sentido completo de forma autónoma. Es una alegría ver cómo ha ganado confianza para leer por su cuenta, logrando interpretar mensajes escritos y dándoles un significado real sin necesidad de ayuda. Este nivel de independence es un gran motor para su curiosidad y para el disfrute de nuevos materiales de lectura.`
+        `Nombre ya lee palabras y frases con sentido completo de forma autónoma. Es una alegría ver cómo ha ganado confianza para leer por su cuenta, logrando interpretar mensajes escritos y dándoles un significado real sin necesidad de ayuda. Este nivel de independencia es un gran motor para su curiosidad y para el disfrute de nuevos materiales de lectura.`
       ],
       serie_numerica: [
         `Nombre se encuentra en la etapa de realizar el conteo hasta 10, utilizando apoyo con material concreto. El uso de objetos tangibles (como bloques o fichas) es fundamental en este momento, ya que le permite visualizar las cantidades y darles sentido a los números. Acompañamos este proceso con mucha paciencia, fortaleciendo esta base que es la puerta de entrada para todas sus futuras nociones matemáticas.`,
@@ -238,32 +254,28 @@ export function InformesView({ user, db, appId }) {
       ]
     };
 
-    // 1. Buscamos si redactaste la frase en el diccionario
     let textoFinal = '';
     if (DICCIONARIO[idIndicador] && DICCIONARIO[idIndicador][indiceOpcion]) {
       textoFinal = DICCIONARIO[idIndicador][indiceOpcion];
     } else {
-      // "Paracaídas"
       let textoMinuscula = respuestaCorta.charAt(0).toLowerCase() + respuestaCorta.slice(1);
       textoFinal = `Se observa que Nombre ${textoMinuscula}`;
     }
 
-    // 2. Reemplazamos el primer "Nombre" por un sujeto dinámico
+    // Reemplaza el primer "Nombre" por un sujeto dinámico con género correcto
     const sujetoDinamico = obtenerSujeto();
     textoFinal = textoFinal.replace('Nombre', sujetoDinamico);
 
-    // 3. Reemplazamos los demás "Nombre" por su nombre real
+    // Reemplaza el resto de los "Nombre" por su nombre real
     textoFinal = textoFinal.replace(/Nombre/g, nombreReal);
 
     return textoFinal;
   };
 
-
-  
   return (
     <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in relative">
       
-      {/* MAGIA CSS PARA ASEGURAR COLORES EN IMPRESIÓN */}
+      {/* MAGIA CSS PARA IMPRESIÓN */}
       <style type="text/css">
         {`
           @media print {
@@ -280,7 +292,7 @@ export function InformesView({ user, db, appId }) {
       </style>
 
       {/* ------------------------------------------------------------- */}
-      {/* VISTA PRINCIPAL */}
+      {/* VISTA PRINCIPAL (Oculta al imprimir) */}
       {/* ------------------------------------------------------------- */}
       <div className={`${stage === 'main' ? 'block' : 'hidden'} print:hidden`}>
         <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-8 rounded-[40px] shadow-xl text-white mb-8">
@@ -399,15 +411,29 @@ export function InformesView({ user, db, appId }) {
               </div>
             ))}
             
-            <div className="mt-6 p-4 bg-gray-50 rounded-2xl">
-              <label className="text-xs font-black uppercase text-gray-700 block mb-2">Observaciones Generales</label>
-              <textarea 
-                className="w-full p-4 bg-white rounded-xl text-sm border border-gray-200" 
-                placeholder="Escriba aquí las observaciones..." 
-                value={observations} 
-                onChange={e => setObservations(e.target.value)} 
-                rows={4}
-              />
+            {/* NUEVOS CAMPOS DE OBSERVACIONES PARA EDITAR */}
+            <div className="mt-8 space-y-4">
+              <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100">
+                <label className="text-xs font-black uppercase text-violet-800 block mb-2">Observaciones sobre los objetivos planteados para este primer cuatrimestre</label>
+                <textarea 
+                  className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" 
+                  placeholder="Escriba aquí las observaciones..." 
+                  value={obsCuatrimestre1} 
+                  onChange={e => setObsCuatrimestre1(e.target.value)} 
+                  rows={4}
+                />
+              </div>
+
+              <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100">
+                <label className="text-xs font-black uppercase text-violet-800 block mb-2">Objetivos para el segundo cuatrimestre</label>
+                <textarea 
+                  className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" 
+                  placeholder="Escriba aquí los objetivos..." 
+                  value={obsCuatrimestre2} 
+                  onChange={e => setObsCuatrimestre2(e.target.value)} 
+                  rows={4}
+                />
+              </div>
             </div>
           </div>
 
@@ -417,7 +443,7 @@ export function InformesView({ user, db, appId }) {
         </div>
       )}
 
-    {/* ------------------------------------------------------------- */}
+      {/* ------------------------------------------------------------- */}
       {/* DOCUMENTO REAL DE IMPRESIÓN (Aislado gracias al UseEffect)    */}
       {/* ------------------------------------------------------------- */}
       {stage === 'form' && (
@@ -459,11 +485,9 @@ export function InformesView({ user, db, appId }) {
                 const answer = answers[c.id];
                 if (!answer) return null; 
                 
-                // ES CLAVE ESTA LÍNEA PARA QUE LLEGUEN BIEN LOS DATOS A LA FUNCIÓN DE ARRIBA
                 const optionIndex = c.options.indexOf(answer);
                 const textoDescriptivo = formatearTextoImpresion(c.id, optionIndex, answer, selectedStudent?.firstName);
 
-                // Si la función devuelve vacío, no lo imprimimos
                 if (!textoDescriptivo) return null;
 
                 return (
@@ -476,11 +500,19 @@ export function InformesView({ user, db, appId }) {
             </div>
           </div>
 
-          {/* SECCIÓN DE OBSERVACIONES */}
-          {observations && (
+          {/* SECCIÓN DE OBSERVACIONES 1 */}
+          {obsCuatrimestre1 && (
             <div className="mt-6 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
-              <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Observaciones Generales</h2>
-              <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium">{observations}</p>
+              <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Observaciones sobre los objetivos planteados para este primer cuatrimestre</h2>
+              <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium">{obsCuatrimestre1}</p>
+            </div>
+          )}
+
+          {/* SECCIÓN DE OBSERVACIONES 2 */}
+          {obsCuatrimestre2 && (
+            <div className="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
+              <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Objetivos para el segundo cuatrimestre</h2>
+              <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium">{obsCuatrimestre2}</p>
             </div>
           )}
 
