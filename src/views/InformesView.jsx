@@ -446,16 +446,48 @@ const DICCIONARIO = {
                 </select>
              )}
           </div>
+          {grupoFiltro !== 'Todos' && filteredStudents.length > 0 && (
+            <button 
+              onClick={() => {
+                  const printWindow = window.open('', '_blank');
+                  let htmlCompleto = `<html><head><title>Informes ${grupoFiltro}</title>`;
+                  htmlCompleto += `<style>body{font-family:sans-serif;} @media print{.pagina{page-break-after:always;}} .titulo{font-size:20px; font-weight:bold; border-bottom:2px solid #5b21b6; padding-bottom:10px; margin-bottom:20px;}</style></head><body>`;
+                  
+                  filteredStudents.forEach(s => {
+                      const report = savedReports.find(r => r.studentId === s.id && r.grupo === grupoFiltro && r.periodo === periodoInforme);
+                      if(report) {
+                          htmlCompleto += `<div class="pagina"><h1 class="titulo">${s.lastName}, ${s.firstName}</h1><p>Contenido del informe: ${JSON.stringify(report.answers)}</p></div>`;
+                      }
+                  });
+                  
+                  htmlCompleto += "</body></html>";
+                  printWindow.document.write(htmlCompleto);
+                  printWindow.document.close();
+                  printWindow.print();
+              }}
+              className="w-full bg-emerald-600 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-emerald-700 transition"
+            >
+              <Printer size={20} /> Imprimir todos los informes del grupo ({filteredStudents.filter(s => savedReports.find(r => r.studentId === s.id && r.grupo === grupoFiltro)).length})
+            </button>
+          )}
           
           <div className="bg-white rounded-3xl shadow-sm border divide-y">
             {filteredStudents.map(s => {
-              const report = grupoFiltro === 'Todos' ? null : savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
-              return (
-                <div key={`${s.id}-${grupoFiltro}`} className="p-5 flex justify-between items-center hover:bg-violet-50/50">
-                  <div>
-                    <p className="font-bold">{s.lastName}, {s.firstName}</p>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase">{s.level} | {report ? `Cargado (${periodoInforme})` : 'Pendiente'}</p>
-                  </div>
+  const report = grupoFiltro === 'Todos' ? null : savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
+  
+  return (
+    <div 
+      key={`${s.id}-${grupoFiltro}`} 
+      className={`p-5 flex justify-between items-center transition-colors ${report ? 'bg-emerald-50' : 'hover:bg-violet-50/50'}`}
+    >
+      <div>
+        <p className={`font-bold ${report ? 'text-emerald-900' : 'text-gray-900'}`}>
+          {s.lastName}, {s.firstName}
+        </p>
+        <p className={`text-[10px] font-bold uppercase ${report ? 'text-emerald-600' : 'text-gray-400'}`}>
+          {s.level} | {report ? `Cargado (${periodoInforme})` : 'Pendiente'}
+        </p>
+      </div>
                   {grupoFiltro !== 'Todos' && (
                     <button onClick={() => handleEdit(s, report)} className={`p-2 rounded-lg ${report ? 'bg-blue-50 text-blue-600' : 'bg-violet-600 text-white'}`}>
                       {report ? <Edit3 size={16}/> : <Plus size={16}/>}
