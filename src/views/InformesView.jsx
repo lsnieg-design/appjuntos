@@ -372,19 +372,21 @@ const DICCIONARIO = {
     <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in relative">
       
       {/* MAGIA CSS PARA IMPRESIÓN */}
-      <style type="text/css">
-        {`
-          @media print {
-  .pagina { page-break-after: always; }
-  #impresion-masiva { display: block !important; }
-}
-            @page {
-              margin: 1.5cm;
-              size: A4 portrait;
-            }
-          }
-        `}
-      </style>
+      <style>
+  @media print {
+    /* Escondemos todo lo que no sea el informe */
+    body * { visibility: hidden; }
+    
+    /* Mostramos solo el contenedor de impresión masiva */
+    #impresion-masiva, #impresion-masiva * { visibility: visible; }
+    
+    /* Posicionamos el contenedor al principio de la hoja */
+    #impresion-masiva { position: absolute; left: 0; top: 0; width: 100%; }
+    
+    /* El salto de página mágico */
+    .pagina { page-break-after: always; }
+  }
+</style>
 
       {/* ------------------------------------------------------------- */}
       {/* VISTA PRINCIPAL (Oculta al imprimir) */}
@@ -447,41 +449,41 @@ const DICCIONARIO = {
           </div>
      {grupoFiltro !== 'Todos' && filteredStudents.length > 0 && (
             <button 
-              onClick={() => {
-                  const printWindow = window.open('', '_blank');
-                  let htmlCompleto = `<html><head>
-                    <title>Informes ${grupoFiltro}</title>
-                    <style>
-                      @media print { .pagina { page-break-after: always; } }
-                      body { font-family: sans-serif; padding: 20px; }
-                      .hidden { display: none; }
-                    </style>
-                  </head><body>`;
-                  
-                  // Traemos el diseño base que ya tienes en el DOM
-                  const template = document.getElementById('informe-imprimir');
-                  if (!template) return alert("Primero debes seleccionar un alumno para generar la plantilla base.");
+  onClick={() => {
+    // 1. Buscamos o creamos el contenedor masivo en el DOM actual
+    let contenedor = document.getElementById('impresion-masiva');
+    if (!contenedor) {
+      contenedor = document.createElement('div');
+      contenedor.id = 'impresion-masiva';
+      document.body.appendChild(contenedor);
+    }
+    
+    // 2. Limpiamos y llenamos
+    contenedor.innerHTML = '';
+    const template = document.getElementById('informe-imprimir');
+    
+    if (!template) {
+        alert("Primero selecciona un estudiante para cargar la plantilla.");
+        return;
+    }
 
-                  filteredStudents.forEach(s => {
-                      const report = savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
-                      if(report) {
-                          htmlCompleto += `<div class="pagina">${template.innerHTML}</div>`;
-                      }
-                  });
-                  
-                  htmlCompleto += "</body></html>";
-                  printWindow.document.write(htmlCompleto);
-                  printWindow.document.close();
-                  
-                  setTimeout(() => {
-                      printWindow.focus();
-                      printWindow.print();
-                  }, 800);
-              }}
-              className="w-full mt-4 mb-4 bg-emerald-600 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-emerald-700 transition"
-            >
-              <Printer size={20} /> Imprimir todos los informes ({filteredStudents.filter(s => savedReports.find(r => r.studentId === s.id && r.grupo === grupoFiltro)).length})
-            </button>
+    filteredStudents.forEach(s => {
+        const report = savedReports.find(r => r.studentId === s.id && r.grupo === grupoFiltro && r.periodo === periodoInforme);
+        if(report) {
+            const div = document.createElement('div');
+            div.className = 'pagina';
+            div.innerHTML = template.innerHTML; // Aquí clona tu diseño
+            contenedor.appendChild(div);
+        }
+    });
+
+    // 3. Disparamos la impresión del navegador
+    window.print();
+  }}
+  className="w-full mt-4 mb-4 bg-emerald-600 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-emerald-700 transition"
+>
+  <Printer size={20} /> Imprimir todos ({filteredStudents.filter(s => savedReports.find(r => r.studentId === s.id && r.grupo === grupoFiltro)).length})
+</button>
           )}
           
           <div className="bg-white rounded-3xl shadow-sm border divide-y">
