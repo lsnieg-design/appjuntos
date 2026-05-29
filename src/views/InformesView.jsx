@@ -371,22 +371,15 @@ const DICCIONARIO = {
   return (
     <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in relative">
       
-      {/* MAGIA CSS PARA IMPRESIÓN */}
-      <style>
-  @media print {
-    /* Escondemos todo lo que no sea el informe */
-    body * { visibility: hidden; }
-    
-    /* Mostramos solo el contenedor de impresión masiva */
-    #impresion-masiva, #impresion-masiva * { visibility: visible; }
-    
-    /* Posicionamos el contenedor al principio de la hoja */
-    #impresion-masiva { position: absolute; left: 0; top: 0; width: 100%; }
-    
-    /* El salto de página mágico */
-    .pagina { page-break-after: always; }
-  }
-</style>
+    {/* MAGIA CSS PARA IMPRESIÓN */}
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          #impresion-masiva, #impresion-masiva * { visibility: visible; }
+          #impresion-masiva { position: absolute; left: 0; top: 0; width: 100%; }
+          .pagina { page-break-after: always; }
+        }
+      `}</style>
 
       {/* ------------------------------------------------------------- */}
       {/* VISTA PRINCIPAL (Oculta al imprimir) */}
@@ -399,16 +392,16 @@ const DICCIONARIO = {
           </div>
           
           <div className="mt-4 md:mt-0 bg-white/10 p-2 rounded-2xl border border-white/20">
-             <label className="text-xs font-bold uppercase tracking-widest text-violet-200 block mb-1 px-1">Período del Informe:</label>
-             <select 
-               className="bg-white text-violet-900 font-black p-3 rounded-xl outline-none" 
-               value={periodoInforme} 
-               onChange={e => setPeriodoInforme(e.target.value)}
-             >
+              <label className="text-xs font-bold uppercase tracking-widest text-violet-200 block mb-1 px-1">Período del Informe:</label>
+              <select 
+                className="bg-white text-violet-900 font-black p-3 rounded-xl outline-none" 
+                value={periodoInforme} 
+                onChange={e => setPeriodoInforme(e.target.value)}
+              >
                 <option value="Inicial" disabled>Informe Inicial 2026 (Cerrado)</option>
                 <option value="Medio">Informe Medio 2026</option>
                 <option value="Final" disabled>Informe Final 2026 (Próximamente)</option>
-             </select>
+              </select>
           </div>
         </div>
 
@@ -447,49 +440,40 @@ const DICCIONARIO = {
                 </select>
              )}
           </div>
-     {grupoFiltro !== 'Todos' && filteredStudents.length > 0 && (
+
+          {grupoFiltro !== 'Todos' && filteredStudents.length > 0 && (
             <button 
-  onClick={() => {
-    // 1. Buscamos o creamos el contenedor masivo en el DOM actual
-    let contenedor = document.getElementById('impresion-masiva');
-    if (!contenedor) {
-      contenedor = document.createElement('div');
-      contenedor.id = 'impresion-masiva';
-      document.body.appendChild(contenedor);
-    }
-    
-    // 2. Limpiamos y llenamos
-    contenedor.innerHTML = '';
-    const template = document.getElementById('informe-imprimir');
-    
-    if (!template) {
-        alert("Primero selecciona un estudiante para cargar la plantilla.");
-        return;
-    }
+              onClick={() => {
+                let contenedor = document.getElementById('impresion-masiva');
+                if (!contenedor) {
+                  contenedor = document.createElement('div');
+                  contenedor.id = 'impresion-masiva';
+                  document.body.appendChild(contenedor);
+                }
+                contenedor.innerHTML = '';
+                const template = document.getElementById('informe-imprimir');
+                if (!template) return alert("Primero selecciona un estudiante para cargar la plantilla.");
 
-    filteredStudents.forEach(s => {
-        const report = savedReports.find(r => r.studentId === s.id && r.grupo === grupoFiltro && r.periodo === periodoInforme);
-        if(report) {
-            const div = document.createElement('div');
-            div.className = 'pagina';
-            div.innerHTML = template.innerHTML; // Aquí clona tu diseño
-            contenedor.appendChild(div);
-        }
-    });
-
-    // 3. Disparamos la impresión del navegador
-    window.print();
-  }}
-  className="w-full mt-4 mb-4 bg-emerald-600 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-emerald-700 transition"
->
-  <Printer size={20} /> Imprimir todos ({filteredStudents.filter(s => savedReports.find(r => r.studentId === s.id && r.grupo === grupoFiltro)).length})
-</button>
+                filteredStudents.forEach(s => {
+                    const report = savedReports.find(r => r.studentId === s.id && r.grupo === grupoFiltro && r.periodo === periodoInforme);
+                    if(report) {
+                        const div = document.createElement('div');
+                        div.className = 'pagina';
+                        div.innerHTML = template.innerHTML;
+                        contenedor.appendChild(div);
+                    }
+                });
+                window.print();
+              }}
+              className="w-full mt-4 mb-4 bg-emerald-600 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-emerald-700 transition"
+            >
+              <Printer size={20} /> Imprimir todos ({filteredStudents.filter(s => savedReports.find(r => r.studentId === s.id && r.grupo === grupoFiltro)).length})
+            </button>
           )}
           
           <div className="bg-white rounded-3xl shadow-sm border divide-y">
             {filteredStudents.map(s => {
               const report = grupoFiltro === 'Todos' ? null : savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
-              
               return (
                 <div 
                   key={`${s.id}-${grupoFiltro}`} 
