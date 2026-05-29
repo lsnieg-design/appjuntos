@@ -445,63 +445,46 @@ const DICCIONARIO = {
                 </select>
              )}
           </div>
-     {/* --- BOTÓN DE IMPRESIÓN GRUPAL --- */}
-          {grupoFiltro !== 'Todos' && filteredStudents.length > 0 && (
+     {grupoFiltro !== 'Todos' && filteredStudents.length > 0 && (
             <button 
               onClick={() => {
                   const printWindow = window.open('', '_blank');
+                  let htmlCompleto = `<html><head>
+                    <title>Informes ${grupoFiltro}</title>
+                    <style>
+                      @media print { .pagina { page-break-after: always; } }
+                      body { font-family: sans-serif; padding: 20px; }
+                      .hidden { display: none; }
+                    </style>
+                  </head><body>`;
                   
-                  // 1. Buscamos el diseño base
+                  // Traemos el diseño base que ya tienes en el DOM
                   const template = document.getElementById('informe-imprimir');
-                  if (!template) return alert("Primero debes seleccionar un informe para generar la plantilla base.");
+                  if (!template) return alert("Primero debes seleccionar un alumno para generar la plantilla base.");
 
-                  // 2. Construimos el contenido HTML
-                  let contenidoInformes = '';
                   filteredStudents.forEach(s => {
-                      const report = savedReports.find(r => r.studentId === s.id && r.grupo === grupoFiltro && r.periodo === periodoInforme);
+                      const report = savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
                       if(report) {
-                          // Aquí inyectamos el HTML del diseño base. 
-                          // Nota: Al usar template.innerHTML, tomamos el diseño completo de ese div.
-                          contenidoInformes += `<div class="pagina">${template.innerHTML}</div>`;
+                          htmlCompleto += `<div class="pagina">${template.innerHTML}</div>`;
                       }
                   });
                   
-                  // 3. Escribimos en la nueva ventana
-                  printWindow.document.write(`
-                    <html>
-                      <head>
-                        <title>Informes ${grupoFiltro}</title>
-                        <style>
-                          @media print { .pagina { page-break-after: always; } }
-                          body { font-family: sans-serif; padding: 20px; }
-                          /* Aseguramos que los elementos ocultos se vean al imprimir */
-                          .print:hidden { display: block !important; }
-                        </style>
-                      </head>
-                      <body>
-                        ${contenidoInformes}
-                      </body>
-                    </html>
-                  `);
-                  
+                  htmlCompleto += "</body></html>";
+                  printWindow.document.write(htmlCompleto);
                   printWindow.document.close();
                   
-                  // 4. Imprimimos
                   setTimeout(() => {
                       printWindow.focus();
                       printWindow.print();
-                      // printWindow.close(); // Si quieres que se cierre sola tras imprimir
                   }, 800);
               }}
               className="w-full mt-4 mb-4 bg-emerald-600 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-emerald-700 transition"
             >
-              <Printer size={20} /> Imprimir todos los informes del grupo ({filteredStudents.filter(s => savedReports.find(r => r.studentId === s.id && r.grupo === grupoFiltro)).length})
+              <Printer size={20} /> Imprimir todos los informes ({filteredStudents.filter(s => savedReports.find(r => r.studentId === s.id && r.grupo === grupoFiltro)).length})
             </button>
           )}
           
           <div className="bg-white rounded-3xl shadow-sm border divide-y">
-
-      
             {filteredStudents.map(s => {
               const report = grupoFiltro === 'Todos' ? null : savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
               
@@ -530,7 +513,6 @@ const DICCIONARIO = {
           </div>
         </div>
       </div>
-
       {/* ------------------------------------------------------------- */}
       {/* INTERFAZ DE EDICIÓN EN PANTALLA (Oculta al imprimir) */}
       {/* ------------------------------------------------------------- */}
