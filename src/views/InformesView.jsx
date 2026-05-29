@@ -371,7 +371,7 @@ const DICCIONARIO = {
   return (
     <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in relative">
       
-    {/* MAGIA CSS PARA IMPRESIÓN */}
+      {/* MAGIA CSS PARA IMPRESIÓN */}
       <style>{`
         @media print {
           body * { visibility: hidden; }
@@ -475,19 +475,13 @@ const DICCIONARIO = {
             {filteredStudents.map(s => {
               const report = grupoFiltro === 'Todos' ? null : savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
               return (
-                <div 
-                  key={`${s.id}-${grupoFiltro}`} 
-                  className={`p-5 flex justify-between items-center transition-colors ${report ? 'bg-emerald-50' : 'hover:bg-violet-50/50'}`}
-                >
+                <div key={`${s.id}-${grupoFiltro}`} className={`p-5 flex justify-between items-center transition-colors ${report ? 'bg-emerald-50' : 'hover:bg-violet-50/50'}`}>
                   <div>
-                    <p className={`font-bold ${report ? 'text-emerald-900' : 'text-gray-900'}`}>
-                      {s.lastName}, {s.firstName}
-                    </p>
+                    <p className={`font-bold ${report ? 'text-emerald-900' : 'text-gray-900'}`}>{s.lastName}, {s.firstName}</p>
                     <p className={`text-[10px] font-bold uppercase ${report ? 'text-emerald-600' : 'text-gray-400'}`}>
                       {s.level} | {report ? `Cargado (${periodoInforme})` : 'Pendiente'}
                     </p>
                   </div>
-                  
                   {grupoFiltro !== 'Todos' && (
                     <button onClick={() => handleEdit(s, report)} className={`p-2 rounded-lg ${report ? 'bg-blue-50 text-blue-600' : 'bg-violet-600 text-white'}`}>
                       {report ? <Edit3 size={16}/> : <Plus size={16}/>}
