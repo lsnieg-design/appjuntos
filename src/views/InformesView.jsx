@@ -539,7 +539,7 @@ const DICCIONARIO = {
                         onClick={() => setAnswers(p => ({...p, [c.id]: opt}))} 
                         className={`p-3 rounded-xl font-bold text-[10px] uppercase border-2 text-left transition-all
                           ${isSelected ? 'bg-violet-600 text-white border-violet-700' : 'bg-white border-gray-200 hover:border-violet-300'}
-                        `}
+                        
                       >
                         {opt}
                       </button>
