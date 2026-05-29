@@ -408,71 +408,31 @@ export function InformesView({ user, db, appId }) {
         `}
       </style>
 
-      {/* ------------------------------------------------------------- */}
+     {/* ------------------------------------------------------------- */}
       {/* VISTA PRINCIPAL (Oculta al imprimir) */}
       {/* ------------------------------------------------------------- */}
       <div className={`${stage === 'main' ? 'block' : 'hidden'} print:hidden`}>
-        <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-8 rounded-[40px] shadow-xl text-white mb-8">
-          <h2 className="text-2xl font-black mb-2 flex items-center gap-3"><BookOpen size={28} /> Gestión de Informes</h2>
-          <p className="text-violet-100 text-sm">Mostrando: {filteredStudents.length} alumnos.</p>
-        </div>
-
-        <div className="space-y-6">
-          <div className="flex gap-2 p-2 bg-white rounded-2xl border">
-            {['pedagogico', 'laboral'].map(t => (
-              <button key={t} onClick={() => setTipoInforme(t)} className={`flex-1 p-3 rounded-xl font-black capitalize ${tipoInforme === t ? 'bg-violet-600 text-white' : 'bg-gray-100'}`}>{t}</button>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-             <input className="p-4 rounded-2xl border bg-white text-sm" placeholder="Buscar alumno..." onChange={e => setSearchTerm(e.target.value)} />
-             
-             <select className="p-4 rounded-2xl border bg-white text-sm font-bold" value={turnoFiltro} onChange={e => {setTurnoFiltro(e.target.value); setNivelFiltro('Todos'); setGrupoFiltro('Todos');}}>
-                <option value="Todos">Turno: Todos</option>
-                <option value="Mañana">Mañana</option>
-                <option value="Tarde">Tarde</option>
-             </select>
-
-             {turnoFiltro !== 'Todos' && (
-                <select className="p-4 rounded-2xl border bg-white text-sm font-bold" value={nivelFiltro} onChange={e => {setNivelFiltro(e.target.value); setGrupoFiltro('Todos');}}>
-                    <option value="Todos">Nivel: Todos</option>
-                    {['Inicial', '1° Ciclo', '2° Ciclo', 'CFI'].map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-             )}
-
-             {nivelFiltro !== 'Todos' && (
-                <select className="p-4 rounded-2xl border bg-white text-sm font-bold w-full" value={grupoFiltro} onChange={e => setGrupoFiltro(e.target.value)}>
-                    <option value="Todos">Grupo: Todos</option>
-                    {students
-                      .filter(s => s.level && s.level.toUpperCase() === nivelFiltro.toUpperCase())
-                      .flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean))
-                      .filter((v, i, a) => a.indexOf(v) === i)
-                      .filter(g => !(nivelFiltro.toUpperCase() === '1° CICLO' && g.toUpperCase().includes('PRE TALLER')))
-                      .map(g => <option key={g} value={g}>{g}</option>)}
-                </select>
-             )}
+        <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-8 rounded-[40px] shadow-xl text-white mb-8 flex flex-col md:flex-row items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-black mb-2 flex items-center gap-3"><BookOpen size={28} /> Gestión de Informes</h2>
+            <p className="text-violet-100 text-sm">Mostrando: {filteredStudents.length} alumnos.</p>
           </div>
           
-          <div className="bg-white rounded-3xl shadow-sm border divide-y">
-            {filteredStudents.map(s => {
-              const report = grupoFiltro === 'Todos' ? null : savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro);
-              return (
-                <div key={`${s.id}-${grupoFiltro}`} className="p-5 flex justify-between items-center hover:bg-violet-50/50">
-                  <div>
-                    <p className="font-bold">{s.lastName}, {s.firstName}</p>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase">{s.level} | {report ? 'Cargado' : 'Pendiente'}</p>
-                  </div>
-                  {grupoFiltro !== 'Todos' && (
-                    <button onClick={() => handleEdit(s, report)} className={`p-2 rounded-lg ${report ? 'bg-blue-50 text-blue-600' : 'bg-violet-600 text-white'}`}>
-                      {report ? <Edit3 size={16}/> : <Plus size={16}/>}
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+          {/* SELECTOR DE PERÍODO (Inicial y Final bloqueados por ahora) */}
+          <div className="mt-4 md:mt-0 bg-white/10 p-2 rounded-2xl border border-white/20">
+             <label className="text-xs font-bold uppercase tracking-widest text-violet-200 block mb-1 px-1">Período del Informe:</label>
+             <select 
+               className="bg-white text-violet-900 font-black p-3 rounded-xl outline-none" 
+               value={periodoInforme} 
+               onChange={e => setPeriodoInforme(e.target.value)}
+             >
+                {/* Agregamos 'disabled' para que no se puedan elegir todavía */}
+                <option value="Inicial" disabled>Informe Inicial 2026 (Cerrado)</option>
+                <option value="Medio">Informe Medio 2026</option>
+                <option value="Final" disabled>Informe Final 2026 (Próximamente)</option>
+             </select>
           </div>
         </div>
-      </div>
 
       {/* ------------------------------------------------------------- */}
     {/* ------------------------------------------------------------- */}
