@@ -375,10 +375,9 @@ const DICCIONARIO = {
       <style type="text/css">
         {`
           @media print {
-            * {
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
+  .pagina { page-break-after: always; }
+  #impresion-masiva { display: block !important; }
+}
             @page {
               margin: 1.5cm;
               size: A4 portrait;
@@ -446,40 +445,53 @@ const DICCIONARIO = {
                 </select>
              )}
           </div>
-       {/* --- BOTÓN DE IMPRESIÓN GRUPAL --- */}
+     {/* --- BOTÓN DE IMPRESIÓN GRUPAL --- */}
           {grupoFiltro !== 'Todos' && filteredStudents.length > 0 && (
             <button 
               onClick={() => {
                   const printWindow = window.open('', '_blank');
-                  // Estilos para que cada informe empiece en una página nueva
-                  let htmlCompleto = `<html><head><title>Informes ${grupoFiltro}</title>
-                    <style>
-                        @media print { .pagina { page-break-after: always; } }
-                        body { font-family: sans-serif; padding: 20px; }
-                        img { max-width: 200px; }
-                    </style></head><body>`;
                   
-                  // Traemos el diseño base que ya tenés en el DOM
+                  // 1. Buscamos el diseño base
                   const template = document.getElementById('informe-imprimir');
-                  
+                  if (!template) return alert("Primero debes seleccionar un informe para generar la plantilla base.");
+
+                  // 2. Construimos el contenido HTML
+                  let contenidoInformes = '';
                   filteredStudents.forEach(s => {
-                      const report = savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
+                      const report = savedReports.find(r => r.studentId === s.id && r.grupo === grupoFiltro && r.periodo === periodoInforme);
                       if(report) {
-                          // Clonamos el diseño y le agregamos una clase para el salto de página
-                          htmlCompleto += `<div class="pagina">${template.innerHTML}</div>`;
+                          // Aquí inyectamos el HTML del diseño base. 
+                          // Nota: Al usar template.innerHTML, tomamos el diseño completo de ese div.
+                          contenidoInformes += `<div class="pagina">${template.innerHTML}</div>`;
                       }
                   });
                   
-                  htmlCompleto += "</body></html>";
+                  // 3. Escribimos en la nueva ventana
+                  printWindow.document.write(`
+                    <html>
+                      <head>
+                        <title>Informes ${grupoFiltro}</title>
+                        <style>
+                          @media print { .pagina { page-break-after: always; } }
+                          body { font-family: sans-serif; padding: 20px; }
+                          /* Aseguramos que los elementos ocultos se vean al imprimir */
+                          .print:hidden { display: block !important; }
+                        </style>
+                      </head>
+                      <body>
+                        ${contenidoInformes}
+                      </body>
+                    </html>
+                  `);
                   
-                  printWindow.document.write(htmlCompleto);
                   printWindow.document.close();
                   
-                  // Esperamos 500ms para asegurar que el navegador cargue el contenido antes de imprimir
+                  // 4. Imprimimos
                   setTimeout(() => {
                       printWindow.focus();
                       printWindow.print();
-                  }, 500);
+                      // printWindow.close(); // Si quieres que se cierre sola tras imprimir
+                  }, 800);
               }}
               className="w-full mt-4 mb-4 bg-emerald-600 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-emerald-700 transition"
             >
@@ -488,6 +500,8 @@ const DICCIONARIO = {
           )}
           
           <div className="bg-white rounded-3xl shadow-sm border divide-y">
+
+      
             {filteredStudents.map(s => {
               const report = grupoFiltro === 'Todos' ? null : savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
               
