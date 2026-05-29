@@ -56,7 +56,7 @@ export function InformesView({ user, db, appId }) {
   const [tipoInforme, setTipoInforme] = useState('pedagogico');
   const [periodoInforme, setPeriodoInforme] = useState('Medio');
   const [selectedStudent, setSelectedStudent] = useState(null);
-  
+   
   const [searchTerm, setSearchTerm] = useState('');
   const [turnoFiltro, setTurnoFiltro] = useState('Todos');
   const [nivelFiltro, setNivelFiltro] = useState('Todos');
