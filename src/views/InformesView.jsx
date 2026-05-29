@@ -54,7 +54,7 @@ const CONFIG_INDICADORES = {
 export function InformesView({ user, db, appId }) {
   const [stage, setStage] = useState('main'); 
   const [tipoInforme, setTipoInforme] = useState('pedagogico');
-  const [periodoInforme, setPeriodoInforme] = useState('Medio'); 
+  const [periodoInforme, setPeriodoInforme] = useState('Medio');
   const [selectedStudent, setSelectedStudent] = useState(null);
   
   const [searchTerm, setSearchTerm] = useState('');
