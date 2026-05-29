@@ -180,78 +180,80 @@ export function InformesView({ user, db, appId }) {
   const nivelActual = selectedStudent?.level || 'Inicial';
   const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || [];
 
- // Transformador inteligente y VARIADO de texto para la impresión
-  const formatearTextoImpresion = (respuesta, firstNameRaw) => {
-    if (!respuesta) return '';
-    
-    // Extraemos solo el primer nombre
-    const primerNombre = firstNameRaw ? firstNameRaw.split(' ')[0] : 'El/la estudiante';
+ // Transformador inteligente con TUS textos exactos y sujetos dinámicos
+  const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firstNameRaw) => {
+    const nombreReal = firstNameRaw ? firstNameRaw.split(' ')[0] : 'El/la estudiante';
 
-    // 1. Casos específicos de Lectoescritura
-    if (respuesta.startsWith('Presilábico:')) return `${primerNombre} se encuentra en una etapa presilábica de la escritura, en donde explora la misma a través de dibujos o grafismos sin valor sonoro aún. Este es un primer acercamiento lúdico y de descubrimiento muy valioso hacia el mundo de la comunicación escrita.`;
-    if (respuesta.startsWith('Silábico:')) return `${primerNombre} transita una etapa silábica de la escritura, donde comienza a asignar valor sonoro a las letras, mayormente vocales. Se observa un avance significativo en su comprensión de la relación fonema-grafema, vital para su proceso de alfabetización.`;
-    if (respuesta.startsWith('Silábico-alfabético:')) return `${primerNombre} transita una etapa silábico-alfabética de transición, combinando sílabas completas con letras aisladas. Esto demuestra una consolidación progresiva en su discriminación fonológica, dando pasos firmes hacia la escritura convencional.`;
-    if (respuesta.startsWith('Alfabético:')) return `${primerNombre} escribe de forma autónoma en una etapa alfabética, representando los fonemas con coherencia. Ha logrado plasmar sus ideas de manera clara, demostrando una excelente apropiación del sistema de escritura.`;
+    // Función para no sonar robóticos: alterna cómo llamamos al estudiante
+    const obtenerSujeto = () => {
+      const opciones = [
+        nombreReal, 
+        'El/la estudiante', 
+        'Nuestro/a alumno/a', 
+        nombreReal // Doble chance para el nombre real para que sea lo más frecuente
+      ];
+      return opciones[Math.floor(Math.random() * opciones.length)];
+    };
 
-    // 2. Transformación dinámica de la oración base
-    let textoMinuscula = respuesta.charAt(0).toLowerCase() + respuesta.slice(1);
-    if (textoMinuscula.endsWith('.')) textoMinuscula = textoMinuscula.slice(0, -1);
+    const DICCIONARIO = {
+      // --- ÁREA PEDAGÓGICA ---
+      lectoescritura: [
+        `Nombre se encuentra en la etapa presilábica. En este momento, está dando sus primeros pasos en el mundo de la escritura explorándola a través de dibujos y trazos. Si bien todavía no tienen un valor sonoro definido, esta es una etapa de descubrimiento fundamental: es un proceso de juego y exploración muy valioso que prepara el terreno para todos los aprendizajes que vendrán más adelante.`,
+        `Nombre se encuentra en la etapa silábica. Ha empezado a descubrir que las letras tienen sonido y, en sus producciones, ya podemos ver cómo utiliza principalmente vocales para representar lo que quiere decir. Es un avance muy importante, ya que demuestra que está conectando el mundo de lo oral con lo escrito. ¡Es un paso fundamental en su camino como escritor/a!`,
+        `Nombre se encuentra en la etapa silábico-alfabética. Es un momento de muchos cambios y descubrimientos en su escritura, donde ya es capaz de combinar sílabas completas con algunas letras aisladas. Esto nos muestra que está analizando cada vez mejor cómo se forman las palabras. Es un proceso de transición muy interesante donde su curiosidad es la mejor herramienta para seguir avanzando.`,
+        `Nombre se encuentra en la etapa alfabética. Ha logrado escribir de manera autónoma, representando los sonidos con coherencia y logrando que sus palabras se entiendan con claridad. Es un gran avance que demuestra cómo ha comprendido el sistema de escritura para expresar sus ideas. Celebramos este logro tan importante en su autonomía y seguiremos acompañándolo/a para que continúe explorando el mundo de las letras con confianza.`
+      ],
+      escritura: [
+        `Nombre se encuentra en una etapa donde requiere guía física constante (mano-sobre-mano) para realizar sus grafismos. En esta fase, nuestro acompañamiento es fundamental para guiar el movimiento, favorecer la seguridad en el trazo y explorar juntos la acción de escribir. Es un momento de contacto y estimulación esencial para ir construyendo, paso a paso, la base de su expresión escrita.`,
+        `Nombre escribe mediante copia fiel o dictado fonético sencillo, sosteniéndose en el apoyo directo del docente. Nuestra presencia constante le permite orientarse, despejar dudas y animarse a combinar sonidos, consolidando así sus primeras producciones escritas con mayor seguridad.`,
+        `Nombre escribe frases cortas a través de dictados fonéticos, contando con nuestra supervisión frecuente. Este nivel muestra un avance importante, ya que comienza a estructurar pequeñas oraciones con sentido. Nuestra presencia constante le permite orientarse, despejar dudas y animarse a combinar sonidos, consolidando así sus primeras producciones escritas con mayor seguridad.`,
+        `Nombre escribe de forma autónoma y creativa, logrando expresar sus ideas con sentido completo. Es un gran paso en su proceso de alfabetización, ya que puede organizar el lenguaje para transmitir mensajes claros por cuenta propia. Celebramos esta autonomía alcanzada, que le permite usar la escritura como una herramienta real y valiosa para compartir su mundo interior con los demás.`
+      ],
+      comprension: [
+        `Nombre aún no logra atribuir significado al texto escrito, concentrándose principalmente en la identificación de imágenes. Este es un punto de partida muy importante: a través de las ilustraciones, Nombre empieza a explorar el mundo visual que rodea a la escritura. Estamos trabajando con propuestas que inviten a explorar los libros y materiales escritos, favoreciendo poco a poco el acercamiento a las letras como portadoras de sentido.`,
+        `Nombre se encuentra en un nivel en el que comprende textos breves y sencillos a través de la lectura compartida. Este momento de intercambio con el docente o un adulto es fundamental, ya que le permite construir significados y disfrutar de la lectura en conjunto. Es un proceso de aprendizaje colaborativo donde, poco a poco, va encontrando sentido a lo que dicen las palabras más allá de las imágenes.`,
+        `Nombre ya logra comprender el sentido global de textos breves de manera guiada. Esto significa que, con nuestro apoyo y orientación, puede identificar de qué trata lo que lee, captando la idea principal. Es un avance significativo que nos muestra cómo Nombre está empezando a integrar la información escrita y a darle sentido por sí mismo/a, fortaleciendo su comprensión lectora paso a paso.`,
+        `Nombre ha alcanzado la capacidad de realizar una lectura autónoma y comprender el sentido global de textos diversos. Esto le permite enfrentarse a diferentes materiales de lectura por cuenta propia, extrayendo ideas y disfrutando de la autonomía que brinda el saber leer. Es un logro excelente que abre las puertas a nuevos aprendizajes y le da mucha confianza para seguir explorando el mundo de los libros.`
+      ],
+      reconocimiento: [
+        `Nombre está comenzando a identificar su propio nombre entre otras palabras. Este es un hito sumamente especial en su proceso, ya que su nombre es la primera palabra con significado personal y afectivo para él/ella. Desde este reconocimiento inicial, estamos trabajando para ampliar su capacidad de observar otras palabras y empezar a distinguir sus formas dentro del universo escrito.`,
+        `Nombre ya reconoce su nombre propio y el de sus pares con mucha facilidad. Este avance demuestra un interés genuino por el mundo que lo/la rodea y por su grupo de pertenencia en la escuela. El hecho de identificar los nombres de sus compañeros no solo es un gran paso en su alfabetización, sino también un gesto muy valioso de integración y fortalecimiento de los vínculos afectivos en el aula.`,
+        `Nombre ha comenzado a reconocer palabras de uso frecuente y frases cortas. Esto significa que ya identifica conceptos que ve habitualmente en clase o en su entorno cercano, lo cual le brinda mucha seguridad al leer. Este logro nos indica que está empezando a dar sentido a la lectura de manera más fluida, permitiéndole conectar lo que lee con situaciones de la vida diaria.`,
+        `Nombre ya lee palabras y frases con sentido completo de forma autónoma. Es una alegría ver cómo ha ganado confianza para leer por su cuenta, logrando interpretar mensajes escritos y dándoles un significado real sin necesidad de ayuda. Este nivel de independencia es un gran motor para su curiosidad y para el disfrute de nuevos materiales de lectura.`
+      ],
+      serie_numerica: [
+        `Nombre se encuentra en la etapa de realizar el conteo hasta 10, utilizando apoyo con material concreto. El uso de objetos tangibles (como bloques o fichas) es fundamental en este momento, ya que le permite visualizar las cantidades y darles sentido a los números. Acompañamos este proceso con mucha paciencia, fortaleciendo esta base que es la puerta de entrada para todas sus futuras nociones matemáticas.`,
+        `Nombre ya logra realizar el conteo hasta 20 y reconoce números en contextos cotidianos. Es muy gratificante observar cómo identifica los números en situaciones reales de la vida diaria, lo que demuestra que está conectando la matemática con el mundo que lo/la rodea. Seguimos trabajando para consolidar este rango numérico, incorporando nuevos desafíos que despierten su curiosidad.`,
+        `Nombre maneja series numéricas amplias y ya reconoce las familias numéricas. Este nivel de avance nos indica que ha comprendido la lógica de cómo se organizan y agrupan los números. Es un logro muy importante que le brinda una visión más clara del sistema numérico, permitiéndole moverse con mayor soltura al trabajar con cantidades más grandes y relaciones entre números.`,
+        `Nombre domina series numéricas complejas con total autonomía. Su capacidad para trabajar con números de gran magnitud y entender su estructura de forma independiente es excelente. Celebramos este nivel de madurez matemática, ya que le proporciona una base muy sólida para seguir explorando operaciones y desafíos numéricos más complejos con gran confianza.`
+      ],
+      rutinas: [
+        `Nombre requiere asistencia total y un acompañamiento cercano durante toda su jornada escolar para realizar las rutinas de higiene y cuidado personal. Nuestra prioridad es construir un vínculo de confianza y seguridad, brindándole el sostén necesario en cada momento. A través de este contacto permanente, vamos paso a paso, acompañando su proceso de adaptación y fortaleciendo su bienestar dentro del ámbito escolar.`,
+        `Nombre logra realizar sus rutinas básicas contando con supervisión constante y un apoyo puntual de nuestra parte. Este avance nos muestra cómo empieza a reconocer los pasos necesarios para su cuidado personal, sintiéndose más seguro/a en sus acciones. Seguimos a su lado, brindándole la guía precisa para que pueda ganar confianza y familiarizarse cada vez más con el hábito de cuidar de sí mismo/a.`,
+        `Nombre realiza sus rutinas diarias con una supervisión mínima y esporádica. Es un avance muy positivo que demuestra su creciente capacidad de organización y su sentido de responsabilidad. Estamos muy satisfechos con el camino recorrido, ya que Nombre se muestra cada vez más seguro/a y competente al gestionar sus tareas de higiene y cuidado personal de manera independiente.`,
+        `Nombre se desenvuelve con total autonomía en sus rutinas escolares y en su cuidado personal. Es una gran alegría ver cómo ha consolidado estos hábitos, demostrando madurez, seguridad y una clara capacidad para gestionar sus necesidades de forma independiente. Celebramos este logro tan significativo, que le permite participar de la vida escolar con confianza y comodidad.`
+      ]
+    };
 
-    let oracionBase = '';
-    if (respuesta.startsWith('Su ')) {
-      oracionBase = `En este aspecto, el perfil de ${primerNombre} indica que ${textoMinuscula}`;
-    } else if (respuesta.startsWith('Atención ') || respuesta.startsWith('Comunicación ') || respuesta.startsWith('Dependencia ') || respuesta.startsWith('Gran dificultad ') || respuesta.startsWith('Alta ')) {
-      oracionBase = `En relación a su desempeño, ${primerNombre} presenta ${textoMinuscula}`;
+    // 1. Buscamos si redactaste la frase en el diccionario
+    let textoFinal = '';
+    if (DICCIONARIO[idIndicador] && DICCIONARIO[idIndicador][indiceOpcion]) {
+      textoFinal = DICCIONARIO[idIndicador][indiceOpcion];
     } else {
-      oracionBase = `Se observa que ${primerNombre} ${textoMinuscula}`;
+      // "Paracaídas" por si te falta agregar alguno al diccionario: arma una oración simple
+      let textoMinuscula = respuestaCorta.charAt(0).toLowerCase() + respuestaCorta.slice(1);
+      textoFinal = `Se observa que Nombre ${textoMinuscula}`;
     }
 
-    // 3. Ampliación pedagógica con VARIACIONES (evita la repetición robótica)
-    const respLower = respuesta.toLowerCase();
-    
-    // Un truco matemático simple para elegir una de las 3 opciones de forma variada pero estable
-    const variante = respuesta.length % 3; 
+    // 2. LA MAGIA: Reemplazamos el primer "Nombre" por un sujeto dinámico
+    const sujetoDinamico = obtenerSujeto();
+    textoFinal = textoFinal.replace('Nombre', sujetoDinamico);
 
-    let ampliacion = '';
+    // 3. Reemplazamos los demás "Nombre" que puedan aparecer en el medio del texto por su nombre real
+    // (para que no diga "nos muestra cómo El estudiante está empezando...")
+    textoFinal = textoFinal.replace(/Nombre/g, nombreReal);
 
-    // A. Nivel de Alta Dependencia / Dificultad
-    if (respLower.includes('no logra') || respLower.includes('gran dificultad') || respLower.includes('dependencia total') || respLower.includes('no respeta') || respLower.startsWith('solo ') || respLower.includes('desconectado') || respLower.includes('se bloquea')) {
-      const opciones = [
-        `. Desde el equipo continuaremos brindando las herramientas, los apoyos y el andamiaje necesario para acompañar sus propios tiempos y fomentar mayores niveles de autonomía.`,
-        `. Se sostendrán las estrategias de intervención directa, priorizando su bienestar emocional y respetando su ritmo singular de aprendizaje en cada propuesta escolar.`,
-        `. Nuestro objetivo a corto plazo será seguir estimulando esta área mediante apoyos y configuraciones específicas, para que paulatinamente gane mayor confianza y seguridad en sí mismo/a.`
-      ];
-      ampliacion = opciones[variante];
-    } 
-    // B. Nivel de Transición / Requiere Supervisión
-    else if (respLower.includes('requiere') || respLower.includes('precisa') || respLower.includes('con supervisión') || respLower.includes('con apoyo') || respLower.includes('mediación') || respLower.includes('ante malestar')) {
-      const opciones = [
-        `. Se continuará ofreciendo una guía cercana, contención y anticipación para seguir fortaleciendo progresivamente su seguridad en este proceso.`,
-        `. Con la mediación docente adecuada, se espera que logre consolidar estos saberes, con la intención de ir retirando los apoyos de manera paulatina a medida que avance.`,
-        `. El acompañamiento focalizado y la mirada atenta en estas instancias resultan fundamentales para que logre apropiarse de la dinámica y alcance un mayor grado de independencia.`
-      ];
-      ampliacion = opciones[variante];
-    } 
-    // C. Nivel de Alta Autonomía / Proactividad
-    else if (respLower.includes('autónomo') || respLower.includes('autónomamente') || respLower.includes('total autonomía') || respLower.includes('proactivo') || respLower.includes('lidera') || respLower.includes('alta flexibilidad') || respLower.includes('complejas') || respLower.includes('fluidez')) {
-      const opciones = [
-        `. Su desempeño en este punto es sumamente destacable, mostrando una gran iniciativa personal que enriquece de forma muy positiva la dinámica de trabajo grupal.`,
-        `. Demuestra un manejo fluido y sostenido en este aspecto, logrando desenvolverse con gran destreza y aportando activamente al trabajo compartido del aula.`,
-        `. Este altísimo nivel de autonomía le permite no solo resolver las consignas con éxito, sino también posicionarse como un referente positivo y colaborador para sus pares.`
-      ];
-      ampliacion = opciones[variante];
-    } 
-    // D. Desarrollo Normal / En Proceso Positivo
-    else {
-      const opciones = [
-        `. Este nivel de desarrollo refleja un avance muy positivo, producto de su esfuerzo sostenido y de las propuestas implementadas en el espacio escolar cotidiano.`,
-        `. Se evidencia un recorrido muy favorable en la apropiación de estas pautas, lo que demuestra su permeabilidad y excelente disposición frente a la tarea.`,
-        `. Seguiremos potenciando estas habilidades para que continúe afianzando su trayectoria educativa con el mismo entusiasmo y compromiso demostrado hasta ahora.`
-      ];
-      ampliacion = opciones[variante];
-    }
-
-    return oracionBase + ampliacion;
+    return textoFinal;
   };
   return (
     <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in relative">
