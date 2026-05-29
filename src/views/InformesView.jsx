@@ -499,32 +499,6 @@ const DICCIONARIO = {
              </div>
           </div>
 
-          <div className="max-h-[60vh] overflow-y-auto pr-2 space-y-4">
-            {indicadoresActuales.map(c => (
-              <div key={c.id} className="space-y-2 mb-4 p-4 bg-gray-50 rounded-2xl">
-                <label className="text-xs font-black uppercase text-gray-700">{c.label}</label>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {c.options.map(opt => {
-                    const isSelected = answers[c.id] === opt;
-                    return (
-                      <button 
-                        key={opt} 
-                        onClick={() => setAnswers(p => ({...p, [c.id]: opt}))} 
-                        className={`p-3 rounded-xl font-bold text-[10px] uppercase border-2 text-left transition-all
-                          ${isSelected ? 'bg-violet-600 text-white border-violet-700' : 'bg-white border-gray-200 hover:border-violet-300'}
-                        `}
-                      >
-                        {opt}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <input
-                  type="text"
-                  placeholder="O escribí una observación personalizada para este indicador..."
-                  className={`w-f{/* ELIMINAMOS EL max-h-[60vh] y el overflow-y-auto PARA QUE FLUYA NATURALMENTE */}
           <div className="space-y-4">
             {indicadoresActuales.map(c => (
               <div key={c.id} className="space-y-2 mb-4 p-4 bg-gray-50 rounded-2xl">
@@ -537,9 +511,7 @@ const DICCIONARIO = {
                       <button 
                         key={opt} 
                         onClick={() => setAnswers(p => ({...p, [c.id]: opt}))} 
-                        className={`p-3 rounded-xl font-bold text-[10px] uppercase border-2 text-left transition-all
-                          ${isSelected ? 'bg-violet-600 text-white border-violet-700' : 'bg-white border-gray-200 hover:border-violet-300'}
-                        
+                        className={"p-3 rounded-xl font-bold text-[10px] uppercase border-2 text-left transition-all " + (isSelected ? "bg-violet-600 text-white border-violet-700" : "bg-white border-gray-200 hover:border-violet-300")}
                       >
                         {opt}
                       </button>
@@ -550,10 +522,7 @@ const DICCIONARIO = {
                 <input
                   type="text"
                   placeholder="O escribí una observación personalizada para este indicador..."
-                  className={`w-full p-3 mt-3 rounded-xl text-xs font-medium border-2 transition-all outline-none
-                    ${answers[c.id] && !c.options.includes(answers[c.id]) 
-                      ? 'bg-violet-100 border-violet-600 text-violet-900' 
-                      : 'bg-white border-gray-200 focus:border-violet-400'}`}
+                  className={"w-full p-3 mt-3 rounded-xl text-xs font-medium border-2 transition-all outline-none " + (answers[c.id] && !c.options.includes(answers[c.id]) ? "bg-violet-100 border-violet-600 text-violet-900" : "bg-white border-gray-200 focus:border-violet-400")}
                   value={!c.options.includes(answers[c.id]) ? (answers[c.id] || '') : ''}
                   onChange={(e) => setAnswers(p => ({...p, [c.id]: e.target.value}))}
                 />
@@ -584,6 +553,7 @@ const DICCIONARIO = {
               </div>
             </div>
           </div>
+
           <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 mt-6 bg-violet-800 hover:bg-violet-900 text-white font-black rounded-2xl">
             {isSaving ? 'Guardando...' : 'Guardar Informe'}
           </button>
