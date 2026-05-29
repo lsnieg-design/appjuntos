@@ -38,7 +38,6 @@ export function MatriculaView({ user, db, appId, initStudentId }) {
   const [filterText, setFilterText] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [formModalidad, setFormModalidad] = useState('Sede');
-  const [periodoInforme, setPeriodoInforme] = useState('Medio');)
   const [filters, setFilters] = useState({ 
       modality: 'all', 
       level: 'all', 
