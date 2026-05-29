@@ -475,6 +475,7 @@ export function InformesView({ user, db, appId }) {
       </div>
 
       {/* ------------------------------------------------------------- */}
+    {/* ------------------------------------------------------------- */}
       {/* INTERFAZ DE EDICIÓN EN PANTALLA (Oculta al imprimir) */}
       {/* ------------------------------------------------------------- */}
       {stage === 'form' && (
@@ -509,6 +510,8 @@ export function InformesView({ user, db, appId }) {
             {indicadoresActuales.map(c => (
               <div key={c.id} className="space-y-2 mb-4 p-4 bg-gray-50 rounded-2xl">
                 <label className="text-xs font-black uppercase text-gray-700">{c.label}</label>
+                
+                {/* Los botones predeterminados */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {c.options.map(opt => {
                     const isSelected = answers[c.id] === opt;
@@ -525,6 +528,18 @@ export function InformesView({ user, db, appId }) {
                     );
                   })}
                 </div>
+
+                {/* NUEVO: Campo para respuesta libre/personalizada */}
+                <input
+                  type="text"
+                  placeholder="O escribí una observación personalizada para este indicador..."
+                  className={`w-full p-3 mt-3 rounded-xl text-xs font-medium border-2 transition-all outline-none
+                    ${answers[c.id] && !c.options.includes(answers[c.id]) 
+                      ? 'bg-violet-100 border-violet-600 text-violet-900' 
+                      : 'bg-white border-gray-200 focus:border-violet-400'}`}
+                  value={!c.options.includes(answers[c.id]) ? (answers[c.id] || '') : ''}
+                  onChange={(e) => setAnswers(p => ({...p, [c.id]: e.target.value}))}
+                />
               </div>
             ))}
             
@@ -591,7 +606,7 @@ export function InformesView({ user, db, appId }) {
             </div>
           </div>
 
-          {/* SECCIÓN DE DESARROLLO (ORACIONES DESCRIPTIVAS) */}
+       {/* SECCIÓN DE DESARROLLO (ORACIONES DESCRIPTIVAS) */}
           <div className="mb-6">
             <h2 className="text-sm font-black text-white bg-violet-800 uppercase px-4 py-1.5 rounded-md mb-4 shadow-sm inline-block" style={{ breakInside: 'avoid' }}>
               Desarrollo {tipoInforme}
@@ -603,7 +618,15 @@ export function InformesView({ user, db, appId }) {
                 if (!answer) return null; 
                 
                 const optionIndex = c.options.indexOf(answer);
-                const textoDescriptivo = formatearTextoImpresion(c.id, optionIndex, answer, selectedStudent?.firstName);
+                let textoDescriptivo = '';
+
+                // Si la respuesta está en las opciones, usamos el diccionario inteligente
+                if (optionIndex !== -1) {
+                  textoDescriptivo = formatearTextoImpresion(c.id, optionIndex, answer, selectedStudent?.firstName);
+                } else {
+                  // Si es texto personalizado, se imprime exactamente lo que escribió la docente
+                  textoDescriptivo = answer;
+                }
 
                 if (!textoDescriptivo) return null;
 
