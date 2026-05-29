@@ -446,35 +446,40 @@ const DICCIONARIO = {
                 </select>
              )}
           </div>
-         {/* --- BOTÓN DE IMPRESIÓN GRUPAL --- */}
+       {/* --- BOTÓN DE IMPRESIÓN GRUPAL --- */}
           {grupoFiltro !== 'Todos' && filteredStudents.length > 0 && (
             <button 
               onClick={() => {
                   const printWindow = window.open('', '_blank');
                   // Estilos para que cada informe empiece en una página nueva
-                  let htmlCompleto = `<html><head><style>
-                    @media print { .pagina { page-break-after: always; } }
-                    body { font-family: sans-serif; padding: 20px; }
-                  </style></head><body>`;
+                  let htmlCompleto = `<html><head><title>Informes ${grupoFiltro}</title>
+                    <style>
+                        @media print { .pagina { page-break-after: always; } }
+                        body { font-family: sans-serif; padding: 20px; }
+                        img { max-width: 200px; }
+                    </style></head><body>`;
                   
                   // Traemos el diseño base que ya tenés en el DOM
                   const template = document.getElementById('informe-imprimir');
                   
                   filteredStudents.forEach(s => {
-                      const report = savedReports.find(r => r.studentId === s.id && r.grupo === grupoFiltro && r.periodo === periodoInforme);
+                      const report = savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
                       if(report) {
-                          // Aquí inyectamos el diseño base. 
-                          // Nota: Como es una impresión grupal, verás el diseño base; 
-                          // para datos 100% personalizados por alumno en esta vista grupal,
-                          // lo ideal es generar el HTML aquí mismo con los datos del 'report' y el 's'.
+                          // Clonamos el diseño y le agregamos una clase para el salto de página
                           htmlCompleto += `<div class="pagina">${template.innerHTML}</div>`;
                       }
                   });
                   
                   htmlCompleto += "</body></html>";
+                  
                   printWindow.document.write(htmlCompleto);
                   printWindow.document.close();
-                  printWindow.print();
+                  
+                  // Esperamos 500ms para asegurar que el navegador cargue el contenido antes de imprimir
+                  setTimeout(() => {
+                      printWindow.focus();
+                      printWindow.print();
+                  }, 500);
               }}
               className="w-full mt-4 mb-4 bg-emerald-600 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-emerald-700 transition"
             >
