@@ -563,18 +563,18 @@ export function InformesView({ user, db, appId }) {
       {/* ------------------------------------------------------------- */}
       {/* DOCUMENTO REAL DE IMPRESIÓN (Aislado gracias al UseEffect)    */}
       {/* ------------------------------------------------------------- */}
-      {stage === 'form' && (
+     {stage === 'form' && (
         <div id="informe-imprimir" className="hidden print:block w-full bg-white text-black font-sans pb-4">
           
-          {/* ENCABEZADO INSTITUCIONAL CON COLOR */}
-          <div className="flex items-center justify-between border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
-            <img src="/logo.png" alt="Logo Institucional" className="h-16 object-contain" />
-            <div className="text-right">
-              <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME MEDIO 2026</h1>
-              <p className="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
-                Área: {tipoInforme}
-              </p>
-            </div>
+          {/* ENCABEZADO INSTITUCIONAL CON LOGO Y COLOR */}
+          <div className="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
+            {/* AQUÍ ESTÁ EL LOGO QUE FALTABA */}
+            <img src="/logo.png" alt="Logo Institucional" className="h-16 object-contain mb-3" />
+            
+            <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME MEDIO 2026</h1>
+            <p className="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
+              Área: {tipoInforme}
+            </p>
           </div>
 
           {/* DATOS DEL ESTUDIANTE RECUADRADOS */}
