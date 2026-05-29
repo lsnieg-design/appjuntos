@@ -182,6 +182,9 @@ export function InformesView({ user, db, appId }) {
 
  // Transformador inteligente con TUS textos exactos y sujetos dinámicos
   const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firstNameRaw) => {
+    // RED DE SEGURIDAD: Si no hay respuesta, devolvemos vacío para no romper la pantalla
+    if (!respuestaCorta || typeof respuestaCorta !== 'string') return '';
+
     const nombreReal = firstNameRaw ? firstNameRaw.split(' ')[0] : 'El/la estudiante';
 
     // Función para no sonar robóticos: alterna cómo llamamos al estudiante
@@ -190,7 +193,7 @@ export function InformesView({ user, db, appId }) {
         nombreReal, 
         'El/la estudiante', 
         'Nuestro/a alumno/a', 
-        nombreReal // Doble chance para el nombre real para que sea lo más frecuente
+        nombreReal // Doble chance para el nombre real
       ];
       return opciones[Math.floor(Math.random() * opciones.length)];
     };
@@ -219,7 +222,7 @@ export function InformesView({ user, db, appId }) {
         `Nombre está comenzando a identificar su propio nombre entre otras palabras. Este es un hito sumamente especial en su proceso, ya que su nombre es la primera palabra con significado personal y afectivo para él/ella. Desde este reconocimiento inicial, estamos trabajando para ampliar su capacidad de observar otras palabras y empezar a distinguir sus formas dentro del universo escrito.`,
         `Nombre ya reconoce su nombre propio y el de sus pares con mucha facilidad. Este avance demuestra un interés genuino por el mundo que lo/la rodea y por su grupo de pertenencia en la escuela. El hecho de identificar los nombres de sus compañeros no solo es un gran paso en su alfabetización, sino también un gesto muy valioso de integración y fortalecimiento de los vínculos afectivos en el aula.`,
         `Nombre ha comenzado a reconocer palabras de uso frecuente y frases cortas. Esto significa que ya identifica conceptos que ve habitualmente en clase o en su entorno cercano, lo cual le brinda mucha seguridad al leer. Este logro nos indica que está empezando a dar sentido a la lectura de manera más fluida, permitiéndole conectar lo que lee con situaciones de la vida diaria.`,
-        `Nombre ya lee palabras y frases con sentido completo de forma autónoma. Es una alegría ver cómo ha ganado confianza para leer por su cuenta, logrando interpretar mensajes escritos y dándoles un significado real sin necesidad de ayuda. Este nivel de independencia es un gran motor para su curiosidad y para el disfrute de nuevos materiales de lectura.`
+        `Nombre ya lee palabras y frases con sentido completo de forma autónoma. Es una alegría ver cómo ha ganado confianza para leer por su cuenta, logrando interpretar mensajes escritos y dándoles un significado real sin necesidad de ayuda. Este nivel de independence es un gran motor para su curiosidad y para el disfrute de nuevos materiales de lectura.`
       ],
       serie_numerica: [
         `Nombre se encuentra en la etapa de realizar el conteo hasta 10, utilizando apoyo con material concreto. El uso de objetos tangibles (como bloques o fichas) es fundamental en este momento, ya que le permite visualizar las cantidades y darles sentido a los números. Acompañamos este proceso con mucha paciencia, fortaleciendo esta base que es la puerta de entrada para todas sus futuras nociones matemáticas.`,
@@ -240,21 +243,23 @@ export function InformesView({ user, db, appId }) {
     if (DICCIONARIO[idIndicador] && DICCIONARIO[idIndicador][indiceOpcion]) {
       textoFinal = DICCIONARIO[idIndicador][indiceOpcion];
     } else {
-      // "Paracaídas" por si te falta agregar alguno al diccionario: arma una oración simple
+      // "Paracaídas"
       let textoMinuscula = respuestaCorta.charAt(0).toLowerCase() + respuestaCorta.slice(1);
       textoFinal = `Se observa que Nombre ${textoMinuscula}`;
     }
 
-    // 2. LA MAGIA: Reemplazamos el primer "Nombre" por un sujeto dinámico
+    // 2. Reemplazamos el primer "Nombre" por un sujeto dinámico
     const sujetoDinamico = obtenerSujeto();
     textoFinal = textoFinal.replace('Nombre', sujetoDinamico);
 
-    // 3. Reemplazamos los demás "Nombre" que puedan aparecer en el medio del texto por su nombre real
-    // (para que no diga "nos muestra cómo El estudiante está empezando...")
+    // 3. Reemplazamos los demás "Nombre" por su nombre real
     textoFinal = textoFinal.replace(/Nombre/g, nombreReal);
 
     return textoFinal;
   };
+
+
+  
   return (
     <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in relative">
       
@@ -418,11 +423,9 @@ export function InformesView({ user, db, appId }) {
       {stage === 'form' && (
         <div id="informe-imprimir" className="hidden print:block w-full bg-white text-black font-sans pb-4">
           
-          {/* ENCABEZADO INSTITUCIONAL CON LOGO Y COLOR */}
+          {/* ENCABEZADO INSTITUCIONAL CON COLOR */}
           <div className="flex items-center justify-between border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
-            {/* LOGO SUPERIOR: Asegurate de tener "logo.png" en tu carpeta public */}
             <img src="/logo.png" alt="Logo Institucional" className="h-16 object-contain" />
-            
             <div className="text-right">
               <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME MEDIO 2026</h1>
               <p className="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
@@ -435,9 +438,9 @@ export function InformesView({ user, db, appId }) {
           <div className="border border-violet-200 rounded-xl p-5 mb-6 bg-white shadow-sm" style={{ breakInside: 'avoid' }}>
             <h2 className="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Datos del Estudiante</h2>
             <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
-              <p><strong className="font-black text-gray-900">Alumno/a:</strong> <span className="text-gray-700">{selectedStudent.lastName}, {selectedStudent.firstName}</span></p>
-              <p><strong className="font-black text-gray-900">DNI:</strong> <span className="text-gray-700">{selectedStudent.dni || '....................................'}</span></p>
-              <p><strong className="font-black text-gray-900">Fecha de Nac.:</strong> <span className="text-gray-700">{selectedStudent.birthDate || selectedStudent.fechaNac || '....................................'}</span></p>
+              <p><strong className="font-black text-gray-900">Alumno/a:</strong> <span className="text-gray-700">{selectedStudent?.lastName}, {selectedStudent?.firstName}</span></p>
+              <p><strong className="font-black text-gray-900">DNI:</strong> <span className="text-gray-700">{selectedStudent?.dni || '....................................'}</span></p>
+              <p><strong className="font-black text-gray-900">Fecha de Nac.:</strong> <span className="text-gray-700">{selectedStudent?.birthDate || selectedStudent?.fechaNac || '....................................'}</span></p>
               <p><strong className="font-black text-gray-900">Grupo:</strong> <span className="text-gray-700 font-bold">{grupoFiltro}</span></p>
               <p><strong className="font-black text-gray-900">Docente a cargo:</strong> <span className="text-gray-700">{docentePrint || '....................................'}</span></p>
               <p><strong className="font-black text-gray-900">Auxiliar/Preceptora:</strong> <span className="text-gray-700">{preceptoraPrint || '....................................'}</span></p>
@@ -456,8 +459,12 @@ export function InformesView({ user, db, appId }) {
                 const answer = answers[c.id];
                 if (!answer) return null; 
                 
-                // Aplicamos la magia de transformar el botón en oración
-                const textoDescriptivo = formatearTextoImpresion(answer, selectedStudent.firstName);
+                // ES CLAVE ESTA LÍNEA PARA QUE LLEGUEN BIEN LOS DATOS A LA FUNCIÓN DE ARRIBA
+                const optionIndex = c.options.indexOf(answer);
+                const textoDescriptivo = formatearTextoImpresion(c.id, optionIndex, answer, selectedStudent?.firstName);
+
+                // Si la función devuelve vacío, no lo imprimimos
+                if (!textoDescriptivo) return null;
 
                 return (
                   <div key={c.id} className="text-xs flex flex-col mb-2 pb-3 border-b border-gray-100 last:border-0" style={{ breakInside: 'avoid' }}>
