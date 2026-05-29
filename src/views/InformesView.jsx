@@ -43,7 +43,7 @@ const CONFIG_INDICADORES = {
       { id: 'autonomia_seguridad', label: 'Autonomía: Seguridad e Higiene', options: ['Desconoce las normas; requiere control físico constante.', 'Conoce las normas básicas si se le recuerdan antes de empezar.', 'Respeta las normas de seguridad e higiene de forma consistente.', 'Es referente en normas de seguridad y cuida su espacio de trabajo.'] },
       { id: 'rol_pautas', label: 'Rol Laboral: Respeto de pautas', options: ['No respeta pautas; interrumpe el trabajo de otros.', 'Respeta pautas y horarios con supervisión frecuente.', 'Cumple con las pautas de trabajo y los tiempos del taller.', 'Demuestra compromiso y sentido de responsabilidad laboral.'] },
       { id: 'rol_equipo', label: 'Rol Laboral: Trabajo en equipo', options: ['Realiza su tarea de forma aislada sin considerar el entorno.', 'Participa en tareas compartidas cuando el docente lo coordina.', 'Colabora con pares en producciones grupales de forma fluida.', 'Propone tareas colaborativas y ayuda a otros en el taller.'] },
-      { id: 'comprension_proceso', label: 'Comprensión del proceso', options: ['Ejecuta acciones aisladas sin comprender el resultado final del producto.', 'Comprende una parte del proceso con mediación docente constante.', 'Comprende la sequence del proceso productivo y su lugar en el mismo.', 'Entiende el proceso productivo integral y cómo su tarea aporta al resultado.'] },
+      { id: 'comprension_proceso', label: 'Comprensión del proceso', options: ['Ejecuta acciones aisladas sin comprender el resultado final del producto.', 'Comprende una parte del proceso con mediación docente constante.', 'Comprende la secuencia del proceso productivo y su lugar en el mismo.', 'Entiende el proceso productivo integral y cómo su tarea aporta al resultado.'] },
       { id: 'responsabilidad_rol', label: 'Responsabilidad de rol', options: ['Requiere supervisión para mantenerse en su puesto o función asignada.', 'Asume un rol simple con supervisión; cumple tareas asignadas por terceros.', 'Mantiene su rol y función con autonomía dentro del grupo de trabajo.', 'Identifica necesidades del sistema y asume funciones de forma proactiva.'] },
       { id: 'adaptabilidad', label: 'Adaptabilidad al cambio', options: ['Presenta rigidez frente a variaciones en la tarea o en el puesto de trabajo.', 'Acepta cambios en su función tras una explicación y acompañamiento.', 'Se adapta a diferentes roles o tareas dentro del taller con mínima guía.', 'Muestra gran versatilidad; cambia de función según la necesidad del sistema.'] },
       { id: 'gestion_tiempos', label: 'Gestión de tiempos', options: ['No registra el tiempo; requiere guía para iniciar, pausar o terminar.', 'Realiza la tarea respetando ritmos mínimos bajo supervisión externa.', 'Regula su propio ritmo de trabajo para cumplir con los tiempos de entrega.', 'Planifica su tiempo y recursos para optimizar la producción del sistema.'] }
@@ -54,6 +54,7 @@ const CONFIG_INDICADORES = {
 export function InformesView({ user, db, appId }) {
   const [stage, setStage] = useState('main'); 
   const [tipoInforme, setTipoInforme] = useState('pedagogico');
+  const [periodoInforme, setPeriodoInforme] = useState('Medio'); 
   const [selectedStudent, setSelectedStudent] = useState(null);
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -66,17 +67,12 @@ export function InformesView({ user, db, appId }) {
   const [isSaving, setIsSaving] = useState(false);
   
   const [answers, setAnswers] = useState({});
-  
-  // NUEVO: Dos campos de observaciones reemplazando al general
   const [obsCuatrimestre1, setObsCuatrimestre1] = useState('');
   const [obsCuatrimestre2, setObsCuatrimestre2] = useState('');
   
   const [docentePrint, setDocentePrint] = useState('');
   const [preceptoraPrint, setPreceptoraPrint] = useState('');
 
-  // --------------------------------------------------------------------------
-  // LÓGICA DE AISLAMIENTO DE IMPRESIÓN
-  // --------------------------------------------------------------------------
   useEffect(() => {
     let printClone = null;
     const originalDisplays = new Map();
@@ -128,9 +124,6 @@ export function InformesView({ user, db, appId }) {
     window.print();
   };
 
-  // --------------------------------------------------------------------------
-  // CARGA DE DATOS DESDE FIREBASE
-  // --------------------------------------------------------------------------
   useEffect(() => {
     if (!db || !appId) return;
     const qS = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'));
@@ -153,7 +146,6 @@ export function InformesView({ user, db, appId }) {
   const handleEdit = (student, report) => {
     setSelectedStudent(student);
     setAnswers(report?.answers || {});
-    // Cargamos los dos campos de objetivos (o vacíos si es nuevo)
     setObsCuatrimestre1(report?.obsCuatrimestre1 || '');
     setObsCuatrimestre2(report?.obsCuatrimestre2 || '');
     setDocentePrint(student.teacher || student.docente || '');
@@ -164,15 +156,16 @@ export function InformesView({ user, db, appId }) {
   const handleSaveInforme = async () => {
     if (grupoFiltro === 'Todos') { alert("Por favor, seleccioná un grupo específico para guardar."); return; }
     setIsSaving(true);
-    const idUnico = `${selectedStudent.id}_${tipoInforme}_${grupoFiltro}`; 
+    const idUnico = `${selectedStudent.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`; 
     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pedagogical_reports', idUnico), {
       studentId: selectedStudent.id,
       studentName: `${selectedStudent.lastName}, ${selectedStudent.firstName}`,
       grupo: grupoFiltro,
       tipoInforme,
+      periodo: periodoInforme,
       answers,
-      obsCuatrimestre1, // Guardamos el objetivo 1
-      obsCuatrimestre2, // Guardamos el objetivo 2
+      obsCuatrimestre1,
+      obsCuatrimestre2,
       updatedAt: serverTimestamp()
     }, { merge: true });
     setStage('main');
@@ -182,16 +175,11 @@ export function InformesView({ user, db, appId }) {
   const nivelActual = selectedStudent?.level || 'Inicial';
   const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || [];
 
-  // --------------------------------------------------------------------------
-  // Transformador Inteligente (Con Identificación de Género y Diccionario)
-  // --------------------------------------------------------------------------
-// Transformador inteligente con TUS textos exactos y sujetos dinámicos (DICCIONARIO COMPLETO)
   const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firstNameRaw) => {
     if (!respuestaCorta || typeof respuestaCorta !== 'string') return '';
 
     const nombreReal = firstNameRaw ? firstNameRaw.split(' ')[0] : 'El/la estudiante';
 
-    // HEURÍSTICA DE GÉNERO
     const obtenerSujeto = () => {
       const nom = nombreReal.trim().toLowerCase();
       const excepcionesMasculinas = ['bautista', 'luca', 'noa', 'sasha', 'borja', 'mika', 'andrea'];
@@ -202,12 +190,7 @@ export function InformesView({ user, db, appId }) {
       const articuloEstudiante = esMujer ? 'La estudiante' : 'El estudiante';
       const articuloAlumno = esMujer ? 'Nuestra alumna' : 'Nuestro alumno';
 
-      const opciones = [
-        nombreReal, 
-        articuloEstudiante, 
-        articuloAlumno, 
-        nombreReal 
-      ];
+      const opciones = [nombreReal, articuloEstudiante, articuloAlumno, nombreReal];
       return opciones[Math.floor(Math.random() * opciones.length)];
     };
 
@@ -379,11 +362,8 @@ export function InformesView({ user, db, appId }) {
       textoFinal = `Se observa que Nombre ${textoMinuscula}`;
     }
 
-    // Reemplaza el primer "Nombre" por un sujeto dinámico con género correcto
     const sujetoDinamico = obtenerSujeto();
     textoFinal = textoFinal.replace('Nombre', sujetoDinamico);
-
-    // Reemplaza el resto de los "Nombre" por su nombre real
     textoFinal = textoFinal.replace(/Nombre/g, nombreReal);
 
     return textoFinal;
@@ -408,7 +388,7 @@ export function InformesView({ user, db, appId }) {
         `}
       </style>
 
-     {/* ------------------------------------------------------------- */}
+      {/* ------------------------------------------------------------- */}
       {/* VISTA PRINCIPAL (Oculta al imprimir) */}
       {/* ------------------------------------------------------------- */}
       <div className={`${stage === 'main' ? 'block' : 'hidden'} print:hidden`}>
@@ -418,7 +398,6 @@ export function InformesView({ user, db, appId }) {
             <p className="text-violet-100 text-sm">Mostrando: {filteredStudents.length} alumnos.</p>
           </div>
           
-          {/* SELECTOR DE PERÍODO (Inicial y Final bloqueados por ahora) */}
           <div className="mt-4 md:mt-0 bg-white/10 p-2 rounded-2xl border border-white/20">
              <label className="text-xs font-bold uppercase tracking-widest text-violet-200 block mb-1 px-1">Período del Informe:</label>
              <select 
@@ -426,7 +405,6 @@ export function InformesView({ user, db, appId }) {
                value={periodoInforme} 
                onChange={e => setPeriodoInforme(e.target.value)}
              >
-                {/* Agregamos 'disabled' para que no se puedan elegir todavía */}
                 <option value="Inicial" disabled>Informe Inicial 2026 (Cerrado)</option>
                 <option value="Medio">Informe Medio 2026</option>
                 <option value="Final" disabled>Informe Final 2026 (Próximamente)</option>
@@ -434,8 +412,64 @@ export function InformesView({ user, db, appId }) {
           </div>
         </div>
 
+        <div className="space-y-6">
+          <div className="flex gap-2 p-2 bg-white rounded-2xl border">
+            {['pedagogico', 'laboral'].map(t => (
+              <button key={t} onClick={() => setTipoInforme(t)} className={`flex-1 p-3 rounded-xl font-black capitalize ${tipoInforme === t ? 'bg-violet-600 text-white' : 'bg-gray-100'}`}>{t}</button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+             <input className="p-4 rounded-2xl border bg-white text-sm" placeholder="Buscar alumno..." onChange={e => setSearchTerm(e.target.value)} />
+             
+             <select className="p-4 rounded-2xl border bg-white text-sm font-bold" value={turnoFiltro} onChange={e => {setTurnoFiltro(e.target.value); setNivelFiltro('Todos'); setGrupoFiltro('Todos');}}>
+                <option value="Todos">Turno: Todos</option>
+                <option value="Mañana">Mañana</option>
+                <option value="Tarde">Tarde</option>
+             </select>
+
+             {turnoFiltro !== 'Todos' && (
+                <select className="p-4 rounded-2xl border bg-white text-sm font-bold" value={nivelFiltro} onChange={e => {setNivelFiltro(e.target.value); setGrupoFiltro('Todos');}}>
+                    <option value="Todos">Nivel: Todos</option>
+                    {['Inicial', '1° Ciclo', '2° Ciclo', 'CFI'].map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+             )}
+
+             {nivelFiltro !== 'Todos' && (
+                <select className="p-4 rounded-2xl border bg-white text-sm font-bold w-full" value={grupoFiltro} onChange={e => setGrupoFiltro(e.target.value)}>
+                    <option value="Todos">Grupo: Todos</option>
+                    {students
+                      .filter(s => s.level && s.level.toUpperCase() === nivelFiltro.toUpperCase())
+                      .flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean))
+                      .filter((v, i, a) => a.indexOf(v) === i)
+                      .filter(g => !(nivelFiltro.toUpperCase() === '1° CICLO' && g.toUpperCase().includes('PRE TALLER')))
+                      .map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+             )}
+          </div>
+          
+          <div className="bg-white rounded-3xl shadow-sm border divide-y">
+            {filteredStudents.map(s => {
+              const report = grupoFiltro === 'Todos' ? null : savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
+              return (
+                <div key={`${s.id}-${grupoFiltro}`} className="p-5 flex justify-between items-center hover:bg-violet-50/50">
+                  <div>
+                    <p className="font-bold">{s.lastName}, {s.firstName}</p>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase">{s.level} | {report ? `Cargado (${periodoInforme})` : 'Pendiente'}</p>
+                  </div>
+                  {grupoFiltro !== 'Todos' && (
+                    <button onClick={() => handleEdit(s, report)} className={`p-2 rounded-lg ${report ? 'bg-blue-50 text-blue-600' : 'bg-violet-600 text-white'}`}>
+                      {report ? <Edit3 size={16}/> : <Plus size={16}/>}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
       {/* ------------------------------------------------------------- */}
-    {/* ------------------------------------------------------------- */}
       {/* INTERFAZ DE EDICIÓN EN PANTALLA (Oculta al imprimir) */}
       {/* ------------------------------------------------------------- */}
       {stage === 'form' && (
@@ -452,7 +486,7 @@ export function InformesView({ user, db, appId }) {
           
           <div className="bg-violet-50 p-6 rounded-3xl mb-6 border border-violet-100">
              <h3 className="font-black text-2xl text-violet-900">{selectedStudent.lastName}, {selectedStudent.firstName}</h3>
-             <p className="text-sm font-bold text-violet-600 uppercase mb-4">GRUPO: {grupoFiltro} | INFORME: {tipoInforme}</p>
+             <p className="text-sm font-bold text-violet-600 uppercase mb-4">GRUPO: {grupoFiltro} | INFORME: {tipoInforme} {periodoInforme}</p>
              
              <div className="grid grid-cols-2 gap-4">
                <div>
@@ -471,7 +505,6 @@ export function InformesView({ user, db, appId }) {
               <div key={c.id} className="space-y-2 mb-4 p-4 bg-gray-50 rounded-2xl">
                 <label className="text-xs font-black uppercase text-gray-700">{c.label}</label>
                 
-                {/* Los botones predeterminados */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {c.options.map(opt => {
                     const isSelected = answers[c.id] === opt;
@@ -489,7 +522,6 @@ export function InformesView({ user, db, appId }) {
                   })}
                 </div>
 
-                {/* NUEVO: Campo para respuesta libre/personalizada */}
                 <input
                   type="text"
                   placeholder="O escribí una observación personalizada para este indicador..."
@@ -503,7 +535,6 @@ export function InformesView({ user, db, appId }) {
               </div>
             ))}
             
-            {/* NUEVOS CAMPOS DE OBSERVACIONES PARA EDITAR */}
             <div className="mt-8 space-y-4">
               <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100">
                 <label className="text-xs font-black uppercase text-violet-800 block mb-2">Observaciones sobre los objetivos planteados para este primer cuatrimestre</label>
@@ -538,21 +569,18 @@ export function InformesView({ user, db, appId }) {
       {/* ------------------------------------------------------------- */}
       {/* DOCUMENTO REAL DE IMPRESIÓN (Aislado gracias al UseEffect)    */}
       {/* ------------------------------------------------------------- */}
-     {stage === 'form' && (
+      {stage === 'form' && (
         <div id="informe-imprimir" className="hidden print:block w-full bg-white text-black font-sans pb-4">
           
-          {/* ENCABEZADO INSTITUCIONAL CON LOGO Y COLOR */}
           <div className="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
-            {/* AQUÍ ESTÁ EL LOGO QUE FALTABA */}
-            <img src="/logosinfondo.png" alt="Logo Institucional" className="h-16 object-contain mb-3" />
+            <img src="/logo.png" alt="Logo Institucional" className="h-16 object-contain mb-3" />
             
-            <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME MEDIO 2026</h1>
+            <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME {periodoInforme.toUpperCase()} 2026</h1>
             <p className="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
               Área: {tipoInforme}
             </p>
           </div>
 
-          {/* DATOS DEL ESTUDIANTE RECUADRADOS */}
           <div className="border border-violet-200 rounded-xl p-5 mb-6 bg-white shadow-sm" style={{ breakInside: 'avoid' }}>
             <h2 className="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Datos del Estudiante</h2>
             <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
@@ -566,7 +594,6 @@ export function InformesView({ user, db, appId }) {
             </div>
           </div>
 
-       {/* SECCIÓN DE DESARROLLO (ORACIONES DESCRIPTIVAS) */}
           <div className="mb-6">
             <h2 className="text-sm font-black text-white bg-violet-800 uppercase px-4 py-1.5 rounded-md mb-4 shadow-sm inline-block" style={{ breakInside: 'avoid' }}>
               Desarrollo {tipoInforme}
@@ -580,11 +607,9 @@ export function InformesView({ user, db, appId }) {
                 const optionIndex = c.options.indexOf(answer);
                 let textoDescriptivo = '';
 
-                // Si la respuesta está en las opciones, usamos el diccionario inteligente
                 if (optionIndex !== -1) {
                   textoDescriptivo = formatearTextoImpresion(c.id, optionIndex, answer, selectedStudent?.firstName);
                 } else {
-                  // Si es texto personalizado, se imprime exactamente lo que escribió la docente
                   textoDescriptivo = answer;
                 }
 
@@ -600,7 +625,6 @@ export function InformesView({ user, db, appId }) {
             </div>
           </div>
 
-      {/* SECCIÓN DE OBSERVACIONES 1 */}
           {obsCuatrimestre1 && (
             <div className="mt-6 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
               <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Observaciones sobre los objetivos planteados para este primer cuatrimestre</h2>
@@ -608,7 +632,6 @@ export function InformesView({ user, db, appId }) {
             </div>
           )}
 
-          {/* SECCIÓN DE OBSERVACIONES 2 */}
           {obsCuatrimestre2 && (
             <div className="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
               <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Objetivos para el segundo cuatrimestre</h2>
@@ -616,7 +639,6 @@ export function InformesView({ user, db, appId }) {
             </div>
           )}
 
-          {/* SECCIÓN DE FIRMAS Y LOGO INSTITUCIONAL */}
           <div className="mt-10 pt-6 flex flex-col items-center justify-center border-t border-dashed border-gray-300" style={{ breakInside: 'avoid' }}>
             <img src="/firmasylogo.png" alt="Firmas y Logo Institucional" className="max-w-[300px] w-full object-contain mb-10" />
             
