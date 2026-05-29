@@ -640,7 +640,7 @@ export function InformesView({ user, db, appId }) {
             </div>
           </div>
 
-          {/* SECCIÓN DE OBSERVACIONES 1 */}
+      {/* SECCIÓN DE OBSERVACIONES 1 */}
           {obsCuatrimestre1 && (
             <div className="mt-6 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
               <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Observaciones sobre los objetivos planteados para este primer cuatrimestre</h2>
