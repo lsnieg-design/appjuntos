@@ -531,37 +531,11 @@ return (
              )}
         </div>
 
-       {grupoFiltro !== 'Todos' && (
-    <div className="flex items-center gap-2">
-      
-      {/* BOTÓN IMPRIMIR DIRECTO (SIN DEMORAS) */}
-      {report && (
-        <button 
-          onClick={() => {
-              let contenedor = document.getElementById('impresion-masiva');
-              if (!contenedor) {
-                  contenedor = document.createElement('div');
-                  contenedor.id = 'impresion-masiva';
-                  document.body.appendChild(contenedor);
-              }
-              // Armamos la hoja al instante y disparamos la impresión
-              contenedor.innerHTML = generarHTMLImpresion(s, report);
-              window.print();
-          }} 
-          className="p-2 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors"
-          title="Imprimir informe individual"
-        >
-          <Printer size={16}/>
-        </button>
-      )}
-
-      {/* BOTÓN EDITAR */}
-      <button onClick={() => handleEdit(s, report)} className={`p-2 rounded-lg transition-colors ${report ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-violet-600 text-white hover:bg-violet-700'}`}>
-        {report ? <Edit3 size={16}/> : <Plus size={16}/>}
-      </button>
-
-    </div>
-  )}
+      {grupoFiltro !== 'Todos' && (
+  <button onClick={() => handleEdit(s, report)} className={`p-2 rounded-lg ${report ? 'bg-blue-50 text-blue-600' : 'bg-violet-600 text-white'}`}>
+    {report ? <Edit3 size={16}/> : <Plus size={16}/>}
+  </button>
+)}
         
         <div className="bg-white rounded-3xl shadow-sm border divide-y">
           {filteredStudents.map(s => {
