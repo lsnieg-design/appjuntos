@@ -152,6 +152,26 @@ export function InformesView({ user, db, appId }) {
     setPreceptoraPrint(student.auxiliary || student.auxiliar || student.preceptora || '');
     setStage('form');
   };
+  const handlePrintSingle = (student, report) => {
+    // 1. Cargamos los datos del alumno (igual que al editar)
+    setSelectedStudent(student);
+    setAnswers(report?.answers || {});
+    setObsCuatrimestre1(report?.obsCuatrimestre1 || '');
+    setObsCuatrimestre2(report?.obsCuatrimestre2 || '');
+    setDocentePrint(student.teacher || student.docente || '');
+    setPreceptoraPrint(student.auxiliary || student.auxiliar || student.preceptora || '');
+    
+    // NOTA: No hacemos setStage('form'), así te quedas en la lista principal.
+
+    // 2. Limpiamos la impresión grupal por las dudas
+    let contenedor = document.getElementById('impresion-masiva');
+    if (contenedor) contenedor.innerHTML = '';
+
+    // 3. Esperamos medio segundo a que se llene la plantilla oculta e imprimimos
+    setTimeout(() => {
+      window.print();
+    }, 500);
+  };
 
   const handleSaveInforme = async () => {
     if (grupoFiltro === 'Todos') { alert("Por favor, seleccioná un grupo específico para guardar."); return; }
@@ -469,18 +489,15 @@ return (
   <div className="flex items-center gap-2">
     
     {/* --- NUEVO: Botón de Imprimir Individual (Solo si hay informe) --- */}
-    {report && (
-      <button 
-        onClick={() => {
-          handleEdit(s, report); // Carga los datos del alumno en la plantilla
-          setTimeout(() => window.print(), 500); // Espera medio segundo a que renderice y lanza la impresión
-        }} 
-        className="p-2 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors"
-        title="Imprimir informe individual"
-      >
-        <Printer size={16}/>
-      </button>
-    )}
+   {report && (
+  <button 
+    onClick={() => handlePrintSingle(s, report)} 
+    className="p-2 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors"
+    title="Imprimir informe individual"
+  >
+    <Printer size={16}/>
+  </button>
+)}
     
     {/* --- ORIGINAL: Botón de Editar / Crear --- */}
     <button onClick={() => handleEdit(s, report)} className={`p-2 rounded-lg transition-colors ${report ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-violet-600 text-white hover:bg-violet-700'}`}>
