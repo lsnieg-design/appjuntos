@@ -465,11 +465,30 @@ return (
                   <p className={`font-bold ${report ? 'text-emerald-900' : 'text-gray-900'}`}>{s.lastName}, {s.firstName}</p>
                   <p className={`text-[10px] font-bold uppercase ${report ? 'text-emerald-600' : 'text-gray-400'}`}>{s.level} | {report ? `Cargado` : 'Pendiente'}</p>
                 </div>
-                {grupoFiltro !== 'Todos' && (
-                  <button onClick={() => handleEdit(s, report)} className={`p-2 rounded-lg ${report ? 'bg-blue-50 text-blue-600' : 'bg-violet-600 text-white'}`}>
-                    {report ? <Edit3 size={16}/> : <Plus size={16}/>}
-                  </button>
-                )}
+               {grupoFiltro !== 'Todos' && (
+  <div className="flex items-center gap-2">
+    
+    {/* --- NUEVO: Botón de Imprimir Individual (Solo si hay informe) --- */}
+    {report && (
+      <button 
+        onClick={() => {
+          handleEdit(s, report); // Carga los datos del alumno en la plantilla
+          setTimeout(() => window.print(), 500); // Espera medio segundo a que renderice y lanza la impresión
+        }} 
+        className="p-2 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors"
+        title="Imprimir informe individual"
+      >
+        <Printer size={16}/>
+      </button>
+    )}
+    
+    {/* --- ORIGINAL: Botón de Editar / Crear --- */}
+    <button onClick={() => handleEdit(s, report)} className={`p-2 rounded-lg transition-colors ${report ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-violet-600 text-white hover:bg-violet-700'}`}>
+      {report ? <Edit3 size={16}/> : <Plus size={16}/>}
+    </button>
+    
+  </div>
+)}
               </div>
             );
           })}
