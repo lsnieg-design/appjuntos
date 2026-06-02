@@ -160,7 +160,7 @@ const DICCIONARIO = {
     `Nombre se incluye y participa de manera funcional en dinámicas de juego con reglas simples y objetivos preestablecidos. Comprende el formato estructural de la actividad pautada, ajustando y adecuando su conducta de manera pertinente para tolerar la espera grupal y respetar asertivamente los turnos correspondientes. Participa bien en juegos con reglas y entiende que debe esperar su turno.`,
     `Nombre propone, organiza y participa de forma plenamente sostenida en juegos reglados de mayor complejidad tanto normativa como cognitiva. Aporta al desarrollo lúdico demostrando estructuración estratégica de las reglas, anticipación táctica e interactuando de forma asociativa, recíproca y altamente colaborativa con su grupo. Organiza juegos, crea estrategias y ayuda al grupo a seguir las normas.`
   ],
-  sciences: [
+  ciencias: [
     `Nombre precisa de modelado físico e instigación externa de carácter constante para el uso correcto y guiado de materiales en experiencias de indagación o manipulación. Manifiesta curiosidad de orden puntual y perceptiva, presentando marcadas dificultades para sostener la observación prolongada o la atención en el fenómeno. Le da curiosidad, pero le cuesta prestar atención a lo que hacemos.`,
     `Nombre se vincula con los materiales didácticos o los elementos naturales demostrando clara intencionalidad exploratoria. Requiere, no obstante, de la formulación estructurada de interrogantes por parte del docente y de guía directiva continua para sostener temporalmente y dar sentido al proceso de indagación y observación. Explora si le hacemos preguntas que lo guíen a descubrir cosas nuevas.`,
     `Nombre manifiesta un nivel de curiosidad constante y desarrolla producciones exploratorias con genuina intencionalidad de descubrimiento. Se involucra de manera activa y metódica en las actividades e investigaciones de diversos fenómenos para la recolección de datos y la búsqueda estructurada de respuestas comprobables. Participa mucho y busca entender cómo funcionan las cosas.`,
@@ -191,7 +191,7 @@ const DICCIONARIO = {
     `Nombre evidencia en su desenvolvimiento altos, sólidos y consolidados niveles de flexibilidad cognitiva y de adaptación plena al contexto. Ajusta de forma rápida, eficiente y sumamente operativa su respuesta de acción ante modificaciones repentinas del entorno o frente a cambios estructurales de la rutina general, sosteniendo plenamente y en todo momento su nivel de autorregulación conductual. Es muy flexible ante cualquier cambio y se adapta rápido aunque las cosas salgan distinto a lo planeado.`
   ],
   sensorial: [
-    `Nombre presenta respuestas manifiestas de muy alta labilidad, sobrecarga sensitiva y posible desregulación conductual frente a la incidencia de múltiples estímulos sensoriales ambientales de moderada o alta intensidad (tales como pueden ser el ruido áulico fluctuante, el nivel de estimulación visual global acumulado en el aula o la aglomeración física). Le molestan ruidos o luces; lo ayudamos dándole calma para que no se sientado abrumado/a.`,
+    `Nombre presenta respuestas manifiestas de muy alta labilidad, sobrecarga sensitiva y posible desregulación conductual frente a la incidencia de múltiples estímulos sensoriales ambientales de moderada o alta intensidad (tales como pueden ser el ruido áulico fluctuante, el nivel de estimulación visual global acumulado en el aula o la aglomeración física). Le molestan ruidos o luces; lo ayudamos dándole calma para que no se sienta abrumado/a.`,
     `Nombre evidencia un nivel de reactividad o sensibilidad moderada frente al caudal sensorial normal del entorno general escolar. Requiere de manera recurrente u ocasional del apartamiento estratégico, el uso de diversas herramientas de bloqueo sensorial o de la necesaria reubicación en espacios tranquilos y de bajo estímulo para lograr procesar la información y recobrar su eje de autorregulación. A veces el ruido lo/la afecta y necesita un lugar tranquilo.`,
     `Nombre procesa de forma sumamente integrada y globalmente adaptativa los diversos estímulos convergentes del ambiente áulico, logrando desarrollar procesos de habituación exitosa. Esto le permite que la incidencia de factores ambientales regulares (movimiento de pares, bullicio moderado, cambios lumínicos) no perturbe el normal desarrollo de sus tareas prácticas o altere de forma significativa sus procesos formales de aprendizaje. Tolera bien el ruido y el movimiento y trabaja sin problemas.`,
     `Nombre posee un muy alto y consolidado grado de tolerancia, modulación neurológica y un óptimo y destacable nivel de integración global para el procesamiento sensorial de todo el flujo continuo de información ambiental escolar. Participa de manera plenamente y activamente operativa, y mantiene inalterable su eje de autorregulación interna aún desenvolviéndose en entornos de estímulos altamente múltiples, dinámicos o sumamente activos. Está muy tranquilo/a aunque haya mucho movimiento a su alrededor.`
@@ -453,6 +453,11 @@ export function InformesView({ user, db, appId }) {
   const nivelActual = selectedStudent?.level || 'Inicial';
   const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || [];
 
+  // LÓGICA DE FILTRADO DINÁMICO
+  const nivelesDisponibles = tipoInforme === 'laboral' 
+    ? ['2° Ciclo', 'CFI'] 
+    : ['Inicial', '1° Ciclo', '2° Ciclo', 'CFI'];
+
   return (
     <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in relative">
       
@@ -486,7 +491,17 @@ export function InformesView({ user, db, appId }) {
         <div className="space-y-6">
             <div className="flex gap-2 p-2 bg-white rounded-2xl border">
               {['pedagogico', 'laboral'].map(t => (
-                <button key={t} onClick={() => setTipoInforme(t)} className={`flex-1 p-3 rounded-xl font-black capitalize ${tipoInforme === t ? 'bg-violet-600 text-white' : 'bg-gray-100'}`}>{t}</button>
+                <button 
+                  key={t} 
+                  onClick={() => {
+                    setTipoInforme(t);
+                    setNivelFiltro('Todos'); // Reinicia filtro Nivel
+                    setGrupoFiltro('Todos'); // Reinicia filtro Grupo
+                  }} 
+                  className={`flex-1 p-3 rounded-xl font-black capitalize ${tipoInforme === t ? 'bg-violet-600 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                >
+                  {t}
+                </button>
               ))}
             </div>
 
@@ -502,7 +517,7 @@ export function InformesView({ user, db, appId }) {
                {turnoFiltro !== 'Todos' && (
                   <select className="p-4 rounded-2xl border bg-white text-sm font-bold" value={nivelFiltro} onChange={e => {setNivelFiltro(e.target.value); setGrupoFiltro('Todos');}}>
                       <option value="Todos">Nivel: Todos</option>
-                      {['Inicial', '1° Ciclo', '2° Ciclo', 'CFI'].map(n => <option key={n} value={n}>{n}</option>)}
+                      {nivelesDisponibles.map(n => <option key={n} value={n}>{n}</option>)}
                   </select>
                )}
 
@@ -513,7 +528,13 @@ export function InformesView({ user, db, appId }) {
                         .filter(s => s.level && s.level.toUpperCase() === nivelFiltro.toUpperCase())
                         .flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean))
                         .filter((v, i, a) => a.indexOf(v) === i)
-                        .filter(g => !(nivelFiltro.toUpperCase() === '1° CICLO' && g.toUpperCase().includes('PRE TALLER')))
+                        .filter(g => {
+                            // Lógica para mostrar/ocultar Talleres según el Área
+                            const isTaller = g.toUpperCase().includes('TALLER') || g.toUpperCase().includes('PRE TALLER') || g.toUpperCase().includes('PRETALLER');
+                            if (tipoInforme === 'laboral') return isTaller; // En Laboral SOLO mostramos los que tienen la palabra Taller
+                            if (tipoInforme === 'pedagogico') return !isTaller; // En Pedagógico ocultamos los talleres
+                            return true;
+                        })
                         .map(g => <option key={g} value={g}>{g}</option>)}
                   </select>
                )}
