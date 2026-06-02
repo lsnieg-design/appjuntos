@@ -531,42 +531,92 @@ return (
              )}
         </div>
 
-      {grupoFiltro !== 'Todos' && (
-  <button onClick={() => handleEdit(s, report)} className={`p-2 rounded-lg ${report ? 'bg-blue-50 text-blue-600' : 'bg-violet-600 text-white'}`}>
-    {report ? <Edit3 size={16}/> : <Plus size={16}/>}
-  </button>
-)}
-        
-        <div className="bg-white rounded-3xl shadow-sm border divide-y">
-          {filteredStudents.map(s => {
-            const report = grupoFiltro === 'Todos' ? null : savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
-            return (
-              <div key={`${s.id}-${grupoFiltro}`} className={`p-5 flex justify-between items-center transition-colors ${report ? 'bg-emerald-50' : 'hover:bg-violet-50/50'}`}>
-                <div>
-                  <p className={`font-bold ${report ? 'text-emerald-900' : 'text-gray-900'}`}>{s.lastName}, {s.firstName}</p>
-                  <p className={`text-[10px] font-bold uppercase ${report ? 'text-emerald-600' : 'text-gray-400'}`}>{s.level} | {report ? `Cargado` : 'Pendiente'}</p>
-                </div>
-               {grupoFiltro !== 'Todos' && (
-  <div className="flex items-center gap-2">
-    
-    {/* --- NUEVO: Botón de Imprimir Individual (Solo si hay informe) --- */}
-   {report && (
-  <button 
-    onClick={() => handlePrintSingle(s, report)} 
-    className="p-2 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors"
-    title="Imprimir informe individual"
-  >
-    <Printer size={16}/>
-  </button>
-)}
-    
-    {/* --- ORIGINAL: Botón de Editar / Crear --- */}
-    <button onClick={() => handleEdit(s, report)} className={`p-2 rounded-lg transition-colors ${report ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-violet-600 text-white hover:bg-violet-700'}`}>
-      {report ? <Edit3 size={16}/> : <Plus size={16}/>}
-    </button>
-    
-  </div>
-)}
+ {grupoFiltro !== 'Todos' && (
+                  <div className="flex items-center gap-2">
+                    
+                    {/* --- NUEVO: BOTÓN DE IMPRESIÓN (Solo visible si el informe está cargado) --- */}
+                    {report && (
+                      <button 
+                        onClick={() => {
+                          let contenedor = document.getElementById('impresion-masiva');
+                          if (!contenedor) {
+                              contenedor = document.createElement('div');
+                              contenedor.id = 'impresion-masiva';
+                              document.body.appendChild(contenedor);
+                          }
+                          
+                          // Preparamos las respuestas seleccionadas
+                          const nivel = s?.level || 'Inicial';
+                          const indicadores = CONFIG_INDICADORES[report.tipoInforme]?.[nivel] || CONFIG_INDICADORES[report.tipoInforme]?.['Inicial'] || [];
+                          
+                          let indicadoresHTML = '';
+                          indicadores.forEach(c => {
+                              const answer = report.answers?.[c.id];
+                              if (!answer) return;
+                              const optionIndex = c.options.indexOf(answer);
+                              let textoDescriptivo = optionIndex !== -1 ? formatearTextoImpresion(c.id, optionIndex, answer, s?.firstName) : answer;
+                              
+                              if (textoDescriptivo) {
+                                  indicadoresHTML += `
+                                  <div class="text-xs flex flex-col mb-2 pb-3 border-b border-gray-100 last:border-0" style="break-inside: avoid;">
+                                      <span class="font-black text-violet-900 uppercase text-[10px] tracking-widest mb-1">${c.label}</span>
+                                      <span class="text-gray-800 leading-relaxed font-medium text-[11px]">${textoDescriptivo}</span>
+                                  </div>`;
+                              }
+                          });
+
+                          // Armamos el HTML al instante y lanzamos la impresora (Evita la pantalla en blanco en celulares)
+                          contenedor.innerHTML = `
+                          <div class="pagina w-full bg-white text-black font-sans pb-4">
+                              <div class="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
+                                  <h1 class="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME ${report.periodo.toUpperCase()} 2026</h1>
+                                  <p class="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
+                                      Área: ${report.tipoInforme}
+                                  </p>
+                              </div>
+                              <div class="border border-violet-200 rounded-xl p-5 mb-6 bg-white shadow-sm" style="break-inside: avoid;">
+                                  <h2 class="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Datos del Estudiante</h2>
+                                  <div class="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
+                                      <p><strong class="font-black text-gray-900">Alumno/a:</strong> <span class="text-gray-700">${s.lastName}, ${s.firstName}</span></p>
+                                      <p><strong class="font-black text-gray-900">Grupo:</strong> <span class="text-gray-700 font-bold">${report.grupo}</span></p>
+                                  </div>
+                              </div>
+                              <div class="mb-6">
+                                  <h2 class="text-sm font-black text-white bg-violet-800 uppercase px-4 py-1.5 rounded-md mb-4 shadow-sm inline-block" style="break-inside: avoid;">
+                                      Desarrollo ${report.tipoInforme}
+                                  </h2>
+                                  <div class="space-y-4 border-l-2 border-violet-200 ml-1 pl-4">
+                                      ${indicadoresHTML}
+                                  </div>
+                              </div>
+                              ${report.obsCuatrimestre1 ? `
+                              <div class="mt-6 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style="break-inside: avoid;">
+                                  <h2 class="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Observaciones sobre objetivos</h2>
+                                  <p class="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium">${report.obsCuatrimestre1}</p>
+                              </div>` : ''}
+                              ${report.obsCuatrimestre2 ? `
+                              <div class="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style="break-inside: avoid;">
+                                  <h2 class="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Objetivos para el próximo período</h2>
+                                  <p class="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium">${report.obsCuatrimestre2}</p>
+                              </div>` : ''}
+                          </div>`;
+                          
+                          window.print();
+                        }} 
+                        className="p-2 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors"
+                        title="Imprimir informe individual"
+                      >
+                        <Printer size={16}/>
+                      </button>
+                    )}
+
+                    {/* --- ORIGINAL: BOTÓN EDITAR / CREAR --- */}
+                    <button onClick={() => handleEdit(s, report)} className={`p-2 rounded-lg transition-colors ${report ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-violet-600 text-white hover:bg-violet-700'}`}>
+                      {report ? <Edit3 size={16}/> : <Plus size={16}/>}
+                    </button>
+
+                  </div>
+                )}
               </div>
             );
           })}
