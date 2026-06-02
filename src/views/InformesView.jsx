@@ -52,6 +52,9 @@ const CONFIG_INDICADORES = {
 };
 
 const DICCIONARIO = {
+  // ==========================================
+  // ÁREA PEDAGÓGICA 
+  // ==========================================
   lectoescritura: [
     `Nombre se encuentra en la etapa presilábica, explorando la escritura a través de dibujos y trazos sin valor sonoro convencional. Este proceso exploratorio constituye la base inicial para la futura adquisición del sistema de escritura, permitiendo la familiarización con las herramientas gráficas y la direccionalidad del trazo. En esta etapa, el alumno está aprendiendo a usar el lápiz y a entender que lo que dibuja o marca puede representar ideas, aunque todavía no use letras.`,
     `Nombre se encuentra en la etapa silábica. En sus producciones, comienza a asignar valor sonoro a las letras, utilizando principalmente las vocales para representar sílabas. Esto evidencia el inicio de la correspondencia fonema-grafema, estableciendo una relación directa entre la pauta sonora de la palabra y su representación escrita. Es decir, ya empieza a entender que los sonidos de las palabras se pueden escribir con letras.`,
@@ -207,6 +210,82 @@ const DICCIONARIO = {
     `Nombre precisa la disposición integral y el uso continuo e invariable de diferentes y complementarias herramientas de formato instrumental, estructuradas de manera primordialmente externa. El estudiante logra sostenerse de una forma funcional a partir de la provisión y el diseño de elementos clave, tales como agendas visuales de rutina, estructurados sistemas visuales de anticipación paso a paso de los eventos, y puntuales soportes referenciales de carácter eminentemente e innegablemente concreto. Todo este conjunto le permite llegar a organizar temporal y secuencialmente las pautas básicas de la estructura total de todo su desempeño áulico e institucional. Usa apoyos visuales y soportes concretos para organizarse y entender qué sigue.`,
     `Nombre cuenta y evidencia de manera observable con niveles de autonomía intermedios y de carácter sumamente funcional para su desempeño. Recurre ocasionalmente al lógico y natural requerimiento de la disposición presencial de ciertos apoyos pedagógicos sumamente puntuales, breves orientaciones directivas de tipo verbal y limitadas en el tiempo, o a eventuales configuraciones de marco organizativo únicamente, y de forma casi exclusiva, cuando el estudiante debe necesariamente afrontar y estructurar el abordaje general de tareas que le resultan plenamente no familiares, transiciones de eventos consideradas atípicas para su rutina, o bien ante propuestas académicas de una notoria, evidente y comprobable complejidad de tipo cognitiva o procesual. Es bastante autónomo/a y solo nos busca para que lo guiemos en tareas nuevas o muy difíciles.`,
     `Nombre presenta un destacado y consolidado perfil de independencia absolutamente operativa, de carácter sustained, sumamente constante e ininterrumpido en todas sus esferas dentro de la dinámica normal del aula escolar. Se desenvuelve acudiendo de forma totalmente excepcional o en la mayoría de los casos de forma directamente nula, a cualquier tipo de andamiajes de soporte estructural y orientaciones o directrices de baja intensidad. La necesidad de estos soportes mínimos, si es que logra presentarse en algún momento del ciclo, se asocia de forma exclusiva y puramente ocasional al estricto abordaje analítico, reflexivo y estratégico de complejas consignas u órdenes de trabajo que demandan y requieren estrictamente un nivel funcional de procesamiento cognitivo, de estructuración organizacional, o de un nivel de razonamiento de orden analítico marcadamente avanzado y plenamente superior. Es totalmente independiente y casi no necesita ayuda nuestra; se gestiona solo/a.`
+  ],
+
+  // ==========================================
+  // ÁREA LABORAL / CFI 
+  // ==========================================
+  herramientas_reconocimiento: [
+    `Nombre presenta dificultades para identificar las herramientas de trabajo por cuenta propia. Requiere de asistencia constante y señalamientos directos para poder seleccionar los elementos necesarios para cada tarea propuesta en el taller. En esta etapa, estamos ayudándole de cerca a conocer qué herramientas existen y para qué sirve cada una.`,
+    `Nombre logra identificar las herramientas básicas del taller, apoyándose de manera funcional en referencias visuales o mediante el señalamiento y la guía puntual brindada por el docente a cargo. Ya empezó a reconocer las herramientas y de a poco se va familiarizando con su nombre y utilidad.`,
+    `Nombre identifica y nombra de manera autónoma las herramientas de uso frecuente dentro del taller. Reconoce los elementos de trabajo habituales y los selecciona de manera pertinente para las actividades cotidianas. Ya conoce muy bien las herramientas de todos los días y sabe buscarlas solito/a cuando las necesita.`,
+    `Nombre reconoce, diferencia y categoriza de forma autónoma una amplia y variada gama de herramientas. Demuestra un claro entendimiento de la función específica de cada elemento, seleccionando el instrumental más adecuado para cada requerimiento técnico. Conoce todas las herramientas a la perfección y siempre sabe elegir la correcta para el trabajo que tiene que hacer.`
+  ],
+  herramientas_uso: [
+    `Para manipular las diversas herramientas del taller, Nombre requiere de una guía física total y acompañamiento de tipo mano-sobre-mano. La intervención adulta es indispensable para garantizar el uso y el aprendizaje del gesto motor seguro. Lo acompañamos guiando sus manos para que aprenda a usarlas sin lastimarse y gane mucha confianza.`,
+    `Nombre manipula las herramientas de trabajo requiriendo supervisión constante por parte del equipo docente. Se le asiste en las pautas de seguridad y en el control del uso de los elementos para afianzar paulatinamente el dominio técnico. Las usa con cuidado mientras estamos a su lado para asegurarnos de que todo salga bien y sin ningún riesgo.`,
+    `Nombre utiliza los elementos y herramientas del taller con un grado de autonomía funcional, requiriendo únicamente de una supervisión mínima y esporádica orientada a validar las normas generales de seguridad. Ya maneja las herramientas casi sin ayuda, solo lo miramos un poquito de lejos para confirmar que trabaje seguro.`,
+    `Nombre manipula todo tipo de herramientas con notoria destreza, absoluta seguridad y total autonomía. Aplica correctamente las técnicas de uso, demostrando un excelente dominio instrumental en sus labores prácticas. Es un experto/a usando las herramientas, trabaja con muchísima habilidad y sin necesitar que lo supervisemos.`
+  ],
+  produccion_proceso: [
+    `Nombre presenta un importante desafío para seguir la secuencia de pasos en el proceso productivo. Necesita de la mediación directa y estructurada del adulto en cada una de las acciones que componen la tarea para poder avanzar. Estamos trabajando cerquita suyo, ayudándole paso a paso para que empiece a entender cómo se hace el producto.`,
+    `Nombre logra llevar a cabo pasos simples del proceso productivo, apoyándose de manera efectiva en soportes visuales, esquemas gráficos o mediante la recepción de instrucciones verbales cortas y precisas. Con alguna imagen de ayuda o explicándole cortito, ya puede hacer varios pasos del trabajo muy bien.`,
+    `Nombre realiza de forma adecuada las diversas tareas productivas, logrando seguir e internalizar las secuencias preestablecidas de trabajo con un grado de independencia sumamente funcional para la dinámica del taller. Trabaja súper bien siguiendo las indicaciones y ya hace gran parte del producto por su propia cuenta.`,
+    `Nombre es capaz de desarrollar y concretar productos terminados abordando el proceso productivo en su totalidad de manera plenamente independiente. Planifica, ejecuta y concluye los pasos secuenciales sin requerir ningún tipo de asistencia. Sabe exactamente qué tiene que hacer desde que empieza hasta que termina el producto, sin que le digamos nada.`
+  ],
+  produccion_calidad: [
+    `En cuanto a la calidad de terminación, Nombre requiere que el docente intervenga de manera directa para corregir, ajustar o finalizar sus producciones y así lograr alcanzar los estándares mínimos requeridos en el taller. Por ahora lo ayudamos a terminar y emprolijar las cosas para que el resultado final quede muy lindo.`,
+    `Nombre concreta producciones de manera funcional, aunque precisa de la supervisión frecuente y la corrección externa de los detalles y acabados para optimizar el nivel de calidad del producto final. Trabaja muy lindo, solo le damos una manito al final para corregir pequeños detalles de prolijidad.`,
+    `Nombre logra plasmar acabados de muy buena calidad en sus trabajos, evidenciando esmero en la terminación. Únicamente requiere de revisiones esporádicas o sugerencias puntuales para perfeccionar su producción. Hace trabajos hermosos y muy prolijos, casi no hace falta que le corrijamos nada.`,
+    `Nombre realiza sus tareas logrando producciones de altísima calidad. Demuestra una minuciosa y excelente atención a los detalles, entregando productos con acabados sobresalientes y de nivel plenamente profesional. Los productos que hace son impecables, trabaja con muchísimo cuidado y amor por los detalles.`
+  ],
+  autonomia_trabajo: [
+    `Nombre manifiesta una dependencia absoluta hacia la figura del adulto para lograr iniciar, estructurar y sostener temporalmente cualquier tipo de tarea laboral. Requiere instigación permanente para mantenerse activo/a en su puesto. Necesita que estemos muy presentes animándolo/a para que empiece y sostenga sus ganas de trabajar.`,
+    `Nombre logra sostener la atención y el esfuerzo en la tarea por períodos breves de tiempo. Precisa de recordatorios verbales y estímulos constantes por parte del docente para poder retomar y dar continuidad al trabajo. Trabaja un ratito por su cuenta, pero necesita que le recordemos seguir adelante para no distraerse.`,
+    `Nombre mantiene un ritmo de trabajo sostenido, constante y productivo, requiriendo tan solo de una supervisión de carácter intermitente. Demuestra capacidad para autorregular su actividad operativa de forma funcional. Trabaja re bien a su propio ritmo y casi no necesita que le digamos qué hacer a continuación.`,
+    `Nombre trabaja con un nivel de autonomía sumamente destacado, organizando de manera personal sus tiempos, prioridades y tareas operativas. Gestiona su propia jornada laboral de forma plenamente independiente y responsable. Organiza todo su día de trabajo de manera increíble, hace sus tareas solo/a y con muchísima responsabilidad.`
+  ],
+  autonomia_seguridad: [
+    `Nombre aún no ha internalizado las normas básicas de seguridad e higiene del taller. Requiere de control físico, supervisión constante y modelado preventivo para evitar situaciones de riesgo en el espacio de trabajo. Le estamos enseñando a cuidarse y a cuidar a los demás mientras trabaja, acompañándolo/a en todo momento.`,
+    `Nombre evidencia conocimiento teórico de las normas básicas de seguridad e higiene, logrando aplicarlas si cuenta con el recordatorio explícito y la anticipación verbal del docente justo antes de comenzar sus actividades. Conoce las reglas para no lastimarse, solo se las recordamos un poquito antes de empezar a trabajar.`,
+    `Nombre respeta y aplica de forma metódica y consistente las normativas vigentes de seguridad e higiene industrial. Demuestra cuidado por su propia integridad y mantiene los estándares de limpieza durante su desempeño. Es muy cuidadoso/a, sabe qué cosas son peligrosas y mantiene su lugar siempre limpio y seguro.`,
+    `Nombre se posiciona como un verdadero referente dentro del grupo en materia de normas de seguridad e higiene. Cuida de forma proactiva y autónoma tanto su espacio personal de trabajo como el entorno general del taller. Nos da muchísimo orgullo ver cómo se cuida y ayuda a que todo el grupo trabaje seguro. Es un gran ejemplo.`
+  ],
+  rol_pautas: [
+    `Nombre presenta notorias dificultades para ajustarse a las pautas del taller, tendiendo a la deambulación o interrumpiendo frecuentemente el trabajo de sus compañeros. Requiere constante reconducción a su puesto y tarea. Le está costando un poquito quedarse en su lugar de trabajo y seguir el ritmo, así que lo acompañamos con mucha paciencia.`,
+    `Nombre logra respetar de forma básica las pautas de convivencia, las normas de funcionamiento y los horarios establecidos del entorno laboral, precisando para ello de supervisión externa y señalamientos frecuentes. Va aprendiendo muy bien las reglas de convivencia del grupo con un poco de guía nuestra.`,
+    `Nombre cumple adecuadamente con las pautas estructurales de trabajo, asimilando con responsabilidad los tiempos, los cronogramas y las rutinas normativas propias de la dinámica cotidiana del taller pre-profesional. Entendió perfecto cómo funcionamos en el taller y respeta súper bien los horarios y las normas.`,
+    `Nombre demuestra un nivel de compromiso, puntualidad y sentido de responsabilidad laboral absolutamente intachables. Sostiene una actitud sumamente madura y respetuosa hacia las normativas generales de la institución. Es súper responsable y respetuoso/a con todas las reglas, da gusto ver el compromiso que tiene con su trabajo.`
+  ],
+  rol_equipo: [
+    `Nombre tiende a ejecutar sus tareas de manera totalmente aislada, centrando su foco únicamente en su propia actividad sin considerar, registrar o articular su desempeño con el resto del entorno productivo y humano. Estamos incentivándolo/a para que empiece a notar el trabajo de sus compañeros y de a poquito comparta con ellos.`,
+    `Nombre logra participar de manera funcional en tareas de tipo compartido y proyectos asociativos únicamente cuando es el docente quien pauta, coordina de forma directa y media la dinámica vincular con el resto del grupo. Comparte muy bien el trabajo con sus compañeros cuando nosotros organizamos la actividad y lo acompañamos.`,
+    `Nombre colabora asertivamente con sus pares en el desarrollo de producciones grupales. Logra sostener una comunicación técnica fluida, respetando su función y engranando su tarea con la de sus compañeros de manera natural. Trabaja hermoso en grupo, charla, comparte y hace su parte para que el trabajo entre todos salga bárbaro.`,
+    `Nombre asume un rol proactivo y solidario frente a sus compañeros. Constantemente propone nuevas tareas de índole colaborativa, asiste a sus pares ante las dificultades y fomenta un excelente clima de trabajo en equipo. Es un compañero/a de oro, siempre ayuda a los demás y tira para adelante con todo el grupo.`
+  ],
+  comprension_proceso: [
+    `Nombre se limita a ejecutar acciones repetitivas o pasos productivos de manera aislada y descontextualizada, sin lograr aún comprender el sentido global de la tarea o el resultado final del producto que se está elaborando. Está aprendiendo recién a hacer una partecita del trabajo, pero todavía le falta entender para qué sirve lo que estamos fabricando.`,
+    `Nombre logra comprender parcialmente ciertas etapas de la secuencia de producción, necesitando de la explicación reiterada y la mediación conceptual constante por parte del docente para otorgarle sentido a su trabajo. Va entendiendo de a poco qué es lo que hacemos, y le explicamos para qué sirve su enorme esfuerzo.`,
+    `Nombre comprende claramente la secuencia lógica y el encadenamiento integral del proceso productivo. Identifica con asertividad su lugar funcional dentro del sistema y la importancia de su tarea específica. Sabe muy bien qué lugar ocupa en el taller y por qué su ayuda es tan importante para terminar el producto.`,
+    `Nombre posee un entendimiento absolutamente global y detallado del proceso productivo integral de la institución. Identifica, valora y analiza de manera crítica cómo cada mínima intervención propia aporta al éxito del resultado final. Entiende a la perfección todo lo que hacemos en el taller y sabe que su trabajo es súper valioso para que todo quede excelente.`
+  ],
+  responsabilidad_rol: [
+    `Nombre requiere de estímulos y supervisión directiva de manera continua para lograr mantenerse físicamente en su puesto de trabajo y focalizado/a en la función operativa que le ha sido asignada dentro de la jornada. Necesita que lo/la animemos mucho para que no deje su tarea y entienda qué tiene que hacer.`,
+    `Nombre logra asumir un rol productivo de características simples bajo supervisión general. Cumple de manera obediente y operativa con las tareas directas que le son explícitamente asignadas y demandadas por el docente. Hace muy bien las tareas que le pedimos, siempre con un poquito de guía nuestra para no perderse.`,
+    `Nombre asume, respeta y mantiene su rol laboral y su función específica con total autonomía y responsabilidad. Se desenvuelve con soltura e independencia dentro del andamiaje general del grupo de trabajo. Es súper responsable con lo que le toca hacer y se maneja solo/a sin que tengamos que estar encima.`,
+    `Nombre demuestra una sobresaliente madurez laboral. Es capaz de identificar por cuenta propia las diferentes necesidades o falencias emergentes del sistema productivo, asumiendo proactivamente nuevas funciones para darles solución. Es tan responsable que si ve que falta hacer algo que no era su tarea, se ofrece a ayudar sin que se lo pidamos.`
+  ],
+  adaptabilidad: [
+    `Nombre manifiesta una notoria rigidez de tipo conductual ante cualquier mínima variación introducida en su tarea habitual, en el uso de los materiales o ante posibles y necesarios cambios de su puesto físico de trabajo. Le cuestan mucho los cambios repentinos, así que tratamos de mantener su rutina para que se sienta seguro/a.`,
+    `Nombre logra aceptar de forma transitoria ciertos cambios en su función productiva, siempre y cuando estas modificaciones cuenten previamente con una explicación clara, un encuadre anticipatorio visual y un acompañamiento empático. Acepta probar cosas nuevas o cambiar de tarea si se lo explicamos con tiempo y mucha tranquilidad.`,
+    `Nombre se adapta de forma sumamente flexible y operativa a la rotación por diferentes roles o estaciones de trabajo dentro del taller, requiriendo tan solo de una guía técnica de inducción mínima frente al nuevo desafío. Se adapta rapidísimo si un día le toca hacer una tarea distinta o trabajar con otro compañero.`,
+    `Nombre exhibe una extraordinaria versatilidad y plasticidad sociolaboral. Cambia rápidamente de rol, puesto o función operativa basándose pura y exclusivamente en las demandas situacionales y las necesidades del sistema productivo. Es un todoterreno, no tiene problemas en cambiar de tarea mil veces si hace falta y siempre con excelente actitud.`
+  ],
+  gestion_tiempos: [
+    `Nombre no evidencia un registro consciente, funcional ni autónomo del paso del tiempo laboral. Depende imperativamente de directivas externas para iniciar su labor, comprender los momentos de receso o finalizar su tarea. Le estamos enseñando a darse cuenta de cuándo es momento de trabajar y cuándo es momento de descansar.`,
+    `Nombre ejecuta las consignas de trabajo respetando ciertos márgenes y ritmos mínimos de productividad, contando siempre con la estructuración, el andamiaje y la pautación de tiempos controlada por la supervisión externa. Sigue bien los tiempos si nosotros le avisamos cuándo empezar y cuándo frenar a tomar algo o descansar.`,
+    `Nombre logra autorregular su propio ritmo, velocidad y nivel de exigencia en el trabajo. Gestiona sus tiempos de descanso y actividad de manera equilibrada para cumplir funcionalmente con los objetivos y plazos de entrega. Sabe organizarse perfecto: trabaja a buen ritmo y frena a descansar lo justo y necesario.`,
+    `Nombre planifica de manera estratégica e independiente todo su tiempo laboral y la disposición de sus recursos técnicos con el fin de optimizar al máximo los niveles y la eficiencia global de la producción del taller. Maneja los tiempos como un profesional, organizándose tan bien que hace que todo el equipo trabaje mejor.`
   ]
 };
 
@@ -307,6 +386,13 @@ const generarHTMLImpresion = (s, report) => {
           <p class="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium">${report.obsCuatrimestre1}</p>
       </div>` : ''}
       ${obsObjetivosHTML}
+
+      <div class="mt-8 mb-2 px-4 text-center" style="break-inside: avoid;">
+          <p class="text-xs text-gray-700 italic font-medium">
+              Continuaremos abordando, desde la perspectiva constructivista, el aprendizaje subjetivo del alumno, centrándonos en su bienestar y motivación, para avanzar durante el siguiente periodo.
+          </p>
+      </div>
+
       <div class="mt-10 pt-6 flex flex-col items-center justify-center border-t border-dashed border-gray-300" style="break-inside: avoid;">
           <img src="/firmasylogo.png" alt="Firmas y Logo Institucional" class="max-w-[300px] w-full object-contain mb-10" />
           <div class="w-full flex justify-between px-12 mt-12">
@@ -824,6 +910,12 @@ export function InformesView({ user, db, appId }) {
               )}
             </div>
           )}
+
+          <div className="mt-8 mb-2 px-4 text-center" style={{ breakInside: 'avoid' }}>
+            <p className="text-xs text-gray-700 italic font-medium">
+                Continuaremos abordando, desde la perspectiva constructivista, el aprendizaje subjetivo del alumno, centrándonos en su bienestar y motivación, para avanzar durante el siguiente periodo.
+            </p>
+          </div>
 
           <div className="mt-10 pt-6 flex flex-col items-center justify-center border-t border-dashed border-gray-300" style={{ breakInside: 'avoid' }}>
             <img src="/firmasylogo.png" alt="Firmas y Logo Institucional" className="max-w-[300px] w-full object-contain mb-10" />
