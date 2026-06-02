@@ -289,6 +289,9 @@ const DICCIONARIO = {
   ]
 };
 
+// ⚠️ ACÁ ARRIBA DEJÁ TUS CONSTANTES INTACTAS: 
+// CONFIG_INDICADORES y DICCIONARIO
+
 const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firstNameRaw) => {
   if (!respuestaCorta || typeof respuestaCorta !== 'string') return '';
 
@@ -433,34 +436,29 @@ export function InformesView({ user, db, appId }) {
   const [docentePrint, setDocentePrint] = useState('');
   const [preceptoraPrint, setPreceptoraPrint] = useState('');
 
+  // Efecto estricto para impresión limpia
   useEffect(() => {
-    let printClone = null;
     const originalDisplays = new Map();
 
     const handleBeforePrint = () => {
-      const printElement = document.getElementById('informe-imprimir');
-      if (!printElement) return;
-
-      printClone = printElement.cloneNode(true);
-      printClone.classList.remove('hidden', 'print:block');
-      printClone.style.display = 'block';
-      printClone.id = 'informe-imprimir-clone';
-
       const bodyChildren = Array.from(document.body.children);
       bodyChildren.forEach(child => {
-        if (child.tagName !== 'SCRIPT' && child.tagName !== 'STYLE' && child.id !== 'informe-imprimir-clone') {
+        // Ocultamos TODO excepto el contenedor de impresión, scripts y styles
+        if (child.tagName !== 'SCRIPT' && child.tagName !== 'STYLE' && child.id !== 'impresion-masiva') {
           originalDisplays.set(child, child.style.display);
           child.style.display = 'none';
         }
       });
-
-      document.body.appendChild(printClone);
     };
 
     const handleAfterPrint = () => {
-      if (printClone && printClone.parentNode) {
-        printClone.parentNode.removeChild(printClone);
+      // Destruimos el contenedor fantasma
+      const masiva = document.getElementById('impresion-masiva');
+      if (masiva) {
+        masiva.remove();
       }
+
+      // Restauramos la app normal
       const bodyChildren = Array.from(document.body.children);
       bodyChildren.forEach(child => {
         if (originalDisplays.has(child)) {
@@ -468,7 +466,6 @@ export function InformesView({ user, db, appId }) {
         }
       });
       originalDisplays.clear();
-      printClone = null;
     };
 
     window.addEventListener('beforeprint', handleBeforePrint);
@@ -543,17 +540,28 @@ export function InformesView({ user, db, appId }) {
   return (
     <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in relative">
       
-      {/* MAGIA CSS PARA IMPRESIÓN */}
+      {/* MAGIA CSS PARA IMPRESIÓN (Destruye la app de fondo y muestra solo el papel) */}
       <style>{`
+        @media screen {
+          #impresion-masiva { display: none !important; }
+        }
         @media print {
-          body * { visibility: hidden; }
-          #impresion-masiva, #impresion-masiva * { visibility: visible; }
-          #impresion-masiva { position: absolute; left: 0; top: 0; width: 100%; }
+          body > *:not(#impresion-masiva):not(script):not(style) {
+            display: none !important;
+          }
+          #impresion-masiva {
+            display: block !important;
+            visibility: visible !important;
+            position: relative; 
+            width: 100%;
+          }
           .pagina { page-break-after: always; }
+          @page { margin: 1cm; }
+          body { background: white; margin: 0; padding: 0; }
         }
       `}</style>
 
-      {/* VISTA PRINCIPAL (Oculta al imprimir) */}
+      {/* VISTA PRINCIPAL */}
       <div className={`${stage === 'main' ? 'block' : 'hidden'} print:hidden`}>
         <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-8 rounded-[40px] shadow-xl text-white mb-8 flex flex-col md:flex-row items-center justify-between">
           <div>
@@ -621,8 +629,8 @@ export function InformesView({ user, db, appId }) {
                         .filter(g => {
                             // Lógica para mostrar/ocultar Talleres según el Área
                             const isTaller = g.toUpperCase().includes('TALLER') || g.toUpperCase().includes('PRE TALLER') || g.toUpperCase().includes('PRETALLER');
-                            if (tipoInforme === 'laboral') return isTaller; // En Laboral SOLO mostramos los que tienen la palabra Taller
-                            if (tipoInforme === 'pedagogico') return !isTaller; // En Pedagógico ocultamos los talleres
+                            if (tipoInforme === 'laboral') return isTaller; 
+                            if (tipoInforme === 'pedagogico') return !isTaller; 
                             return true;
                         })
                         .map(g => <option key={g} value={g}>{g}</option>)}
@@ -646,19 +654,19 @@ export function InformesView({ user, db, appId }) {
                         if (!contenedor) {
                           contenedor = document.createElement('div');
                           contenedor.id = 'impresion-masiva';
+                          contenedor.className = 'print:block';
                           document.body.appendChild(contenedor);
                         }
-                        contenedor.innerHTML = '';
-
+                        
+                        let htmlMasivo = '';
                         filteredStudents.forEach(s => {
                             const report = savedReports.find(r => r.studentId === s.id && r.grupo === grupoFiltro && r.periodo === periodoInforme);
                             if(report) {
-                                const div = document.createElement('div');
-                                div.className = 'pagina';
-                                div.innerHTML = generarHTMLImpresion(s, report);
-                                contenedor.appendChild(div);
+                                htmlMasivo += generarHTMLImpresion(s, report);
                             }
                         });
+                        contenedor.innerHTML = htmlMasivo;
+                        
                         setTimeout(() => {
                           window.print();
                         }, 500);
@@ -702,6 +710,7 @@ export function InformesView({ user, db, appId }) {
                                     if (!contenedor) {
                                         contenedor = document.createElement('div');
                                         contenedor.id = 'impresion-masiva';
+                                        contenedor.className = 'print:block';
                                         document.body.appendChild(contenedor);
                                     }
                                     contenedor.innerHTML = generarHTMLImpresion(s, report);
@@ -731,7 +740,7 @@ export function InformesView({ user, db, appId }) {
           </div>
         </div>
 
-      {/* INTERFAZ DE EDICIÓN EN PANTALLA (Oculta al imprimir) */}
+      {/* INTERFAZ DE EDICIÓN EN PANTALLA */}
       {stage === 'form' && (
         <div className="bg-white p-8 rounded-[40px] shadow-lg border space-y-6 print:hidden animate-in fade-in">
           
@@ -739,6 +748,9 @@ export function InformesView({ user, db, appId }) {
             <button onClick={() => setStage('main')} className="bg-gray-100 p-3 rounded-full hover:bg-gray-200">
               <X size={20}/>
             </button>
+            <div className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+              <span>Guardado automático</span>
+            </div>
           </div>
           
           <div className="bg-violet-50 p-6 rounded-3xl mb-6 border border-violet-100">
@@ -844,114 +856,106 @@ export function InformesView({ user, db, appId }) {
         </div>
       )}
 
-      {/* DOCUMENTO REAL DE IMPRESIÓN (Plantilla oculta para flujo normal) */}
+      {/* DOCUMENTO DE IMPRESIÓN OCULTO AL FONDO (No lo vas a ver hasta que presiones Imprimir) */}
       {stage === 'form' && (
-        <div id="informe-imprimir" className="hidden print:block w-full bg-white text-black font-sans pb-4">
-          
-          <div className="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
-            <img src="/logo.png" alt="Logo Institucional" className="h-16 object-contain mb-3" />
-            
-            <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME {periodoInforme.toUpperCase()} 2026</h1>
-            <p className="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
-              Área: {tipoInforme}
-            </p>
-          </div>
-
-          <div className="border border-violet-200 rounded-xl p-5 mb-6 bg-white shadow-sm" style={{ breakInside: 'avoid' }}>
-            <h2 className="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Datos del Estudiante</h2>
-            <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
-              <p><strong className="font-black text-gray-900">Alumno/a:</strong> <span className="text-gray-700">{selectedStudent?.lastName}, {selectedStudent?.firstName}</span></p>
-              <p><strong className="font-black text-gray-900">DNI:</strong> <span className="text-gray-700">{selectedStudent?.dni || '....................................'}</span></p>
-              <p><strong className="font-black text-gray-900">Fecha de Nac.:</strong> <span className="text-gray-700">{selectedStudent?.birthDate || selectedStudent?.fechaNac || '....................................'}</span></p>
-              <p><strong className="font-black text-gray-900">Grupo:</strong> <span className="text-gray-700 font-bold">{grupoFiltro}</span></p>
-              <p><strong className="font-black text-gray-900">Docente a cargo:</strong> <span className="text-gray-700">{docentePrint || '....................................'}</span></p>
-              <p><strong className="font-black text-gray-900">Auxiliar/Preceptora:</strong> <span className="text-gray-700">{preceptoraPrint || '....................................'}</span></p>
-              <p className="col-span-2"><strong className="font-black text-gray-900">Año de cursada:</strong> <span className="text-gray-700">2026</span></p>
+        <div id="informe-imprimir" className="hidden">
+          <div className="pagina w-full bg-white text-black font-sans pb-4">
+            <div className="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
+              <img src="/logo.png" alt="Logo Institucional" className="h-16 object-contain mb-3" />
+              <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME {periodoInforme.toUpperCase()} 2026</h1>
+              <p className="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
+                Área: {tipoInforme}
+              </p>
             </div>
-          </div>
-
-          <div className="mb-6">
-            <h2 className="text-sm font-black text-white bg-violet-800 uppercase px-4 py-1.5 rounded-md mb-4 shadow-sm inline-block" style={{ breakInside: 'avoid' }}>
-              Desarrollo {tipoInforme}
-            </h2>
             
-            <div className="space-y-4 border-l-2 border-violet-200 ml-1 pl-4">
-              {indicadoresActuales.map(c => {
-                const answer = answers[c.id];
-                if (!answer) return null; 
-                
-                const optionIndex = c.options.indexOf(answer);
-                let textoDescriptivo = optionIndex !== -1 ? formatearTextoImpresion(c.id, optionIndex, answer, selectedStudent?.firstName) : answer;
+            <div className="border border-violet-200 rounded-xl p-5 mb-6 bg-white shadow-sm" style={{ breakInside: 'avoid' }}>
+              <h2 className="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Datos del Estudiante</h2>
+              <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
+                <p><strong className="font-black text-gray-900">Alumno/a:</strong> <span className="text-gray-700">{selectedStudent?.lastName}, {selectedStudent?.firstName}</span></p>
+                <p><strong className="font-black text-gray-900">DNI:</strong> <span className="text-gray-700">{selectedStudent?.dni || '....................................'}</span></p>
+                <p><strong className="font-black text-gray-900">Fecha de Nac.:</strong> <span className="text-gray-700">{selectedStudent?.birthDate || selectedStudent?.fechaNac || '....................................'}</span></p>
+                <p><strong className="font-black text-gray-900">Grupo:</strong> <span className="text-gray-700 font-bold">{grupoFiltro}</span></p>
+                <p><strong className="font-black text-gray-900">Docente a cargo:</strong> <span className="text-gray-700">{docentePrint || '....................................'}</span></p>
+                <p><strong className="font-black text-gray-900">Auxiliar/Preceptora:</strong> <span className="text-gray-700">{preceptoraPrint || '....................................'}</span></p>
+                <p className="col-span-2"><strong className="font-black text-gray-900">Año de cursada:</strong> <span className="text-gray-700">2026</span></p>
+              </div>
+            </div>
 
-                if (!textoDescriptivo) return null;
+            <div className="mb-6">
+              <h2 className="text-sm font-black text-white bg-violet-800 uppercase px-4 py-1.5 rounded-md mb-4 shadow-sm inline-block" style={{ breakInside: 'avoid' }}>
+                Desarrollo {tipoInforme}
+              </h2>
+              <div className="space-y-4 border-l-2 border-violet-200 ml-1 pl-4">
+                {indicadoresActuales.map(c => {
+                  const answer = answers[c.id];
+                  if (!answer) return null; 
+                  const optionIndex = c.options.indexOf(answer);
+                  let textoDescriptivo = optionIndex !== -1 ? formatearTextoImpresion(c.id, optionIndex, answer, selectedStudent?.firstName) : answer;
+                  if (!textoDescriptivo) return null;
+                  return (
+                    <div key={c.id} className="text-xs flex flex-col mb-2 pb-3 border-b border-gray-100 last:border-0" style={{ breakInside: 'avoid' }}>
+                      <span className="font-black text-violet-900 uppercase text-[10px] tracking-widest mb-1">{c.label}</span>
+                      <span className="text-gray-800 leading-relaxed font-medium text-[11px]">{textoDescriptivo}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
 
-                return (
-                  <div key={c.id} className="text-xs flex flex-col mb-2 pb-3 border-b border-gray-100 last:border-0" style={{ breakInside: 'avoid' }}>
-                    <span className="font-black text-violet-900 uppercase text-[10px] tracking-widest mb-1">{c.label}</span>
-                    <span className="text-gray-800 leading-relaxed font-medium text-[11px]">{textoDescriptivo}</span>
+            {obsCuatrimestre1 && (
+              <div className="mt-6 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
+                <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Observaciones sobre los objetivos planteados para este primer cuatrimestre</h2>
+                <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium">{obsCuatrimestre1}</p>
+              </div>
+            )}
+
+            {(objConductual || objPedagogico || objSocioafectivo) && (
+              <div className="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
+                <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Objetivos para el segundo cuatrimestre</h2>
+                {objConductual && (
+                  <div className="mb-2">
+                    <strong className="text-xs font-black text-violet-800">Objetivo Conductual:</strong>
+                    <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">{objConductual}</p>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {obsCuatrimestre1 && (
-            <div className="mt-6 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
-              <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Observaciones sobre los objetivos planteados para este primer cuatrimestre</h2>
-              <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium">{obsCuatrimestre1}</p>
-            </div>
-          )}
-
-          {(objConductual || objPedagogico || objSocioafectivo) && (
-            <div className="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
-              <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Objetivos para el segundo cuatrimestre</h2>
-              
-              {objConductual && (
-                <div className="mb-2">
-                  <strong className="text-xs font-black text-violet-800">Objetivo Conductual:</strong>
-                  <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">{objConductual}</p>
-                </div>
-              )}
-              
-              {objPedagogico && (
-                <div className="mb-2">
-                  <strong className="text-xs font-black text-violet-800">Objetivo Pedagógico:</strong>
-                  <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">{objPedagogico}</p>
-                </div>
-              )}
-              
-              {objSocioafectivo && (
-                <div className="mb-2">
-                  <strong className="text-xs font-black text-violet-800">Objetivo Socioafectivo:</strong>
-                  <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">{objSocioafectivo}</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="mt-8 mb-2 px-4 text-center" style={{ breakInside: 'avoid' }}>
-            <p className="text-xs text-gray-700 italic font-medium">
-                Continuaremos abordando, desde la perspectiva constructivista, el aprendizaje subjetivo del alumno, centrándonos en su bienestar y motivación, para avanzar durante el siguiente periodo.
-            </p>
-          </div>
-
-          <div className="mt-10 pt-6 flex flex-col items-center justify-center border-t border-dashed border-gray-300" style={{ breakInside: 'avoid' }}>
-            <img src="/firmasylogo.png" alt="Firmas y Logo Institucional" className="max-w-[300px] w-full object-contain mb-10" />
-            
-            <div className="w-full flex justify-between px-12 mt-12">
-              <div className="flex flex-col items-center w-48">
-                <div className="w-full border-t-2 border-black mb-2"></div>
-                <span className="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
+                )}
+                {objPedagogico && (
+                  <div className="mb-2">
+                    <strong className="text-xs font-black text-violet-800">Objetivo Pedagógico:</strong>
+                    <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">{objPedagogico}</p>
+                  </div>
+                )}
+                {objSocioafectivo && (
+                  <div className="mb-2">
+                    <strong className="text-xs font-black text-violet-800">Objetivo Socioafectivo:</strong>
+                    <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">{objSocioafectivo}</p>
+                  </div>
+                )}
               </div>
-              <div className="flex flex-col items-center w-48">
-                <div className="w-full border-t-2 border-black mb-2"></div>
-                <span className="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
+            )}
+
+            <div className="mt-8 mb-2 px-4 text-center" style={{ breakInside: 'avoid' }}>
+              <p className="text-xs text-gray-700 italic font-medium">
+                  Continuaremos abordando, desde la perspectiva constructivista, el aprendizaje subjetivo del alumno, centrándonos en su bienestar y motivación, para avanzar durante el siguiente periodo.
+              </p>
+            </div>
+
+            <div className="mt-10 pt-6 flex flex-col items-center justify-center border-t border-dashed border-gray-300" style={{ breakInside: 'avoid' }}>
+              <img src="/firmasylogo.png" alt="Firmas y Logo Institucional" className="max-w-[300px] w-full object-contain mb-10" />
+              <div className="w-full flex justify-between px-12 mt-12">
+                <div className="flex flex-col items-center w-48">
+                  <div className="w-full border-t-2 border-black mb-2"></div>
+                  <span className="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
+                </div>
+                <div className="flex flex-col items-center w-48">
+                  <div className="w-full border-t-2 border-black mb-2"></div>
+                  <span className="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
+                </div>
               </div>
             </div>
           </div>
-
         </div>
       )}
+
     </div>
   );
 }
