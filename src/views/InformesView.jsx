@@ -9,7 +9,7 @@ const CONFIG_INDICADORES = {
       { id: 'escritura', label: 'Escritura', options: ['Requiere guía física constante (mano-sobre-mano) para realizar grafismos.', 'Escribe mediante copia fiel o dictado fonético sencillo con apoyo docente.', 'Escribe frases cortas mediante dictado fonético con supervisión frecuente.', 'Escribe de forma autónoma y creativa, expresando ideas con sentido completo.'] },
       { id: 'comprension', label: 'Comprensión', options: ['No logra significar el texto, se limita a identificar imágenes.', 'Comprende textos breves y sencillos mediante lectura compartida.', 'Comprende el sentido global de textos breves de manera guiada.', 'Realiza lectura autónoma y comprende el sentido global de textos diversos.'] },
       { id: 'reconocimiento', label: 'Reconocimiento', options: ['Solo identifica su propio nombre entre otras palabras.', 'Reconoce nombre propio y de sus pares con facilidad.', 'Reconoce palabras de uso frecuente y frases cortas.', 'Lee palabras y frases con sentido completo de forma autónoma.'] },
-      { id: 'serie_numerica', label: 'Serie numérica', options: ['Realiza conteo hasta 10, precisando apoyo con material concreto.', 'Realiza conteo hasta 20 y reconoce números en contextos cotidianos.', 'Maneja series numéricas amplias and reconoce familias numéricas.', 'Domina series numéricas complejas con total autonomía.'] },
+      { id: 'serie_numerica', label: 'Serie numérica', options: ['Realiza conteo hasta 10, precisando apoyo con material concreto.', 'Realiza conteo hasta 20 y reconoce números en contextos cotidianos.', 'Maneja series numéricas amplias y reconoce familias numéricas.', 'Domina series numéricas complejas con total autonomía.'] },
       { id: 'operaciones', label: 'Operaciones', options: ['Identifica cantidades, pero no logra realizar operaciones.', 'Resuelve sumas y restas simples utilizando material didáctico.', 'Resuelve sumas y restas complejas con apoyo esporádico.', 'Resuelve problemas cotidianos con operaciones complejas autónomamente.'] },
       { id: 'figuras', label: 'Figuras y lógica', options: ['Identifica figuras básicas, pero requiere mediación para clasificarlas.', 'Clasifica elementos por forma, tamaño o color con supervisión.', 'Resuelve problemas simples de lógica y comparación.', 'Resuelve problemas de alta complejidad de forma autónoma.'] },
       { id: 'rutinas', label: 'Rutinas / Higiene', options: ['Requiere asistencia total y acompañamiento cercano en toda rutina.', 'Realiza rutinas básicas con supervisión constante y apoyo puntual.', 'Realiza rutinas con supervisión mínima y esporádica.', 'Es totalmente autónomo en sus rutinas escolares y cuidado personal.'] },
@@ -264,6 +264,14 @@ const generarHTMLImpresion = (s, report) => {
     }
   });
 
+  const obsObjetivosHTML = (report.objConductual || report.objPedagogico || report.objSocioafectivo) ? `
+      <div class="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style="break-inside: avoid;">
+          <h2 class="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Objetivos para el segundo cuatrimestre</h2>
+          ${report.objConductual ? `<div class="mb-2"><strong class="text-xs font-black text-violet-800">Objetivo Conductual:</strong><p class="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">${report.objConductual}</p></div>` : ''}
+          ${report.objPedagogico ? `<div class="mb-2"><strong class="text-xs font-black text-violet-800">Objetivo Pedagógico:</strong><p class="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">${report.objPedagogico}</p></div>` : ''}
+          ${report.objSocioafectivo ? `<div class="mb-2"><strong class="text-xs font-black text-violet-800">Objetivo Socioafectivo:</strong><p class="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">${report.objSocioafectivo}</p></div>` : ''}
+      </div>` : '';
+
   return `
   <div class="pagina w-full bg-white text-black font-sans pb-4">
       <div class="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
@@ -298,11 +306,7 @@ const generarHTMLImpresion = (s, report) => {
           <h2 class="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Observaciones sobre los objetivos planteados para este primer cuatrimestre</h2>
           <p class="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium">${report.obsCuatrimestre1}</p>
       </div>` : ''}
-      ${report.obsCuatrimestre2 ? `
-      <div class="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style="break-inside: avoid;">
-          <h2 class="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Objetivos para el segundo cuatrimestre</h2>
-          <p class="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium">${report.obsCuatrimestre2}</p>
-      </div>` : ''}
+      ${obsObjetivosHTML}
       <div class="mt-10 pt-6 flex flex-col items-center justify-center border-t border-dashed border-gray-300" style="break-inside: avoid;">
           <img src="/firmasylogo.png" alt="Firmas y Logo Institucional" class="max-w-[300px] w-full object-contain mb-10" />
           <div class="w-full flex justify-between px-12 mt-12">
@@ -336,7 +340,9 @@ export function InformesView({ user, db, appId }) {
   
   const [answers, setAnswers] = useState({});
   const [obsCuatrimestre1, setObsCuatrimestre1] = useState('');
-  const [obsCuatrimestre2, setObsCuatrimestre2] = useState('');
+  const [objConductual, setObjConductual] = useState('');
+  const [objPedagogico, setObjPedagogico] = useState('');
+  const [objSocioafectivo, setObjSocioafectivo] = useState('');
   
   const [docentePrint, setDocentePrint] = useState('');
   const [preceptoraPrint, setPreceptoraPrint] = useState('');
@@ -415,7 +421,9 @@ export function InformesView({ user, db, appId }) {
     setSelectedStudent(student);
     setAnswers(report?.answers || {});
     setObsCuatrimestre1(report?.obsCuatrimestre1 || '');
-    setObsCuatrimestre2(report?.obsCuatrimestre2 || '');
+    setObjConductual(report?.objConductual || '');
+    setObjPedagogico(report?.objPedagogico || '');
+    setObjSocioafectivo(report?.objSocioafectivo || '');
     setDocentePrint(student.teacher || student.docente || '');
     setPreceptoraPrint(student.auxiliary || student.auxiliar || student.preceptora || '');
     setStage('form');
@@ -433,7 +441,9 @@ export function InformesView({ user, db, appId }) {
       periodo: periodoInforme,
       answers,
       obsCuatrimestre1,
-      obsCuatrimestre2,
+      objConductual,
+      objPedagogico,
+      objSocioafectivo,
       updatedAt: serverTimestamp()
     }, { merge: true });
     setStage('main');
@@ -664,15 +674,41 @@ export function InformesView({ user, db, appId }) {
                 />
               </div>
 
-              <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100">
-                <label className="text-xs font-black uppercase text-violet-800 block mb-2">Objetivos para el segundo cuatrimestre</label>
-                <textarea 
-                  className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" 
-                  placeholder="Escriba aquí los objetivos..." 
-                  value={obsCuatrimestre2} 
-                  onChange={e => setObsCuatrimestre2(e.target.value)} 
-                  rows={4}
-                />
+              <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100 space-y-4">
+                <h3 className="text-sm font-black uppercase text-violet-900 border-b border-violet-200 pb-2">Objetivos para el segundo cuatrimestre</h3>
+                
+                <div>
+                  <label className="text-xs font-black uppercase text-violet-800 block mb-2">Objetivo Conductual</label>
+                  <textarea 
+                    className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" 
+                    placeholder="Escriba aquí el objetivo conductual..." 
+                    value={objConductual} 
+                    onChange={e => setObjConductual(e.target.value)} 
+                    rows={3}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-black uppercase text-violet-800 block mb-2">Objetivo Pedagógico</label>
+                  <textarea 
+                    className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" 
+                    placeholder="Escriba aquí el objetivo pedagógico..." 
+                    value={objPedagogico} 
+                    onChange={e => setObjPedagogico(e.target.value)} 
+                    rows={3}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-black uppercase text-violet-800 block mb-2">Objetivo Socioafectivo</label>
+                  <textarea 
+                    className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" 
+                    placeholder="Escriba aquí el objetivo socioafectivo..." 
+                    value={objSocioafectivo} 
+                    onChange={e => setObjSocioafectivo(e.target.value)} 
+                    rows={3}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -688,7 +724,7 @@ export function InformesView({ user, db, appId }) {
         <div id="informe-imprimir" className="hidden print:block w-full bg-white text-black font-sans pb-4">
           
           <div className="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
-            <img src="/logo.png" alt="Logo Institutional" className="h-16 object-contain mb-3" />
+            <img src="/logo.png" alt="Logo Institucional" className="h-16 object-contain mb-3" />
             
             <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME {periodoInforme.toUpperCase()} 2026</h1>
             <p className="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
@@ -699,13 +735,13 @@ export function InformesView({ user, db, appId }) {
           <div className="border border-violet-200 rounded-xl p-5 mb-6 bg-white shadow-sm" style={{ breakInside: 'avoid' }}>
             <h2 className="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Datos del Estudiante</h2>
             <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
-              <p><strong class="font-black text-gray-900">Alumno/a:</strong> <span className="text-gray-700">{selectedStudent?.lastName}, {selectedStudent?.firstName}</span></p>
-              <p><strong class="font-black text-gray-900">DNI:</strong> <span className="text-gray-700">{selectedStudent?.dni || '....................................'}</span></p>
-              <p><strong class="font-black text-gray-900">Fecha de Nac.:</strong> <span className="text-gray-700">{selectedStudent?.birthDate || selectedStudent?.fechaNac || '....................................'}</span></p>
-              <p><strong class="font-black text-gray-900">Grupo:</strong> <span className="text-gray-700 font-bold">{grupoFiltro}</span></p>
-              <p><strong class="font-black text-gray-900">Docente a cargo:</strong> <span className="text-gray-700">{docentePrint || '....................................'}</span></p>
-              <p><strong class="font-black text-gray-900">Auxiliar/Preceptora:</strong> <span className="text-gray-700">{preceptoraPrint || '....................................'}</span></p>
-              <p className="col-span-2"><strong class="font-black text-gray-900">Año de cursada:</strong> <span className="text-gray-700">2026</span></p>
+              <p><strong className="font-black text-gray-900">Alumno/a:</strong> <span className="text-gray-700">{selectedStudent?.lastName}, {selectedStudent?.firstName}</span></p>
+              <p><strong className="font-black text-gray-900">DNI:</strong> <span className="text-gray-700">{selectedStudent?.dni || '....................................'}</span></p>
+              <p><strong className="font-black text-gray-900">Fecha de Nac.:</strong> <span className="text-gray-700">{selectedStudent?.birthDate || selectedStudent?.fechaNac || '....................................'}</span></p>
+              <p><strong className="font-black text-gray-900">Grupo:</strong> <span className="text-gray-700 font-bold">{grupoFiltro}</span></p>
+              <p><strong className="font-black text-gray-900">Docente a cargo:</strong> <span className="text-gray-700">{docentePrint || '....................................'}</span></p>
+              <p><strong className="font-black text-gray-900">Auxiliar/Preceptora:</strong> <span className="text-gray-700">{preceptoraPrint || '....................................'}</span></p>
+              <p className="col-span-2"><strong className="font-black text-gray-900">Año de cursada:</strong> <span className="text-gray-700">2026</span></p>
             </div>
           </div>
 
@@ -741,10 +777,30 @@ export function InformesView({ user, db, appId }) {
             </div>
           )}
 
-          {obsCuatrimestre2 && (
+          {(objConductual || objPedagogico || objSocioafectivo) && (
             <div className="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
               <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Objetivos para el segundo cuatrimestre</h2>
-              <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium">{obsCuatrimestre2}</p>
+              
+              {objConductual && (
+                <div className="mb-2">
+                  <strong className="text-xs font-black text-violet-800">Objetivo Conductual:</strong>
+                  <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">{objConductual}</p>
+                </div>
+              )}
+              
+              {objPedagogico && (
+                <div className="mb-2">
+                  <strong className="text-xs font-black text-violet-800">Objetivo Pedagógico:</strong>
+                  <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">{objPedagogico}</p>
+                </div>
+              )}
+              
+              {objSocioafectivo && (
+                <div className="mb-2">
+                  <strong className="text-xs font-black text-violet-800">Objetivo Socioafectivo:</strong>
+                  <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">{objSocioafectivo}</p>
+                </div>
+              )}
             </div>
           )}
 
