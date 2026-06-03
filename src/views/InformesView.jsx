@@ -497,6 +497,9 @@ const generarHTMLImpresion = (s, report) => {
   // Etiqueta del título del informe (Ej: "Música (Nivel 1)" o "Plástica")
   const subtituloArea = report.tipoInforme === 'musica' ? `${report.tipoInforme} (${report.nivelMusica || 'Nivel 1'})` : report.tipoInforme;
 
+  // 6. Evaluamos si debe mostrarse o no el Auxiliar
+  const mostrarAuxiliar = !materiasConGrilla.includes(report.tipoInforme);
+
   return `
   <div class="pagina w-full bg-white text-black font-sans pb-4">
       <div class="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
@@ -515,7 +518,7 @@ const generarHTMLImpresion = (s, report) => {
               <p><strong class="font-black text-gray-900">Fecha de Nac.:</strong> <span class="text-gray-700">${s.birthDate || s.fechaNac || '....................................'}</span></p>
               <p><strong class="font-black text-gray-900">Grupo:</strong> <span class="text-gray-700 font-bold">${report.grupo}</span></p>
               <p><strong class="font-black text-gray-900">Docente a cargo:</strong> <span class="text-gray-700">${s.teacher || s.docente || '....................................'}</span></p>
-              <p><strong class="font-black text-gray-900">Auxiliar/Preceptora:</strong> <span class="text-gray-700">${s.auxiliary || s.auxiliar || s.preceptora || '....................................'}</span></p>
+              ${mostrarAuxiliar ? `<p><strong class="font-black text-gray-900">Auxiliar/Preceptora:</strong> <span class="text-gray-700">${s.auxiliary || s.auxiliar || s.preceptora || '....................................'}</span></p>` : ''}
               <p class="col-span-2"><strong class="font-black text-gray-900">Año de cursada:</strong> <span class="text-gray-700">2026</span></p>
           </div>
       </div>
@@ -737,17 +740,17 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
      </div>
     </div>
 
-    <div className="flex gap-2 p-2 bg-white rounded-2xl border mb-6">
-  {['pedagogico', 'laboral', 'psicomotricidad', 'plastica', 'musica'].map(t => (
-      <button 
-       key={t} 
-       onClick={() => { setTipoInforme(t); setNivelFiltro('Todos'); setGrupoFiltro('Todos'); }} 
-       className={`flex-1 p-3 rounded-xl font-black capitalize ${tipoInforme === t ? 'bg-violet-600 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
-      >
-       {t}
-      </button>
-     ))}
-    </div>
+  <div className="flex flex-wrap gap-2 p-2 bg-white rounded-2xl border mb-6">
+          {['pedagogico', 'laboral', 'psicomotricidad', 'plastica', 'musica'].map(t => (
+            <button 
+              key={t} 
+              onClick={() => { setTipoInforme(t); setNivelFiltro('Todos'); setGrupoFiltro('Todos'); }} 
+              className={`flex-1 min-w-[110px] p-2 md:p-3 text-xs md:text-base rounded-xl font-black capitalize transition-all ${tipoInforme === t ? 'bg-violet-600 text-white shadow-md' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
 
     
       {/* AVISO PARA EL DOCENTE */}
