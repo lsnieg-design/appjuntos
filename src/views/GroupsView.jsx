@@ -312,9 +312,8 @@ const handleAddGroupComment = async (e, groupName) => {
 
 return (
     <div className="flex flex-col h-full bg-slate-100 animate-in fade-in relative overflow-hidden">
-      
-      {/* 1. CABECERA FIJA */}
-      <div className="bg-white p-4 shadow-sm z-[100] sticky top-0 flex flex-col gap-3">
+  {/* 1. CABECERA FIJA */}
+<div className="bg-white p-4 shadow-sm z-20 sticky top-0 flex flex-col gap-3">
         <div className="flex justify-between items-center px-2">
           <div>
             <h2 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2">
@@ -349,10 +348,11 @@ return (
       <div className="flex-1 relative flex items-start overflow-hidden">
         
         {/* FLECHA IZQUIERDA */}
-        <button 
-          onClick={() => scroll('left')}
-          className="absolute left-4 top-1/2 -translate-y-1/2 z-[200] bg-white text-violet-600 p-4 rounded-full shadow-2xl border border-slate-100 hover:scale-110 active:scale-95 transition-all hidden lg:flex"
-        >
+       {/* FLECHA IZQUIERDA */}
+<button 
+  onClick={() => scroll('left')}
+  className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-white text-violet-600 p-4 rounded-full shadow-2xl border border-slate-100 hover:scale-110 active:scale-95 transition-all hidden lg:flex"
+>
           <ChevronLeft size={32} strokeWidth={3} />
         </button>
 
@@ -422,9 +422,9 @@ return (
 
         {/* FLECHA DERECHA */}
         <button 
-          onClick={() => scroll('right')}
-          className="absolute right-4 top-1/2 -translate-y-1/2 z-[200] bg-white text-violet-600 p-4 rounded-full shadow-2xl border border-slate-100 hover:scale-110 active:scale-95 transition-all hidden lg:flex"
-        >
+  onClick={() => scroll('right')}
+  className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-white text-violet-600 p-4 rounded-full shadow-2xl border border-slate-100 hover:scale-110 active:scale-95 transition-all hidden lg:flex"
+>
           <ChevronRight size={32} strokeWidth={3} />
         </button>
       </div>
