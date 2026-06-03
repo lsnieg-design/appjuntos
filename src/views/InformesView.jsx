@@ -475,7 +475,8 @@ export function InformesView({ user, db, appId }) {
  const [tipoInforme, setTipoInforme] = useState('pedagogico');
  const [periodoInforme, setPeriodoInforme] = useState('Medio');
  const [selectedStudent, setSelectedStudent] = useState(null);
-  
+ const [contenidosPlastica, setContenidosPlastica] = useState('');
+  const [observacionesPlastica, setObservacionesPlastica] = useState('');
  const [searchTerm, setSearchTerm] = useState('');
  const [turnoFiltro, setTurnoFiltro] = useState('Todos');
  const [nivelFiltro, setNivelFiltro] = useState('Todos');
@@ -562,6 +563,8 @@ export function InformesView({ user, db, appId }) {
   setObjPedagogico(report?.objPedagogico || '');
   setObjSocioafectivo(report?.objSocioafectivo || '');
   setDocentePrint(student.teacher || student.docente || '');
+  setContenidosPlastica(report?.contenidosPlastica || '');
+   setObservacionesPlastica(report?.observacionesPlastica || '');
   setPreceptoraPrint(student.auxiliary || student.auxiliar || student.preceptora || '');
   setStage('form');
  };
@@ -581,6 +584,8 @@ export function InformesView({ user, db, appId }) {
    objConductual,
    objPedagogico,
    objSocioafectivo,
+   contenidosPlastica, // <-- Agregá esto
+      observacionesPlastica, // <-- Agregá esto
    updatedAt: serverTimestamp()
   }, { merge: true });
   setStage('main');
@@ -645,8 +650,8 @@ export function InformesView({ user, db, appId }) {
      </div>
     </div>
 
-    <div className="flex gap-2 p-2 bg-white rounded-2xl border">
-     {['pedagogico', 'laboral', 'psicomotricidad', 'plastica', 'musica'].map(t => (
+    <div className="flex gap-2 p-2 bg-white rounded-2xl border mb-6">
+  {['pedagogico', 'laboral', 'psicomotricidad', 'plastica', 'musica'].map(t => (
       <button 
        key={t} 
        onClick={() => { setTipoInforme(t); setNivelFiltro('Todos'); setGrupoFiltro('Todos'); }} 
@@ -660,13 +665,13 @@ export function InformesView({ user, db, appId }) {
     
       {/* AVISO PARA EL DOCENTE */}
       {grupoFiltro === 'Todos' && !searchTerm && (
-       <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl flex items-center gap-3">
+  <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl flex items-center gap-3 mb-6">
          <span className="text-xl">👉</span>
          <p className="text-sm text-indigo-900 font-medium">Por favor, <strong>seleccioná el Turno, Nivel y Grupo</strong> (o utilizá el buscador) para ver a los alumnos y empezar a cargar sus informes.</p>
        </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <input className="p-4 rounded-2xl border bg-white text-sm" placeholder="Buscar por apellido..." onChange={e => setSearchTerm(e.target.value)} />
         
         <select className="p-4 rounded-2xl border bg-white text-sm font-bold" value={turnoFiltro} onChange={e => {setTurnoFiltro(e.target.value); setNivelFiltro('Todos'); setGrupoFiltro('Todos');}}>
@@ -820,85 +825,98 @@ export function InformesView({ user, db, appId }) {
      </div>
 
      <div className="space-y-4">
-      {indicadoresActuales.map(c => (
-       <div key={c.id} className="space-y-2 mb-4 p-4 bg-gray-50 rounded-2xl">
-        <label className="text-xs font-black uppercase text-gray-700">{c.label}</label>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-         {c.options.map(opt => {
-          const isSelected = answers[c.id] === opt;
-          return (
-           <button 
-            key={opt} 
-            onClick={() => setAnswers(p => ({...p, [c.id]: opt}))} 
-            className={"p-3 rounded-xl font-bold text-[10px] uppercase border-2 text-left transition-all " + (isSelected ? "bg-violet-600 text-white border-violet-700" : "bg-white border-gray-200 hover:border-violet-300")}
-           >
-            {opt}
-           </button>
-          );
-         })}
-        </div>
+            {/* CONDICIONAL: SI ES PLÁSTICA EN INICIAL, BLOQUEAR */}
+            {tipoInforme === 'plastica' && selectedStudent?.level?.toUpperCase() === 'INICIAL' ? (
+              <div className="bg-amber-50 border border-amber-200 p-8 rounded-3xl text-center">
+                <span className="text-4xl block mb-2">⚠️</span>
+                <p className="text-amber-900 font-black text-lg">El nivel Inicial no posee informe de Plástica.</p>
+                <p className="text-amber-700 text-sm mt-1">Por favor, seleccioná otra área u otro grupo.</p>
+              </div>
+            ) : (
+              <>
+                {/* 1. ESPACIO DE CONTENIDOS (SOLO PARA PLÁSTICA) */}
+                {tipoInforme === 'plastica' && (
+                  <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mb-6">
+                    <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Contenidos Abordados</label>
+                    <textarea 
+                      className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" 
+                      placeholder="Ej: El espacio, aprovechamiento y utilización consciente del plano. El color..." 
+                      value={contenidosPlastica} 
+                      onChange={e => setContenidosPlastica(e.target.value)} 
+                      rows={3}
+                    />
+                  </div>
+                )}
 
-        <input
-         type="text"
-         placeholder="O escribí una observación personalizada para este indicador..."
-         className={"w-full p-3 mt-3 rounded-xl text-xs font-medium border-2 transition-all outline-none " + (answers[c.id] && !c.options.includes(answers[c.id]) ? "bg-violet-100 border-violet-600 text-violet-900" : "bg-white border-gray-200 focus:border-violet-400")}
-         value={!c.options.includes(answers[c.id]) ? (answers[c.id] || '') : ''}
-         onChange={(e) => setAnswers(p => ({...p, [c.id]: e.target.value}))}
-        />
-       </div>
-      ))}
-      
-      <div className="mt-8 space-y-4">
-       <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100">
-        <label className="text-xs font-black uppercase text-violet-800 block mb-2">Observaciones sobre los objetivos planteados para este primer cuatrimestre</label>
-        <textarea 
-         className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" 
-         placeholder="Escriba aquí las observaciones..." 
-         value={obsCuatrimestre1} 
-         onChange={e => setObsCuatrimestre1(e.target.value)} 
-         rows={4}
-        />
-       </div>
+                {/* 2. RÚBRICA DE INDICADORES (PARA TODOS) */}
+                {indicadoresActuales.map(c => (
+                  <div key={c.id} className="space-y-2 mb-4 p-4 bg-gray-50 rounded-2xl">
+                    <label className="text-xs font-black uppercase text-gray-700">{c.label}</label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      {c.options.map(opt => {
+                        const isSelected = answers[c.id] === opt;
+                        return (
+                          <button 
+                            key={opt} 
+                            onClick={() => setAnswers(p => ({...p, [c.id]: opt}))} 
+                            className={"p-3 rounded-xl font-bold text-[10px] uppercase border-2 text-center transition-all " + (isSelected ? "bg-violet-600 text-white border-violet-700 shadow-md" : "bg-white border-gray-200 hover:border-violet-300")}
+                          >
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
 
-       <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100 space-y-4">
-        <h3 className="text-sm font-black uppercase text-violet-900 border-b border-violet-200 pb-2">Objetivos para el segundo cuatrimestre</h3>
-        
-        <div>
-         <label className="text-xs font-black uppercase text-violet-800 block mb-2">Objetivo Conductual</label>
-         <textarea 
-          className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" 
-          placeholder="Escriba aquí el objetivo conductual..." 
-          value={objConductual} 
-          onChange={e => setObjConductual(e.target.value)} 
-          rows={3}
-         />
-        </div>
+                {/* 3. ESPACIO DE OBSERVACIONES (SOLO PARA PLÁSTICA) */}
+                {tipoInforme === 'plastica' && (
+                  <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
+                    <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
+                    <textarea 
+                      className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" 
+                      placeholder="Escriba aquí las observaciones finales..." 
+                      value={observacionesPlastica} 
+                      onChange={e => setObservacionesPlastica(e.target.value)} 
+                      rows={4}
+                    />
+                  </div>
+                )}
 
-        <div>
-         <label className="text-xs font-black uppercase text-violet-800 block mb-2">Objetivo Pedagógico</label>
-         <textarea 
-          className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" 
-          placeholder="Escriba aquí el objetivo pedagógico..." 
-          value={objPedagogico} 
-          onChange={e => setObjPedagogico(e.target.value)} 
-          rows={3}
-         />
-        </div>
+                {/* 4. OBJETIVOS Y OBS. CUATRIMESTRE 1 (OCULTOS EN PLÁSTICA) */}
+                {tipoInforme !== 'plastica' && (
+                  <div className="mt-8 space-y-4">
+                    <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100">
+                      <label className="text-xs font-black uppercase text-violet-800 block mb-2">Observaciones sobre los objetivos planteados para este primer cuatrimestre</label>
+                      <textarea 
+                        className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" 
+                        placeholder="Escriba aquí las observaciones..." 
+                        value={obsCuatrimestre1} 
+                        onChange={e => setObsCuatrimestre1(e.target.value)} 
+                        rows={4}
+                      />
+                    </div>
 
-        <div>
-         <label className="text-xs font-black uppercase text-violet-800 block mb-2">Objetivo Socioafectivo</label>
-         <textarea 
-          className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" 
-          placeholder="Escriba aquí el objetivo socioafectivo..." 
-          value={objSocioafectivo} 
-          onChange={e => setObjSocioafectivo(e.target.value)} 
-          rows={3}
-         />
-        </div>
-       </div>
-      </div>
-     </div>
+                    <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100 space-y-4">
+                      <h3 className="text-sm font-black uppercase text-violet-900 border-b border-violet-200 pb-2">Objetivos para el segundo cuatrimestre</h3>
+                      <div>
+                        <label className="text-xs font-black uppercase text-violet-800 block mb-2">Objetivo Conductual</label>
+                        <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" value={objConductual} onChange={e => setObjConductual(e.target.value)} rows={2} />
+                      </div>
+                      <div>
+                        <label className="text-xs font-black uppercase text-violet-800 block mb-2">Objetivo Pedagógico</label>
+                        <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" value={objPedagogico} onChange={e => setObjPedagogico(e.target.value)} rows={2} />
+                      </div>
+                      <div>
+                        <label className="text-xs font-black uppercase text-violet-800 block mb-2">Objetivo Socioafectivo</label>
+                        <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" value={objSocioafectivo} onChange={e => setObjSocioafectivo(e.target.value)} rows={2} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
 
      <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 mt-6 bg-violet-800 hover:bg-violet-900 text-white font-black rounded-2xl">
       {isSaving ? 'Guardando...' : 'Guardar Informe'}
