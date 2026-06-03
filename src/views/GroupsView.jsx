@@ -57,42 +57,56 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
 // Nueva variable de estado para alternar vista (agregala arriba con los otros useState)
   const [viewMode, setViewMode] = useState('Sede'); 
 
-  const gruposFinales = React.useMemo(() => {
-    const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
+const gruposFinales = React.useMemo(() => {
+  const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
+  
+  // 1. Identificar si el usuario tiene permiso total
+  const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración', 'Dirección Inclusión', 'Equipo Técnico Inclusión'].includes(user.role) || user.rol === 'admin';
+
+  const grouped = students.reduce((acc, s) => {
+    // A. Filtrado por modalidad
+    const studentModality = s.modality || 'Sede';
+    if (studentModality !== viewMode) return acc;
+
+    // B. Lógica de visibilidad
+    const gName = viewMode === 'Sede' 
+      ? s[`group${suf}`] 
+      : (s[`dai${suf}`] || 'SIN DAI ASIGNADA');
     
-    const grouped = students.reduce((acc, s) => {
-      // Si el alumno no coincide con la modalidad seleccionada, lo saltamos
-      const studentModality = s.modality || 'Sede';
-      if (studentModality !== viewMode) return acc;
+    const teacherName = s[`teacher${suf}`]; // O compara por teacherId si tienes el ID del usuario
+    const daiName = s[`dai${suf}`];
 
-      // Definimos el nombre del grupo según la modalidad
-      // Sede: usa el nombre del grupo | Inclusión: usa el nombre de la DAI
-      const gName = viewMode === 'Sede' 
-        ? s[`group${suf}`] 
-        : (s[`dai${suf}`] || 'SIN DAI ASIGNADA');
-
-      if (!gName) return acc;
+    // Si NO es management, verificamos si es su grupo
+    if (!isManagement) {
+      const userMatchesTeacher = teacherName === user.fullName; // Ajusta según cómo guardes el nombre
+      const userMatchesDai = daiName === user.fullName;
       
-      if (!acc[gName]) {
-        acc[gName] = { 
-          name: gName, 
-          students: [], 
-          teacher: viewMode === 'Sede' ? (s[`teacher${suf}`] || 'Sin asignar') : gName, 
-          aux: viewMode === 'Sede' ? (s[`aux${suf}`] || 'S/D') : (s.originSchool || 'Escuela común'),
-          classroom: viewMode === 'Sede' ? s.classroom : s.originGrade, 
-          driveLink: s[`driveLink${suf}`], 
-          institucionalDrive: s.institucionalDrive 
-        };
-      }
-      acc[gName].students.push(s);
-      return acc;
-    }, {});
+      if (!userMatchesTeacher && !userMatchesDai) return acc;
+    }
 
-    return Object.values(grouped).sort((a, b) => 
-      a.name.includes("INICIAL") ? -1 : a.name.localeCompare(b.name)
-    );
-  }, [students, turn, viewMode]);
+    if (!gName) return acc;
+    
+    if (!acc[gName]) {
+      acc[gName] = { 
+        name: gName, 
+        students: [], 
+        teacher: viewMode === 'Sede' ? (s[`teacher${suf}`] || 'Sin asignar') : gName, 
+        aux: viewMode === 'Sede' ? (s[`aux${suf}`] || 'S/D') : (s.originSchool || 'Escuela común'),
+        classroom: viewMode === 'Sede' ? s.classroom : s.originGrade, 
+        driveLink: s[`driveLink${suf}`], 
+        institucionalDrive: s.institucionalDrive 
+      };
+    }
+    acc[gName].students.push(s);
+    return acc;
+  }, {});
 
+  return Object.values(grouped).sort((a, b) => 
+    a.name.includes("INICIAL") ? -1 : a.name.localeCompare(b.name)
+  );
+}, [students, turn, viewMode, user]); 
+
+  
   // --- FUNCIONES DE ACCIÓN ---
 
   const printGroups = (groupsList) => {
