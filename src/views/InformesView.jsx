@@ -385,89 +385,170 @@ const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firs
 };
 
 const generarHTMLImpresion = (s, report) => {
- const nivel = s?.level || 'Inicial';
- const indicadores = CONFIG_INDICADORES[report.tipoInforme]?.[nivel] || CONFIG_INDICADORES[report.tipoInforme]?.['Inicial'] || [];
- 
- let indicadoresHTML = '';
- indicadores.forEach(c => {
-  const answer = report.answers?.[c.id];
-  if (!answer) return;
-  const optionIndex = c.options.indexOf(answer);
-  let textoDescriptivo = optionIndex !== -1 ? formatearTextoImpresion(c.id, optionIndex, answer, s?.firstName) : answer;
-  
-  if (textoDescriptivo) {
-   indicadoresHTML += `
-   <div class="text-xs flex flex-col mb-2 pb-3 border-b border-gray-100 last:border-0" style="break-inside: avoid;">
-     <span class="font-black text-violet-900 uppercase text-[10px] tracking-widest mb-1">${c.label}</span>
-     <span class="text-gray-800 leading-relaxed font-medium text-[11px]">${textoDescriptivo}</span>
-   </div>`;
+  // 1. Determinamos el nivel (Crucial para Música)
+  const nivel = report.tipoInforme === 'musica' ? (report.nivelMusica || 'Nivel 1') : (s?.level || 'Inicial');
+  const indicadores = CONFIG_INDICADORES[report.tipoInforme]?.[nivel] || CONFIG_INDICADORES[report.tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[report.tipoInforme]?.['CFI'] || [];
+
+  // 2. Definimos qué áreas usan la Grilla con X y cuáles usan texto redactado
+  const materiasConGrilla = ['plastica', 'musica', 'psicomotricidad', 'educacion_fisica'];
+  let desarrolloHTML = '';
+
+  // 3. Agregamos Contenidos o Fundamentación antes de la tabla (Solo materias especiales)
+  if (report.tipoInforme === 'plastica' && report.contenidosPlastica) {
+    desarrolloHTML += `
+      <div class="mb-4" style="break-inside: avoid;">
+        <h3 class="font-black uppercase text-violet-900 text-[10px] tracking-widest mb-1 border-b border-violet-100 pb-1">Contenidos Abordados</h3>
+        <p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2 whitespace-pre-wrap">${report.contenidosPlastica}</p>
+      </div>
+    `;
   }
- });
+  if (report.tipoInforme === 'musica') {
+    desarrolloHTML += `
+      <div class="mb-4" style="break-inside: avoid;">
+        <h3 class="font-black uppercase text-violet-900 text-[10px] tracking-widest mb-1 border-b border-violet-100 pb-1">Fundamentación</h3>
+        <p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2">El trabajo rítmico estructurado en formato de círculo favorece la eliminación de jerarquías, promueve el contacto visual continuo y estimula procesos de autorregulación, atención conjunta y empatía a través de la producción de un pulso compartido.</p>
+      </div>
+    `;
+  }
 
- const obsObjetivosHTML = (report.objConductual || report.objPedagogico || report.objSocioafectivo) ? `
-   <div class="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style="break-inside: avoid;">
-     <h2 class="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Objetivos para el segundo cuatrimestre</h2>
-     ${report.objConductual ? `<div class="mb-2"><strong class="text-xs font-black text-violet-800">Objetivo Conductual:</strong><p class="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">${report.objConductual}</p></div>` : ''}
-     ${report.objPedagogico ? `<div class="mb-2"><strong class="text-xs font-black text-violet-800">Objetivo Pedagógico:</strong><p class="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">${report.objPedagogico}</p></div>` : ''}
-     ${report.objSocioafectivo ? `<div class="mb-2"><strong class="text-xs font-black text-violet-800">Objetivo Socioafectivo:</strong><p class="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">${report.objSocioafectivo}</p></div>` : ''}
-   </div>` : '';
+  // 4. Renderizamos la Grilla (Materias Especiales) o el Texto (Pedagógico/Laboral)
+  if (materiasConGrilla.includes(report.tipoInforme)) {
+    desarrolloHTML += `
+      <table class="w-full text-left border-collapse mt-4 text-[11px] mb-6" style="break-inside: avoid;">
+        <thead>
+          <tr class="bg-violet-100 text-violet-900">
+            <th class="border border-violet-200 p-2 font-black uppercase">Objetivos / Indicadores</th>
+            <th class="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">Realiza con<br/>autonomía</th>
+            <th class="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">Realiza con<br/>apoyo</th>
+            <th class="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">En<br/>proceso</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    indicadores.forEach(c => {
+      const answer = report.answers?.[c.id];
+      if (!answer) return;
+      
+      // Colocamos la 'X' en la columna que corresponda según la opción elegida
+      const xAutonomia = answer === c.options[0] ? 'X' : '';
+      const xApoyo = answer === c.options[1] ? 'X' : '';
+      const xProceso = answer === c.options[2] ? 'X' : '';
 
- return `
- <div class="pagina w-full bg-white text-black font-sans pb-4">
-   <div class="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
-     <img src="/logosinfondo.png" alt="Logo Institucional" class="h-16 object-contain mb-3" />
-     <h1 class="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME ${report.periodo.toUpperCase()} 2026</h1>
-     <p class="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
-       Área: ${report.tipoInforme}
-     </p>
-   </div>
-   <div class="border border-violet-200 rounded-xl p-5 mb-6 bg-white shadow-sm" style="break-inside: avoid;">
-     <h2 class="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Datos del Estudiante</h2>
-     <div class="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
-       <p><strong class="font-black text-gray-900">Alumno/a:</strong> <span class="text-gray-700">${s.lastName}, ${s.firstName}</span></p>
-       <p><strong class="font-black text-gray-900">DNI:</strong> <span class="text-gray-700">${s.dni || '....................................'}</span></p>
-       <p><strong class="font-black text-gray-900">Fecha de Nac.:</strong> <span class="text-gray-700">${s.birthDate || s.fechaNac || '....................................'}</span></p>
-       <p><strong class="font-black text-gray-900">Grupo:</strong> <span class="text-gray-700 font-bold">${report.grupo}</span></p>
-       <p><strong class="font-black text-gray-900">Docente a cargo:</strong> <span class="text-gray-700">${s.teacher || s.docente || '....................................'}</span></p>
-       <p><strong class="font-black text-gray-900">Auxiliar/Preceptora:</strong> <span class="text-gray-700">${s.auxiliary || s.auxiliar || s.preceptora || '....................................'}</span></p>
-       <p class="col-span-2"><strong class="font-black text-gray-900">Año de cursada:</strong> <span class="text-gray-700">2026</span></p>
-     </div>
-   </div>
-   <div class="mb-6">
-     <h2 class="text-sm font-black text-white bg-violet-800 uppercase px-4 py-1.5 rounded-md mb-4 shadow-sm inline-block" style="break-inside: avoid;">
-       Desarrollo ${report.tipoInforme}
-     </h2>
-     <div class="space-y-4 border-l-2 border-violet-200 ml-1 pl-4">
-       ${indicadoresHTML}
-     </div>
-   </div>
-   ${report.obsCuatrimestre1 ? `
-   <div class="mt-6 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style="break-inside: avoid;">
-     <h2 class="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Observaciones sobre los objetivos planteados para este primer cuatrimestre</h2>
-     <p class="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium">${report.obsCuatrimestre1}</p>
-   </div>` : ''}
-   ${obsObjetivosHTML}
+      desarrolloHTML += `
+        <tr>
+          <td class="border border-violet-200 p-2 font-medium text-gray-800">${c.label}</td>
+          <td class="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">${xAutonomia}</td>
+          <td class="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">${xApoyo}</td>
+          <td class="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">${xProceso}</td>
+        </tr>
+      `;
+    });
+    desarrolloHTML += `</tbody></table>`;
+  } else {
+    // Lógica original de redacción de texto para Pedagógico y Laboral
+    desarrolloHTML += `<div class="space-y-4 border-l-2 border-violet-200 ml-1 pl-4">`;
+    indicadores.forEach(c => {
+      const answer = report.answers?.[c.id];
+      if (!answer) return;
+      const optionIndex = c.options.indexOf(answer);
+      let textoDescriptivo = optionIndex !== -1 ? formatearTextoImpresion(c.id, optionIndex, answer, s?.firstName) : answer;
+      
+      if (textoDescriptivo) {
+        desarrolloHTML += `
+        <div class="text-xs flex flex-col mb-2 pb-3 border-b border-gray-100 last:border-0" style="break-inside: avoid;">
+            <span class="font-black text-violet-900 uppercase text-[10px] tracking-widest mb-1">${c.label}</span>
+            <span class="text-gray-800 leading-relaxed font-medium text-[11px]">${textoDescriptivo}</span>
+        </div>`;
+      }
+    });
+    desarrolloHTML += `</div>`;
+  }
 
-   <div class="mt-8 mb-2 px-4 text-center" style="break-inside: avoid;">
-     <p class="text-xs text-gray-700 italic font-medium">
-       Continuaremos abordando, desde la perspectiva constructivista, el aprendizaje subjetivo del alumno, centrándonos en su bienestar y motivación, para avanzar durante el siguiente periodo.
-     </p>
-   </div>
+  // 5. Renderizamos Observaciones y Objetivos dependiendo del área
+  let obsYObjetivosHTML = '';
+  
+  if (materiasConGrilla.includes(report.tipoInforme)) {
+     // Si es materia de grilla, mostramos solo sus observaciones especiales
+     const obsEspeciales = report.observacionesPlastica || report.observacionesMusica || ''; 
+     if (obsEspeciales) {
+       obsYObjetivosHTML = `
+       <div class="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style="break-inside: avoid;">
+           <h2 class="font-black uppercase text-violet-900 mb-2 text-[10px] tracking-widest border-b border-violet-200 pb-1">Observaciones del período</h2>
+           <p class="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">${obsEspeciales}</p>
+       </div>`;
+     }
+  } else {
+     // Si es Pedagógico/Laboral, mostramos la lógica original de Cuatrimestre 1 y Objetivos C2
+     obsYObjetivosHTML += report.obsCuatrimestre1 ? `
+     <div class="mt-6 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style="break-inside: avoid;">
+         <h2 class="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Observaciones sobre los objetivos planteados para este primer cuatrimestre</h2>
+         <p class="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium">${report.obsCuatrimestre1}</p>
+     </div>` : '';
 
-   <div class="mt-10 pt-6 flex flex-col items-center justify-center border-t border-dashed border-gray-300" style="break-inside: avoid;">
-     <img src="/firmasylogo.png" alt="Firmas y Logo Institucional" class="max-w-[300px] w-full object-contain mb-10" />
-     <div class="w-full flex justify-between px-12 mt-12">
-       <div class="flex flex-col items-center w-48">
-         <div class="w-full border-t-2 border-black mb-2"></div>
-         <span class="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
-       </div>
-       <div class="flex flex-col items-center w-48">
-         <div class="w-full border-t-2 border-black mb-2"></div>
-         <span class="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
-       </div>
-     </div>
-   </div>
- </div>`;
+     obsYObjetivosHTML += (report.objConductual || report.objPedagogico || report.objSocioafectivo) ? `
+     <div class="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style="break-inside: avoid;">
+         <h2 class="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Objetivos para el segundo cuatrimestre</h2>
+         ${report.objConductual ? `<div class="mb-2"><strong class="text-xs font-black text-violet-800">Objetivo Conductual:</strong><p class="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">${report.objConductual}</p></div>` : ''}
+         ${report.objPedagogico ? `<div class="mb-2"><strong class="text-xs font-black text-violet-800">Objetivo Pedagógico:</strong><p class="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">${report.objPedagogico}</p></div>` : ''}
+         ${report.objSocioafectivo ? `<div class="mb-2"><strong class="text-xs font-black text-violet-800">Objetivo Socioafectivo:</strong><p class="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">${report.objSocioafectivo}</p></div>` : ''}
+     </div>` : '';
+  }
+
+  // Etiqueta del título del informe (Ej: "Música (Nivel 1)" o "Plástica")
+  const subtituloArea = report.tipoInforme === 'musica' ? `${report.tipoInforme} (${report.nivelMusica || 'Nivel 1'})` : report.tipoInforme;
+
+  return `
+  <div class="pagina w-full bg-white text-black font-sans pb-4">
+      <div class="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
+          <img src="/logosinfondo.png" alt="Logo Institucional" class="h-16 object-contain mb-3" />
+          <h1 class="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME ${report.periodo.toUpperCase()} 2026</h1>
+          <p class="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
+              Área: ${subtituloArea}
+          </p>
+      </div>
+      
+      <div class="border border-violet-200 rounded-xl p-5 mb-6 bg-white shadow-sm" style="break-inside: avoid;">
+          <h2 class="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Datos del Estudiante</h2>
+          <div class="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
+              <p><strong class="font-black text-gray-900">Alumno/a:</strong> <span class="text-gray-700">${s.lastName}, ${s.firstName}</span></p>
+              <p><strong class="font-black text-gray-900">DNI:</strong> <span class="text-gray-700">${s.dni || '....................................'}</span></p>
+              <p><strong class="font-black text-gray-900">Fecha de Nac.:</strong> <span class="text-gray-700">${s.birthDate || s.fechaNac || '....................................'}</span></p>
+              <p><strong class="font-black text-gray-900">Grupo:</strong> <span class="text-gray-700 font-bold">${report.grupo}</span></p>
+              <p><strong class="font-black text-gray-900">Docente a cargo:</strong> <span class="text-gray-700">${s.teacher || s.docente || '....................................'}</span></p>
+              <p><strong class="font-black text-gray-900">Auxiliar/Preceptora:</strong> <span class="text-gray-700">${s.auxiliary || s.auxiliar || s.preceptora || '....................................'}</span></p>
+              <p class="col-span-2"><strong class="font-black text-gray-900">Año de cursada:</strong> <span class="text-gray-700">2026</span></p>
+          </div>
+      </div>
+      
+      <div class="mb-6">
+          <h2 class="text-sm font-black text-white bg-violet-800 uppercase px-4 py-1.5 rounded-md mb-4 shadow-sm inline-block" style="break-inside: avoid;">
+              Desarrollo de ${report.tipoInforme}
+          </h2>
+          ${desarrolloHTML}
+      </div>
+      
+      ${obsYObjetivosHTML}
+
+      <div class="mt-8 mb-2 px-4 text-center" style="break-inside: avoid;">
+          <p class="text-xs text-gray-700 italic font-medium">
+              Continuaremos abordando, desde la perspectiva constructivista, el aprendizaje subjetivo del alumno, centrándonos en su bienestar y motivación, para avanzar durante el siguiente periodo.
+          </p>
+      </div>
+
+      <div class="mt-10 pt-6 flex flex-col items-center justify-center border-t border-dashed border-gray-300" style="break-inside: avoid;">
+          <img src="/firmasylogo.png" alt="Firmas y Logo Institucional" class="max-w-[300px] w-full object-contain mb-10" />
+          <div class="w-full flex justify-between px-12 mt-12">
+              <div class="flex flex-col items-center w-48">
+                  <div class="w-full border-t-2 border-black mb-2"></div>
+                  <span class="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
+              </div>
+              <div class="flex flex-col items-center w-48">
+                  <div class="w-full border-t-2 border-black mb-2"></div>
+                  <span class="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
+              </div>
+          </div>
+      </div>
+  </div>`;
 };
 
 export function InformesView({ user, db, appId }) {
