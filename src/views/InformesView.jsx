@@ -964,10 +964,10 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
                     </div>
                   </div>
                 )}
-              </> {/* <-- Cierra el fragmento de la rúbrica de Música */}
-            )} {/* <-- Cierra el condicional de bloqueo de Música */}
-          </> {/* <-- Cierra el fragmento general de Plástica */}
-        )} {/* <-- Cierra el condicional inicial de bloqueo de Plástica en Inicial */}
+              </>
+            )}
+          </>
+        )}
       </div>
 
      <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 mt-6 bg-violet-800 hover:bg-violet-900 text-white font-black rounded-2xl">
