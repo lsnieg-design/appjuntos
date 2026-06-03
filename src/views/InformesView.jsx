@@ -619,10 +619,9 @@ export function InformesView({ user, db, appId }) {
         }
       `}</style>
 
-      {/* VISTA PRINCIPAL */}
+     {/* VISTA PRINCIPAL */}
       <div className={`${stage === 'main' ? 'block' : 'hidden'} print:hidden`}>
         <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-6 md:p-8 rounded-[30px] md:rounded-[40px] shadow-xl text-white mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          
           <div className="w-full md:w-auto text-center md:text-left">
             <h2 className="text-xl md:text-2xl font-black mb-2 flex items-center justify-center md:justify-start gap-3">
               <BookOpen size={24} className="md:w-[28px] md:h-[28px]" /> Gestión de Informes
@@ -631,37 +630,34 @@ export function InformesView({ user, db, appId }) {
           </div>
 
           <div className="w-full md:w-auto bg-white/10 p-3 rounded-2xl border border-white/20">
-              <label className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-violet-200 block mb-1 px-1 text-center md:text-left">
-                Período del Informe:
-              </label>
-              <select 
-                className="w-full bg-white text-violet-900 font-black text-sm md:text-base py-2 px-3 md:p-3 rounded-xl outline-none" 
-                value={periodoInforme} 
-                onChange={e => setPeriodoInforme(e.target.value)}
-              >
-                <option value="Inicial" disabled>Informe Inicial (Cerrado)</option>
-                <option value="Medio">Informe Medio 2026</option>
-                <option value="Final" disabled>Informe Final (Pronto)</option>
-              </select>
+            <label className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-violet-200 block mb-1 px-1 text-center md:text-left">
+              Período del Informe:
+            </label>
+            <select 
+              className="w-full bg-white text-violet-900 font-black text-sm md:text-base py-2 px-3 md:p-3 rounded-xl outline-none" 
+              value={periodoInforme} 
+              onChange={e => setPeriodoInforme(e.target.value)}
+            >
+              <option value="Inicial" disabled>Informe Inicial (Cerrado)</option>
+              <option value="Medio">Informe Medio 2026</option>
+              <option value="Final" disabled>Informe Final (Pronto)</option>
+            </select>
           </div>
-
         </div>
 
-       <div className="flex gap-2 p-2 bg-white rounded-2xl border">
-  {['pedagogico', 'laboral', 'psicomotricidad', 'plastica', 'musica'].map(t => (
-    <button 
-      key={t} 
-      onClick={() => {
-        setTipoInforme(t);
-        setNivelFiltro('Todos');
-        setGrupoFiltro('Todos');
-      }} 
-      className={`flex-1 p-3 rounded-xl font-black capitalize ${tipoInforme === t ? 'bg-violet-600 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
-    >
-      {t}
-    </button>
-  ))}
-</div>
+        <div className="flex gap-2 p-2 bg-white rounded-2xl border">
+          {['pedagogico', 'laboral', 'psicomotricidad', 'plastica', 'musica'].map(t => (
+            <button 
+              key={t} 
+              onClick={() => { setTipoInforme(t); setNivelFiltro('Todos'); setGrupoFiltro('Todos'); }} 
+              className={`flex-1 p-3 rounded-xl font-black capitalize ${tipoInforme === t ? 'bg-violet-600 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+
+        
             {/* AVISO PARA EL DOCENTE */}
             {grupoFiltro === 'Todos' && !searchTerm && (
               <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl flex items-center gap-3">
@@ -782,14 +778,15 @@ export function InformesView({ user, db, appId }) {
                                 )}
                                 <button onClick={() => handleEdit(s, report)} className={`p-2 rounded-lg transition-colors ${report ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-violet-600 text-white hover:bg-violet-700'}`}>
                                   {report ? <Edit3 size={16}/> : <Plus size={16}/>}
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
+                              </button>
+                    </div>
                   </div>
+                );
+              })
+            )}
+          </div>
+        )}
+      </div>
 
       {/* INTERFAZ DE EDICIÓN EN PANTALLA */}
       {stage === 'form' && (
