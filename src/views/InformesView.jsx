@@ -76,22 +76,22 @@ const CONFIG_INDICADORES = {
     { id: 'higiene', label: 'Cuidado e higiene de materiales', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
   ]
  },
- musica: {
-  'Nivel 1': [
-   { id: 'reconocimiento_corporal', label: 'Reconocimiento corporal', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
-   { id: 'seguimiento_pulso', label: 'Seguimiento del pulso', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
-   { id: 'atencion_estructural', label: 'Atención estructural (inicio y corte)', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
-   { id: 'manejo_instrumentos', label: 'Manejo de instrumentos', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
-   { id: 'asociacion_efectos', label: 'Asociación de efectos', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
-  ],
-  'Nivel 2': [
-   { id: 'coordinacion_sonora', label: 'Dominio de coordinación', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
-   { id: 'ensamble', label: 'Práctica en ensamble', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
-   { id: 'control_matices', label: 'Control de matices', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
-   { id: 'uso_registro', label: 'Uso de registro (gráficos)', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
-   { id: 'sincronia', label: 'Logro de sincronía', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
-  ]
- },
+musica: {
+    'Nivel 1': [
+      { id: 'reconocimiento_corporal', label: 'Reconocimiento corporal: Explora y produce sonidos con su cuerpo.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'seguimiento_pulso', label: 'Seguimiento del pulso: Identifica y sigue el tiempo en la ronda.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'atencion_estructural', label: 'Atención estructural: Descubre y respeta el inicio y el corte.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'manejo_instrumentos', label: 'Manejo de instrumentos: Examina y toca percusión menor.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'asociacion_efectos', label: 'Asociación de efectos: Rastrea ruidos para creaciones artísticas del momento.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
+    ],
+    'Nivel 2': [
+      { id: 'coordinacion_sonora', label: 'Dominio de coordinación: Ensaya y combina planos sonoros.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'ensamble', label: 'Práctica en ensamble: Distingue su ritmo junto a compañeros.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'control_matices', label: 'Control de matices: Experimenta cambios de velocidad e intensidad.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'uso_registro', label: 'Uso de registro: Interpreta gráficos para recordar ritmos.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'sincronia', label: 'Logro de sincronía: Testea tocar coordinando con la imagen.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
+    ]
+  },
  laboral: {
   'CFI': [
    { id: 'herramientas_reconocimiento', label: 'Herramientas: Reconocimiento', options: ['No identifica herramientas; requiere asistencia para seleccionarlas.', 'Identifica herramientas básicas con apoyo visual o señalamiento.', 'Identifica y nombra herramientas de uso frecuente en el taller.', 'Reconoce y diferencia una amplia gama de herramientas según su función.'] },
@@ -481,6 +481,8 @@ export function InformesView({ user, db, appId }) {
  const [turnoFiltro, setTurnoFiltro] = useState('Todos');
  const [nivelFiltro, setNivelFiltro] = useState('Todos');
  const [grupoFiltro, setGrupoFiltro] = useState('Todos');
+ const [nivelMusica, setNivelMusica] = useState('');
+  const [observacionesMusica, setObservacionesMusica] = useState('');
  
  const [students, setStudents] = useState([]);
  const [savedReports, setSavedReports] = useState([]);
@@ -562,6 +564,8 @@ export function InformesView({ user, db, appId }) {
   setObjConductual(report?.objConductual || '');
   setObjPedagogico(report?.objPedagogico || '');
   setObjSocioafectivo(report?.objSocioafectivo || '');
+  setNivelMusica(report?.nivelMusica || '');
+    setObservacionesMusica(report?.observacionesMusica || '');
   setDocentePrint(student.teacher || student.docente || '');
   setContenidosPlastica(report?.contenidosPlastica || '');
    setObservacionesPlastica(report?.observacionesPlastica || '');
@@ -580,6 +584,8 @@ export function InformesView({ user, db, appId }) {
    tipoInforme,
    periodo: periodoInforme,
    answers,
+   nivelMusica,
+      observacionesMusica,
    obsCuatrimestre1,
    objConductual,
    objPedagogico,
@@ -592,8 +598,8 @@ export function InformesView({ user, db, appId }) {
   setIsSaving(false);
  };
 
- const nivelActual = selectedStudent?.level || 'Inicial';
- const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || [];
+const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (selectedStudent?.level || 'Inicial');
+  const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || [];
 
  // LÓGICA DE FILTRADO DINÁMICO
  const nivelesDisponibles = tipoInforme === 'laboral' 
@@ -847,6 +853,43 @@ export function InformesView({ user, db, appId }) {
                     />
                   </div>
                 )}
+               {/* SELECTOR DE NIVEL PARA MÚSICA */}
+                {tipoInforme === 'musica' && (
+                  <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100 mb-6 text-center">
+                    <h3 className="text-sm font-black text-indigo-900 uppercase mb-4">Seleccione el Nivel de Música a evaluar</h3>
+                    <div className="flex gap-4 max-w-md mx-auto">
+                      <button 
+                        onClick={() => setNivelMusica('Nivel 1')} 
+                        className={`flex-1 p-4 rounded-xl font-black uppercase text-sm transition-all ${nivelMusica === 'Nivel 1' ? 'bg-violet-600 text-white shadow-md scale-105' : 'bg-white border-2 border-indigo-100 hover:border-violet-400 text-gray-600'}`}
+                      >
+                        Nivel 1
+                      </button>
+                      <button 
+                        onClick={() => setNivelMusica('Nivel 2')} 
+                        className={`flex-1 p-4 rounded-xl font-black uppercase text-sm transition-all ${nivelMusica === 'Nivel 2' ? 'bg-violet-600 text-white shadow-md scale-105' : 'bg-white border-2 border-indigo-100 hover:border-violet-400 text-gray-600'}`}
+                      >
+                        Nivel 2
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* BLOQUEO: SI ES MÚSICA Y NO ELIGIÓ NIVEL, CORTAMOS ACÁ */}
+                {tipoInforme === 'musica' && !nivelMusica ? (
+                  <div className="p-12 text-center text-gray-400 font-medium border-2 border-dashed border-gray-200 rounded-3xl mb-8">
+                    👆 Por favor, seleccioná Nivel 1 o Nivel 2 arriba para desplegar la rúbrica correspondiente.
+                  </div>
+                ) : (
+                  <>
+                    {/* FUNDAMENTACIÓN (SOLO PARA MÚSICA CUANDO YA ELIGIÓ NIVEL) */}
+                    {tipoInforme === 'musica' && (
+                      <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
+                        <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
+                        <p className="text-xs text-indigo-800 font-medium leading-relaxed">
+                          El trabajo rítmico estructurado en formato de círculo favorece la eliminación de jerarquías, promueve el contacto visual continuo y estimula procesos de autorregulación, atención conjunta y empatía a través de la producción de un pulso compartido.
+                        </p>
+                      </div>
+                    )}
 
                 {/* 2. RÚBRICA DE INDICADORES (PARA TODOS) */}
                 {indicadoresActuales.map(c => (
@@ -882,6 +925,19 @@ export function InformesView({ user, db, appId }) {
                     />
                   </div>
                 )}
+                   {/* ESPACIO DE OBSERVACIONES (SOLO PARA MÚSICA) */}
+                    {tipoInforme === 'musica' && (
+                      <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
+                        <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
+                        <textarea 
+                          className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" 
+                          placeholder="Escriba aquí las observaciones finales de música..." 
+                          value={observacionesMusica} 
+                          onChange={e => setObservacionesMusica(e.target.value)} 
+                          rows={4}
+                        />
+                      </div>
+                    )}
 
                 {/* 4. OBJETIVOS Y OBS. CUATRIMESTRE 1 (OCULTOS EN PLÁSTICA) */}
                 {tipoInforme !== 'plastica' && (
