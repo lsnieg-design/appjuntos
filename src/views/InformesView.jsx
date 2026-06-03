@@ -33,6 +33,66 @@ const CONFIG_INDICADORES = {
       { id: 'apoyos', label: 'Apoyos eficaces', options: ['Requiere apoyos físicos y contacto directo constante.', 'Requiere agendas visuales y soportes concretos permanentes.', 'Utiliza apoyos puntuales ante tareas nuevas o de alta complejidad.', 'Autónomo; requiere apoyos mínimos solo para organización avanzada.'] }
     ]
   },
+  psicomotricidad: {
+    'Inicial': [
+      { id: 'estabilidad', label: 'Desempeño en actividades de estabilidad postural', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'coordinacion', label: 'Coordinación motriz (manipulación y desplazamiento)', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'juegos_corporales', label: 'Participación en juegos con consignas corporales', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'espera', label: 'Tolerancia a tiempos de espera y turnos', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'adaptacion', label: 'Adaptación a cambios en la dinámica', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'conducta', label: 'Manejo de conductas ante demandas', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'iniciativa', label: 'Iniciativa y participación sostenida', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
+    ]
+  },
+  plastica: {
+    '1° Ciclo': [
+      { id: 'uso_materiales', label: 'Reconoce uso de materiales', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'colores_primarios', label: 'Utiliza colores primarios y secundarios', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'mezclas', label: 'Realiza mezclas de colores', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'operaciones', label: 'Operaciones básicas de forma autónoma', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'comunicacion', label: 'Comunica ideas y emociones', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'participacion', label: 'Participa activamente', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'solicita_ayuda', label: 'Solicita ayuda', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'higiene', label: 'Cuidado e higiene de materiales', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
+    ],
+    '2° Ciclo': [
+        { id: 'uso_materiales', label: 'Reconoce uso de materiales', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+        { id: 'analisis_obra', label: 'Observa y analiza obras de arte', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+        { id: 'experimenta_color', label: 'Explora y experimenta colores', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+        { id: 'espacio_trabajo', label: 'Reconoce y respeta espacio de trabajo', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+        { id: 'operaciones', label: 'Operaciones básicas de forma autónoma', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+        { id: 'participacion', label: 'Participa activamente', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+        { id: 'solicita_ayuda', label: 'Solicita ayuda', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+        { id: 'higiene', label: 'Cuidado e higiene de materiales', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
+    ],
+    'CFI': [
+        { id: 'uso_materiales', label: 'Reconoce uso de materiales', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+        { id: 'experimenta_color', label: 'Experimenta colores', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+        { id: 'analisis_obra', label: 'Observa y analiza obras de arte', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+        { id: 'espacio_marco', label: 'Reconoce espacio, marco y límite', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+        { id: 'operaciones', label: 'Operaciones básicas de forma autónoma', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+        { id: 'participacion', label: 'Participa activamente', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+        { id: 'solicita_ayuda', label: 'Solicita ayuda', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+        { id: 'higiene', label: 'Cuidado e higiene de materiales', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
+    ]
+  },
+  musica: {
+    'Nivel 1': [
+      { id: 'reconocimiento_corporal', label: 'Reconocimiento corporal', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'seguimiento_pulso', label: 'Seguimiento del pulso', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'atencion_estructural', label: 'Atención estructural (inicio y corte)', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'manejo_instrumentos', label: 'Manejo de instrumentos', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'asociacion_efectos', label: 'Asociación de efectos', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
+    ],
+    'Nivel 2': [
+      { id: 'coordinacion_sonora', label: 'Dominio de coordinación', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'ensamble', label: 'Práctica en ensamble', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'control_matices', label: 'Control de matices', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'uso_registro', label: 'Uso de registro (gráficos)', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'sincronia', label: 'Logro de sincronía', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
+    ]
+  }
+};
   laboral: {
     'CFI': [
       { id: 'herramientas_reconocimiento', label: 'Herramientas: Reconocimiento', options: ['No identifica herramientas; requiere asistencia para seleccionarlas.', 'Identifica herramientas básicas con apoyo visual o señalamiento.', 'Identifica y nombra herramientas de uso frecuente en el taller.', 'Reconoce y diferencia una amplia gama de herramientas según su función.'] },
