@@ -649,23 +649,21 @@ export function InformesView({ user, db, appId }) {
 
         </div>
 
-        <div className="space-y-6">
-            <div className="flex gap-2 p-2 bg-white rounded-2xl border">
-              {['pedagogico', 'laboral'].map(t => (
-                <button 
-                  key={t} 
-                  onClick={() => {
-                    setTipoInforme(t);
-                    setNivelFiltro('Todos'); // Reinicia filtro Nivel
-                    setGrupoFiltro('Todos'); // Reinicia filtro Grupo
-                  }} 
-                  className={`flex-1 p-3 rounded-xl font-black capitalize ${tipoInforme === t ? 'bg-violet-600 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-
+       <div className="flex gap-2 p-2 bg-white rounded-2xl border">
+  {['pedagogico', 'laboral', 'psicomotricidad', 'plastica', 'musica'].map(t => (
+    <button 
+      key={t} 
+      onClick={() => {
+        setTipoInforme(t);
+        setNivelFiltro('Todos');
+        setGrupoFiltro('Todos');
+      }} 
+      className={`flex-1 p-3 rounded-xl font-black capitalize ${tipoInforme === t ? 'bg-violet-600 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+    >
+      {t}
+    </button>
+  ))}
+</div>
             {/* AVISO PARA EL DOCENTE */}
             {grupoFiltro === 'Todos' && !searchTerm && (
               <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl flex items-center gap-3">
