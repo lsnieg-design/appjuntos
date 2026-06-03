@@ -778,16 +778,17 @@ export function InformesView({ user, db, appId }) {
                 )}
                 <button onClick={() => handleEdit(s, report)} className={`p-2 rounded-lg transition-colors ${report ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-violet-600 text-white hover:bg-violet-700'}`}>
                  {report ? <Edit3 size={16}/> : <Plus size={16}/>}
-               </button>
+              </button>
+              </div>
+            )}
           </div>
-              )}
-         </div>
         );
-       })
-      )}
-     </div>
+      })
     )}
-   </div>
+  </div>
+</>
+)}
+</div>
 
    {/* INTERFAZ DE EDICIÓN EN PANTALLA */}
    {stage === 'form' && (
