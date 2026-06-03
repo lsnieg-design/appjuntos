@@ -102,17 +102,62 @@ const ROLES = [
 const MODALIDADES = ['Sede', 'Inclusión'];
 const EVENT_TYPES = ['SALIDA EDUCATIVA', 'GENERAL', 'ADMINISTRATIVO', 'INFORMES', 'EVENTOS', 'ACTOS', 'EFEMÉRIDES', 'CUMPLEAÑOS', 'INCLUSIÓN' ];
 
-// --- Utils ---
-const calculateDaysLeft = (dateString) => {
+// Reemplazá tu calculateDaysLeft por este:
+const calculateBusinessDaysLeft = (dateString) => {
   if (!dateString) return 0;
-  const eventDate = new Date(dateString);
-  const today = new Date();
-  today.setHours(0,0,0,0);
-  eventDate.setHours(0,0,0,0);
-  const diffTime = eventDate - today;
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-};
+  
+  // Feriados Argentina 2026 (Y-M-D)
+  const FERIADOS_ARG_2026 = [
+    '2026-01-01', // Año Nuevo
+    '2026-02-16', // Carnaval
+    '2026-02-17', // Carnaval
+    '2026-03-23', // Puente turístico
+    '2026-03-24', // Día de la Memoria
+    '2026-04-02', // Malvinas / Jueves Santo
+    '2026-04-03', // Viernes Santo
+    '2026-05-01', // Día del Trabajador
+    '2026-05-25', // Revolución de Mayo
+    '2026-06-15', // Güemes (trasladado)
+    '2026-07-09', // Independencia
+    '2026-07-10', // Puente turístico
+    '2026-08-17', // San Martín
+    '2026-10-12', // Diversidad Cultural
+    '2026-11-23', // Soberanía (trasladado)
+    '2026-12-07', // Puente turístico
+    '2026-12-08', // Inmaculada Concepción
+    '2026-12-25'  // Navidad
+  ];
 
+  const targetDate = new Date(dateString + 'T00:00:00');
+  let currentDate = new Date();
+  currentDate.setHours(0,0,0,0);
+  targetDate.setHours(0,0,0,0);
+
+  if (targetDate <= currentDate) return 0;
+
+  let businessDays = 0;
+  let tempDate = new Date(currentDate);
+  
+  while (tempDate < targetDate) {
+    tempDate.setDate(tempDate.getDate() + 1);
+    const dayOfWeek = tempDate.getDay();
+    
+    // Si no es Domingo (0) ni Sábado (6)
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      const yyyy = tempDate.getFullYear();
+      const mm = String(tempDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(tempDate.getDate()).padStart(2, '0');
+      const formattedDate = `${yyyy}-${mm}-${dd}`;
+      
+      // Si no es feriado, es día hábil
+      if (!FERIADOS_ARG_2026.includes(formattedDate)) {
+        businessDays++;
+      }
+    }
+  }
+
+  return businessDays;
+};
 const formatDate = (dateString) => {
   if (!dateString) return '';
   const date = new Date(dateString + 'T00:00:00');
