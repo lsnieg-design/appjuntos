@@ -939,18 +939,12 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
                       </div>
                     )}
 
-                {/* 4. OBJETIVOS Y OBS. CUATRIMESTRE 1 (OCULTOS EN PLÁSTICA) */}
-                {tipoInforme !== 'plastica' && (
+               {/* 4. OBJETIVOS Y OBS. CUATRIMESTRE 1 (OCULTOS EN PLÁSTICA Y MÚSICA) */}
+                {!['plastica', 'musica'].includes(tipoInforme) && (
                   <div className="mt-8 space-y-4">
                     <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100">
                       <label className="text-xs font-black uppercase text-violet-800 block mb-2">Observaciones sobre los objetivos planteados para este primer cuatrimestre</label>
-                      <textarea 
-                        className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" 
-                        placeholder="Escriba aquí las observaciones..." 
-                        value={obsCuatrimestre1} 
-                        onChange={e => setObsCuatrimestre1(e.target.value)} 
-                        rows={4}
-                      />
+                      <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" placeholder="Escriba aquí las observaciones..." value={obsCuatrimestre1} onChange={e => setObsCuatrimestre1(e.target.value)} rows={4} />
                     </div>
 
                     <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100 space-y-4">
@@ -970,9 +964,11 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
                     </div>
                   </div>
                 )}
-              </>
-            )}
-          </div>
+              </> {/* <-- Cierra el fragmento de la rúbrica de Música */}
+            )} {/* <-- Cierra el condicional de bloqueo de Música */}
+          </> {/* <-- Cierra el fragmento general de Plástica */}
+        )} {/* <-- Cierra el condicional inicial de bloqueo de Plástica en Inicial */}
+      </div>
 
      <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 mt-6 bg-violet-800 hover:bg-violet-900 text-white font-black rounded-2xl">
       {isSaving ? 'Guardando...' : 'Guardar Informe'}
