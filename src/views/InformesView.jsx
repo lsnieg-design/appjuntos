@@ -91,8 +91,7 @@ const CONFIG_INDICADORES = {
       { id: 'uso_registro', label: 'Uso de registro (gráficos)', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
       { id: 'sincronia', label: 'Logro de sincronía', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
     ]
-  }
-};
+  },
   laboral: {
     'CFI': [
       { id: 'herramientas_reconocimiento', label: 'Herramientas: Reconocimiento', options: ['No identifica herramientas; requiere asistencia para seleccionarlas.', 'Identifica herramientas básicas con apoyo visual o señalamiento.', 'Identifica y nombra herramientas de uso frecuente en el taller.', 'Reconoce y diferencia una amplia gama de herramientas según su función.'] },
