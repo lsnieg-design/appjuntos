@@ -15,6 +15,47 @@ import {
   doc, updateDoc, deleteDoc, addDoc, serverTimestamp, getDocs 
 } from 'firebase/firestore';
 
+// Función para calcular días hábiles (excluyendo findes y feriados ARG 2026)
+const calculateBusinessDaysLeft = (dateString) => {
+  if (!dateString) return 0;
+  
+  const FERIADOS_ARG_2026 = [
+    '2026-01-01', '2026-02-16', '2026-02-17', '2026-03-23', '2026-03-24',
+    '2026-04-02', '2026-04-03', '2026-05-01', '2026-05-25', '2026-06-15',
+    '2026-07-09', '2026-07-10', '2026-08-17', '2026-10-12', '2026-11-23',
+    '2026-12-07', '2026-12-08', '2026-12-25'
+  ];
+
+  const targetDate = new Date(dateString + 'T00:00:00');
+  let currentDate = new Date();
+  currentDate.setHours(0,0,0,0);
+  targetDate.setHours(0,0,0,0);
+
+  if (targetDate <= currentDate) return 0;
+
+  let businessDays = 0;
+  let tempDate = new Date(currentDate);
+  
+  while (tempDate < targetDate) {
+    tempDate.setDate(tempDate.getDate() + 1);
+    const dayOfWeek = tempDate.getDay();
+    
+    // Si no es Domingo (0) ni Sábado (6)
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      const yyyy = tempDate.getFullYear();
+      const mm = String(tempDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(tempDate.getDate()).padStart(2, '0');
+      const formattedDate = `${yyyy}-${mm}-${dd}`;
+      
+      // Si no es feriado, es día hábil
+      if (!FERIADOS_ARG_2026.includes(formattedDate)) {
+        businessDays++;
+      }
+    }
+  }
+
+  return businessDays;
+};
 
 export function DashboardView({ user, db, appId, setActiveTab, tasks = [], events = [], announcements = [] }) {
   const todayStr = new Date().toISOString().split('T')[0];
@@ -36,6 +77,7 @@ export function DashboardView({ user, db, appId, setActiveTab, tasks = [], event
   const [userScore, setUserScore] = useState(0);
   const [showRanking, setShowRanking] = useState(false);
   const [rankingData, setRankingData] = useState([]);
+  const [showDesafios, setShowDesafios] = useState(false); // NUEVO ESTADO PARA EL MODAL DE DESAFÍOS
   
   // ESTADOS CUENTA REGRESIVA
   const [countdown, setCountdown] = useState({ title: "Vacaciones", date: "", daysLeft: 0 });
@@ -100,7 +142,7 @@ export function DashboardView({ user, db, appId, setActiveTab, tasks = [], event
         setStaffBirthdays(sBdays);
     });
 
-    // 5. Configuración de Cuenta Regresiva
+    // 5. Configuración de Cuenta Regresiva (ACTUALIZADO PARA DÍAS HÁBILES)
     const qSettings = query(collection(db, 'artifacts', appId, 'public', 'data', 'settings'));
     const unsubSettings = onSnapshot(qSettings, (snap) => {
         if (!snap.empty) {
@@ -108,7 +150,7 @@ export function DashboardView({ user, db, appId, setActiveTab, tasks = [], event
             if (docSnap) {
                 setCountdownDocId(docSnap.id);
                 const data = docSnap.data();
-                const diffDays = Math.ceil((new Date(data.date + 'T00:00:00') - new Date()) / (1000 * 60 * 60 * 24));
+                const diffDays = calculateBusinessDaysLeft(data.date);
                 setCountdown({ title: data.title || '', date: data.date, daysLeft: diffDays > 0 ? diffDays : 0 });
             }
         }
@@ -197,7 +239,7 @@ return (
       <div className="flex justify-between items-center px-2">
           <div>
             <h2 className="text-2xl font-black text-slate-800 tracking-tighter italic">¡Hola, {user.firstName}! 👋</h2>
-            <p className="text-slate-500 font-medium text-xs">Mayo: Sumá puntos participando en la App</p>
+            <p className="text-slate-500 font-medium text-xs">Sumá puntos participando en la App</p>
           </div>
           <div className="flex gap-2">
             <button onClick={() => setShowTutorial(true)} className="bg-white text-violet-600 px-3 py-2 rounded-xl text-xs font-bold shadow-sm border border-violet-100 flex items-center gap-1"><HelpCircle size={16}/> Ayuda</button>
@@ -220,65 +262,29 @@ return (
         </div>
       )}
 
-  {/* 2. SISTEMA DE PUNTOS MAYO (RESTAURADO CON CONTENEDOR) */}
-      <div className="bg-slate-900 p-6 rounded-[35px] text-white shadow-xl mx-1 border-b-8 border-violet-600 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-4 flex-1">
-              <div className="bg-violet-500/20 p-4 rounded-2xl animate-pulse shrink-0">
-                <Star className="text-yellow-400" size={40} fill="currentColor"/>
-              </div>
-              <div className="flex-1">
-                <h3 className="font-black text-xl uppercase italic tracking-tighter text-violet-200 mb-2">
-                  Objetivo Mayo: Tabla de Puntos
-                </h3>
-                
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3 mb-4">
-                  <div className="flex flex-col">
-                    <span className="text-yellow-400 font-black text-sm leading-none">20 pts</span>
-                    <span className="text-[9px] uppercase font-bold text-slate-400">Informe Etapa</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-yellow-400 font-black text-sm leading-none">15 pts</span>
-                    <span className="text-[9px] uppercase font-bold text-slate-400">Nota Oficial</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-yellow-400 font-black text-sm leading-none">10 pts</span>
-                    <span className="text-[9px] uppercase font-bold text-slate-400">Bitácora / Social</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-yellow-400 font-black text-sm leading-none">10 pts</span>
-                    <span className="text-[9px] uppercase font-bold text-slate-400">Completar Tarea</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-yellow-400 font-black text-sm leading-none">5 pts</span>
-                    <span className="text-[9px] uppercase font-bold text-slate-400">Ausentismo / Tareas</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-yellow-400 font-black text-sm leading-none">3 pts</span>
-                    <span className="text-[9px] uppercase font-bold text-slate-400">Muro de Grupo</span>
-                  </div>
-                </div>
-
-                <div className="border-t border-white/10 pt-2">
-                  <p className="text-[10px] text-violet-300 font-medium italic">
-                    ✨ <span className="font-bold">¡Todo suma!</span> Cada registro en bitácora, mensaje en el muro o tarea completada te acerca al podio.
-                  </p>
-                </div>
-              </div>
+      {/* 2. BOTÓN DE DESAFÍOS (SUTIL) */}
+      <div className="mx-1">
+        <button 
+          onClick={() => setShowDesafios(true)}
+          className="w-full bg-white p-4 rounded-[20px] shadow-sm border border-gray-200 flex items-center justify-between hover:bg-orange-50 hover:border-orange-200 transition group"
+        >
+          <div className="flex items-center gap-4">
+            <div className="bg-gradient-to-br from-orange-400 to-red-500 p-3 rounded-xl text-white shadow-inner group-hover:scale-110 transition-transform">
+              <Trophy size={20} />
+            </div>
+            <div className="text-left">
+              <span className="font-black text-slate-800 text-sm uppercase tracking-tight block">Desafíos Activos</span>
+              <span className="text-[10px] text-slate-500 font-medium">Sumá puntos y mirá el ranking institucional</span>
+            </div>
           </div>
-          
-          <div className="flex items-center gap-6 bg-white/10 p-5 rounded-[28px] border border-white/10 shrink-0">
-              <div className="text-center">
-                  <p className="text-[10px] uppercase font-black text-violet-400 tracking-widest mb-1">Tus Puntos</p>
-                  <p className="text-4xl font-black text-white">{userScore} <span className="text-xs opacity-50">pts</span></p>
-              </div>
-              <div className="h-12 w-[1px] bg-white/20"></div>
-              <button 
-                onClick={() => setShowRanking(true)} 
-                className="bg-violet-600 hover:bg-violet-500 text-white px-6 py-3 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all shadow-lg active:scale-95"
-              >
-                Ver Ranking
-              </button>
+          <div className="flex items-center gap-2">
+            <div className="bg-slate-100 px-3 py-1 rounded-lg">
+               <span className="text-[10px] font-black text-slate-500 uppercase">Tus Puntos: </span>
+               <span className="font-black text-orange-500">{userScore}</span>
+            </div>
+            <ChevronRight size={20} className="text-slate-300 group-hover:text-orange-500 transition-colors" />
           </div>
+        </button>
       </div>
       
       {/* 3. CUMPLES Y CUENTA REGRESIVA */}
@@ -300,7 +306,7 @@ return (
               {isEditingCountdown ? (
                   <div className="w-full flex flex-col gap-1"><input type="text" value={newCountdownTitle} onChange={e=>setNewCountdownTitle(e.target.value)} placeholder="Título" className="p-1 text-xs border rounded"/><input type="date" value={newCountdownDate} onChange={e=>setNewCountdownDate(e.target.value)} className="p-1 text-xs border rounded"/><button onClick={handleSaveCountdown} className="bg-blue-500 text-white text-[10px] font-bold p-1 rounded-lg mt-1 uppercase">Guardar</button></div>
               ) : (
-                  <><div className="bg-blue-500 text-white w-10 h-10 rounded-xl flex flex-col items-center justify-center shadow-md shrink-0"><span className="text-lg font-black leading-none">{countdown.daysLeft}</span><span className="text-[7px] font-bold uppercase tracking-tighter">Días</span></div><div className="flex-1"><p className="text-[9px] text-blue-400 font-bold uppercase">Falta poco para...</p><h3 className="font-black text-blue-900 text-xs leading-tight">{countdown.title || "Configurar"}</h3></div></>
+                  <><div className="bg-blue-500 text-white w-10 h-10 rounded-xl flex flex-col items-center justify-center shadow-md shrink-0"><span className="text-lg font-black leading-none">{countdown.daysLeft}</span><span className="text-[7px] font-bold uppercase tracking-tighter">Días Háb.</span></div><div className="flex-1"><p className="text-[9px] text-blue-400 font-bold uppercase">Falta poco para...</p><h3 className="font-black text-blue-900 text-xs leading-tight">{countdown.title || "Configurar"}</h3></div></>
               )}
           </div>
       </div>
@@ -336,6 +342,67 @@ return (
       </div>
 
       {/* --- MODALES --- */}
+
+      {/* MODAL DESAFÍOS (NUEVO) */}
+      {showDesafios && (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in" onClick={() => setShowDesafios(false)}>
+          <div className="bg-slate-900 rounded-[35px] w-full max-w-lg shadow-2xl relative border-t-8 border-violet-600 flex flex-col max-h-[85vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="p-6 pb-2 shrink-0 flex justify-between items-start">
+              <div className="flex items-center gap-3">
+                <div className="bg-violet-500/20 p-3 rounded-2xl animate-pulse shrink-0">
+                  <Star className="text-yellow-400" size={28} fill="currentColor"/>
+                </div>
+                <div>
+                  <h3 className="font-black text-xl uppercase italic tracking-tighter text-violet-200 leading-none">Tabla de Puntos</h3>
+                  <p className="text-[10px] text-violet-300 font-medium italic mt-1">✨ ¡Cada participación te acerca al podio!</p>
+                </div>
+              </div>
+              <button onClick={() => setShowDesafios(false)} className="bg-white/10 p-2 rounded-full hover:bg-white/20 text-white transition"><X size={20}/></button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+                <div className="flex flex-col bg-white/5 p-3 rounded-xl border border-white/10">
+                  <span className="text-yellow-400 font-black text-lg leading-none">20 pts</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-300 mt-1">Informe Etapa</span>
+                </div>
+                <div className="flex flex-col bg-white/5 p-3 rounded-xl border border-white/10">
+                  <span className="text-yellow-400 font-black text-lg leading-none">15 pts</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-300 mt-1">Nota Oficial</span>
+                </div>
+                <div className="flex flex-col bg-white/5 p-3 rounded-xl border border-white/10">
+                  <span className="text-yellow-400 font-black text-lg leading-none">10 pts</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-300 mt-1">Bitácora / Social</span>
+                </div>
+                <div className="flex flex-col bg-white/5 p-3 rounded-xl border border-white/10">
+                  <span className="text-yellow-400 font-black text-lg leading-none">10 pts</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-300 mt-1">Completar Tarea</span>
+                </div>
+                <div className="flex flex-col bg-white/5 p-3 rounded-xl border border-white/10">
+                  <span className="text-yellow-400 font-black text-lg leading-none">5 pts</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-300 mt-1">Ausentismo / Tareas</span>
+                </div>
+                <div className="flex flex-col bg-white/5 p-3 rounded-xl border border-white/10">
+                  <span className="text-yellow-400 font-black text-lg leading-none">3 pts</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-300 mt-1">Muro de Grupo</span>
+                </div>
+              </div>
+
+              <div className="bg-white/10 p-5 rounded-2xl border border-white/10 text-center">
+                  <p className="text-[10px] uppercase font-black text-violet-400 tracking-widest mb-1">Tus Puntos Totales</p>
+                  <p className="text-4xl font-black text-white">{userScore} <span className="text-xs opacity-50">pts</span></p>
+                  <button 
+                    onClick={() => { setShowDesafios(false); setShowRanking(true); }} 
+                    className="w-full mt-4 bg-violet-600 hover:bg-violet-500 text-white px-6 py-3 rounded-xl font-black uppercase text-[11px] tracking-widest transition-all shadow-lg active:scale-95"
+                  >
+                    Ver Ranking Institucional
+                  </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showBirthdayModal && (
         <div className="fixed inset-0 bg-slate-900/90 z-[9999] flex items-center justify-center p-4 backdrop-blur-md" onClick={() => setShowBirthdayModal(false)}>
           <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl relative animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
