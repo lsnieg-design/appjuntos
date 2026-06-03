@@ -109,7 +109,6 @@ const CONFIG_INDICADORES = {
     ]
   }
 };
-
 const DICCIONARIO = {
   // ==========================================
   // ÁREA PEDAGÓGICA 
