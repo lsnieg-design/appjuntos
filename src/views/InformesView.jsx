@@ -780,6 +780,7 @@ export function InformesView({ user, db, appId }) {
                  {report ? <Edit3 size={16}/> : <Plus size={16}/>}
                </button>
           </div>
+              )}
          </div>
         );
        })
