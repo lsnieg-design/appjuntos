@@ -766,24 +766,20 @@ export function InformesView({ user, db, appId }) {
                             </p>
                           </div>
                           
-                          {grupoFiltro !== 'Todos' && (
+                       {grupoFiltro !== 'Todos' && (
                             <div className="flex items-center gap-2">
-                              
-                              {/* IMPRIMIR INDIVIDUAL */}
                               {report && (
                                 <button 
                                   onClick={() => {
                                     let contenedor = document.getElementById('impresion-masiva');
                                     if (!contenedor) {
-                                        contenedor = document.createElement('div');
-                                        contenedor.id = 'impresion-masiva';
-                                        contenedor.className = 'print:block';
-                                        document.body.appendChild(contenedor);
+                                      contenedor = document.createElement('div');
+                                      contenedor.id = 'impresion-masiva';
+                                      contenedor.className = 'print:block';
+                                      document.body.appendChild(contenedor);
                                     }
                                     contenedor.innerHTML = generarHTMLImpresion(s, report);
-                                    setTimeout(() => {
-                                      window.print();
-                                    }, 500);
+                                    setTimeout(() => { window.print(); }, 500);
                                   }} 
                                   className="p-2 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors"
                                   title="Imprimir informe individual"
@@ -791,8 +787,6 @@ export function InformesView({ user, db, appId }) {
                                   <Printer size={16}/>
                                 </button>
                               )}
-
-                              {/* BOTÓN EDITAR / CREAR */}
                               <button onClick={() => handleEdit(s, report)} className={`p-2 rounded-lg transition-colors ${report ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-violet-600 text-white hover:bg-violet-700'}`}>
                                 {report ? <Edit3 size={16}/> : <Plus size={16}/>}
                               </button>
@@ -803,7 +797,8 @@ export function InformesView({ user, db, appId }) {
                     })}
                   </div>
                 </>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
