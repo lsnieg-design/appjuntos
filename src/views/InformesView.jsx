@@ -563,19 +563,30 @@ export function InformesView({ user, db, appId }) {
 
       {/* VISTA PRINCIPAL */}
       <div className={`${stage === 'main' ? 'block' : 'hidden'} print:hidden`}>
-        <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-8 rounded-[40px] shadow-xl text-white mb-8 flex flex-col md:flex-row items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-black mb-2 flex items-center gap-3"><BookOpen size={28} /> Gestión de Informes</h2>
-            <p className="text-violet-100 text-sm">Mostrando: {filteredStudents.length} alumnos en la base Sede.</p>
+        <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-6 md:p-8 rounded-[30px] md:rounded-[40px] shadow-xl text-white mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
+          
+          <div className="w-full md:w-auto text-center md:text-left">
+            <h2 className="text-xl md:text-2xl font-black mb-2 flex items-center justify-center md:justify-start gap-3">
+              <BookOpen size={24} className="md:w-[28px] md:h-[28px]" /> Gestión de Informes
+            </h2>
+            <p className="text-violet-100 text-xs md:text-sm">Mostrando: {filteredStudents.length} alumnos en la base Sede.</p>
           </div>
-          <div className="mt-4 md:mt-0 bg-white/10 p-2 rounded-2xl border border-white/20">
-              <label className="text-xs font-bold uppercase tracking-widest text-violet-200 block mb-1 px-1">Período del Informe:</label>
-              <select className="bg-white text-violet-900 font-black p-3 rounded-xl outline-none" value={periodoInforme} onChange={e => setPeriodoInforme(e.target.value)}>
-                <option value="Inicial" disabled>Informe Inicial 2026 (Cerrado)</option>
+
+          <div className="w-full md:w-auto bg-white/10 p-3 rounded-2xl border border-white/20">
+              <label className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-violet-200 block mb-1 px-1 text-center md:text-left">
+                Período del Informe:
+              </label>
+              <select 
+                className="w-full bg-white text-violet-900 font-black text-sm md:text-base py-2 px-3 md:p-3 rounded-xl outline-none" 
+                value={periodoInforme} 
+                onChange={e => setPeriodoInforme(e.target.value)}
+              >
+                <option value="Inicial" disabled>Informe Inicial (Cerrado)</option>
                 <option value="Medio">Informe Medio 2026</option>
-                <option value="Final" disabled>Informe Final 2026 (Próximamente)</option>
+                <option value="Final" disabled>Informe Final (Pronto)</option>
               </select>
           </div>
+
         </div>
 
         <div className="space-y-6">
