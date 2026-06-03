@@ -577,6 +577,7 @@ export function InformesView({ user, db, appId }) {
  const [grupoFiltro, setGrupoFiltro] = useState('Todos');
  const [nivelMusica, setNivelMusica] = useState('');
   const [observacionesMusica, setObservacionesMusica] = useState('');
+ const [observacionesPsicomotricidad, setObservacionesPsicomotricidad] = useState('');
  
  const [students, setStudents] = useState([]);
  const [savedReports, setSavedReports] = useState([]);
@@ -660,12 +661,13 @@ export function InformesView({ user, db, appId }) {
   setObjSocioafectivo(report?.objSocioafectivo || '');
   setNivelMusica(report?.nivelMusica || '');
     setObservacionesMusica(report?.observacionesMusica || '');
+  setObservacionesPsicomotricidad(report?.observacionesPsicomotricidad || '');
   setDocentePrint(student.teacher || student.docente || '');
   // Lógica de precarga de contenidos de Plástica según el nivel del estudiante
   let defaultPlastica = '';
   const lvl = student?.level?.toUpperCase() || '';
   if (lvl.includes('1° CICLO')) {
-    defaultPlastica = 'El espacio, aprovechamiento y utilización consciente del plano.\n- El color.\n- Textura visual y táctil.';
+    defaultPlastica = '- El espacio, aprovechamiento y utilización consciente del plano.\n- El color.\n- Textura visual y táctil.';
   } else if (lvl.includes('2° CICLO')) {
     defaultPlastica = 'Organización dentro del plano.\n- Textura visual y táctil.\n- El color.';
   } else if (lvl.includes('CFI')) {
@@ -687,6 +689,7 @@ export function InformesView({ user, db, appId }) {
    grupo: grupoFiltro,
    tipoInforme,
    periodo: periodoInforme,
+   observacionesPsicomotricidad,
    answers,
    nivelMusica,
       observacionesMusica,
@@ -1041,6 +1044,19 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
                     />
                   </div>
                 )}
+                   {/* ESPACIO DE OBSERVACIONES (SOLO PARA PSICOMOTRICIDAD) */}
+                    {tipoInforme === 'psicomotricidad' && (
+                      <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
+                        <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
+                        <textarea 
+                          className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" 
+                          placeholder="Escriba aquí las observaciones finales de psicomotricidad..." 
+                          value={observacionesPsicomotricidad} 
+                          onChange={e => setObservacionesPsicomotricidad(e.target.value)} 
+                          rows={4}
+                        />
+                      </div>
+                    )}
                    {/* ESPACIO DE OBSERVACIONES (SOLO PARA MÚSICA) */}
                     {tipoInforme === 'musica' && (
                       <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
@@ -1056,7 +1072,7 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
                     )}
 
                {/* 4. OBJETIVOS Y OBS. CUATRIMESTRE 1 (OCULTOS EN PLÁSTICA Y MÚSICA) */}
-                {!['plastica', 'musica'].includes(tipoInforme) && (
+                {!['plastica', 'musica', 'psicomotricidad'].includes(tipoInforme) && (
                   <div className="mt-8 space-y-4">
                     <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100">
                       <label className="text-xs font-black uppercase text-violet-800 block mb-2">Observaciones sobre los objetivos planteados para este primer cuatrimestre</label>
