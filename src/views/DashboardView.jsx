@@ -235,12 +235,21 @@ export function DashboardView({ user, db, appId, setActiveTab, tasks = [], event
 
 return (
     <div className="w-full max-w-7xl mx-auto space-y-6 animate-in fade-in pb-20 overflow-y-auto h-full [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-      {/* HEADER BIENVENIDA */}
+     
+    {/* HEADER BIENVENIDA */}
       <div className="flex justify-between items-center px-2">
-          <div>
-            <h2 className="text-2xl font-black text-slate-800 tracking-tighter italic">¡Hola, {user.firstName}! 👋</h2>
-            <p className="text-slate-500 font-medium text-xs">Sumá puntos participando en la App</p>
+          <div className="flex flex-col items-start gap-1.5">
+            <h2 className="text-2xl font-black text-slate-800 tracking-tighter italic leading-none mt-1">¡Hola, {user.firstName}! 👋</h2>
+            
+            {/* NUEVO BOTÓN CHICO DE DESAFÍOS */}
+            <button 
+              onClick={() => setShowDesafios(true)} 
+              className="bg-orange-50 text-orange-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-orange-200 flex items-center gap-1.5 hover:bg-orange-100 transition active:scale-95 shadow-sm"
+            >
+              <Trophy size={14} className="text-orange-500"/> {userScore} Pts
+            </button>
           </div>
+          
           <div className="flex gap-2">
             <button onClick={() => setShowTutorial(true)} className="bg-white text-violet-600 px-3 py-2 rounded-xl text-xs font-bold shadow-sm border border-violet-100 flex items-center gap-1"><HelpCircle size={16}/> Ayuda</button>
             {canPost && <button onClick={() => setShowAnnounceModal(true)} className="bg-orange-500 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-lg flex items-center gap-1"><Edit3 size={14}/> Aviso</button>}
@@ -262,30 +271,7 @@ return (
         </div>
       )}
 
-      {/* 2. BOTÓN DE DESAFÍOS (SUTIL) */}
-      <div className="mx-1">
-        <button 
-          onClick={() => setShowDesafios(true)}
-          className="w-full bg-white p-4 rounded-[20px] shadow-sm border border-gray-200 flex items-center justify-between hover:bg-orange-50 hover:border-orange-200 transition group"
-        >
-          <div className="flex items-center gap-4">
-            <div className="bg-gradient-to-br from-orange-400 to-red-500 p-3 rounded-xl text-white shadow-inner group-hover:scale-110 transition-transform">
-              <Trophy size={20} />
-            </div>
-            <div className="text-left">
-              <span className="font-black text-slate-800 text-sm uppercase tracking-tight block">Desafíos Activos</span>
-              <span className="text-[10px] text-slate-500 font-medium">Sumá puntos y mirá el ranking institucional</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="bg-slate-100 px-3 py-1 rounded-lg">
-               <span className="text-[10px] font-black text-slate-500 uppercase">Tus Puntos: </span>
-               <span className="font-black text-orange-500">{userScore}</span>
-            </div>
-            <ChevronRight size={20} className="text-slate-300 group-hover:text-orange-500 transition-colors" />
-          </div>
-        </button>
-      </div>
+     
       
       {/* 3. CUMPLES Y CUENTA REGRESIVA */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 px-1">
