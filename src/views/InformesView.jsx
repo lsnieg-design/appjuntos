@@ -402,11 +402,21 @@ const generarHTMLImpresion = (s, report) => {
       </div>
     `;
   }
+  
   if (report.tipoInforme === 'musica') {
     desarrolloHTML += `
       <div class="mb-4" style="break-inside: avoid;">
         <h3 class="font-black uppercase text-violet-900 text-[10px] tracking-widest mb-1 border-b border-violet-100 pb-1">Fundamentación</h3>
-        <p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2">El trabajo rítmico estructurado en formato de círculo favorece la eliminación de jerarquías, promueve el contacto visual continuo y estimula procesos de autorregulación, atención conjunta y empatía a través de la producción de un pulso compartido.</p>
+        <p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2 whitespace-pre-wrap">El trabajo rítmico estructurado en formato de círculo favorece la eliminación de jerarquías, promueve el contacto visual continuo y estimula procesos de autorregulación, atención conjunta y empatía a través de la producción de un pulso compartido.</p>
+      </div>
+    `;
+  }
+
+  if (report.tipoInforme === 'psicomotricidad') {
+    desarrolloHTML += `
+      <div class="mb-4" style="break-inside: avoid;">
+        <h3 class="font-black uppercase text-violet-900 text-[10px] tracking-widest mb-1 border-b border-violet-100 pb-1">Fundamentación</h3>
+        <p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2 whitespace-pre-wrap">El espacio de Psicomotricidad ofrece propuestas que favorecen el desarrollo integral de los estudiantes a través del movimiento, el juego y la interacción con otros. Mediante experiencias adaptadas a las posibilidades e intereses de cada alumno, se promueve la exploración corporal, la participación activa, la comunicación y la construcción de recursos que contribuyen a una mayor autonomía en los distintos contextos cotidianos.\nLas actividades propuestas buscan acompañar el fortalecimiento de habilidades motrices, la organización de la acción, la adaptación a diferentes situaciones y el desarrollo de estrategias que favorezcan una participación cada vez más significativa dentro de las experiencias compartidas.</p>
       </div>
     `;
   }
@@ -651,7 +661,17 @@ export function InformesView({ user, db, appId }) {
   setNivelMusica(report?.nivelMusica || '');
     setObservacionesMusica(report?.observacionesMusica || '');
   setDocentePrint(student.teacher || student.docente || '');
-  setContenidosPlastica(report?.contenidosPlastica || '');
+  // Lógica de precarga de contenidos de Plástica según el nivel del estudiante
+  let defaultPlastica = '';
+  const lvl = student?.level?.toUpperCase() || '';
+  if (lvl.includes('1° CICLO')) {
+    defaultPlastica = 'El espacio, aprovechamiento y utilización consciente del plano.\n- El color.\n- Textura visual y táctil.';
+  } else if (lvl.includes('2° CICLO')) {
+    defaultPlastica = 'Organización dentro del plano.\n- Textura visual y táctil.\n- El color.';
+  } else if (lvl.includes('CFI')) {
+    defaultPlastica = 'Espacio plástico bidimensional. El marco. Límite de la obra.\n- Texturas. Textura visual y táctil.\n- El color. Mezclas.\n- La composición.';
+  }
+  setContenidosPlastica(report?.contenidosPlastica || defaultPlastica);
    setObservacionesPlastica(report?.observacionesPlastica || '');
   setPreceptoraPrint(student.auxiliary || student.auxiliar || student.preceptora || '');
   setStage('form');
@@ -937,7 +957,7 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
                     />
                   </div>
                 )}
-               {/* SELECTOR DE NIVEL PARA MÚSICA */}
+             {/* SELECTOR DE NIVEL PARA MÚSICA */}
                 {tipoInforme === 'musica' && (
                   <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100 mb-6 text-center">
                     <h3 className="text-sm font-black text-indigo-900 uppercase mb-4">Seleccione el Nivel de Música a evaluar</h3>
@@ -969,8 +989,20 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
                     {tipoInforme === 'musica' && (
                       <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
                         <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
-                        <p className="text-xs text-indigo-800 font-medium leading-relaxed">
+                        <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
                           El trabajo rítmico estructurado en formato de círculo favorece la eliminación de jerarquías, promueve el contacto visual continuo y estimula procesos de autorregulación, atención conjunta y empatía a través de la producción de un pulso compartido.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* FUNDAMENTACIÓN (SOLO PARA PSICOMOTRICIDAD) */}
+                    {tipoInforme === 'psicomotricidad' && (
+                      <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
+                        <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
+                        <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
+                          El espacio de Psicomotricidad ofrece propuestas que favorecen el desarrollo integral de los estudiantes a través del movimiento, el juego y la interacción con otros. Mediante experiencias adaptadas a las posibilidades e intereses de cada alumno, se promueve la exploración corporal, la participación activa, la comunicación y la construcción de recursos que contribuyen a una mayor autonomía en los distintos contextos cotidianos.
+                          
+                          Las actividades propuestas buscan acompañar el fortalecimiento de habilidades motrices, la organización de la acción, la adaptación a diferentes situaciones y el desarrollo de estrategias que favorezcan una participación cada vez más significativa dentro de las experiencias compartidas.
                         </p>
                       </div>
                     )}
