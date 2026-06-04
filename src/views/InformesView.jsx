@@ -350,27 +350,6 @@ const DICCIONARIO = {
 // ⚠️ ACÁ ARRIBA DEJÁ TUS CONSTANTES INTACTAS: 
 // CONFIG_INDICADORES y DICCIONARIO
 
-const obtenerEstadisticasCarga = (grupoSeleccionado) => {
-  const alumnosDelGrupo = students.filter(s => 
-    [s.groupMorning, s.groupAfternoon, s.laboralGroup].includes(grupoSeleccionado)
-  );
-  
-  if (alumnosDelGrupo.length === 0) return { total: 0, cargados: 0, porcentaje: 0 };
-
-  const informesCargados = savedReports.filter(r => 
-    r.grupo === grupoSeleccionado && 
-    r.periodo === periodoInforme && 
-    ['pedagogico', 'laboral'].includes(r.tipoInforme)
-  );
-
-  const porcentaje = (informesCargados.length / alumnosDelGrupo.length) * 100;
-  
-  return {
-    total: alumnosDelGrupo.length,
-    cargados: informesCargados.length,
-    porcentaje: porcentaje.toFixed(1)
-  };
-};
 const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firstNameRaw) => {
  if (!respuestaCorta || typeof respuestaCorta !== 'string') return '';
 
@@ -848,25 +827,6 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
         </div>
       ) : (
         <>
-        {grupoFiltro !== 'Todos' && (
-  <div className="mb-6 bg-white p-6 rounded-3xl border border-violet-100 shadow-sm">
-    <h3 className="text-sm font-black text-violet-900 uppercase mb-4">Progreso de carga (Equipo Técnico)</h3>
-    <div className="flex items-center gap-4">
-      <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden">
-        <div 
-          className="h-full bg-emerald-500 transition-all duration-500" 
-          style={{ width: `${obtenerEstadisticasCarga(grupoFiltro).porcentaje}%` }}
-        />
-      </div>
-      <span className="font-black text-violet-800">
-        {obtenerEstadisticasCarga(grupoFiltro).porcentaje}%
-      </span>
-    </div>
-    <p className="text-xs text-gray-500 mt-2 font-medium">
-      {obtenerEstadisticasCarga(grupoFiltro).cargados} de {obtenerEstadisticasCarga(grupoFiltro).total} informes cargados para este grupo.
-    </p>
-  </div>
-)}
          {/* BOTÓN IMPRESIÓN GRUPAL */}
          {grupoFiltro !== 'Todos' && filteredStudents.length > 0 && (
           <button 
