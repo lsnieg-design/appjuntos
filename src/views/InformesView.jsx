@@ -995,15 +995,17 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
        <h3 className="font-black text-2xl text-violet-900">{selectedStudent.lastName}, {selectedStudent.firstName}</h3>
        <p className="text-sm font-bold text-violet-600 uppercase mb-4">GRUPO: {grupoFiltro} | INFORME: {tipoInforme} {periodoInforme}</p>
        
-       <div className="grid grid-cols-2 gap-4">
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
          <label className="text-[10px] font-black uppercase text-violet-800">Docente a cargo</label>
          <input type="text" className="w-full p-3 rounded-xl bg-white border border-violet-200 text-sm font-bold text-gray-700" value={docentePrint} onChange={e => setDocentePrint(e.target.value)} placeholder="Ej. Alejandra..." />
         </div>
-        <div>
-         <label className="text-[10px] font-black uppercase text-violet-800">Auxiliar / Preceptora</label>
-         <input type="text" className="w-full p-3 rounded-xl bg-white border border-violet-200 text-sm font-bold text-gray-700" value={preceptoraPrint} onChange={e => setPreceptoraPrint(e.target.value)} placeholder="Ej. Andrea..." />
-        </div>
+        {!['plastica', 'musica', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
+         <div>
+          <label className="text-[10px] font-black uppercase text-violet-800">Auxiliar / Preceptora</label>
+          <input type="text" className="w-full p-3 rounded-xl bg-white border border-violet-200 text-sm font-bold text-gray-700" value={preceptoraPrint} onChange={e => setPreceptoraPrint(e.target.value)} placeholder="Ej. Andrea..." />
+         </div>
+        )}
        </div>
      </div>
 
@@ -1165,8 +1167,8 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
                       </div>
                     )}
 
-               {/* 4. OBJETIVOS Y OBS. CUATRIMESTRE 1 (OCULTOS EN PLÁSTICA Y MÚSICA) */}
-                {!['plastica', 'musica', 'psicomotricidad'].includes(tipoInforme) && (
+              {/* 4. OBJETIVOS Y OBS. CUATRIMESTRE 1 (OCULTOS EN MATERIAS ESPECIALES) */}
+                {!['plastica', 'musica', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
                   <div className="mt-8 space-y-4">
                     <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100">
                       <label className="text-xs font-black uppercase text-violet-800 block mb-2">Observaciones sobre los objetivos planteados para este primer cuatrimestre</label>
