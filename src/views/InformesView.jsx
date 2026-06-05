@@ -716,9 +716,14 @@ export function InformesView({ user, db, appId }) {
     setObservacionesMusica(report?.observacionesMusica || '');
   setObservacionesPsicomotricidad(report?.observacionesPsicomotricidad || '');
   setObservacionesEducacionFisica(report?.observacionesEducacionFisica || '');
-  setDocentePrint(student.teacher || student.docente || '');
-  // Lógica de precarga de contenidos de Plástica según el nivel del estudiante
-  let defaultPlastica = '';
+  
+  let docenteAsignado = student.teacher || student.docente || '';
+  if (tipoInforme === 'musica') docenteAsignado = 'Francisco Jaime';
+  if (tipoInforme === 'plastica') docenteAsignado = 'Rosario Cozzarín';
+  if (tipoInforme === 'educacion_fisica') docenteAsignado = 'Juan Cruz Ricchi';
+  if (tipoInforme === 'psicomotricidad') docenteAsignado = 'Pablo Pagliuca';
+  
+  setDocentePrint(docenteAsignado);
   const lvl = student?.level?.toUpperCase() || '';
   if (lvl.includes('1° CICLO')) {
     defaultPlastica = '- El espacio, aprovechamiento y utilización consciente del plano.\n- El color.\n- Textura visual y táctil.';
