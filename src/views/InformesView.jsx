@@ -905,6 +905,7 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
         </div>
       ) : (
         <>
+        
          {/* BOTÓN IMPRESIÓN GRUPAL */}
          {grupoFiltro !== 'Todos' && filteredStudents.length > 0 && (
           <button 
@@ -919,7 +920,8 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
             
             let htmlMasivo = '';
             filteredStudents.forEach(s => {
-              const report = savedReports.find(r => r.studentId === s.id && r.grupo === grupoFiltro && r.periodo === periodoInforme);
+              // ACÁ ESTÁ EL ARREGLO PARA IMPRIMIR SOLO EL ÁREA ACTUAL
+              const report = savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
               if(report) {
                 htmlMasivo += generarHTMLImpresion(s, report);
               }
@@ -932,7 +934,8 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
            }}
            className="w-full mt-4 mb-4 bg-emerald-600 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-emerald-700 transition"
           >
-           <Printer size={20} /> Imprimir todos los informes del grupo ({filteredStudents.filter(s => savedReports.find(r => r.studentId === s.id && r.grupo === grupoFiltro)).length})
+           {/* ACÁ ESTÁ EL ARREGLO PARA EL NÚMERO DEL BOTÓN */}
+           <Printer size={20} /> Imprimir todos los informes del grupo ({filteredStudents.filter(s => savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme)).length})
           </button>
          )}
          
