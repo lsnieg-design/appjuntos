@@ -632,6 +632,7 @@ export function InformesView({ user, db, appId }) {
  const [observacionesPsicomotricidad, setObservacionesPsicomotricidad] = useState('');
  const [observacionesEducacionFisica, setObservacionesEducacionFisica] = useState('');
  
+ 
  const [students, setStudents] = useState([]);
  const [savedReports, setSavedReports] = useState([]);
  const [isSaving, setIsSaving] = useState(false);
@@ -723,7 +724,9 @@ export function InformesView({ user, db, appId }) {
   if (tipoInforme === 'educacion_fisica') docenteAsignado = 'Juan Cruz Ricchi';
   if (tipoInforme === 'psicomotricidad') docenteAsignado = 'Pablo Pagliuca';
   
-  setDocentePrint(docenteAsignado);
+ setDocentePrint(docenteAsignado);
+  
+  let defaultPlastica = '';
   const lvl = student?.level?.toUpperCase() || '';
   if (lvl.includes('1° CICLO')) {
     defaultPlastica = '- El espacio, aprovechamiento y utilización consciente del plano.\n- El color.\n- Textura visual y táctil.';
@@ -823,7 +826,7 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
      </div>
     </div>
 
-  <div className="flex flex-wrap gap-2 p-2 bg-white rounded-2xl border mb-6">
+ <div className="flex flex-wrap gap-2 p-2 bg-white rounded-2xl border mb-6">
           {[
             { id: 'pedagogico', label: 'Pedagógico' },
             { id: 'laboral', label: 'Laboral' },
@@ -835,7 +838,7 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
             <button 
               key={t.id} 
               onClick={() => { setTipoInforme(t.id); setNivelFiltro('Todos'); setGrupoFiltro('Todos'); }} 
-              className={`flex-1 min-w-[110px] p-2 md:p-3 text-xs md:text-base rounded-xl font-black transition-all ${tipoInforme === t.id ? 'bg-violet-600 text-white shadow-md' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}`}
+              className={`flex-auto min-w-fit whitespace-nowrap px-3 py-2 md:p-3 text-xs md:text-sm rounded-xl font-black transition-all ${tipoInforme === t.id ? 'bg-violet-600 text-white shadow-md' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}`}
             >
               {t.label}
             </button>
