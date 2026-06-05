@@ -128,9 +128,8 @@ musica: {
     { id: 'ef_cfi_ludico_cognitiva', label: 'Dimensión Cognitiva y Estratégica.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
     { id: 'ef_cfi_ludico_reglado', label: 'Juego / deportes Reglado.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
     { id: 'ef_cfi_ludico_iniciacion', label: 'Iniciación al Deporte Adaptado (handball, vóley, softbol, futbol).', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
-  ]
- }
-};
+   ]
+ },
  laboral: {
   'CFI': [
    { id: 'herramientas_reconocimiento', label: 'Herramientas: Reconocimiento', options: ['No identifica herramientas; requiere asistencia para seleccionarlas.', 'Identifica herramientas básicas con apoyo visual o señalamiento.', 'Identifica y nombra herramientas de uso frecuente en el taller.', 'Reconoce y diferencia una amplia gama de herramientas según su función.'] },
