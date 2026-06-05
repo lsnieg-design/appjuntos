@@ -755,7 +755,7 @@ const handleDeleteAbsence = async (id) => {
         </div>
 
         {/* LISTADO DE PERSONAL */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[65vh] overflow-y-auto pb-10 mt-2">
+   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-24 mt-2">
           {filteredStaff.map(s => {
     const tieneSub = s.cargo1_subsidized === 'true' || s.cargo2_subsidized === 'true' || s.isSubsidized === 'true';
     
