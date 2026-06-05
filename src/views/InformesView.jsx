@@ -92,6 +92,45 @@ musica: {
       { id: 'sincronia', label: 'Logro de sincronía: Testea tocar coordinando con la imagen.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
     ]
   },
+ educacion_fisica: {
+  '2° Ciclo': [
+    { id: 'ef_acoplamiento', label: 'Acoplamiento de movimientos: Coordinar dos o más acciones sin interrupción.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_ajuste', label: 'Ajuste espacio-temporal.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_disociacion', label: 'Disociación Segmentaria: la capacidad de mover las extremidades de forma independiente.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_equilibrio', label: 'Equilibrio dinámico / habilidades manipulativas.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_ritmo', label: 'Ritmo: Adaptar el movimiento corporal a estímulos externos.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_diferenciacion', label: 'Diferenciación: aplicar la fuerza justa.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_condicionales', label: 'Capacidades condicionales.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_social_docente', label: 'Se relaciona con el docente y acude a él sin dificultades.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_social_propuestas', label: 'Responde a las propuestas de la clase.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_social_materiales', label: 'Utiliza los materiales con el grupo.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_social_colabora', label: 'Puede colaborar para guardar y transportar materiales.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_ludico_norma', label: 'Aceptación de la norma.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_ludico_reglas', label: 'Modificación de reglas.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_ludico_sociomotor', label: 'El juego Sociomotor.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_ludico_simbolico', label: 'Del juego simbólico al juego reglado.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_ludico_deporte', label: 'Iniciación al Deporte Escolar.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
+  ],
+  'CFI': [
+    { id: 'ef_cfi_tecnicas', label: 'Técnicas básicas de deportes.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_cfi_combinacion', label: 'Combinación de habilidades en velocidad.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_cfi_ambidextra', label: 'Ambidextra funcional.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_cfi_condicionales', label: 'Desarrollo de las Capacidades Condicionales.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_cfi_coordinativas', label: 'Capacidades Coordinativas Complejas.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_cfi_resolucion', label: 'Resolución Motriz Autónoma.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_cfi_lenguaje', label: 'Lenguaje Corporal.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_cfi_social_docente', label: 'Se relaciona con el docente y acude a él sin dificultades.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_cfi_social_propuestas', label: 'Responde a las propuestas de la clase.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_cfi_social_materiales', label: 'Utiliza los materiales con el grupo.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_cfi_social_colabora', label: 'Puede colaborar para guardar y transportar materiales.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_cfi_ludico_motriz', label: 'Dimensión Motriz y Funcional.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_cfi_ludico_socio', label: 'Dimensión Socio-Afectiva.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_cfi_ludico_cognitiva', label: 'Dimensión Cognitiva y Estratégica.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_cfi_ludico_reglado', label: 'Juego / deportes Reglado.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'ef_cfi_ludico_iniciacion', label: 'Iniciación al Deporte Adaptado (handball, vóley, softbol, futbol).', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
+  ]
+ }
+};
  laboral: {
   'CFI': [
    { id: 'herramientas_reconocimiento', label: 'Herramientas: Reconocimiento', options: ['No identifica herramientas; requiere asistencia para seleccionarlas.', 'Identifica herramientas básicas con apoyo visual o señalamiento.', 'Identifica y nombra herramientas de uso frecuente en el taller.', 'Reconoce y diferencia una amplia gama de herramientas según su función.'] },
@@ -390,6 +429,7 @@ const generarHTMLImpresion = (s, report) => {
   const indicadores = CONFIG_INDICADORES[report.tipoInforme]?.[nivel] || CONFIG_INDICADORES[report.tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[report.tipoInforme]?.['CFI'] || [];
 
   // 2. Definimos qué áreas usan la Grilla con X y cuáles usan texto redactado
+ 
   const materiasConGrilla = ['plastica', 'musica', 'psicomotricidad', 'educacion_fisica'];
   let desarrolloHTML = '';
 
@@ -417,6 +457,19 @@ const generarHTMLImpresion = (s, report) => {
       <div class="mb-4" style="break-inside: avoid;">
         <h3 class="font-black uppercase text-violet-900 text-[10px] tracking-widest mb-1 border-b border-violet-100 pb-1">Fundamentación</h3>
         <p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2 whitespace-pre-wrap">El espacio de Psicomotricidad ofrece propuestas que favorecen el desarrollo integral de los estudiantes a través del movimiento, el juego y la interacción con otros. Mediante experiencias adaptadas a las posibilidades e intereses de cada alumno, se promueve la exploración corporal, la participación activa, la comunicación y la construcción de recursos que contribuyen a una mayor autonomía en los distintos contextos cotidianos.\nLas actividades propuestas buscan acompañar el fortalecimiento de habilidades motrices, la organización de la acción, la adaptación a diferentes situaciones y el desarrollo de estrategias que favorezcan una participación cada vez más significativa dentro de las experiencias compartidas.</p>
+      </div>
+    `;
+  }
+ if (report.tipoInforme === 'educacion_fisica') {
+    const isCFI = s?.level?.toUpperCase() === 'CFI' || s?.level?.toUpperCase() === 'FINES';
+    const fundacionEducacionFisica = isCFI 
+      ? "En este ciclo lectivo, la Educación Física se propone como un espacio de encuentro, disfrute y aprendizaje a través del cuerpo. Desde una mirada inclusiva, priorizamos el desarrollo de la autonomía, la confianza y las habilidades motrices de cada alumno, respetando sus tiempos y singularidades. A través del juego cooperativo y la introducción a los deportes adaptados, buscamos que la clase sea un lugar de participación plena para todos, donde las reglas y materiales se transforman para que la diversidad enriquezca la convivencia y el aprendizaje compartido."
+      : "En este ciclo lectivo, la Educación Física se propone como un espacio de encuentro, disfrute y aprendizaje a través del cuerpo. Desde una mirada inclusiva, priorizamos el desarrollo de la autonomía, la confianza y las habilidades motrices de cada alumno, respetando sus tiempos y singularidades. A través del juego cooperativo, buscamos que la clase sea un lugar de participación plena para todos, donde las reglas y materiales se transforman para que la diversidad enriquezca la convivencia y el aprendizaje compartido.";
+
+    desarrolloHTML += `
+      <div class="mb-4" style="break-inside: avoid;">
+        <h3 class="font-black uppercase text-violet-900 text-[10px] tracking-widest mb-1 border-b border-violet-100 pb-1">Fundamentación</h3>
+        <p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2 whitespace-pre-wrap">${fundacionEducacionFisica}</p>
       </div>
     `;
   }
@@ -478,8 +531,8 @@ const generarHTMLImpresion = (s, report) => {
   let obsYObjetivosHTML = '';
   
   if (materiasConGrilla.includes(report.tipoInforme)) {
-     // Si es materia de grilla, mostramos solo sus observaciones especiales
-     const obsEspeciales = report.observacionesPlastica || report.observacionesMusica || ''; 
+   // Si es materia de grilla, mostramos solo sus observaciones especiales
+     const obsEspeciales = report.observacionesPlastica || report.observacionesMusica || report.observacionesPsicomotricidad || report.observacionesEducacionFisica || '';
      if (obsEspeciales) {
        obsYObjetivosHTML = `
        <div class="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style="break-inside: avoid;">
@@ -578,6 +631,7 @@ export function InformesView({ user, db, appId }) {
  const [nivelMusica, setNivelMusica] = useState('');
   const [observacionesMusica, setObservacionesMusica] = useState('');
  const [observacionesPsicomotricidad, setObservacionesPsicomotricidad] = useState('');
+ const [observacionesEducacionFisica, setObservacionesEducacionFisica] = useState('');
  
  const [students, setStudents] = useState([]);
  const [savedReports, setSavedReports] = useState([]);
@@ -662,6 +716,7 @@ export function InformesView({ user, db, appId }) {
   setNivelMusica(report?.nivelMusica || '');
     setObservacionesMusica(report?.observacionesMusica || '');
   setObservacionesPsicomotricidad(report?.observacionesPsicomotricidad || '');
+  setObservacionesEducacionFisica(report?.observacionesEducacionFisica || '');
   setDocentePrint(student.teacher || student.docente || '');
   // Lógica de precarga de contenidos de Plástica según el nivel del estudiante
   let defaultPlastica = '';
@@ -690,6 +745,7 @@ export function InformesView({ user, db, appId }) {
    tipoInforme,
    periodo: periodoInforme,
    observacionesPsicomotricidad,
+   observacionesEducacionFisica,
    answers,
    nivelMusica,
       observacionesMusica,
@@ -764,13 +820,20 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
     </div>
 
   <div className="flex flex-wrap gap-2 p-2 bg-white rounded-2xl border mb-6">
-          {['pedagogico', 'laboral', 'psicomotricidad', 'plastica', 'musica'].map(t => (
+          {[
+            { id: 'pedagogico', label: 'Pedagógico' },
+            { id: 'laboral', label: 'Laboral' },
+            { id: 'psicomotricidad', label: 'Psicomotricidad' },
+            { id: 'plastica', label: 'Plástica' },
+            { id: 'musica', label: 'Música' },
+            { id: 'educacion_fisica', label: 'Ed. Física' }
+          ].map(t => (
             <button 
-              key={t} 
-              onClick={() => { setTipoInforme(t); setNivelFiltro('Todos'); setGrupoFiltro('Todos'); }} 
-              className={`flex-1 min-w-[110px] p-2 md:p-3 text-xs md:text-base rounded-xl font-black capitalize transition-all ${tipoInforme === t ? 'bg-violet-600 text-white shadow-md' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}`}
+              key={t.id} 
+              onClick={() => { setTipoInforme(t.id); setNivelFiltro('Todos'); setGrupoFiltro('Todos'); }} 
+              className={`flex-1 min-w-[110px] p-2 md:p-3 text-xs md:text-base rounded-xl font-black transition-all ${tipoInforme === t.id ? 'bg-violet-600 text-white shadow-md' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}`}
             >
-              {t}
+              {t.label}
             </button>
           ))}
         </div>
@@ -938,11 +1001,12 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
      </div>
 
      <div className="space-y-4">
-            {/* CONDICIONAL: SI ES PLÁSTICA EN INICIAL, BLOQUEAR */}
-            {tipoInforme === 'plastica' && selectedStudent?.level?.toUpperCase() === 'INICIAL' ? (
+            
+      {/* BLOQUEOS PARA PLÁSTICA Y ED. FÍSICA SEGÚN NIVEL */}
+            {(tipoInforme === 'plastica' && selectedStudent?.level?.toUpperCase() === 'INICIAL') || (tipoInforme === 'educacion_fisica' && ['INICIAL', '1° CICLO'].includes(selectedStudent?.level?.toUpperCase())) ? (
               <div className="bg-amber-50 border border-amber-200 p-8 rounded-3xl text-center">
                 <span className="text-4xl block mb-2">⚠️</span>
-                <p className="text-amber-900 font-black text-lg">El nivel Inicial no posee informe de Plástica.</p>
+                <p className="text-amber-900 font-black text-lg">El nivel {selectedStudent?.level} no posee informe de {tipoInforme.replace('_', ' ')}.</p>
                 <p className="text-amber-700 text-sm mt-1">Por favor, seleccioná otra área u otro grupo.</p>
               </div>
             ) : (
@@ -1009,6 +1073,17 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
                         </p>
                       </div>
                     )}
+                   {tipoInforme === 'educacion_fisica' && (
+                      <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
+                        <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
+                        <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
+                         {['CFI', 'FINES'].includes(selectedStudent?.level?.toUpperCase()) ? 
+                          "En este ciclo lectivo, la Educación Física se propone como un espacio de encuentro, disfrute y aprendizaje a través del cuerpo. Desde una mirada inclusiva, priorizamos el desarrollo de la autonomía, la confianza y las habilidades motrices de cada alumno, respetando sus tiempos y singularidades. A través del juego cooperativo y la introducción a los deportes adaptados, buscamos que la clase sea un lugar de participación plena para todos, donde las reglas y materiales se transforman para que la diversidad enriquezca la convivencia y el aprendizaje compartido." :
+                          "En este ciclo lectivo, la Educación Física se propone como un espacio de encuentro, disfrute y aprendizaje a través del cuerpo. Desde una mirada inclusiva, priorizamos el desarrollo de la autonomía, la confianza y las habilidades motrices de cada alumno, respetando sus tiempos y singularidades. A través del juego cooperativo, buscamos que la clase sea un lugar de participación plena para todos, donde las reglas y materiales se transforman para que la diversidad enriquezca la convivencia y el aprendizaje compartido."
+                         }
+                        </p>
+                      </div>
+                    )}
 
                 {/* 2. RÚBRICA DE INDICADORES (PARA TODOS) */}
                 {indicadoresActuales.map(c => (
@@ -1066,6 +1141,18 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
                           placeholder="Escriba aquí las observaciones finales de música..." 
                           value={observacionesMusica} 
                           onChange={e => setObservacionesMusica(e.target.value)} 
+                          rows={4}
+                        />
+                      </div>
+                    )}
+                   {tipoInforme === 'educacion_fisica' && (
+                      <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
+                        <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
+                        <textarea 
+                          className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" 
+                          placeholder="Escriba aquí las observaciones finales de educación física..." 
+                          value={observacionesEducacionFisica} 
+                          onChange={e => setObservacionesEducacionFisica(e.target.value)} 
                           rows={4}
                         />
                       </div>
