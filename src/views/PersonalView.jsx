@@ -34,6 +34,25 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
   const [selectedStaffForAbsence, setSelectedStaffForAbsence] = useState(null);
   const [absenceDate, setAbsenceDate] = useState(new Date().toISOString().split('T')[0]);
   const [absenceCode, setAbsenceCode] = useState('');
+  // --- ESTADO PARA VER LAS FALTAS DEL DOCENTE SELECCIONADO ---
+  const [staffAbsences, setStaffAbsences] = useState([]);
+
+  // ESTE USE EFFECT BUSCA LAS FALTAS CADA VEZ QUE ABRÍS UN LEGAJO
+  useEffect(() => {
+      if (!viewingStaff) {
+          setStaffAbsences([]);
+          return;
+      }
+      const qAbsences = query(
+          collection(db, 'artifacts', appId, 'public', 'data', 'absences'),
+          where('staffId', '==', viewingStaff.id),
+          orderBy('date', 'desc') // Las más nuevas arriba
+      );
+      const unsub = onSnapshot(qAbsences, (snap) => {
+          setStaffAbsences(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      });
+      return () => unsub();
+  }, [viewingStaff, db, appId]);
   const CODIGOS_FALTAS = {
     '114a': 'Enfermedad corta',
     '114c': 'Matrimonio',
@@ -474,7 +493,16 @@ const imprimirPlanillaGeneral = (lista) => {
 
   const currentStats = calculateStats();
   const totalCargosReales = currentStats.cargos.simple + (currentStats.cargos.doble * 2);
-const handleSaveAbsence = async () => {
+const handleDeleteAbsence = async (id) => {
+      if(window.confirm("⚠️ ¿Seguro que querés eliminar este registro de inasistencia?")) {
+          try {
+              await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'absences', id));
+          } catch (err) {
+              alert("Error al borrar: " + err.message);
+          }
+      }
+  };
+  const handleSaveAbsence = async () => {
       if (!selectedStaffForAbsence || !absenceCode || !absenceDate) {
           alert("Por favor completá todos los campos (Persona, Fecha y Código).");
           return;
@@ -770,6 +798,48 @@ const handleSaveAbsence = async () => {
                     </div>
                 )}
             </div>
+          {/* --- SECCIÓN NUEVA: HISTORIAL DE FALTAS --- */}
+                <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 shadow-sm mt-2">
+                    <div className="flex justify-between items-center mb-3">
+                        <h4 className="text-[10px] font-black text-orange-600 uppercase flex items-center gap-2">
+                            <UserCheck size={14}/> Historial de Inasistencias
+                        </h4>
+                        <span className="bg-orange-200 text-orange-800 text-[9px] font-black px-2 py-0.5 rounded-lg">
+                            Total: {staffAbsences.length}
+                        </span>
+                    </div>
+
+                    {staffAbsences.length === 0 ? (
+                        <p className="text-[10px] text-orange-400 font-bold italic text-center py-2">
+                            No registra inasistencias cargadas.
+                        </p>
+                    ) : (
+                        <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                            {staffAbsences.map(falta => (
+                                <div key={falta.id} className="bg-white p-2 rounded-xl border border-orange-200 flex justify-between items-center group/falta">
+                                    <div className="flex items-center gap-2">
+                                        <span className="bg-orange-500 text-white font-black text-[10px] px-2 py-1 rounded-lg uppercase">
+                                            {falta.code}
+                                        </span>
+                                        <div>
+                                            <p className="text-[10px] font-bold text-slate-700 leading-tight">{falta.description}</p>
+                                            <p className="text-[8px] text-slate-400 uppercase font-black">
+                                                {new Date(falta.date + 'T00:00:00').toLocaleDateString('es-AR')}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => handleDeleteAbsence(falta.id)} 
+                                        className="text-red-300 hover:text-red-600 p-1.5 bg-red-50 rounded-lg opacity-0 group-hover/falta:opacity-100 transition-all"
+                                        title="Eliminar registro"
+                                    >
+                                        <Trash2 size={12}/>
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
             
             <div className="p-4 border-t bg-white flex justify-end gap-2 shrink-0">
                 <button onClick={()=>imprimirFichasDocentes([viewingStaff])} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-slate-600 font-bold text-xs uppercase hover:bg-gray-50 flex gap-2 items-center shadow-sm"><FileText size={16}/> Imprimir</button>
