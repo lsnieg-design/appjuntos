@@ -34,8 +34,25 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
   const [selectedStaffForAbsence, setSelectedStaffForAbsence] = useState(null);
   const [absenceDate, setAbsenceDate] = useState(new Date().toISOString().split('T')[0]);
   const [absenceCode, setAbsenceCode] = useState('');
+  // --- ESTADOS PARA EL RESUMEN MENSUAL DE FALTAS ---
+  const [showAbsencesSummary, setShowAbsencesSummary] = useState(false);
+  // Por defecto, carga el mes actual (formato YYYY-MM)
+  const [summaryMonth, setSummaryMonth] = useState(new Date().toISOString().substring(0, 7)); 
+  const [allAbsences, setAllAbsences] = useState([]);
+
+  // BUSCADOR GENERAL DE FALTAS (Solo se activa al abrir el panel)
+  useEffect(() => {
+      if (!showAbsencesSummary) return;
+      
+      const qAllAbsences = query(collection(db, 'artifacts', appId, 'public', 'data', 'absences'));
+      const unsub = onSnapshot(qAllAbsences, (snap) => {
+          setAllAbsences(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      });
+      return () => unsub();
+  }, [showAbsencesSummary, db, appId]);
   // --- ESTADO PARA VER LAS FALTAS DEL DOCENTE SELECCIONADO ---
   const [staffAbsences, setStaffAbsences] = useState([]);
+  
 
   // ESTE USE EFFECT BUSCA LAS FALTAS CADA VEZ QUE ABRÍS UN LEGAJO
   useEffect(() => {
@@ -532,6 +549,83 @@ const handleDeleteAbsence = async (id) => {
           setProcessing(false);
       }
   };
+  // --- LÓGICA DEL RESUMEN MENSUAL ---
+  // 1. Filtramos las faltas por el mes seleccionado
+  const absencesForMonth = allAbsences.filter(a => a.month === summaryMonth);
+  
+  // 2. Agrupamos por persona sumando los totales
+  const staffAbsenceStats = {};
+  absencesForMonth.forEach(abs => {
+      if (!staffAbsenceStats[abs.staffId]) {
+          staffAbsenceStats[abs.staffId] = {
+              name: abs.staffName,
+              role: abs.role,
+              total: 0,
+              codes: {}
+          };
+      }
+      staffAbsenceStats[abs.staffId].total += 1;
+      staffAbsenceStats[abs.staffId].codes[abs.code] = (staffAbsenceStats[abs.staffId].codes[abs.code] || 0) + 1;
+  });
+  
+  // 3. Lo convertimos en un array ordenado alfabéticamente
+  const sortedStaffStats = Object.values(staffAbsenceStats).sort((a, b) => a.name.localeCompare(b.name));
+
+  // --- IMPRIMIR RESUMEN MENSUAL ---
+  const imprimirResumenMensual = () => {
+      if (sortedStaffStats.length === 0) return alert("No hay inasistencias registradas en este mes.");
+      
+      const [year, month] = summaryMonth.split('-');
+      const mesNombre = new Date(year, parseInt(month)-1, 1).toLocaleString('es-AR', { month: 'long' });
+
+      let html = `<html><head><title>Resumen de Inasistencias</title>
+      <style>
+          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
+          body { font-family: 'Roboto', sans-serif; padding: 20px; color: #1e293b; font-size: 11px; }
+          .header { text-align: center; border-bottom: 2px solid #ea580c; padding-bottom: 15px; margin-bottom: 20px; }
+          h1 { color: #ea580c; margin: 0; font-size: 20px; text-transform: uppercase; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th { background: #fff7ed; color: #c2410c; padding: 10px; border: 1px solid #fed7aa; text-transform: uppercase; font-weight: 900; text-align: left; }
+          td { padding: 10px; border: 1px solid #fed7aa; }
+          .totales { font-weight: 900; color: #ea580c; font-size: 14px; text-align: center; }
+          .badge { background: #ffedd5; padding: 3px 6px; border-radius: 4px; border: 1px solid #fdba74; font-weight: bold; font-size: 9px; margin-right: 4px; }
+      </style></head><body>
+      
+      <div class="header">
+          <h1>Resumen Institucional de Inasistencias</h1>
+          <p style="font-size: 14px; font-weight: bold; margin-top: 5px; text-transform: uppercase;">Período: ${mesNombre} ${year}</p>
+      </div>
+
+      <table>
+          <thead><tr>
+              <th>Personal</th>
+              <th>Rol / Función</th>
+              <th style="text-align: center;">Total Días</th>
+              <th>Detalle por Artículo</th>
+          </tr></thead>
+          <tbody>`;
+
+      sortedStaffStats.forEach(s => {
+          const detailStr = Object.entries(s.codes).map(([code, count]) => `<span class="badge">Art. ${code}: ${count}</span>`).join(' ');
+          html += `<tr>
+              <td style="font-weight: 900; text-transform: uppercase;">${s.name}</td>
+              <td style="color: #64748b;">${s.role}</td>
+              <td class="totales">${s.total}</td>
+              <td>${detailStr}</td>
+          </tr>`;
+      });
+
+      html += `</tbody></table>
+      <p style="text-align: right; font-size: 9px; margin-top: 20px; color: #94a3b8;">
+          Juntos a la Par - Generado el ${new Date().toLocaleString('es-AR')}
+      </p></body></html>`;
+
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+      const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close();
+      setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); document.body.removeChild(iframe); }, 500);
+  };
   
   return (
     <div className="space-y-4 animate-in fade-in pb-20 px-2 md:px-4 pt-4">
@@ -581,7 +675,15 @@ const handleDeleteAbsence = async (id) => {
     <UserCheck size={20}/>
     <span className="hidden md:inline">Faltas</span>
 </button>
-
+{/* BOTÓN RESUMEN DE FALTAS */}
+<button 
+    onClick={() => setShowAbsencesSummary(true)} 
+    className="bg-violet-100 text-violet-700 border border-violet-200 p-3 rounded-2xl shadow-sm hover:bg-violet-200 transition flex items-center gap-2 font-black uppercase text-[10px] tracking-widest"
+    title="Resumen Mensual de Inasistencias"
+>
+    <PieChart size={20}/>
+    <span className="hidden md:inline">Resumen</span>
+</button>
         {/* BARRA DE FILTROS ACTUALIZADA PARA MULTISELECCIÓN */}
         <div className="space-y-2">
             <div className="bg-white p-2 rounded-2xl border border-gray-100 flex items-center gap-2 shadow-sm">
@@ -1285,6 +1387,98 @@ const handleDeleteAbsence = async (id) => {
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+)}
+      {/* --- MODAL RESUMEN MENSUAL DE FALTAS --- */}
+{showAbsencesSummary && (
+    <div className="fixed inset-0 bg-black/70 z-[250] flex items-center justify-center p-2 sm:p-4 backdrop-blur-md animate-in fade-in">
+        <div className="bg-slate-50 rounded-[30px] w-full max-w-4xl shadow-2xl max-h-[95vh] flex flex-col border border-white/20 overflow-hidden">
+            
+            {/* CABECERA */}
+            <div className="bg-violet-700 p-5 text-white flex justify-between items-center shrink-0">
+                <div className="flex items-center gap-3">
+                    <div className="bg-white/20 p-2 rounded-xl">
+                        <PieChart size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-black uppercase italic tracking-tighter">
+                            Planilla de Ausentismo
+                        </h3>
+                        <p className="text-[10px] opacity-80 font-bold uppercase mt-1">Conteo y discriminación por artículo</p>
+                    </div>
+                </div>
+                <button onClick={() => setShowAbsencesSummary(false)} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition">
+                    <X size={20} />
+                </button>
+            </div>
+
+            <div className="p-4 bg-white border-b border-slate-200 shrink-0 flex flex-col sm:flex-row justify-between items-center gap-4">
+                {/* SELECTOR DE MES */}
+                <div className="flex items-center gap-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Período:</label>
+                    <input 
+                        type="month" 
+                        value={summaryMonth}
+                        onChange={(e) => setSummaryMonth(e.target.value)}
+                        className="p-2 bg-violet-50 text-violet-800 border border-violet-200 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-violet-300"
+                    />
+                </div>
+
+                {/* BOTÓN IMPRIMIR */}
+                <button 
+                    onClick={imprimirResumenMensual}
+                    className="px-4 py-2 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-black uppercase text-[10px] tracking-widest hover:border-violet-400 hover:text-violet-600 transition flex items-center gap-2"
+                >
+                    <Printer size={16}/> Imprimir Resumen
+                </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 custom-scrollbar">
+                {sortedStaffStats.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-center opacity-50">
+                        <UserCheck size={60} className="text-slate-300 mb-4"/>
+                        <p className="text-lg font-black text-slate-500 uppercase tracking-widest">Sin inasistencias</p>
+                        <p className="text-xs font-bold text-slate-400">No hay registros de faltas para el mes seleccionado.</p>
+                    </div>
+                ) : (
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-slate-100 border-b border-slate-200">
+                                    <th className="p-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Personal</th>
+                                    <th className="p-3 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Días</th>
+                                    <th className="p-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Desglose de Artículos</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {sortedStaffStats.map((s, idx) => (
+                                    <tr key={idx} className="hover:bg-violet-50/50 transition">
+                                        <td className="p-3">
+                                            <p className="font-black text-slate-800 text-sm uppercase">{s.name}</p>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase">{s.role}</p>
+                                        </td>
+                                        <td className="p-3 text-center">
+                                            <span className="bg-orange-100 text-orange-700 font-black text-sm px-3 py-1 rounded-xl">
+                                                {s.total}
+                                            </span>
+                                        </td>
+                                        <td className="p-3">
+                                            <div className="flex flex-wrap gap-1">
+                                                {Object.entries(s.codes).map(([code, count]) => (
+                                                    <span key={code} className="bg-white border border-slate-200 text-slate-600 text-[9px] font-black px-2 py-1 rounded-lg uppercase shadow-sm">
+                                                        {code}: <span className="text-violet-600 ml-1">{count}</span>
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
         </div>
     </div>
