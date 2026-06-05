@@ -54,19 +54,22 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
   const [staffAbsences, setStaffAbsences] = useState([]);
   
 
-  // ESTE USE EFFECT BUSCA LAS FALTAS CADA VEZ QUE ABRÍS UN LEGAJO
-  useEffect(() => {
+ useEffect(() => {
       if (!viewingStaff) {
           setStaffAbsences([]);
           return;
       }
+      // Quitamos el orderBy de Firebase para evitar el error de Índice Compuesto
       const qAbsences = query(
           collection(db, 'artifacts', appId, 'public', 'data', 'absences'),
-          where('staffId', '==', viewingStaff.id),
-          orderBy('date', 'desc') // Las más nuevas arriba
+          where('staffId', '==', viewingStaff.id)
       );
+      
       const unsub = onSnapshot(qAbsences, (snap) => {
-          setStaffAbsences(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+          const faltas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          // Ordenamos las faltas por fecha nosotros mismos (las más nuevas arriba)
+          faltas.sort((a, b) => new Date(b.date) - new Date(a.date));
+          setStaffAbsences(faltas);
       });
       return () => unsub();
   }, [viewingStaff, db, appId]);
@@ -666,24 +669,28 @@ const handleDeleteAbsence = async (id) => {
                 <button onClick={()=>{setEditingStaff(null); setPhotoPreview(null); setShowStaffForm(true);}} className="bg-violet-600 text-white p-3 rounded-2xl shadow-lg flex items-center justify-center"><Plus size={20}/></button>
             </div>
         </div>
-      {/* BOTÓN REGISTRO DE FALTAS */}
-<button 
-    onClick={() => setShowAbsenceForm(true)} 
-    className="bg-orange-100 text-orange-700 border border-orange-200 p-3 rounded-2xl shadow-sm hover:bg-orange-200 transition flex items-center gap-2 font-black uppercase text-[10px] tracking-widest"
-    title="Registrar Inasistencias"
->
-    <UserCheck size={20}/>
-    <span className="hidden md:inline">Faltas</span>
-</button>
-{/* BOTÓN RESUMEN DE FALTAS */}
-<button 
-    onClick={() => setShowAbsencesSummary(true)} 
-    className="bg-violet-100 text-violet-700 border border-violet-200 p-3 rounded-2xl shadow-sm hover:bg-violet-200 transition flex items-center gap-2 font-black uppercase text-[10px] tracking-widest"
-    title="Resumen Mensual de Inasistencias"
->
-    <PieChart size={20}/>
-    <span className="hidden md:inline">Resumen</span>
-</button>
+    {/* --- MÓDULO DE INASISTENCIAS (AGRUPADOS HORIZONTALMENTE) --- */}
+<div className="flex items-center gap-2 mr-1 md:mr-3 pr-1 md:pr-3 border-r-2 border-violet-100/50">
+    
+    <button 
+        onClick={() => setShowAbsenceForm(true)} 
+        className="bg-orange-100 text-orange-700 border border-orange-200 p-3 rounded-2xl shadow-sm hover:bg-orange-200 transition flex items-center gap-2 font-black uppercase text-[10px] tracking-widest"
+        title="Registrar Inasistencias"
+    >
+        <UserCheck size={20}/>
+        <span className="hidden md:inline">Faltas</span>
+    </button>
+
+    <button 
+        onClick={() => setShowAbsencesSummary(true)} 
+        className="bg-violet-100 text-violet-700 border border-violet-200 p-3 rounded-2xl shadow-sm hover:bg-violet-200 transition flex items-center gap-2 font-black uppercase text-[10px] tracking-widest"
+        title="Resumen Mensual de Inasistencias"
+    >
+        <PieChart size={20}/>
+        <span className="hidden md:inline">Resumen</span>
+    </button>
+
+</div>
         {/* BARRA DE FILTROS ACTUALIZADA PARA MULTISELECCIÓN */}
         <div className="space-y-2">
             <div className="bg-white p-2 rounded-2xl border border-gray-100 flex items-center gap-2 shadow-sm">
