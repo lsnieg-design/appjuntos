@@ -30,6 +30,20 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
   const [viewingStaff, setViewingStaff] = useState(null); 
   const [showStaffForm, setShowStaffForm] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
+  const [showAbsenceForm, setShowAbsenceForm] = useState(false);
+  const [selectedStaffForAbsence, setSelectedStaffForAbsence] = useState(null);
+  const [absenceDate, setAbsenceDate] = useState(new Date().toISOString().split('T')[0]);
+  const [absenceCode, setAbsenceCode] = useState('');
+  const CODIGOS_FALTAS = {
+    '114a': 'Enfermedad corta',
+    '114c': 'Matrimonio',
+    '114d': 'Maternidad',
+    '114e': 'Nacimiento',
+    '114f': 'Familiar enfermo',
+    '114j': 'Duelo familiar',
+    '114ll': 'Examen / Prácticas / Días de estudio',
+    '114o': 'Causas particulares'
+  };
   
   const [processing, setProcessing] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -460,7 +474,37 @@ const imprimirPlanillaGeneral = (lista) => {
 
   const currentStats = calculateStats();
   const totalCargosReales = currentStats.cargos.simple + (currentStats.cargos.doble * 2);
+const handleSaveAbsence = async () => {
+      if (!selectedStaffForAbsence || !absenceCode || !absenceDate) {
+          alert("Por favor completá todos los campos (Persona, Fecha y Código).");
+          return;
+      }
 
+      try {
+          setProcessing(true);
+          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'absences'), {
+              staffId: selectedStaffForAbsence.id,
+              staffName: `${selectedStaffForAbsence.lastName}, ${selectedStaffForAbsence.firstName}`,
+              role: getNormRole(selectedStaffForAbsence.cargo1_role || selectedStaffForAbsence.role),
+              code: absenceCode,
+              description: CODIGOS_FALTAS[absenceCode],
+              date: absenceDate,
+              month: absenceDate.substring(0, 7), // Guarda "2026-06" para filtrado rápido mensual
+              year: absenceDate.substring(0, 4),  // Guarda "2026" para filtrado anual
+              createdAt: serverTimestamp()
+          });
+          
+          alert(`✅ Falta (${absenceCode}) registrada a ${selectedStaffForAbsence.lastName}`);
+          setShowAbsenceForm(false);
+          setSelectedStaffForAbsence(null);
+          setAbsenceCode('');
+      } catch (err) {
+          alert("Error al guardar la falta: " + err.message);
+      } finally {
+          setProcessing(false);
+      }
+  };
+  
   return (
     <div className="space-y-4 animate-in fade-in pb-20 px-2 md:px-4 pt-4">
         
@@ -500,6 +544,15 @@ const imprimirPlanillaGeneral = (lista) => {
                 <button onClick={()=>{setEditingStaff(null); setPhotoPreview(null); setShowStaffForm(true);}} className="bg-violet-600 text-white p-3 rounded-2xl shadow-lg flex items-center justify-center"><Plus size={20}/></button>
             </div>
         </div>
+      {/* BOTÓN REGISTRO DE FALTAS */}
+<button 
+    onClick={() => setShowAbsenceForm(true)} 
+    className="bg-orange-100 text-orange-700 border border-orange-200 p-3 rounded-2xl shadow-sm hover:bg-orange-200 transition flex items-center gap-2 font-black uppercase text-[10px] tracking-widest"
+    title="Registrar Inasistencias"
+>
+    <UserCheck size={20}/>
+    <span className="hidden md:inline">Faltas</span>
+</button>
 
         {/* BARRA DE FILTROS ACTUALIZADA PARA MULTISELECCIÓN */}
         <div className="space-y-2">
@@ -1026,6 +1079,146 @@ const imprimirPlanillaGeneral = (lista) => {
             </div>
         </div>
     )}
+
+      {/* --- MODAL REGISTRO DE FALTAS --- */}
+{showAbsenceForm && (
+    <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-2 sm:p-4 backdrop-blur-md animate-in fade-in">
+        <div className="bg-slate-50 rounded-[30px] w-full max-w-4xl shadow-2xl max-h-[95vh] flex flex-col border border-white/20 overflow-hidden">
+            
+            {/* CABECERA */}
+            <div className="bg-orange-600 p-5 text-white flex justify-between items-center shrink-0">
+                <div>
+                    <h3 className="text-lg font-black uppercase italic tracking-tighter flex items-center gap-2">
+                        <UserCheck size={20}/> Registro Rápido de Inasistencias
+                    </h3>
+                    <p className="text-[10px] opacity-80 font-bold uppercase mt-1">Carga de ausentismo por artículo</p>
+                </div>
+                <button onClick={() => { setShowAbsenceForm(false); setSelectedStaffForAbsence(null); }} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition">
+                    <X size={20} />
+                </button>
+            </div>
+
+            <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+                
+                {/* COLUMNA IZQUIERDA: SELECCIÓN DE PERSONAL (AGRUPADO POR ROL) */}
+                <div className="w-full md:w-1/2 bg-white border-r border-slate-200 flex flex-col overflow-hidden">
+                    <div className="p-3 bg-slate-100 border-b border-slate-200 shrink-0">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">1. Seleccionar Personal</p>
+                    </div>
+                    <div className="overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                        {VALID_ROLES.map(rol => {
+                            const staffEnRol = staffList.filter(s => getNormRole(s.cargo1_role || s.role) === rol);
+                            if (staffEnRol.length === 0) return null;
+                            return (
+                                <div key={rol} className="space-y-2">
+                                    <h4 className="text-[10px] font-black text-orange-600 uppercase border-b border-orange-100 pb-1">{rol}</h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        {staffEnRol.map(s => (
+                                            <button 
+                                                key={s.id}
+                                                onClick={() => setSelectedStaffForAbsence(s)}
+                                                className={`p-2 rounded-xl text-left border transition-all flex items-center gap-2 ${selectedStaffForAbsence?.id === s.id ? 'bg-orange-100 border-orange-400 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-orange-300'}`}
+                                            >
+                                                <div className="w-6 h-6 rounded-full bg-orange-200 text-orange-700 flex items-center justify-center text-[10px] font-black shrink-0">
+                                                    {s.firstName?.[0]}
+                                                </div>
+                                                <span className="text-[10px] font-bold text-slate-700 truncate uppercase">
+                                                    {s.lastName}, {s.firstName}
+                                                </span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* COLUMNA DERECHA: SELECCIÓN DE ARTÍCULO Y FECHA */}
+                <div className="w-full md:w-1/2 flex flex-col bg-slate-50 relative pointer-events-none">
+                    {/* Overlay si no hay personal seleccionado */}
+                    {!selectedStaffForAbsence && (
+                        <div className="absolute inset-0 z-10 bg-slate-50/80 backdrop-blur-sm flex items-center justify-center p-6 text-center pointer-events-auto">
+                            <p className="text-sm font-black text-slate-400 uppercase tracking-widest border-2 border-dashed border-slate-300 p-6 rounded-3xl">
+                                👈 Seleccioná una persona primero
+                            </p>
+                        </div>
+                    )}
+
+                    <div className="p-3 bg-slate-100 border-b border-slate-200 shrink-0 pointer-events-auto">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">2. Detalle de Inasistencia</p>
+                    </div>
+
+                    <div className="p-4 sm:p-6 overflow-y-auto space-y-6 pointer-events-auto">
+                        {/* PERSONA SELECCIONADA */}
+                        {selectedStaffForAbsence && (
+                            <div className="bg-orange-100 p-4 rounded-2xl border border-orange-200 flex items-center gap-3">
+                                <User size={24} className="text-orange-600"/>
+                                <div>
+                                    <p className="text-[10px] font-black text-orange-500 uppercase">Cargando falta para:</p>
+                                    <p className="text-sm font-black text-orange-900 uppercase">{selectedStaffForAbsence.lastName}, {selectedStaffForAbsence.firstName}</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* FECHA */}
+                        <div>
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-2 mb-1 block">Fecha de Ausencia</label>
+                            <input 
+                                type="date" 
+                                value={absenceDate} 
+                                onChange={(e) => setAbsenceDate(e.target.value)}
+                                className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-orange-200"
+                            />
+                        </div>
+
+                        {/* CÓDIGOS DE FALTA */}
+                        <div>
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-2 mb-2 flex items-center gap-1 justify-between">
+                                <span>Artículo / Código</span>
+                                <span className="text-[8px] text-slate-400 italic font-normal">* Mantené apretado o pasá el mouse para ver el detalle</span>
+                            </label>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                {Object.entries(CODIGOS_FALTAS).map(([codigo, descripcion]) => (
+                                    <button
+                                        key={codigo}
+                                        onClick={() => setAbsenceCode(codigo)}
+                                        title={descripcion} // Native Tooltip
+                                        className={`group relative p-3 rounded-xl border-2 transition-all flex flex-col items-center justify-center gap-1 ${absenceCode === codigo ? 'bg-orange-500 border-orange-600 text-white shadow-md scale-[1.02]' : 'bg-white border-slate-200 text-slate-600 hover:border-orange-400 hover:bg-orange-50'}`}
+                                    >
+                                        <span className="font-black text-sm uppercase">{codigo}</span>
+                                        
+                                        {/* Tooltip Custom que aparece en Hover */}
+                                        <div className="absolute bottom-full mb-2 hidden group-hover:block w-32 bg-slate-800 text-white text-[9px] font-bold p-2 rounded-lg text-center z-20 shadow-xl pointer-events-none">
+                                            {descripcion}
+                                            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* BOTONERA GUARDAR */}
+                    <div className="p-4 bg-white border-t border-slate-200 shrink-0 pointer-events-auto">
+                        <button 
+                            onClick={handleSaveAbsence}
+                            disabled={processing || !absenceCode}
+                            className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg transition active:scale-95 flex justify-center items-center gap-2 ${absenceCode && !processing ? 'bg-orange-600 text-white hover:bg-orange-700 shadow-orange-200' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+                        >
+                            {processing ? <RefreshCw className="animate-spin" size={16}/> : (
+                                <>
+                                    <CheckCircle size={18}/>
+                                    {absenceCode ? `Registrar Art. ${absenceCode}` : 'Seleccione un Código'}
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+)}
 
   </div> // Fin del contenedor principal PersonalView
   ); 
