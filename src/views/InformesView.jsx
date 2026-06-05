@@ -1084,9 +1084,6 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
     </div>
   )}
 
-</>
-)}
-</div>
    {/* INTERFAZ DE EDICIÓN EN PANTALLA */}
    {stage === 'form' && (
     <div className="bg-white p-8 rounded-[40px] shadow-lg border space-y-6 print:hidden animate-in fade-in">
