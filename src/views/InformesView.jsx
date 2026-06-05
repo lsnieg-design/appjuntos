@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Edit3, Plus, BookOpen, Printer } from 'lucide-react';
+import { X, Edit3, Plus, BookOpen, Printer, PieChart } from 'lucide-react';
 import { doc, setDoc, onSnapshot, serverTimestamp, collection, query, deleteDoc } from 'firebase/firestore';
 
 const CONFIG_INDICADORES = {
@@ -631,7 +631,7 @@ export function InformesView({ user, db, appId }) {
   const [observacionesMusica, setObservacionesMusica] = useState('');
  const [observacionesPsicomotricidad, setObservacionesPsicomotricidad] = useState('');
  const [observacionesEducacionFisica, setObservacionesEducacionFisica] = useState('');
- 
+ const [showStatsModal, setShowStatsModal] = useState(false);
  
  const [students, setStudents] = useState([]);
  const [savedReports, setSavedReports] = useState([]);
@@ -810,19 +810,27 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
       <p className="text-violet-100 text-xs md:text-sm">Mostrando: {filteredStudents.length} alumnos en la base Sede.</p>
      </div>
 
-     <div className="w-full md:w-auto bg-white/10 p-3 rounded-2xl border border-white/20">
-      <label className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-violet-200 block mb-1 px-1 text-center md:text-left">
-       Período del Informe:
-      </label>
-      <select 
-       className="w-full bg-white text-violet-900 font-black text-sm md:text-base py-2 px-3 md:p-3 rounded-xl outline-none" 
-       value={periodoInforme} 
-       onChange={e => setPeriodoInforme(e.target.value)}
+  <div className="w-full md:w-auto bg-white/10 p-3 rounded-2xl border border-white/20 flex flex-col md:flex-row items-end gap-3">
+      <div className="w-full md:w-auto">
+       <label className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-violet-200 block mb-1 px-1 text-center md:text-left">
+        Período del Informe:
+       </label>
+       <select 
+        className="w-full bg-white text-violet-900 font-black text-sm md:text-base py-2 px-3 md:p-3 rounded-xl outline-none" 
+        value={periodoInforme} 
+        onChange={e => setPeriodoInforme(e.target.value)}
+       >
+        <option value="Inicial" disabled>Informe Inicial (Cerrado)</option>
+        <option value="Medio">Informe Medio 2026</option>
+        <option value="Final" disabled>Informe Final (Pronto)</option>
+       </select>
+      </div>
+      <button 
+        onClick={() => setShowStatsModal(true)} 
+        className="w-full md:w-auto bg-white text-violet-900 hover:bg-violet-50 font-black py-2.5 px-4 md:p-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm"
       >
-       <option value="Inicial" disabled>Informe Inicial (Cerrado)</option>
-       <option value="Medio">Informe Medio 2026</option>
-       <option value="Final" disabled>Informe Final (Pronto)</option>
-      </select>
+        <PieChart size={20} /> <span className="md:inline">Estadísticas</span>
+      </button>
      </div>
     </div>
 
@@ -977,7 +985,108 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
 </>
 )}
 </div>
+{/* MODAL DE ESTADÍSTICAS */}
+  {showStatsModal && (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+      <div className="bg-white rounded-[30px] shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="p-6 bg-violet-800 text-white flex justify-between items-center">
+          <div>
+            <h2 className="text-xl font-black flex items-center gap-2"><PieChart size={24} /> Progreso de Carga</h2>
+            <p className="text-violet-200 text-sm">Informes del período: {periodoInforme}</p>
+          </div>
+          <button onClick={() => setShowStatsModal(false)} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+        <div className="p-6 overflow-y-auto space-y-6 bg-gray-50">
+          {(() => {
+            const areasStats = [
+              { id: 'pedagogico', label: 'Pedagógico' },
+              { id: 'laboral', label: 'Laboral' },
+              { id: 'psicomotricidad', label: 'Psicomotricidad' },
+              { id: 'plastica', label: 'Plástica' },
+              { id: 'musica', label: 'Música' },
+              { id: 'educacion_fisica', label: 'Ed. Física' }
+            ].map(area => {
+              let expected = 0;
+              let completed = 0;
+              const reportsCurrentPeriod = savedReports.filter(r => r.periodo === periodoInforme);
 
+              estudiantesSede.forEach(s => {
+                const lvl = s.level ? s.level.toUpperCase() : '';
+                let expects = false;
+                const groups = [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean).map(g => g.toUpperCase());
+                const hasTaller = groups.some(g => g.includes('TALLER') || g.includes('PRE TALLER') || g.includes('PRETALLER'));
+
+                if (area.id === 'pedagogico' && !hasTaller) expects = true;
+                if (area.id === 'laboral' && hasTaller) expects = true;
+                if (area.id === 'psicomotricidad') expects = true;
+                if (area.id === 'musica') expects = true;
+                if (area.id === 'plastica' && lvl !== 'INICIAL') expects = true;
+                if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CICLO')) expects = true;
+
+                if (expects) {
+                  expected++;
+                  if (reportsCurrentPeriod.some(r => r.studentId === s.id && r.tipoInforme === area.id)) {
+                    completed++;
+                  }
+                }
+              });
+
+              const percentage = expected === 0 ? 0 : Math.round((completed / expected) * 100);
+              return { ...area, expected, completed, percentage };
+            });
+
+            const totalExpected = areasStats.reduce((acc, curr) => acc + curr.expected, 0);
+            const totalCompleted = areasStats.reduce((acc, curr) => acc + curr.completed, 0);
+            const totalPercentage = totalExpected === 0 ? 0 : Math.round((totalCompleted / totalExpected) * 100);
+
+            return (
+              <>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
+                  <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">Progreso Global Escuela</p>
+                  <div className="flex items-end justify-center gap-2 mb-4">
+                    <span className="text-5xl font-black text-violet-700">{totalPercentage}%</span>
+                    <span className="text-gray-400 font-medium pb-1">({totalCompleted} de {totalExpected})</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                    <div className="bg-violet-600 h-3 rounded-full transition-all duration-1000" style={{ width: `${totalPercentage}%` }}></div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="font-black text-gray-800 uppercase text-xs tracking-widest px-2">Desglose por Área</h3>
+                  {areasStats.map(stat => (
+                    <div key={stat.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-2">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-gray-800">{stat.label}</span>
+                        <span className="text-xs font-black px-2 py-1 bg-gray-100 rounded-md text-gray-600">
+                          {stat.completed} / {stat.expected} listos
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                          <div 
+                            className={`h-2.5 rounded-full transition-all duration-1000 ${stat.percentage === 100 ? 'bg-emerald-500' : stat.percentage > 40 ? 'bg-indigo-500' : 'bg-amber-500'}`} 
+                            style={{ width: `${stat.percentage}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-xs font-black w-10 text-right text-gray-700">{stat.percentage}%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      </div>
+    </div>
+  )}
+
+</>
+)}
+</div>
    {/* INTERFAZ DE EDICIÓN EN PANTALLA */}
    {stage === 'form' && (
     <div className="bg-white p-8 rounded-[40px] shadow-lg border space-y-6 print:hidden animate-in fade-in">
