@@ -107,6 +107,82 @@ const gruposFinales = React.useMemo(() => {
 }, [students, turn, viewMode, user]); 
 
   
+  const imprimirBitacora = (student) => {
+      // Función auxiliar por si no está globalmente disponible en este archivo
+      const getEdad = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
+
+      const incidents = (student.incidents || []).slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      let h = `<html><head><title>Bitácora - ${student.lastName}</title>
+      <style>
+          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
+          body { font-family: 'Roboto', sans-serif; padding: 20px; color: #333; }
+          .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #7c3aed; padding-bottom: 15px; margin-bottom: 20px; }
+          .header-info { display: flex; flex-direction: column; }
+          .header-info h1 { margin: 0; color: #4c1d95; font-size: 20px; text-transform: uppercase; }
+          .header-info p { margin: 4px 0 0; font-size: 12px; color: #666; font-weight: bold; }
+          .photo { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #7c3aed; }
+          .incident { border-left: 5px solid #ccc; padding: 12px 15px; margin-bottom: 15px; background: #f9fafb; border-radius: 0 8px 8px 0; page-break-inside: avoid; }
+          .incident.high { border-left-color: #ef4444; background: #fef2f2; }
+          .incident.medium { border-left-color: #f97316; background: #fff7ed; }
+          .incident.positive { border-left-color: #10b981; background: #ecfdf5; }
+          .inc-header { display: flex; justify-content: space-between; font-size: 10px; font-weight: 900; color: #888; text-transform: uppercase; margin-bottom: 8px; }
+          .inc-body { font-size: 13px; font-weight: 700; color: #333; line-height: 1.4; }
+          .inc-footer { font-size: 9px; font-weight: bold; color: #999; margin-top: 8px; text-transform: uppercase; border-top: 1px solid #eee; padding-top: 5px; }
+          .print-footer { text-align: center; font-size: 10px; color: #aaa; margin-top: 30px; border-top: 1px dashed #ccc; padding-top: 10px; }
+          @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+      </style></head><body>`;
+
+      h += `
+      <div class="header">
+          <div class="header-info">
+              <h1>BITÁCORA EXPRÉS: ${student.lastName}, ${student.firstName}</h1>
+              <p>DNI: ${student.dni || '-'} | Edad: ${getEdad(student.birthDate)} años | Modalidad: ${student.modality || 'Sede'}</p>
+              <p>Grupo/Asignación: ${student.groupMorning || student.groupAfternoon || student.daiMorning || student.daiAfternoon || 'Sin asignar'}</p>
+          </div>
+          ${student.photoUrl ? `<img class="photo" src="${student.photoUrl}" />` : ''}
+      </div>`;
+
+      if (!incidents || incidents.length === 0) {
+          h += `<p style="text-align:center; color:#999; font-style:italic;">No hay registros cargados en la bitácora de este alumno.</p>`;
+      } else {
+          incidents.forEach(inc => {
+              const dateObj = new Date(inc.date);
+              const dateStr = dateObj.toLocaleDateString('es-AR') + ' ' + dateObj.toLocaleTimeString('es-AR', {hour: '2-digit', minute:'2-digit'});
+              h += `
+              <div class="incident ${inc.severity || ''}">
+                  <div class="inc-header">
+                      <span>${dateStr}</span>
+                      <span>ORIGEN: AULA</span>
+                  </div>
+                  <div class="inc-body">
+                      ${inc.text || inc.type}
+                  </div>
+                  <div class="inc-footer">
+                      Registrado por: ${inc.author || 'Anónimo'}
+                  </div>
+              </div>`;
+          });
+      }
+
+      h += `<div class="print-footer">Documento generado el ${new Date().toLocaleDateString('es-AR')} - Sistema Juntos a la Par</div>`;
+      h += `</body></html>`;
+
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
+      document.body.appendChild(iframe);
+      const doc = iframe.contentWindow.document;
+      doc.open();
+      doc.write(h);
+      doc.close();
+      
+      setTimeout(() => {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+          setTimeout(() => { document.body.removeChild(iframe); }, 5000);
+      }, 500);
+  };
+  
   // --- FUNCIONES DE ACCIÓN ---
 
   const printGroups = (groupsList) => {
@@ -592,9 +668,19 @@ return (
       {showBitacoraModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
           <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl border-t-8 border-emerald-500 animate-in zoom-in-95">
-            <div className="flex justify-between items-center mb-4">
-              <div><h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3><p className="text-xs text-gray-500 font-bold">{showBitacoraModal.firstName}</p></div>
-              <button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full"><X size={20}/></button>
+           <div className="flex justify-between items-center mb-4">
+              <div>
+                <h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3>
+                <p className="text-xs text-gray-500 font-bold">{showBitacoraModal.firstName}</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => imprimirBitacora(showBitacoraModal)} className="bg-violet-100 text-violet-700 p-2 rounded-full hover:bg-violet-200 transition" title="Imprimir Historial">
+                  <Printer size={20}/>
+                </button>
+                <button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition">
+                  <X size={20}/>
+                </button>
+              </div>
             </div>
             {!isWriting ? (
               <div className="grid grid-cols-2 gap-3">
