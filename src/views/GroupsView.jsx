@@ -3,8 +3,35 @@ import { StudentDetailView } from './StudentDetailView';
 import { 
   User, FileText, Plus, Users, Grid, CheckCircle, ChevronRight, RefreshCw, ChevronLeft, Printer, MessageSquare, Send, Folder, Edit3, X, Search, GraduationCap, Activity 
 } from 'lucide-react';
-import { doc, updateDoc, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, arrayUnion, increment, where } from 'firebase/firestore';
+import { doc, updateDoc, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, arrayUnion, arrayRemove, increment, where } from 'firebase/firestore';
+// -------------------------------------------------------------
+// FUNCIONES AUXILIARES DE FECHAS Y EDAD (SANEAMIENTO)
+// -------------------------------------------------------------
+const calculateAge = (d) => { 
+  if (!d) return '-'; 
+  const t = new Date(); 
+  const b = new Date(d); 
+  let a = t.getFullYear() - b.getFullYear(); 
+  const m = t.getMonth() - b.getMonth(); 
+  if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; 
+  return a; 
+};
 
+const getSafeDate = (d) => { 
+  if (!d) return ''; 
+  try { return d.includes('T') ? d.split('T')[0] : d; } catch(e) { return ''; } 
+};
+
+const checkCudStatus = (cudDate) => {
+  if (!cudDate || cudDate === "") return { status: 'none', text: 'Sin fecha' };
+  const today = new Date();
+  const exp = new Date(cudDate + 'T00:00:00');
+  const diffTime = exp - today;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return { status: 'expired', text: 'Vencido' };
+  if (diffDays <= 90) return { status: 'warning', text: `Vence en ${diffDays} días` };
+  return { status: 'ok', text: 'Vigente' };
+};
 export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
@@ -289,7 +316,18 @@ const gruposFinales = React.useMemo(() => {
     } catch (err) { alert("Error: " + err.message); } finally { setUpdatingGroup(false); }
   };
 
-const handleSaveIncident = async (type, severity = "medium", text = "") => {
+const deleteIncident = async (studentId, inc) => {
+    if (!confirm("⚠️ ¿Seguro que querés borrar este registro de la bitácora?")) return;
+    try {
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', studentId), {
+        incidents: arrayRemove(inc)
+      });
+    } catch (e) {
+      console.error("Error al eliminar:", e);
+      alert("❌ No se pudo eliminar el registro.");
+    }
+  };
+  const handleSaveIncident = async (type, severity = "medium", text = "") => {
     const activeStudent = showBitacoraModal || selectedStudent;
     if (!activeStudent) return;
     setSavingIncident(true);
@@ -665,45 +703,90 @@ return (
         </div>
       )}
 
-      {showBitacoraModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl border-t-8 border-emerald-500 animate-in zoom-in-95">
-           <div className="flex justify-between items-center mb-4">
-              <div>
-                <h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3>
-                <p className="text-xs text-gray-500 font-bold">{showBitacoraModal.firstName}</p>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => imprimirBitacora(showBitacoraModal)} className="bg-violet-100 text-violet-700 p-2 rounded-full hover:bg-violet-200 transition" title="Imprimir Historial">
-                  <Printer size={20}/>
-                </button>
-                <button onClick={() => setShowBitacoraModal(null)} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition">
-                  <X size={20}/>
-                </button>
-              </div>
-            </div>
-            {!isWriting ? (
-              <div className="grid grid-cols-2 gap-3">
-                {INCIDENT_TYPES.map((type) => (
-                  <button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition active:scale-95 ${type.color} ${savingIncident ? "opacity-50" : "hover:brightness-95"}`}>
-                    <span className="text-2xl">{type.emoji}</span>
-                    <span className="text-[10px] font-black uppercase text-center leading-tight">{type.label}</span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="animate-in slide-in-from-bottom">
-                <textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="¿Qué pasó?..." className="w-full p-4 bg-gray-50 border rounded-2xl text-sm mb-3 h-32 outline-none" />
+      {showBitacoraModal && (() => {
+        // Buscamos los datos "vivos" del alumno para que el historial se actualice al instante
+        const liveStudent = students.find(s => s.id === showBitacoraModal.id) || showBitacoraModal;
+        const historialIncidentes = [...(liveStudent.incidents || [])].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        return (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
+            <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl border-t-8 border-emerald-500 animate-in zoom-in-95 flex flex-col max-h-[90vh]">
+              
+              {/* CABECERA */}
+              <div className="flex justify-between items-center mb-4 shrink-0">
+                <div>
+                  <h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3>
+                  <p className="text-xs text-gray-500 font-bold">{liveStudent.firstName} {liveStudent.lastName}</p>
+                </div>
                 <div className="flex gap-2">
-                  <button onClick={() => setIsWriting(false)} className="flex-1 py-4 text-gray-400 font-black uppercase text-[10px]">Cancelar</button>
-                  <button onClick={() => handleSaveIncident("Nota", "medium", newNote)} disabled={!newNote.trim() || savingIncident} className="flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase text-[10px] shadow-lg">Guardar</button>
+                  <button onClick={() => imprimirBitacora(liveStudent)} className="bg-violet-100 text-violet-700 p-2 rounded-full hover:bg-violet-200 transition" title="Imprimir Historial">
+                    <Printer size={20}/>
+                  </button>
+                  <button onClick={() => { setShowBitacoraModal(null); setIsWriting(false); }} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition">
+                    <X size={20}/>
+                  </button>
                 </div>
               </div>
-            )}
-          </div>
-        </div>
-      )}
 
+              {/* CUERPO DEL MODAL (BOTONES O TEXTAREA) */}
+              <div className="shrink-0 mb-4">
+                {!isWriting ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    {INCIDENT_TYPES.map((type) => (
+                      <button key={type.label} onClick={() => handleSaveIncident(type.label, type.severity)} disabled={savingIncident} className={`p-2.5 rounded-xl border-2 flex flex-col items-center justify-center gap-0.5 transition active:scale-95 ${type.color} ${savingIncident ? "opacity-50" : "hover:brightness-95"}`}>
+                        <span className="text-xl">{type.emoji}</span>
+                        <span className="text-[9px] font-black uppercase text-center leading-tight">{type.label}</span>
+                      </button>
+                    ))}
+                    <button onClick={() => setIsWriting(true)} className="col-span-2 py-2 bg-gray-900 text-white rounded-xl font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 hover:bg-gray-800 transition">
+                      <Edit3 size={12}/> Redactar Nota Escrita
+                    </button>
+                  </div>
+                ) : (
+                  <div className="animate-in slide-in-from-bottom">
+                    <textarea autoFocus value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="¿Qué pasó?..." className="w-full p-3 bg-gray-50 border rounded-xl text-xs mb-2 h-24 outline-none resize-none font-medium" />
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => setIsWriting(false)} className="flex-1 py-2 bg-gray-100 text-gray-500 rounded-xl font-black uppercase text-[10px]">Cancelar</button>
+                      <button type="button" onClick={() => handleSaveIncident("Nota", "medium", newNote)} disabled={!newNote.trim() || savingIncident} className="flex-[2] py-2 bg-violet-600 text-white rounded-xl font-black uppercase text-[10px] shadow-md">Guardar Nota</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* HISTORIAL RECIENTE CON ELIMINAR */}
+              <div className="flex-1 overflow-y-auto border-t pt-3 space-y-2 pr-1 select-none" style={{ scrollbarWidth: 'thin' }}>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-2">Registros recientes:</p>
+                {historialIncidentes.length === 0 ? (
+                  <p className="text-[11px] text-gray-400 italic text-center py-4">Sin registros previos en esta etapa.</p>
+                ) : (
+                  historialIncidentes.map((inc, idx) => {
+                    const colorSev = inc.severity === 'positive' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : inc.severity === 'high' ? 'bg-red-50 border-red-200 text-red-800' : inc.severity === 'medium' ? 'bg-orange-50 border-orange-200 text-orange-800' : 'bg-gray-50 border-gray-200 text-gray-600';
+                    return (
+                      <div key={idx} className={`p-2.5 rounded-xl border flex justify-between items-start text-xs ${colorSev}`}>
+                        <div className="flex-1 pr-2">
+                          <p className="text-[8px] font-bold opacity-60 uppercase mb-0.5">
+                            {inc.date ? new Date(inc.date).toLocaleDateString('es-AR') : 'Fecha s/d'} • Por: {inc.author || 'Docente'}
+                          </p>
+                          <p className="font-bold leading-tight">{inc.text || inc.type}</p>
+                        </div>
+                        <button 
+                          type="button" 
+                          onClick={() => deleteIncident(liveStudent.id, inc)} 
+                          className="text-gray-400 hover:text-red-600 p-0.5 rounded-lg transition"
+                          title="Eliminar Registro"
+                        >
+                          <X size={14} strokeWidth={3}/>
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
      {/* 4. PANEL ENFOQUE GRUPO (CHAT + INFORMES RE-DISEÑADO) */}
       {selectedGroupDetails && (
         <div className="fixed inset-0 bg-slate-100 z-[500] flex flex-col animate-in fade-in">
