@@ -1250,6 +1250,7 @@ const filteredStudents = students.filter(s => {
                     )}
 
                     {/* CONTENIDO PESTAÑA 2: BITÁCORA UNIFICADA */}
+                   {/* CONTENIDO PESTAÑA 2: BITÁCORA UNIFICADA */}
                     {activeModalTab === 'history' && (
                       <div className="space-y-4 pb-20 animate-in fade-in">
                         {!isWriting && (
