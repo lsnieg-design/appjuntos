@@ -756,22 +756,21 @@ export function InformesView({ user, db, appId }) {
    observacionesEducacionFisica,
    answers,
    nivelMusica,
-      observacionesMusica,
+   observacionesMusica,
    obsCuatrimestre1,
    objConductual,
    objPedagogico,
    objSocioafectivo,
+   contenidosPlastica,
+   observacionesPlastica,
    docente: docentePrint,
- auxiliar: preceptoraPrint,
- updatedAt: serverTimestamp()
-   contenidosPlastica, // <-- Agregá esto
-      observacionesPlastica, // <-- Agregá esto
+   auxiliar: preceptoraPrint,
    updatedAt: serverTimestamp()
   }, { merge: true });
   setStage('main');
   setIsSaving(false);
  };
-
+ 
 const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (selectedStudent?.level || 'Inicial');
   const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || [];
 
@@ -1331,7 +1330,7 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
     </div>
    )}
 
-   {/* DOCUMENTO DE IMPRESIÓN OCULTO AL FONDO (No lo vas a ver hasta que presiones Imprimir) */}
+  {/* DOCUMENTO DE IMPRESIÓN OCULTO AL FONDO (No lo vas a ver hasta que presiones Imprimir) */}
    {stage === 'form' && (
     <div id="informe-imprimir" className="hidden">
      <div className="pagina w-full bg-white text-black font-sans pb-4">
@@ -1350,7 +1349,7 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
         <p><strong className="font-black text-gray-900">DNI:</strong> <span className="text-gray-700">{selectedStudent?.dni || '....................................'}</span></p>
         <p><strong className="font-black text-gray-900">Fecha de Nac.:</strong> <span className="text-gray-700">{selectedStudent?.birthDate || selectedStudent?.fechaNac || '....................................'}</span></p>
         <p><strong className="font-black text-gray-900">Grupo:</strong> <span className="text-gray-700 font-bold">{grupoFiltro}</span></p>
-   <p>
+        <p>
           <strong className="font-black text-gray-900">Docente a cargo:</strong>{" "}
           <span className="text-gray-700">
             {docentePrint || selectedStudent?.teacher || selectedStudent?.docente || '....................................'}
@@ -1365,6 +1364,7 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
             </span>
           </p>
         )}
+        <p className="col-span-2"><strong className="font-black text-gray-900">Año de cursada:</strong> <span className="text-gray-700">2026</span></p>
        </div>
       </div>
 
@@ -1407,7 +1407,7 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
         )}
         {objPedagogico && (
          <div className="mb-2">
-          <strong className="text-xs font-black text-violet-800">Objetivo Pedagógico:</strong>
+          <strong className="text-xs font-black text-violet-800">Objetivo Pedagogico:</strong>
           <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">{objPedagogico}</p>
          </div>
         )}
@@ -1442,7 +1442,6 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
      </div>
     </div>
    )}
-
   </div>
- );
+ 
 }
