@@ -1443,5 +1443,5 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
     </div>
    )}
   </div>
- 
+ );
 }
