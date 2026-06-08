@@ -841,6 +841,78 @@ const filteredStudents = students.filter(s => {
     setProcessing(false);
   };
 
+ const imprimirBitacora = (student, incidents) => {
+      let h = `<html><head><title>Bitácora - ${student.lastName}</title>
+      <style>
+          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
+          body { font-family: 'Roboto', sans-serif; padding: 20px; color: #333; }
+          .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #7c3aed; padding-bottom: 15px; margin-bottom: 20px; }
+          .header-info { display: flex; flex-direction: column; }
+          .header-info h1 { margin: 0; color: #4c1d95; font-size: 20px; text-transform: uppercase; }
+          .header-info p { margin: 4px 0 0; font-size: 12px; color: #666; font-weight: bold; }
+          .photo { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #7c3aed; }
+          .incident { border-left: 5px solid #ccc; padding: 12px 15px; margin-bottom: 15px; background: #f9fafb; border-radius: 0 8px 8px 0; page-break-inside: avoid; }
+          .incident.high { border-left-color: #ef4444; background: #fef2f2; }
+          .incident.medium { border-left-color: #f97316; background: #fff7ed; }
+          .incident.positive { border-left-color: #10b981; background: #ecfdf5; }
+          .inc-header { display: flex; justify-content: space-between; font-size: 10px; font-weight: 900; color: #888; text-transform: uppercase; margin-bottom: 8px; }
+          .inc-body { font-size: 13px; font-weight: 700; color: #333; line-height: 1.4; }
+          .inc-footer { font-size: 9px; font-weight: bold; color: #999; margin-top: 8px; text-transform: uppercase; border-top: 1px solid #eee; padding-top: 5px; }
+          .print-footer { text-align: center; font-size: 10px; color: #aaa; margin-top: 30px; border-top: 1px dashed #ccc; padding-top: 10px; }
+          @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+      </style></head><body>`;
+
+      h += `
+      <div class="header">
+          <div class="header-info">
+              <h1>BITÁCORA EXPRÉS: ${student.lastName}, ${student.firstName}</h1>
+              <p>DNI: ${student.dni || '-'} | Edad: ${calculateAge(student.birthDate)} años | Modalidad: ${student.modality || 'Sede'}</p>
+              <p>Grupo/Asignación: ${student.groupMorning || student.groupAfternoon || student.daiMorning || student.daiAfternoon || 'Sin asignar'}</p>
+          </div>
+          ${student.photoUrl ? `<img class="photo" src="${student.photoUrl}" />` : ''}
+      </div>`;
+
+      if (!incidents || incidents.length === 0) {
+          h += `<p style="text-align:center; color:#999; font-style:italic;">No hay registros cargados en la bitácora.</p>`;
+      } else {
+          incidents.forEach(inc => {
+              const dateObj = new Date(inc.date);
+              const dateStr = dateObj.toLocaleDateString('es-AR') + ' ' + dateObj.toLocaleTimeString('es-AR', {hour: '2-digit', minute:'2-digit'});
+              const isClosedStyle = inc.isClosed ? 'text-decoration: line-through; color: #888;' : '';
+              h += `
+              <div class="incident ${inc.severity || ''}">
+                  <div class="inc-header">
+                      <span>${dateStr}</span>
+                      <span>ORIGEN: ${inc.source === 'social' ? 'GABINETE' : 'AULA'}</span>
+                  </div>
+                  <div class="inc-body" style="${isClosedStyle}">
+                      ${inc.text || inc.type}
+                  </div>
+                  <div class="inc-footer">
+                      Registrado por: ${inc.author || 'Anónimo'}
+                  </div>
+              </div>`;
+          });
+      }
+
+      h += `<div class="print-footer">Documento generado el ${new Date().toLocaleDateString('es-AR')} - Sistema Juntos a la Par</div>`;
+      h += `</body></html>`;
+
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
+      document.body.appendChild(iframe);
+      const doc = iframe.contentWindow.document;
+      doc.open();
+      doc.write(h);
+      doc.close();
+      
+      setTimeout(() => {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+          setTimeout(() => { document.body.removeChild(iframe); }, 5000);
+      }, 500);
+  };
+  
   const imprimirListado = (list) => { 
       let h = `<html><head><title>Fichas de Estudiantes</title>
       <style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');body{font-family:'Roboto',sans-serif;padding:20px;}.page{border:1px solid #eee;padding:30px;margin-bottom:20px;border-radius:8px;page-break-after:always;max-width:800px;margin:0 auto 20px auto;border-top:10px solid #7c3aed;}.header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #ddd;padding-bottom:20px;margin-bottom:20px;}.header-text h1{color:#4c1d95;font-size:24px;margin:0;text-transform:uppercase;}.header-text p{color:#666;font-size:14px;margin:5px 0 0 0;}.photo-box{width:80px;height:80px;background:#eee;border-radius:50%;overflow:hidden;border:3px solid #7c3aed;}.photo-box img{width:100%;height:100%;object-fit:cover;}.section-title{background:#f3f4f6;color:#4c1d95;padding:8px 15px;font-weight:900;text-transform:uppercase;font-size:12px;border-radius:6px;margin-bottom:10px;border-left:5px solid #7c3aed;}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px;}.field{margin-bottom:5px;}.label{display:block;font-size:9px;color:#888;text-transform:uppercase;font-weight:bold;}.value{font-size:12px;font-weight:bold;color:#333;}.footer{text-align:center;font-size:9px;color:#aaa;margin-top:30px;border-top:1px solid #eee;padding-top:10px;}</style></head><body>`;
@@ -1208,17 +1280,37 @@ const filteredStudents = students.filter(s => {
                                 isClosed: c.status === 'Reincorporado'
                               }));
                             const combined = [...normales, ...sociales].sort((a, b) => new Date(b.date) - new Date(a.date));
-                            if (combined.length === 0) return <div className="text-center py-10 bg-white rounded-3xl border border-dashed border-gray-200"><p className="text-gray-400 text-xs font-bold uppercase italic">Sin registros</p></div>;
-                            return combined.map((inc, i) => (
-                              <div key={i} className={`p-4 rounded-2xl border shadow-sm transition-all ${inc.source === 'social' ? (inc.isClosed ? 'bg-slate-50 border-slate-200' : 'bg-red-50 border-red-200 ring-2 ring-red-50') : getSeverityColor(inc.severity)}`}>
-                                <div className="flex justify-between items-center mb-2 border-b border-gray-100/50 pb-1">
-                                  <span className="text-[10px] font-black text-gray-400 uppercase">{new Date(inc.date).toLocaleDateString('es-AR')}</span>
-                                  {inc.source === 'aula' && <button onClick={() => deleteIncident(viewingStudent.id, inc)} className="text-gray-300 hover:text-red-500 transition"><Trash2 size={12}/></button>}
+                            
+                            return (
+                                <div className="flex flex-col gap-3">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Registros de Bitácora</span>
+                                        <button 
+                                            onClick={() => imprimirBitacora(viewingStudent, combined)} 
+                                            className="flex items-center gap-2 bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase transition shadow-sm"
+                                        >
+                                            <Printer size={14}/> Imprimir Bitácora
+                                        </button>
+                                    </div>
+                                    
+                                    {combined.length === 0 ? (
+                                        <div className="text-center py-10 bg-white rounded-3xl border border-dashed border-gray-200">
+                                            <p className="text-gray-400 text-xs font-bold uppercase italic">Sin registros</p>
+                                        </div>
+                                    ) : (
+                                        combined.map((inc, i) => (
+                                          <div key={i} className={`p-4 rounded-2xl border shadow-sm transition-all ${inc.source === 'social' ? (inc.isClosed ? 'bg-slate-50 border-slate-200' : 'bg-red-50 border-red-200 ring-2 ring-red-50') : getSeverityColor(inc.severity)}`}>
+                                            <div className="flex justify-between items-center mb-2 border-b border-gray-100/50 pb-1">
+                                              <span className="text-[10px] font-black text-gray-400 uppercase">{new Date(inc.date).toLocaleDateString('es-AR')}</span>
+                                              {inc.source === 'aula' && <button onClick={() => deleteIncident(viewingStudent.id, inc)} className="text-gray-300 hover:text-red-500 transition"><Trash2 size={12}/></button>}
+                                            </div>
+                                            <p className={`text-xs font-bold leading-relaxed ${inc.isClosed ? 'text-slate-500 line-through' : 'text-slate-700'}`}>{inc.text || inc.type}</p>
+                                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-2">Origen: {inc.source === 'social' ? 'Gabinete' : 'Aula'} • Por: {inc.author}</p>
+                                          </div>
+                                        ))
+                                    )}
                                 </div>
-                                <p className={`text-xs font-bold leading-relaxed ${inc.isClosed ? 'text-slate-500 line-through' : 'text-slate-700'}`}>{inc.text || inc.type}</p>
-                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-2">Origen: {inc.source === 'social' ? 'Gabinete' : 'Aula'} • Por: {inc.author}</p>
-                              </div>
-                            ));
+                            );
                           })()}
                         </div>
                         <div className="sticky bottom-0 bg-white pt-4 border-t border-gray-100">
