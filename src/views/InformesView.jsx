@@ -579,8 +579,9 @@ const generarHTMLImpresion = (s, report) => {
               <p><strong class="font-black text-gray-900">DNI:</strong> <span class="text-gray-700">${s.dni || '....................................'}</span></p>
               <p><strong class="font-black text-gray-900">Fecha de Nac.:</strong> <span class="text-gray-700">${s.birthDate || s.fechaNac || '....................................'}</span></p>
               <p><strong class="font-black text-gray-900">Grupo:</strong> <span class="text-gray-700 font-bold">${report.grupo}</span></p>
-              <p><strong class="font-black text-gray-900">Docente a cargo:</strong> <span class="text-gray-700">${s.teacher || s.docente || '....................................'}</span></p>
-              ${mostrarAuxiliar ? `<p><strong class="font-black text-gray-900">Auxiliar/Preceptora:</strong> <span class="text-gray-700">${s.auxiliary || s.auxiliar || s.preceptora || '....................................'}</span></p>` : ''}
+             <p><strong class="font-black text-gray-900">Docente a cargo:</strong> <span class="text-gray-700">${report?.docente || s.teacher || s.docente || '....................................'}</span></p>
+
+${mostrarAuxiliar ? `<p><strong class="font-black text-gray-900">Auxiliar/Preceptora:</strong> <span class="text-gray-700">${report?.auxiliar || s.auxiliary || s.auxiliar || s.preceptora || '....................................'}</span></p>` : ''}
               <p class="col-span-2"><strong class="font-black text-gray-900">Año de cursada:</strong> <span class="text-gray-700">2026</span></p>
           </div>
       </div>
@@ -760,6 +761,9 @@ export function InformesView({ user, db, appId }) {
    objConductual,
    objPedagogico,
    objSocioafectivo,
+   docente: docentePrint,
+ auxiliar: preceptoraPrint,
+ updatedAt: serverTimestamp()
    contenidosPlastica, // <-- Agregá esto
       observacionesPlastica, // <-- Agregá esto
    updatedAt: serverTimestamp()
@@ -1204,25 +1208,39 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
                     )}
 
                 {/* 2. RÚBRICA DE INDICADORES (PARA TODOS) */}
-                {indicadoresActuales.map(c => (
-                  <div key={c.id} className="space-y-2 mb-4 p-4 bg-gray-50 rounded-2xl">
-                    <label className="text-xs font-black uppercase text-gray-700">{c.label}</label>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                      {c.options.map(opt => {
-                        const isSelected = answers[c.id] === opt;
-                        return (
-                          <button 
-                            key={opt} 
-                            onClick={() => setAnswers(p => ({...p, [c.id]: opt}))} 
-                            className={"p-3 rounded-xl font-bold text-[10px] uppercase border-2 text-center transition-all " + (isSelected ? "bg-violet-600 text-white border-violet-700 shadow-md" : "bg-white border-gray-200 hover:border-violet-300")}
-                          >
-                            {opt}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+              {indicadoresActuales.map(c => (
+  <div key={c.id} className="space-y-2 mb-4 p-4 bg-gray-50 rounded-2xl">
+    <label className="text-xs font-black uppercase text-gray-700">{c.label}</label>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+      {c.options.map(opt => {
+        const isSelected = answers[c.id] === opt;
+        return (
+          <button 
+            key={opt} 
+            onClick={() => setAnswers(p => ({...p, [c.id]: opt}))} 
+            className={"p-3 rounded-xl font-bold text-[10px] uppercase border-2 text-center transition-all " + (isSelected ? "bg-violet-600 text-white border-violet-700 shadow-md" : "bg-white border-gray-200 hover:border-violet-300")}
+          >
+            {opt}
+          </button>
+        );
+      })}
+    </div>
+
+    {/* PARCHE: Cuadro de texto personalizado para áreas pedagógica y laboral */}
+    {['pedagogico', 'laboral'].includes(tipoInforme) && (
+      <div className="mt-3/2">
+        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">O escribir una opción personalizada:</label>
+        <textarea
+          className="w-full p-3 bg-white rounded-xl text-xs border border-gray-200 font-medium text-gray-700 placeholder-gray-400"
+          placeholder="Escribí acá un texto a medida para este indicador..."
+          value={answers[c.id] || ''}
+          onChange={e => setAnswers(p => ({...p, [c.id]: e.target.value}))}
+          rows={2}
+        />
+      </div>
+    )}
+  </div>
+))}
 
                 {/* 3. ESPACIO DE OBSERVACIONES (SOLO PARA PLÁSTICA) */}
                 {tipoInforme === 'plastica' && (
@@ -1332,9 +1350,21 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
         <p><strong className="font-black text-gray-900">DNI:</strong> <span className="text-gray-700">{selectedStudent?.dni || '....................................'}</span></p>
         <p><strong className="font-black text-gray-900">Fecha de Nac.:</strong> <span className="text-gray-700">{selectedStudent?.birthDate || selectedStudent?.fechaNac || '....................................'}</span></p>
         <p><strong className="font-black text-gray-900">Grupo:</strong> <span className="text-gray-700 font-bold">{grupoFiltro}</span></p>
-        <p><strong className="font-black text-gray-900">Docente a cargo:</strong> <span className="text-gray-700">{docentePrint || '....................................'}</span></p>
-        <p><strong className="font-black text-gray-900">Auxiliar/Preceptora:</strong> <span className="text-gray-700">{preceptoraPrint || '....................................'}</span></p>
-        <p className="col-span-2"><strong className="font-black text-gray-900">Año de cursada:</strong> <span className="text-gray-700">2026</span></p>
+   <p>
+          <strong className="font-black text-gray-900">Docente a cargo:</strong>{" "}
+          <span className="text-gray-700">
+            {docentePrint || selectedStudent?.teacher || selectedStudent?.docente || '....................................'}
+          </span>
+        </p>
+        
+        {!['plastica', 'musica', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
+          <p>
+            <strong className="font-black text-gray-900">Auxiliar/Preceptora:</strong>{" "}
+            <span className="text-gray-700">
+              {preceptoraPrint || selectedStudent?.auxiliary || selectedStudent?.auxiliar || selectedStudent?.preceptora || '....................................'}
+            </span>
+          </p>
+        )}
        </div>
       </div>
 
