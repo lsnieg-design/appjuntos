@@ -654,7 +654,12 @@ const filteredStudents = students.filter(s => {
       
       const getStaffName = (id) => usersList.find(u => u.id === id)?.fullName || "";
 
-      if (formModalidad === 'Sede') {
+     if (formModalidad === 'Sede') {
+          // Guardamos los grupos ingresados en los inputs de texto
+          d.groupMorning = d.groupMorning || "";
+          d.groupAfternoon = d.groupAfternoon || "";
+
+          // Sincronizamos los nombres de los docentes y auxiliares seleccionados
           d.teacherMorning = getStaffName(d.teacherIdMorning);
           d.teacherAfternoon = getStaffName(d.teacherIdAfternoon);
           d.auxMorning = getStaffName(d.auxIdMorning);
