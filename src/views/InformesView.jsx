@@ -699,13 +699,16 @@ export function InformesView({ user, db, appId }) {
 
  const estudiantesSede = students.filter(s => !s.modalidad || s.modalidad === 'Sede');
  
- const filteredStudents = estudiantesSede.filter(s => {
-  const matchSearch = `${s.lastName || ''} ${s.firstName || ''}`.toLowerCase().includes(searchTerm.toLowerCase());
-  const matchTurno = turnoFiltro === 'Todos' || (turnoFiltro === 'Mañana' ? s.groupMorning : s.groupAfternoon);
-  const matchNivel = nivelFiltro === 'Todos' || (s.level && s.level.toUpperCase() === nivelFiltro.toUpperCase());
-  const matchGrupo = grupoFiltro === 'Todos' || [s.groupMorning, s.groupAfternoon, s.laboralGroup].includes(grupoFiltro);
-  return matchSearch && matchTurno && matchNivel && matchGrupo;
- });
+const filteredStudents = estudiantesSede.filter(s => {
+ const matchSearch = `${s.lastName || ''} ${s.firstName || ''}`.toLowerCase().includes(searchTerm.toLowerCase());
+ const matchTurno = turnoFiltro === 'Todos' || (turnoFiltro === 'Mañana' ? s.groupMorning : s.groupAfternoon);
+ 
+ // Si el usuario ya eligió un grupo específico, priorizamos el grupo y no pisamos por nivel pedagógico
+ const matchGrupo = grupoFiltro === 'Todos' || [s.groupMorning, s.groupAfternoon, s.laboralGroup].includes(grupoFiltro);
+ const matchNivel = grupoFiltro !== 'Todos' || nivelFiltro === 'Todos' || (s.level && s.level.toUpperCase() === nivelFiltro.toUpperCase());
+ 
+ return matchSearch && matchTurno && matchNivel && matchGrupo;
+});
 
  const handleEdit = (student, report) => {
   setSelectedStudent(student);
@@ -881,23 +884,26 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
          </select>
         )}
 
-        {nivelFiltro !== 'Todos' && (
-         <select className="p-4 rounded-2xl border bg-white text-sm font-bold w-full" value={grupoFiltro} onChange={e => setGrupoFiltro(e.target.value)}>
-           <option value="Todos">Grupo: Todos</option>
-           {students
-            .filter(s => s.level && s.level.toUpperCase() === nivelFiltro.toUpperCase())
-            .flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean))
-            .filter((v, i, a) => a.indexOf(v) === i)
-            .filter(g => {
-              // Lógica para mostrar/ocultar Talleres según el Área
-              const isTaller = g.toUpperCase().includes('TALLER') || g.toUpperCase().includes('PRE TALLER') || g.toUpperCase().includes('PRETALLER');
-              if (tipoInforme === 'laboral') return isTaller; 
-              if (tipoInforme === 'pedagogico') return !isTaller; 
-              return true;
-            })
-            .map(g => <option key={g} value={g}>{g}</option>)}
-         </select>
-        )}
+       {nivelFiltro !== 'Todos' && (
+ <select className="p-4 rounded-2xl border bg-white text-sm font-bold w-full" value={grupoFiltro} onChange={e => setGrupoFiltro(e.target.value)}>
+   <option value="Todos">Grupo: Todos</option>
+   {students
+    .filter(s => {
+     // Mostramos los grupos que correspondan al turno activo para no saturar la lista
+     return turnoFiltro === 'Todos' || (turnoFiltro === 'Mañana' ? s.groupMorning : s.groupAfternoon);
+    })
+    .flatMap(s => [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean))
+    .filter((v, i, a) => a.indexOf(v) === i)
+    .filter(g => {
+      // Mantiene tu lógica existente de separar talleres y pedagógicos
+      const isTaller = g.toUpperCase().includes('TALLER') || g.toUpperCase().includes('PRE TALLER') || g.toUpperCase().includes('PRETALLER');
+      if (tipoInforme === 'laboral') return isTaller; 
+      if (tipoInforme === 'pedagogico') return !isTaller; 
+      return true;
+    })
+    .map(g => <option key={g} value={g}>{g}</option>)}
+ </select>
+)}
       </div>
 
       {/* CONDICIONAL: Solo mostrar alumnos si hay un grupo elegido o si están buscando por nombre */}
@@ -1349,21 +1355,21 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
         <p><strong className="font-black text-gray-900">DNI:</strong> <span className="text-gray-700">{selectedStudent?.dni || '....................................'}</span></p>
         <p><strong className="font-black text-gray-900">Fecha de Nac.:</strong> <span className="text-gray-700">{selectedStudent?.birthDate || selectedStudent?.fechaNac || '....................................'}</span></p>
         <p><strong className="font-black text-gray-900">Grupo:</strong> <span className="text-gray-700 font-bold">{grupoFiltro}</span></p>
-        <p>
-          <strong className="font-black text-gray-900">Docente a cargo:</strong>{" "}
-          <span className="text-gray-700">
-            {docentePrint || selectedStudent?.teacher || selectedStudent?.docente || '....................................'}
-          </span>
-        </p>
+       <p>
+  <strong className="font-black text-gray-900">Docente a cargo:</strong>{" "}
+  <span className="text-gray-700">
+    {docentePrint || report?.docente || selectedStudent?.teacher || selectedStudent?.docente || '....................................'}
+  </span>
+</p>
         
-        {!['plastica', 'musica', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
-          <p>
-            <strong className="font-black text-gray-900">Auxiliar/Preceptora:</strong>{" "}
-            <span className="text-gray-700">
-              {preceptoraPrint || selectedStudent?.auxiliary || selectedStudent?.auxiliar || selectedStudent?.preceptora || '....................................'}
-            </span>
-          </p>
-        )}
+      {!['plastica', 'musica', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
+  <p>
+    <strong className="font-black text-gray-900">Auxiliar/Preceptora:</strong>{" "}
+    <span className="text-gray-700">
+      {preceptoraPrint || report?.auxiliar || selectedStudent?.auxiliary || selectedStudent?.auxiliar || selectedStudent?.preceptora || '....................................'}
+    </span>
+  </p>
+)}
         <p className="col-span-2"><strong className="font-black text-gray-900">Año de cursada:</strong> <span className="text-gray-700">2026</span></p>
        </div>
       </div>
