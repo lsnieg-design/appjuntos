@@ -1355,20 +1355,30 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
         <p><strong className="font-black text-gray-900">DNI:</strong> <span className="text-gray-700">{selectedStudent?.dni || '....................................'}</span></p>
         <p><strong className="font-black text-gray-900">Fecha de Nac.:</strong> <span className="text-gray-700">{selectedStudent?.birthDate || selectedStudent?.fechaNac || '....................................'}</span></p>
         <p><strong className="font-black text-gray-900">Grupo:</strong> <span className="text-gray-700 font-bold">{grupoFiltro}</span></p>
-       <p>
-  <strong className="font-black text-gray-900">Docente a cargo:</strong>{" "}
-  <span className="text-gray-700">
-    {docentePrint || report?.docente || selectedStudent?.teacher || selectedStudent?.docente || '....................................'}
-  </span>
-</p>
-        
+       {(() => {
+  // Buscamos el reporte en el listado para tenerlo como fallback de los datos que no están en el estado
+  const currentReport = savedReports.find(r => r.studentId === selectedStudent?.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
+  
+  return (
+    <>
+      <p>
+        <strong className="font-black text-gray-900">Docente a cargo:</strong>{" "}
+        <span className="text-gray-700">
+          {docentePrint || currentReport?.docente || selectedStudent?.teacher || selectedStudent?.docente || '....................................'}
+        </span>
+      </p>
+      
       {!['plastica', 'musica', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
-  <p>
-    <strong className="font-black text-gray-900">Auxiliar/Preceptora:</strong>{" "}
-    <span className="text-gray-700">
-      {preceptoraPrint || report?.auxiliar || selectedStudent?.auxiliary || selectedStudent?.auxiliar || selectedStudent?.preceptora || '....................................'}
-    </span>
-  </p>
+        <p>
+          <strong className="font-black text-gray-900">Auxiliar/Preceptora:</strong>{" "}
+          <span className="text-gray-700">
+            {preceptoraPrint || currentReport?.auxiliar || selectedStudent?.auxiliary || selectedStudent?.auxiliar || selectedStudent?.preceptora || '....................................'}
+          </span>
+        </p>
+      )}
+    </>
+  );
+})()}
 )}
         <p className="col-span-2"><strong className="font-black text-gray-900">Año de cursada:</strong> <span className="text-gray-700">2026</span></p>
        </div>
