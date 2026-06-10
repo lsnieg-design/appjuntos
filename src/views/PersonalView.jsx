@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-// IMPORTAMOS TODOS LOS ICONOS QUE USA TU CÓDIGO
 import { 
   Calendar as CalendarIcon, CheckSquare, Settings, User, FileText, CheckCircle, 
   Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, 
@@ -9,22 +8,19 @@ import {
   Smartphone, GraduationCap, Search, X, UploadCloud, PieChart, Eye, Edit3, Trophy,
   Folder, MessageSquare, Globe, BookOpen, Lightbulb, ChevronDown, PlusCircle, Printer,
   AlignLeft, AlignCenter, AlignRight, AlignJustify, Phone, CheckCircle2, Clock3, UserCheck,
-  ChevronUp // <--- ESTE ES EL QUE FALTABA
+  ChevronUp
 } from 'lucide-react';
 import { 
   doc, updateDoc, collection, query, orderBy, onSnapshot, 
   addDoc, serverTimestamp, where, deleteDoc 
 } from 'firebase/firestore';
 
-
-// --- VISTA PERSONAL (VERSIÓN DEFINITIVA Y COMPLETA) ---
 export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL }) {
   const [staffList, setStaffList] = useState([]);
   const [students, setStudents] = useState([]);
- const uniqueTurns = TURNS_LIST;
+  const uniqueTurns = TURNS_LIST;
   
   const [staffFilterText, setStaffFilterText] = useState('');
-  // ROLES COMO ARRAY PARA MULTISELECCIÓN
   const [filters, setFilters] = useState({ modality: 'all', roles: [], turn: 'all', subsidized: 'all' });
   
   const [viewingStaff, setViewingStaff] = useState(null); 
@@ -34,62 +30,14 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
   const [selectedStaffForAbsence, setSelectedStaffForAbsence] = useState(null);
   const [absenceDate, setAbsenceDate] = useState(new Date().toISOString().split('T')[0]);
   const [absenceCode, setAbsenceCode] = useState('');
-  // --- ESTADOS PARA EL RESUMEN MENSUAL DE FALTAS ---
   const [showAbsencesSummary, setShowAbsencesSummary] = useState(false);
-  // Por defecto, carga el mes actual (formato YYYY-MM)
   const [summaryMonth, setSummaryMonth] = useState(new Date().toISOString().substring(0, 7)); 
   const [allAbsences, setAllAbsences] = useState([]);
-  // NUEVOS ESTADOS PARA DETALLE DE INASISTENCIA, RANGOS Y OBSERVACIONES
-const [absenceEndDate, setAbsenceEndDate] = useState(''); 
-const [isRange, setIsRange] = useState(false);
-const [absenceTurn, setAbsenceTurn] = useState('Ambos'); // 'Mañana', 'Tarde', 'Ambos'
-const [absenceNotes, setAbsenceNotes] = useState('');
-
-  // BUSCADOR GENERAL DE FALTAS (Solo se activa al abrir el panel)
-  useEffect(() => {
-      if (!showAbsencesSummary) return;
-      
-      const qAllAbsences = query(collection(db, 'artifacts', appId, 'public', 'data', 'absences'));
-      const unsub = onSnapshot(qAllAbsences, (snap) => {
-          setAllAbsences(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      });
-      return () => unsub();
-  }, [showAbsencesSummary, db, appId]);
-  // --- ESTADO PARA VER LAS FALTAS DEL DOCENTE SELECCIONADO ---
+  const [absenceEndDate, setAbsenceEndDate] = useState(''); 
+  const [isRange, setIsRange] = useState(false);
+  const [absenceTurn, setAbsenceTurn] = useState('Ambos');
+  const [absenceNotes, setAbsenceNotes] = useState('');
   const [staffAbsences, setStaffAbsences] = useState([]);
-  
-
- useEffect(() => {
-      if (!viewingStaff) {
-          setStaffAbsences([]);
-          return;
-      }
-      // Quitamos el orderBy de Firebase para evitar el error de Índice Compuesto
-      const qAbsences = query(
-          collection(db, 'artifacts', appId, 'public', 'data', 'absences'),
-          where('staffId', '==', viewingStaff.id)
-      );
-      
-      const unsub = onSnapshot(qAbsences, (snap) => {
-          const faltas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-          // Ordenamos las faltas por fecha nosotros mismos (las más nuevas arriba)
-          faltas.sort((a, b) => new Date(b.date) - new Date(a.date));
-          setStaffAbsences(faltas);
-      });
-      return () => unsub();
-  }, [viewingStaff, db, appId]);
- const CODIGOS_FALTAS = {
-    '114a': 'Enfermedad corta',
-    '114c': 'Matrimonio',
-    '114d': 'Maternidad',
-    '114e': 'Nacimiento',
-    '114f': 'Familiar enfermo',
-    '114j': 'Duelo familiar',
-    '114ll': 'Examen / Prácticas / Días de estudio',
-    '114o': 'Causas particulares', // <--- ACÁ FALTABA LA COMA
-    '114cro': 'Enfermedad Crónica' // <--- Consejo: saqué la tilde ('cró' -> 'cro') para evitar problemas raros con caracteres especiales en los IDs
-  };
-  
   const [processing, setProcessing] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -106,7 +54,6 @@ const [absenceNotes, setAbsenceNotes] = useState('');
 
   const canAccess = ['admin', 'super-admin', 'Administración', 'Equipo Directivo'].includes(user.role) || user.rol === 'admin';
 
-  // LISTA ESTRICTA DE ROLES OFICIALES
   const VALID_ROLES = [
       "Docente", "Preceptora", "Auxiliar", "Profe Especial", "Equipo Técnico", "Equipo Directivo",
       "Dirección Inclusión", "Equipo Técnico Inclusión", "DAI",
@@ -119,45 +66,76 @@ const [absenceNotes, setAbsenceNotes] = useState('');
       return match || r.trim();
   };
 
- useEffect(() => {
-  const qStaff = query(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), orderBy('lastName', 'asc'));
-  const unsubStaff = onSnapshot(qStaff, (snap) => { setStaffList(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
+  useEffect(() => {
+    if (!showAbsencesSummary) return;
+    const qAllAbsences = query(collection(db, 'artifacts', appId, 'public', 'data', 'absences'));
+    const unsub = onSnapshot(qAllAbsences, (snap) => {
+        setAllAbsences(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, [showAbsencesSummary, db, appId]);
 
-  // AGREGÁ ESTE BLOQUE:
-  const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
-  const unsubStudents = onSnapshot(qStudents, (snap) => { 
-      setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))); 
-  });
+  useEffect(() => {
+      if (!viewingStaff) {
+          setStaffAbsences([]);
+          return;
+      }
+      const qAbsences = query(
+          collection(db, 'artifacts', appId, 'public', 'data', 'absences'),
+          where('staffId', '==', viewingStaff.id)
+      );
+      
+      const unsub = onSnapshot(qAbsences, (snap) => {
+          const faltas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          faltas.sort((a, b) => new Date(b.date) - new Date(a.date));
+          setStaffAbsences(faltas);
+      });
+      return () => unsub();
+  }, [viewingStaff, db, appId]);
 
-  return () => { unsubStaff(); unsubStudents(); }; // Asegurate de cerrar ambos
-}, []);
+  const CODIGOS_FALTAS = {
+    '114a': 'Enfermedad corta',
+    '114c': 'Matrimonio',
+    '114d': 'Maternidad',
+    '114e': 'Nacimiento',
+    '114f': 'Familiar enfermo',
+    '114j': 'Duelo familiar',
+    '114ll': 'Examen / Prácticas / Días de estudio',
+    '114o': 'Causas particulares',
+    '114cro': 'Enfermedad Crónica'
+  };
 
-const filteredStaff = staffList.filter(s => {
-      // 1. Buscador y Modalidad (se mantienen)
+  useEffect(() => {
+    const qStaff = query(collection(db, 'artifacts', appId, 'public', 'data', 'staff_records'), orderBy('lastName', 'asc'));
+    const unsubStaff = onSnapshot(qStaff, (snap) => { setStaffList(snap.docs.map(d => ({ id: d.id, ...d.data() }))); });
+
+    const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
+    const unsubStudents = onSnapshot(qStudents, (snap) => { 
+        setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))); 
+    });
+
+    return () => { unsubStaff(); unsubStudents(); };
+  }, []);
+
+  const filteredStaff = staffList.filter(s => {
       const txt = staffFilterText.toLowerCase();
       const matchesText = !txt || `${s.lastName || ''} ${s.firstName || ''} ${s.dni || ''}`.toLowerCase().includes(txt);
       if (!matchesText) return false;
       if (filters.modality !== 'all' && (s.modality || 'Sede') !== filters.modality) return false;
       
-      // 2. LÓGICA DE CATEGORÍAS (REINICIADA DESDE CERO)
-      // Solo miramos los cargos específicos, ignoramos campos generales viejos
       const c1Sub = s.cargo1_subsidized;
       const c2Sub = s.cargo2_subsidized;
 
-      // Definimos los estados puros
       const isMecanizada = (c1Sub === 'true' || c2Sub === 'true');
       const isFueraDePlanta = (c1Sub === 'fuera' || c2Sub === 'fuera' || s.cargo1_en_papeles === 'true' || s.cargo2_en_papeles === 'true');
-      // Es DENO solo si NO es mecanizada y NO es fuera de planta
       const isDeno = !isMecanizada && !isFueraDePlanta;
 
-      // 3. APLICACIÓN DEL FILTRO ESTRICTO
       if (filters.subsidized !== 'all') {
           if (filters.subsidized === 'yes' && !isMecanizada) return false;
           if (filters.subsidized === 'fuera' && !isFueraDePlanta) return false;
           if (filters.subsidized === 'no' && !isDeno) return false;
       }
 
-      // --- El resto de la función (Roles y Turnos) sigue igual ---
       const c1Role = getNormRole(s.cargo1_role || s.role); 
       const c2Role = getNormRole(s.cargo2_role);
       const c1Turn = (s.cargo1_turn || '').trim().toLowerCase();
@@ -225,7 +203,6 @@ const filteredStaff = staffList.filter(s => {
 
   const getSafeDate = (d) => { if(!d) return '-'; try { return new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('es-AR'); } catch(e) { return d; } };
 
-  // IMPRIMIR FICHAS INDIVIDUALES (CARDS)
   const imprimirFichasDocentes = (lista) => {
       if (!lista || lista.length === 0) return alert("No hay docentes para imprimir.");
       let html = `<html><head><title>Fichas Docentes</title>
@@ -311,7 +288,7 @@ const filteredStaff = staffList.filter(s => {
 
           html += `<div class="page">
               <div class="header">
-                  <div class="header-text"><h1>${s.lastName}, ${s.firstName}</h1><p>DNI: ${s.dni || '-'} | Modalidad: <strong style="color: #6d28d9;">${s.modality || 'Sede'}</strong></p></div>
+                  <div class="header-text"><h1>${s.lastName}, ${s.firstName}</h1><p>DNI: ${s.dni || '-'} | Modalidad: <strong style="color: #6b28d9;">${s.modality || 'Sede'}</strong></p></div>
                   <div class="photo-box">${s.photoUrl ? `<img src="${s.photoUrl}"/>` : s.firstName?.[0] || 'U'}</div>
               </div>
               <div class="section-title">Datos Personales y Formación</div>
@@ -344,61 +321,62 @@ const filteredStaff = staffList.filter(s => {
       setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(() => { document.body.removeChild(iframe); }, 5000); }, 500);
   };
 
-const imprimirPlanillaGeneral = (lista) => {
-    if (!lista || lista.length === 0) return alert("No hay personal para imprimir.");
-    
-    const LOGO_APP = "https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png";
+  const imprimirPlanillaGeneral = (lista) => {
+      if (!lista || lista.length === 0) return alert("No hay personal para imprimir.");
+      
+      const LOGO_APP = "https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png";
 
-    let html = `<html><head><title>Planilla Personalizada</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
-        @page { size: landscape; margin: 10mm; }
-        body { font-family: 'Roboto', sans-serif; padding: 0; color: #1e293b; font-size: 9px; }
-        .header-table { width: 100%; border-bottom: 2px solid #6d28d9; margin-bottom: 15px; }
-        table.data-table { width: 100%; border-collapse: collapse; }
-        .data-table th { background: #f8fafc; padding: 8px; border: 1px solid #e2e8f0; text-transform: uppercase; font-weight: 900; text-align: left; }
-        .data-table td { padding: 8px; border: 1px solid #e2e8f0; vertical-align: middle; }
-        tr:nth-child(even) { background-color: #f1f5f9; }
-        .cargo-role { font-weight: 900; color: #4338ca; font-size: 8px; text-transform: uppercase; }
-    </style></head><body>
-    <table class="header-table"><tr>
-        <td><img src="${LOGO_APP}" style="height:40px;"></td>
-        <td style="text-align:center;"><h1 style="margin:0; font-size:18px; color:#6d28d9;">Planilla de Personal Institucional</h1></td>
-        <td style="text-align:right; font-weight:bold;">Ciclo 2026</td>
-    </tr></table>
-    <table class="data-table">
-        <thead><tr>
-            <th>Apellido y Nombre</th>
-            ${printColumns.dni ? '<th>DNI</th>' : ''}
-            ${printColumns.cargo1 ? '<th>Cargo 1</th>' : ''}
-            ${printColumns.cargo2 ? '<th>Cargo 2</th>' : ''}
-            ${printColumns.alta ? '<th>Ingreso Inst.</th>' : ''}
-            ${printColumns.domicilio ? '<th>Dirección</th>' : ''}
-            ${printColumns.telefono ? '<th>Teléfono</th>' : ''}
-            ${printColumns.titulo ? '<th>Título</th>' : ''}
-        </tr></thead><tbody>`;
-    
-    lista.forEach(s => {
-        html += `<tr>
-            <td style="font-weight:700; text-transform:uppercase;">${s.lastName}, ${s.firstName}</td>
-            ${printColumns.dni ? `<td>${s.dni || '-'}</td>` : ''}
-            ${printColumns.cargo1 ? `<td><div class="cargo-role">${s.cargo1_role || s.role || ''}</div>${s.cargo1_name || ''}</td>` : ''}
-            ${printColumns.cargo2 ? `<td><div class="cargo-role">${s.cargo2_role || ''}</div>${s.cargo2_name || ''}</td>` : ''}
-            ${printColumns.alta ? `<td>${s.fechaIngreso ? new Date(s.fechaIngreso+'T12:00:00').toLocaleDateString('es-AR') : '-'}</td>` : ''}
-            ${printColumns.domicilio ? `<td>${s.address || '-'}</td>` : ''}
-            ${printColumns.telefono ? `<td>${s.phone || '-'}</td>` : ''}
-            ${printColumns.titulo ? `<td>${s.degree || '-'}</td>` : ''}
-        </tr>`;
-    });
+      let html = `<html><head><title>Planilla Personalizada</title>
+      <style>
+          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
+          @page { size: landscape; margin: 10mm; }
+          body { font-family: 'Roboto', sans-serif; padding: 0; color: #1e293b; font-size: 9px; }
+          .header-table { width: 100%; border-bottom: 2px solid #6d28d9; margin-bottom: 15px; }
+          table.data-table { width: 100%; border-collapse: collapse; }
+          .data-table th { background: #f8fafc; padding: 8px; border: 1px solid #e2e8f0; text-transform: uppercase; font-weight: 900; text-align: left; }
+          .data-table td { padding: 8px; border: 1px solid #e2e8f0; vertical-align: middle; }
+          tr:nth-child(even) { background-color: #f1f5f9; }
+          .cargo-role { font-weight: 900; color: #4338ca; font-size: 8px; text-transform: uppercase; }
+      </style></head><body>
+      <table class="header-table"><tr>
+          <td><img src="${LOGO_APP}" style="height:40px;"></td>
+          <td style="text-align:center;"><h1 style="margin:0; font-size:18px; color:#6d28d9;">Planilla de Personal Institucional</h1></td>
+          <td style="text-align:right; font-weight:bold;">Ciclo 2026</td>
+      </tr></table>
+      <table class="data-table">
+          <thead><tr>
+              <th>Apellido y Nombre</th>
+              ${printColumns.dni ? '<th>DNI</th>' : ''}
+              ${printColumns.cargo1 ? '<th>Cargo 1</th>' : ''}
+              ${printColumns.cargo2 ? '<th>Cargo 2</th>' : ''}
+              ${printColumns.alta ? '<th>Ingreso Inst.</th>' : ''}
+              ${printColumns.domicilio ? '<th>Dirección</th>' : ''}
+              ${printColumns.telefono ? '<th>Teléfono</th>' : ''}
+              ${printColumns.titulo ? '<th>Título</th>' : ''}
+          </tr></thead><tbody>`;
+      
+      lista.forEach(s => {
+          html += `<tr>
+              <td style="font-weight:700; text-transform:uppercase;">${s.lastName}, ${s.firstName}</td>
+              ${printColumns.dni ? `<td>${s.dni || '-'}</td>` : ''}
+              ${printColumns.cargo1 ? `<td><div class="cargo-role">${s.cargo1_role || s.role || ''}</div>${s.cargo1_name || ''}</td>` : ''}
+              ${printColumns.cargo2 ? `<td><div class="cargo-role">${s.cargo2_role || ''}</div>${s.cargo2_name || ''}</td>` : ''}
+              ${printColumns.alta ? `<td>${s.fechaIngreso ? new Date(s.fechaIngreso+'T12:00:00').toLocaleDateString('es-AR') : '-'}</td>` : ''}
+              ${printColumns.domicilio ? `<td>${s.address || '-'}</td>` : ''}
+              ${printColumns.telefono ? `<td>${s.phone || '-'}</td>` : ''}
+              ${printColumns.titulo ? `<td>${s.degree || '-'}</td>` : ''}
+          </tr>`;
+      });
 
-    html += `</tbody></table><p style="text-align:right; font-size:8px; margin-top:10px;">Generado el ${new Date().toLocaleString('es-AR')}</p></body></html>`;
+      html += `</tbody></table><p style="text-align:right; font-size:8px; margin-top:10px;">Generado el ${new Date().toLocaleString('es-AR')}</p></body></html>`;
 
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    document.body.appendChild(iframe);
-    const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close();
-    setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); document.body.removeChild(iframe); }, 500);
-};
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+      const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close();
+      setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); document.body.removeChild(iframe); }, 500);
+  };
+
   const handleImportStaff = async (e) => {
       const file = e.target.files[0];
       if (!file || !confirm("⚠️ ¿Importar archivo CSV completo?")) return;
@@ -436,12 +414,11 @@ const imprimirPlanillaGeneral = (lista) => {
       reader.readAsText(file);
   };
 
- const handleSaveStaff = async (e) => {
+  const handleSaveStaff = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const d = Object.fromEntries(fd.entries());
     
-    // Bloqueamos el score para que no se pise al editar el legajo
     delete d.score;
     delete d.id; 
 
@@ -476,6 +453,7 @@ const imprimirPlanillaGeneral = (lista) => {
         setProcessing(false);
     }
   };
+
   const calculateStats = () => {
       const stats = {
           cargos: { simple: 0, doble: 0 },
@@ -519,7 +497,8 @@ const imprimirPlanillaGeneral = (lista) => {
 
   const currentStats = calculateStats();
   const totalCargosReales = currentStats.cargos.simple + (currentStats.cargos.doble * 2);
-const handleDeleteAbsence = async (id) => {
+
+  const handleDeleteAbsence = async (id) => {
       if(window.confirm("⚠️ ¿Seguro que querés eliminar este registro de inasistencia?")) {
           try {
               await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'absences', id));
@@ -528,21 +507,23 @@ const handleDeleteAbsence = async (id) => {
           }
       }
   };
-const getBusinessDays = (startDateStr, endDateStr) => {
-    const dates = [];
-    let current = new Date(startDateStr + 'T12:00:00');
-    const end = new Date(endDateStr + 'T12:00:00');
-    
-    while (current <= end) {
-        const dayOfWeek = current.getDay();
-        if (dayOfWeek !== 0 && dayOfWeek !== 6) { // 0 = Domingo, 6 = Sábado
-            dates.push(current.toISOString().split('T')[0]);
-        }
-        current.setDate(current.getDate() + 1);
-    }
-    return dates;
-};
- const handleSaveAbsence = async () => {
+
+  const getBusinessDays = (startDateStr, endDateStr) => {
+      const dates = [];
+      let current = new Date(startDateStr + 'T12:00:00');
+      const end = new Date(endDateStr + 'T12:00:00');
+      
+      while (current <= end) {
+          const dayOfWeek = current.getDay();
+          if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+              dates.push(current.toISOString().split('T')[0]);
+          }
+          current.setDate(current.getDate() + 1);
+      }
+      return dates;
+  };
+
+  const handleSaveAbsence = async () => {
     if (!selectedStaffForAbsence || !absenceCode || !absenceDate) {
         alert("Por favor completá los campos obligatorios (Persona, Fecha de Inicio y Código).");
         return;
@@ -565,7 +546,6 @@ const getBusinessDays = (startDateStr, endDateStr) => {
         setProcessing(true);
         const absencesRef = collection(db, 'artifacts', appId, 'public', 'data', 'absences');
         
-        // Guardamos un documento por cada día hábil para que impacte bien en los conteos mensuales/anuales
         const promises = diasAProcesar.map(fecha => {
             return addDoc(absencesRef, {
                 staffId: selectedStaffForAbsence.id,
@@ -576,8 +556,8 @@ const getBusinessDays = (startDateStr, endDateStr) => {
                 date: fecha,
                 month: fecha.substring(0, 7),
                 year: fecha.substring(0, 4),
-                turn: absenceTurn, // <--- Carga diferenciada por turno
-                notes: absenceNotes.trim(), // <--- Observación no obligatoria
+                turn: absenceTurn, 
+                notes: absenceNotes.trim(), 
                 createdAt: serverTimestamp()
             });
         });
@@ -586,7 +566,6 @@ const getBusinessDays = (startDateStr, endDateStr) => {
         
         alert(`✅ Se registraron ${diasAProcesar.length} día(s) de inasistencia para ${selectedStaffForAbsence.lastName}`);
         
-        // Resetear estados del formulario
         setShowAbsenceForm(false);
         setSelectedStaffForAbsence(null);
         setAbsenceCode('');
@@ -599,12 +578,10 @@ const getBusinessDays = (startDateStr, endDateStr) => {
     } finally {
         setProcessing(false);
     }
-};
-  // --- LÓGICA DEL RESUMEN MENSUAL ---
-  // 1. Filtramos las faltas por el mes seleccionado
+  };
+
   const absencesForMonth = allAbsences.filter(a => a.month === summaryMonth);
   
-  // 2. Agrupamos por persona sumando los totales
   const staffAbsenceStats = {};
   absencesForMonth.forEach(abs => {
       if (!staffAbsenceStats[abs.staffId]) {
@@ -619,10 +596,8 @@ const getBusinessDays = (startDateStr, endDateStr) => {
       staffAbsenceStats[abs.staffId].codes[abs.code] = (staffAbsenceStats[abs.staffId].codes[abs.code] || 0) + 1;
   });
   
-  // 3. Lo convertimos en un array ordenado alfabéticamente
   const sortedStaffStats = Object.values(staffAbsenceStats).sort((a, b) => a.name.localeCompare(b.name));
 
-  // --- IMPRIMIR RESUMEN MENSUAL ---
   const imprimirResumenMensual = () => {
       if (sortedStaffStats.length === 0) return alert("No hay inasistencias registradas en este mes.");
       
@@ -687,12 +662,10 @@ const getBusinessDays = (startDateStr, endDateStr) => {
                 <h3 className="font-black text-violet-900 uppercase italic text-xl">Personal</h3>
                 
                 <div className="flex gap-2">
-                    {/* CARTEL DE PERSONAS FÍSICAS */}
                     <div className="bg-orange-100 text-orange-700 px-3 py-2 rounded-xl font-black text-[10px] md:text-xs flex items-center gap-1.5 border border-orange-200 shadow-sm uppercase tracking-widest" title="Cantidad de personas físicas">
                         <User size={14}/> {filteredStaff.length} {filteredStaff.length === 1 ? 'Persona' : 'Personas'}
                     </div>
                     
-                    {/* CARTEL DE CARGOS TOTALES */}
                     <div className="bg-emerald-100 text-emerald-800 px-3 py-2 rounded-xl font-black text-[10px] md:text-xs flex items-center gap-1.5 border border-emerald-200 shadow-sm uppercase tracking-widest" title="Cantidad total de cargos ejercidos">
                         {totalCargosReales} {totalCargosReales === 1 ? 'Cargo Activo' : 'Cargos Activos'}
                     </div>
@@ -701,13 +674,13 @@ const getBusinessDays = (startDateStr, endDateStr) => {
             
             <div className="flex gap-2">
                 <button 
-    onClick={() => setShowPrintOptions(true)} 
-    className="bg-white text-blue-600 border border-blue-200 p-3 rounded-2xl shadow-sm hover:bg-blue-50 transition" 
-    title="Configurar Planilla"
->
-    <Grid size={20}/>
-</button>
-              <button onClick={() => imprimirFichasDocentes(filteredStaff)} className="bg-white text-violet-600 border border-violet-200 p-3 rounded-2xl shadow-sm hover:bg-violet-50 transition" title="Imprimir Fichas Individuales"><Printer size={20}/></button>
+                  onClick={() => setShowPrintOptions(true)} 
+                  className="bg-white text-blue-600 border border-blue-200 p-3 rounded-2xl shadow-sm hover:bg-blue-50 transition" 
+                  title="Configurar Planilla"
+                >
+                    <Grid size={20}/>
+                </button>
+                <button onClick={() => imprimirFichasDocentes(filteredStaff)} className="bg-white text-violet-600 border border-violet-200 p-3 rounded-2xl shadow-sm hover:bg-violet-50 transition" title="Imprimir Fichas Individuales"><Printer size={20}/></button>
                 
                 <label className="p-3 bg-emerald-100 text-emerald-700 rounded-2xl cursor-pointer hover:bg-emerald-200 transition flex items-center justify-center">
                     {processing ? <RefreshCw className="animate-spin" size={20}/> : <UploadCloud size={20}/>}
@@ -717,28 +690,28 @@ const getBusinessDays = (startDateStr, endDateStr) => {
                 <button onClick={()=>{setEditingStaff(null); setPhotoPreview(null); setShowStaffForm(true);}} className="bg-violet-600 text-white p-3 rounded-2xl shadow-lg flex items-center justify-center"><Plus size={20}/></button>
             </div>
         </div>
-    {/* --- MÓDULO DE INASISTENCIAS (AGRUPADOS HORIZONTALMENTE) --- */}
-<div className="flex items-center gap-2 mr-1 md:mr-3 pr-1 md:pr-3 border-r-2 border-violet-100/50">
-    
-    <button 
-        onClick={() => setShowAbsenceForm(true)} 
-        className="bg-orange-100 text-orange-700 border border-orange-200 p-3 rounded-2xl shadow-sm hover:bg-orange-200 transition flex items-center gap-2 font-black uppercase text-[10px] tracking-widest"
-        title="Registrar Inasistencias"
-    >
-        <UserCheck size={20}/>
-        <span className="hidden md:inline">Faltas</span>
-    </button>
 
-    <button 
-        onClick={() => setShowAbsencesSummary(true)} 
-        className="bg-violet-100 text-violet-700 border border-violet-200 p-3 rounded-2xl shadow-sm hover:bg-violet-200 transition flex items-center gap-2 font-black uppercase text-[10px] tracking-widest"
-        title="Resumen Mensual de Inasistencias"
-    >
-        <PieChart size={20}/>
-        <span className="hidden md:inline">Resumen</span>
-    </button>
+        {/* ACCIONES DE AUSENTISMO HORIZONTALES */}
+        <div className="flex items-center gap-2 mr-1 md:mr-3 pr-1 md:pr-3">
+            <button 
+                onClick={() => setShowAbsenceForm(true)} 
+                className="bg-orange-100 text-orange-700 border border-orange-200 p-3 rounded-2xl shadow-sm hover:bg-orange-200 transition flex items-center gap-2 font-black uppercase text-[10px] tracking-widest"
+                title="Registrar Inasistencias"
+            >
+                <UserCheck size={20}/>
+                <span className="hidden md:inline">Faltas</span>
+            </button>
 
-</div>
+            <button 
+                onClick={() => setShowAbsencesSummary(true)} 
+                className="bg-violet-100 text-violet-700 border border-violet-200 p-3 rounded-2xl shadow-sm hover:bg-violet-200 transition flex items-center gap-2 font-black uppercase text-[10px] tracking-widest"
+                title="Resumen Mensual de Inasistencias"
+            >
+                <PieChart size={20}/>
+                <span className="hidden md:inline">Resumen</span>
+            </button>
+        </div>
+
         {/* BARRA DE FILTROS ACTUALIZADA PARA MULTISELECCIÓN */}
         <div className="space-y-2">
             <div className="bg-white p-2 rounded-2xl border border-gray-100 flex items-center gap-2 shadow-sm">
@@ -752,44 +725,41 @@ const getBusinessDays = (startDateStr, endDateStr) => {
                     <option value="all">Modalidad: Todas</option><option value="Sede">Sede</option><option value="Inclusión">Inclusión</option>
                 </select>
                 
-               {/* SELECTOR DE ROLES EN BARRA DE FILTROS */}
-<select 
-    value="default" 
-    onChange={e => {
-        const val = e.target.value;
-        if (val !== 'default' && !filters.roles.includes(val)) {
-            setFilters({...filters, roles: [...filters.roles, val]});
-        }
-    }} 
-    className="bg-white text-violet-700 text-xs p-2 rounded-lg font-bold min-w-[140px] border border-violet-200 shadow-sm outline-none cursor-pointer"
->
-    <option value="default">+ Agregar Rol...</option>
-    <option value="sin-asignar">⚠️ Sin Asignar / Error</option>
-    {/* CAMBIO AQUÍ: Usamos la constante de afuera */}
-   {VALID_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-</select>
+                <select 
+                    value="default" 
+                    onChange={e => {
+                        const val = e.target.value;
+                        if (val !== 'default' && !filters.roles.includes(val)) {
+                            setFilters({...filters, roles: [...filters.roles, val]});
+                        }
+                    }} 
+                    className="bg-white text-violet-700 text-xs p-2 rounded-lg font-bold min-w-[140px] border border-violet-200 shadow-sm outline-none cursor-pointer"
+                >
+                    <option value="default">+ Agregar Rol...</option>
+                    <option value="sin-asignar">⚠️ Sin Asignar / Error</option>
+                    {VALID_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
 
-               <select value={filters.turn} onChange={e=>setFilters({...filters, turn: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
-    <option value="all">Turno: Todos</option>
-    {/* Corregido: uniqueTurns cambiado por TURNS_LIST con blindaje */}
-    {(typeof TURNS_LIST !== 'undefined' ? TURNS_LIST : []).map(t => (
-        <option key={t} value={t}>{t}</option>
-    ))}
-</select>
-               <select 
-  value={filters.subsidized} 
-  onChange={e => setFilters({...filters, subsidized: e.target.value})} 
-  className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none cursor-pointer"
->
-    <option value="all">Subvención: Todas</option>
-    <option value="yes">Mecanizada (Subv.)</option>
-    <option value="no">No Subvencionada (DENO)</option>
-    <option value="fuera">Fuera de Planta / Papeles</option>
-</select>
+                <select value={filters.turn} onChange={e=>setFilters({...filters, turn: e.target.value})} className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none">
+                    <option value="all">Turno: Todos</option>
+                    {(typeof TURNS_LIST !== 'undefined' ? TURNS_LIST : []).map(t => (
+                        <option key={t} value={t}>{t}</option>
+                    ))}
+                </select>
+
+                <select 
+                  value={filters.subsidized} 
+                  onChange={e => setFilters({...filters, subsidized: e.target.value})} 
+                  className="bg-white text-gray-700 text-xs p-2 rounded-lg font-bold min-w-[120px] border border-gray-200 shadow-sm outline-none cursor-pointer"
+                >
+                    <option value="all">Subvención: Todas</option>
+                    <option value="yes">Mecanizada (Subv.)</option>
+                    <option value="no">No Subvencionada (DENO)</option>
+                    <option value="fuera">Fuera de Planta / Papeles</option>
+                </select>
                 <button onClick={() => setFilters({ modality: 'all', roles: [], turn: 'all', subsidized: 'all' })} className="bg-red-50 text-red-600 text-xs px-3 py-2 rounded-lg font-bold min-w-[80px] border border-red-100 shadow-sm hover:bg-red-100 transition">Limpiar</button>
             </div>
 
-            {/* MOSTRAR ETIQUETAS DE ROLES SELECCIONADOS */}
             {filters.roles.length > 0 && (
                 <div className="flex flex-wrap gap-2 animate-in fade-in mt-1 mb-2">
                     {filters.roles.map(r => (
@@ -803,788 +773,764 @@ const getBusinessDays = (startDateStr, endDateStr) => {
         </div>
 
         {/* LISTADO DE PERSONAL */}
-   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-24 mt-2">
-          {filteredStaff.map(s => {
-    const tieneSub = s.cargo1_subsidized === 'true' || s.cargo2_subsidized === 'true' || s.isSubsidized === 'true';
-    
-    const c1Role = getNormRole(s.cargo1_role || s.role);
-    const c2Role = getNormRole(s.cargo2_role);
-
-    const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || (s.cargo1_turn && s.cargo1_turn.trim()));
-    const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || (s.cargo2_turn && s.cargo2_turn.trim()));
-
-    {/* CAMBIO AQUÍ: Usamos VALID_ROLES_OFFICIAL */}
-    const c1NeedsFix = !hasC1 || !VALID_ROLES_OFFICIAL.includes(c1Role);
-    const c2NeedsFix = hasC2 && !VALID_ROLES_OFFICIAL.includes(c2Role);
-    const needsRoleFix = c1NeedsFix || c2NeedsFix;
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-24 mt-2">
+             {filteredStaff.map(s => {
+                const tieneSub = s.cargo1_subsidized === 'true' || s.cargo2_subsidized === 'true' || s.isSubsidized === 'true';
                 
-               return (
-    <div key={s.id} onClick={() => setViewingStaff(s)} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all cursor-pointer group relative">
-        <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100 shrink-0 relative">
-            {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName?.[0]}
-            {tieneSub && <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white shadow-sm" title="Subvencionada"></div>}
-        </div>
-        <div className="flex-1 min-w-0">
-            <div className="flex gap-2 items-center flex-wrap">
-                <h4 className="font-bold text-gray-800 text-sm uppercase truncate">{s.lastName}, {s.firstName}</h4>
-                <span className={`text-[8px] px-2 py-0.5 rounded-md font-black uppercase ${s.modality === 'Inclusión' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}`}>{s.modality || 'Sede'}</span>
-                {needsRoleFix && <span className="bg-red-100 text-red-700 text-[9px] font-black px-2 py-0.5 rounded-lg border border-red-200 animate-pulse">⚠️ ASIGNAR ROL</span>}
-            </div>
-            <div className="flex gap-2 text-[10px] mt-1 text-gray-500 font-bold">
-                {s.dni && <span>DNI: {s.dni}</span>}
-                <span className="text-violet-500">Anti: {calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef)}</span>
-            </div>
-            
-            {/* ETIQUETAS VISUALES TRIPLES: MECA, PAPELES, DENO */}
-            <p className="text-[10px] font-black uppercase mt-1 truncate">
-                {hasC1 ? (
-                    <span className={s.cargo1_subsidized === 'true' ? 'text-emerald-600' : s.cargo1_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
-                        C1: {getNormRole(s.cargo1_role || s.role)} ({s.cargo1_turn || '-'}) 
-                        {s.cargo1_subsidized === 'true' ? ' (MECA)' : s.cargo1_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
-                    </span>
-                ) : (
-                    <span className="text-gray-300">NO TRABAJA (C1)</span>
-                )} 
-                
-                {hasC2 ? (
-                    <>
-                        <span className="text-gray-300 mx-1">|</span>
-                        <span className={s.cargo2_subsidized === 'true' ? 'text-emerald-600' : s.cargo2_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
-                            C2: {getNormRole(s.cargo2_role)} ({s.cargo2_turn || '-'}) 
-                            {s.cargo2_subsidized === 'true' ? ' (MECA)' : s.cargo2_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
-                        </span>
-                    </>
-                ) : (
-                    <span className="text-gray-300"> | NO TRABAJA (C2)</span>
-                )}
-            </p>
-        </div>
+                const c1Role = getNormRole(s.cargo1_role || s.role);
+                const c2Role = getNormRole(s.cargo2_role);
+
+                const hasC1 = Boolean((s.cargo1_name && s.cargo1_name.trim()) || c1Role || (s.cargo1_turn && s.cargo1_turn.trim()));
+                const hasC2 = Boolean((s.cargo2_name && s.cargo2_name.trim()) || c2Role || (s.cargo2_turn && s.cargo2_turn.trim()));
+
+                const c1NeedsFix = !hasC1 || !VALID_ROLES_OFFICIAL.includes(c1Role);
+                const c2NeedsFix = hasC2 && !VALID_ROLES_OFFICIAL.includes(c2Role);
+                const needsRoleFix = c1NeedsFix || c2NeedsFix;
+                                
+                return (
+                    <div key={s.id} onClick={() => setViewingStaff(s)} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all cursor-pointer group relative">
+                        <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100 shrink-0 relative">
+                            {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName?.[0]}
+                            {tieneSub && <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white shadow-sm" title="Subvencionada"></div>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex gap-2 items-center flex-wrap">
+                                <h4 className="font-bold text-gray-800 text-sm uppercase truncate">{s.lastName}, {s.firstName}</h4>
+                                <span className={`text-[8px] px-2 py-0.5 rounded-md font-black uppercase ${s.modality === 'Inclusión' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}`}>{s.modality || 'Sede'}</span>
+                                {needsRoleFix && <span className="bg-red-100 text-red-700 text-[9px] font-black px-2 py-0.5 rounded-lg border border-red-200 animate-pulse">⚠️ ASIGNAR ROL</span>}
+                            </div>
+                            <div className="flex gap-2 text-[10px] mt-1 text-gray-500 font-bold">
+                                {s.dni && <span>DNI: {s.dni}</span>}
+                                <span className="text-violet-500">Anti: {calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef)}</span>
+                            </div>
+                            
+                            <p className="text-[10px] font-black uppercase mt-1 truncate">
+                                {hasC1 ? (
+                                    <span className={s.cargo1_subsidized === 'true' ? 'text-emerald-600' : s.cargo1_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
+                                        C1: {getNormRole(s.cargo1_role || s.role)} ({s.cargo1_turn || '-'}) 
+                                        {s.cargo1_subsidized === 'true' ? ' (MECA)' : s.cargo1_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
+                                    </span>
+                                ) : (
+                                    <span className="text-gray-300">NO TRABAJA (C1)</span>
+                                )} 
+                                
+                                {hasC2 ? (
+                                    <>
+                                        <span className="text-gray-300 mx-1">|</span>
+                                        <span className={s.cargo2_subsidized === 'true' ? 'text-emerald-600' : s.cargo2_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
+                                            C2: {getNormRole(s.cargo2_role)} ({s.cargo2_turn || '-'}) 
+                                            {s.cargo2_subsidized === 'true' ? ' (MECA)' : s.cargo2_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
+                                        </span>
+                                    </>
+                                ) : (
+                                    <span className="text-gray-300"> | NO TRABAJA (C2)</span>
+                                )}
+                            </p>
+                        </div>
                         <Eye className="text-gray-300 group-hover:text-violet-500 transition-colors shrink-0" />
                     </div>
-                )
-            })}
+                );
+             })}
         </div>
 
-{/* MODAL LECTURA LEGAJO - VERSIÓN COMPLETA RECONSTRUIDA */}
-{viewingStaff && !showStaffForm && (
-    <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setViewingStaff(null)}>
-        <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
-            
-            {/* CABECERA */}
-            <div className="bg-violet-800 p-6 text-white relative shrink-0">
-                <button onClick={()=>setViewingStaff(null)} className="absolute top-4 right-4 bg-white/20 p-1.5 rounded-full hover:bg-white/40 transition"><X size={20}/></button>
-                <div className="flex gap-5 items-center">
-                    <div className="w-20 h-20 rounded-2xl bg-white/20 border-4 border-white/10 overflow-hidden flex items-center justify-center shadow-lg">
-                        {viewingStaff.photoUrl ? <img src={viewingStaff.photoUrl} className="w-full h-full object-cover"/> : <div className="text-4xl font-black text-white/50">{viewingStaff?.firstName?.[0] || '👤'}</div>}
-                    </div>
-                    <div>
-                        <h2 className="text-2xl font-black uppercase tracking-tight">{viewingStaff?.lastName}, {viewingStaff?.firstName}</h2>
-                        <p className="text-orange-300 font-bold text-xs uppercase tracking-widest">{viewingStaff?.modality || 'Sede'}</p>
-                        <span className="bg-white/20 px-3 py-1 rounded-lg text-[10px] font-bold inline-block mt-2">DNI: {viewingStaff?.dni || '-'}</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div className="p-6 overflow-y-auto bg-gray-50 flex-1 space-y-4">
-                {/* DATOS DE CONTACTO RÁPIDO */}
-                <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Nacimiento</p><p className="font-black text-slate-800 text-xs">{getSafeDate(viewingStaff.birthDate)}</p></div>
-                    <div className="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Celular</p><p className="font-black text-slate-800 text-xs">{viewingStaff.phone || '-'}</p></div>
-                </div>
-
-                {/* DETALLE COMPLETO DE CARGOS (RECONSTRUIDO) */}
-                <div className="bg-violet-50 p-4 rounded-2xl border border-violet-100 shadow-sm space-y-3">
-                    <div className="flex justify-between text-xs border-b border-violet-200 pb-2">
-                        <span className="font-bold text-gray-500">Ingreso Inst: {getSafeDate(viewingStaff.fechaIngreso)}</span>
-                        <span className="font-black text-violet-700">Antigüedad: {calcularAntiguedad(viewingStaff.antiguedadAnios, viewingStaff.antiguedadMeses, viewingStaff.antiguedadFechaRef)}</span>
+        {/* MODAL LECTURA LEGAJO */}
+        {viewingStaff && !showStaffForm && (
+            <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setViewingStaff(null)}>
+                <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+                    
+                    <div className="bg-violet-800 p-6 text-white relative shrink-0">
+                        <button onClick={()=>setViewingStaff(null)} className="absolute top-4 right-4 bg-white/20 p-1.5 rounded-full hover:bg-white/40 transition"><X size={20}/></button>
+                        <div className="flex gap-5 items-center">
+                            <div className="w-20 h-20 rounded-2xl bg-white/20 border-4 border-white/10 overflow-hidden flex items-center justify-center shadow-lg">
+                                {viewingStaff.photoUrl ? <img src={viewingStaff.photoUrl} className="w-full h-full object-cover"/> : <div className="text-4xl font-black text-white/50">{viewingStaff?.firstName?.[0] || '👤'}</div>}
+                            </div>
+                            <div>
+                                <h2 className="text-2xl font-black uppercase tracking-tight">{viewingStaff?.lastName}, {viewingStaff?.firstName}</h2>
+                                <p className="text-orange-300 font-bold text-xs uppercase tracking-widest">{viewingStaff?.modality || 'Sede'}</p>
+                                <span className="bg-white/20 px-3 py-1 rounded-lg text-[10px] font-bold inline-block mt-2">DNI: {viewingStaff?.dni || '-'}</span>
+                            </div>
+                        </div>
                     </div>
                     
-                    {/* CARGO 1 - TODA LA INFO ANTERIOR */}
-                    {Boolean((viewingStaff.cargo1_name && viewingStaff.cargo1_name.trim()) || viewingStaff.cargo1_role || viewingStaff.role) ? (
-                        <div className={`bg-white p-3 rounded-lg border ${viewingStaff.cargo1_en_papeles === 'true' ? 'border-gray-200 opacity-70' : 'border-violet-200 shadow-sm'} text-xs relative`}>
-                            <div className="flex justify-between items-center mb-1">
-                                <span className="font-black text-violet-900 uppercase">C1: {getNormRole(viewingStaff.cargo1_role || viewingStaff.role)} {viewingStaff.cargo1_en_papeles === 'true' && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[8px] ml-1">EN PAPELES</span>}</span>
-                                <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${viewingStaff.cargo1_subsidized === 'true' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`}>{viewingStaff.cargo1_subsidized === 'true' ? 'MECA' : 'DENO'}</span>
+                    <div className="p-6 overflow-y-auto bg-gray-50 flex-1 space-y-4">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Nacimiento</p><p className="font-black text-slate-800 text-xs">{getSafeDate(viewingStaff.birthDate)}</p></div>
+                            <div className="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm"><p className="text-[9px] text-gray-400 font-bold uppercase mb-1">Celular</p><p className="font-black text-slate-800 text-xs">{viewingStaff.phone || '-'}</p></div>
+                        </div>
+
+                        <div className="bg-violet-50 p-4 rounded-2xl border border-violet-100 shadow-sm space-y-3">
+                            <div className="flex justify-between text-xs border-b border-violet-200 pb-2">
+                                <span className="font-bold text-gray-500">Ingreso Inst: {getSafeDate(viewingStaff.fechaIngreso)}</span>
+                                <span className="font-black text-violet-700">Antigüedad: {calcularAntiguedad(viewingStaff.antiguedadAnios, viewingStaff.antiguedadMeses, viewingStaff.antiguedadFechaRef)}</span>
                             </div>
-                            <p className="font-bold text-gray-700">{viewingStaff.cargo1_name}</p>
-                            <p className="text-gray-500 text-[10px]">N° {viewingStaff.cargo1_numero || '-'} | {viewingStaff.cargo1_type || '-'} | {viewingStaff.cargo1_turn || '-'} | {viewingStaff.cargo1_revista || '-'}</p>
-                            <p className="text-[9px] text-violet-400 mt-1 font-bold">Alta: {getSafeDate(viewingStaff.cargo1_ingreso)}</p>
-                        </div>
-                    ) : null}
-
-                    {/* CARGO 2 - TODA LA INFO ANTERIOR */}
-                    {Boolean((viewingStaff.cargo2_name && viewingStaff.cargo2_name.trim()) || viewingStaff.cargo2_role) ? (
-                        <div className={`bg-white p-3 rounded-lg border ${viewingStaff.cargo2_en_papeles === 'true' ? 'border-gray-200 opacity-70' : 'border-violet-200 shadow-sm'} text-xs relative`}>
-                            <div className="flex justify-between items-center mb-1">
-                                <span className="font-black text-violet-900 uppercase">C2: {getNormRole(viewingStaff.cargo2_role)} {viewingStaff.cargo2_en_papeles === 'true' && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[8px] ml-1">EN PAPELES</span>}</span>
-                                <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${viewingStaff.cargo2_subsidized === 'true' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`}>{viewingStaff.cargo2_subsidized === 'true' ? 'MECA' : 'DENO'}</span>
-                            </div>
-                            <p className="font-bold text-gray-700">{viewingStaff.cargo2_name}</p>
-                            <p className="text-gray-500 text-[10px]">N° {viewingStaff.cargo2_numero || '-'} | {viewingStaff.cargo2_type || '-'} | {viewingStaff.cargo2_turn || '-'} | {viewingStaff.cargo2_revista || '-'}</p>
-                            <p className="text-[9px] text-violet-400 mt-1 font-bold">Alta: {getSafeDate(viewingStaff.cargo2_ingreso)}</p>
-                        </div>
-                    ) : null}
-                </div>
-
-                {/* SECCIÓN INTELIGENTE: GRUPOS A CARGO (SOLO PARA DOCENTES/AUX/PREC/DAI) */}
-                {['Docente', 'Auxiliar', 'Preceptora', 'DAI', 'Inclusión'].some(role => 
-                    (viewingStaff.cargo1_role || viewingStaff.role || '').includes(role) || 
-                    (viewingStaff.cargo2_role || '').includes(role)
-                ) && (
-                    <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
-                        <h4 className="text-[10px] font-black text-emerald-600 uppercase mb-3 flex items-center gap-2">📍 Alumnos y Grupos Asignados</h4>
-                        <div className="grid grid-cols-2 gap-2">
-                            {(() => {
-                                const myGroupsTM = [...new Set(students.filter(s => s.teacherIdMorning === viewingStaff.id || s.teacherId2Morning === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupMorning))].filter(Boolean);
-                                const myGroupsTT = [...new Set(students.filter(s => s.teacherIdAfternoon === viewingStaff.id || s.teacherId2Afternoon === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupAfternoon))].filter(Boolean);
-                                return (
-                                    <>
-                                        <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
-                                            <p className="text-[8px] font-black text-gray-400 uppercase">T. Mañana</p>
-                                            <p className="font-bold text-emerald-700 text-xs">{myGroupsTM.length > 0 ? myGroupsTM.join(', ') : 'Ninguno'}</p>
-                                        </div>
-                                        <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
-                                            <p className="text-[8px] font-black text-gray-400 uppercase">T. Tarde</p>
-                                            <p className="font-bold text-emerald-700 text-xs">{myGroupsTT.length > 0 ? myGroupsTT.join(', ') : 'Ninguno'}</p>
-                                        </div>
-                                    </>
-                                );
-                            })()}
-                        </div>
-                        <p className="text-[7px] text-emerald-400 mt-2 italic text-center">* Información vinculada por ID de seguridad</p>
-                    </div>
-                )}
-            </div>
-        {/* --- SECCIÓN NUEVA: HISTORIAL DE FALTAS --- */}
-<div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 shadow-sm mt-2">
-    <div className="flex justify-between items-center mb-3">
-        <h4 className="text-[10px] font-black text-orange-600 uppercase flex items-center gap-2">
-            <UserCheck size={14}/> Historial de Inasistencias
-        </h4>
-        <span className="bg-orange-200 text-orange-800 text-[9px] font-black px-2 py-0.5 rounded-lg">
-            Total: {staffAbsences.length}
-        </span>
-    </div>
-
-   {staffAbsences.length === 0 ? (
-    <p className="text-[10px] text-orange-400 font-bold italic text-center py-2">
-        No registra inasistencias cargadas.
-    </p>
-) : (
-    <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
-        {staffAbsences.map((falta) => (
-            <div key={falta.id} className="bg-white p-2 rounded-xl border border-orange-200 flex justify-between items-center group/falta">
-                <div className="flex items-center gap-2">
-                    <span className="bg-orange-500 text-white font-black text-[10px] px-2 py-1 rounded-lg uppercase">
-                        {falta.code}
-                    </span>
-                    <div> {/* Inicio del contenedor de textos */}
-                        <p className="text-[10px] font-bold text-slate-700 leading-tight">
-                            {falta.description} 
-                            {falta.turn && <span className="bg-slate-100 text-slate-600 font-black text-[7px] px-1.5 py-0.5 rounded-md ml-1.5 border border-slate-200">{falta.turn.toUpperCase()}</span>}
-                        </p>
-                        <p className="text-[8px] text-slate-400 uppercase font-black flex justify-between items-center mt-0.5">
-                            <span>{new Date(falta.date + 'T00:00:00').toLocaleDateString('es-AR')}</span>
-                            {falta.notes && <span className="text-orange-600 italic font-bold normal-case truncate max-w-[180px]">“{falta.notes}”</span>}
-                        </p>
-                    </div> {/* Cierre del contenedor de textos */}
-                </div> {/* Cierre de flex items-center */}
-                
-                <button 
-                    onClick={() => handleDeleteAbsence(falta.id)} 
-                    className="text-red-300 hover:text-red-600 p-1.5 bg-red-50 rounded-lg opacity-0 group-hover/falta:opacity-100 transition-all"
-                    title="Eliminar registro"
-                >
-                    <Trash2 size={12}/>
-                </button>
-            </div> // Cierre de la tarjeta de la falta con paréntesis correcto
-        ))}
-    </div>
-)}
-          
-{/* MODAL EDICIÓN LEGAJO - VERSIÓN PREMIUM RESPONSIVA DEFINITIVA */}
-    {showStaffForm && (
-      <div className="fixed inset-0 bg-black/70 z-[150] flex items-center justify-center p-2 sm:p-4 backdrop-blur-md animate-in fade-in duration-300">
-        <div className="bg-slate-50 rounded-[30px] w-full max-w-xl shadow-2xl max-h-[95vh] overflow-hidden flex flex-col border border-white/20">
-          
-          {/* CABECERA FIJA */}
-          <div className="bg-violet-700 p-5 text-white flex justify-between items-center shrink-0">
-            <div className="flex-1">
-              <h3 className="text-lg font-black uppercase italic tracking-tighter">
-                {editingStaff ? 'Editar Legajo' : 'Nuevo Personal'}
-              </h3>
-              {/* CARTEL DE ATENCIÓN DINÁMICO */}
-              {editingStaff && (!editingStaff?.dni || !editingStaff?.cargo1_role || !editingStaff?.modality) ? (
-                <div className="bg-amber-400 text-amber-900 text-[8px] font-black px-2 py-0.5 rounded-full inline-flex items-center gap-1 animate-pulse mt-1 uppercase">
-                  ⚠️ Atención: Ficha incompleta. Completar datos para vinculación.
-                </div>
-              ) : (
-                <p className="text-[10px] opacity-70 font-bold uppercase">Configuración de ficha técnica</p>
-              )}
-            </div>
-            <button onClick={() => setShowStaffForm(false)} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition">
-              <X size={20} />
-            </button>
-          </div>
-
-          <form id="staffForm" onSubmit={handleSaveStaff} className="overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar">
-            
-            {/* SECCIÓN VINCULACIÓN DE SEGURIDAD (IMPORTANTE) */}
-          <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 space-y-2">
-    <p className="text-[10px] font-black text-blue-600 uppercase flex items-center gap-2">
-        {/* CAMBIO AQUÍ: de Link a LinkIcon */}
-        <LinkIcon size={14}/> Conexión de Seguridad y Grupos
-    </p>
-    <input 
-        name="userId" 
-        defaultValue={editingStaff?.userId || ""} 
-        placeholder="ID de Usuario vinculado para login y grupos..." 
-        className="p-3 bg-white rounded-xl w-full font-mono text-[10px] outline-none border border-blue-200 focus:ring-2 ring-blue-100"
-    />
-    <p className="text-[7px] text-blue-400 font-bold italic uppercase px-1">
-      * Este ID conecta el legajo con el usuario y detecta automáticamente sus grupos asignados.
-    </p>
-</div>
-
-           {/* SECCIÓN 1: IDENTIDAD Y FOTO (ACTUALIZADA) */}
-<div className="flex flex-col items-center mb-6">
-    <div className="w-24 h-24 rounded-3xl bg-violet-100 border-4 border-white shadow-md overflow-hidden relative group">
-        {photoPreview ? <img src={photoPreview} className="w-full h-full object-cover"/> : (editingStaff?.photoUrl ? <img src={editingStaff.photoUrl} className="w-full h-full object-cover"/> : <div className="flex items-center justify-center h-full text-violet-300"><User size={40}/></div>)}
-        <label className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer">
-            <Camera className="text-white" size={24}/>
-            <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange}/>
-        </label>
-    </div>
-    <p className="text-[9px] font-black text-violet-400 uppercase mt-2">Tocar para cambiar foto</p>
-</div>
-
-<details open className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-  <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
-    <span className="text-[11px] font-black text-violet-600 uppercase flex items-center gap-2"><User size={14}/> Datos de Identidad</span>
-    <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
-  </summary>
-  <div className="p-4 pt-0 grid grid-cols-1 sm:grid-cols-2 gap-3">
-    <input name="lastName" defaultValue={editingStaff?.lastName || ""} placeholder="Apellido/s" required className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
-    <input name="firstName" defaultValue={editingStaff?.firstName || ""} placeholder="Nombre/s" required className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
-    <input name="dni" defaultValue={editingStaff?.dni || ""} placeholder="DNI sin puntos" className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
-    <input name="birthDate" type="date" defaultValue={editingStaff?.birthDate || ""} className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm"/>
-    <input name="phone" defaultValue={editingStaff?.phone || ""} placeholder="Celular" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
-    <input name="email" defaultValue={editingStaff?.email || ""} placeholder="Email" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
-  </div>
-</details>
-
-{/* SECCIÓN NUEVA: DOMICILIO Y FORMACIÓN */}
-<details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-3">
-  <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
-    <span className="text-[11px] font-black text-blue-600 uppercase flex items-center gap-2"><MapPin size={14}/> Domicilio y Título</span>
-    <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
-  </summary>
-  <div className="p-4 pt-0 space-y-3">
-    <input name="address" defaultValue={editingStaff?.address || ""} placeholder="Dirección completa" className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm"/>
-    <input name="emergencyContact" defaultValue={editingStaff?.emergencyContact || ""} placeholder="Contacto Emergencia (Nombre y Tel)" className="p-3 bg-red-50 text-red-700 rounded-xl border-none w-full font-bold text-sm placeholder:text-red-300"/>
-    <div className="grid grid-cols-2 gap-2">
-        <input name="degree" defaultValue={editingStaff?.degree || ""} placeholder="Título Obtenido" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
-        <select name="studyStatus" defaultValue={editingStaff?.studyStatus || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
-            <option value="">Estado estudios...</option>
-            <option value="Completo">Completo</option>
-            <option value="Incompleto">Incompleto</option>
-            <option value="En curso">En curso</option>
-        </select>
-    </div>
-  </div>
-</details>
-            {/* SECCIÓN 2: CARGO PRIMARIO (CON SUBVENCIÓN) */}
-            <details open className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition border-l-4 border-emerald-500">
-                <span className="text-[11px] font-black text-emerald-600 uppercase flex items-center gap-2">
-                  <Briefcase size={14}/> Cargo Principal
-                </span>
-                <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
-              </summary>
-              <div className="p-4 pt-0 space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <select name="modality" defaultValue={editingStaff?.modality || 'Sede'} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
-                    <option value="Sede">Modalidad: Sede</option>
-                    <option value="Inclusión">Modalidad: Inclusión</option>
-                    <option value="Ambos">Modalidad: Ambos</option>
-                  </select>
-                  <select name="cargo1_subsidized" defaultValue={editingStaff?.cargo1_subsidized || 'false'} className={`p-3 rounded-xl border-none font-black text-xs ${editingStaff?.cargo1_subsidized === 'true' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500'}`}>
-                    <option value="false">DENO (No Subvencionado)</option>
-    <option value="true">MECA (Subvencionado)</option>
-    <option value="fuera">FUERA DE PLANTA (Papeles)</option>
-                  </select>
-                </div>
-                <div className="grid grid-cols-[1fr,2fr] gap-2">
-                  <input name="cargo1_numero" defaultValue={editingStaff?.cargo1_numero || ""} placeholder="N° Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
-                  <input name="cargo1_name" defaultValue={editingStaff?.cargo1_name || ""} placeholder="Nombre del Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
-                </div>
-         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-  <div className="flex flex-col">
-    <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Función / Rol</label>
-    <select 
-      name="cargo1_role" 
-      defaultValue={editingStaff?.cargo1_role || editingStaff?.role || ""} 
-      className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs"
-      required
-    >
-      <option value="">Seleccionar Rol...</option>
-      {/* CORRECCIÓN: Ahora usa VALID_ROLES_OFFICIAL */}
-      {(typeof VALID_ROLES_OFFICIAL !== 'undefined' ? VALID_ROLES_OFFICIAL : []).map(r => (
-        <option key={r} value={r}>{r}</option>
-      ))}
-    </select>
-  </div>
-  <div className="flex flex-col">
-    <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Turno Horario</label>
-    <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
-      <option value="">Turno...</option>
-      <option value="Mañana">Mañana</option>
-      <option value="Tarde">Tarde</option>
-      <option value="Alternado">Alternado</option>
-      <option value="Vespertino">Vespertino</option>
-      <option value="Doble">Doble</option>
-    </select>
-  </div>
-</div>
-                <div className="grid grid-cols-2 gap-2">
-                   <select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
-                    <option value="">Revista...</option>
-                    <option value="Titular">Titular</option><option value="Provisional">Provisional</option><option value="Suplente">Suplente</option>
-                  </select>
-                  <div className="flex flex-col">
-                    <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Alta Cargo</label>
-                    <input name="cargo1_ingreso" type="date" defaultValue={editingStaff?.cargo1_ingreso || ""} className="p-2 bg-slate-50 rounded-xl border-none font-bold text-xs"/>
-                  </div>
-                </div>
-              </div>
-            </details>
-
-            {/* SECCIÓN 3: CARGO SECUNDARIO */}
-            {/* SECCIÓN 3: CARGO SECUNDARIO (CORREGIDA CON REVISTA Y ALTA) */}
-            <details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-3">
-              <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
-                <span className="text-[11px] font-black text-slate-500 uppercase flex items-center gap-2">
-                  <PlusCircle size={14}/> Cargo Secundario / Adicional
-                </span>
-                <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
-              </summary>
-              <div className="p-4 pt-0 space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <input name="cargo2_numero" defaultValue={editingStaff?.cargo2_numero || ""} placeholder="N° Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm w-full"/>
-                  <input name="cargo2_name" defaultValue={editingStaff?.cargo2_name || ""} placeholder="Nombre Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm w-full"/>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <select name="cargo2_role" defaultValue={editingStaff?.cargo2_role || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
-                    <option value="">Rol Cargo 2...</option>
-                    {VALID_ROLES.map(r => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
-                  </select>
-                  <select name="cargo2_subsidized" defaultValue={editingStaff?.cargo2_subsidized || 'false'} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
-                   <option value="false">DENO (No Subvencionado)</option>
-    <option value="true">MECA (Subvencionado)</option>
-    <option value="fuera">FUERA DE PLANTA (Papeles)</option>
-                  </select>
-                </div>
-                {/* --- NUEVOS CAMPOS AGREGADOS AQUÍ --- */}
-                <div className="grid grid-cols-2 gap-2">
-                   <select name="cargo2_revista" defaultValue={editingStaff?.cargo2_revista || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
-                    <option value="">Revista...</option>
-                    <option value="Titular">Titular</option>
-                    <option value="Provisional">Provisional</option>
-                    <option value="Suplente">Suplente</option>
-                  </select>
-                  <div className="flex flex-col">
-                    <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Alta Cargo 2</label>
-                    <input name="cargo2_ingreso" type="date" defaultValue={editingStaff?.cargo2_ingreso || ""} className="p-2 bg-slate-50 rounded-xl border-none font-bold text-xs"/>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 px-2">
-                   <input type="checkbox" name="cargo2_en_papeles" defaultChecked={editingStaff?.cargo2_en_papeles === 'true'} value="true" className="w-4 h-4 accent-violet-600"/>
-                   <span className="text-[10px] font-bold text-gray-500 uppercase">¿Este cargo figura solo en papeles?</span>
-                </div>
-              </div>
-            </details>
-
-            {/* SECCIÓN 4: INSTITUCIONAL Y ANTIGÜEDAD */}
-            <details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
-                <span className="text-[11px] font-black text-violet-500 uppercase flex items-center gap-2">
-                  <Clock size={14}/> Ingreso y Antigüedad
-                </span>
-                <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
-              </summary>
-              <div className="p-4 pt-0 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Ingreso Institución</label>
-                  <input name="fechaIngreso" type="date" defaultValue={editingStaff?.fechaIngreso || ""} className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm"/>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Años Anti.</label>
-                    <input name="antiguedadAnios" type="number" defaultValue={editingStaff?.antiguedadAnios || ""} className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm text-center"/>
-                  </div>
-                  <div>
-                    <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Meses Anti.</label>
-                    <input name="antiguedadMeses" type="number" defaultValue={editingStaff?.antiguedadMeses || ""} className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm text-center"/>
-                  </div>
-                </div>
-                <input name="antiguedadFechaRef" type="hidden" defaultValue={editingStaff?.antiguedadFechaRef || new Date().toISOString().split('T')[0]} />
-              </div>
-            </details>
-
-            <div className="h-4"></div>
-          </form>
-{/* BOTONERA FIJA INFERIOR CORREGIDA */}
-          <div className="p-4 bg-white border-t space-y-3 shrink-0">
-            <div className="flex flex-col sm:flex-row gap-2">
-              <button type="button" onClick={() => setShowStaffForm(false)} className="order-2 sm:order-1 flex-1 py-3 text-slate-500 font-bold uppercase text-[10px] tracking-widest">
-                Cancelar
-              </button>
-              <button 
-                type="submit" 
-                form="staffForm" 
-                disabled={processing}
-                className="order-1 sm:order-2 flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-violet-200 hover:bg-violet-700 transition active:scale-95 flex justify-center items-center gap-2"
-              >
-                {processing ? <RefreshCw className="animate-spin" size={16}/> : 'Guardar Cambios'}
-              </button>
-            </div>
-            
-            {editingStaff && (
-              <button 
-                type="button" 
-                onClick={async () => {
-                  if(confirm("¿Eliminar definitivamente?")) {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); 
-                    setShowStaffForm(false); 
-                    setViewingStaff(null);
-                  }
-                }} 
-                className="w-full py-2 text-red-400 font-bold text-[9px] uppercase hover:text-red-500 transition tracking-tighter"
-              >
-                Eliminar Personal del Sistema
-              </button>
-            )}
-          </div>
-        </div> 
-      </div>
-    )}
-
-    {/* PARCHE PUNTO 3: MODAL DE OPCIONES DE IMPRESIÓN (FUERA DEL FORM) */}
-    {showPrintOptions && (
-        <div className="fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95">
-                <h3 className="text-xl font-black text-violet-900 uppercase italic mb-4 text-center">¿Qué info imprimir?</h3>
-                <div className="grid grid-cols-1 gap-2 mb-6">
-                    {Object.keys(printColumns).map(col => (
-                        <label key={col} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl cursor-pointer hover:bg-violet-50 transition border border-transparent hover:border-violet-200">
-                            <span className="text-[10px] font-black text-gray-600 uppercase">
-                                {col === 'alta' ? 'Fecha Ingreso' : col.replace('cargo', 'Cargo ')}
-                            </span>
-                            <input 
-                                type="checkbox" 
-                                checked={printColumns[col]} 
-                                onChange={() => setPrintColumns({...printColumns, [col]: !printColumns[col]})}
-                                className="w-5 h-5 accent-violet-600"
-                            />
-                        </label>
-                    ))}
-                </div>
-                <div className="flex gap-2">
-                    <button onClick={() => setShowPrintOptions(false)} className="flex-1 py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
-                    <button 
-                        onClick={() => { imprimirPlanillaGeneral(filteredStaff); setShowPrintOptions(false); }} 
-                        className="flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg hover:bg-violet-700 transition"
-                    >
-                        Generar Planilla
-                    </button>
-                </div>
-            </div>
-        </div>
-    )}
-
-      {/* --- MODAL REGISTRO DE FALTAS --- */}
-{showAbsenceForm && (
-    <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-2 sm:p-4 backdrop-blur-md animate-in fade-in">
-        <div className="bg-slate-50 rounded-[30px] w-full max-w-4xl shadow-2xl max-h-[95vh] flex flex-col border border-white/20 overflow-hidden">
-            
-            {/* CABECERA */}
-            <div className="bg-orange-600 p-5 text-white flex justify-between items-center shrink-0">
-                <div>
-                    <h3 className="text-lg font-black uppercase italic tracking-tighter flex items-center gap-2">
-                        <UserCheck size={20}/> Registro Rápido de Inasistencias
-                    </h3>
-                    <p className="text-[10px] opacity-80 font-bold uppercase mt-1">Carga de ausentismo por artículo</p>
-                </div>
-                <button onClick={() => { setShowAbsenceForm(false); setSelectedStaffForAbsence(null); }} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition">
-                    <X size={20} />
-                </button>
-            </div>
-
-            <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-                
-                {/* COLUMNA IZQUIERDA: SELECCIÓN DE PERSONAL (AGRUPADO POR ROL) */}
-                <div className="w-full md:w-1/2 bg-white border-r border-slate-200 flex flex-col overflow-hidden">
-                    <div className="p-3 bg-slate-100 border-b border-slate-200 shrink-0">
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">1. Seleccionar Personal</p>
-                    </div>
-                    <div className="overflow-y-auto p-4 space-y-4 custom-scrollbar">
-                        {VALID_ROLES.map(rol => {
-                            const staffEnRol = staffList.filter(s => getNormRole(s.cargo1_role || s.role) === rol);
-                            if (staffEnRol.length === 0) return null;
-                            return (
-                                <div key={rol} className="space-y-2">
-                                    <h4 className="text-[10px] font-black text-orange-600 uppercase border-b border-orange-100 pb-1">{rol}</h4>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                        {staffEnRol.map(s => (
-                                            <button 
-                                                key={s.id}
-                                                onClick={() => setSelectedStaffForAbsence(s)}
-                                                className={`p-2 rounded-xl text-left border transition-all flex items-center gap-2 ${selectedStaffForAbsence?.id === s.id ? 'bg-orange-100 border-orange-400 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-orange-300'}`}
-                                            >
-                                                <div className="w-6 h-6 rounded-full bg-orange-200 text-orange-700 flex items-center justify-center text-[10px] font-black shrink-0">
-                                                    {s.firstName?.[0]}
-                                                </div>
-                                                <span className="text-[10px] font-bold text-slate-700 truncate uppercase">
-                                                    {s.lastName}, {s.firstName}
-                                                </span>
-                                            </button>
-                                        ))}
+                            
+                            {Boolean((viewingStaff.cargo1_name && viewingStaff.cargo1_name.trim()) || viewingStaff.cargo1_role || viewingStaff.role) && (
+                                <div className={`bg-white p-3 rounded-lg border ${viewingStaff.cargo1_en_papeles === 'true' ? 'border-gray-200 opacity-70' : 'border-violet-200 shadow-sm'} text-xs relative`}>
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="font-black text-violet-900 uppercase">C1: {getNormRole(viewingStaff.cargo1_role || viewingStaff.role)} {viewingStaff.cargo1_en_papeles === 'true' && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[8px] ml-1">EN PAPELES</span>}</span>
+                                        <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${viewingStaff.cargo1_subsidized === 'true' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`}>{viewingStaff.cargo1_subsidized === 'true' ? 'MECA' : 'DENO'}</span>
                                     </div>
+                                    <p className="font-bold text-gray-700">{viewingStaff.cargo1_name}</p>
+                                    <p className="text-gray-500 text-[10px]">N° {viewingStaff.cargo1_numero || '-'} | {viewingStaff.cargo1_type || '-'} | {viewingStaff.cargo1_turn || '-'} | {viewingStaff.cargo1_revista || '-'}</p>
+                                    <p className="text-[9px] text-violet-400 mt-1 font-bold">Alta: {getSafeDate(viewingStaff.cargo1_ingreso)}</p>
                                 </div>
-                            );
-                        })}
+                            )}
+
+                            {Boolean((viewingStaff.cargo2_name && viewingStaff.cargo2_name.trim()) || viewingStaff.cargo2_role) && (
+                                <div className={`bg-white p-3 rounded-lg border ${viewingStaff.cargo2_en_papeles === 'true' ? 'border-gray-200 opacity-70' : 'border-violet-200 shadow-sm'} text-xs relative`}>
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="font-black text-violet-900 uppercase">C2: {getNormRole(viewingStaff.cargo2_role)} {viewingStaff.cargo2_en_papeles === 'true' && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[8px] ml-1">EN PAPELES</span>}</span>
+                                        <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${viewingStaff.cargo2_subsidized === 'true' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`}>{viewingStaff.cargo2_subsidized === 'true' ? 'MECA' : 'DENO'}</span>
+                                    </div>
+                                    <p className="font-bold text-gray-700">{viewingStaff.cargo2_name}</p>
+                                    <p className="text-gray-500 text-[10px]">N° {viewingStaff.cargo2_numero || '-'} | {viewingStaff.cargo2_type || '-'} | {viewingStaff.cargo2_turn || '-'} | {viewingStaff.cargo2_revista || '-'}</p>
+                                    <p className="text-[9px] text-violet-400 mt-1 font-bold">Alta: {getSafeDate(viewingStaff.cargo2_ingreso)}</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {['Docente', 'Auxiliar', 'Preceptora', 'DAI', 'Inclusión'].some(role => 
+                            (viewingStaff.cargo1_role || viewingStaff.role || '').includes(role) || 
+                            (viewingStaff.cargo2_role || '').includes(role)
+                        ) && (
+                            <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm">
+                                <h4 className="text-[10px] font-black text-emerald-600 uppercase mb-3 flex items-center gap-2">📍 Alumnos y Grupos Asignados</h4>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {(() => {
+                                        const myGroupsTM = [...new Set(students.filter(s => s.teacherIdMorning === viewingStaff.id || s.teacherId2Morning === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupMorning))].filter(Boolean);
+                                        const myGroupsTT = [...new Set(students.filter(s => s.teacherIdAfternoon === viewingStaff.id || s.teacherId2Afternoon === viewingStaff.id || s.daiId === viewingStaff.id).map(s => s.groupAfternoon))].filter(Boolean);
+                                        return (
+                                            <>
+                                                <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
+                                                    <p className="text-[8px] font-black text-gray-400 uppercase">T. Mañana</p>
+                                                    <p className="font-bold text-emerald-700 text-xs">{myGroupsTM.length > 0 ? myGroupsTM.join(', ') : 'Ninguno'}</p>
+                                                </div>
+                                                <div className="bg-white p-2 rounded-xl border border-emerald-100 text-center">
+                                                    <p className="text-[8px] font-black text-gray-400 uppercase">T. Tarde</p>
+                                                    <p className="font-bold text-emerald-700 text-xs">{myGroupsTT.length > 0 ? myGroupsTT.join(', ') : 'Ninguno'}</p>
+                                                </div>
+                                            </>
+                                        );
+                                    })()}
+                                </div>
+                                <p className="text-[7px] text-emerald-400 mt-2 italic text-center">* Información vinculada por ID de seguridad</p>
+                            </div>
+                        )}
+
+                        <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 shadow-sm mt-2">
+                            <div className="flex justify-between items-center mb-3">
+                                <h4 className="text-[10px] font-black text-orange-600 uppercase flex items-center gap-2">
+                                    <UserCheck size={14}/> Historial de Inasistencias
+                                </h4>
+                                <span className="bg-orange-200 text-orange-800 text-[9px] font-black px-2 py-0.5 rounded-lg">
+                                    Total: {staffAbsences.length}
+                                </span>
+                            </div>
+
+                           {staffAbsences.length === 0 ? (
+                                <p className="text-[10px] text-orange-400 font-bold italic text-center py-2">
+                                    No registra inasistencias cargadas.
+                                </p>
+                            ) : (
+                                <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                                    {staffAbsences.map((falta) => (
+                                        <div key={falta.id} className="bg-white p-2 rounded-xl border border-orange-200 flex justify-between items-center group/falta">
+                                            <div className="flex items-center gap-2">
+                                                <span className="bg-orange-500 text-white font-black text-[10px] px-2 py-1 rounded-lg uppercase">
+                                                    {falta.code}
+                                                </span>
+                                                <div>
+                                                    <p className="text-[10px] font-bold text-slate-700 leading-tight">
+                                                        {falta.description} 
+                                                        {falta.turn && <span className="bg-slate-100 text-slate-600 font-black text-[7px] px-1.5 py-0.5 rounded-md ml-1.5 border border-slate-200">{falta.turn.toUpperCase()}</span>}
+                                                    </p>
+                                                    <p className="text-[8px] text-slate-400 uppercase font-black flex justify-between items-center mt-0.5">
+                                                        <span>{new Date(falta.date + 'T00:00:00').toLocaleDateString('es-AR')}</span>
+                                                        {falta.notes && <span className="text-orange-600 italic font-bold normal-case truncate max-w-[180px]">“{falta.notes}”</span>}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            
+                                            <button 
+                                                onClick={() => handleDeleteAbsence(falta.id)} 
+                                                className="text-red-300 hover:text-red-600 p-1.5 bg-red-50 rounded-lg opacity-0 group-hover/falta:opacity-100 transition-all"
+                                                title="Eliminar registro"
+                                            >
+                                                <Trash2 size={12}/>
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
-
-                {/* COLUMNA DERECHA: SELECCIÓN DE ARTÍCULO Y FECHA */}
-               <div className="p-4 sm:p-6 overflow-y-auto space-y-4 pointer-events-auto">
-    {/* PERSONA SELECCIONADA */}
-    {selectedStaffForAbsence && (
-        <div className="bg-orange-100 p-3 rounded-2xl border border-orange-200 flex items-center gap-3">
-            <User size={20} className="text-orange-600"/>
-            <div className="min-w-0 flex-1">
-                <p className="text-[9px] font-black text-orange-500 uppercase">Cargando falta para:</p>
-                <p className="text-xs font-black text-orange-900 uppercase truncate">{selectedStaffForAbsence.lastName}, {selectedStaffForAbsence.firstName}</p>
-            </div>
-        </div>
-    )}
-
-    {/* CONTROL DE RANGO / PERÍODO */}
-    <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200">
-        <span className="text-[10px] font-black text-slate-600 uppercase">¿Es una licencia por varios días?</span>
-        <button 
-            type="button"
-            onClick={() => { setIsRange(!isRange); setAbsenceEndDate(''); }}
-            className={`text-[9px] font-black px-3 py-1.5 rounded-lg uppercase tracking-wider transition ${isRange ? 'bg-orange-600 text-white' : 'bg-slate-100 text-slate-500'}`}
-        >
-            {isRange ? 'Por Período 📅' : 'Un Solo Día ⏱️'}
-        </button>
-    </div>
-
-    {/* FECHAS DINÁMICAS */}
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-            <label className="text-[9px] font-black text-slate-400 uppercase ml-1 mb-1 block">
-                {isRange ? 'Fecha Inicio' : 'Fecha de Ausencia'}
-            </label>
-            <input 
-                type="date" 
-                value={absenceDate} 
-                onChange={(e) => setAbsenceDate(e.target.value)}
-                className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold text-xs outline-none focus:ring-2 focus:ring-orange-200"
-            />
-        </div>
-        {isRange && (
-            <div className="animate-in slide-in-from-top-2 duration-200">
-                <label className="text-[9px] font-black text-slate-400 uppercase ml-1 mb-1 block">Fecha Fin (Licencia)</label>
-                <input 
-                    type="date" 
-                    value={absenceEndDate} 
-                    onChange={(e) => setAbsenceEndDate(e.target.value)}
-                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold text-xs outline-none focus:ring-2 focus:ring-orange-200"
-                />
             </div>
         )}
-    </div>
-
-    {/* CONDICIONAL INTELIGENTE: CONTROL DE TURNO SEGÚN SUS CARGOS (MAÑANA/TARDE) */}
-    {selectedStaffForAbsence && (
-        <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-2">
-            <label className="text-[9px] font-black text-slate-500 uppercase block">
-                📍 ¿A qué turno corresponde la falta?
-            </label>
-            <div className="grid grid-cols-3 gap-1.5">
-                {['Mañana', 'Tarde', 'Ambos'].map(t => {
-                    // Verificamos qué cargos tiene activos visualmente para guiar el clic
-                    const tieneC1EnTurno = selectedStaffForAbsence.cargo1_turn === t;
-                    const tieneC2EnTurno = selectedStaffForAbsence.cargo2_turn === t;
-                    const esSugerido = tieneC1EnTurno || tieneC2EnTurno;
-
-                    return (
-                        <button
-                            key={t}
-                            type="button"
-                            onClick={() => setAbsenceTurn(t)}
-                            className={`p-2 rounded-xl border font-black text-[9px] uppercase tracking-wider flex flex-col items-center justify-center transition-all ${absenceTurn === t ? 'bg-slate-800 text-white border-slate-900' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}
-                        >
-                            <span>{t}</span>
-                            {esSugerido && <span className="text-[6px] text-orange-500 font-bold block mt-0.5">Asignado</span>}
-                        </button>
-                    );
-                })}
-            </div>
-        </div>
-    )}
-
-    {/* CÓDIGOS DE FALTA */}
-    <div>
-        <label className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1.5 flex items-center justify-between">
-            <span>Artículo / Código</span>
-        </label>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-            {Object.entries(CODIGOS_FALTAS).map(([codigo, descripcion]) => (
-                <button
-                    type="button"
-                    key={codigo}
-                    onClick={() => setAbsenceCode(codigo)}
-                    title={descripcion}
-                    className={`group relative p-2.5 rounded-xl border transition-all flex flex-col items-center justify-center ${absenceCode === codigo ? 'bg-orange-500 border-orange-600 text-white shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:bg-orange-50'}`}
-                >
-                    <span className="font-black text-xs uppercase">{codigo}</span>
-                    <span className="text-[7px] text-center opacity-60 truncate w-full max-w-[90px]">{descripcion}</span>
-                </button>
-            ))}
-        </div>
-    </div>
-
-    {/* CUADRO DE OBSERVACIONES NO OBLIGATORIO */}
-    <div>
-        <label className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1 block">Observaciones / Notas (Opcional)</label>
-        <textarea
-            value={absenceNotes}
-            onChange={(e) => setAbsenceNotes(e.target.value)}
-            placeholder="Ej: Presentó certificado médico digital, número de trámite..."
-            rows={2}
-            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-orange-200 resize-none"
-        />
-    </div>
-
-    {/* BOTONERA GUARDAR */}
-    <div className="pt-2">
-        <button 
-            type="button"
-            onClick={handleSaveAbsence}
-            disabled={processing || !absenceCode}
-            className={`w-full py-3.5 rounded-xl font-black uppercase tracking-widest text-xs shadow-md transition active:scale-95 flex justify-center items-center gap-2 ${absenceCode && !processing ? 'bg-orange-600 text-white hover:bg-orange-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
-        >
-            {processing ? <RefreshCw className="animate-spin" size={14}/> : (
-                <>
-                    <CheckCircle size={16}/>
-                    {absenceCode ? `Registrar Ausentismo` : 'Seleccione un Código'}
-                </>
-            )}
-        </button>
-    </div>
-</div>
-            </div>
-        </div>
-    </div>
-)}
-      {/* --- MODAL RESUMEN MENSUAL DE FALTAS --- */}
-{showAbsencesSummary && (
-    <div className="fixed inset-0 bg-black/70 z-[250] flex items-center justify-center p-2 sm:p-4 backdrop-blur-md animate-in fade-in">
-        <div className="bg-slate-50 rounded-[30px] w-full max-w-4xl shadow-2xl max-h-[95vh] flex flex-col border border-white/20 overflow-hidden">
-            
-            {/* CABECERA */}
-            <div className="bg-violet-700 p-5 text-white flex justify-between items-center shrink-0">
-                <div className="flex items-center gap-3">
-                    <div className="bg-white/20 p-2 rounded-xl">
-                        <PieChart size={24} />
+          
+        {/* MODAL EDICIÓN LEGAJO */}
+        {showStaffForm && (
+          <div className="fixed inset-0 bg-black/70 z-[150] flex items-center justify-center p-2 sm:p-4 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-slate-50 rounded-[30px] w-full max-w-xl shadow-2xl max-h-[95vh] overflow-hidden flex flex-col border border-white/20">
+              
+              <div className="bg-violet-700 p-5 text-white flex justify-between items-center shrink-0">
+                <div className="flex-1">
+                  <h3 className="text-lg font-black uppercase italic tracking-tighter">
+                    {editingStaff ? 'Editar Legajo' : 'Nuevo Personal'}
+                  </h3>
+                  {editingStaff && (!editingStaff?.dni || !editingStaff?.cargo1_role || !editingStaff?.modality) ? (
+                    <div className="bg-amber-400 text-amber-900 text-[8px] font-black px-2 py-0.5 rounded-full inline-flex items-center gap-1 animate-pulse mt-1 uppercase">
+                      ⚠️ Atención: Ficha incompleta. Completar datos para vinculación.
                     </div>
-                    <div>
-                        <h3 className="text-lg font-black uppercase italic tracking-tighter">
-                            Planilla de Ausentismo
-                        </h3>
-                        <p className="text-[10px] opacity-80 font-bold uppercase mt-1">Conteo y discriminación por artículo</p>
-                    </div>
+                  ) : (
+                    <p className="text-[10px] opacity-70 font-bold uppercase">Configuración de ficha técnica</p>
+                  )}
                 </div>
-                <button onClick={() => setShowAbsencesSummary(false)} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition">
-                    <X size={20} />
+                <button onClick={() => setShowStaffForm(false)} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition">
+                  <X size={20} />
                 </button>
-            </div>
+              </div>
 
-            <div className="p-4 bg-white border-b border-slate-200 shrink-0 flex flex-col sm:flex-row justify-between items-center gap-4">
-                {/* SELECTOR DE MES */}
-                <div className="flex items-center gap-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Período:</label>
+              {/* FORMULARIO */}
+              <form id="staffForm" onSubmit={handleSaveStaff} className="overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar flex-1">
+                
+                <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 space-y-2">
+                    <p className="text-[10px] font-black text-blue-600 uppercase flex items-center gap-2">
+                        <LinkIcon size={14}/> Conexión de Seguridad y Grupos
+                    </p>
                     <input 
-                        type="month" 
-                        value={summaryMonth}
-                        onChange={(e) => setSummaryMonth(e.target.value)}
-                        className="p-2 bg-violet-50 text-violet-800 border border-violet-200 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-violet-300"
+                        name="userId" 
+                        defaultValue={editingStaff?.userId || ""} 
+                        placeholder="ID de Usuario vinculado para login y grupos..." 
+                        className="p-3 bg-white rounded-xl w-full font-mono text-[10px] outline-none border border-blue-200 focus:ring-2 ring-blue-100"
                     />
+                    <p className="text-[7px] text-blue-400 font-bold italic uppercase px-1">
+                      * Este ID conecta el legajo con el usuario y detecta automáticamente sus grupos asignados.
+                    </p>
                 </div>
 
-                {/* BOTÓN IMPRIMIR */}
-                <button 
-                    onClick={imprimirResumenMensual}
-                    className="px-4 py-2 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-black uppercase text-[10px] tracking-widest hover:border-violet-400 hover:text-violet-600 transition flex items-center gap-2"
-                >
-                    <Printer size={16}/> Imprimir Resumen
-                </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 custom-scrollbar">
-                {sortedStaffStats.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-center opacity-50">
-                        <UserCheck size={60} className="text-slate-300 mb-4"/>
-                        <p className="text-lg font-black text-slate-500 uppercase tracking-widest">Sin inasistencias</p>
-                        <p className="text-xs font-bold text-slate-400">No hay registros de faltas para el mes seleccionado.</p>
+                <div className="flex flex-col items-center mb-6">
+                    <div className="w-24 h-24 rounded-3xl bg-violet-100 border-4 border-white shadow-md overflow-hidden relative group">
+                        {photoPreview ? <img src={photoPreview} className="w-full h-full object-cover"/> : (editingStaff?.photoUrl ? <img src={editingStaff.photoUrl} className="w-full h-full object-cover"/> : <div className="flex items-center justify-center h-full text-violet-300"><User size={40}/></div>)}
+                        <label className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer">
+                            <Camera className="text-white" size={24}/>
+                            <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange}/>
+                        </label>
                     </div>
-                ) : (
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-slate-100 border-b border-slate-200">
-                                    <th className="p-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Personal</th>
-                                    <th className="p-3 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Días</th>
-                                    <th className="p-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Desglose de Artículos</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {sortedStaffStats.map((s, idx) => (
-                                    <tr key={idx} className="hover:bg-violet-50/50 transition">
-                                        <td className="p-3">
-                                            <p className="font-black text-slate-800 text-sm uppercase">{s.name}</p>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase">{s.role}</p>
-                                        </td>
-                                        <td className="p-3 text-center">
-                                            <span className="bg-orange-100 text-orange-700 font-black text-sm px-3 py-1 rounded-xl">
-                                                {s.total}
-                                            </span>
-                                        </td>
-                                        <td className="p-3">
-                                            <div className="flex flex-wrap gap-1">
-                                                {Object.entries(s.codes).map(([code, count]) => (
-                                                    <span key={code} className="bg-white border border-slate-200 text-slate-600 text-[9px] font-black px-2 py-1 rounded-lg uppercase shadow-sm">
-                                                        {code}: <span className="text-violet-600 ml-1">{count}</span>
-                                                    </span>
+                    <p className="text-[9px] font-black text-violet-400 uppercase mt-2">Tocar para cambiar foto</p>
+                </div>
+
+                <details open className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                  <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
+                    <span className="text-[11px] font-black text-violet-600 uppercase flex items-center gap-2"><User size={14}/> Datos de Identidad</span>
+                    <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
+                  </summary>
+                  <div className="p-4 pt-0 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input name="lastName" defaultValue={editingStaff?.lastName || ""} placeholder="Apellido/s" required className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
+                    <input name="firstName" defaultValue={editingStaff?.firstName || ""} placeholder="Nombre/s" required className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
+                    <input name="dni" defaultValue={editingStaff?.dni || ""} placeholder="DNI sin puntos" className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
+                    <input name="birthDate" type="date" defaultValue={editingStaff?.birthDate || ""} className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm"/>
+                    <input name="phone" defaultValue={editingStaff?.phone || ""} placeholder="Celular" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+                    <input name="email" defaultValue={editingStaff?.email || ""} placeholder="Email" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+                  </div>
+                </details>
+
+                <details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-3">
+                  <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
+                    <span className="text-[11px] font-black text-blue-600 uppercase flex items-center gap-2"><MapPin size={14}/> Domicilio y Título</span>
+                    <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
+                  </summary>
+                  <div className="p-4 pt-0 space-y-3">
+                    <input name="address" defaultValue={editingStaff?.address || ""} placeholder="Dirección completa" className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm"/>
+                    <input name="emergencyContact" defaultValue={editingStaff?.emergencyContact || ""} placeholder="Contacto Emergencia (Nombre y Tel)" className="p-3 bg-red-50 text-red-700 rounded-xl border-none w-full font-bold text-sm placeholder:text-red-300"/>
+                    <div className="grid grid-cols-2 gap-2">
+                        <input name="degree" defaultValue={editingStaff?.degree || ""} placeholder="Título Obtenido" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+                        <select name="studyStatus" defaultValue={editingStaff?.studyStatus || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+                            <option value="">Estado estudios...</option>
+                            <option value="Completo">Completo</option>
+                            <option value="Incompleto">Incompleto</option>
+                            <option value="En curso">En curso</option>
+                        </select>
+                    </div>
+                  </div>
+                </details>
+
+                <details open className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                  <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition border-l-4 border-emerald-500">
+                    <span className="text-[11px] font-black text-emerald-600 uppercase flex items-center gap-2">
+                      <Briefcase size={14}/> Cargo Principal
+                    </span>
+                    <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
+                  </summary>
+                  <div className="p-4 pt-0 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <select name="modality" defaultValue={editingStaff?.modality || 'Sede'} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+                        <option value="Sede">Modalidad: Sede</option>
+                        <option value="Inclusión">Modalidad: Inclusión</option>
+                        <option value="Ambos">Modalidad: Ambos</option>
+                      </select>
+                      <select name="cargo1_subsidized" defaultValue={editingStaff?.cargo1_subsidized || 'false'} className={`p-3 rounded-xl border-none font-black text-xs ${editingStaff?.cargo1_subsidized === 'true' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500'}`}>
+                        <option value="false">DENO (No Subvencionado)</option>
+                        <option value="true">MECA (Subvencionado)</option>
+                        <option value="fuera">FUERA DE PLANTA (Papeles)</option>
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-[1fr,2fr] gap-2">
+                      <input name="cargo1_numero" defaultValue={editingStaff?.cargo1_numero || ""} placeholder="N° Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+                      <input name="cargo1_name" defaultValue={editingStaff?.cargo1_name || ""} placeholder="Nombre del Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="flex flex-col">
+                        <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Función / Rol</label>
+                        <select 
+                          name="cargo1_role" 
+                          defaultValue={editingStaff?.cargo1_role || editingStaff?.role || ""} 
+                          className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs"
+                          required
+                        >
+                          <option value="">Seleccionar Rol...</option>
+                          {(typeof VALID_ROLES_OFFICIAL !== 'undefined' ? VALID_ROLES_OFFICIAL : []).map(r => (
+                            <option key={r} value={r}>{r}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Turno Horario</label>
+                        <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+                          <option value="">Turno...</option>
+                          <option value="Mañana">Mañana</option>
+                          <option value="Tarde">Tarde</option>
+                          <option value="Alternado">Alternado</option>
+                          <option value="Vespertino">Vespertino</option>
+                          <option value="Doble">Doble</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                       <select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+                        <option value="">Revista...</option>
+                        <option value="Titular">Titular</option><option value="Provisional">Provisional</option><option value="Suplente">Suplente</option>
+                      </select>
+                      <div className="flex flex-col">
+                        <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Alta Cargo</label>
+                        <input name="cargo1_ingreso" type="date" defaultValue={editingStaff?.cargo1_ingreso || ""} className="p-2 bg-slate-50 rounded-xl border-none font-bold text-xs"/>
+                      </div>
+                    </div>
+                  </div>
+                </details>
+
+                <details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-3">
+                  <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
+                    <span className="text-[11px] font-black text-slate-500 uppercase flex items-center gap-2">
+                      <PlusCircle size={14}/> Cargo Secundario / Adicional
+                    </span>
+                    <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
+                  </summary>
+                  <div className="p-4 pt-0 space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <input name="cargo2_numero" defaultValue={editingStaff?.cargo2_numero || ""} placeholder="N° Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm w-full"/>
+                      <input name="cargo2_name" defaultValue={editingStaff?.cargo2_name || ""} placeholder="Nombre Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm w-full"/>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <select name="cargo2_role" defaultValue={editingStaff?.cargo2_role || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
+                        <option value="">Rol Cargo 2...</option>
+                        {VALID_ROLES.map(r => (
+                          <option key={r} value={r}>{r}</option>
+                        ))}
+                      </select>
+                      <select name="cargo2_subsidized" defaultValue={editingStaff?.cargo2_subsidized || 'false'} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
+                        <option value="false">DENO (No Subvencionado)</option>
+                        <option value="true">MECA (Subvencionado)</option>
+                        <option value="fuera">FUERA DE PLANTA (Papeles)</option>
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                       <select name="cargo2_revista" defaultValue={editingStaff?.cargo2_revista || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+                        <option value="">Revista...</option>
+                        <option value="Titular">Titular</option>
+                        <option value="Provisional">Provisional</option>
+                        <option value="Suplente">Suplente</option>
+                      </select>
+                      <div className="flex flex-col">
+                        <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Alta Cargo 2</label>
+                        <input name="cargo2_ingreso" type="date" defaultValue={editingStaff?.cargo2_ingreso || ""} className="p-2 bg-slate-50 rounded-xl border-none font-bold text-xs"/>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 px-2">
+                       <input type="checkbox" name="cargo2_en_papeles" defaultChecked={editingStaff?.cargo2_en_papeles === 'true'} value="true" className="w-4 h-4 accent-violet-600"/>
+                       <span className="text-[10px] font-bold text-gray-500 uppercase">¿Este cargo figura solo en papeles?</span>
+                    </div>
+                  </div>
+                </details>
+
+                <details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                  <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
+                    <span className="text-[11px] font-black text-violet-500 uppercase flex items-center gap-2">
+                      <Clock size={14}/> Ingreso y Antigüedad
+                    </span>
+                    <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
+                  </summary>
+                  <div className="p-4 pt-0 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Ingreso Institución</label>
+                      <input name="fechaIngreso" type="date" defaultValue={editingStaff?.fechaIngreso || ""} className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm"/>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Años Anti.</label>
+                        <input name="antiguedadAnios" type="number" defaultValue={editingStaff?.antiguedadAnios || ""} className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm text-center"/>
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Meses Anti.</label>
+                        <input name="antiguedadMeses" type="number" defaultValue={editingStaff?.antiguedadMeses || ""} className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm text-center"/>
+                      </div>
+                    </div>
+                    <input name="antiguedadFechaRef" type="hidden" defaultValue={editingStaff?.antiguedadFechaRef || new Date().toISOString().split('T')[0]} />
+                  </div>
+                </details>
+
+                <div className="h-4"></div>
+              </form>
+
+              {/* BOTONERA DE FORMULARIO DE LEGAJO */}
+              <div className="p-4 bg-white border-t space-y-3 shrink-0">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button type="button" onClick={() => setShowStaffForm(false)} className="order-2 sm:order-1 flex-1 py-3 text-slate-500 font-bold uppercase text-[10px] tracking-widest">
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit" 
+                    form="staffForm" 
+                    disabled={processing}
+                    className="order-1 sm:order-2 flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-violet-200 hover:bg-violet-700 transition active:scale-95 flex justify-center items-center gap-2"
+                  >
+                    {processing ? <RefreshCw className="animate-spin" size={16}/> : 'Guardar Cambios'}
+                  </button>
+                </div>
+                
+                {editingStaff && (
+                  <button 
+                    type="button" 
+                    onClick={async () => {
+                      if(confirm("¿Eliminar definitivamente?")) {
+                        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); 
+                        setShowStaffForm(false); 
+                        setViewingStaff(null);
+                      }
+                    }} 
+                    className="w-full py-2 text-red-400 font-bold text-[9px] uppercase hover:text-red-500 transition tracking-tighter"
+                  >
+                    Eliminar Personal del Sistema
+                  </button>
+                )}
+              </div>
+            </div> 
+          </div>
+        )}
+
+        {/* MODAL CONFIGURACIÓN IMPRESIÓN GENERAL */}
+        {showPrintOptions && (
+            <div className="fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-4 backdrop-blur-sm">
+                <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95">
+                    <h3 className="text-xl font-black text-violet-900 uppercase italic mb-4 text-center">¿Qué info imprimir?</h3>
+                    <div className="grid grid-cols-1 gap-2 mb-6">
+                        {Object.keys(printColumns).map(col => (
+                            <label key={col} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl cursor-pointer hover:bg-violet-50 transition border border-transparent hover:border-violet-200">
+                                <span className="text-[10px] font-black text-gray-600 uppercase">
+                                    {col === 'alta' ? 'Fecha Ingreso' : col.replace('cargo', 'Cargo ')}
+                                </span>
+                                <input 
+                                    type="checkbox" 
+                                    checked={printColumns[col]} 
+                                    onChange={() => setPrintColumns({...printColumns, [col]: !printColumns[col]})}
+                                    className="w-5 h-5 accent-violet-600"
+                                />
+                            </label>
+                        ))}
+                    </div>
+                    <div className="flex gap-2">
+                        <button onClick={() => setShowPrintOptions(false)} className="flex-1 py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
+                        <button 
+                            onClick={() => { imprimirPlanillaGeneral(filteredStaff); setShowPrintOptions(false); }} 
+                            className="flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg hover:bg-violet-700 transition"
+                        >
+                            Generar Planilla
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* MODAL REGISTRO DE FALTAS */}
+        {showAbsenceForm && (
+            <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-2 sm:p-4 backdrop-blur-md animate-in fade-in">
+                <div className="bg-slate-50 rounded-[30px] w-full max-w-4xl shadow-2xl max-h-[95vh] flex flex-col border border-white/20 overflow-hidden">
+                    
+                    <div className="bg-orange-600 p-5 text-white flex justify-between items-center shrink-0">
+                        <div>
+                            <h3 className="text-lg font-black uppercase italic tracking-tighter flex items-center gap-2">
+                                <UserCheck size={20}/> Registro Rápido de Inasistencias
+                            </h3>
+                            <p className="text-[10px] opacity-80 font-bold uppercase mt-1">Carga de ausentismo por artículo</p>
+                        </div>
+                        <button onClick={() => { setShowAbsenceForm(false); setSelectedStaffForAbsence(null); }} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition">
+                            <X size={20} />
+                        </button>
+                    </div>
+
+                    <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+                        
+                        {/* COLUMNA IZQUIERDA: SELECCIÓN */}
+                        <div className="w-full md:w-1/2 bg-white border-r border-slate-200 flex flex-col overflow-hidden">
+                            <div className="p-3 bg-slate-100 border-b border-slate-200 shrink-0">
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">1. Seleccionar Personal</p>
+                            </div>
+                            <div className="overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                                {VALID_ROLES.map(rol => {
+                                    const staffEnRol = staffList.filter(s => getNormRole(s.cargo1_role || s.role) === rol);
+                                    if (staffEnRol.length === 0) return null;
+                                    return (
+                                        <div key={rol} className="space-y-2">
+                                            <h4 className="text-[10px] font-black text-orange-600 uppercase border-b border-orange-100 pb-1">{rol}</h4>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                {staffEnRol.map(s => (
+                                                    <button 
+                                                        key={s.id}
+                                                        onClick={() => setSelectedStaffForAbsence(s)}
+                                                        className={`p-2 rounded-xl text-left border transition-all flex items-center gap-2 ${selectedStaffForAbsence?.id === s.id ? 'bg-orange-100 border-orange-400 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-orange-300'}`}
+                                                    >
+                                                        <div className="w-6 h-6 rounded-full bg-orange-200 text-orange-700 flex items-center justify-center text-[10px] font-black shrink-0">
+                                                            {s.firstName?.[0]}
+                                                        </div>
+                                                        <span className="text-[10px] font-bold text-slate-700 truncate uppercase">
+                                                            {s.lastName}, {s.firstName}
+                                                        </span>
+                                                    </button>
                                                 ))}
                                             </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
-        </div>
-    </div>
-)}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
 
-  </div> // Fin del contenedor principal PersonalView
+                        {/* COLUMNA DERECHA: DATOS DE FALTA */}
+                        <div className="w-full md:w-1/2 p-4 sm:p-6 overflow-y-auto space-y-4">
+                            {selectedStaffForAbsence && (
+                                <div className="bg-orange-100 p-3 rounded-2xl border border-orange-200 flex items-center gap-3">
+                                    <User size={20} className="text-orange-600"/>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-[9px] font-black text-orange-500 uppercase">Cargando falta para:</p>
+                                        <p className="text-xs font-black text-orange-900 uppercase truncate">{selectedStaffForAbsence.lastName}, {selectedStaffForAbsence.firstName}</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200">
+                                <span className="text-[10px] font-black text-slate-600 uppercase">¿Es una licencia por varios días?</span>
+                                <button 
+                                    type="button"
+                                    onClick={() => { setIsRange(!isRange); setAbsenceEndDate(''); }}
+                                    className={`text-[9px] font-black px-3 py-1.5 rounded-lg uppercase tracking-wider transition ${isRange ? 'bg-orange-600 text-white' : 'bg-slate-100 text-slate-500'}`}
+                                >
+                                    {isRange ? 'Por Período 📅' : 'Un Solo Día ⏱️'}
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-[9px] font-black text-slate-400 uppercase ml-1 mb-1 block">
+                                        {isRange ? 'Fecha Inicio' : 'Fecha de Ausencia'}
+                                    </label>
+                                    <input 
+                                        type="date" 
+                                        value={absenceDate} 
+                                        onChange={(e) => setAbsenceDate(e.target.value)}
+                                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold text-xs outline-none focus:ring-2 focus:ring-orange-200"
+                                    />
+                                </div>
+                                {isRange && (
+                                    <div className="animate-in slide-in-from-top-2 duration-200">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-1 mb-1 block">Fecha Fin (Licencia)</label>
+                                        <input 
+                                            type="date" 
+                                            value={absenceEndDate} 
+                                            onChange={(e) => setAbsenceEndDate(e.target.value)}
+                                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold text-xs outline-none focus:ring-2 focus:ring-orange-200"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
+                            {selectedStaffForAbsence && (
+                                <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-2">
+                                    <label className="text-[9px] font-black text-slate-500 uppercase block">
+                                        📍 ¿A qué turno corresponde la falta?
+                                    </label>
+                                    <div className="grid grid-cols-3 gap-1.5">
+                                        {['Mañana', 'Tarde', 'Ambos'].map(t => {
+                                            const tieneC1EnTurno = selectedStaffForAbsence.cargo1_turn === t;
+                                            const tieneC2EnTurno = selectedStaffForAbsence.cargo2_turn === t;
+                                            const esSugerido = tieneC1EnTurno || tieneC2EnTurno;
+
+                                            return (
+                                                <button
+                                                    key={t}
+                                                    type="button"
+                                                    onClick={() => setAbsenceTurn(t)}
+                                                    className={`p-2 rounded-xl border font-black text-[9px] uppercase tracking-wider flex flex-col items-center justify-center transition-all ${absenceTurn === t ? 'bg-slate-800 text-white border-slate-900' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}
+                                                >
+                                                    <span>{t}</span>
+                                                    {esSugerido && <span className="text-[6px] text-orange-500 font-bold block mt-0.5">Asignado</span>}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div>
+                                <label className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1.5 flex items-center justify-between">
+                                    <span>Artículo / Código</span>
+                                </label>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                                    {Object.entries(CODIGOS_FALTAS).map(([codigo, descripcion]) => (
+                                        <button
+                                            type="button"
+                                            key={codigo}
+                                            onClick={() => setAbsenceCode(codigo)}
+                                            title={descripcion}
+                                            className={`group relative p-2.5 rounded-xl border transition-all flex flex-col items-center justify-center ${absenceCode === codigo ? 'bg-orange-500 border-orange-600 text-white shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:bg-orange-50'}`}
+                                        >
+                                            <span className="font-black text-xs uppercase">{codigo}</span>
+                                            <span className="text-[7px] text-center opacity-60 truncate w-full max-w-[90px]">{descripcion}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1 block">Observaciones / Notas (Opcional)</label>
+                                <textarea
+                                    value={absenceNotes}
+                                    onChange={(e) => setAbsenceNotes(e.target.value)}
+                                    placeholder="Ej: Presentó certificado médico digital, número de trámite..."
+                                    rows={2}
+                                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-orange-200 resize-none"
+                                />
+                            </div>
+
+                            <div className="pt-2">
+                                <button 
+                                    type="button"
+                                    onClick={handleSaveAbsence}
+                                    disabled={processing || !absenceCode}
+                                    className={`w-full py-3.5 rounded-xl font-black uppercase tracking-widest text-xs shadow-md transition active:scale-95 flex justify-center items-center gap-2 ${absenceCode && !processing ? 'bg-orange-600 text-white hover:bg-orange-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+                                >
+                                    {processing ? <RefreshCw className="animate-spin" size={14}/> : (
+                                        <>
+                                            <CheckCircle size={16}/>
+                                            {absenceCode ? `Registrar Ausentismo` : 'Seleccione un Código'}
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* MODAL RESUMEN MENSUAL DE FALTAS */}
+        {showAbsencesSummary && (
+            <div className="fixed inset-0 bg-black/70 z-[250] flex items-center justify-center p-2 sm:p-4 backdrop-blur-md animate-in fade-in">
+                <div className="bg-slate-50 rounded-[30px] w-full max-w-4xl shadow-2xl max-h-[95vh] flex flex-col border border-white/20 overflow-hidden">
+                    
+                    <div className="bg-violet-700 p-5 text-white flex justify-between items-center shrink-0">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-white/20 p-2 rounded-xl">
+                                <PieChart size={24} />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-black uppercase italic tracking-tighter">
+                                    Planilla de Ausentismo
+                                </h3>
+                                <p className="text-[10px] opacity-80 font-bold uppercase mt-1">Conteo y discriminación por artículo</p>
+                            </div>
+                        </div>
+                        <button onClick={() => setShowAbsencesSummary(false)} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition">
+                            <X size={20} />
+                        </button>
+                    </div>
+
+                    <div className="p-4 bg-white border-b border-slate-200 shrink-0 flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Período:</label>
+                            <input 
+                                type="month" 
+                                value={summaryMonth}
+                                onChange={(e) => setSummaryMonth(e.target.value)}
+                                className="p-2 bg-violet-50 text-violet-800 border border-violet-200 rounded-xl font-bold text-sm outline-none focus:ring-2 ring-violet-300"
+                            />
+                        </div>
+
+                        <button 
+                            onClick={imprimirResumenMensual}
+                            className="px-4 py-2 bg-white border-2 border-slate-200 text-slate-600 rounded-xl font-black uppercase text-[10px] tracking-widest hover:border-violet-400 hover:text-violet-600 transition flex items-center gap-2"
+                        >
+                            <Printer size={16}/> Imprimir Resumen
+                        </button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 custom-scrollbar">
+                        {sortedStaffStats.length === 0 ? (
+                            <div className="h-full flex flex-col items-center justify-center text-center opacity-50">
+                                <UserCheck size={60} className="text-slate-300 mb-4"/>
+                                <p className="text-lg font-black text-slate-500 uppercase tracking-widest">Sin inasistencias</p>
+                                <p className="text-xs font-bold text-slate-400">No hay registros de faltas para el mes seleccionado.</p>
+                            </div>
+                        ) : (
+                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-slate-100 border-b border-slate-200">
+                                            <th className="p-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Personal</th>
+                                            <th className="p-3 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Días</th>
+                                            <th className="p-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Desglose de Artículos</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {sortedStaffStats.map((s, idx) => (
+                                            <tr key={idx} className="hover:bg-violet-50/50 transition">
+                                                <td className="p-3">
+                                                    <p className="font-black text-slate-800 text-sm uppercase">{s.name}</p>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase">{s.role}</p>
+                                                </td>
+                                                <td className="p-3 text-center">
+                                                    <span className="bg-orange-100 text-orange-700 font-black text-sm px-3 py-1 rounded-xl">
+                                                        {s.total}
+                                                    </span>
+                                                </td>
+                                                <td className="p-3">
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {Object.entries(s.codes).map(([code, count]) => (
+                                                            <span key={code} className="bg-white border border-slate-200 text-slate-600 text-[9px] font-black px-2 py-1 rounded-lg uppercase shadow-sm">
+                                                                {code}: <span className="text-violet-600 ml-1">{count}</span>
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        )}
+
+    </div>
   ); 
-} // Fin de la función
+}
