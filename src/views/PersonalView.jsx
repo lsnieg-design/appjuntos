@@ -39,6 +39,11 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
   // Por defecto, carga el mes actual (formato YYYY-MM)
   const [summaryMonth, setSummaryMonth] = useState(new Date().toISOString().substring(0, 7)); 
   const [allAbsences, setAllAbsences] = useState([]);
+  // NUEVOS ESTADOS PARA DETALLE DE INASISTENCIA, RANGOS Y OBSERVACIONES
+const [absenceEndDate, setAbsenceEndDate] = useState(''); 
+const [isRange, setIsRange] = useState(false);
+const [absenceTurn, setAbsenceTurn] = useState('Ambos'); // 'Mañana', 'Tarde', 'Ambos'
+const [absenceNotes, setAbsenceNotes] = useState('');
 
   // BUSCADOR GENERAL DE FALTAS (Solo se activa al abrir el panel)
   useEffect(() => {
@@ -82,6 +87,7 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
     '114j': 'Duelo familiar',
     '114ll': 'Examen / Prácticas / Días de estudio',
     '114o': 'Causas particulares'
+    '114cró': 'Enfermedad Crónica' // <--- Nuevo ítem agregado
   };
   
   const [processing, setProcessing] = useState(false);
@@ -522,36 +528,78 @@ const handleDeleteAbsence = async (id) => {
           }
       }
   };
-  const handleSaveAbsence = async () => {
-      if (!selectedStaffForAbsence || !absenceCode || !absenceDate) {
-          alert("Por favor completá todos los campos (Persona, Fecha y Código).");
-          return;
-      }
+const getBusinessDays = (startDateStr, endDateStr) => {
+    const dates = [];
+    let current = new Date(startDateStr + 'T12:00:00');
+    const end = new Date(endDateStr + 'T12:00:00');
+    
+    while (current <= end) {
+        const dayOfWeek = current.getDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) { // 0 = Domingo, 6 = Sábado
+            dates.push(current.toISOString().split('T')[0]);
+        }
+        current.setDate(current.getDate() + 1);
+    }
+    return dates;
+};
+ const handleSaveAbsence = async () => {
+    if (!selectedStaffForAbsence || !absenceCode || !absenceDate) {
+        alert("Por favor completá los campos obligatorios (Persona, Fecha de Inicio y Código).");
+        return;
+    }
 
-      try {
-          setProcessing(true);
-          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'absences'), {
-              staffId: selectedStaffForAbsence.id,
-              staffName: `${selectedStaffForAbsence.lastName}, ${selectedStaffForAbsence.firstName}`,
-              role: getNormRole(selectedStaffForAbsence.cargo1_role || selectedStaffForAbsence.role),
-              code: absenceCode,
-              description: CODIGOS_FALTAS[absenceCode],
-              date: absenceDate,
-              month: absenceDate.substring(0, 7), // Guarda "2026-06" para filtrado rápido mensual
-              year: absenceDate.substring(0, 4),  // Guarda "2026" para filtrado anual
-              createdAt: serverTimestamp()
-          });
-          
-          alert(`✅ Falta (${absenceCode}) registrada a ${selectedStaffForAbsence.lastName}`);
-          setShowAbsenceForm(false);
-          setSelectedStaffForAbsence(null);
-          setAbsenceCode('');
-      } catch (err) {
-          alert("Error al guardar la falta: " + err.message);
-      } finally {
-          setProcessing(false);
-      }
-  };
+    let diasAProcesar = [absenceDate];
+    if (isRange && absenceEndDate) {
+        if (new Date(absenceEndDate) < new Date(absenceDate)) {
+            alert("La fecha de finalización no puede ser anterior a la de inicio.");
+            return;
+        }
+        diasAProcesar = getBusinessDays(absenceDate, absenceEndDate);
+        if (diasAProcesar.length === 0) {
+            alert("El rango seleccionado no contiene días hábiles (Lunes a Viernes).");
+            return;
+        }
+    }
+
+    try {
+        setProcessing(true);
+        const absencesRef = collection(db, 'artifacts', appId, 'public', 'data', 'absences');
+        
+        // Guardamos un documento por cada día hábil para que impacte bien en los conteos mensuales/anuales
+        const promises = diasAProcesar.map(fecha => {
+            return addDoc(absencesRef, {
+                staffId: selectedStaffForAbsence.id,
+                staffName: `${selectedStaffForAbsence.lastName}, ${selectedStaffForAbsence.firstName}`,
+                role: getNormRole(selectedStaffForAbsence.cargo1_role || selectedStaffForAbsence.role),
+                code: absenceCode,
+                description: CODIGOS_FALTAS[absenceCode],
+                date: fecha,
+                month: fecha.substring(0, 7),
+                year: fecha.substring(0, 4),
+                turn: absenceTurn, // <--- Carga diferenciada por turno
+                notes: absenceNotes.trim(), // <--- Observación no obligatoria
+                createdAt: serverTimestamp()
+            });
+        });
+
+        await Promise.all(promises);
+        
+        alert(`✅ Se registraron ${diasAProcesar.length} día(s) de inasistencia para ${selectedStaffForAbsence.lastName}`);
+        
+        // Resetear estados del formulario
+        setShowAbsenceForm(false);
+        setSelectedStaffForAbsence(null);
+        setAbsenceCode('');
+        setAbsenceEndDate('');
+        setIsRange(false);
+        setAbsenceTurn('Ambos');
+        setAbsenceNotes('');
+    } catch (err) {
+        alert("Error al guardar la inasistencia: " + err.message);
+    } finally {
+        setProcessing(false);
+    }
+};
   // --- LÓGICA DEL RESUMEN MENSUAL ---
   // 1. Filtramos las faltas por el mes seleccionado
   const absencesForMonth = allAbsences.filter(a => a.month === summaryMonth);
@@ -930,12 +978,17 @@ const handleDeleteAbsence = async (id) => {
                                         <span className="bg-orange-500 text-white font-black text-[10px] px-2 py-1 rounded-lg uppercase">
                                             {falta.code}
                                         </span>
-                                        <div>
-                                            <p className="text-[10px] font-bold text-slate-700 leading-tight">{falta.description}</p>
-                                            <p className="text-[8px] text-slate-400 uppercase font-black">
-                                                {new Date(falta.date + 'T00:00:00').toLocaleDateString('es-AR')}
-                                            </p>
-                                        </div>
+                                        <<div>
+    <p className="text-[10px] font-bold text-slate-700 leading-tight">
+        {falta.description} 
+        {/* Agrega esta etiqueta al lado del texto para ver el turno en el historial */}
+        {falta.turn && <span className="bg-slate-100 text-slate-600 font-black text-[7px] px-1.5 py-0.5 rounded-md ml-1.5 border border-slate-200">{falta.turn.toUpperCase()}</span>}
+    </p>
+    <p className="text-[8px] text-slate-400 uppercase font-black flex justify-between items-center mt-0.5">
+        <span>{new Date(falta.date + 'T00:00:00').toLocaleDateString('es-AR')}</span>
+        {falta.notes && <span className="text-orange-600 italic font-bold normal-case truncate max-w-[180px]">“{falta.notes}”</span>}
+    </p>
+</div>
                                     </div>
                                     <button 
                                         onClick={() => handleDeleteAbsence(falta.id)} 
@@ -1314,86 +1367,135 @@ const handleDeleteAbsence = async (id) => {
                 </div>
 
                 {/* COLUMNA DERECHA: SELECCIÓN DE ARTÍCULO Y FECHA */}
-                <div className="w-full md:w-1/2 flex flex-col bg-slate-50 relative pointer-events-none">
-                    {/* Overlay si no hay personal seleccionado */}
-                    {!selectedStaffForAbsence && (
-                        <div className="absolute inset-0 z-10 bg-slate-50/80 backdrop-blur-sm flex items-center justify-center p-6 text-center pointer-events-auto">
-                            <p className="text-sm font-black text-slate-400 uppercase tracking-widest border-2 border-dashed border-slate-300 p-6 rounded-3xl">
-                                👈 Seleccioná una persona primero
-                            </p>
-                        </div>
-                    )}
+               <div className="p-4 sm:p-6 overflow-y-auto space-y-4 pointer-events-auto">
+    {/* PERSONA SELECCIONADA */}
+    {selectedStaffForAbsence && (
+        <div className="bg-orange-100 p-3 rounded-2xl border border-orange-200 flex items-center gap-3">
+            <User size={20} className="text-orange-600"/>
+            <div className="min-w-0 flex-1">
+                <p className="text-[9px] font-black text-orange-500 uppercase">Cargando falta para:</p>
+                <p className="text-xs font-black text-orange-900 uppercase truncate">{selectedStaffForAbsence.lastName}, {selectedStaffForAbsence.firstName}</p>
+            </div>
+        </div>
+    )}
 
-                    <div className="p-3 bg-slate-100 border-b border-slate-200 shrink-0 pointer-events-auto">
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">2. Detalle de Inasistencia</p>
-                    </div>
+    {/* CONTROL DE RANGO / PERÍODO */}
+    <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200">
+        <span className="text-[10px] font-black text-slate-600 uppercase">¿Es una licencia por varios días?</span>
+        <button 
+            type="button"
+            onClick={() => { setIsRange(!isRange); setAbsenceEndDate(''); }}
+            className={`text-[9px] font-black px-3 py-1.5 rounded-lg uppercase tracking-wider transition ${isRange ? 'bg-orange-600 text-white' : 'bg-slate-100 text-slate-500'}`}
+        >
+            {isRange ? 'Por Período 📅' : 'Un Solo Día ⏱️'}
+        </button>
+    </div>
 
-                    <div className="p-4 sm:p-6 overflow-y-auto space-y-6 pointer-events-auto">
-                        {/* PERSONA SELECCIONADA */}
-                        {selectedStaffForAbsence && (
-                            <div className="bg-orange-100 p-4 rounded-2xl border border-orange-200 flex items-center gap-3">
-                                <User size={24} className="text-orange-600"/>
-                                <div>
-                                    <p className="text-[10px] font-black text-orange-500 uppercase">Cargando falta para:</p>
-                                    <p className="text-sm font-black text-orange-900 uppercase">{selectedStaffForAbsence.lastName}, {selectedStaffForAbsence.firstName}</p>
-                                </div>
-                            </div>
-                        )}
+    {/* FECHAS DINÁMICAS */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+            <label className="text-[9px] font-black text-slate-400 uppercase ml-1 mb-1 block">
+                {isRange ? 'Fecha Inicio' : 'Fecha de Ausencia'}
+            </label>
+            <input 
+                type="date" 
+                value={absenceDate} 
+                onChange={(e) => setAbsenceDate(e.target.value)}
+                className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold text-xs outline-none focus:ring-2 focus:ring-orange-200"
+            />
+        </div>
+        {isRange && (
+            <div className="animate-in slide-in-from-top-2 duration-200">
+                <label className="text-[9px] font-black text-slate-400 uppercase ml-1 mb-1 block">Fecha Fin (Licencia)</label>
+                <input 
+                    type="date" 
+                    value={absenceEndDate} 
+                    onChange={(e) => setAbsenceEndDate(e.target.value)}
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold text-xs outline-none focus:ring-2 focus:ring-orange-200"
+                />
+            </div>
+        )}
+    </div>
 
-                        {/* FECHA */}
-                        <div>
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-2 mb-1 block">Fecha de Ausencia</label>
-                            <input 
-                                type="date" 
-                                value={absenceDate} 
-                                onChange={(e) => setAbsenceDate(e.target.value)}
-                                className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-orange-200"
-                            />
-                        </div>
+    {/* CONDICIONAL INTELIGENTE: CONTROL DE TURNO SEGÚN SUS CARGOS (MAÑANA/TARDE) */}
+    {selectedStaffForAbsence && (
+        <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-2">
+            <label className="text-[9px] font-black text-slate-500 uppercase block">
+                📍 ¿A qué turno corresponde la falta?
+            </label>
+            <div className="grid grid-cols-3 gap-1.5">
+                {['Mañana', 'Tarde', 'Ambos'].map(t => {
+                    // Verificamos qué cargos tiene activos visualmente para guiar el clic
+                    const tieneC1EnTurno = selectedStaffForAbsence.cargo1_turn === t;
+                    const tieneC2EnTurno = selectedStaffForAbsence.cargo2_turn === t;
+                    const esSugerido = tieneC1EnTurno || tieneC2EnTurno;
 
-                        {/* CÓDIGOS DE FALTA */}
-                        <div>
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-2 mb-2 flex items-center gap-1 justify-between">
-                                <span>Artículo / Código</span>
-                                <span className="text-[8px] text-slate-400 italic font-normal">* Mantené apretado o pasá el mouse para ver el detalle</span>
-                            </label>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                {Object.entries(CODIGOS_FALTAS).map(([codigo, descripcion]) => (
-                                    <button
-                                        key={codigo}
-                                        onClick={() => setAbsenceCode(codigo)}
-                                        title={descripcion} // Native Tooltip
-                                        className={`group relative p-3 rounded-xl border-2 transition-all flex flex-col items-center justify-center gap-1 ${absenceCode === codigo ? 'bg-orange-500 border-orange-600 text-white shadow-md scale-[1.02]' : 'bg-white border-slate-200 text-slate-600 hover:border-orange-400 hover:bg-orange-50'}`}
-                                    >
-                                        <span className="font-black text-sm uppercase">{codigo}</span>
-                                        
-                                        {/* Tooltip Custom que aparece en Hover */}
-                                        <div className="absolute bottom-full mb-2 hidden group-hover:block w-32 bg-slate-800 text-white text-[9px] font-bold p-2 rounded-lg text-center z-20 shadow-xl pointer-events-none">
-                                            {descripcion}
-                                            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* BOTONERA GUARDAR */}
-                    <div className="p-4 bg-white border-t border-slate-200 shrink-0 pointer-events-auto">
-                        <button 
-                            onClick={handleSaveAbsence}
-                            disabled={processing || !absenceCode}
-                            className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg transition active:scale-95 flex justify-center items-center gap-2 ${absenceCode && !processing ? 'bg-orange-600 text-white hover:bg-orange-700 shadow-orange-200' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+                    return (
+                        <button
+                            key={t}
+                            type="button"
+                            onClick={() => setAbsenceTurn(t)}
+                            className={`p-2 rounded-xl border font-black text-[9px] uppercase tracking-wider flex flex-col items-center justify-center transition-all ${absenceTurn === t ? 'bg-slate-800 text-white border-slate-900' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}
                         >
-                            {processing ? <RefreshCw className="animate-spin" size={16}/> : (
-                                <>
-                                    <CheckCircle size={18}/>
-                                    {absenceCode ? `Registrar Art. ${absenceCode}` : 'Seleccione un Código'}
-                                </>
-                            )}
+                            <span>{t}</span>
+                            {esSugerido && <span className="text-[6px] text-orange-500 font-bold block mt-0.5">Asignado</span>}
                         </button>
-                    </div>
-                </div>
+                    );
+                })}
+            </div>
+        </div>
+    )}
+
+    {/* CÓDIGOS DE FALTA */}
+    <div>
+        <label className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1.5 flex items-center justify-between">
+            <span>Artículo / Código</span>
+        </label>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+            {Object.entries(CODIGOS_FALTAS).map(([codigo, descripcion]) => (
+                <button
+                    type="button"
+                    key={codigo}
+                    onClick={() => setAbsenceCode(codigo)}
+                    title={descripcion}
+                    className={`group relative p-2.5 rounded-xl border transition-all flex flex-col items-center justify-center ${absenceCode === codigo ? 'bg-orange-500 border-orange-600 text-white shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:bg-orange-50'}`}
+                >
+                    <span className="font-black text-xs uppercase">{codigo}</span>
+                    <span className="text-[7px] text-center opacity-60 truncate w-full max-w-[90px]">{descripcion}</span>
+                </button>
+            ))}
+        </div>
+    </div>
+
+    {/* CUADRO DE OBSERVACIONES NO OBLIGATORIO */}
+    <div>
+        <label className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1 block">Observaciones / Notas (Opcional)</label>
+        <textarea
+            value={absenceNotes}
+            onChange={(e) => setAbsenceNotes(e.target.value)}
+            placeholder="Ej: Presentó certificado médico digital, número de trámite..."
+            rows={2}
+            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-orange-200 resize-none"
+        />
+    </div>
+
+    {/* BOTONERA GUARDAR */}
+    <div className="pt-2">
+        <button 
+            type="button"
+            onClick={handleSaveAbsence}
+            disabled={processing || !absenceCode}
+            className={`w-full py-3.5 rounded-xl font-black uppercase tracking-widest text-xs shadow-md transition active:scale-95 flex justify-center items-center gap-2 ${absenceCode && !processing ? 'bg-orange-600 text-white hover:bg-orange-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+        >
+            {processing ? <RefreshCw className="animate-spin" size={14}/> : (
+                <>
+                    <CheckCircle size={16}/>
+                    {absenceCode ? `Registrar Ausentismo` : 'Seleccione un Código'}
+                </>
+            )}
+        </button>
+    </div>
+</div>
             </div>
         </div>
     </div>
