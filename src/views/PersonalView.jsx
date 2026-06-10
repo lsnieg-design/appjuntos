@@ -78,7 +78,7 @@ const [absenceNotes, setAbsenceNotes] = useState('');
       });
       return () => unsub();
   }, [viewingStaff, db, appId]);
-  const CODIGOS_FALTAS = {
+ const CODIGOS_FALTAS = {
     '114a': 'Enfermedad corta',
     '114c': 'Matrimonio',
     '114d': 'Maternidad',
@@ -86,8 +86,8 @@ const [absenceNotes, setAbsenceNotes] = useState('');
     '114f': 'Familiar enfermo',
     '114j': 'Duelo familiar',
     '114ll': 'Examen / Prácticas / Días de estudio',
-    '114o': 'Causas particulares'
-    '114cró': 'Enfermedad Crónica' // <--- Nuevo ítem agregado
+    '114o': 'Causas particulares', // <--- ACÁ FALTABA LA COMA
+    '114cro': 'Enfermedad Crónica' // <--- Consejo: saqué la tilde ('cró' -> 'cro') para evitar problemas raros con caracteres especiales en los IDs
   };
   
   const [processing, setProcessing] = useState(false);
