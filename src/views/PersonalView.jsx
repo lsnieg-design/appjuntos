@@ -966,42 +966,41 @@ const getBusinessDays = (startDateStr, endDateStr) => {
         </span>
     </div>
 
-    {staffAbsences.length === 0 ? (
-        <p className="text-[10px] text-orange-400 font-bold italic text-center py-2">
-            No registra inasistencias cargadas.
-        </p>
-    ) : (
-        <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
-            {staffAbsences.map(falta => (
-                <div key={falta.id} className="bg-white p-2 rounded-xl border border-orange-200 flex justify-between items-center group/falta">
-                    <div className="flex items-center gap-2">
-                        <span className="bg-orange-500 text-white font-black text-[10px] px-2 py-1 rounded-lg uppercase">
-                            {falta.code}
-                        </span>
-                        <div> {/* <-- CORREGIDO: Se eliminó el "<" extra que rompía el build */}
-                            <p className="text-[10px] font-bold text-slate-700 leading-tight">
-                                {falta.description} 
-                                {/* Agrega esta etiqueta al lado del texto para ver el turno en el historial */}
-                                {falta.turn && <span className="bg-slate-100 text-slate-600 font-black text-[7px] px-1.5 py-0.5 rounded-md ml-1.5 border border-slate-200">{falta.turn.toUpperCase()}</span>}
-                            </p>
-                            <p className="text-[8px] text-slate-400 uppercase font-black flex justify-between items-center mt-0.5">
-                                <span>{new Date(falta.date + 'T00:00:00').toLocaleDateString('es-AR')}</span>
-                                {falta.notes && <span className="text-orange-600 italic font-bold normal-case truncate max-w-[180px]">“{falta.notes}”</span>}
-                            </p>
-                        </div>
-                    </div>
-                    <button 
-                        onClick={() => handleDeleteAbsence(falta.id)} 
-                        className="text-red-300 hover:text-red-600 p-1.5 bg-red-50 rounded-lg opacity-0 group-hover/falta:opacity-100 transition-all"
-                        title="Eliminar registro"
-                    >
-                        <Trash2 size={12}/>
-                    </button>
-                </div>
-            ))}
-        </div>
-    )}
-</div>
+   {staffAbsences.length === 0 ? (
+    <p className="text-[10px] text-orange-400 font-bold italic text-center py-2">
+        No registra inasistencias cargadas.
+    </p>
+) : (
+    <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+        {staffAbsences.map(falta => (
+            <div key={falta.id} className="bg-white p-2 rounded-xl border border-orange-200 flex justify-between items-center group/falta">
+                <div className="flex items-center gap-2">
+                    <span className="bg-orange-500 text-white font-black text-[10px] px-2 py-1 rounded-lg uppercase">
+                        {falta.code}
+                    </span>
+                    <div> {/* Inicio del contenedor de textos */}
+                        <p className="text-[10px] font-bold text-slate-700 leading-tight">
+                            {falta.description} 
+                            {falta.turn && <span className="bg-slate-100 text-slate-600 font-black text-[7px] px-1.5 py-0.5 rounded-md ml-1.5 border border-slate-200">{falta.turn.toUpperCase()}</span>}
+                        </p>
+                        <p className="text-[8px] text-slate-400 uppercase font-black flex justify-between items-center mt-0.5">
+                            <span>{new Date(falta.date + 'T00:00:00').toLocaleDateString('es-AR')}</span>
+                            {falta.notes && <span className="text-orange-600 italic font-bold normal-case truncate max-w-[180px]">“{falta.notes}”</span>}
+                        </p>
+                    </div> {/* Cierre del contenedor de textos (ESTE ERA EL QUE FALTA) */}
+                </div> {/* Cierre de flex items-center */}
+                
+                <button 
+                    onClick={() => handleDeleteAbsence(falta.id)} 
+                    className="text-red-300 hover:text-red-600 p-1.5 bg-red-50 rounded-lg opacity-0 group-hover/falta:opacity-100 transition-all"
+                    title="Eliminar registro"
+                >
+                    <Trash2 size={12}/>
+                </button>
+            </div> {/* Cierre de la tarjeta de la falta */}
+        ))}
+    </div>
+)}
           
 {/* MODAL EDICIÓN LEGAJO - VERSIÓN PREMIUM RESPONSIVA DEFINITIVA */}
     {showStaffForm && (
