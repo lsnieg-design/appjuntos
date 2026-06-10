@@ -955,61 +955,54 @@ const getBusinessDays = (startDateStr, endDateStr) => {
                     </div>
                 )}
             </div>
-          {/* --- SECCIÓN NUEVA: HISTORIAL DE FALTAS --- */}
-                <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 shadow-sm mt-2">
-                    <div className="flex justify-between items-center mb-3">
-                        <h4 className="text-[10px] font-black text-orange-600 uppercase flex items-center gap-2">
-                            <UserCheck size={14}/> Historial de Inasistencias
-                        </h4>
-                        <span className="bg-orange-200 text-orange-800 text-[9px] font-black px-2 py-0.5 rounded-lg">
-                            Total: {staffAbsences.length}
-                        </span>
-                    </div>
-
-                    {staffAbsences.length === 0 ? (
-                        <p className="text-[10px] text-orange-400 font-bold italic text-center py-2">
-                            No registra inasistencias cargadas.
-                        </p>
-                    ) : (
-                        <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
-                            {staffAbsences.map(falta => (
-                                <div key={falta.id} className="bg-white p-2 rounded-xl border border-orange-200 flex justify-between items-center group/falta">
-                                    <div className="flex items-center gap-2">
-                                        <span className="bg-orange-500 text-white font-black text-[10px] px-2 py-1 rounded-lg uppercase">
-                                            {falta.code}
-                                        </span>
-                                        <<div>
-    <p className="text-[10px] font-bold text-slate-700 leading-tight">
-        {falta.description} 
-        {/* Agrega esta etiqueta al lado del texto para ver el turno en el historial */}
-        {falta.turn && <span className="bg-slate-100 text-slate-600 font-black text-[7px] px-1.5 py-0.5 rounded-md ml-1.5 border border-slate-200">{falta.turn.toUpperCase()}</span>}
-    </p>
-    <p className="text-[8px] text-slate-400 uppercase font-black flex justify-between items-center mt-0.5">
-        <span>{new Date(falta.date + 'T00:00:00').toLocaleDateString('es-AR')}</span>
-        {falta.notes && <span className="text-orange-600 italic font-bold normal-case truncate max-w-[180px]">“{falta.notes}”</span>}
-    </p>
-</div>
-                                    </div>
-                                    <button 
-                                        onClick={() => handleDeleteAbsence(falta.id)} 
-                                        className="text-red-300 hover:text-red-600 p-1.5 bg-red-50 rounded-lg opacity-0 group-hover/falta:opacity-100 transition-all"
-                                        title="Eliminar registro"
-                                    >
-                                        <Trash2 size={12}/>
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            
-            <div className="p-4 border-t bg-white flex justify-end gap-2 shrink-0">
-                <button onClick={()=>imprimirFichasDocentes([viewingStaff])} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-slate-600 font-bold text-xs uppercase hover:bg-gray-50 flex gap-2 items-center shadow-sm"><FileText size={16}/> Imprimir</button>
-                <button onClick={()=>{setEditingStaff(viewingStaff); setPhotoPreview(viewingStaff.photoUrl); setShowStaffForm(true);}} className="px-4 py-3 bg-violet-600 text-white rounded-xl font-bold text-xs uppercase hover:bg-violet-700 flex gap-2 items-center shadow-lg"><Edit3 size={16}/> Editar Legajo</button>
-            </div>
-        </div>
+        {/* --- SECCIÓN NUEVA: HISTORIAL DE FALTAS --- */}
+<div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 shadow-sm mt-2">
+    <div className="flex justify-between items-center mb-3">
+        <h4 className="text-[10px] font-black text-orange-600 uppercase flex items-center gap-2">
+            <UserCheck size={14}/> Historial de Inasistencias
+        </h4>
+        <span className="bg-orange-200 text-orange-800 text-[9px] font-black px-2 py-0.5 rounded-lg">
+            Total: {staffAbsences.length}
+        </span>
     </div>
-)}
+
+    {staffAbsences.length === 0 ? (
+        <p className="text-[10px] text-orange-400 font-bold italic text-center py-2">
+            No registra inasistencias cargadas.
+        </p>
+    ) : (
+        <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+            {staffAbsences.map(falta => (
+                <div key={falta.id} className="bg-white p-2 rounded-xl border border-orange-200 flex justify-between items-center group/falta">
+                    <div className="flex items-center gap-2">
+                        <span className="bg-orange-500 text-white font-black text-[10px] px-2 py-1 rounded-lg uppercase">
+                            {falta.code}
+                        </span>
+                        <div> {/* <-- CORREGIDO: Se eliminó el "<" extra que rompía el build */}
+                            <p className="text-[10px] font-bold text-slate-700 leading-tight">
+                                {falta.description} 
+                                {/* Agrega esta etiqueta al lado del texto para ver el turno en el historial */}
+                                {falta.turn && <span className="bg-slate-100 text-slate-600 font-black text-[7px] px-1.5 py-0.5 rounded-md ml-1.5 border border-slate-200">{falta.turn.toUpperCase()}</span>}
+                            </p>
+                            <p className="text-[8px] text-slate-400 uppercase font-black flex justify-between items-center mt-0.5">
+                                <span>{new Date(falta.date + 'T00:00:00').toLocaleDateString('es-AR')}</span>
+                                {falta.notes && <span className="text-orange-600 italic font-bold normal-case truncate max-w-[180px]">“{falta.notes}”</span>}
+                            </p>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={() => handleDeleteAbsence(falta.id)} 
+                        className="text-red-300 hover:text-red-600 p-1.5 bg-red-50 rounded-lg opacity-0 group-hover/falta:opacity-100 transition-all"
+                        title="Eliminar registro"
+                    >
+                        <Trash2 size={12}/>
+                    </button>
+                </div>
+            ))}
+        </div>
+    )}
+</div>
+          
 {/* MODAL EDICIÓN LEGAJO - VERSIÓN PREMIUM RESPONSIVA DEFINITIVA */}
     {showStaffForm && (
       <div className="fixed inset-0 bg-black/70 z-[150] flex items-center justify-center p-2 sm:p-4 backdrop-blur-md animate-in fade-in duration-300">
