@@ -972,7 +972,7 @@ const getBusinessDays = (startDateStr, endDateStr) => {
     </p>
 ) : (
     <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
-        {staffAbsences.map(falta => (
+        {staffAbsences.map((falta) => (
             <div key={falta.id} className="bg-white p-2 rounded-xl border border-orange-200 flex justify-between items-center group/falta">
                 <div className="flex items-center gap-2">
                     <span className="bg-orange-500 text-white font-black text-[10px] px-2 py-1 rounded-lg uppercase">
@@ -987,7 +987,7 @@ const getBusinessDays = (startDateStr, endDateStr) => {
                             <span>{new Date(falta.date + 'T00:00:00').toLocaleDateString('es-AR')}</span>
                             {falta.notes && <span className="text-orange-600 italic font-bold normal-case truncate max-w-[180px]">“{falta.notes}”</span>}
                         </p>
-                    </div> {/* Cierre del contenedor de textos (ESTE ERA EL QUE FALTA) */}
+                    </div> {/* Cierre del contenedor de textos */}
                 </div> {/* Cierre de flex items-center */}
                 
                 <button 
@@ -997,7 +997,7 @@ const getBusinessDays = (startDateStr, endDateStr) => {
                 >
                     <Trash2 size={12}/>
                 </button>
-            </div> {/* Cierre de la tarjeta de la falta */}
+            </div> // Cierre de la tarjeta de la falta con paréntesis correcto
         ))}
     </div>
 )}
