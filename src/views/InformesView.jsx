@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Edit3, Plus, BookOpen, Printer, PieChart } from 'lucide-react';
 import { doc, setDoc, onSnapshot, serverTimestamp, collection, query, deleteDoc } from 'firebase/firestore';
-import './print.css';
 
 const CONFIG_INDICADORES = {
  pedagogico: {
@@ -385,7 +384,14 @@ const DICCIONARIO = {
   `Nombre planifica de manera estratégica e independiente todo su tiempo laboral y la disposición de sus recursos técnicos con el fin de optimizar al máximo los niveles y la eficiencia global de la producción del taller. Maneja los tiempos como un profesional, organizándose tan bien que hace que todo el equipo trabaje mejor.`
  ]
 };
-
+const FIRMAS_AREAS = {
+  plastica: '/firmaro.png',
+  musica: '/firmafran.png',
+  educacion_fisica: '/firmajuan.png',
+  psicomotricidad: '/firmapablo.png', // Opcional, según tu lógica de docentes
+  pedagogico: '/firmasylogo.png',
+  laboral: '/firmasylogo.png'
+};
 // ⚠️ ACÁ ARRIBA DEJÁ TUS CONSTANTES INTACTAS: 
 // CONFIG_INDICADORES y DICCIONARIO
 
@@ -427,17 +433,7 @@ const generarHTMLImpresion = (s, report) => {
   // 1. Determinamos el nivel (Crucial para Música)
   const nivel = report.tipoInforme === 'musica' ? (report.nivelMusica || 'Nivel 1') : (s?.level || 'Inicial');
   const indicadores = CONFIG_INDICADORES[report.tipoInforme]?.[nivel] || CONFIG_INDICADORES[report.tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[report.tipoInforme]?.['CFI'] || [];
-// 1. Determinar el nombre del archivo de firma basado en el área
-const obtenerFirma = (tipo) => {
-  switch (tipo) {
-    case 'musica': return 'firmafran.png';
-    case 'plastica': return 'firmaro.png';
-    case 'educacion_fisica': return 'firmajuan.png';
-    default: return 'firmasylogo.png'; // Imagen genérica por defecto
-  }
-};
 
-const firmaSeleccionada = obtenerFirma(report.tipoInforme);
   // 2. Definimos qué áreas usan la Grilla con X y cuáles usan texto redactado
  
   const materiasConGrilla = ['plastica', 'musica', 'psicomotricidad', 'educacion_fisica'];
@@ -612,21 +608,20 @@ ${mostrarAuxiliar ? `<p><strong class="font-black text-gray-900">Auxiliar/Precep
           </p>
       </div>
 
-    <div class="mt-10 pt-6 flex flex-col items-center justify-center border-t border-dashed border-gray-300" style="break-inside: avoid;">
-    {/* Cambiamos la imagen fija por la dinámica */}
-    <img src="/${firmaSeleccionada}" alt="Firma Docente" class="max-w-[300px] w-full object-contain mb-10" />
-    
-    <div class="w-full flex justify-between px-12 mt-12">
-        <div class="flex flex-col items-center w-48">
-            <div class="w-full border-t-2 border-black mb-2"></div>
-            <span class="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
-        </div>
-        <div class="flex flex-col items-center w-48">
-            <div class="w-full border-t-2 border-black mb-2"></div>
-            <span class="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
-        </div>
-    </div>
-</div>;
+      <div class="mt-10 pt-6 flex flex-col items-center justify-center border-t border-dashed border-gray-300" style="break-inside: avoid;">
+          <img src="/firmasylogo.png" alt="Firmas y Logo Institucional" class="max-w-[300px] w-full object-contain mb-10" />
+          <div class="w-full flex justify-between px-12 mt-12">
+              <div class="flex flex-col items-center w-48">
+                  <div class="w-full border-t-2 border-black mb-2"></div>
+                  <span class="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
+              </div>
+              <div class="flex flex-col items-center w-48">
+                  <div class="w-full border-t-2 border-black mb-2"></div>
+                  <span class="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
+              </div>
+          </div>
+      </div>
+  </div>`;
 };
 
 export function InformesView({ user, db, appId }) {
@@ -712,28 +707,30 @@ export function InformesView({ user, db, appId }) {
  const estudiantesSede = students.filter(s => !s.modalidad || s.modalidad === 'Sede');
  
 const filteredStudents = estudiantesSede.filter(s => {
-  const nombreCompleto = (s.lastName || '') + ' ' + (s.firstName || '');
-  const matchSearch = nombreCompleto.toLowerCase().includes(searchTerm.toLowerCase());
-
-  // 1. Mantenemos el filtro de turno base
-  const matchTurno = turnoFiltro === 'Todos' || (turnoFiltro === 'Mañana' ? s.groupMorning : s.groupAfternoon);
-
-  // 2. Filtramos el grupo respetando estrictamente el turno seleccionado
-  let matchGrupo = true;
-  if (grupoFiltro !== 'Todos') {
-    if (turnoFiltro === 'Mañana') {
-      matchGrupo = s.groupMorning === grupoFiltro || s.laboralGroup === grupoFiltro;
-    } else if (turnoFiltro === 'Tarde') {
-      matchGrupo = s.groupAfternoon === grupoFiltro || s.laboralGroup === grupoFiltro;
-    } else {
-      matchGrupo = [s.groupMorning, s.groupAfternoon, s.laboralGroup].includes(grupoFiltro);
-    }
+ const matchSearch = `${s.lastName || ''} ${s.firstName || ''}`.toLowerCase().includes(searchTerm.toLowerCase());
+ 
+ // 1. Mantenemos el filtro de turno base
+ const matchTurno = turnoFiltro === 'Todos' || (turnoFiltro === 'Mañana' ? s.groupMorning : s.groupAfternoon);
+ 
+ // 2. CORRECCIÓN: Filtramos el grupo respetando estrictamente el turno seleccionado
+ let matchGrupo = true;
+ if (grupoFiltro !== 'Todos') {
+  if (turnoFiltro === 'Mañana') {
+   // A la mañana evaluamos su grupo pedagógico de la mañana o su grupo laboral
+   matchGrupo = s.groupMorning === grupoFiltro || s.laboralGroup === grupoFiltro;
+  } else if (turnoFiltro === 'Tarde') {
+   // A la tarde evaluamos estrictamente su grupo pedagógico de la tarde o laboral si correspondiese
+   matchGrupo = s.groupAfternoon === grupoFiltro || s.laboralGroup === grupoFiltro;
+  } else {
+   // Si el turno está en "Todos", buscamos en cualquiera
+   matchGrupo = [s.groupMorning, s.groupAfternoon, s.laboralGroup].includes(grupoFiltro);
   }
+ }
 
-  // 3. Filtro de nivel
-  const matchNivel = grupoFiltro !== 'Todos' || nivelFiltro === 'Todos' || (s.level && s.level.toUpperCase() === nivelFiltro.toUpperCase());
-
-  return matchSearch && matchTurno && matchNivel && matchGrupo;
+ // 3. Mantenemos el filtro de nivel
+ const matchNivel = grupoFiltro !== 'Todos' || nivelFiltro === 'Todos' || (s.level && s.level.toUpperCase() === nivelFiltro.toUpperCase());
+ 
+ return matchSearch && matchTurno && matchNivel && matchGrupo;
 });
 
  const handleEdit = (student, report) => {
@@ -772,48 +769,34 @@ const filteredStudents = estudiantesSede.filter(s => {
  };
 
  const handleSaveInforme = async () => {
-    if (grupoFiltro === 'Todos') { 
-      alert("Por favor, seleccioná un grupo específico para guardar."); 
-      return; 
-    }
-    
-    setIsSaving(true);
-    
-    // Concatenación simple para evitar errores de compilación con caracteres invisibles
-    const idUnico = selectedStudent.id + '_' + tipoInforme + '_' + grupoFiltro + '_' + periodoInforme;
-    
-    const dataToSave = {
-      studentId: selectedStudent.id,
-      studentName: selectedStudent.lastName + ', ' + selectedStudent.firstName,
-      grupo: grupoFiltro,
-      tipoInforme: tipoInforme,
-      periodo: periodoInforme,
-      observacionesPsicomotricidad: observacionesPsicomotricidad,
-      observacionesEducacionFisica: observacionesEducacionFisica,
-      answers: answers,
-      nivelMusica: nivelMusica,
-      observacionesMusica: observacionesMusica,
-      obsCuatrimestre1: obsCuatrimestre1,
-      objConductual: objConductual,
-      objPedagogico: objPedagogico,
-      objSocioafectivo: objSocioafectivo,
-      contenidosPlastica: contenidosPlastica,
-      observacionesPlastica: observacionesPlastica,
-      docente: docentePrint,
-      auxiliar: preceptoraPrint,
-      updatedAt: serverTimestamp()
-    };
-
-    try {
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pedagogical_reports', idUnico), dataToSave, { merge: true });
-      setStage('main');
-    } catch (error) {
-      console.error("Error al guardar:", error);
-      alert("Hubo un error al guardar el informe.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  if (grupoFiltro === 'Todos') { alert("Por favor, seleccioná un grupo específico para guardar."); return; }
+  setIsSaving(true);
+  const idUnico = `${selectedStudent.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`; 
+  await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pedagogical_reports', idUnico), {
+   studentId: selectedStudent.id,
+   studentName: `${selectedStudent.lastName}, ${selectedStudent.firstName}`,
+   grupo: grupoFiltro,
+   tipoInforme,
+   periodo: periodoInforme,
+   observacionesPsicomotricidad,
+   observacionesEducacionFisica,
+   answers,
+   nivelMusica,
+   observacionesMusica,
+   obsCuatrimestre1,
+   objConductual,
+   objPedagogico,
+   objSocioafectivo,
+   contenidosPlastica,
+   observacionesPlastica,
+   docente: docentePrint,
+   auxiliar: preceptoraPrint,
+   updatedAt: serverTimestamp()
+  }, { merge: true });
+  setStage('main');
+  setIsSaving(false);
+ };
+ 
 const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (selectedStudent?.level || 'Inicial');
   const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || [];
 
@@ -825,10 +808,29 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
  return (
   <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in relative">
    
-   
+   {/* MAGIA CSS PARA IMPRESIÓN (Destruye la app de fondo y muestra solo el papel) */}
+   <style>{`
+    @media screen {
+     #impresion-masiva { display: none !important; }
+    }
+    @media print {
+     body > *:not(#impresion-masiva):not(script):not(style) {
+      display: none !important;
+     }
+     #impresion-masiva {
+      display: block !important;
+      visibility: visible !important;
+      position: relative; 
+      width: 100%;
+     }
+     .pagina { page-break-after: always; }
+     @page { margin: 1cm; }
+     body { background: white; margin: 0; padding: 0; }
+    }
+   `}</style>
 
    {/* VISTA PRINCIPAL */}
-<div className={(stage === 'main' ? 'block ' : 'hidden ') + 'print:hidden'}>
+   <div className={`${stage === 'main' ? 'block' : 'hidden'} print:hidden`}>
     <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-6 md:p-8 rounded-[30px] md:rounded-[40px] shadow-xl text-white mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
      <div className="w-full md:w-auto text-center md:text-left">
       <h2 className="text-xl md:text-2xl font-black mb-2 flex items-center justify-center md:justify-start gap-3">
@@ -863,26 +865,22 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
 
  <div className="flex flex-wrap gap-2 p-2 bg-white rounded-2xl border mb-6">
           {[
-  { id: 'pedagogico', label: 'Pedagógico' },
-  { id: 'laboral', label: 'Laboral' },
-  { id: 'psicomotricidad', label: 'Psicomotricidad' },
-  { id: 'plastica', label: 'Plástica' },
-  { id: 'musica', label: 'Música' },
-  { id: 'educacion_fisica', label: 'Ed. Física' }
-].map(t => {
-  const baseClasses = "flex-auto min-w-fit whitespace-nowrap px-3 py-2 md:p-3 text-xs md:text-sm rounded-xl font-black transition-all";
-  const activeClasses = tipoInforme === t.id ? "bg-violet-600 text-white shadow-md" : "bg-gray-100 hover:bg-gray-200 text-gray-600";
-  
-  return (
-    <button 
-      key={t.id} 
-      onClick={() => { setTipoInforme(t.id); setNivelFiltro('Todos'); setGrupoFiltro('Todos'); }} 
-      className={baseClasses + " " + activeClasses}
-    >
-      {t.label}
-    </button>
-  );
-})}
+            { id: 'pedagogico', label: 'Pedagógico' },
+            { id: 'laboral', label: 'Laboral' },
+            { id: 'psicomotricidad', label: 'Psicomotricidad' },
+            { id: 'plastica', label: 'Plástica' },
+            { id: 'musica', label: 'Música' },
+            { id: 'educacion_fisica', label: 'Ed. Física' }
+          ].map(t => (
+            <button 
+              key={t.id} 
+              onClick={() => { setTipoInforme(t.id); setNivelFiltro('Todos'); setGrupoFiltro('Todos'); }} 
+              className={`flex-auto min-w-fit whitespace-nowrap px-3 py-2 md:p-3 text-xs md:text-sm rounded-xl font-black transition-all ${tipoInforme === t.id ? 'bg-violet-600 text-white shadow-md' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
 
     
       {/* AVISO PARA EL DOCENTE */}
@@ -975,58 +973,53 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
          
        {/* LISTA DE ALUMNOS */}
          <div className="bg-white rounded-3xl shadow-sm border divide-y">
-         {filteredStudents.length === 0 ? (
-  <div className="p-8 text-center text-gray-400 font-medium">No se encontraron estudiantes para este filtro.</div>
-) : (
-  filteredStudents.map(s => {
-    const report = grupoFiltro === 'Todos' ? null : savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
-    
-    // Definimos las clases sin template literals para evitar caracteres ocultos
-    const containerClasses = "p-5 flex justify-between items-center transition-colors " + (report ? "bg-emerald-50" : "hover:bg-violet-50/50");
-    const nameClasses = "font-bold " + (report ? "text-emerald-900" : "text-gray-900");
-    const infoClasses = "text-[10px] font-bold uppercase " + (report ? "text-emerald-600" : "text-gray-400");
-
-    return (
-      <div key={s.id + '-' + grupoFiltro} className={containerClasses}>
-        <div>
-          <p className={nameClasses}>{s.lastName}, {s.firstName}</p>
-          <p className={infoClasses}>
-            {s.level} | {report ? "Cargado (" + periodoInforme + ")" : "Pendiente"}
-          </p>
-        </div>
-        {grupoFiltro !== 'Todos' && (
-          <div className="flex items-center gap-2">
-            {report && (
-              <button 
-                onClick={() => {
-                  let contenedor = document.getElementById('impresion-masiva');
-                  if (!contenedor) {
+          {filteredStudents.length === 0 ? (
+           <div className="p-8 text-center text-gray-400 font-medium">No se encontraron estudiantes para este filtro.</div>
+          ) : (
+           filteredStudents.map(s => {
+            const report = grupoFiltro === 'Todos' ? null : savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
+            return (
+             <div key={`${s.id}-${grupoFiltro}`} className={`p-5 flex justify-between items-center transition-colors ${report ? 'bg-emerald-50' : 'hover:bg-violet-50/50'}`}>
+              <div>
+               <p className={`font-bold ${report ? 'text-emerald-900' : 'text-gray-900'}`}>{s.lastName}, {s.firstName}</p>
+               <p className={`text-[10px] font-bold uppercase ${report ? 'text-emerald-600' : 'text-gray-400'}`}>
+                {s.level} | {report ? `Cargado (${periodoInforme})` : 'Pendiente'}
+               </p>
+              </div>
+              {grupoFiltro !== 'Todos' && (
+               <div className="flex items-center gap-2">
+                {report && (
+                 <button 
+                  onClick={() => {
+                   let contenedor = document.getElementById('impresion-masiva');
+                   if (!contenedor) {
                     contenedor = document.createElement('div');
                     contenedor.id = 'impresion-masiva';
                     contenedor.className = 'print:block';
                     document.body.appendChild(contenedor);
-                  }
-                  contenedor.innerHTML = generarHTMLImpresion(s, report);
-                  setTimeout(() => { window.print(); }, 500);
-                }} 
-                className="p-2 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors"
-                title="Imprimir informe individual"
-              >
-                <Printer size={16}/>
+                   }
+                   contenedor.innerHTML = generarHTMLImpresion(s, report);
+                   setTimeout(() => { window.print(); }, 500);
+                  }} 
+                  className="p-2 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors"
+                  title="Imprimir informe individual"
+                 >
+                  <Printer size={16}/>
+                 </button>
+                )}
+                <button onClick={() => handleEdit(s, report)} className={`p-2 rounded-lg transition-colors ${report ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-violet-600 text-white hover:bg-violet-700'}`}>
+                 {report ? <Edit3 size={16}/> : <Plus size={16}/>}
               </button>
+              </div>
             )}
-            <button 
-              onClick={() => handleEdit(s, report)} 
-              className={"p-2 rounded-lg transition-colors " + (report ? "bg-blue-50 text-blue-600 hover:bg-blue-100" : "bg-violet-600 text-white hover:bg-violet-700")}
-            >
-              {report ? <Edit3 size={16}/> : <Plus size={16}/>}
-            </button>
           </div>
-        )}
-      </div>
-    );
-  })
+        );
+      })
+    )}
+  </div>
+</>
 )}
+</div>
 {/* MODAL DE ESTADÍSTICAS */}
   {showStatsModal && (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
@@ -1092,7 +1085,7 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
                     <span className="text-gray-400 font-medium pb-1">({totalCompleted} de {totalExpected})</span>
                   </div>
                   <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
-                    <div className="bg-violet-600 h-3 rounded-full transition-all duration-1000" style={{ width: totalPercentage + '%' }}></div>
+                    <div className="bg-violet-600 h-3 rounded-full transition-all duration-1000" style={{ width: `${totalPercentage}%` }}></div>
                   </div>
                 </div>
 
@@ -1108,13 +1101,11 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
-  <div 
-    className={`h-2.5 rounded-full transition-all duration-1000 ${
-      stat.percentage === 100 ? 'bg-emerald-500' : stat.percentage > 40 ? 'bg-indigo-500' : 'bg-amber-500'
-    }`} 
-    style={{ width: `${stat.percentage}%` }}
-  ></div>
-</div>
+                          <div 
+                            className={`h-2.5 rounded-full transition-all duration-1000 ${stat.percentage === 100 ? 'bg-emerald-500' : stat.percentage > 40 ? 'bg-indigo-500' : 'bg-amber-500'}`} 
+                            style={{ width: `${stat.percentage}%` }}
+                          ></div>
+                        </div>
                         <span className="text-xs font-black w-10 text-right text-gray-700">{stat.percentage}%</span>
                       </div>
                     </div>
@@ -1368,128 +1359,109 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
     </div>
    )}
 
-  {/* DOCUMENTO DE IMPRESIÓN OCULTO AL FONDO (No lo vas a ver hasta que presiones Imprimir) */}
-   {stage === 'form' && (
-    <div id="informe-imprimir" className="hidden">
-     <div className="pagina w-full bg-white text-black font-sans pb-4">
+ {/* DOCUMENTO DE IMPRESIÓN OCULTO AL FONDO (No lo vas a ver hasta que presiones Imprimir) */}
+{stage === 'form' && (
+  <div id="informe-imprimir" className="hidden">
+    <div className="pagina w-full bg-white text-black font-sans pb-4">
       <div className="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
-       <img src="/logosinfondo.png" alt="Logo Institucional" className="h-16 object-contain mb-3" />
-       <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME {periodoInforme.toUpperCase()} 2026</h1>
-       <p className="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
-        Área: {tipoInforme}
-       </p>
+        <img src="/logosinfondo.png" alt="Logo Institucional" className="h-16 object-contain mb-3" />
+        <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME {periodoInforme.toUpperCase()} 2026</h1>
+        <p className="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
+          Área: {tipoInforme}
+        </p>
       </div>
       
       <div className="border border-violet-200 rounded-xl p-5 mb-6 bg-white shadow-sm" style={{ breakInside: 'avoid' }}>
-       <h2 className="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Datos del Estudiante</h2>
-       <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
-        <p><strong className="font-black text-gray-900">Alumno/a:</strong> <span className="text-gray-700">{selectedStudent?.lastName}, {selectedStudent?.firstName}</span></p>
-        <p><strong className="font-black text-gray-900">DNI:</strong> <span className="text-gray-700">{selectedStudent?.dni || '....................................'}</span></p>
-        <p><strong className="font-black text-gray-900">Fecha de Nac.:</strong> <span className="text-gray-700">{selectedStudent?.birthDate || selectedStudent?.fechaNac || '....................................'}</span></p>
-        <p><strong className="font-black text-gray-900">Grupo:</strong> <span className="text-gray-700 font-bold">{grupoFiltro}</span></p>
-       {(() => {
-  // Buscamos el reporte en el listado para tenerlo como fallback de los datos que no están en el estado
-  const currentReport = savedReports.find(r => r.studentId === selectedStudent?.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
-  
-  return (
-    <>
-      <p>
-        <strong className="font-black text-gray-900">Docente a cargo:</strong>{" "}
-        <span className="text-gray-700">
-          {docentePrint || currentReport?.docente || selectedStudent?.teacher || selectedStudent?.docente || '....................................'}
-        </span>
-      </p>
-      
-      {!['plastica', 'musica', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
-        <p>
-          <strong className="font-black text-gray-900">Auxiliar/Preceptora:</strong>{" "}
-          <span className="text-gray-700">
-            {preceptoraPrint || currentReport?.auxiliar || selectedStudent?.auxiliary || selectedStudent?.auxiliar || selectedStudent?.preceptora || '....................................'}
-          </span>
-        </p>
-      )}
-    </>
-  );
-})()}
-)}
-        <p className="col-span-2"><strong className="font-black text-gray-900">Año de cursada:</strong> <span className="text-gray-700">2026</span></p>
-       </div>
+        <h2 className="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Datos del Estudiante</h2>
+        <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
+          <p><strong className="font-black text-gray-900">Alumno/a:</strong> <span className="text-gray-700">{selectedStudent?.lastName}, {selectedStudent?.firstName}</span></p>
+          <p><strong className="font-black text-gray-900">DNI:</strong> <span className="text-gray-700">{selectedStudent?.dni || '....................................'}</span></p>
+          <p><strong className="font-black text-gray-900">Fecha de Nac.:</strong> <span className="text-gray-700">{selectedStudent?.birthDate || selectedStudent?.fechaNac || '....................................'}</span></p>
+          <p><strong className="font-black text-gray-900">Grupo:</strong> <span className="text-gray-700 font-bold">{grupoFiltro}</span></p>
+          {(() => {
+            const currentReport = savedReports.find(r => r.studentId === selectedStudent?.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
+            return (
+              <>
+                <p>
+                  <strong className="font-black text-gray-900">Docente a cargo:</strong>{" "}
+                  <span className="text-gray-700">{docentePrint || currentReport?.docente || selectedStudent?.teacher || selectedStudent?.docente || '....................................'}</span>
+                </p>
+                {!['plastica', 'musica', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
+                  <p>
+                    <strong className="font-black text-gray-900">Auxiliar/Preceptora:</strong>{" "}
+                    <span className="text-gray-700">{preceptoraPrint || currentReport?.auxiliar || selectedStudent?.auxiliary || selectedStudent?.auxiliar || selectedStudent?.preceptora || '....................................'}</span>
+                  </p>
+                )}
+              </>
+            );
+          })()}
+          <p className="col-span-2"><strong className="font-black text-gray-900">Año de cursada:</strong> <span className="text-gray-700">2026</span></p>
+        </div>
       </div>
 
       <div className="mb-6">
-       <h2 className="text-sm font-black text-white bg-violet-800 uppercase px-4 py-1.5 rounded-md mb-4 shadow-sm inline-block" style={{ breakInside: 'avoid' }}>
-        Desarrollo {tipoInforme}
-       </h2>
-       <div className="space-y-4 border-l-2 border-violet-200 ml-1 pl-4">
-        {indicadoresActuales.map(c => {
-         const answer = answers[c.id];
-         if (!answer) return null; 
-         const optionIndex = c.options.indexOf(answer);
-         let textoDescriptivo = optionIndex !== -1 ? formatearTextoImpresion(c.id, optionIndex, answer, selectedStudent?.firstName) : answer;
-         if (!textoDescriptivo) return null;
-         return (
-          <div key={c.id} className="text-xs flex flex-col mb-2 pb-3 border-b border-gray-100 last:border-0" style={{ breakInside: 'avoid' }}>
-           <span className="font-black text-violet-900 uppercase text-[10px] tracking-widest mb-1">{c.label}</span>
-           <span className="text-gray-800 leading-relaxed font-medium text-[11px]">{textoDescriptivo}</span>
-          </div>
-         );
-        })}
-       </div>
+        <h2 className="text-sm font-black text-white bg-violet-800 uppercase px-4 py-1.5 rounded-md mb-4 shadow-sm inline-block" style={{ breakInside: 'avoid' }}>
+          Desarrollo {tipoInforme}
+        </h2>
+        <div className="space-y-4 border-l-2 border-violet-200 ml-1 pl-4">
+          {indicadoresActuales.map(c => {
+            const answer = answers[c.id];
+            if (!answer) return null; 
+            const optionIndex = c.options.indexOf(answer);
+            let textoDescriptivo = optionIndex !== -1 ? formatearTextoImpresion(c.id, optionIndex, answer, selectedStudent?.firstName) : answer;
+            if (!textoDescriptivo) return null;
+            return (
+              <div key={c.id} className="text-xs flex flex-col mb-2 pb-3 border-b border-gray-100 last:border-0" style={{ breakInside: 'avoid' }}>
+                <span className="font-black text-violet-900 uppercase text-[10px] tracking-widest mb-1">{c.label}</span>
+                <span className="text-gray-800 leading-relaxed font-medium text-[11px]">{textoDescriptivo}</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {obsCuatrimestre1 && (
-       <div className="mt-6 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
-        <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Observaciones sobre los objetivos planteados para este primer cuatrimestre</h2>
-        <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium">{obsCuatrimestre1}</p>
-       </div>
+        <div className="mt-6 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
+          <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Observaciones sobre los objetivos planteados para este primer cuatrimestre</h2>
+          <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium">{obsCuatrimestre1}</p>
+        </div>
       )}
 
       {(objConductual || objPedagogico || objSocioafectivo) && (
-       <div className="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
-        <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Objetivos para el segundo cuatrimestre</h2>
-        {objConductual && (
-         <div className="mb-2">
-          <strong className="text-xs font-black text-violet-800">Objetivo Conductual:</strong>
-          <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">{objConductual}</p>
-         </div>
-        )}
-        {objPedagogico && (
-         <div className="mb-2">
-          <strong className="text-xs font-black text-violet-800">Objetivo Pedagogico:</strong>
-          <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">{objPedagogico}</p>
-         </div>
-        )}
-        {objSocioafectivo && (
-         <div className="mb-2">
-          <strong className="text-xs font-black text-violet-800">Objetivo Socioafectivo:</strong>
-          <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">{objSocioafectivo}</p>
-         </div>
-        )}
-       </div>
+        <div className="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
+          <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Objetivos para el segundo cuatrimestre</h2>
+          {objConductual && <div className="mb-2"><strong className="text-xs font-black text-violet-800">Objetivo Conductual:</strong><p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">{objConductual}</p></div>}
+          {objPedagogico && <div className="mb-2"><strong className="text-xs font-black text-violet-800">Objetivo Pedagogico:</strong><p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">{objPedagogico}</p></div>}
+          {objSocioafectivo && <div className="mb-2"><strong className="text-xs font-black text-violet-800">Objetivo Socioafectivo:</strong><p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">{objSocioafectivo}</p></div>}
+        </div>
       )}
 
       <div className="mt-8 mb-2 px-4 text-center" style={{ breakInside: 'avoid' }}>
-       <p className="text-xs text-gray-700 italic font-medium">
-         Continuaremos abordando, desde la perspectiva constructivista, el aprendizaje subjetivo del alumno, centrándonos en su bienestar y motivación, para avanzar durante el siguiente periodo.
-       </p>
+        <p className="text-xs text-gray-700 italic font-medium">
+          Continuaremos abordando, desde la perspectiva constructivista, el aprendizaje subjetivo del alumno, centrándonos en su bienestar y motivación, para avanzar durante el siguiente periodo.
+        </p>
       </div>
 
       <div className="mt-10 pt-6 flex flex-col items-center justify-center border-t border-dashed border-gray-300" style={{ breakInside: 'avoid' }}>
-       <img src="/firmasylogo.png" alt="Firmas y Logo Institucional" className="max-w-[300px] w-full object-contain mb-10" />
-       <div className="w-full flex justify-between px-12 mt-12">
-        <div className="flex flex-col items-center w-48">
-         <div className="w-full border-t-2 border-black mb-2"></div>
-         <span className="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
+        <img 
+          src={FIRMAS_AREAS[tipoInforme] || '/firmasylogo.png'} 
+          alt="Firma del Área" 
+          className="max-w-[300px] w-full object-contain mb-10" 
+        />
+        <div className="w-full flex justify-between px-12 mt-12">
+          <div className="flex flex-col items-center w-48">
+            <div className="w-full border-t-2 border-black mb-2"></div>
+            <span className="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
+          </div>
+          <div className="flex flex-col items-center w-48">
+            <div className="w-full border-t-2 border-black mb-2"></div>
+            <span className="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
+          </div>
         </div>
-        <div className="flex flex-col items-center w-48">
-         <div className="w-full border-t-2 border-black mb-2"></div>
-         <span className="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
-        </div>
-       </div>
       </div>
-     </div>
     </div>
-   )}
+  </div>
+)}
   </div>
  );
 }
