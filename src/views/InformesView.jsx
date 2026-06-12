@@ -711,10 +711,10 @@ export function InformesView({ user, db, appId }) {
  const estudiantesSede = students.filter(s => !s.modalidad || s.modalidad === 'Sede');
  
 const filteredStudents = estudiantesSede.filter(s => {
-const matchSearch = `${s.lastName || ''} ${s.firstName || ''}`.toLowerCase().includes(searchTerm.toLowerCase());
- 
- // 1. Mantenemos el filtro de turno base
- const matchTurno = turnoFiltro === 'Todos' || (turnoFiltro === 'Mañana' ? s.groupMorning : s.groupAfternoon);
+    const matchSearch = `${s.lastName || ''} ${s.firstName || ''}`.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // 1. Mantenemos el filtro de turno base
+    const matchTurno = turnoFiltro === 'Todos' || (turnoFiltro === 'Mañana' ? s.groupMorning : s.groupAfternoon);
  
  // 2. CORRECCIÓN: Filtramos el grupo respetando estrictamente el turno seleccionado
  let matchGrupo = true;
