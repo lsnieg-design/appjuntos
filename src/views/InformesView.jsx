@@ -771,34 +771,48 @@ const filteredStudents = estudiantesSede.filter(s => {
  };
 
  const handleSaveInforme = async () => {
-  if (grupoFiltro === 'Todos') { alert("Por favor, seleccioná un grupo específico para guardar."); return; }
-  setIsSaving(true);
-  const idUnico = `${selectedStudent.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`; 
-  await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pedagogical_reports', idUnico), {
-   studentId: selectedStudent.id,
-   studentName: `${selectedStudent.lastName}, ${selectedStudent.firstName}`,
-   grupo: grupoFiltro,
-   tipoInforme,
-   periodo: periodoInforme,
-   observacionesPsicomotricidad,
-   observacionesEducacionFisica,
-   answers,
-   nivelMusica,
-   observacionesMusica,
-   obsCuatrimestre1,
-   objConductual,
-   objPedagogico,
-   objSocioafectivo,
-   contenidosPlastica,
-   observacionesPlastica,
-   docente: docentePrint,
-   auxiliar: preceptoraPrint,
-   updatedAt: serverTimestamp()
-  }, { merge: true });
-  setStage('main');
-  setIsSaving(false);
- };
- 
+    if (grupoFiltro === 'Todos') { 
+      alert("Por favor, seleccioná un grupo específico para guardar."); 
+      return; 
+    }
+    
+    setIsSaving(true);
+    
+    // Concatenación simple para evitar errores de compilación con caracteres invisibles
+    const idUnico = selectedStudent.id + '_' + tipoInforme + '_' + grupoFiltro + '_' + periodoInforme;
+    
+    const dataToSave = {
+      studentId: selectedStudent.id,
+      studentName: selectedStudent.lastName + ', ' + selectedStudent.firstName,
+      grupo: grupoFiltro,
+      tipoInforme: tipoInforme,
+      periodo: periodoInforme,
+      observacionesPsicomotricidad: observacionesPsicomotricidad,
+      observacionesEducacionFisica: observacionesEducacionFisica,
+      answers: answers,
+      nivelMusica: nivelMusica,
+      observacionesMusica: observacionesMusica,
+      obsCuatrimestre1: obsCuatrimestre1,
+      objConductual: objConductual,
+      objPedagogico: objPedagogico,
+      objSocioafectivo: objSocioafectivo,
+      contenidosPlastica: contenidosPlastica,
+      observacionesPlastica: observacionesPlastica,
+      docente: docentePrint,
+      auxiliar: preceptoraPrint,
+      updatedAt: serverTimestamp()
+    };
+
+    try {
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pedagogical_reports', idUnico), dataToSave, { merge: true });
+      setStage('main');
+    } catch (error) {
+      console.error("Error al guardar:", error);
+      alert("Hubo un error al guardar el informe.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (selectedStudent?.level || 'Inicial');
   const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || [];
 
