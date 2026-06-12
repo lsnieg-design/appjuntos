@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Edit3, Plus, BookOpen, Printer, PieChart } from 'lucide-react';
 import { doc, setDoc, onSnapshot, serverTimestamp, collection, query, deleteDoc } from 'firebase/firestore';
+import './print.css';
 
 const CONFIG_INDICADORES = {
  pedagogico: {
@@ -824,27 +825,7 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
  return (
   <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in relative">
    
-   {/* MAGIA CSS PARA IMPRESIÓN (Destruye la app de fondo y muestra solo el papel) */}
-   {/* MAGIA CSS PARA IMPRESIÓN */}
-      <style dangerouslySetInnerHTML={{ __html: `
-        @media screen {
-          #impresion-masiva { display: none !important; }
-        }
-        @media print {
-          body > *:not(#impresion-masiva):not(script):not(style) {
-            display: none !important;
-          }
-          #impresion-masiva {
-            display: block !important;
-            visibility: visible !important;
-            position: relative;
-            width: 100%;
-          }
-          .pagina { page-break-after: always; }
-          @page { margin: 1cm; }
-          body { background: white; margin: 0; padding: 0; }
-        }
-      `}} />
+   
 
    {/* VISTA PRINCIPAL */}
    <div className={`${stage === 'main' ? 'block' : 'hidden'} print:hidden`}>
