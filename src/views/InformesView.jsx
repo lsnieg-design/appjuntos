@@ -426,7 +426,17 @@ const generarHTMLImpresion = (s, report) => {
   // 1. Determinamos el nivel (Crucial para Música)
   const nivel = report.tipoInforme === 'musica' ? (report.nivelMusica || 'Nivel 1') : (s?.level || 'Inicial');
   const indicadores = CONFIG_INDICADORES[report.tipoInforme]?.[nivel] || CONFIG_INDICADORES[report.tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[report.tipoInforme]?.['CFI'] || [];
+// 1. Determinar el nombre del archivo de firma basado en el área
+const obtenerFirma = (tipo) => {
+  switch (tipo) {
+    case 'musica': return 'firmafran.png';
+    case 'plastica': return 'firmaro.png';
+    case 'educacion_fisica': return 'firmajuan.png';
+    default: return 'firmasylogo.png'; // Imagen genérica por defecto
+  }
+};
 
+const firmaSeleccionada = obtenerFirma(report.tipoInforme);
   // 2. Definimos qué áreas usan la Grilla con X y cuáles usan texto redactado
  
   const materiasConGrilla = ['plastica', 'musica', 'psicomotricidad', 'educacion_fisica'];
@@ -601,20 +611,21 @@ ${mostrarAuxiliar ? `<p><strong class="font-black text-gray-900">Auxiliar/Precep
           </p>
       </div>
 
-      <div class="mt-10 pt-6 flex flex-col items-center justify-center border-t border-dashed border-gray-300" style="break-inside: avoid;">
-          <img src="/firmasylogo.png" alt="Firmas y Logo Institucional" class="max-w-[300px] w-full object-contain mb-10" />
-          <div class="w-full flex justify-between px-12 mt-12">
-              <div class="flex flex-col items-center w-48">
-                  <div class="w-full border-t-2 border-black mb-2"></div>
-                  <span class="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
-              </div>
-              <div class="flex flex-col items-center w-48">
-                  <div class="w-full border-t-2 border-black mb-2"></div>
-                  <span class="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
-              </div>
-          </div>
-      </div>
-  </div>`;
+    <div class="mt-10 pt-6 flex flex-col items-center justify-center border-t border-dashed border-gray-300" style="break-inside: avoid;">
+    {/* Cambiamos la imagen fija por la dinámica */}
+    <img src="/${firmaSeleccionada}" alt="Firma Docente" class="max-w-[300px] w-full object-contain mb-10" />
+    
+    <div class="w-full flex justify-between px-12 mt-12">
+        <div class="flex flex-col items-center w-48">
+            <div class="w-full border-t-2 border-black mb-2"></div>
+            <span class="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
+        </div>
+        <div class="flex flex-col items-center w-48">
+            <div class="w-full border-t-2 border-black mb-2"></div>
+            <span class="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
+        </div>
+    </div>
+</div>
 };
 
 export function InformesView({ user, db, appId }) {
