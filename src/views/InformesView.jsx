@@ -828,7 +828,7 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
    
 
    {/* VISTA PRINCIPAL */}
-   <div className={`${stage === 'main' ? 'block' : 'hidden'} print:hidden`}>
+<div className={(stage === 'main' ? 'block ' : 'hidden ') + 'print:hidden'}>
     <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-6 md:p-8 rounded-[30px] md:rounded-[40px] shadow-xl text-white mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
      <div className="w-full md:w-auto text-center md:text-left">
       <h2 className="text-xl md:text-2xl font-black mb-2 flex items-center justify-center md:justify-start gap-3">
