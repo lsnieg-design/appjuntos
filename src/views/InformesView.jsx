@@ -1108,11 +1108,13 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
-                          <div 
-                            className={`h-2.5 rounded-full transition-all duration-1000 ${stat.percentage === 100 ? 'bg-emerald-500' : stat.percentage > 40 ? 'bg-indigo-500' : 'bg-amber-500'}`} 
-                        style={{ width: `${stat.percentage}%` }}
-                          ></div>
-                        </div>
+  <div 
+    className={`h-2.5 rounded-full transition-all duration-1000 ${
+      stat.percentage === 100 ? 'bg-emerald-500' : stat.percentage > 40 ? 'bg-indigo-500' : 'bg-amber-500'
+    }`} 
+    style={{ width: `${stat.percentage}%` }}
+  ></div>
+</div>
                         <span className="text-xs font-black w-10 text-right text-gray-700">{stat.percentage}%</span>
                       </div>
                     </div>
