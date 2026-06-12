@@ -975,53 +975,58 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
          
        {/* LISTA DE ALUMNOS */}
          <div className="bg-white rounded-3xl shadow-sm border divide-y">
-          {filteredStudents.length === 0 ? (
-           <div className="p-8 text-center text-gray-400 font-medium">No se encontraron estudiantes para este filtro.</div>
-          ) : (
-           filteredStudents.map(s => {
-            const report = grupoFiltro === 'Todos' ? null : savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
-            return (
-             <div key={`${s.id}-${grupoFiltro}`} className={`p-5 flex justify-between items-center transition-colors ${report ? 'bg-emerald-50' : 'hover:bg-violet-50/50'}`}>
-              <div>
-               <p className={`font-bold ${report ? 'text-emerald-900' : 'text-gray-900'}`}>{s.lastName}, {s.firstName}</p>
-               <p className={`text-[10px] font-bold uppercase ${report ? 'text-emerald-600' : 'text-gray-400'}`}>
-                {s.level} | {report ? `Cargado (${periodoInforme})` : 'Pendiente'}
-               </p>
-              </div>
-              {grupoFiltro !== 'Todos' && (
-               <div className="flex items-center gap-2">
-                {report && (
-                 <button 
-                  onClick={() => {
-                   let contenedor = document.getElementById('impresion-masiva');
-                   if (!contenedor) {
+         {filteredStudents.length === 0 ? (
+  <div className="p-8 text-center text-gray-400 font-medium">No se encontraron estudiantes para este filtro.</div>
+) : (
+  filteredStudents.map(s => {
+    const report = grupoFiltro === 'Todos' ? null : savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
+    
+    // Definimos las clases sin template literals para evitar caracteres ocultos
+    const containerClasses = "p-5 flex justify-between items-center transition-colors " + (report ? "bg-emerald-50" : "hover:bg-violet-50/50");
+    const nameClasses = "font-bold " + (report ? "text-emerald-900" : "text-gray-900");
+    const infoClasses = "text-[10px] font-bold uppercase " + (report ? "text-emerald-600" : "text-gray-400");
+
+    return (
+      <div key={s.id + '-' + grupoFiltro} className={containerClasses}>
+        <div>
+          <p className={nameClasses}>{s.lastName}, {s.firstName}</p>
+          <p className={infoClasses}>
+            {s.level} | {report ? "Cargado (" + periodoInforme + ")" : "Pendiente"}
+          </p>
+        </div>
+        {grupoFiltro !== 'Todos' && (
+          <div className="flex items-center gap-2">
+            {report && (
+              <button 
+                onClick={() => {
+                  let contenedor = document.getElementById('impresion-masiva');
+                  if (!contenedor) {
                     contenedor = document.createElement('div');
                     contenedor.id = 'impresion-masiva';
                     contenedor.className = 'print:block';
                     document.body.appendChild(contenedor);
-                   }
-                   contenedor.innerHTML = generarHTMLImpresion(s, report);
-                   setTimeout(() => { window.print(); }, 500);
-                  }} 
-                  className="p-2 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors"
-                  title="Imprimir informe individual"
-                 >
-                  <Printer size={16}/>
-                 </button>
-                )}
-                <button onClick={() => handleEdit(s, report)} className={`p-2 rounded-lg transition-colors ${report ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-violet-600 text-white hover:bg-violet-700'}`}>
-                 {report ? <Edit3 size={16}/> : <Plus size={16}/>}
+                  }
+                  contenedor.innerHTML = generarHTMLImpresion(s, report);
+                  setTimeout(() => { window.print(); }, 500);
+                }} 
+                className="p-2 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors"
+                title="Imprimir informe individual"
+              >
+                <Printer size={16}/>
               </button>
-              </div>
             )}
+            <button 
+              onClick={() => handleEdit(s, report)} 
+              className={"p-2 rounded-lg transition-colors " + (report ? "bg-blue-50 text-blue-600 hover:bg-blue-100" : "bg-violet-600 text-white hover:bg-violet-700")}
+            >
+              {report ? <Edit3 size={16}/> : <Plus size={16}/>}
+            </button>
           </div>
-        );
-      })
-    )}
-  </div>
-</>
+        )}
+      </div>
+    );
+  })
 )}
-</div>
 {/* MODAL DE ESTADÍSTICAS */}
   {showStatsModal && (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
