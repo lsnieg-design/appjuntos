@@ -711,30 +711,28 @@ export function InformesView({ user, db, appId }) {
  const estudiantesSede = students.filter(s => !s.modalidad || s.modalidad === 'Sede');
  
 const filteredStudents = estudiantesSede.filter(s => {
-    const matchSearch = `${s.lastName || ''} ${s.firstName || ''}`.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    // 1. Mantenemos el filtro de turno base
-    const matchTurno = turnoFiltro === 'Todos' || (turnoFiltro === 'Mañana' ? s.groupMorning : s.groupAfternoon);
- 
- // 2. CORRECCIÓN: Filtramos el grupo respetando estrictamente el turno seleccionado
- let matchGrupo = true;
- if (grupoFiltro !== 'Todos') {
-  if (turnoFiltro === 'Mañana') {
-   // A la mañana evaluamos su grupo pedagógico de la mañana o su grupo laboral
-   matchGrupo = s.groupMorning === grupoFiltro || s.laboralGroup === grupoFiltro;
-  } else if (turnoFiltro === 'Tarde') {
-   // A la tarde evaluamos estrictamente su grupo pedagógico de la tarde o laboral si correspondiese
-   matchGrupo = s.groupAfternoon === grupoFiltro || s.laboralGroup === grupoFiltro;
-  } else {
-   // Si el turno está en "Todos", buscamos en cualquiera
-   matchGrupo = [s.groupMorning, s.groupAfternoon, s.laboralGroup].includes(grupoFiltro);
-  }
- }
+  const nombreCompleto = (s.lastName || '') + ' ' + (s.firstName || '');
+  const matchSearch = nombreCompleto.toLowerCase().includes(searchTerm.toLowerCase());
 
- // 3. Mantenemos el filtro de nivel
- const matchNivel = grupoFiltro !== 'Todos' || nivelFiltro === 'Todos' || (s.level && s.level.toUpperCase() === nivelFiltro.toUpperCase());
- 
- return matchSearch && matchTurno && matchNivel && matchGrupo;
+  // 1. Mantenemos el filtro de turno base
+  const matchTurno = turnoFiltro === 'Todos' || (turnoFiltro === 'Mañana' ? s.groupMorning : s.groupAfternoon);
+
+  // 2. Filtramos el grupo respetando estrictamente el turno seleccionado
+  let matchGrupo = true;
+  if (grupoFiltro !== 'Todos') {
+    if (turnoFiltro === 'Mañana') {
+      matchGrupo = s.groupMorning === grupoFiltro || s.laboralGroup === grupoFiltro;
+    } else if (turnoFiltro === 'Tarde') {
+      matchGrupo = s.groupAfternoon === grupoFiltro || s.laboralGroup === grupoFiltro;
+    } else {
+      matchGrupo = [s.groupMorning, s.groupAfternoon, s.laboralGroup].includes(grupoFiltro);
+    }
+  }
+
+  // 3. Filtro de nivel
+  const matchNivel = grupoFiltro !== 'Todos' || nivelFiltro === 'Todos' || (s.level && s.level.toUpperCase() === nivelFiltro.toUpperCase());
+
+  return matchSearch && matchTurno && matchNivel && matchGrupo;
 });
 
  const handleEdit = (student, report) => {
