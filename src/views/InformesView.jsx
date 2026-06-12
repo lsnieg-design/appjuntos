@@ -1092,7 +1092,7 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
                     <span className="text-gray-400 font-medium pb-1">({totalCompleted} de {totalExpected})</span>
                   </div>
                   <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
-                    <div className="bg-violet-600 h-3 rounded-full transition-all duration-1000" style={{ width:: totalPercentage + '%' }}></div>
+                    <div className="bg-violet-600 h-3 rounded-full transition-all duration-1000" style={{ width: totalPercentage + '%' }}></div>
                   </div>
                 </div>
 
@@ -1110,7 +1110,7 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
                         <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
                           <div 
                             className={`h-2.5 rounded-full transition-all duration-1000 ${stat.percentage === 100 ? 'bg-emerald-500' : stat.percentage > 40 ? 'bg-indigo-500' : 'bg-amber-500'}`} 
-                            style={{ width:: `${stat.percentage}%` }}
+                        style={{ width: `${stat.percentage}%` }}
                           ></div>
                         </div>
                         <span className="text-xs font-black w-10 text-right text-gray-700">{stat.percentage}%</span>
