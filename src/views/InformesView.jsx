@@ -863,22 +863,26 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
 
  <div className="flex flex-wrap gap-2 p-2 bg-white rounded-2xl border mb-6">
           {[
-            { id: 'pedagogico', label: 'Pedagógico' },
-            { id: 'laboral', label: 'Laboral' },
-            { id: 'psicomotricidad', label: 'Psicomotricidad' },
-            { id: 'plastica', label: 'Plástica' },
-            { id: 'musica', label: 'Música' },
-            { id: 'educacion_fisica', label: 'Ed. Física' }
-          ].map(t => (
-            <button 
-              key={t.id} 
-              onClick={() => { setTipoInforme(t.id); setNivelFiltro('Todos'); setGrupoFiltro('Todos'); }} 
-              className={`flex-auto min-w-fit whitespace-nowrap px-3 py-2 md:p-3 text-xs md:text-sm rounded-xl font-black transition-all ${tipoInforme === t.id ? 'bg-violet-600 text-white shadow-md' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+  { id: 'pedagogico', label: 'Pedagógico' },
+  { id: 'laboral', label: 'Laboral' },
+  { id: 'psicomotricidad', label: 'Psicomotricidad' },
+  { id: 'plastica', label: 'Plástica' },
+  { id: 'musica', label: 'Música' },
+  { id: 'educacion_fisica', label: 'Ed. Física' }
+].map(t => {
+  const baseClasses = "flex-auto min-w-fit whitespace-nowrap px-3 py-2 md:p-3 text-xs md:text-sm rounded-xl font-black transition-all";
+  const activeClasses = tipoInforme === t.id ? "bg-violet-600 text-white shadow-md" : "bg-gray-100 hover:bg-gray-200 text-gray-600";
+  
+  return (
+    <button 
+      key={t.id} 
+      onClick={() => { setTipoInforme(t.id); setNivelFiltro('Todos'); setGrupoFiltro('Todos'); }} 
+      className={baseClasses + " " + activeClasses}
+    >
+      {t.label}
+    </button>
+  );
+})}
 
     
       {/* AVISO PARA EL DOCENTE */}
