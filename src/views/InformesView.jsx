@@ -625,7 +625,7 @@ ${mostrarAuxiliar ? `<p><strong class="font-black text-gray-900">Auxiliar/Precep
             <span class="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
         </div>
     </div>
-</div>
+</div>;
 };
 
 export function InformesView({ user, db, appId }) {
