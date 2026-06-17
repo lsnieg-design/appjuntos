@@ -504,17 +504,37 @@ return (
                 {/* Nombre del Grupo o Nombre de la DAI */}
                 <h3 className="font-black text-slate-800 text-xl leading-tight pr-16 uppercase">{g.name}</h3>
                 
-                {/* ETIQUETAS DINÁMICAS */}
-                <div className="flex flex-wrap gap-2 mt-3">
-                  <span className="bg-white text-violet-700 px-2 py-1 rounded-lg text-[9px] font-black uppercase shadow-sm border border-violet-100">
-                    {g.students.length} {viewMode === 'Sede' ? 'Alumnxs' : 'Integradxs'}
-                  </span>
-                  {g.classroom && (
-                    <span className="bg-white text-orange-700 px-2 py-1 rounded-lg text-[9px] font-black border border-orange-100 uppercase">
-                      {viewMode === 'Sede' ? `Aula ${g.classroom}` : `Grado: ${g.classroom}`}
-                    </span>
-                  )}
-                </div>
+               {/* ETIQUETAS DINÁMICAS Y ESTADÍSTICAS */}
+<div className="flex flex-col gap-2 mt-3">
+  {/* Fila principal: Total y Aula */}
+  <div className="flex flex-wrap gap-2">
+    <span className="bg-white text-violet-700 px-2 py-1 rounded-lg text-[9px] font-black uppercase shadow-sm border border-violet-100">
+      {g.students.length} {viewMode === 'Sede' ? 'Alumnxs' : 'Integradxs'}
+    </span>
+    {g.classroom && (
+      <span className="bg-white text-orange-700 px-2 py-1 rounded-lg text-[9px] font-black border border-orange-100 uppercase">
+        {viewMode === 'Sede' ? `Aula ${g.classroom}` : `Grado: ${g.classroom}`}
+      </span>
+    )}
+  </div>
+
+  {/* Fila secundaria: Desglose de Género y Diagnóstico */}
+  {(() => {
+    const varones = g.students.filter(s => s.gender?.toLowerCase() === 'masculino' || s.gender?.toLowerCase() === 'v' || s.gender?.toLowerCase() === 'm').length;
+    const mujeres = g.students.filter(s => s.gender?.toLowerCase() === 'femenino' || s.gender?.toLowerCase() === 'f').length;
+    const conDI = g.students.filter(s => s.dx?.toUpperCase().includes('DI') || s.dx?.toUpperCase().includes('INTELECTUAL')).length;
+    const conTEA = g.students.filter(s => s.dx?.toUpperCase().includes('TEA') || s.dx?.toUpperCase().includes('ESPECTRO') || s.dx?.toUpperCase().includes('AUTISMO')).length;
+
+    return (
+      <div className="flex flex-wrap gap-1 bg-slate-100/60 p-1.5 rounded-xl border border-slate-200/40">
+        {varones > 0 && <span className="text-[9px] font-bold text-slate-500 bg-white px-1.5 py-0.5 rounded-md">👦 {varones}V</span>}
+        {mujeres > 0 && <span className="text-[9px] font-bold text-slate-500 bg-white px-1.5 py-0.5 rounded-md">👧 {mujeres}M</span>}
+        {conDI > 0 && <span className="text-[9px] font-black text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-100">DI: {conDI}</span>}
+        {conTEA > 0 && <span className="text-[9px] font-black text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100">TEA: {conTEA}</span>}
+      </div>
+    );
+  })()}
+</div>
 
                 {/* STAFF DINÁMICO (Aquí es donde se hace el ajuste visual que pedías) */}
                 <div className="mt-4 pt-3 border-t border-slate-200/50 space-y-1">
@@ -527,26 +547,31 @@ return (
                 </div>
               </div>
 {/* LISTADO ALUMNOS */}
-              <div className="p-4 bg-slate-50/30 space-y-2 h-fit">
-                {g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
-                  <div key={s.id} onClick={() => setSelectedStudent(s)} className="bg-white p-3 rounded-[24px] shadow-sm flex items-center justify-between cursor-pointer border-2 border-transparent hover:border-violet-200 transition-all group/item">
-                    <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 rounded-2xl bg-slate-100 flex items-center justify-center font-black text-slate-400 border border-slate-200 text-sm overflow-hidden shadow-inner">
-                        {s.photoUrl ? (
-                          <img src={s.photoUrl} className="w-full h-full object-cover group-hover/item:scale-110 transition-transform"/>
-                        ) : (
-                          <span>{s.firstName[0]}</span>
-                        )}
-                      </div>
-                      <span className="font-bold text-xs text-slate-700 uppercase tracking-tight">{s.lastName}, {s.firstName}</span>
-                    </div>
-                    <button onClick={(e) => {e.stopPropagation(); setShowBitacoraModal(s); setIsWriting(false);}} className="w-9 h-9 bg-violet-50 text-violet-500 rounded-full flex items-center justify-center hover:bg-violet-600 hover:text-white transition-all shadow-sm">⚡</button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+<div className="p-4 bg-slate-50/30 space-y-2 h-fit">
+  {g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
+    <div key={s.id} onClick={() => setSelectedStudent(s)} className="bg-white p-3 rounded-[24px] shadow-sm flex items-center justify-between cursor-pointer border-2 border-transparent hover:border-violet-200 transition-all group/item">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="w-11 h-11 rounded-2xl bg-slate-100 flex items-center justify-center font-black text-slate-400 border border-slate-200 text-sm overflow-hidden shadow-inner shrink-0">
+          {s.photoUrl ? (
+            <img src={s.photoUrl} className="w-full h-full object-cover group-hover/item:scale-110 transition-transform"/>
+          ) : (
+            <span>{s.firstName[0]}</span>
+          )}
         </div>
+        <div className="flex flex-col min-w-0">
+          <span className="font-bold text-xs text-slate-700 uppercase tracking-tight truncate">{s.lastName}, {s.firstName}</span>
+          {/* ETIQUETA DE EDAD SANEADA */}
+          {s.birthDate && (
+            <span className="text-[10px] font-black text-violet-600 uppercase tracking-wider mt-0.5 bg-violet-50 px-1.5 py-0.5 rounded-md w-fit">
+              {calculateAge(s.birthDate)} años
+            </span>
+          )}
+        </div>
+      </div>
+      <button onClick={(e) => {e.stopPropagation(); setShowBitacoraModal(s); setIsWriting(false);}} className="w-9 h-9 bg-violet-50 text-violet-500 rounded-full flex items-center justify-center hover:bg-violet-600 hover:text-white transition-all shadow-sm shrink-0 ml-2">⚡</button>
+    </div>
+  ))}
+</div>
 
         {/* FLECHA DERECHA */}
         <button 
