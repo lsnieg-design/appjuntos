@@ -1553,5 +1553,4 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
   </div>
  );
 }
- );
-}
+
