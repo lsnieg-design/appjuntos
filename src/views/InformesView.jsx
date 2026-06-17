@@ -387,11 +387,11 @@ const DICCIONARIO = {
 const FIRMAS_AREAS = {
   plastica: '/firmaro.png',
   musica: '/firmafran.png',
- musica_brenda: '/firmabrenda.png',
+  musica_brenda: '/firmabren.png',
   educacion_fisica: '/firmajuan.png',
-  psicomotricidad: '/firmapablo.png', // Opcional, según tu lógica de docentes
-  pedagogico: '/firmasylogo.png',
-  laboral: '/firmasylogo.png'
+  psicomotricidad: '/firmapablo.png',
+  pedagogico: null, // Sin firma digital, firman a mano
+  laboral: null     // Sin firma digital, firman a mano
 };
 // ⚠️ ACÁ ARRIBA DEJÁ TUS CONSTANTES INTACTAS: 
 // CONFIG_INDICADORES y DICCIONARIO
@@ -603,24 +603,30 @@ const generarHTMLImpresion = (s, report) => {
           </p>
       </div>
 
-   // REEMPLAZAR EL BLOQUE DE FIRMAS FINAL EN generarHTMLImpresion POR ESTE:
+  
       <div class="mt-8 pt-4 flex flex-col items-center justify-center border-t border-dashed border-gray-200" style="break-inside: avoid;">
           <img src="/firmasylogo.png" alt="Sello Institucional Juntos a la Par" class="max-w-[260px] w-full object-contain mb-6 text-center" />
           
+        // BUSCA EL BLOQUE DE LAS FIRMAS EN generarHTMLImpresion Y REEMPLÁZALO POR ESTE:
           <div class="w-full flex justify-between px-12 mt-12 relative">
               
+              <!-- Bloque Izquierdo: Firma del Docente -->
               <div class="flex flex-col items-center w-48 relative">
-                  <div class="absolute bottom-6 flex justify-center items-center w-full pointer-events-none">
-                      <img src="${FIRMAS_AREAS[report.tipoInforme] || '/firmasylogo.png'}" alt="Firma del Docente" class="h-14 object-contain" />
-                  </div>
+                  ${FIRMAS_AREAS[report.tipoInforme] ? `
+                    <div class="absolute bottom-6 flex justify-center items-center w-full pointer-events-none">
+                        <img src="${FIRMAS_AREAS[report.tipoInforme]}" alt="Firma del Docente" class="h-14 object-contain" />
+                    </div>
+                  ` : ''}
                   <div class="w-full border-t-2 border-black mb-2"></div>
                   <span class="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
               </div>
               
+              <!-- Bloque Derecho: Firma de la Familia -->
               <div class="flex flex-col items-center w-48">
                   <div class="w-full border-t-2 border-black mb-2"></div>
                   <span class="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
               </div>
+          </div>
 
           </div>
       </div>
@@ -1526,23 +1532,30 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
               className="max-w-[260px] w-full object-contain mb-6 text-center" 
             />
             
-            <div className="w-full flex justify-between px-12 mt-12 relative">
-              <div className="flex flex-col items-center w-48 relative">
-                <div className="absolute bottom-6 flex justify-center items-center w-full pointer-events-none">
-                  <img 
-                    src={FIRMAS_AREAS[tipoInforme] || '/firmasylogo.png'} 
-                    alt="Firma del Área Autorizada" 
-                    className="h-14 object-contain" 
-                  />
-                </div>
-                <div className="w-full border-t-2 border-black mb-2"></div>
-                <span className="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
+           {/* BUSCA EL BLOQUE DE LAS FIRMAS EN EL CONTENEDOR #informe-imprimir Y REEMPLÁZALO POR ESTE: */}
+        <div className="w-full flex justify-between px-12 mt-12 relative">
+          
+          {/* Bloque Izquierdo: Firma del Docente */}
+          <div className="flex flex-col items-center w-48 relative">
+            {FIRMAS_AREAS[tipoInforme] && (
+              <div className="absolute bottom-6 flex justify-center items-center w-full pointer-events-none">
+                <img 
+                  src={FIRMAS_AREAS[tipoInforme]} 
+                  alt="Firma del Docente Autorizada" 
+                  className="h-14 object-contain" 
+                />
               </div>
-              
-              <div className="flex flex-col items-center w-48">
-                <div className="w-full border-t-2 border-black mb-2"></div>
-                <span className="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
-              </div>
+            )}
+            <div className="w-full border-t-2 border-black mb-2"></div>
+            <span className="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
+          </div>
+          
+          {/* Bloque Derecho: Firma de Familia */}
+          <div className="flex flex-col items-center w-48">
+            <div className="w-full border-t-2 border-black mb-2"></div>
+            <span className="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
+          </div>
+        </div>
             </div>
           </div>
         </div>
