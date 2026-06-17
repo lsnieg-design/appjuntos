@@ -603,17 +603,25 @@ const generarHTMLImpresion = (s, report) => {
           </p>
       </div>
 
-      <div class="mt-10 pt-6 flex flex-col items-center justify-center border-t border-dashed border-gray-300" style="break-inside: avoid;">
-          <img src="${FIRMAS_AREAS[report.tipoInforme] || '/firmasylogo.png'}" alt="Firma Autorizada" class="max-w-[300px] w-full object-contain mb-10" />
-          <div class="w-full flex justify-between px-12 mt-12">
-              <div class="flex flex-col items-center w-48">
+   // REEMPLAZAR EL BLOQUE DE FIRMAS FINAL EN generarHTMLImpresion POR ESTE:
+      <div class="mt-8 pt-4 flex flex-col items-center justify-center border-t border-dashed border-gray-200" style="break-inside: avoid;">
+          <img src="/firmasylogo.png" alt="Sello Institucional Juntos a la Par" class="max-w-[260px] w-full object-contain mb-6 text-center" />
+          
+          <div class="w-full flex justify-between px-12 mt-12 relative">
+              
+              <div class="flex flex-col items-center w-48 relative">
+                  <div class="absolute bottom-6 flex justify-center items-center w-full pointer-events-none">
+                      <img src="${FIRMAS_AREAS[report.tipoInforme] || '/firmasylogo.png'}" alt="Firma del Docente" class="h-14 object-contain" />
+                  </div>
                   <div class="w-full border-t-2 border-black mb-2"></div>
                   <span class="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
               </div>
+              
               <div class="flex flex-col items-center w-48">
                   <div class="w-full border-t-2 border-black mb-2"></div>
                   <span class="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
               </div>
+
           </div>
       </div>
   </div>`;
@@ -1375,26 +1383,12 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
 {stage === 'form' && (
   <div id="informe-imprimir" className="hidden">
     {(() => {
-      // Detectamos el reporte real guardado (sea con el ID nuevo o el viejo)
       const currentReport = savedReports.find(r => 
         r.studentId === selectedStudent?.id && 
-        (r.tipoInforme === tipoInforme || (tipoInforme === 'musica' && r.tipoInforme === 'musica')) && 
+        r.tipoInforme === tipoInforme && 
         r.grupo === grupoFiltro && 
         r.periodo === periodoInforme
       );
-
-      // Usamos el tipo de informe real del documento para no romper el mapeo de indicadores
-      const reportTipoReal = currentReport?.tipoInforme || tipoInforme;
-      
-      const nivelImpresion = reportTipoReal === 'musica' || reportTipoReal === 'musica'
-        ? (nivelMusica || currentReport?.nivelMusica || 'Nivel 1') 
-        : (reportTipoReal === 'musica_brenda' ? 'Inicial' : (selectedStudent?.level || 'Inicial'));
-        
-      const indicadoresImpresion = CONFIG_INDICADORES[reportTipoReal]?.[nivelImpresion] || 
-                            CONFIG_INDICADORES[reportTipoReal]?.['Inicial'] || 
-                            CONFIG_INDICADORES[reportTipoReal]?.['CFI'] || [];
-
-      const targetAnswers = currentReport?.answers || answers || {};
 
       return (
         <div className="pagina w-full bg-white text-black font-sans pb-4">
@@ -1415,12 +1409,12 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
               <p><strong className="font-black text-gray-900">Grupo:</strong> <span className="text-gray-700 font-bold">{grupoFiltro}</span></p>
               <p>
                 <strong className="font-black text-gray-900">Docente a cargo:</strong>{" "}
-                <span className="text-gray-700">{docentePrint || currentReport?.docente || selectedStudent?.teacher || selectedStudent?.docente || '....................................'}</span>
+                <span className="text-gray-700">{docentePrint || currentReport?.docente || selectedStudent?.teacher || '....................................'}</span>
               </p>
               {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
                 <p>
                   <strong className="font-black text-gray-900">Auxiliar/Preceptora:</strong>{" "}
-                  <span className="text-gray-700">{preceptoraPrint || currentReport?.auxiliar || selectedStudent?.auxiliary || selectedStudent?.preceptora || '....................................'}</span>
+                  <span className="text-gray-700">{preceptoraPrint || currentReport?.auxiliar || selectedStudent?.auxiliary || '....................................'}</span>
                 </p>
               )}
               <p className="col-span-2"><strong className="font-black text-gray-900">Año de cursada:</strong> <span className="text-gray-700">2026</span></p>
@@ -1446,7 +1440,7 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
               </div>
             )}
             
-            {['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica', 'musica'].includes(reportTipoReal) ? (
+            {['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) ? (
               <table className="w-full text-left border-collapse mt-4 text-[11px] mb-6" style={{ breakInside: 'avoid' }}>
                 <thead>
                   <tr className="bg-violet-100 text-violet-900">
@@ -1457,8 +1451,8 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
                   </tr>
                 </thead>
                 <tbody>
-                  {indicadoresImpresion.map(c => {
-                    const answer = targetAnswers[c.id];
+                  {indicadoresActuales.map(c => {
+                    const answer = answers[c.id];
                     if (!answer) return null;
                     return (
                       <tr key={c.id}>
@@ -1473,8 +1467,8 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
               </table>
             ) : (
               <div className="space-y-4 border-l-2 border-violet-200 ml-1 pl-4">
-                {indicadoresImpresion.map(c => {
-                  const answer = targetAnswers[c.id];
+                {indicadoresActuales.map(c => {
+                  const answer = answers[c.id];
                   if (!answer) return null; 
                   const optionIndex = c.options.indexOf(answer);
                   let textoDescriptivo = optionIndex !== -1 ? formatearTextoImpresion(c.id, optionIndex, answer, selectedStudent?.firstName) : answer;
@@ -1492,7 +1486,7 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
 
           {(() => {
             const obsEspeciales = currentReport?.observacionesPlastica || currentReport?.observacionesMusica || currentReport?.observacionesPsicomotricidad || currentReport?.observacionesEducacionFisica || observacionesMusica || '';
-            if (['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica', 'musica'].includes(reportTipoReal) && obsEspeciales) {
+            if (['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && obsEspeciales) {
               return (
                 <div className="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
                   <h2 className="font-black uppercase text-violet-900 mb-2 text-[10px] tracking-widest border-b border-violet-200 pb-1">Observaciones del período</h2>
@@ -1525,17 +1519,26 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
             </p>
           </div>
 
-          <div className="mt-10 pt-6 flex flex-col items-center justify-center border-t border-dashed border-gray-300" style={{ breakInside: 'avoid' }}>
+          <div className="mt-8 pt-4 flex flex-col items-center justify-center border-t border-dashed border-gray-200" style={{ breakInside: 'avoid' }}>
             <img 
-              src={FIRMAS_AREAS[tipoInforme] || '/firmasylogo.png'} 
-              alt="Firma del Área" 
-              className="max-w-[300px] w-full object-contain mb-10" 
+              src="/firmasylogo.png" 
+              alt="Sello Institucional Juntos a la Par" 
+              className="max-w-[260px] w-full object-contain mb-6 text-center" 
             />
-            <div className="w-full flex justify-between px-12 mt-12">
-              <div className="flex flex-col items-center w-48">
+            
+            <div className="w-full flex justify-between px-12 mt-12 relative">
+              <div className="flex flex-col items-center w-48 relative">
+                <div className="absolute bottom-6 flex justify-center items-center w-full pointer-events-none">
+                  <img 
+                    src={FIRMAS_AREAS[tipoInforme] || '/firmasylogo.png'} 
+                    alt="Firma del Área Autorizada" 
+                    className="h-14 object-contain" 
+                  />
+                </div>
                 <div className="w-full border-t-2 border-black mb-2"></div>
                 <span className="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
               </div>
+              
               <div className="flex flex-col items-center w-48">
                 <div className="w-full border-t-2 border-black mb-2"></div>
                 <span className="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
@@ -1548,5 +1551,7 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
   </div>
 )}
   </div>
+ );
+}
  );
 }
