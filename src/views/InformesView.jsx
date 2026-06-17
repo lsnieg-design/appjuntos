@@ -816,8 +816,17 @@ const handleSaveInforme = async () => {
 };
  
 
-const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (selectedStudent?.level || 'Inicial');
-const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || [];
+// REEMPLAZAR EL BLOQUE DE nivelActual E indicadoresActuales POR ESTE:
+const lvlUpper = selectedStudent?.level?.toUpperCase() || '';
+const esNivelValidoBrenda = lvlUpper.includes('INICIAL') || lvlUpper.includes('1° CICLO');
+
+const nivelActual = tipoInforme === 'musica' 
+  ? (nivelMusica || 'Nivel 1') 
+  : (tipoInforme === 'musica_brenda' ? 'Inicial' : (selectedStudent?.level || 'Inicial'));
+
+const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBrenda)
+  ? []
+  : (CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || []);
 
  // LÓGICA DE FILTRADO DINÁMICO
  const nivelesDisponibles = tipoInforme === 'laboral' 
@@ -1203,14 +1212,18 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
      <div className="space-y-4">
             
       {/* BLOQUEOS PARA PLÁSTICA Y ED. FÍSICA SEGÚN NIVEL */}
-            {(tipoInforme === 'plastica' && selectedStudent?.level?.toUpperCase() === 'INICIAL') || (tipoInforme === 'educacion_fisica' && ['INICIAL', '1° CICLO'].includes(selectedStudent?.level?.toUpperCase())) ? (
-              <div className="bg-amber-50 border border-amber-200 p-8 rounded-3xl text-center">
-                <span className="text-4xl block mb-2">⚠️</span>
-                <p className="text-amber-900 font-black text-lg">El nivel {selectedStudent?.level} no posee informe de {tipoInforme.replace('_', ' ')}.</p>
-                <p className="text-amber-700 text-sm mt-1">Por favor, seleccioná otra área u otro grupo.</p>
-              </div>
-            ) : (
-              <>
+            {(tipoInforme === 'plastica' && selectedStudent?.level?.toUpperCase() === 'INICIAL') || 
+       (tipoInforme === 'educacion_fisica' && ['INICIAL', '1° CICLO'].includes(selectedStudent?.level?.toUpperCase())) ||
+       (tipoInforme === 'musica_brenda' && !(['INICIAL', '1° CICLO'].includes(selectedStudent?.level?.toUpperCase()))) ? (
+        <div className="bg-amber-50 border border-amber-200 p-8 rounded-3xl text-center">
+          <span className="text-4xl block mb-2">⚠️</span>
+          <p className="text-amber-900 font-black text-lg">
+            El nivel {selectedStudent?.level} no posee informe de {tipoInforme === 'musica_brenda' ? 'Música Brenda' : tipoInforme.replace('_', ' ')}.
+          </p>
+          <p className="text-amber-700 text-sm mt-1">Este espacio está habilitado exclusivamente para Inicial y 1° Ciclo.</p>
+        </div>
+      ) : (
+        <>
                 {/* 1. ESPACIO DE CONTENIDOS (SOLO PARA PLÁSTICA) */}
                 {tipoInforme === 'plastica' && (
                   <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mb-6">
