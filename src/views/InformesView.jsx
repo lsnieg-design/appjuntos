@@ -1525,37 +1525,32 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
             </p>
           </div>
 
-          <div className="mt-8 pt-4 flex flex-col items-center justify-center border-t border-dashed border-gray-200" style={{ breakInside: 'avoid' }}>
+         <div className="mt-8 pt-4 flex flex-col items-center justify-center border-t border-dashed border-gray-200" style={{ breakInside: 'avoid' }}>
             <img 
               src="/firmasylogo.png" 
               alt="Sello Institucional Juntos a la Par" 
               className="max-w-[260px] w-full object-contain mb-6 text-center" 
             />
             
-           {/* BUSCA EL BLOQUE DE LAS FIRMAS EN EL CONTENEDOR #informe-imprimir Y REEMPLÁZALO POR ESTE: */}
-        <div className="w-full flex justify-between px-12 mt-12 relative">
-          
-          {/* Bloque Izquierdo: Firma del Docente */}
-          <div className="flex flex-col items-center w-48 relative">
-            {FIRMAS_AREAS[tipoInforme] && (
-              <div className="absolute bottom-6 flex justify-center items-center w-full pointer-events-none">
-                <img 
-                  src={FIRMAS_AREAS[tipoInforme]} 
-                  alt="Firma del Docente Autorizada" 
-                  className="h-14 object-contain" 
-                />
+            <div className="w-full flex justify-between px-12 mt-12 relative">
+              <div className="flex flex-col items-center w-48 relative">
+                {FIRMAS_AREAS[tipoInforme] && (
+                  <div className="absolute bottom-6 flex justify-center items-center w-full pointer-events-none">
+                    <img 
+                      src={FIRMAS_AREAS[tipoInforme]} 
+                      alt="Firma del Docente Autorizada" 
+                      className="h-14 object-contain" 
+                    />
+                  </div>
+                )}
+                <div className="w-full border-t-2 border-black mb-2"></div>
+                <span className="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
               </div>
-            )}
-            <div className="w-full border-t-2 border-black mb-2"></div>
-            <span className="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
-          </div>
-          
-          {/* Bloque Derecho: Firma de Familia */}
-          <div className="flex flex-col items-center w-48">
-            <div className="w-full border-t-2 border-black mb-2"></div>
-            <span className="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
-          </div>
-        </div>
+              
+              <div className="flex flex-col items-center w-48">
+                <div className="w-full border-t-2 border-black mb-2"></div>
+                <span className="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
+              </div>
             </div>
           </div>
         </div>
@@ -1566,4 +1561,3 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
   </div>
  );
 }
-
