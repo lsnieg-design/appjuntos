@@ -810,8 +810,9 @@ const filteredStudents = estudiantesSede.filter(s => {
   setIsSaving(false);
  };
  
+// REEMPLAZAR estas líneas en el cuerpo de InformesView para que lea bien el Nivel 1 o 2:
 const nivelActual = tipoInforme === 'musica_fran' ? (nivelMusica || 'Nivel 1') : (selectedStudent?.level || 'Inicial');
-  const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || [];
+const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || [];
 
  // LÓGICA DE FILTRADO DINÁMICO
  const nivelesDisponibles = tipoInforme === 'laboral' 
@@ -991,7 +992,12 @@ const nivelActual = tipoInforme === 'musica_fran' ? (nivelMusica || 'Nivel 1') :
            <div className="p-8 text-center text-gray-400 font-medium">No se encontraron estudiantes para este filtro.</div>
           ) : (
            filteredStudents.map(s => {
-            const report = grupoFiltro === 'Todos' ? null : savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
+           const report = grupoFiltro === 'Todos' ? null : savedReports.find(r => 
+  r.studentId === s.id && 
+  (r.tipoInforme === tipoInforme || (tipoInforme === 'musica_fran' && r.tipoInforme === 'musica')) && 
+  r.grupo === grupoFiltro && 
+  r.periodo === periodoInforme
+);
             return (
              <div key={`${s.id}-${grupoFiltro}`} className={`p-5 flex justify-between items-center transition-colors ${report ? 'bg-emerald-50' : 'hover:bg-violet-50/50'}`}>
               <div>
@@ -1394,7 +1400,12 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
           <p><strong className="font-black text-gray-900">Fecha de Nac.:</strong> <span className="text-gray-700">{selectedStudent?.birthDate || selectedStudent?.fechaNac || '....................................'}</span></p>
           <p><strong className="font-black text-gray-900">Grupo:</strong> <span className="text-gray-700 font-bold">{grupoFiltro}</span></p>
           {(() => {
-            const currentReport = savedReports.find(r => r.studentId === selectedStudent?.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
+          const currentReport = savedReports.find(r => 
+  r.studentId === selectedStudent?.id && 
+  (r.tipoInforme === tipoInforme || (tipoInforme === 'musica_fran' && r.tipoInforme === 'musica')) && 
+  r.grupo === grupoFiltro && 
+  r.periodo === periodoInforme
+);
             return (
               <>
                 <p>
