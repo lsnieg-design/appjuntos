@@ -1759,7 +1759,7 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
                 <span className="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
               </div>
               
-              <div className="flex flex-col items-center w-48"><div className="flex flex-col items-center w-48">
+            <div className="flex flex-col items-center w-48">
             <div className="w-full border-t-2 border-black mb-2"></div>
             <span className="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
           </div>
