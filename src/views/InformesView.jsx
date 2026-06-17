@@ -575,7 +575,7 @@ const generarHTMLImpresion = (s, report) => {
           </p>
       </div>
       
-      <div class="border border-violet-200 rounded-xl p-5 mb-6 bg-white shadow-sm" style="break-inside: avoid;">
+     <div class="border border-violet-200 rounded-xl p-5 mb-3 bg-white shadow-sm" style="break-inside: avoid;">
           <h2 class="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Datos del Estudiante</h2>
           <div class="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
               <p><strong class="font-black text-gray-900">Alumno/a:</strong> <span class="text-gray-700">${s.lastName}, ${s.firstName}</span></p>
@@ -588,8 +588,8 @@ const generarHTMLImpresion = (s, report) => {
           </div>
       </div>
       
-      <div class="mb-6">
-          <h2 class="text-sm font-black text-white bg-violet-800 uppercase px-4 py-1.5 rounded-md mb-4 shadow-sm inline-block" style="break-inside: avoid;">
+   <div class="mb-3">
+    <h2 class="text-sm font-black text-white bg-violet-800 uppercase px-4 py-1.5 rounded-md mb-2 shadow-sm inline-block" style="break-inside: avoid;">
               Desarrollo de la materia
           </h2>
           ${desarrolloHTML}
@@ -832,19 +832,43 @@ const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CO
     @media screen {
      #impresion-masiva { display: none !important; }
     }
+    /* REEMPLAZAR ÚNICAMENTE EL BLOQUE @media print DENTRO DE LA ETIQUETA <style> POR ESTE: */
     @media print {
-     body > *:not(#impresion-masiva):not(script):not(style) {
-      display: none !important;
-     }
-     #impresion-masiva {
-      display: block !important;
-      visibility: visible !important;
-      position: relative; 
-      width: 100%;
-     }
-     .pagina { page-break-after: always; }
-     @page { margin: 1cm; }
-     body { background: white; margin: 0; padding: 0; }
+      body > *:not(#impresion-masiva):not(script):not(style) {
+        display: none !important;
+      }
+      #impresion-masiva {
+        display: block !important;
+        visibility: visible !important;
+        position: relative; 
+        width: 100%;
+      }
+      .pagina { 
+        page-break-after: always; 
+        page-break-inside: avoid;
+        padding-bottom: 0 !important;
+      }
+      @page { 
+        margin: 0.6cm 1cm; 
+      }
+      body { 
+        background: white; 
+        margin: 0; 
+        padding: 0; 
+      }
+      /* Compactación sutil exclusiva para optimizar tablas y rúbricas en una sola hoja */
+      table {
+        margin-top: 6px !important;
+        margin-bottom: 6px !important;
+      }
+      th, td {
+        padding: 4px 6px !important; 
+        line-height: 1.15 !important;
+      }
+      .mb-6 { margin-bottom: 0.5rem !important; }
+      .mb-5 { margin-bottom: 0.5rem !important; }
+      .p-5  { padding: 0.75rem !important; }
+      .mt-12 { mt-6 !important; }
     }
    `}</style>
 
@@ -1406,7 +1430,7 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
             </p>
           </div>
           
-          <div className="border border-violet-200 rounded-xl p-5 mb-6 bg-white shadow-sm" style={{ breakInside: 'avoid' }}>
+          <div className="border border-violet-200 rounded-xl p-5 mb-3 bg-white shadow-sm" style={{ breakInside: 'avoid' }}>
             <h2 className="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Datos del Estudiante</h2>
             <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
               <p><strong className="font-black text-gray-900">Alumno/a:</strong> <span className="text-gray-700">{selectedStudent?.lastName}, {selectedStudent?.firstName}</span></p>
@@ -1427,8 +1451,8 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
             </div>
           </div>
 
-          <div className="mb-6">
-            <h2 className="text-sm font-black text-white bg-violet-800 uppercase px-4 py-1.5 rounded-md mb-4 shadow-sm inline-block" style={{ breakInside: 'avoid' }}>
+          <div className="mb-3">
+  <h2 className="text-sm font-black text-white bg-violet-800 uppercase px-4 py-1.5 rounded-md mb-2 shadow-sm inline-block" style={{ breakInside: 'avoid' }}>
               Desarrollo {tipoInforme === 'musica' || tipoInforme === 'musica_brenda' ? 'Música' : tipoInforme}
             </h2>
             
