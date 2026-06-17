@@ -86,28 +86,19 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
 
 const gruposFinales = React.useMemo(() => {
   const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-  
-  // 1. Identificar si el usuario tiene permiso total
   const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración', 'Dirección Inclusión', 'Equipo Técnico Inclusión'].includes(user.role) || user.rol === 'admin';
 
   const grouped = students.reduce((acc, s) => {
-    // A. Filtrado por modalidad
     const studentModality = s.modality || 'Sede';
     if (studentModality !== viewMode) return acc;
 
-    // B. Lógica de visibilidad
-    const gName = viewMode === 'Sede' 
-      ? s[`group${suf}`] 
-      : (s[`dai${suf}`] || 'SIN DAI ASIGNADA');
-    
-    const teacherName = s[`teacher${suf}`]; // O compara por teacherId si tienes el ID del usuario
+    const gName = viewMode === 'Sede' ? s[`group${suf}`] : (s[`dai${suf}`] || 'SIN DAI ASIGNADA');
+    const teacherName = s[`teacher${suf}`];
     const daiName = s[`dai${suf}`];
 
-    // Si NO es management, verificamos si es su grupo
     if (!isManagement) {
-      const userMatchesTeacher = teacherName === user.fullName; // Ajusta según cómo guardes el nombre
+      const userMatchesTeacher = teacherName === user.fullName;
       const userMatchesDai = daiName === user.fullName;
-      
       if (!userMatchesTeacher && !userMatchesDai) return acc;
     }
 
@@ -121,17 +112,30 @@ const gruposFinales = React.useMemo(() => {
         aux: viewMode === 'Sede' ? (s[`aux${suf}`] || 'S/D') : (s.originSchool || 'Escuela común'),
         classroom: viewMode === 'Sede' ? s.classroom : s.originGrade, 
         driveLink: s[`driveLink${suf}`], 
-        institucionalDrive: s.institucionalDrive 
+        institucionalDrive: s.institucionalDrive,
+        // --- PRECALCULAMOS LAS ESTADÍSTICAS AQUÍ PARA EVITAR ERRORES EN EL JSX ---
+        stats: { varones: 0, mujeres: 0, conDI: 0, conTEA: 0 }
       };
     }
+
     acc[gName].students.push(s);
+
+    // Contabilizar estadísticas al vuelo
+    const gender = s.gender?.toLowerCase();
+    const dx = s.dx?.toUpperCase() || '';
+
+    if (gender === 'masculino' || gender === 'v' || gender === 'm') acc[gName].stats.varones++;
+    if (gender === 'femenino' || gender === 'f') acc[gName].stats.mujeres++;
+    if (dx.includes('DI') || dx.includes('INTELECTUAL')) acc[gName].stats.conDI++;
+    if (dx.includes('TEA') || dx.includes('ESPECTRO') || dx.includes('AUTISMO')) acc[gName].stats.conTEA++;
+
     return acc;
   }, {});
 
   return Object.values(grouped).sort((a, b) => 
     a.name.includes("INICIAL") ? -1 : a.name.localeCompare(b.name)
   );
-}, [students, turn, viewMode, user]); 
+}, [students, turn, viewMode, user]);
 
   
   const imprimirBitacora = (student) => {
@@ -504,9 +508,8 @@ return (
                 {/* Nombre del Grupo o Nombre de la DAI */}
                 <h3 className="font-black text-slate-800 text-xl leading-tight pr-16 uppercase">{g.name}</h3>
                 
-               {/* ETIQUETAS DINÁMICAS Y ESTADÍSTICAS */}
+              {/* ETIQUETAS DINÁMICAS Y ESTADÍSTICAS SANEADAS */}
 <div className="flex flex-col gap-2 mt-3">
-  {/* Fila principal: Total y Aula */}
   <div className="flex flex-wrap gap-2">
     <span className="bg-white text-violet-700 px-2 py-1 rounded-lg text-[9px] font-black uppercase shadow-sm border border-violet-100">
       {g.students.length} {viewMode === 'Sede' ? 'Alumnxs' : 'Integradxs'}
@@ -518,22 +521,13 @@ return (
     )}
   </div>
 
-  {/* Fila secundaria: Desglose de Género y Diagnóstico */}
-  {(() => {
-    const varones = g.students.filter(s => s.gender?.toLowerCase() === 'masculino' || s.gender?.toLowerCase() === 'v' || s.gender?.toLowerCase() === 'm').length;
-    const mujeres = g.students.filter(s => s.gender?.toLowerCase() === 'femenino' || s.gender?.toLowerCase() === 'f').length;
-    const conDI = g.students.filter(s => s.dx?.toUpperCase().includes('DI') || s.dx?.toUpperCase().includes('INTELECTUAL')).length;
-    const conTEA = g.students.filter(s => s.dx?.toUpperCase().includes('TEA') || s.dx?.toUpperCase().includes('ESPECTRO') || s.dx?.toUpperCase().includes('AUTISMO')).length;
-
-    return (
-      <div className="flex flex-wrap gap-1 bg-slate-100/60 p-1.5 rounded-xl border border-slate-200/40">
-        {varones > 0 && <span className="text-[9px] font-bold text-slate-500 bg-white px-1.5 py-0.5 rounded-md">👦 {varones}V</span>}
-        {mujeres > 0 && <span className="text-[9px] font-bold text-slate-500 bg-white px-1.5 py-0.5 rounded-md">👧 {mujeres}M</span>}
-        {conDI > 0 && <span className="text-[9px] font-black text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-100">DI: {conDI}</span>}
-        {conTEA > 0 && <span className="text-[9px] font-black text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100">TEA: {conTEA}</span>}
-      </div>
-    );
-  })()}
+  {/* Renderizado directo desde las stats precalculadas */}
+  <div className="flex flex-wrap gap-1 bg-slate-100/60 p-1.5 rounded-xl border border-slate-200/40">
+    {g.stats.varones > 0 && <span className="text-[9px] font-bold text-slate-500 bg-white px-1.5 py-0.5 rounded-md">👦 {g.stats.varones}V</span>}
+    {g.stats.mujeres > 0 && <span className="text-[9px] font-bold text-slate-500 bg-white px-1.5 py-0.5 rounded-md">👧 {g.stats.mujeres}M</span>}
+    {g.stats.conDI > 0 && <span className="text-[9px] font-black text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-100">DI: {g.stats.conDI}</span>}
+    {g.stats.conTEA > 0 && <span className="text-[9px] font-black text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100">TEA: {g.stats.conTEA}</span>}
+  </div>
 </div>
 
                 {/* STAFF DINÁMICO (Aquí es donde se hace el ajuste visual que pedías) */}
