@@ -113,21 +113,29 @@ const gruposFinales = React.useMemo(() => {
         classroom: viewMode === 'Sede' ? s.classroom : s.originGrade, 
         driveLink: s[`driveLink${suf}`], 
         institucionalDrive: s.institucionalDrive,
-        // --- PRECALCULAMOS LAS ESTADÍSTICAS AQUÍ PARA EVITAR ERRORES EN EL JSX ---
-        stats: { varones: 0, mujeres: 0, conDI: 0, conTES: 0 }
+        // Dejamos las variables internas idénticas para no romper el JSX de abajo
+        stats: { varones: 0, mujeres: 0, conDI: 0, conTEA: 0 }
       };
     }
 
     acc[gName].students.push(s);
 
-    // Contabilizar estadísticas al vuelo
-    const gender = s.gender?.toLowerCase();
-    const dx = s.dx?.toUpperCase() || '';
+    // --- SANEADOR DE TEXTO ULTRA TOLERANTE ---
+    const gender = s.gender?.toLowerCase() || '';
+    const dx = (s.dx || '')
+      .toUpperCase()
+      .replace(/\./g, '') // Borra puntos (Ej: T.E.S -> TES)
+      .normalize("NFD")   // Descompone acentos
+      .replace(/[\u0300-\u036f]/g, ""); // Remueve tildes
 
     if (gender === 'masculino' || gender === 'v' || gender === 'm') acc[gName].stats.varones++;
     if (gender === 'femenino' || gender === 'f') acc[gName].stats.mujeres++;
+    
+    // Conteo de Discapacidad Intelectual
     if (dx.includes('DI') || dx.includes('INTELECTUAL')) acc[gName].stats.conDI++;
-    if (dx.includes('TEA') || dx.includes('ESPECTRO') || dx.includes('AUTISMO')) acc[gName].stats.conTEA++;
+    
+    // Conteo de Trastorno Emocional Severo (Mapeado a la variable existente stats.conTEA)
+    if (dx.includes('TES') || dx.includes('EMOCIONAL') || dx.includes('CONDUCTA')) acc[gName].stats.conTEA++;
 
     return acc;
   }, {});
