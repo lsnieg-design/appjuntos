@@ -1209,212 +1209,226 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
        </div>
      </div>
 
-     <div className="space-y-4">
+   <div className="space-y-4">
             
-      {/* BLOQUEOS PARA PLÁSTICA Y ED. FÍSICA SEGÚN NIVEL */}
-            {(tipoInforme === 'plastica' && selectedStudent?.level?.toUpperCase() === 'INICIAL') || 
-       (tipoInforme === 'educacion_fisica' && ['INICIAL', '1° CICLO'].includes(selectedStudent?.level?.toUpperCase())) ||
-       (tipoInforme === 'musica_brenda' && !(['INICIAL', '1° CICLO'].includes(selectedStudent?.level?.toUpperCase()))) ? (
-        <div className="bg-amber-50 border border-amber-200 p-8 rounded-3xl text-center">
-          <span className="text-4xl block mb-2">⚠️</span>
-          <p className="text-amber-900 font-black text-lg">
-            El nivel {selectedStudent?.level} no posee informe de {tipoInforme === 'musica_brenda' ? 'Música Brenda' : tipoInforme.replace('_', ' ')}.
-          </p>
-          <p className="text-amber-700 text-sm mt-1">Este espacio está habilitado exclusivamente para Inicial y 1° Ciclo.</p>
-        </div>
-      ) : (
-        <>
-                {/* 1. ESPACIO DE CONTENIDOS (SOLO PARA PLÁSTICA) */}
-                {tipoInforme === 'plastica' && (
-                  <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mb-6">
-                    <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Contenidos Abordados</label>
-                    <textarea 
-                      className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" 
-                      placeholder="Ej: El espacio, aprovechamiento y utilización consciente del plano. El color..." 
-                      value={contenidosPlastica} 
-                      onChange={e => setContenidosPlastica(e.target.value)} 
-                      rows={3}
-                    />
-                  </div>
-                )}
-             {/* SELECTOR DE NIVEL PARA MÚSICA */}
-                {tipoInforme === 'musica' && (
-                  <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100 mb-6 text-center">
-                    <h3 className="text-sm font-black text-indigo-900 uppercase mb-4">Seleccione el Nivel de Música a evaluar</h3>
-                    <div className="flex gap-4 max-w-md mx-auto">
-                      <button 
-                        onClick={() => setNivelMusica('Nivel 1')} 
-                        className={`flex-1 p-4 rounded-xl font-black uppercase text-sm transition-all ${nivelMusica === 'Nivel 1' ? 'bg-violet-600 text-white shadow-md scale-105' : 'bg-white border-2 border-indigo-100 hover:border-violet-400 text-gray-600'}`}
-                      >
-                        Nivel 1
-                      </button>
-                      <button 
-                        onClick={() => setNivelMusica('Nivel 2')} 
-                        className={`flex-1 p-4 rounded-xl font-black uppercase text-sm transition-all ${nivelMusica === 'Nivel 2' ? 'bg-violet-600 text-white shadow-md scale-105' : 'bg-white border-2 border-indigo-100 hover:border-violet-400 text-gray-600'}`}
-                      >
-                        Nivel 2
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* BLOQUEO: SI ES MÚSICA Y NO ELIGIÓ NIVEL, CORTAMOS ACÁ */}
-                {tipoInforme === 'musica' && !nivelMusica ? (
-                  <div className="p-12 text-center text-gray-400 font-medium border-2 border-dashed border-gray-200 rounded-3xl mb-8">
-                    👆 Por favor, seleccioná Nivel 1 o Nivel 2 arriba para desplegar la rúbrica correspondiente.
-                  </div>
-                ) : (
-                  <>
-                    {/* FUNDAMENTACIÓN (SOLO PARA MÚSICA CUANDO YA ELIGIÓ NIVEL) */}
-                    {tipoInforme === 'musica' && (
-                      <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
-                        <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
-                        <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
-                          El trabajo rítmico estructurado en formato de círculo favorece la eliminación de jerarquías, promueve el contacto visual continuo y estimula procesos de autorregulación, atención conjunta y empatía a través de la producción de un pulso compartido.
-                        </p>
-                      </div>
-                    )}
-
-                    {/* FUNDAMENTACIÓN (SOLO PARA PSICOMOTRICIDAD) */}
-                    {tipoInforme === 'psicomotricidad' && (
-                      <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
-                        <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
-                        <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
-                          El espacio de Psicomotricidad ofrece propuestas que favorecen el desarrollo integral de los estudiantes a través del movimiento, el juego y la interacción con otros. Mediante experiencias adaptadas a las posibilidades e intereses de cada alumno, se promueve la exploración corporal, la participación activa, la comunicación y la construcción de recursos que contribuyen a una mayor autonomía en los distintos contextos cotidianos.
-                          
-                          Las actividades propuestas buscan acompañar el fortalecimiento de habilidades motrices, la organización de la acción, la adaptación a diferentes situaciones y el desarrollo de estrategias que favorezcan una participación cada vez más significativa dentro de las experiencias compartidas.
-                        </p>
-                      </div>
-                    )}
-                   {tipoInforme === 'educacion_fisica' && (
-                      <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
-                        <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
-                        <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
-                         {['CFI', 'FINES'].includes(selectedStudent?.level?.toUpperCase()) ? 
-                          "En este ciclo lectivo, la Educación Física se propone como un espacio de encuentro, disfrute y aprendizaje a través del cuerpo. Desde una mirada inclusiva, priorizamos el desarrollo de la autonomía, la confianza y las habilidades motrices de cada alumno, respetando sus tiempos y singularidades. A través del juego cooperativo y la introducción a los deportes adaptados, buscamos que la clase sea un lugar de participación plena para todos, donde las reglas y materiales se transforman para que la diversidad enriquezca la convivencia y el aprendizaje compartido." :
-                          "En este ciclo lectivo, la Educación Física se propone como un espacio de encuentro, disfrute y aprendizaje a través del cuerpo. Desde una mirada inclusiva, priorizamos el desarrollo de la autonomía, la confianza y las habilidades motrices de cada alumno, respetando sus tiempos y singularidades. A través del juego cooperativo, buscamos que la clase sea un lugar de participación plena para todos, donde las reglas y materiales se transforman para que la diversidad enriquezca la convivencia y el aprendizaje compartido."
-                         }
-                        </p>
-                      </div>
-                    )}
-
-                {/* 2. RÚBRICA DE INDICADORES (PARA TODOS) */}
-              {indicadoresActuales.map(c => (
-  <div key={c.id} className="space-y-2 mb-4 p-4 bg-gray-50 rounded-2xl">
-    <label className="text-xs font-black uppercase text-gray-700">{c.label}</label>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-      {c.options.map(opt => {
-        const isSelected = answers[c.id] === opt;
-        return (
-          <button 
-            key={opt} 
-            onClick={() => setAnswers(p => ({...p, [c.id]: opt}))} 
-            className={"p-3 rounded-xl font-bold text-[10px] uppercase border-2 text-center transition-all " + (isSelected ? "bg-violet-600 text-white border-violet-700 shadow-md" : "bg-white border-gray-200 hover:border-violet-300")}
-          >
-            {opt}
-          </button>
-        );
-      })}
-    </div>
-
-    {/* PARCHE: Cuadro de texto personalizado para áreas pedagógica y laboral */}
-    {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
-      <div className="mt-3/2">
-        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">O escribir una opción personalizada:</label>
-        <textarea
-          className="w-full p-3 bg-white rounded-xl text-xs border border-gray-200 font-medium text-gray-700 placeholder-gray-400"
-          placeholder="Escribí acá un texto a medida para este indicador..."
-          value={answers[c.id] || ''}
-          onChange={e => setAnswers(p => ({...p, [c.id]: e.target.value}))}
-          rows={2}
-        />
+    {/* BLOQUEOS DE SEGURIDAD SEGÚN NIVEL */}
+    {((tipoInforme === 'plastica' && selectedStudent?.level?.toUpperCase() === 'INICIAL') || 
+      (tipoInforme === 'educacion_fisica' && ['INICIAL', '1° CICLO'].includes(selectedStudent?.level?.toUpperCase())) ||
+      (tipoInforme === 'musica_brenda' && !(['INICIAL', '1° CICLO'].includes(selectedStudent?.level?.toUpperCase())))) ? (
+      
+      <div className="bg-amber-50 border border-amber-200 p-8 rounded-3xl text-center">
+        <span className="text-4xl block mb-2">⚠️</span>
+        <p className="text-amber-900 font-black text-lg">
+          El nivel {selectedStudent?.level} no posee informe de {tipoInforme === 'musica_brenda' ? 'Música Brenda' : tipoInforme.replace('_', ' ')}.
+        </p>
+        <p className="text-amber-700 text-sm mt-1">Este espacio está habilitado exclusivamente para Inicial y 1° Ciclo.</p>
       </div>
-    )}
-  </div>
-))}
 
-                {/* 3. ESPACIO DE OBSERVACIONES (SOLO PARA PLÁSTICA) */}
-                {tipoInforme === 'plastica' && (
-                  <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
-                    <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
-                    <textarea 
-                      className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" 
-                      placeholder="Escriba aquí las observaciones finales..." 
-                      value={observacionesPlastica} 
-                      onChange={e => setObservacionesPlastica(e.target.value)} 
-                      rows={4}
+    ) : (
+
+      /* RENDERIZADO NORMAL DEL FORMULARIO (Si el nivel SÍ es válido) */
+      <>
+        {/* 1. ESPACIO DE CONTENIDOS (SOLO PARA PLÁSTICA) */}
+        {tipoInforme === 'plastica' && (
+          <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mb-6">
+            <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Contenidos Abordados</label>
+            <textarea 
+              className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" 
+              placeholder="Ej: El espacio, aprovechamiento y utilización consciente del plano. El color..." 
+              value={contenidosPlastica} 
+              onChange={e => setContenidosPlastica(e.target.value)} 
+              rows={3}
+            />
+          </div>
+        )}
+
+        {/* SELECTOR DE NIVEL PARA MÚSICA */}
+        {tipoInforme === 'musica' && (
+          <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100 mb-6 text-center">
+            <h3 className="text-sm font-black text-indigo-900 uppercase mb-4">Seleccione el Nivel de Música a evaluar</h3>
+            <div className="flex gap-4 max-w-md mx-auto">
+              <button 
+                onClick={() => setNivelMusica('Nivel 1')} 
+                className={`flex-1 p-4 rounded-xl font-black uppercase text-sm transition-all ${nivelMusica === 'Nivel 1' ? 'bg-violet-600 text-white shadow-md scale-105' : 'bg-white border-2 border-indigo-100 hover:border-violet-400 text-gray-600'}`}
+              >
+                Nivel 1
+              </button>
+              <button 
+                onClick={() => setNivelMusica('Nivel 2')} 
+                className={`flex-1 p-4 rounded-xl font-black uppercase text-sm transition-all ${nivelMusica === 'Nivel 2' ? 'bg-violet-600 text-white shadow-md scale-105' : 'bg-white border-2 border-indigo-100 hover:border-violet-400 text-gray-600'}`}
+              >
+                Nivel 2
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* BLOQUEO: SI ES MÚSICA Y NO ELIGIÓ NIVEL, CORTAMOS ACÁ */}
+        {tipoInforme === 'musica' && !nivelMusica ? (
+          <div className="p-12 text-center text-gray-400 font-medium border-2 border-dashed border-gray-200 rounded-3xl mb-8">
+            👆 Por favor, seleccioná Nivel 1 o Nivel 2 arriba para desplegar la rúbrica correspondiente.
+          </div>
+        ) : (
+          <>
+            {/* FUNDAMENTACIÓN (SOLO PARA MÚSICA FRAN CUANDO YA ELIGIÓ NIVEL) */}
+            {tipoInforme === 'musica' && (
+              <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
+                <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
+                <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
+                  El trabajo rítmico estructurado en formato de círculo favorece la eliminación de jerarquías, promueve el contacto visual continuo y estimula procesos de autorregulación, atención conjunta y empatía a través de la producción de un pulso compartido.
+                </p>
+              </div>
+            )}
+
+            {/* FUNDAMENTACIÓN (SOLO PARA MÚSICA BRENDA) */}
+            {tipoInforme === 'musica_brenda' && (
+              <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
+                <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
+                <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
+                  La música cumple un papel fundamental en el desarrollo integral de los niños, ya que estimula el lenguaje, la creatividad y la atención[cite: 4]. Favorece la expresión emocional, la sociabilidad y mejora la coordinación motriz[cite: 4]. Es una herramienta que enriquece su desarrollo integral de manera lúdica significativa[cite: 4].
+                </p>
+              </div>
+            )}
+
+            {/* FUNDAMENTACIÓN (SOLO PARA PSICOMOTRICIDAD) */}
+            {tipoInforme === 'psicomotricidad' && (
+              <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
+                <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
+                <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
+                  El espacio de Psicomotricidad ofrece propuestas que favorecen el desarrollo integral de los estudiantes a través del movimiento, el juego y la interacción con otros. Mediante experiencias adaptadas a las posibilidades e intereses de cada alumno, se promueve la exploración corporal, la participación activa, la comunicación y la construcción de recursos que contribuyen a una mayor autonomía en los distintos contextos cotidianos.
+                  
+                  Las actividades propuestas buscan acompañar el fortalecimiento de habilidades motrices, la organización de la acción, la adaptación a diferentes situaciones y el desarrollo de estrategias que favorezcan una participación cada vez más significativa dentro de las experiencias compartidas.
+                </p>
+              </div>
+            )}
+
+            {tipoInforme === 'educacion_fisica' && (
+              <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
+                <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
+                <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
+                  {['CFI', 'FINES'].includes(selectedStudent?.level?.toUpperCase()) ? 
+                   "En este ciclo lectivo, la Educación Física se propone como un espacio de encuentro, disfrute y aprendizaje a través del cuerpo. Desde una mirada inclusiva, priorizamos el desarrollo de la autonomía, la confianza y las habilidades motrices de cada alumno, respetando sus tiempos y singularidades. A través del juego cooperativo y la introducción a los deportes adaptados, buscamos que la clase sea un lugar de participación plena para todos, donde las reglas y materiales se transforman para que la diversidad enriquezca la convivencia y el aprendizaje compartido." :
+                   "En este ciclo lectivo, la Educación Física se propone como un espacio de encuentro, disfrute y aprendizaje a través del cuerpo. Desde una mirada inclusiva, priorizamos el desarrollo de la autonomía, la confianza y las habilidades motrices de cada alumno, respetando sus tiempos y singularidades. A través del juego cooperativo, buscamos que la clase sea un lugar de participación plena para todos, donde las reglas y materiales se transforman para que la diversidad enriquezca la convivencia y el aprendizaje compartido."
+                  }
+                </p>
+              </div>
+            )}
+
+            {/* 2. RÚBRICA DE INDICADORES (PARA TODOS) */}
+            {indicadoresActuales.map(c => (
+              <div key={c.id} className="space-y-2 mb-4 p-4 bg-gray-50 rounded-2xl">
+                <label className="text-xs font-black uppercase text-gray-700">{c.label}</label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  {c.options.map(opt => {
+                    const isSelected = answers[c.id] === opt;
+                    return (
+                      <button 
+                        key={opt} 
+                        onClick={() => setAnswers(p => ({...p, [c.id]: opt}))} 
+                        className={"p-3 rounded-xl font-bold text-[10px] uppercase border-2 text-center transition-all " + (isSelected ? "bg-violet-600 text-white border-violet-700 shadow-md" : "bg-white border-gray-200 hover:border-violet-300")}
+                      >
+                        {opt}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* PARCHE: Cuadro de texto personalizado para áreas pedagógica y laboral */}
+                {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
+                  <div className="mt-3/2">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">O escribir una opción personalizada:</label>
+                    <textarea
+                      className="w-full p-3 bg-white rounded-xl text-xs border border-gray-200 font-medium text-gray-700 placeholder-gray-400"
+                      placeholder="Escribí acá un texto a medida para este indicador..."
+                      value={answers[c.id] || ''}
+                      onChange={e => setAnswers(p => ({...p, [c.id]: e.target.value}))}
+                      rows={2}
                     />
                   </div>
                 )}
-                   {/* ESPACIO DE OBSERVACIONES (SOLO PARA PSICOMOTRICIDAD) */}
-                    {tipoInforme === 'psicomotricidad' && (
-                      <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
-                        <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
-                        <textarea 
-                          className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" 
-                          placeholder="Escriba aquí las observaciones finales de psicomotricidad..." 
-                          value={observacionesPsicomotricidad} 
-                          onChange={e => setObservacionesPsicomotricidad(e.target.value)} 
-                          rows={4}
-                        />
-                      </div>
-                    )}
-                   {/* ESPACIO DE OBSERVACIONES (SOLO PARA MÚSICA) */}
-                    {tipoInforme === 'musica' && (
-                      <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
-                        <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
-                        <textarea 
-                          className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" 
-                          placeholder="Escriba aquí las observaciones finales de música..." 
-                          value={observacionesMusica} 
-                          onChange={e => setObservacionesMusica(e.target.value)} 
-                          rows={4}
-                        />
-                      </div>
-                    )}
-                   {tipoInforme === 'educacion_fisica' && (
-                      <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
-                        <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
-                        <textarea 
-                          className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" 
-                          placeholder="Escriba aquí las observaciones finales de educación física..." 
-                          value={observacionesEducacionFisica} 
-                          onChange={e => setObservacionesEducacionFisica(e.target.value)} 
-                          rows={4}
-                        />
-                      </div>
-                    )}
+              </div>
+            ))}
 
-              {/* 4. OBJETIVOS Y OBS. CUATRIMESTRE 1 (OCULTOS EN MATERIAS ESPECIALES) */}
-                {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
-                  <div className="mt-8 space-y-4">
-                    <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100">
-                      <label className="text-xs font-black uppercase text-violet-800 block mb-2">Observaciones sobre los objetivos planteados para este primer cuatrimestre</label>
-                      <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" placeholder="Escriba aquí las observaciones..." value={obsCuatrimestre1} onChange={e => setObsCuatrimestre1(e.target.value)} rows={4} />
-                    </div>
+            {/* 3. ESPACIO DE OBSERVACIONES (MATERIAS ESPECIALES) */}
+            {tipoInforme === 'plastica' && (
+              <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
+                <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
+                <textarea 
+                  className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" 
+                  placeholder="Escriba aquí las observaciones finales..." 
+                  value={observacionesPlastica} 
+                  onChange={e => setObservacionesPlastica(e.target.value)} 
+                  rows={4}
+                />
+              </div>
+            )}
+            {tipoInforme === 'psicomotricidad' && (
+              <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
+                <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
+                <textarea 
+                  className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" 
+                  placeholder="Escriba aquí las observaciones finales de psicomotricidad..." 
+                  value={observacionesPsicomotricidad} 
+                  onChange={e => setObservacionesPsicomotricidad(e.target.value)} 
+                  rows={4}
+                />
+              </div>
+            )}
+            {(tipoInforme === 'musica' || tipoInforme === 'musica_brenda') && (
+              <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
+                <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
+                <textarea 
+                  className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" 
+                  placeholder="Escriba aquí las observaciones finales de música (opcional)..." 
+                  value={observacionesMusica} 
+                  onChange={e => setObservacionesMusica(e.target.value)} 
+                  rows={4}
+                />
+              </div>
+            )}
+            {tipoInforme === 'educacion_fisica' && (
+              <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
+                <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
+                <textarea 
+                  className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" 
+                  placeholder="Escriba aquí las observaciones finales de educación física..." 
+                  value={observacionesEducacionFisica} 
+                  onChange={e => setObservacionesEducacionFisica(e.target.value)} 
+                  rows={4}
+                />
+              </div>
+            )}
 
-                    <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100 space-y-4">
-                      <h3 className="text-sm font-black uppercase text-violet-900 border-b border-violet-200 pb-2">Objetivos para el segundo cuatrimestre</h3>
-                      <div>
-                        <label className="text-xs font-black uppercase text-violet-800 block mb-2">Objetivo Conductual</label>
-                        <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" value={objConductual} onChange={e => setObjConductual(e.target.value)} rows={2} />
-                      </div>
-                      <div>
-                        <label className="text-xs font-black uppercase text-violet-800 block mb-2">Objetivo Pedagógico</label>
-                        <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" value={objPedagogico} onChange={e => setObjPedagogico(e.target.value)} rows={2} />
-                      </div>
-                      <div>
-                        <label className="text-xs font-black uppercase text-violet-800 block mb-2">Objetivo Socioafectivo</label>
-                        <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" value={objSocioafectivo} onChange={e => setObjSocioafectivo(e.target.value)} rows={2} />
-                      </div>
-                    </div>
+            {/* 4. OBJETIVOS Y OBS. CUATRIMESTRE 1 (OCULTOS EN MATERIAS ESPECIALES) */}
+            {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
+              <div className="mt-8 space-y-4">
+                <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100">
+                  <label className="text-xs font-black uppercase text-violet-800 block mb-2">Observaciones sobre los objetivos planteados para este primer cuatrimestre</label>
+                  <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" placeholder="Escriba aquí las observaciones..." value={obsCuatrimestre1} onChange={e => setObsCuatrimestre1(e.target.value)} rows={4} />
+                </div>
+
+                <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100 space-y-4">
+                  <h3 className="text-sm font-black uppercase text-violet-900 border-b border-violet-200 pb-2">Objetivos para el segundo cuatrimestre</h3>
+                  <div>
+                    <label className="text-xs font-black uppercase text-violet-800 block mb-2">Objetivo Conductual</label>
+                    <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" value={objConductual} onChange={e => setObjConductual(e.target.value)} rows={2} />
                   </div>
-                )}
-              </>
+                  <div>
+                    <label className="text-xs font-black uppercase text-violet-800 block mb-2">Objetivo Pedagógico</label>
+                    <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" value={objPedagogico} onChange={e => setObjPedagogico(e.target.value)} rows={2} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-black uppercase text-violet-800 block mb-2">Objetivo Socioafectivo</label>
+                    <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" value={objSocioafectivo} onChange={e => setObjSocioafectivo(e.target.value)} rows={2} />
+                  </div>
+                </div>
+              </div>
             )}
           </>
         )}
-      </div>
+      </>
+    )}
+  </div>
 
      <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 mt-6 bg-violet-800 hover:bg-violet-900 text-white font-black rounded-2xl">
       {isSaving ? 'Guardando...' : 'Guardar Informe'}
