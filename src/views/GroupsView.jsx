@@ -120,21 +120,23 @@ const gruposFinales = React.useMemo(() => {
 
     acc[gName].students.push(s);
 
-    // --- SANEADOR DE TEXTO ULTRA TOLERANTE ---
+    // Contabilizar estadísticas al vuelo (Saneado definitivo)
     const gender = s.gender?.toLowerCase() || '';
+    
+    // Convertimos a mayúsculas, quitamos puntos, acentos y CUALQUIER espacio extra
     const dx = (s.dx || '')
       .toUpperCase()
-      .replace(/\./g, '') // Borra puntos (Ej: T.E.S -> TES)
-      .normalize("NFD")   // Descompone acentos
-      .replace(/[\u0300-\u036f]/g, ""); // Remueve tildes
+      .trim()
+      .replace(/\./g, '')
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
 
     if (gender === 'masculino' || gender === 'v' || gender === 'm') acc[gName].stats.varones++;
     if (gender === 'femenino' || gender === 'f') acc[gName].stats.mujeres++;
     
-    // Conteo de Discapacidad Intelectual
     if (dx.includes('DI') || dx.includes('INTELECTUAL')) acc[gName].stats.conDI++;
     
-    // Conteo de Trastorno Emocional Severo (Mapeado a la variable existente stats.conTEA)
+    // Captura exacta de TES, incluso si forma parte de otra palabra o frase
     if (dx.includes('TES') || dx.includes('EMOCIONAL') || dx.includes('CONDUCTA')) acc[gName].stats.conTEA++;
 
     return acc;
@@ -534,7 +536,7 @@ return (
                     {g.stats?.varones > 0 && <span className="text-[9px] font-bold text-slate-500 bg-white px-1.5 py-0.5 rounded-md">👦 {g.stats.varones}V</span>}
                     {g.stats?.mujeres > 0 && <span className="text-[9px] font-bold text-slate-500 bg-white px-1.5 py-0.5 rounded-md">👧 {g.stats.mujeres}M</span>}
                     {g.stats?.conDI > 0 && <span className="text-[9px] font-black text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-100">DI: {g.stats.conDI}</span>}
-                    {g.stats?.conTES > 0 && <span className="text-[9px] font-black text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100">TEA: {g.stats.conTES}</span>}
+                    {g.stats?.conTEA > 0 && <span className="text-[9px] font-black text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100">TES: {g.stats.conTEA}</span>}
                   </div>
                 </div>
 
