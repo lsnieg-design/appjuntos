@@ -1007,7 +1007,7 @@ return (
               </button>
             </div>
           </form>
-        </div>
+        </div> 
       )}
     {/* 6. MODAL DE OPCIONES DE IMPRESIÓN */}
       {showPrintOptions && (
