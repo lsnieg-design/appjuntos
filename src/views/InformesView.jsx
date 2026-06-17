@@ -607,7 +607,7 @@ const generarHTMLImpresion = (s, report) => {
       <div class="mt-8 pt-4 flex flex-col items-center justify-center border-t border-dashed border-gray-200" style="break-inside: avoid;">
           <img src="/firmasylogo.png" alt="Sello Institucional Juntos a la Par" class="max-w-[260px] w-full object-contain mb-6 text-center" />
           
-        // BUSCA EL BLOQUE DE LAS FIRMAS EN generarHTMLImpresion Y REEMPLÁZALO POR ESTE:
+        
           <div class="w-full flex justify-between px-12 mt-12 relative">
               
               <!-- Bloque Izquierdo: Firma del Docente -->
