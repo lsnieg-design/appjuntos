@@ -114,7 +114,7 @@ const gruposFinales = React.useMemo(() => {
         driveLink: s[`driveLink${suf}`], 
         institucionalDrive: s.institucionalDrive,
         // --- PRECALCULAMOS LAS ESTADÍSTICAS AQUÍ PARA EVITAR ERRORES EN EL JSX ---
-        stats: { varones: 0, mujeres: 0, conDI: 0, conTEA: 0 }
+        stats: { varones: 0, mujeres: 0, conDI: 0, conTES: 0 }
       };
     }
 
@@ -526,7 +526,7 @@ return (
                     {g.stats?.varones > 0 && <span className="text-[9px] font-bold text-slate-500 bg-white px-1.5 py-0.5 rounded-md">👦 {g.stats.varones}V</span>}
                     {g.stats?.mujeres > 0 && <span className="text-[9px] font-bold text-slate-500 bg-white px-1.5 py-0.5 rounded-md">👧 {g.stats.mujeres}M</span>}
                     {g.stats?.conDI > 0 && <span className="text-[9px] font-black text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-100">DI: {g.stats.conDI}</span>}
-                    {g.stats?.conTEA > 0 && <span className="text-[9px] font-black text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100">TEA: {g.stats.conTEA}</span>}
+                    {g.stats?.conTES > 0 && <span className="text-[9px] font-black text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100">TEA: {g.stats.conTES}</span>}
                   </div>
                 </div>
 
