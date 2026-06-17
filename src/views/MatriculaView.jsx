@@ -1700,11 +1700,11 @@ const filteredStudents = students.filter(s => {
         </div>
       )}
 
-  {/* 4. MODAL ESTADÍSTICAS (CON FILTRO PRE-TALLER Y CONTADORES) */}
+  {/* 4. MODAL ESTADÍSTICAS (CON DESGLOSE DE EDADES PARA INCLUSIÓN) */}
       {showStats && (
         <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-[40px] w-full max-w-lg p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600">
-                <div className="flex justify-between items-center mb-6">
+            <div className="bg-white rounded-[40px] w-full max-w-lg p-8 shadow-2xl animate-in zoom-in-95 border-t-8 border-violet-600 flex flex-col max-h-[90vh]">
+                <div className="flex justify-between items-center mb-6 shrink-0">
                     <div>
                         <h3 className="text-2xl font-black text-violet-900 uppercase italic">Estadísticas</h3>
                         <p className="text-xs text-gray-500">Filtrado Acumulativo Preciso</p>
@@ -1713,7 +1713,7 @@ const filteredStudents = students.filter(s => {
                 </div>
 
                 {/* RESULTADO GRANDE Y CONTADORES DIVIDIDOS */}
-                <div className="bg-violet-50 p-6 rounded-3xl text-center mb-6 border border-violet-100 shadow-inner">
+                <div className="bg-violet-50 p-6 rounded-3xl text-center mb-6 border border-violet-100 shadow-inner shrink-0">
                     <span className="text-5xl font-black text-violet-600 block mb-1">{statsResults.length}</span>
                     <span className="text-[10px] font-bold text-violet-400 uppercase tracking-[4px] mb-4 block">Coincidencias</span>
                     
@@ -1729,7 +1729,53 @@ const filteredStudents = students.filter(s => {
                     </div>
                 </div>
 
-                <div className="space-y-4 max-h-[45vh] overflow-y-auto pr-2 custom-scrollbar">
+                <div className="space-y-4 overflow-y-auto pr-2 flex-1 custom-scrollbar">
+                    
+                    {/* NUEVO DESGLOSE DE EDADES EXCLUSIVO PARA INCLUSIÓN */}
+                    <div className="bg-indigo-900 text-white p-5 rounded-3xl border border-indigo-950 shadow-md">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-300 mb-3 ml-1 flex items-center gap-1">
+                          📊 Desglose de Edades (Inclusión Activos)
+                        </h4>
+                        {(() => {
+                            // Filtramos estrictamente los estudiantes activos de la modalidad Inclusión
+                            const estudiantesInclusion = students.filter(s => s.isActive !== false && (s.modality === 'Inclusión'));
+                            
+                            // Agrupamos y contamos cuántos alumnos hay por cada edad analizada
+                            const conteoEdades = estudiantesInclusion.reduce((acc, s) => {
+                                const edad = calculateAge(s.birthDate);
+                                if (edad !== '-') {
+                                    acc[edad] = (acc[edad] || 0) + 1;
+                                }
+                                return acc;
+                            }, {});
+
+                            // Ordenamos las edades de menor a mayor
+                            const edadesOrdenadas = Object.keys(conteoEdades).sort((a, b) => Number(a) - b);
+
+                            if (edadesOrdenadas.length === 0) {
+                                return <p className="text-xs italic text-indigo-300 text-center py-2">Sin alumnos de inclusión con fecha cargada.</p>;
+                            }
+
+                            return (
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                    {edadesOrdenadas.map(edad => (
+                                        <div key={edad} className="bg-white/10 p-2.5 rounded-xl flex justify-between items-center border border-white/5">
+                                            <span className="font-bold text-indigo-200">{edad} años:</span>
+                                            <span className="font-black bg-white text-indigo-900 px-2 py-0.5 rounded-md text-[11px]">
+                                                {conteoEdades[edad]} {conteoEdades[edad] === 1 ? 'alumnx' : 'alumnxs'}
+                                            </span>
+                                        </div>
+                                    ))}
+                                    <div className="col-span-2 text-center pt-2 border-t border-white/10 mt-1">
+                                        <p className="text-[10px] font-black text-indigo-300 uppercase tracking-wider">
+                                            Total Matricula Inclusión: {estudiantesInclusion.length}
+                                        </p>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+                    </div>
+
                     {/* BOTÓN FILTRO PRE-TALLER */}
                     <div className="p-1 bg-gray-100 rounded-2xl">
                         <button 
@@ -1778,7 +1824,7 @@ const filteredStudents = students.filter(s => {
                         setStatFilters({ modality: [], level: [], dx: 'all', gender: 'all', turn: 'all', journey: 'all' });
                         setStatOnlyPreTaller(false);
                     }} 
-                    className="w-full py-3 text-red-400 font-bold text-[10px] uppercase tracking-widest hover:bg-red-50 rounded-xl transition mt-6 border border-dashed border-red-100"
+                    className="w-full py-3 text-red-400 font-bold text-[10px] uppercase tracking-widest hover:bg-red-50 rounded-xl transition mt-6 border border-dashed border-red-100 shrink-0"
                 >
                     Limpiar Filtros
                 </button>
