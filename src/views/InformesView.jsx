@@ -76,7 +76,7 @@ const CONFIG_INDICADORES = {
     { id: 'higiene', label: 'Cuidado e higiene de materiales', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
   ]
  },
-musica: {
+musica_fran: {
     'Nivel 1': [
       { id: 'reconocimiento_corporal', label: 'Reconocimiento corporal: Explora y produce sonidos con su cuerpo.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
       { id: 'seguimiento_pulso', label: 'Seguimiento del pulso: Identifica y sigue el tiempo en la ronda.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
@@ -386,7 +386,8 @@ const DICCIONARIO = {
 };
 const FIRMAS_AREAS = {
   plastica: '/firmaro.png',
-  musica: '/firmafran.png',
+  musica_fran: '/firmafran.png',
+ musica_brenda: '/firmabrenda.png',
   educacion_fisica: '/firmajuan.png',
   psicomotricidad: '/firmapablo.png', // Opcional, según tu lógica de docentes
   pedagogico: '/firmasylogo.png',
@@ -436,7 +437,7 @@ const generarHTMLImpresion = (s, report) => {
 
   // 2. Definimos qué áreas usan la Grilla con X y cuáles usan texto redactado
  
-  const materiasConGrilla = ['plastica', 'musica', 'psicomotricidad', 'educacion_fisica'];
+const materiasConGrilla = ['plastica', 'musica_fran', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'];
   let desarrolloHTML = '';
 
   // 3. Agregamos Contenidos o Fundamentación antes de la tabla (Solo materias especiales)
@@ -448,8 +449,16 @@ const generarHTMLImpresion = (s, report) => {
       </div>
     `;
   }
-  
-  if (report.tipoInforme === 'musica') {
+  if (report.tipoInforme === 'musica_brenda') {
+    desarrolloHTML += `
+      <div class="mb-4" style="break-inside: avoid;">
+        <h3 class="font-black uppercase text-violet-900 text-[10px] tracking-widest mb-1 border-b border-violet-100 pb-1">Fundamentación</h3>
+        <p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2 whitespace-pre-wrap">La música cumple un papel fundamental en el desarrollo integral de los niños, ya que estimula el lenguaje, la creatividad y la atención. Favorece la expresión emocional, la sociabilidad y mejora la coordinación motriz. Es una herramienta que enriquece su desarrollo integral de manera lúdica significativa.</p>
+      </div>
+    `;
+}
+ 
+  if (report.tipoInforme === 'musica_fran') {
     desarrolloHTML += `
       <div class="mb-4" style="break-inside: avoid;">
         <h3 class="font-black uppercase text-violet-900 text-[10px] tracking-widest mb-1 border-b border-violet-100 pb-1">Fundamentación</h3>
@@ -538,7 +547,7 @@ const generarHTMLImpresion = (s, report) => {
   
   if (materiasConGrilla.includes(report.tipoInforme)) {
    // Si es materia de grilla, mostramos solo sus observaciones especiales
-     const obsEspeciales = report.observacionesPlastica || report.observacionesMusica || report.observacionesPsicomotricidad || report.observacionesEducacionFisica || '';
+    const obsEspeciales = report.observacionesPlastica || report.observacionesMusica || report.observacionesPsicomotricidad || report.observacionesEducacionFisica || '';
      if (obsEspeciales) {
        obsYObjetivosHTML = `
        <div class="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style="break-inside: avoid;">
@@ -746,7 +755,8 @@ const filteredStudents = estudiantesSede.filter(s => {
   setObservacionesEducacionFisica(report?.observacionesEducacionFisica || '');
   
   let docenteAsignado = student.teacher || student.docente || '';
-  if (tipoInforme === 'musica') docenteAsignado = 'Francisco Jaime';
+  if (tipoInforme === 'musica_fran') docenteAsignado = 'Francisco Jaime';
+  if (tipoInforme === 'musica_brenda') docenteAsignado = 'Brenda Celiz';
   if (tipoInforme === 'plastica') docenteAsignado = 'Rosario Cozzarín';
   if (tipoInforme === 'educacion_fisica') docenteAsignado = 'Juan Cruz Ricchi';
   if (tipoInforme === 'psicomotricidad') docenteAsignado = 'Pablo Pagliuca';
@@ -869,7 +879,8 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
             { id: 'laboral', label: 'Laboral' },
             { id: 'psicomotricidad', label: 'Psicomotricidad' },
             { id: 'plastica', label: 'Plástica' },
-            { id: 'musica', label: 'Música' },
+            { id: 'musica', label: 'Música Fran' },
+   { id: 'musica_brenda', label: 'Música Brenda' },
             { id: 'educacion_fisica', label: 'Ed. Física' }
           ].map(t => (
             <button 
@@ -1036,12 +1047,13 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
         <div className="p-6 overflow-y-auto space-y-6 bg-gray-50">
           {(() => {
             const areasStats = [
-              { id: 'pedagogico', label: 'Pedagógico' },
-              { id: 'laboral', label: 'Laboral' },
-              { id: 'psicomotricidad', label: 'Psicomotricidad' },
-              { id: 'plastica', label: 'Plástica' },
-              { id: 'musica', label: 'Música' },
-              { id: 'educacion_fisica', label: 'Ed. Física' }
+            { id: 'pedagogico', label: 'Pedagógico' },
+  { id: 'laboral', label: 'Laboral' },
+  { id: 'psicomotricidad', label: 'Psicomotricidad' },
+  { id: 'plastica', label: 'Plástica' },
+  { id: 'musica_fran', label: 'Música Fran' },
+  { id: 'musica_brenda', label: 'Música Brenda' },
+  { id: 'educacion_fisica', label: 'Ed. Física' }
             ].map(area => {
               let expected = 0;
               let completed = 0;
@@ -1056,7 +1068,7 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
                 if (area.id === 'pedagogico' && !hasTaller) expects = true;
                 if (area.id === 'laboral' && hasTaller) expects = true;
                 if (area.id === 'psicomotricidad') expects = true;
-                if (area.id === 'musica') expects = true;
+                {tipoInforme === 'musica_fran' && !nivelMusica ? (') expects = true;
                 if (area.id === 'plastica' && lvl !== 'INICIAL') expects = true;
                 if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CICLO')) expects = true;
 
