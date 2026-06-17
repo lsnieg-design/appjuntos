@@ -1065,12 +1065,12 @@ const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (sel
                 const groups = [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean).map(g => g.toUpperCase());
                 const hasTaller = groups.some(g => g.includes('TALLER') || g.includes('PRE TALLER') || g.includes('PRETALLER'));
 
-                if (area.id === 'pedagogico' && !hasTaller) expects = true;
-                if (area.id === 'laboral' && hasTaller) expects = true;
-                if (area.id === 'psicomotricidad') expects = true;
-                {tipoInforme === 'musica_fran' && !nivelMusica ? (') expects = true;
-                if (area.id === 'plastica' && lvl !== 'INICIAL') expects = true;
-                if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CICLO')) expects = true;
+               if (area.id === 'laboral' && hasTaller) expects = true;
+if (area.id === 'psicomotricidad') expects = true;
+if (area.id === 'musica_fran') expects = true;
+if (area.id === 'musica_brenda') expects = true;
+if (area.id === 'plastica' && lvl !== 'INICIAL') expects = true;
+if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CICLO')) expects = true;
 
                 if (expects) {
                   expected++;
