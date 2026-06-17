@@ -768,34 +768,38 @@ const handleEdit = (student, report) => {
  setStage('form');
 };
 
- const handleSaveInforme = async () => {
+const handleSaveInforme = async () => {
   if (grupoFiltro === 'Todos') { alert("Por favor, seleccioná un grupo específico para guardar."); return; }
   setIsSaving(true);
+  
+  // Forzamos a que el ID único use el nuevo identificador para mantener limpia la base
   const idUnico = `${selectedStudent.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`; 
+  
   await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pedagogical_reports', idUnico), {
-   studentId: selectedStudent.id,
-   studentName: `${selectedStudent.lastName}, ${selectedStudent.firstName}`,
-   grupo: grupoFiltro,
-   tipoInforme,
-   periodo: periodoInforme,
-   observacionesPsicomotricidad,
-   observacionesEducacionFisica,
-   answers,
-   nivelMusica,
-   observacionesMusica,
-   obsCuatrimestre1,
-   objConductual,
-   objPedagogico,
-   objSocioafectivo,
-   contenidosPlastica,
-   observacionesPlastica,
-   docente: docentePrint,
-   auxiliar: preceptoraPrint,
-   updatedAt: serverTimestamp()
+    studentId: selectedStudent.id,
+    studentName: `${selectedStudent.lastName}, ${selectedStudent.firstName}`,
+    grupo: grupoFiltro,
+    tipoInforme, // Se guardará como musica_fran o musica_brenda según corresponda
+    periodo: periodoInforme,
+    observacionesPsicomotricidad,
+    observacionesEducacionFisica,
+    answers,
+    nivelMusica,
+    observacionesMusica,
+    obsCuatrimestre1,
+    objConductual,
+    objPedagogico,
+    objSocioafectivo,
+    contenidosPlastica,
+    observacionesPlastica,
+    docente: docentePrint,
+    auxiliar: preceptoraPrint,
+    updatedAt: serverTimestamp()
   }, { merge: true });
+  
   setStage('main');
   setIsSaving(false);
- };
+};
  
 // REEMPLAZAR estas líneas en el cuerpo de InformesView para que lea bien el Nivel 1 o 2:
 const nivelActual = tipoInforme === 'musica_fran' ? (nivelMusica || 'Nivel 1') : (selectedStudent?.level || 'Inicial');
@@ -979,9 +983,9 @@ const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CO
            <div className="p-8 text-center text-gray-400 font-medium">No se encontraron estudiantes para este filtro.</div>
           ) : (
            filteredStudents.map(s => {
-           const report = grupoFiltro === 'Todos' ? null : savedReports.find(r => 
+         const report = grupoFiltro === 'Todos' ? null : savedReports.find(r => 
   r.studentId === s.id && 
-  (r.tipoInforme === tipoInforme || (tipoInforme === 'musica_fran' && r.tipoInforme === 'musica_fran')) && 
+  (r.tipoInforme === tipoInforme || (tipoInforme === 'musica_fran' && r.tipoInforme === 'musica')) && 
   r.grupo === grupoFiltro && 
   r.periodo === periodoInforme
 );
