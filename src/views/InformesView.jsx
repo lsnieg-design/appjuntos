@@ -573,10 +573,13 @@ const materiasConGrilla = ['plastica', 'musica_fran', 'musica_brenda', 'psicomot
   }
 
   // Etiqueta del título del informe (Ej: "Música (Nivel 1)" o "Plástica")
-  const subtituloArea = report.tipoInforme === 'musica' ? `${report.tipoInforme} (${report.nivelMusica || 'Nivel 1'})` : report.tipoInforme;
-
+ const subtituloArea = report.tipoInforme === 'musica_fran' 
+  ? `Música (${report.nivelMusica || 'Nivel 1'})` 
+  : report.tipoInforme === 'musica_brenda' 
+    ? 'Música' 
+    : report.tipoInforme;
   // 6. Evaluamos si debe mostrarse o no el Auxiliar
-  const mostrarAuxiliar = !materiasConGrilla.includes(report.tipoInforme);
+const mostrarAuxiliar = !['plastica', 'musica_fran', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(report.tipoInforme);
 
   return `
   <div class="pagina w-full bg-white text-black font-sans pb-4">
@@ -807,7 +810,7 @@ const filteredStudents = estudiantesSede.filter(s => {
   setIsSaving(false);
  };
  
-const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (selectedStudent?.level || 'Inicial');
+const nivelActual = tipoInforme === 'musica_fran' ? (nivelMusica || 'Nivel 1') : (selectedStudent?.level || 'Inicial');
   const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || [];
 
  // LÓGICA DE FILTRADO DINÁMICO
@@ -1398,7 +1401,7 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
                   <strong className="font-black text-gray-900">Docente a cargo:</strong>{" "}
                   <span className="text-gray-700">{docentePrint || currentReport?.docente || selectedStudent?.teacher || selectedStudent?.docente || '....................................'}</span>
                 </p>
-                {!['plastica', 'musica', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
+                {!['plastica', 'musica_fran', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
                   <p>
                     <strong className="font-black text-gray-900">Auxiliar/Preceptora:</strong>{" "}
                     <span className="text-gray-700">{preceptoraPrint || currentReport?.auxiliar || selectedStudent?.auxiliary || selectedStudent?.auxiliar || selectedStudent?.preceptora || '....................................'}</span>
