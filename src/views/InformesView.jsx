@@ -76,7 +76,7 @@ const CONFIG_INDICADORES = {
     { id: 'higiene', label: 'Cuidado e higiene de materiales', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
   ]
  },
-musica_fran: {
+musica: {
     'Nivel 1': [
       { id: 'reconocimiento_corporal', label: 'Reconocimiento corporal: Explora y produce sonidos con su cuerpo.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
       { id: 'seguimiento_pulso', label: 'Seguimiento del pulso: Identifica y sigue el tiempo en la ronda.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
@@ -386,7 +386,7 @@ const DICCIONARIO = {
 };
 const FIRMAS_AREAS = {
   plastica: '/firmaro.png',
-  musica_fran: '/firmafran.png',
+  musica: '/firmafran.png',
  musica_brenda: '/firmabrenda.png',
   educacion_fisica: '/firmajuan.png',
   psicomotricidad: '/firmapablo.png', // Opcional, según tu lógica de docentes
@@ -433,7 +433,7 @@ const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firs
 const generarHTMLImpresion = (s, report) => {
   // 1. Normalizar el tipo de informe para la lectura de rúbricas e indicadores
   const tipoInformeNormalizado = report.tipoInforme;
-  const nivel = tipoInformeNormalizado === 'musica_fran' 
+  const nivel = tipoInformeNormalizado === 'musica' 
     ? (report.nivelMusica || 'Nivel 1') 
     : (tipoInformeNormalizado === 'musica_brenda' ? 'Inicial' : (s?.level || 'Inicial'));
     
@@ -442,7 +442,7 @@ const generarHTMLImpresion = (s, report) => {
                       CONFIG_INDICADORES[tipoInformeNormalizado]?.['CFI'] || [];
 
   // 2. Definimos qué áreas usan la Grilla con X y cuáles usan texto redactado
-  const materiasConGrilla = ['plastica', 'musica_fran', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'];
+  const materiasConGrilla = ['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'];
   let desarrolloHTML = '';
 
   // 3. Agregamos Contenidos o Fundamentación antes de la tabla
@@ -455,7 +455,7 @@ const generarHTMLImpresion = (s, report) => {
      `;
   }
    
-  if (report.tipoInforme === 'musica_fran') {
+  if (report.tipoInforme === 'musica') {
      desarrolloHTML += `
        <div class="mb-4" style="break-inside: avoid;">
          <h3 class="font-black uppercase text-violet-900 text-[10px] tracking-widest mb-1 border-b border-violet-100 pb-1">Fundamentación</h3>
@@ -559,11 +559,11 @@ const generarHTMLImpresion = (s, report) => {
       }
   }
 
-  const subtituloArea = report.tipoInforme === 'musica_fran' 
+  const subtituloArea = report.tipoInforme === 'musica' 
     ? 'Música (Francisco Jaime)' 
     : (report.tipoInforme === 'musica_brenda' ? 'Música (Brenda Celiz)' : report.tipoInforme);
 
-  const mostrarAuxiliar = !['plastica', 'musica_fran', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(report.tipoInforme);
+  const mostrarAuxiliar = !['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(report.tipoInforme);
 
   return `
   <div class="pagina w-full bg-white text-black font-sans pb-4">
@@ -732,7 +732,7 @@ const handleEdit = (student, report) => {
  setSelectedStudent(student);
  
  // PARCHE DE EMERGENCIA: Si el informe viejo se guardó como 'musica',
- // nos aseguramos de que el formulario de 'musica_fran' herede todas sus respuestas intactas.
+ // nos aseguramos de que el formulario de 'musica' herede todas sus respuestas intactas.
  setAnswers(report?.answers || {});
  
  setObsCuatrimestre1(report?.obsCuatrimestre1 || '');
@@ -745,7 +745,7 @@ const handleEdit = (student, report) => {
  setObservacionesEducacionFisica(report?.observacionesEducacionFisica || '');
   
  let docenteAsignado = student.teacher || student.docente || '';
- if (tipoInforme === 'musica_fran') docenteAsignado = 'Francisco Jaime';
+ if (tipoInforme === 'musica') docenteAsignado = 'Francisco Jaime';
  if (tipoInforme === 'musica_brenda') docenteAsignado = 'Brenda Celiz';
  if (tipoInforme === 'plastica') docenteAsignado = 'Rosario Cozzarín';
  if (tipoInforme === 'educacion_fisica') docenteAsignado = 'Juan Cruz Ricchi';
@@ -779,7 +779,7 @@ const handleSaveInforme = async () => {
     studentId: selectedStudent.id,
     studentName: `${selectedStudent.lastName}, ${selectedStudent.firstName}`,
     grupo: grupoFiltro,
-    tipoInforme, // Se guardará como musica_fran o musica_brenda según corresponda
+    tipoInforme, // Se guardará como musica o musica_brenda según corresponda
     periodo: periodoInforme,
     observacionesPsicomotricidad,
     observacionesEducacionFisica,
@@ -802,7 +802,7 @@ const handleSaveInforme = async () => {
 };
  
 
-const nivelActual = tipoInforme === 'musica_fran' ? (nivelMusica || 'Nivel 1') : (selectedStudent?.level || 'Inicial');
+const nivelActual = tipoInforme === 'musica' ? (nivelMusica || 'Nivel 1') : (selectedStudent?.level || 'Inicial');
 const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || [];
 
  // LÓGICA DE FILTRADO DINÁMICO
@@ -874,7 +874,7 @@ const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CO
             { id: 'laboral', label: 'Laboral' },
             { id: 'psicomotricidad', label: 'Psicomotricidad' },
             { id: 'plastica', label: 'Plástica' },
-            { id: 'musica_fran', label: 'Música Fran' },
+            { id: 'musica', label: 'Música Fran' },
    { id: 'musica_brenda', label: 'Música Brenda' },
             { id: 'educacion_fisica', label: 'Ed. Física' }
           ].map(t => (
@@ -985,7 +985,7 @@ const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CO
            filteredStudents.map(s => {
          const report = grupoFiltro === 'Todos' ? null : savedReports.find(r => 
   r.studentId === s.id && 
-  (r.tipoInforme === tipoInforme || (tipoInforme === 'musica_fran' && r.tipoInforme === 'musica')) && 
+  (r.tipoInforme === tipoInforme || (tipoInforme === 'musica' && r.tipoInforme === 'musica')) && 
   r.grupo === grupoFiltro && 
   r.periodo === periodoInforme
 );
@@ -1051,7 +1051,7 @@ const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CO
   { id: 'laboral', label: 'Laboral' },
   { id: 'psicomotricidad', label: 'Psicomotricidad' },
   { id: 'plastica', label: 'Plástica' },
-  { id: 'musica_fran', label: 'Música Fran' },
+  { id: 'musica', label: 'Música Fran' },
   { id: 'musica_brenda', label: 'Música Brenda' },
   { id: 'educacion_fisica', label: 'Ed. Física' }
             ].map(area => {
@@ -1067,7 +1067,7 @@ const indicadoresActuales = CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CO
 
                if (area.id === 'laboral' && hasTaller) expects = true;
 if (area.id === 'psicomotricidad') expects = true;
-if (area.id === 'musica_fran') expects = true;
+if (area.id === 'musica') expects = true;
 if (area.id === 'musica_brenda') expects = true;
 if (area.id === 'plastica' && lvl !== 'INICIAL') expects = true;
 if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CICLO')) expects = true;
@@ -1153,7 +1153,7 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
          <label className="text-[10px] font-black uppercase text-violet-800">Docente a cargo</label>
          <input type="text" className="w-full p-3 rounded-xl bg-white border border-violet-200 text-sm font-bold text-gray-700" value={docentePrint} onChange={e => setDocentePrint(e.target.value)} placeholder="Ej. Alejandra..." />
         </div>
-        {!['plastica', 'musica_fran', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
+        {!['plastica', 'musica', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
          <div>
           <label className="text-[10px] font-black uppercase text-violet-800">Auxiliar / Preceptora</label>
           <input type="text" className="w-full p-3 rounded-xl bg-white border border-violet-200 text-sm font-bold text-gray-700" value={preceptoraPrint} onChange={e => setPreceptoraPrint(e.target.value)} placeholder="Ej. Andrea..." />
@@ -1187,7 +1187,7 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
                   </div>
                 )}
              {/* SELECTOR DE NIVEL PARA MÚSICA */}
-                {tipoInforme === 'musica_fran' && (
+                {tipoInforme === 'musica' && (
                   <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100 mb-6 text-center">
                     <h3 className="text-sm font-black text-indigo-900 uppercase mb-4">Seleccione el Nivel de Música a evaluar</h3>
                     <div className="flex gap-4 max-w-md mx-auto">
@@ -1208,14 +1208,14 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
                 )}
 
                 {/* BLOQUEO: SI ES MÚSICA Y NO ELIGIÓ NIVEL, CORTAMOS ACÁ */}
-                {tipoInforme === 'musica_fran' && !nivelMusica ? (
+                {tipoInforme === 'musica' && !nivelMusica ? (
                   <div className="p-12 text-center text-gray-400 font-medium border-2 border-dashed border-gray-200 rounded-3xl mb-8">
                     👆 Por favor, seleccioná Nivel 1 o Nivel 2 arriba para desplegar la rúbrica correspondiente.
                   </div>
                 ) : (
                   <>
                     {/* FUNDAMENTACIÓN (SOLO PARA MÚSICA CUANDO YA ELIGIÓ NIVEL) */}
-                    {tipoInforme === 'musica_fran' && (
+                    {tipoInforme === 'musica' && (
                       <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
                         <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
                         <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
@@ -1309,7 +1309,7 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
                       </div>
                     )}
                    {/* ESPACIO DE OBSERVACIONES (SOLO PARA MÚSICA) */}
-                    {tipoInforme === 'musica_fran' && (
+                    {tipoInforme === 'musica' && (
                       <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
                         <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
                         <textarea 
@@ -1335,7 +1335,7 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
                     )}
 
               {/* 4. OBJETIVOS Y OBS. CUATRIMESTRE 1 (OCULTOS EN MATERIAS ESPECIALES) */}
-                {!['plastica', 'musica_fran', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
+                {!['plastica', 'musica', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
                   <div className="mt-8 space-y-4">
                     <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100">
                       <label className="text-xs font-black uppercase text-violet-800 block mb-2">Observaciones sobre los objetivos planteados para este primer cuatrimestre</label>
@@ -1378,7 +1378,7 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
       // Detectamos el reporte real guardado (sea con el ID nuevo o el viejo)
       const currentReport = savedReports.find(r => 
         r.studentId === selectedStudent?.id && 
-        (r.tipoInforme === tipoInforme || (tipoInforme === 'musica_fran' && r.tipoInforme === 'musica')) && 
+        (r.tipoInforme === tipoInforme || (tipoInforme === 'musica' && r.tipoInforme === 'musica')) && 
         r.grupo === grupoFiltro && 
         r.periodo === periodoInforme
       );
@@ -1386,7 +1386,7 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
       // Usamos el tipo de informe real del documento para no romper el mapeo de indicadores
       const reportTipoReal = currentReport?.tipoInforme || tipoInforme;
       
-      const nivelImpresion = reportTipoReal === 'musica_fran' || reportTipoReal === 'musica'
+      const nivelImpresion = reportTipoReal === 'musica' || reportTipoReal === 'musica'
         ? (nivelMusica || currentReport?.nivelMusica || 'Nivel 1') 
         : (reportTipoReal === 'musica_brenda' ? 'Inicial' : (selectedStudent?.level || 'Inicial'));
         
@@ -1402,7 +1402,7 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
             <img src="/logosinfondo.png" alt="Logo Institucional" className="h-16 object-contain mb-3" />
             <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME {periodoInforme.toUpperCase()} 2026</h1>
             <p className="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
-              Área: {tipoInforme === 'musica_fran' ? 'Música (Francisco Jaime)' : tipoInforme === 'musica_brenda' ? 'Música (Brenda Celiz)' : tipoInforme}
+              Área: {tipoInforme === 'musica' ? 'Música (Francisco Jaime)' : tipoInforme === 'musica_brenda' ? 'Música (Brenda Celiz)' : tipoInforme}
             </p>
           </div>
           
@@ -1417,7 +1417,7 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
                 <strong className="font-black text-gray-900">Docente a cargo:</strong>{" "}
                 <span className="text-gray-700">{docentePrint || currentReport?.docente || selectedStudent?.teacher || selectedStudent?.docente || '....................................'}</span>
               </p>
-              {!['plastica', 'musica_fran', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
+              {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
                 <p>
                   <strong className="font-black text-gray-900">Auxiliar/Preceptora:</strong>{" "}
                   <span className="text-gray-700">{preceptoraPrint || currentReport?.auxiliar || selectedStudent?.auxiliary || selectedStudent?.preceptora || '....................................'}</span>
@@ -1429,10 +1429,10 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
 
           <div className="mb-6">
             <h2 className="text-sm font-black text-white bg-violet-800 uppercase px-4 py-1.5 rounded-md mb-4 shadow-sm inline-block" style={{ breakInside: 'avoid' }}>
-              Desarrollo {tipoInforme === 'musica_fran' || tipoInforme === 'musica_brenda' ? 'Música' : tipoInforme}
+              Desarrollo {tipoInforme === 'musica' || tipoInforme === 'musica_brenda' ? 'Música' : tipoInforme}
             </h2>
             
-            {tipoInforme === 'musica_fran' && (
+            {tipoInforme === 'musica' && (
               <div className="mb-4" style={{ breakInside: 'avoid' }}>
                 <h3 className="font-black uppercase text-violet-900 text-[10px] tracking-widest mb-1 border-b border-violet-100 pb-1">Fundamentación</h3>
                 <p className="text-gray-800 leading-relaxed font-medium text-[11px] mt-2 whitespace-pre-wrap">El trabajo rítmico estructurado en formato de círculo favorece la eliminación de jerarquías, promueve el contacto visual continuo y estimula procesos de autorregulación, atención conjunta y empatía a través de la producción de un pulso compartido.</p>
@@ -1446,7 +1446,7 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
               </div>
             )}
             
-            {['plastica', 'musica_fran', 'musica_brenda', 'psicomotricidad', 'educacion_fisica', 'musica'].includes(reportTipoReal) ? (
+            {['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica', 'musica'].includes(reportTipoReal) ? (
               <table className="w-full text-left border-collapse mt-4 text-[11px] mb-6" style={{ breakInside: 'avoid' }}>
                 <thead>
                   <tr className="bg-violet-100 text-violet-900">
@@ -1492,7 +1492,7 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
 
           {(() => {
             const obsEspeciales = currentReport?.observacionesPlastica || currentReport?.observacionesMusica || currentReport?.observacionesPsicomotricidad || currentReport?.observacionesEducacionFisica || observacionesMusica || '';
-            if (['plastica', 'musica_fran', 'musica_brenda', 'psicomotricidad', 'educacion_fisica', 'musica'].includes(reportTipoReal) && obsEspeciales) {
+            if (['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica', 'musica'].includes(reportTipoReal) && obsEspeciales) {
               return (
                 <div className="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
                   <h2 className="font-black uppercase text-violet-900 mb-2 text-[10px] tracking-widest border-b border-violet-200 pb-1">Observaciones del período</h2>
@@ -1503,14 +1503,14 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
             return null;
           })()}
 
-          {!['plastica', 'musica_fran', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && obsCuatrimestre1 && (
+          {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && obsCuatrimestre1 && (
             <div className="mt-6 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
               <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Observaciones sobre los objetivos planteados para este primer cuatrimestre</h2>
               <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium">{obsCuatrimestre1}</p>
             </div>
           )}
 
-          {!['plastica', 'musica_fran', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (objConductual || objPedagogico || objSocioafectivo) && (
+          {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (objConductual || objPedagogico || objSocioafectivo) && (
             <div className="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
               <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Objetivos para el segundo cuatrimestre</h2>
               {objConductual && <div className="mb-2"><strong className="text-xs font-black text-violet-800">Objetivo Conductual:</strong><p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">{objConductual}</p></div>}
