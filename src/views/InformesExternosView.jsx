@@ -6,12 +6,21 @@ import { doc, setDoc, onSnapshot, collection, query, serverTimestamp } from 'fir
 const generarHTMLImpresionExterno = (student, informeData) => {
   return `
   <div class="pagina w-full bg-white text-black font-sans pb-4">
-      <div class="text-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
-          <img src="/logosinfondo.png" alt="Logo Institucional" class="h-16 mx-auto object-contain mb-3" />
-          <h1 class="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME PROFESIONAL EXTERNO</h1>
-          <p class="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
-              Fecha: ${new Date().toLocaleDateString('es-AR')}
-          </p>
+      
+      <div class="flex justify-between items-end border-b-4 border-violet-800 pb-4 mb-8">
+          <div class="flex items-center gap-4">
+              <img src="/logosinfondo.png" alt="Logo Institucional" class="h-16 object-contain" />
+              <div class="flex flex-col text-left">
+                  <h1 class="text-2xl font-black tracking-widest text-violet-900 uppercase leading-none">Juntos a la Par</h1>
+                  <span class="text-[9px] font-bold text-violet-600 uppercase tracking-[0.25em] mt-1">Escuela de Educación Especial</span>
+              </div>
+          </div>
+          <div class="text-right">
+              <h2 class="text-sm font-black uppercase tracking-widest text-gray-800 mb-2">Informe Profesional Externo</h2>
+              <div class="inline-block text-[10px] font-bold uppercase tracking-widest text-violet-900 bg-violet-100 px-3 py-1 rounded-md border border-violet-200">
+                  Fecha: ${new Date().toLocaleDateString('es-AR')}
+              </div>
+          </div>
       </div>
       
       <div class="border border-violet-200 rounded-xl p-5 mb-4 bg-white shadow-sm" style="page-break-inside: avoid;">
@@ -34,16 +43,27 @@ const generarHTMLImpresionExterno = (student, informeData) => {
           <p class="text-gray-800 leading-relaxed font-medium text-xs mt-4 whitespace-pre-wrap">${informeData.cuerpoInforme}</p>
       </div>
 
-      <div class="mt-8 pt-6 border-t border-dashed border-gray-300 block text-center" style="page-break-inside: avoid; page-break-before: auto;">
-          <img src="/firmasylogo.png" alt="Sello Institucional" class="max-w-[260px] h-auto mx-auto object-contain mb-8 block" />
+      <div class="mt-8 pt-6 block text-center" style="page-break-inside: avoid; page-break-before: auto;">
+          <img src="/firmasylogo.png" alt="Sello Institucional Juntos a la Par" class="max-w-[260px] h-auto mx-auto object-contain mb-8 block" />
           
           <div class="w-64 mx-auto border-t-2 border-black pt-2">
               <span class="text-[10px] font-black uppercase text-gray-900 block text-center">Firma y Aclaración<br/>Dirección / Equipo Técnico</span>
           </div>
       </div>
+
+      <div class="mt-16 pt-4 border-t-2 border-violet-800 text-center" style="page-break-inside: avoid;">
+          <p class="text-violet-900 font-black text-xs uppercase tracking-widest mb-1">Escuela Especial "Juntos a la Par"</p>
+          <div class="flex justify-center items-center gap-3 text-[9px] text-gray-600 font-bold uppercase tracking-wider">
+              <span>DIEGEP Nº 8298</span>
+              <span class="text-violet-300">•</span>
+              <span>De las boleadoras 2974, El Jagüel Leloir</span>
+              <span class="text-violet-300">•</span>
+              <span>Tel: 4621-8749</span>
+          </div>
+      </div>
+
   </div>`;
 };
-
 export function InformesExternosView({ user, db, appId }) {
   const [stage, setStage] = useState('main'); 
   const [searchTerm, setSearchTerm] = useState('');
