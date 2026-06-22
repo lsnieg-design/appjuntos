@@ -76,6 +76,17 @@ const CONFIG_INDICADORES = {
     { id: 'higiene', label: 'Cuidado e higiene de materiales', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
   ]
  },
+ musica_brenda: {
+  'Inicial': [
+    { id: 'mb_esquema_corporal', label: 'Reconoce el esquema corporal.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'mb_imita_movimientos', label: 'Imita los movimientos de un modelo.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'mb_expresion_musica', label: 'Se expresa a través de la música.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'mb_voces_mando', label: 'Reconoce voces de mando: arriba, abajo, stop.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'mb_canciones_ludicas', label: 'Participa en canciones lúdicas con consignas de movimiento.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'mb_expresion_elementos', label: 'Participa en actividades de expresión corporal con elementos: telas, pañuelos, globos, burbujas.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+    { id: 'mb_respeta_actividades', label: 'Respeta y participa en las actividades pautadas en clase.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
+  ]
+},
 musica: {
     'Nivel 1': [
       { id: 'reconocimiento_corporal', label: 'Reconocimiento corporal: Explora y produce sonidos con su cuerpo.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
