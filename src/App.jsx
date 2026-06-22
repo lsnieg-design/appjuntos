@@ -16,6 +16,7 @@ import { ActivityLogView } from './views/ActivityLogView';
 import { ProyectoView } from './views/ProyectoView';
 import { EvaluationsView } from './views/EvaluationsView';
 import { InformesView } from './views/InformesView';
+import { InformesExternosView } from './views/InformesExternosView';
 
 import { 
   Calendar as CalendarIcon, CheckSquare, Settings, User, FileText, CheckCircle, 
@@ -450,7 +451,7 @@ function MainApp({ user, onLogout }) {
   const isTechTeamRole = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión', 'Equipo Técnico', 'Equipo Técnico Inclusión'].includes(user?.role) || user?.rol === 'admin';
   const isMedicalRole = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión', 'Médico', 'Enfermería', 'Salud'].includes(user?.role) || user?.rol === 'admin';
   const canAccessSocial = ['admin', 'super-admin', 'Docente', 'Auxiliar/Preceptor', 'Equipo Directivo', 'Equipo Técnico', 'Inclusión', 'DAI'].includes(user?.role) || user?.rol === 'admin';
-
+const canAccessInformesExternos = ['Equipo Directivo', 'Equipo Técnico', 'Equipo Técnico Inclusión', 'Administración', 'admin', 'super-admin'].includes(user?.role) || user?.rol === 'admin';
   const showPrivateMenu = isAdminRole || isTechTeamRole || isMedicalRole || canAccessSocial;
 
   const isWideTab = ['groups', 'calendar', 'matricula', 'resources', 'users', 'admin'].includes(activeTab);
@@ -642,6 +643,9 @@ function MainApp({ user, onLogout }) {
     appId={appId} 
   />
 )}
+  {activeTab === 'informes_externos' && canAccessInformesExternos && (
+          <InformesExternosView user={user} db={db} appId={appId} />
+        )}
         {activeTab === 'audit' && isSuperAdmin && db && (
       <ActivityLogView db={db} appId={appId} />
     )}
@@ -689,6 +693,11 @@ function MainApp({ user, onLogout }) {
                         <button onClick={() => { setActiveTab('personal'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-violet-700 transition"><Users size={18} className="text-violet-500"/> Personal</button>
                       </>
                     )}
+                    {canAccessInformesExternos && (
+                  <button onClick={() => { setActiveTab('informes_externos'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
+                    <ExternalLink size={18} className="text-pink-500"/> Informes Externos
+                  </button>
+                )}
                     {isTechTeamRole && <button onClick={() => { setActiveTab('evaluations'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl bg-orange-50 text-orange-950 flex items-center gap-3 text-sm font-black transition border border-orange-100/50 shadow-inner"><ClipboardCheck size={18} className="text-orange-600"/> Evaluación Áreas</button>}
                     {canAccessSocial && <button onClick={() => { setActiveTab('social'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition"><Users size={18} className="text-blue-500"/> Trabajo Social</button>}
                     {isMedicalRole && <button onClick={() => { setActiveTab('medical'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-red-50 flex items-center gap-3 text-sm font-bold text-red-600 transition"><Activity size={18} className="text-red-500"/> Médico</button>}
