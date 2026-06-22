@@ -1336,36 +1336,35 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <h3 className="font-black text-gray-800 uppercase text-xs tracking-widest px-2">Desglose por Área</h3>
-                  {areasStats.map(stat => (
-                    <div key={stat.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-2">
-                      <div className="flex justify-between items-center">
-                        <span className="font-bold text-gray-800">{stat.label}</span>
-                        <span className="text-xs font-black px-2 py-1 bg-gray-100 rounded-md text-gray-600">
-                          {stat.completed} / {stat.expected} listos
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
-                          <div 
-                            className={`h-2.5 rounded-full transition-all duration-1000 ${stat.percentage === 100 ? 'bg-emerald-500' : stat.percentage > 40 ? 'bg-indigo-500' : 'bg-amber-500'}`} 
-                            style={{ width: `${stat.percentage}%` }}
-                          ></div>
-                        </div>
-                        <span className="text-xs font-black w-10 text-right text-gray-700">{stat.percentage}%</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            );
-          })()}
+            <div className="space-y-4">
+      <h3 className="font-black text-gray-800 uppercase text-xs tracking-widest px-2">Desglose por Área</h3>
+      {areasStats.map(stat => (
+        <div key={stat.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-2">
+          <div className="flex justify-between items-center">
+            <span className="font-bold text-gray-800">{stat.label}</span>
+            <span className="text-xs font-black px-2 py-1 bg-gray-100 rounded-md text-gray-600">
+              {stat.completed} / {stat.expected} listos
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+              <div 
+                className={`h-2.5 rounded-full transition-all duration-1000 ${stat.percentage === 100 ? 'bg-emerald-500' : stat.percentage > 40 ? 'bg-indigo-500' : 'bg-amber-500'}`} 
+                style={{ width: `${stat.percentage}%` }}
+              ></div>
+            </div>
+            <span className="text-xs font-black w-10 text-right text-gray-700">{stat.percentage}%</span>
+          </div>
         </div>
-      </div>
+      ))}
     </div>
-  );
-}
+  </>
+);
+})()}
+</div>
+</div>
+</div>
+)}
    {/* INTERFAZ DE EDICIÓN EN PANTALLA */}
    {stage === 'form' && (
     <div className="bg-white p-8 rounded-[40px] shadow-lg border space-y-6 print:hidden animate-in fade-in">
