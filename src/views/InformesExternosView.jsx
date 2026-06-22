@@ -29,15 +29,15 @@ const generarHTMLImpresionExterno = (student, informeData) => {
           <p class="text-sm text-gray-800 font-medium">Dirigido a: <strong class="font-black text-violet-900 uppercase">${informeData.paraQuien}</strong></p>
       </div>
 
-      <div class="mb-6 min-h-[350px]">
+      <div class="mb-6">
           <h3 class="font-black uppercase text-violet-900 text-xs tracking-widest mb-2 border-b border-violet-100 pb-1">Desarrollo del Informe</h3>
           <p class="text-gray-800 leading-relaxed font-medium text-xs mt-4 whitespace-pre-wrap">${informeData.cuerpoInforme}</p>
       </div>
 
-      <div class="mt-12 pt-4 flex flex-col items-center justify-center border-t border-dashed border-gray-200" style="break-inside: avoid;">
-          <img src="/firmasylogo.png" alt="Sello Institucional Juntos a la Par" class="max-w-[260px] w-full object-contain mb-6 text-center" />
+      <div class="mt-6 pt-4 flex flex-col items-center justify-center border-t border-dashed border-gray-200" style="break-inside: avoid;">
+          <img src="/firmasylogo.png" alt="Sello Institucional Juntos a la Par" class="max-w-[260px] w-full object-contain mb-4 text-center" />
           
-          <div class="w-full flex justify-between px-12 mt-12 relative">
+          <div class="w-full flex justify-between px-12 mt-8 relative">
               <div class="flex flex-col items-center w-64 relative">
                   <div class="w-full border-t-2 border-black mb-2"></div>
                   <span class="text-[10px] font-black uppercase text-gray-900 text-center">Firma y Aclaración<br/>Dirección / Equipo Técnico</span>
@@ -46,7 +46,6 @@ const generarHTMLImpresionExterno = (student, informeData) => {
       </div>
   </div>`;
 };
-
 export function InformesExternosView({ user, db, appId }) {
   const [stage, setStage] = useState('main'); 
   const [searchTerm, setSearchTerm] = useState('');
