@@ -848,91 +848,88 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
  return (
   <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in relative">
    
-   {/* MAGIA CSS PARA IMPRESIÓN (Destruye la app de fondo y muestra solo el papel) */}
-   <style>{`
-    @media screen {
-     #impresion-masiva { display: none !important; }
-    }
-    /* REEMPLAZAR ÚNICAMENTE EL BLOQUE @media print DENTRO DE LA ETIQUETA <style> POR ESTE: */
-   /* REEMPLAZAR EL BLOQUE @media print DENTRO DE LA ETIQUETA <style> POR ESTE: */
-@media print {
-  body > *:not(#impresion-masiva):not(script):not(style) {
-    display: none !important;
-  }
-  #impresion-masiva {
-    display: block !important;
-    visibility: visible !important;
-    position: relative; 
-    width: 100%;
-  }
-  .pagina { 
-    page-break-after: always; 
-    page-break-inside: avoid;
-    padding-bottom: 0 !important;
-  }
-  @page { 
-    margin: 0.4cm 0.8cm; /* Márgenes de página un poco más optimizados */
-  }
-  body { 
-    background: white; 
-    margin: 0; 
-    padding: 0; 
-  }
+  {/* MAGIA CSS PARA IMPRESIÓN (Destruye la app de fondo y muestra solo el papel) */}
+<style dangerouslySetInnerHTML={{ __html: `
+ @media screen {
+   #impresion-masiva { display: none !important; }
+ }
+ @media print {
+   body > *:not(#impresion-masiva):not(script):not(style) {
+     display: none !important;
+   }
+   #impresion-masiva {
+     display: block !important;
+     visibility: visible !important;
+     position: relative; 
+     width: 100%;
+   }
+   .pagina { 
+     page-break-after: always; 
+     page-break-inside: avoid;
+     padding-bottom: 0 !important;
+   }
+   @page { 
+     margin: 0.4cm 0.8cm;
+   }
+   body { 
+     background: white; 
+     margin: 0; 
+     padding: 0; 
+   }
 
-  /* --- Reducción ultra-eficiente para el Encabezado en formato Grilla --- */
-  .bg-violet-50.p-6.rounded-t-xl {
-    padding: 0.5rem !important; /* De 24px a 8px */
-    margin-bottom: 0.5rem !important;
-  }
-  .bg-violet-50.p-6.rounded-t-xl img {
-    height: 2.2rem !important; /* Logo notablemente más chico */
-    margin-bottom: 0.25rem !important;
-  }
-  .bg-violet-50.p-6.rounded-t-xl h1 {
-    font-size: 1.1rem !important; /* Título principal más compacto */
-    margin-bottom: 0px !important;
-  }
-  .bg-violet-50.p-6.rounded-t-xl p {
-    font-size: 9px !important;
-    padding: 0.1rem 0.5rem !important;
-  }
+   /* --- Reducción para el Encabezado en formato Grilla --- */
+   .bg-violet-50.p-6.rounded-t-xl {
+     padding: 0.5rem !important;
+     margin-bottom: 0.5rem !important;
+   }
+   .bg-violet-50.p-6.rounded-t-xl img {
+     height: 2.2rem !important;
+     margin-bottom: 0.25rem !important;
+   }
+   .bg-violet-50.p-6.rounded-t-xl h1 {
+     font-size: 1.1rem !important;
+     margin-bottom: 0px !important;
+   }
+   .bg-violet-50.p-6.rounded-t-xl p {
+     font-size: 9px !important;
+     padding: 0.1rem 0.5rem !important;
+   }
 
-  /* --- Compactación del bloque de Datos del Estudiante --- */
-  .border-violet-200.rounded-xl.p-5.mb-3 {
-    padding: 0.5rem 0.75rem !important;
-    margin-bottom: 0.4rem !important;
-  }
-  .border-violet-200.rounded-xl.p-5.mb-3 h2 {
-    margin-bottom: 0.3rem !important;
-    font-size: 11px !important;
-  }
-  .border-violet-200.rounded-xl.p-5.mb-3 .grid {
-    grid-gap: 0.25rem 0.75rem !important; /* Reduce espacio entre filas de datos */
-  }
+   /* --- Compactación del bloque de Datos del Estudiante --- */
+   .border-violet-200.rounded-xl.p-5.mb-3 {
+     padding: 0.5rem 0.75rem !important;
+     margin-bottom: 0.4rem !important;
+   }
+   .border-violet-200.rounded-xl.p-5.mb-3 h2 {
+     margin-bottom: 0.3rem !important;
+     font-size: 11px !important;
+   }
+   .border-violet-200.rounded-xl.p-5.mb-3 .grid {
+     grid-gap: 0.25rem 0.75rem !important;
+   }
 
-  /* --- Ajustes generales de Contenedores y Tablas --- */
-  .mb-4 { margin-bottom: 0.35rem !important; }
-  .mb-3 { margin-bottom: 0.35rem !important; }
-  .mt-8 { mt-3 !important; }
-  .mt-12 { margin-top: 1rem !important; }
-  .p-5  { padding: 0.5rem !important; }
-  
-  table {
-    margin-top: 4px !important;
-    margin-bottom: 4px !important;
-  }
-  th, td {
-    padding: 3px 5px !important; /* Celdas más compactas para que la rúbrica no estire la hoja */
-    line-height: 1.1 !important;
-    font-size: 10px !important;
-  }
+   /* --- Ajustes generales de Contenedores y Tablas --- */
+   .mb-4 { margin-bottom: 0.35rem !important; }
+   .mb-3 { margin-bottom: 0.35rem !important; }
+   .mt-8 { margin-top: 0.35rem !important; }
+   .mt-12 { margin-top: 1rem !important; }
+   .p-5  { padding: 0.5rem !important; }
+   
+   table {
+     margin-top: 4px !important;
+     margin-bottom: 4px !important;
+   }
+   th, td {
+     padding: 3px 5px !important;
+     line-height: 1.1 !important;
+     font-size: 10px !important;
+   }
 
-  /* Sección de firmas final */
-  .mt-12.relative {
-    margin-top: 1.5rem !important;
-  }
-}</style>
-
+   .mt-12.relative {
+     margin-top: 1.5rem !important;
+   }
+ }
+`}} />
    {/* VISTA PRINCIPAL */}
    <div className={`${stage === 'main' ? 'block' : 'hidden'} print:hidden`}>
     <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-6 md:p-8 rounded-[30px] md:rounded-[40px] shadow-xl text-white mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
