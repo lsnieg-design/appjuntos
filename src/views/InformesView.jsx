@@ -488,8 +488,7 @@ const generarHTMLImpresion = (s, report) => {
      desarrolloHTML += `
        <div class="mb-4" style="break-inside: avoid;">
          <h3 class="font-black uppercase text-violet-900 text-[10px] tracking-widest mb-1 border-b border-violet-100 pb-1">Fundamentación</h3>
-         <p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2 whitespace-pre-wrap"> El espacio de Psicomotricidad ofrece propuestas que favorecen el desarrollo integral de los estudiantes a través del movimiento, el juego y la interacción con otros. Mediante experiencias adaptadas a las posibilidades e intereses de cada alumno, se promueve la exploración corporal, la participación activa, la comunicación y la construcción de recursos que contribuyen a una mayor autonomía en los distintos contextos cotidianos.
-                 Las actividades propuestas buscan acompañar el fortalecimiento de habilidades motrices, la organización de la acción, la adaptación a diferentes situaciones y el desarrollo de estrategias que favorezcan una participación cada vez más significativa dentro de las experiencias compartidas.
+         <p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2 whitespace-pre-wrap"> El espacio de Psicomotricidad ofrece propuestas que favorecen el desarrollo integral de los estudiantes a través del movimiento, el juego y la interacción con otros. Mediante experiencias adaptadas a las posibilidades e intereses de cada alumno, se promueve la exploración corporal, la participación activa, la comunicación y la construcción de recursos que contribuyen a una mayor autonomía en los distintos contextos cotidianos. Las actividades propuestas buscan acompañar el fortalecimiento de habilidades motrices, la organización de la acción, la adaptación a diferentes situaciones y el desarrollo de estrategias que favorezcan una participación cada vez más significativa dentro de las experiencias compartidas.
                 </p>
        </div>
      `;
@@ -855,44 +854,84 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
      #impresion-masiva { display: none !important; }
     }
     /* REEMPLAZAR ÚNICAMENTE EL BLOQUE @media print DENTRO DE LA ETIQUETA <style> POR ESTE: */
-    @media print {
-      body > *:not(#impresion-masiva):not(script):not(style) {
-        display: none !important;
-      }
-      #impresion-masiva {
-        display: block !important;
-        visibility: visible !important;
-        position: relative; 
-        width: 100%;
-      }
-      .pagina { 
-        page-break-after: always; 
-        page-break-inside: avoid;
-        padding-bottom: 0 !important;
-      }
-      @page { 
-        margin: 0.6cm 1cm; 
-      }
-      body { 
-        background: white; 
-        margin: 0; 
-        padding: 0; 
-      }
-      /* Compactación sutil exclusiva para optimizar tablas y rúbricas en una sola hoja */
-      table {
-        margin-top: 6px !important;
-        margin-bottom: 6px !important;
-      }
-      th, td {
-        padding: 4px 6px !important; 
-        line-height: 1.15 !important;
-      }
-      .mb-6 { margin-bottom: 0.5rem !important; }
-      .mb-5 { margin-bottom: 0.5rem !important; }
-      .p-5  { padding: 0.75rem !important; }
-      .mt-12 { mt-6 !important; }
-    }
-   `}</style>
+   /* REEMPLAZAR EL BLOQUE @media print DENTRO DE LA ETIQUETA <style> POR ESTE: */
+@media print {
+  body > *:not(#impresion-masiva):not(script):not(style) {
+    display: none !important;
+  }
+  #impresion-masiva {
+    display: block !important;
+    visibility: visible !important;
+    position: relative; 
+    width: 100%;
+  }
+  .pagina { 
+    page-break-after: always; 
+    page-break-inside: avoid;
+    padding-bottom: 0 !important;
+  }
+  @page { 
+    margin: 0.4cm 0.8cm; /* Márgenes de página un poco más optimizados */
+  }
+  body { 
+    background: white; 
+    margin: 0; 
+    padding: 0; 
+  }
+
+  /* --- Reducción ultra-eficiente para el Encabezado en formato Grilla --- */
+  .bg-violet-50.p-6.rounded-t-xl {
+    padding: 0.5rem !important; /* De 24px a 8px */
+    margin-bottom: 0.5rem !important;
+  }
+  .bg-violet-50.p-6.rounded-t-xl img {
+    height: 2.2rem !important; /* Logo notablemente más chico */
+    margin-bottom: 0.25rem !important;
+  }
+  .bg-violet-50.p-6.rounded-t-xl h1 {
+    font-size: 1.1rem !important; /* Título principal más compacto */
+    margin-bottom: 0px !important;
+  }
+  .bg-violet-50.p-6.rounded-t-xl p {
+    font-size: 9px !important;
+    padding: 0.1rem 0.5rem !important;
+  }
+
+  /* --- Compactación del bloque de Datos del Estudiante --- */
+  .border-violet-200.rounded-xl.p-5.mb-3 {
+    padding: 0.5rem 0.75rem !important;
+    margin-bottom: 0.4rem !important;
+  }
+  .border-violet-200.rounded-xl.p-5.mb-3 h2 {
+    margin-bottom: 0.3rem !important;
+    font-size: 11px !important;
+  }
+  .border-violet-200.rounded-xl.p-5.mb-3 .grid {
+    grid-gap: 0.25rem 0.75rem !important; /* Reduce espacio entre filas de datos */
+  }
+
+  /* --- Ajustes generales de Contenedores y Tablas --- */
+  .mb-4 { margin-bottom: 0.35rem !important; }
+  .mb-3 { margin-bottom: 0.35rem !important; }
+  .mt-8 { mt-3 !important; }
+  .mt-12 { margin-top: 1rem !important; }
+  .p-5  { padding: 0.5rem !important; }
+  
+  table {
+    margin-top: 4px !important;
+    margin-bottom: 4px !important;
+  }
+  th, td {
+    padding: 3px 5px !important; /* Celdas más compactas para que la rúbrica no estire la hoja */
+    line-height: 1.1 !important;
+    font-size: 10px !important;
+  }
+
+  /* Sección de firmas final */
+  .mt-12.relative {
+    margin-top: 1.5rem !important;
+  }
+}</style>
 
    {/* VISTA PRINCIPAL */}
    <div className={`${stage === 'main' ? 'block' : 'hidden'} print:hidden`}>
