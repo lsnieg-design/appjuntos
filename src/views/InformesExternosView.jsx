@@ -6,62 +6,88 @@ import { doc, setDoc, onSnapshot, collection, query, serverTimestamp } from 'fir
 const generarHTMLImpresionExterno = (student, informeData) => {
   return `
   <div class="pagina w-full bg-white text-black font-sans pb-4">
-      
-      <div class="flex justify-between items-end border-b-4 border-violet-800 pb-4 mb-8">
-          <div class="flex items-center gap-4">
-              <img src="/logosinfondo.png" alt="Logo Institucional" class="h-16 object-contain" />
-              <div class="flex flex-col text-left">
-                  <h1 class="text-2xl font-black tracking-widest text-violet-900 uppercase leading-none">Juntos a la Par</h1>
-                  <span class="text-[9px] font-bold text-violet-600 uppercase tracking-[0.25em] mt-1">Escuela de Educación Especial</span>
-              </div>
-          </div>
-          <div class="text-right">
-              <h2 class="text-sm font-black uppercase tracking-widest text-gray-800 mb-2">Informe Profesional Externo</h2>
-              <div class="inline-block text-[10px] font-bold uppercase tracking-widest text-violet-900 bg-violet-100 px-3 py-1 rounded-md border border-violet-200">
-                  Fecha: ${new Date().toLocaleDateString('es-AR')}
-              </div>
-          </div>
-      </div>
-      
-      <div class="border border-violet-200 rounded-xl p-5 mb-4 bg-white shadow-sm" style="page-break-inside: avoid;">
-          <h2 class="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Datos del Estudiante</h2>
-          <div class="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
-              <p><strong class="font-black text-gray-900">Alumno/a:</strong> <span class="text-gray-700">${student.lastName}, ${student.firstName}</span></p>
-              <p><strong class="font-black text-gray-900">DNI:</strong> <span class="text-gray-700">${student.dni || '....................................'}</span></p>
-              <p><strong class="font-black text-gray-900">Fecha de Nac.:</strong> <span class="text-gray-700">${student.birthDate || student.fechaNac || '....................................'}</span></p>
-              <p><strong class="font-black text-gray-900">Grupo / Nivel:</strong> <span class="text-gray-700 font-bold">${student.groupMorning || student.groupAfternoon || student.laboralGroup || student.level || '....................................'}</span></p>
-          </div>
-      </div>
-
-      <div class="border border-violet-200 rounded-xl p-5 mb-6 bg-white shadow-sm" style="page-break-inside: avoid;">
-          <h2 class="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Destinatario del Informe</h2>
-          <p class="text-sm text-gray-800 font-medium">Dirigido a: <strong class="font-black text-violet-900 uppercase">${informeData.paraQuien}</strong></p>
-      </div>
-
-      <div class="mb-6">
-          <h3 class="font-black uppercase text-violet-900 text-xs tracking-widest mb-2 border-b border-violet-100 pb-1">Desarrollo del Informe</h3>
-          <p class="text-gray-800 leading-relaxed font-medium text-xs mt-4 whitespace-pre-wrap">${informeData.cuerpoInforme}</p>
-      </div>
-
-      <div class="mt-8 pt-6 block text-center" style="page-break-inside: avoid; page-break-before: auto;">
-          <img src="/firmasylogo.png" alt="Sello Institucional Juntos a la Par" class="max-w-[260px] h-auto mx-auto object-contain mb-8 block" />
+      <table class="w-full">
+          <!-- CABECERA DE LA TABLA (Espacio invisible para no pegar el contenido al borde) -->
+          <thead class="table-header-group">
+              <tr><th><div class="h-2"></div></th></tr>
+          </thead>
           
-          <div class="w-64 mx-auto border-t-2 border-black pt-2">
-              <span class="text-[10px] font-black uppercase text-gray-900 block text-center">Firma y Aclaración<br/>Dirección / Equipo Técnico</span>
-          </div>
-      </div>
+          <!-- CONTENIDO PRINCIPAL -->
+          <tbody class="table-row-group">
+              <tr>
+                  <td class="align-top">
+                      <!-- ENCABEZADO MEMBRETADO -->
+                      <div class="flex justify-between items-end border-b-4 border-violet-800 pb-4 mb-8">
+                          <div class="flex items-center gap-4">
+                              <img src="/logosinfondo.png" alt="Logo Institucional" class="h-16 object-contain" />
+                              <div class="flex flex-col text-left">
+                                  <h1 class="text-2xl font-black tracking-widest text-violet-900 uppercase leading-none">Juntos a la Par</h1>
+                                  <span class="text-[9px] font-bold text-violet-600 uppercase tracking-[0.25em] mt-1">Escuela de Educación Especial</span>
+                              </div>
+                          </div>
+                          <div class="text-right">
+                              <h2 class="text-sm font-black uppercase tracking-widest text-gray-800 mb-2">Informe Profesional Externo</h2>
+                              <div class="inline-block text-[10px] font-bold uppercase tracking-widest text-violet-900 bg-violet-100 px-3 py-1 rounded-md border border-violet-200">
+                                  Fecha: ${new Date().toLocaleDateString('es-AR')}
+                              </div>
+                          </div>
+                      </div>
+                      
+                      <!-- DATOS DEL ESTUDIANTE -->
+                      <div class="border border-violet-200 rounded-xl p-5 mb-4 bg-white shadow-sm" style="page-break-inside: avoid;">
+                          <h2 class="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Datos del Estudiante</h2>
+                          <div class="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
+                              <p><strong class="font-black text-gray-900">Alumno/a:</strong> <span class="text-gray-700">${student.lastName}, ${student.firstName}</span></p>
+                              <p><strong class="font-black text-gray-900">DNI:</strong> <span class="text-gray-700">${student.dni || '....................................'}</span></p>
+                              <p><strong class="font-black text-gray-900">Fecha de Nac.:</strong> <span class="text-gray-700">${student.birthDate || student.fechaNac || '....................................'}</span></p>
+                              <p><strong class="font-black text-gray-900">Grupo / Nivel:</strong> <span class="text-gray-700 font-bold">${student.groupMorning || student.groupAfternoon || student.laboralGroup || student.level || '....................................'}</span></p>
+                          </div>
+                      </div>
 
-      <div class="mt-16 pt-4 border-t-2 border-violet-800 text-center" style="page-break-inside: avoid;">
-          <p class="text-violet-900 font-black text-xs uppercase tracking-widest mb-1">Escuela Especial "Juntos a la Par"</p>
-          <div class="flex justify-center items-center gap-3 text-[9px] text-gray-600 font-bold uppercase tracking-wider">
-              <span>DIEGEP Nº 8298</span>
-              <span class="text-violet-300">•</span>
-              <span>De las boleadoras 2974, El Jagüel Leloir</span>
-              <span class="text-violet-300">•</span>
-              <span>Tel: 4621-8749</span>
-          </div>
-      </div>
+                      <!-- DESTINATARIO -->
+                      <div class="border border-violet-200 rounded-xl p-5 mb-6 bg-white shadow-sm" style="page-break-inside: avoid;">
+                          <h2 class="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Destinatario del Informe</h2>
+                          <p class="text-sm text-gray-800 font-medium">Dirigido a: <strong class="font-black text-violet-900 uppercase">${informeData.paraQuien}</strong></p>
+                      </div>
 
+                      <!-- CUERPO DEL INFORME -->
+                      <div class="mb-6">
+                          <h3 class="font-black uppercase text-violet-900 text-xs tracking-widest mb-2 border-b border-violet-100 pb-1">Desarrollo del Informe</h3>
+                          <p class="text-gray-800 leading-relaxed font-medium text-xs mt-4 whitespace-pre-wrap">${informeData.cuerpoInforme}</p>
+                      </div>
+
+                      <!-- BLOQUE DE FIRMAS -->
+                      <div class="mt-8 pt-6 block text-center" style="page-break-inside: avoid; page-break-before: auto;">
+                          <img src="/firmasylogo.png" alt="Sello Institucional Juntos a la Par" class="max-w-[260px] h-auto mx-auto object-contain mb-8 block" />
+                          <div class="w-64 mx-auto border-t-2 border-black pt-2">
+                              <span class="text-[10px] font-black uppercase text-gray-900 block text-center">Firma y Aclaración<br/>Dirección / Equipo Técnico</span>
+                          </div>
+                      </div>
+                      
+                      <!-- Espacio extra de seguridad abajo de las firmas -->
+                      <div class="h-8 w-full"></div>
+                  </td>
+              </tr>
+          </tbody>
+
+          <!-- PIE DE PÁGINA (ESTE BLOQUE SE REPITE EN TODAS LAS HOJAS AL FINAL) -->
+          <tfoot class="table-footer-group">
+              <tr>
+                  <td class="pt-8 align-bottom">
+                      <div class="pt-4 border-t-2 border-violet-800 text-center w-full bg-white">
+                          <p class="text-violet-900 font-black text-xs uppercase tracking-widest mb-1">Escuela Especial "Juntos a la Par"</p>
+                          <div class="flex justify-center items-center gap-3 text-[9px] text-gray-600 font-bold uppercase tracking-wider">
+                              <span>DIEGEP Nº 8298</span>
+                              <span class="text-violet-300">•</span>
+                              <span>De las boleadoras 2974, El Jagüel Leloir</span>
+                              <span class="text-violet-300">•</span>
+                              <span>Tel: 4621-8749</span>
+                          </div>
+                      </div>
+                  </td>
+              </tr>
+          </tfoot>
+      </table>
   </div>`;
 };
 export function InformesExternosView({ user, db, appId }) {
