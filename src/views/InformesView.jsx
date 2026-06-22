@@ -422,9 +422,10 @@ const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firs
   const articuloEstudiante = esMujer ? 'La estudiante' : 'El estudiante';
   const articuloAlumno = esMujer ? 'Nuestra alumna' : 'Nuestro alumno';
 
-  const opciones = [nombreReal, articuloEstudiante, articuloAlumno, nombreReal];
+  // Añadimos 'DIRECTO_MIN' y 'DIRECTO_MAY' para dar la opción de omitir el sujeto
+  const opciones = [nombreReal, articuloEstudiante, articuloAlumno, nombreReal, 'DIRECTO_MIN', 'DIRECTO_MAY'];
   return opciones[Math.floor(Math.random() * opciones.length)];
- };
+ intervals: };
 
  let textoFinal = '';
  if (DICCIONARIO[idIndicador] && DICCIONARIO[idIndicador][indiceOpcion]) {
@@ -435,7 +436,22 @@ const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firs
  }
 
  const sujetoDinamico = obtenerSujeto();
- textoFinal = textoFinal.replace('Nombre', sujetoDinamico);
+
+ if (sujetoDinamico === 'DIRECTO_MIN') {
+  // Remueve "Nombre se encuentra en..." o "Nombre escribe..." y arranca con la acción directa en minúscula
+  // Útil si la frase viene antecedida por conectores o limpiando el inicio.
+  textoFinal = textoFinal.replace(/^Nombre\s+(se\s+encuentra\s+en\s+la\s+|se\s+encuentra\s+en\s+|es\s+capaz\s+de\s+)?/i, '');
+  textoFinal = textoFinal.charAt(0).toLowerCase() + textoFinal.slice(1);
+ } else if (sujetoDinamico === 'DIRECTO_MAY') {
+  // Remueve el nombre y fuerza a que el verbo o acción empiece con Mayúscula (Ej: "Sostiene una comunicación...")
+  textoFinal = textoFinal.replace(/^Nombre\s+(se\s+encuentra\s+en\s+la\s+|se\s+encuentra\s+en\s+|es\s+capaz\s+de\s+)?/i, '');
+  textoFinal = textoFinal.charAt(0).toUpperCase() + textoFinal.slice(1);
+ } else {
+  // Reemplazo normal con Nombre, El estudiante o Nuestro alumno
+  textoFinal = textoFinal.replace('Nombre', sujetoDinamico);
+ }
+
+ // Limpieza final de cualquier otra aparición secundaria de la palabra clave "Nombre"
  textoFinal = textoFinal.replace(/Nombre/g, nombreReal);
 
  return textoFinal;
