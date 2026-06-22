@@ -422,10 +422,9 @@ const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firs
   const articuloEstudiante = esMujer ? 'La estudiante' : 'El estudiante';
   const articuloAlumno = esMujer ? 'Nuestra alumna' : 'Nuestro alumno';
 
-  // Añadimos 'DIRECTO_MIN' y 'DIRECTO_MAY' para dar la opción de omitir el sujeto
   const opciones = [nombreReal, articuloEstudiante, articuloAlumno, nombreReal, 'DIRECTO_MIN', 'DIRECTO_MAY'];
   return opciones[Math.floor(Math.random() * opciones.length)];
- intervals: };
+ };
 
  let textoFinal = '';
  if (DICCIONARIO[idIndicador] && DICCIONARIO[idIndicador][indiceOpcion]) {
@@ -672,6 +671,7 @@ export function InformesView({ user, db, appId }) {
  const [turnoFiltro, setTurnoFiltro] = useState('Todos');
  const [nivelFiltro, setNivelFiltro] = useState('Todos');
  const [grupoFiltro, setGrupoFiltro] = useState('Todos');
+ const [reportsImpresos, setReportsImpresos] = useState([]);
  const [nivelMusica, setNivelMusica] = useState('');
   const [observacionesMusica, setObservacionesMusica] = useState('');
  const [observacionesPsicomotricidad, setObservacionesPsicomotricidad] = useState('');
@@ -705,7 +705,37 @@ export function InformesView({ user, db, appId }) {
     }
    });
   };
+useEffect(() => {
+  if (!db || !appId) return;
+  const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'impresiones_control', periodoInforme);
+  const unsub = onSnapshot(docRef, (snap) => {
+    if (snap.exists()) {
+      setReportsImpresos(snap.data().ids || []);
+    } else {
+      setReportsImpresos([]);
+    }
+  });
+  return () => unsub();
+}, [db, appId, periodoInforme]);
 
+// Función para marcar/desmarcar todo el grupo como impreso
+const handleAlternarImpresionGrupo = async (alumnosGrupo, yaImpresos) => {
+  const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'impresiones_control', periodoInforme);
+  
+  // Generamos los IDs únicos de los reportes de este grupo actual
+  const idsGrupo = alumnosGrupo.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`);
+  
+  let nuevosIds = [...reportsImpresos];
+  if (yaImpresos) {
+    // Si ya estaban marcados, los removemos (desmarcar)
+    nuevosIds = nuevosIds.filter(id => !idsGrupo.includes(id));
+  } else {
+    // Si no, los agregamos sumando solo los que no estén repetidos
+    nuevosIds = Array.from(new Set([...nuevosIds, ...idsGrupo]));
+  }
+  
+  await setDoc(docRef, { ids: nuevosIds }, { merge: true });
+};
   const handleAfterPrint = () => {
    // Destruimos el contenedor fantasma
    const masiva = document.getElementById('impresion-masiva');
@@ -1101,6 +1131,31 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
            {/* ACÁ ESTÁ EL ARREGLO PARA EL NÚMERO DEL BOTÓN */}
            <Printer size={20} /> Imprimir todos los informes del grupo ({filteredStudents.filter(s => savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme)).length})
           </button>
+         {grupoFiltro !== 'Todos' && filteredStudents.length > 0 && (
+  (() => {
+    // Verificar si todos los cargados de este grupo ya figuran como impresos
+    const reportesCargadosGrupo = filteredStudents
+      .map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`)
+      .filter(id => savedReports.some(r => r.id === id));
+    
+    const todosImpresos = reportesCargadosGrupo.length > 0 && 
+      reportesCargadosGrupo.every(id => reportsImpresos.includes(id));
+
+    return (
+      <button
+        onClick={() => handleAlternarImpresionGrupo(filteredStudents, todosImpresos)}
+        disabled={reportesCargadosGrupo.length === 0}
+        className={`w-full mb-6 p-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all border-2 flex items-center justify-center gap-2 ${
+          todosImpresos 
+            ? 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200' 
+            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 disabled:opacity-50'
+        }`}
+      >
+        {todosImpresos ? '✅ Grupo listo (Marcar como No Impreso)' : '🖨️ Marcar este grupo como IMPRESO'}
+      </button>
+    );
+  })()
+)}
          )}
          
        {/* LISTA DE ALUMNOS */}
@@ -1108,8 +1163,11 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
           {filteredStudents.length === 0 ? (
            <div className="p-8 text-center text-gray-400 font-medium">No se encontraron estudiantes para este filtro.</div>
           ) : (
-           filteredStudents.map(s => {
-         const report = grupoFiltro === 'Todos' ? null : savedReports.find(r => 
+           const reportId = `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`;
+const yaImpreso = reportsImpresos.includes(reportId);
+
+return (
+  <div key={`${s.id}-${grupoFiltro}`} className={`p-5 flex justify-between items-center transition-colors ${yaImpreso ? 'bg-blue-50/70 border-l-4 border-blue-500' : report ? 'bg-emerald-50' : 'hover:bg-violet-50/50'}`}>
   r.studentId === s.id && 
   (r.tipoInforme === tipoInforme || (tipoInforme === 'musica' && r.tipoInforme === 'musica')) && 
   r.grupo === grupoFiltro && 
@@ -1210,20 +1268,39 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
               return { ...area, expected, completed, percentage };
             });
 
-            const totalExpected = areasStats.reduce((acc, curr) => acc + curr.expected, 0);
+           const totalExpected = areasStats.reduce((acc, curr) => acc + curr.expected, 0);
             const totalCompleted = areasStats.reduce((acc, curr) => acc + curr.completed, 0);
             const totalPercentage = totalExpected === 0 ? 0 : Math.round((totalCompleted / totalExpected) * 100);
 
+            // NUEVO CÁLCULO PARA IMPRESOS
+            const totalImpresos = savedReports.filter(r => r.periodo === periodoInforme && reportsImpresos.includes(r.id)).length;
+            const impresosPercentage = totalCompleted === 0 ? 0 : Math.round((totalImpresos / totalCompleted) * 100);
+
             return (
               <>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center">
-                  <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">Progreso Global Escuela</p>
-                  <div className="flex items-end justify-center gap-2 mb-4">
-                    <span className="text-5xl font-black text-violet-700">{totalPercentage}%</span>
-                    <span className="text-gray-400 font-medium pb-1">({totalCompleted} de {totalExpected})</span>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+                  {/* BARRA DE PROGRESO DE CARGA (LOGÍSTICA DIGITAL) */}
+                  <div className="text-center border-b pb-4">
+                    <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">Progreso Global Carga</p>
+                    <div className="flex items-end justify-center gap-2 mb-2">
+                      <span className="text-5xl font-black text-violet-700">{totalPercentage}%</span>
+                      <span className="text-gray-400 font-medium pb-1">({totalCompleted} de {totalExpected})</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                      <div className="bg-violet-600 h-3 rounded-full transition-all duration-1000" style={{ width: `${totalPercentage}%` }}></div>
+                    </div>
                   </div>
-                  <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
-                    <div className="bg-violet-600 h-3 rounded-full transition-all duration-1000" style={{ width: `${totalPercentage}%` }}></div>
+
+                  {/* NUEVA BARRA DE PROGRESO DE IMPRESIÓN FÍSICA */}
+                  <div className="text-center pt-2">
+                    <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">Total Impreso / Listo Físico</p>
+                    <div className="flex items-end justify-center gap-2 mb-2">
+                      <span className="text-4xl font-black text-blue-600">{impresosPercentage}%</span>
+                      <span className="text-gray-400 font-medium pb-1">({totalImpresos} de {totalCompleted} cargados)</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                      <div className="bg-blue-500 h-2.5 rounded-full transition-all duration-1000" style={{ width: `${impresosPercentage}%` }}></div>
+                    </div>
                   </div>
                 </div>
 
@@ -1255,8 +1332,8 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
         </div>
       </div>
     </div>
-  )}
-
+  );
+}
    {/* INTERFAZ DE EDICIÓN EN PANTALLA */}
    {stage === 'form' && (
     <div className="bg-white p-8 rounded-[40px] shadow-lg border space-y-6 print:hidden animate-in fade-in">
