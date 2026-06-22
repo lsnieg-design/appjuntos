@@ -705,17 +705,30 @@ export function InformesView({ user, db, appId }) {
     }
    });
   };
+// PARCHE CORRECTO Y SEGURO PARA EL CONTROL DE IMPRESIONES
 useEffect(() => {
-  if (!db || !appId) return;
-  const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'impresiones_control', periodoInforme);
-  const unsub = onSnapshot(docRef, (snap) => {
-    if (snap.exists()) {
-      setReportsImpresos(snap.data().ids || []);
-    } else {
-      setReportsImpresos([]);
-    }
-  });
-  return () => unsub();
+  if (!db || !appId || !periodoInforme) return;
+  
+  let unsub = () => {};
+  
+  try {
+    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'impresiones_control', periodoInforme);
+    unsub = onSnapshot(docRef, (snap) => {
+      if (snap.exists()) {
+        setReportsImpresos(snap.data().ids || []);
+      } else {
+        setReportsImpresos([]);
+      }
+    }, (error) => {
+      console.error("Error en impresiones snapshot:", error);
+    });
+  } catch (e) {
+    console.error("Error inicializando referencia de impresión:", e);
+  }
+
+  return () => {
+    if (typeof unsub === 'function') unsub();
+  };
 }, [db, appId, periodoInforme]);
 
 // Función para marcar/desmarcar todo el grupo como impreso
