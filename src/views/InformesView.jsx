@@ -705,50 +705,7 @@ export function InformesView({ user, db, appId }) {
     }
    });
   };
-// PARCHE CORRECTO Y SEGURO PARA EL CONTROL DE IMPRESIONES
-useEffect(() => {
-  if (!db || !appId || !periodoInforme) return;
-  
-  let unsub = () => {};
-  
-  try {
-    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'impresiones_control', periodoInforme);
-    unsub = onSnapshot(docRef, (snap) => {
-      if (snap.exists()) {
-        setReportsImpresos(snap.data().ids || []);
-      } else {
-        setReportsImpresos([]);
-      }
-    }, (error) => {
-      console.error("Error en impresiones snapshot:", error);
-    });
-  } catch (e) {
-    console.error("Error inicializando referencia de impresión:", e);
-  }
 
-  return () => {
-    if (typeof unsub === 'function') unsub();
-  };
-}, [db, appId, periodoInforme]);
-
-// Función para marcar/desmarcar todo el grupo como impreso
-const handleAlternarImpresionGrupo = async (alumnosGrupo, yaImpresos) => {
-  const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'impresiones_control', periodoInforme);
-  
-  // Generamos los IDs únicos de los reportes de este grupo actual
-  const idsGrupo = alumnosGrupo.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`);
-  
-  let nuevosIds = [...reportsImpresos];
-  if (yaImpresos) {
-    // Si ya estaban marcados, los removemos (desmarcar)
-    nuevosIds = nuevosIds.filter(id => !idsGrupo.includes(id));
-  } else {
-    // Si no, los agregamos sumando solo los que no estén repetidos
-    nuevosIds = Array.from(new Set([...nuevosIds, ...idsGrupo]));
-  }
-  
-  await setDoc(docRef, { ids: nuevosIds }, { merge: true });
-};
   const handleAfterPrint = () => {
    // Destruimos el contenedor fantasma
    const masiva = document.getElementById('impresion-masiva');
@@ -773,7 +730,52 @@ const handleAlternarImpresionGrupo = async (alumnosGrupo, yaImpresos) => {
    window.removeEventListener('beforeprint', handleBeforePrint);
    window.removeEventListener('afterprint', handleAfterPrint);
   };
- }, []);
+ }, []); // <-- ACÁ CERRAMOS EL EFECTO CORRECTAMENTE
+
+ // PARCHE CORRECTO Y SEGURO PARA EL CONTROL DE IMPRESIONES (SEPARADO DEL OTRO)
+ useEffect(() => {
+  if (!db || !appId || !periodoInforme) return;
+  
+  let unsub = () => {};
+  
+  try {
+    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'impresiones_control', periodoInforme);
+    unsub = onSnapshot(docRef, (snap) => {
+      if (snap.exists()) {
+        setReportsImpresos(snap.data().ids || []);
+      } else {
+        setReportsImpresos([]);
+      }
+    }, (error) => {
+      console.error("Error en impresiones snapshot:", error);
+    });
+  } catch (e) {
+    console.error("Error inicializando referencia de impresión:", e);
+  }
+
+  return () => {
+    if (typeof unsub === 'function') unsub();
+  };
+ }, [db, appId, periodoInforme]);
+
+ // Función para marcar/desmarcar todo el grupo como impreso
+ const handleAlternarImpresionGrupo = async (alumnosGrupo, yaImpresos) => {
+  const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'impresiones_control', periodoInforme);
+  
+  // Generamos los IDs únicos de los reportes de este grupo actual
+  const idsGrupo = alumnosGrupo.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`);
+  
+  let nuevosIds = [...reportsImpresos];
+  if (yaImpresos) {
+    // Si ya estaban marcados, los removemos (desmarcar)
+    nuevosIds = nuevosIds.filter(id => !idsGrupo.includes(id));
+  } else {
+    // Si no, los agregamos sumando solo los que no estén repetidos
+    nuevosIds = Array.from(new Set([...nuevosIds, ...idsGrupo]));
+  }
+  
+  await setDoc(docRef, { ids: nuevosIds }, { merge: true });
+ };
 
  useEffect(() => {
   if (!db || !appId) return;
