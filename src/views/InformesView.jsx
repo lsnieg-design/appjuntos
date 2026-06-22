@@ -1056,28 +1056,30 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
          {grupoFiltro !== 'Todos' && filteredStudents.length > 0 && (
           <button 
            onClick={() => {
-            let contenedor = document.getElementById('impresion-masiva');
-            if (!contenedor) {
-             contenedor = document.createElement('div');
-             contenedor.id = 'impresion-masiva';
-             contenedor.className = 'print:block';
-             document.body.appendChild(contenedor);
-            }
-            
-            let htmlMasivo = '';
-            filteredStudents.forEach(s => {
-              // ACÁ ESTÁ EL ARREGLO PARA IMPRIMIR SOLO EL ÁREA ACTUAL
-              const report = savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
-              if(report) {
-                htmlMasivo += generarHTMLImpresion(s, report);
-              }
-            });
-            contenedor.innerHTML = htmlMasivo;
-            
-            setTimeout(() => {
-             window.print();
-            }, 500);
-           }}
+ let contenedor = document.getElementById('impresion-masiva');
+ if (!contenedor) {
+  contenedor = document.createElement('div');
+  contenedor.id = 'impresion-masiva';
+  document.body.appendChild(contenedor);
+ }
+ 
+ // ASIGNACIÓN DINÁMICA DE LA CLASE DE MARGEN
+ const esMateriaEspecial = ['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme);
+ contenedor.className = esMateriaEspecial ? 'print:block compacto' : 'print:block con-aire';
+ 
+ let htmlMasivo = '';
+ filteredStudents.forEach(s => {
+   const report = savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
+   if(report) {
+     htmlMasivo += generarHTMLImpresion(s, report);
+   }
+ });
+ contenedor.innerHTML = htmlMasivo;
+ 
+ setTimeout(() => {
+  window.print();
+ }, 500);
+}}
            className="w-full mt-4 mb-4 bg-emerald-600 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-emerald-700 transition"
           >
            {/* ACÁ ESTÁ EL ARREGLO PARA EL NÚMERO DEL BOTÓN */}
