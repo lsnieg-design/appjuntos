@@ -488,7 +488,9 @@ const generarHTMLImpresion = (s, report) => {
      desarrolloHTML += `
        <div class="mb-4" style="break-inside: avoid;">
          <h3 class="font-black uppercase text-violet-900 text-[10px] tracking-widest mb-1 border-b border-violet-100 pb-1">Fundamentación</h3>
-         <p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2 whitespace-pre-wrap">El espacio de Psicomotricidad ofrece propuestas que favorecen el desarrollo integral de los estudiantes a través del movimiento, el juego y la interacción con otros...</p>
+         <p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2 whitespace-pre-wrap"> El espacio de Psicomotricidad ofrece propuestas que favorecen el desarrollo integral de los estudiantes a través del movimiento, el juego y la interacción con otros. Mediante experiencias adaptadas a las posibilidades e intereses de cada alumno, se promueve la exploración corporal, la participación activa, la comunicación y la construcción de recursos que contribuyen a una mayor autonomía en los distintos contextos cotidianos.
+                 Las actividades propuestas buscan acompañar el fortalecimiento de habilidades motrices, la organización de la acción, la adaptación a diferentes situaciones y el desarrollo de estrategias que favorezcan una participación cada vez más significativa dentro de las experiencias compartidas.
+                </p>
        </div>
      `;
   }
@@ -601,7 +603,7 @@ const generarHTMLImpresion = (s, report) => {
       
    <div class="mb-3">
     <h2 class="text-sm font-black text-white bg-violet-800 uppercase px-4 py-1.5 rounded-md mb-2 shadow-sm inline-block" style="break-inside: avoid;">
-              Desarrollo de la materia
+             
           </h2>
           ${desarrolloHTML}
       </div>
@@ -1292,7 +1294,7 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
               <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
                 <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
                 <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
-                  La música cumple un papel fundamental en el desarrollo integral de los niños, ya que estimula el lenguaje, la creatividad y la atención[cite: 62]. Favorece la expresión emocional, la sociabilidad y mejora la coordinación motriz[cite: 63]. Es una herramienta que enriquece su desarrollo integral de manera lúdica significativa[cite: 64].
+                  La música cumple un papel fundamental en el desarrollo integral de los niños, ya que estimula el lenguaje, la creatividad y la atención. Favorece la expresión emocional, la sociabilidad y mejora la coordinación motriz. Es una herramienta que enriquece su desarrollo integral de manera lúdica significativa.
                 </p>
               </div>
             )}
@@ -1303,8 +1305,7 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
                 <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
                 <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
                   El espacio de Psicomotricidad ofrece propuestas que favorecen el desarrollo integral de los estudiantes a través del movimiento, el juego y la interacción con otros. Mediante experiencias adaptadas a las posibilidades e intereses de cada alumno, se promueve la exploración corporal, la participación activa, la comunicación y la construcción de recursos que contribuyen a una mayor autonomía en los distintos contextos cotidianos.
-                  
-                  Las actividades propuestas buscan acompañar el fortalecimiento de habilidades motrices, la organización de la acción, la adaptación a diferentes situaciones y el desarrollo de estrategias que favorezcan una participación cada vez más significativa dentro de las experiencias compartidas.
+                 Las actividades propuestas buscan acompañar el fortalecimiento de habilidades motrices, la organización de la acción, la adaptación a diferentes situaciones y el desarrollo de estrategias que favorezcan una participación cada vez más significativa dentro de las experiencias compartidas.
                 </p>
               </div>
             )}
@@ -1446,7 +1447,7 @@ if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CI
               <img src="/logosinfondo.png" alt="Logo Institucional" className="h-16 object-contain mb-3" />
               <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME {periodoInforme.toUpperCase()} 2026</h1>
               <p className="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
-                Área: {tipoInforme === 'musica' ? 'Música (Francisco Jaime)' : tipoInforme === 'musica_brenda' ? 'Música (Brenda Celiz)' : tipoInforme}
+                Área: {tipoInforme === 'musica' ? 'Música (Francisco Jaime)' : tipoInforme === 'musica_brenda' ? 'Música' : tipoInforme}
               </p>
             </div>
             
