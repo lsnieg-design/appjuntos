@@ -1283,15 +1283,20 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
               estudiantesSede.forEach(s => {
                 const lvl = s.level ? s.level.toUpperCase() : '';
                 let expects = false;
+                
+                // Analizamos los grupos del alumno
                 const groups = [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean).map(g => g.toUpperCase());
                 const hasTaller = groups.some(g => g.includes('TALLER') || g.includes('PRE TALLER') || g.includes('PRETALLER'));
+                const hasPedagogico = groups.some(g => !g.includes('TALLER') && !g.includes('PRE TALLER') && !g.includes('PRETALLER'));
 
-               if (area.id === 'laboral' && hasTaller) expects = true;
-if (area.id === 'psicomotricidad') expects = true;
-if (area.id === 'musica') expects = true;
-if (area.id === 'musica_brenda') expects = true;
-if (area.id === 'plastica' && lvl !== 'INICIAL') expects = true;
-if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CICLO')) expects = true;
+                // Reglas de asignación de informes
+                if (area.id === 'pedagogico' && hasPedagogico) expects = true;
+                if (area.id === 'laboral' && hasTaller) expects = true;
+                if (area.id === 'psicomotricidad') expects = true;
+                if (area.id === 'musica') expects = true;
+                if (area.id === 'musica_brenda') expects = true;
+                if (area.id === 'plastica' && lvl !== 'INICIAL') expects = true;
+                if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CICLO')) expects = true;
 
                 if (expects) {
                   expected++;
