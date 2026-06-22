@@ -1098,7 +1098,7 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
       ) : (
         <>
         
-      {/* BOTÓN IMPRESIÓN GRUPAL */}
+     {/* BOTÓN IMPRESIÓN GRUPAL */}
           {grupoFiltro !== 'Todos' && filteredStudents.length > 0 && (
             <div className="space-y-3">
               <button 
@@ -1110,7 +1110,6 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
                     document.body.appendChild(contenedor);
                   }
                   
-                  // ASIGNACIÓN DINÁMICA DE LA CLASE DE MARGEN
                   const esMateriaEspecial = ['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme);
                   contenedor.className = esMateriaEspecial ? 'print:block compacto' : 'print:block con-aire';
                   
@@ -1129,10 +1128,14 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
                 }}
                 className="w-full mt-4 bg-emerald-600 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-emerald-700 transition"
               >
-                <Printer size={20} /> Imprimir todos los informes del grupo ({filteredStudents.filter(s => savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme)).length})
+                <Printer size={20} /> Imprimir todos los informes del grupo ({
+                  filteredStudents.filter(s => 
+                    savedReports.some(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme)
+                  ).length
+                })
               </button>
 
-              {/* BOTÓN DE CONTROL DE CONTROL DE IMPRESIÓN CORREGIDO */}
+              {/* BOTÓN DE CONTROL DE CONTROL DE IMPRESIÓN CORREGIDO SIN HOOKS INTERNOS */}
               <button
                 onClick={() => {
                   const reportesCargadosGrupo = filteredStudents
@@ -1146,26 +1149,13 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
                 }}
                 disabled={!filteredStudents.some(s => savedReports.some(r => r.id === `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`))}
                 className={`w-full mb-4 p-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all border-2 flex items-center justify-center gap-2 ${
-                  filteredStudents
-                    .map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`)
-                    .filter(id => savedReports.some(r => r.id === id))
-                    .length > 0 &&
-                  filteredStudents
-                    .map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`)
-                    .filter(id => savedReports.some(r => r.id === id))
-                    .every(id => reportsImpresos.includes(id))
+                  filteredStudents.some(s => reportsImpresos.includes(`${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`))
                     ? 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200' 
                     : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 disabled:opacity-50'
                 }`}
               >
-                {filteredStudents
-                  .map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`)
-                  .filter(id => savedReports.some(r => r.id === id))
-                  .length > 0 &&
-                filteredStudents
-                  .map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`)
-                  .filter(id => savedReports.some(r => r.id === id))
-                  .every(id => reportsImpresos.includes(id))
+                {filteredStudents.length > 0 && 
+                 filteredStudents.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`).every(id => !savedReports.some(r => r.id === id) || reportsImpresos.includes(id))
                   ? '✅ Grupo listo (Marcar como No Impreso)' 
                   : '🖨️ Marcar este grupo como IMPRESO'}
               </button>
@@ -1178,15 +1168,15 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
               <div className="p-8 text-center text-gray-400 font-medium">No se encontraron estudiantes para este filtro.</div>
             ) : (
               filteredStudents.map(s => {
-                const report = grupoFiltro === 'Todos' ? null : savedReports.find(r => 
+                // Evaluamos de forma plana si existe reporte y si está impreso
+                const rActual = savedReports.find(r => 
                   r.studentId === s.id && 
                   (r.tipoInforme === tipoInforme || (tipoInforme === 'musica' && r.tipoInforme === 'musica')) && 
                   r.grupo === grupoFiltro && 
                   r.periodo === periodoInforme
                 );
                 
-                const reportId = `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`;
-                const yaImpreso = reportsImpresos.includes(reportId);
+                const yaImpreso = reportsImpresos.includes(`${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`);
 
                 return (
                   <div 
@@ -1194,23 +1184,23 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
                     className={`p-5 flex justify-between items-center transition-colors ${
                       yaImpreso 
                         ? 'bg-blue-50/70 border-l-4 border-blue-500' 
-                        : report 
+                        : rActual 
                           ? 'bg-emerald-50' 
                           : 'hover:bg-violet-50/50'
                     }`}
                   >
                     <div>
-                      <p className={`font-bold ${yaImpreso ? 'text-blue-900' : report ? 'text-emerald-900' : 'text-gray-900'}`}>
+                      <p className={`font-bold ${yaImpreso ? 'text-blue-900' : rActual ? 'text-emerald-900' : 'text-gray-900'}`}>
                         {s.lastName}, {s.firstName}
                       </p>
-                      <p className={`text-[10px] font-bold uppercase ${yaImpreso ? 'text-blue-600' : report ? 'text-emerald-600' : 'text-gray-400'}`}>
-                        {s.level} | {yaImpreso ? 'Impreso' : report ? `Cargado (${periodoInforme})` : 'Pendiente'}
+                      <p className={`text-[10px] font-bold uppercase ${yaImpreso ? 'text-blue-600' : rActual ? 'text-emerald-600' : 'text-gray-400'}`}>
+                        {s.level} | {yaImpreso ? 'Impreso' : rActual ? `Cargado (${periodoInforme})` : 'Pendiente'}
                       </p>
                     </div>
                     
                     {grupoFiltro !== 'Todos' && (
                       <div className="flex items-center gap-2">
-                        {report && (
+                        {rActual && (
                           <button 
                             onClick={() => {
                               let contenedor = document.getElementById('impresion-masiva');
@@ -1222,7 +1212,7 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
                               const esMateriaEspecial = ['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme);
                               contenedor.className = esMateriaEspecial ? 'print:block compacto' : 'print:block con-aire';
                               
-                              contenedor.innerHTML = generarHTMLImpresion(s, report);
+                              contenedor.innerHTML = generarHTMLImpresion(s, rActual);
                               setTimeout(() => { window.print(); }, 500);
                             }} 
                             className="p-2 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors"
@@ -1232,10 +1222,10 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
                           </button>
                         )}
                         <button 
-                          onClick={() => handleEdit(s, report)} 
-                          className={`p-2 rounded-lg transition-colors ${report ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-violet-600 text-white hover:bg-violet-700'}`}
+                          onClick={() => handleEdit(s, rActual)} 
+                          className={`p-2 rounded-lg transition-colors ${rActual ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-violet-600 text-white hover:bg-violet-700'}`}
                         >
-                          {report ? <Edit3 size={16}/> : <Plus size={16}/>}
+                          {rActual ? <Edit3 size={16}/> : <Plus size={16}/>}
                         </button>
                       </div>
                     )}
