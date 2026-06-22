@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Printer, Save, X, FileText, User } from 'lucide-react';
+import { Search, Printer, Save, X, FileText, User, HelpCircle, ArrowRight } from 'lucide-react';
 import { doc, setDoc, onSnapshot, collection, query, serverTimestamp } from 'firebase/firestore';
 
 // Función auxiliar para generar el HTML de impresión
 const generarHTMLImpresionExterno = (student, informeData) => {
   return `
   <div class="pagina w-full bg-white text-black font-sans pb-4">
-      <div class="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
-          <img src="/logosinfondo.png" alt="Logo Institucional" class="h-16 object-contain mb-3" />
+      <div class="text-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
+          <img src="/logosinfondo.png" alt="Logo Institucional" class="h-16 mx-auto object-contain mb-3" />
           <h1 class="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME PROFESIONAL EXTERNO</h1>
           <p class="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
               Fecha: ${new Date().toLocaleDateString('es-AR')}
           </p>
       </div>
       
-      <div class="border border-violet-200 rounded-xl p-5 mb-4 bg-white shadow-sm" style="break-inside: avoid;">
+      <div class="border border-violet-200 rounded-xl p-5 mb-4 bg-white shadow-sm" style="page-break-inside: avoid;">
           <h2 class="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Datos del Estudiante</h2>
           <div class="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
               <p><strong class="font-black text-gray-900">Alumno/a:</strong> <span class="text-gray-700">${student.lastName}, ${student.firstName}</span></p>
@@ -24,7 +24,7 @@ const generarHTMLImpresionExterno = (student, informeData) => {
           </div>
       </div>
 
-      <div class="border border-violet-200 rounded-xl p-5 mb-6 bg-white shadow-sm" style="break-inside: avoid;">
+      <div class="border border-violet-200 rounded-xl p-5 mb-6 bg-white shadow-sm" style="page-break-inside: avoid;">
           <h2 class="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Destinatario del Informe</h2>
           <p class="text-sm text-gray-800 font-medium">Dirigido a: <strong class="font-black text-violet-900 uppercase">${informeData.paraQuien}</strong></p>
       </div>
@@ -34,30 +34,26 @@ const generarHTMLImpresionExterno = (student, informeData) => {
           <p class="text-gray-800 leading-relaxed font-medium text-xs mt-4 whitespace-pre-wrap">${informeData.cuerpoInforme}</p>
       </div>
 
-      <div class="mt-6 pt-4 flex flex-col items-center justify-center border-t border-dashed border-gray-200" style="break-inside: avoid;">
-          <img src="/firmasylogo.png" alt="Sello Institucional Juntos a la Par" class="max-w-[260px] w-full object-contain mb-4 text-center" />
+      <div class="mt-8 pt-6 border-t border-dashed border-gray-300 block text-center" style="page-break-inside: avoid; page-break-before: auto;">
+          <img src="/firmasylogo.png" alt="Sello Institucional" class="max-w-[260px] h-auto mx-auto object-contain mb-8 block" />
           
-          <div class="w-full flex justify-between px-12 mt-8 relative">
-              <div class="flex flex-col items-center w-64 relative">
-                  <div class="w-full border-t-2 border-black mb-2"></div>
-                  <span class="text-[10px] font-black uppercase text-gray-900 text-center">Firma y Aclaración<br/>Dirección / Equipo Técnico</span>
-              </div>
+          <div class="w-64 mx-auto border-t-2 border-black pt-2">
+              <span class="text-[10px] font-black uppercase text-gray-900 block text-center">Firma y Aclaración<br/>Dirección / Equipo Técnico</span>
           </div>
       </div>
   </div>`;
 };
+
 export function InformesExternosView({ user, db, appId }) {
   const [stage, setStage] = useState('main'); 
   const [searchTerm, setSearchTerm] = useState('');
   const [students, setStudents] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
   
-  // Estados del formulario
   const [paraQuien, setParaQuien] = useState('');
   const [cuerpoInforme, setCuerpoInforme] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Efecto estricto para impresión limpia (igual que en tu InformesView)
   useEffect(() => {
     const originalDisplays = new Map();
 
@@ -93,7 +89,6 @@ export function InformesExternosView({ user, db, appId }) {
     };
   }, []);
 
-  // Traer los alumnos de la base
   useEffect(() => {
     if (!db || !appId) return;
     const qS = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'));
@@ -163,7 +158,6 @@ export function InformesExternosView({ user, db, appId }) {
   return (
     <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in relative">
       
-      {/* MAGIA CSS PARA IMPRESIÓN */}
       <style dangerouslySetInnerHTML={{ __html: `
        @media screen {
          #impresion-externa { display: none !important; }
@@ -191,12 +185,40 @@ export function InformesExternosView({ user, db, appId }) {
 
       {/* VISTA PRINCIPAL (Buscador) */}
       <div className={`${stage === 'main' ? 'block' : 'hidden'} print:hidden`}>
-        <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-6 md:p-8 rounded-[30px] md:rounded-[40px] shadow-xl text-white mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-6 md:p-8 rounded-[30px] md:rounded-[40px] shadow-xl text-white mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="w-full md:w-auto text-center md:text-left">
             <h2 className="text-xl md:text-2xl font-black mb-2 flex items-center justify-center md:justify-start gap-3">
               <FileText size={24} className="md:w-[28px] md:h-[28px]" /> Informes Externos
             </h2>
             <p className="text-violet-100 text-xs md:text-sm">Generador de documentos formales para profesionales externos.</p>
+          </div>
+        </div>
+
+        {/* --- NUEVA SECCIÓN EXPLICATIVA DE USO --- */}
+        <div className="bg-violet-50 border border-violet-100 rounded-3xl p-6 mb-6 text-sm text-gray-700 space-y-4 shadow-sm">
+          <div className="flex items-center gap-2 text-violet-900 font-black uppercase tracking-wider text-xs border-b border-violet-200/60 pb-2">
+            <HelpCircle size={18} className="text-violet-600" /> ¿Qué es y cómo usar esta sección?
+          </div>
+          <p className="font-medium leading-relaxed">
+            Este espacio está diseñado para la confección rápida de <strong>informes libres y formales</strong> solicitados por agentes externos a la institución (médicos, terapeutas, obras sociales, juzgados, etc.), garantizando que la impresión mantenga el diseño, membrete y firmas institucionales oficiales.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-bold text-gray-600 pt-1">
+            <div className="flex items-start gap-2 bg-white/60 p-3 rounded-xl border border-violet-100/40">
+              <span className="bg-violet-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shrink-0 mt-0.5">1</span>
+              <span>Buscá al alumno en el cuadro de abajo y presioná <b>"Redactar Informe"</b>.</span>
+            </div>
+            <div className="flex items-start gap-2 bg-white/60 p-3 rounded-xl border border-violet-100/40">
+              <span className="bg-violet-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shrink-0 mt-0.5">2</span>
+              <span>Indicá la entidad o profesional <b>destinatario</b> que solicita el documento.</span>
+            </div>
+            <div className="flex items-start gap-2 bg-white/60 p-3 rounded-xl border border-violet-100/40">
+              <span className="bg-violet-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shrink-0 mt-0.5">3</span>
+              <span>Redactá libremente el cuerpo del informe en el editor de texto.</span>
+            </div>
+            <div className="flex items-start gap-2 bg-white/60 p-3 rounded-xl border border-violet-100/40">
+              <span className="bg-violet-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shrink-0 mt-0.5">4</span>
+              <span>Guardá el registro digital o mandalo a <b>imprimir directamente</b>.</span>
+            </div>
           </div>
         </div>
 
@@ -233,9 +255,9 @@ export function InformesExternosView({ user, db, appId }) {
                 </div>
                 <button 
                   onClick={() => handleSelectStudent(s)} 
-                  className="bg-violet-600 text-white font-bold text-xs px-4 py-2 rounded-xl hover:bg-violet-700 transition"
+                  className="bg-violet-600 text-white font-bold text-xs px-4 py-2 rounded-xl hover:bg-violet-700 transition flex items-center gap-1"
                 >
-                  Redactar Informe
+                  Redactar Informe <ArrowRight size={14} />
                 </button>
               </div>
             ))
@@ -256,7 +278,6 @@ export function InformesExternosView({ user, db, appId }) {
             </div>
           </div>
           
-          {/* Cabecera del Estudiante */}
           <div className="bg-violet-50 p-6 rounded-3xl border border-violet-100 flex items-center gap-4">
             <div className="bg-white p-4 rounded-full shadow-sm text-violet-600">
               <FileText size={24} />
@@ -270,7 +291,6 @@ export function InformesExternosView({ user, db, appId }) {
           </div>
 
           <div className="space-y-6">
-            {/* Campo: Para quién es */}
             <div className="p-5 bg-indigo-50 rounded-2xl border border-indigo-100">
               <label className="text-xs font-black uppercase text-indigo-800 block mb-2">
                 ¿A quién va dirigido el informe?
@@ -284,7 +304,6 @@ export function InformesExternosView({ user, db, appId }) {
               />
             </div>
 
-            {/* Campo: Cuerpo del Informe */}
             <div className="p-5 bg-violet-50 rounded-2xl border border-violet-100">
               <label className="text-xs font-black uppercase text-violet-800 block mb-2">
                 Cuerpo del Informe
@@ -299,7 +318,6 @@ export function InformesExternosView({ user, db, appId }) {
             </div>
           </div>
 
-          {/* Botonera de Acción */}
           <div className="flex flex-col md:flex-row gap-4 mt-8 pt-4 border-t border-gray-100">
             <button 
               onClick={handleSave} 
