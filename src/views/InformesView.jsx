@@ -848,7 +848,7 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
  return (
   <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in relative">
    
-  {/* MAGIA CSS PARA IMPRESIÓN (Destruye la app de fondo y muestra solo el papel) */}
+  {/* MAGIA CSS PARA IMPRESIÓN (Con márgenes dinámicos según el tipo de informe) */}
 <style dangerouslySetInnerHTML={{ __html: `
  @media screen {
    #impresion-masiva { display: none !important; }
@@ -868,22 +868,34 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
      page-break-inside: avoid;
      padding-bottom: 0 !important;
    }
-   @page { 
-     margin: 0.4cm 0.8cm;
-   }
    body { 
      background: white; 
      margin: 0; 
      padding: 0; 
    }
 
+   /* --- CONFIGURACIÓN DE MÁRGENES DINÁMICOS (AIRE) --- */
+   /* Si es Pedagógico o Laboral: Margen amplio y elegante */
+   .con-aire @page { 
+     margin: 1.2cm 1.4cm !important; 
+   }
+   .con-aire .pagina {
+     padding-left: 0.5cm !important;
+     padding-right: 0.5cm !important;
+   }
+
+   /* Si es Materia Especial con Grilla: Margen compacto para asegurar hoja única */
+   .compacto @page { 
+     margin: 0.4cm 0.8cm !important; 
+   }
+
    /* --- Reducción para el Encabezado en formato Grilla --- */
    .bg-violet-50.p-6.rounded-t-xl {
-     padding: 0.5rem !important;
+     padding: 0.6rem !important;
      margin-bottom: 0.5rem !important;
    }
    .bg-violet-50.p-6.rounded-t-xl img {
-     height: 2.2rem !important;
+     height: 2.1rem !important;
      margin-bottom: 0.25rem !important;
    }
    .bg-violet-50.p-6.rounded-t-xl h1 {
