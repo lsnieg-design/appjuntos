@@ -503,8 +503,7 @@ const generarHTMLImpresion = (s, report) => {
      desarrolloHTML += `
        <div class="mb-4" style="break-inside: avoid;">
          <h3 class="font-black uppercase text-violet-900 text-[10px] tracking-widest mb-1 border-b border-violet-100 pb-1">Fundamentación</h3>
-         <p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2 whitespace-pre-wrap"> El espacio de Psicomotricidad ofrece propuestas que favorecen el desarrollo integral de los estudiantes a través del movimiento, el juego y la interacción con otros. Mediante experiencias adaptadas a las posibilidades e intereses de cada alumno, se promueve la exploración corporal, la participación activa, la comunicación y la construcción de recursos que contribuyen a una mayor autonomía en los distintos contextos cotidianos. Las actividades propuestas buscan acompañar el fortalecimiento de habilidades motrices, la organización de la acción, la adaptación a diferentes situaciones y el desarrollo de estrategias que favorezcan una participación cada vez más significativa dentro de las experiencias compartidas.
-                </p>
+         <p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2 whitespace-pre-wrap"> El espacio de Psicomotricidad ofrece propuestas que favorecen el desarrollo integral de los estudiantes a través del movimiento, el juego y la interacción con otros. Mediante experiencias adaptadas a las posibilidades e intereses de cada alumno, se promueve la exploración corporal, la participación activa, la comunicación y la construcción de recursos que contribuyen a una mayor autonomía en los distintos contextos cotidianos. Las actividades propuestas buscan acompañar el fortalecimiento de habilidades motrices, la organización de la acción, la adaptación a diferentes situaciones y el desarrollo de estrategias que favorezcan una participación cada vez más significativa dentro de las experiencias compartidas.</p>
        </div>
      `;
  }
@@ -638,7 +637,7 @@ const generarHTMLImpresion = (s, report) => {
      
   <div class="mb-3">
    <h2 class="text-sm font-black text-white bg-violet-800 uppercase px-4 py-1.5 rounded-md mb-2 shadow-sm inline-block" style="break-inside: avoid;">
-            Desarrollo ${report.tipoInforme === 'musica' || report.tipoInforme === 'musica_brenda' ? 'Música' : report.tipoInforme.replace('_', ' ')}
+             Desarrollo ${report.tipoInforme === 'musica' || report.tipoInforme === 'musica_brenda' ? 'Música' : report.tipoInforme.replace('_', ' ')}
          </h2>
          ${desarrolloHTML}
      </div>
@@ -651,13 +650,10 @@ const generarHTMLImpresion = (s, report) => {
          </p>
      </div>
 
- 
      <div class="mt-8 pt-4 flex flex-col items-center justify-center border-t border-dashed border-gray-200" style="break-inside: avoid;">
          <img src="/firmasylogo.png" alt="Sello Institucional Juntos a la Par" class="max-w-[260px] w-full object-contain mb-6 text-center" />
          
-       
          <div class="w-full flex justify-between px-12 mt-12 relative">
-             
              <div class="flex flex-col items-center w-48 relative">
                  ${FIRMAS_AREAS[report.tipoInforme] ? `
                    <div class="absolute bottom-6 flex justify-center items-center w-full pointer-events-none">
@@ -673,93 +669,6 @@ const generarHTMLImpresion = (s, report) => {
                  <span class="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
              </div>
          </div>
-
-         </div>
-     </div>
- </div>`;
-};
-
-  let obsYObjetivosHTML = '';
-  if (materiasConGrilla.includes(report.tipoInforme)) {
-      const obsEspeciales = report.observacionesPlastica || report.observacionesMusica || report.observacionesPsicomotricidad || report.observacionesEducacionFisica || '';
-      if (obsEspeciales) {
-        obsYObjetivosHTML = `
-        <div class="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style="break-inside: avoid;">
-            <h2 class="font-black uppercase text-violet-900 mb-2 text-[10px] tracking-widest border-b border-violet-200 pb-1">Observaciones del período</h2>
-            <p class="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">${obsEspeciales}</p>
-        </div>`;
-      }
-  }
-
-  const subtituloArea = report.tipoInforme === 'musica' 
-    ? 'Música (Francisco Jaime)' 
-    : (report.tipoInforme === 'musica_brenda' ? 'Música (Brenda Celiz)' : report.tipoInforme);
-
-  const mostrarAuxiliar = !['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(report.tipoInforme);
-
-  return `
-  <div class="pagina w-full bg-white text-black font-sans pb-4">
-      <div class="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
-          <img src="/logosinfondo.png" alt="Logo Institucional" class="h-16 object-contain mb-3" />
-          <h1 class="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME ${report.periodo.toUpperCase()} 2026</h1>
-          <p class="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
-              Área: ${subtituloArea}
-          </p>
-      </div>
-      
-     <div class="border border-violet-200 rounded-xl p-5 mb-3 bg-white shadow-sm" style="break-inside: avoid;">
-          <h2 class="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Datos del Estudiante</h2>
-          <div class="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
-              <p><strong class="font-black text-gray-900">Alumno/a:</strong> <span class="text-gray-700">${s.lastName}, ${s.firstName}</span></p>
-              <p><strong class="font-black text-gray-900">DNI:</strong> <span class="text-gray-700">${s.dni || '....................................'}</span></p>
-              <p><strong class="font-black text-gray-900">Fecha de Nac.:</strong> <span class="text-gray-700">${s.birthDate || s.fechaNac || '....................................'}</span></p>
-              <p><strong class="font-black text-gray-900">Grupo:</strong> <span class="text-gray-700 font-bold">${report.grupo}</span></p>
-              <p><strong class="font-black text-gray-900">Docente a cargo:</strong> <span class="text-gray-700">${report?.docente || s.teacher || s.docente || '....................................'}</span></p>
-              ${mostrarAuxiliar ? `<p><strong class="font-black text-gray-900">Auxiliar/Preceptora:</strong> <span class="text-gray-700">${report?.auxiliar || s.auxiliary || s.auxiliar || '....................................'}</span></p>` : ''}
-              <p class="col-span-2"><strong class="font-black text-gray-900">Año de cursada:</strong> <span class="text-gray-700">2026</span></p>
-          </div>
-      </div>
-      
-   <div class="mb-3">
-    <h2 class="text-sm font-black text-white bg-violet-800 uppercase px-4 py-1.5 rounded-md mb-2 shadow-sm inline-block" style="break-inside: avoid;">
-             
-          </h2>
-          ${desarrolloHTML}
-      </div>
-      
-      ${obsYObjetivosHTML}
-
-      <div class="mt-8 mb-2 px-4 text-center" style="break-inside: avoid;">
-          <p class="text-xs text-gray-700 italic font-medium">
-              Continuaremos abordando, desde la perspectiva constructivista, el aprendizaje subjetivo del alumno, centrándonos en su bienestar y motivación, para avanzar durante el siguiente periodo.
-          </p>
-      </div>
-
-  
-      <div class="mt-8 pt-4 flex flex-col items-center justify-center border-t border-dashed border-gray-200" style="break-inside: avoid;">
-          <img src="/firmasylogo.png" alt="Sello Institucional Juntos a la Par" class="max-w-[260px] w-full object-contain mb-6 text-center" />
-          
-        
-          <div class="w-full flex justify-between px-12 mt-12 relative">
-              
-              <!-- Bloque Izquierdo: Firma del Docente -->
-              <div class="flex flex-col items-center w-48 relative">
-                  ${FIRMAS_AREAS[report.tipoInforme] ? `
-                    <div class="absolute bottom-6 flex justify-center items-center w-full pointer-events-none">
-                        <img src="${FIRMAS_AREAS[report.tipoInforme]}" alt="Firma del Docente" class="h-14 object-contain" />
-                    </div>
-                  ` : ''}
-                  <div class="w-full border-t-2 border-black mb-2"></div>
-                  <span class="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
-              </div>
-              
-              <!-- Bloque Derecho: Firma de la Familia -->
-             <div class="flex flex-col items-center w-48">
-                 <div class="w-full border-t-2 border-black mb-2"></div>
-                 <span class="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
-             </div>
-         </div>
-
      </div>
  </div>`;
 };
