@@ -754,15 +754,14 @@ const generarHTMLImpresion = (s, report) => {
               </div>
               
               <!-- Bloque Derecho: Firma de la Familia -->
-              <div class="flex flex-col items-center w-48">
-                  <div class="w-full border-t-2 border-black mb-2"></div>
-                  <span class="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
-              </div>
-          </div>
+             <div class="flex flex-col items-center w-48">
+                 <div class="w-full border-t-2 border-black mb-2"></div>
+                 <span class="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
+             </div>
+         </div>
 
-          </div>
-      </div>
-  </div>`;
+     </div>
+ </div>`;
 };
 
 export function InformesView({ user, db, appId }) {
