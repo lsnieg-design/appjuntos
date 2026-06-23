@@ -457,49 +457,49 @@ const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firs
 };
 
 const generarHTMLImpresion = (s, report) => {
-  // 1. Normalizar el tipo de informe para la lectura de rúbricas e indicadores
-  const tipoInformeNormalizado = report.tipoInforme;
-  const nivel = tipoInformeNormalizado === 'musica' 
-    ? (report.nivelMusica || 'Nivel 1') 
-    : (tipoInformeNormalizado === 'musica_brenda' ? 'Inicial' : (s?.level || 'Inicial'));
+ // 1. Normalizar el tipo de informe para la lectura de rúbricas e indicadores
+ const tipoInformeNormalizado = report.tipoInforme;
+ const nivel = tipoInformeNormalizado === 'musica' 
+   ? (report.nivelMusica || 'Nivel 1') 
+   : (tipoInformeNormalizado === 'musica_brenda' ? 'Inicial' : (s?.level || 'Inicial'));
     
-  const indicadores = CONFIG_INDICADORES[tipoInformeNormalizado]?.[nivel] || 
-                      CONFIG_INDICADORES[tipoInformeNormalizado]?.['Inicial'] || 
-                      CONFIG_INDICADORES[tipoInformeNormalizado]?.['CFI'] || [];
+ const indicadores = CONFIG_INDICADORES[tipoInformeNormalizado]?.[nivel] || 
+                     CONFIG_INDICADORES[tipoInformeNormalizado]?.['Inicial'] || 
+                     CONFIG_INDICADORES[tipoInformeNormalizado]?.['CFI'] || [];
 
-  // 2. Definimos qué áreas usan la Grilla con X y cuáles usan texto redactado
-  const materiasConGrilla = ['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'];
-  let desarrolloHTML = '';
+ // 2. Definimos qué áreas usan la Grilla con X y cuáles usan texto redactado
+ const materiasConGrilla = ['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'];
+ let desarrolloHTML = '';
 
-  // 3. Agregamos Contenidos o Fundamentación antes de la tabla
-  if (report.tipoInforme === 'plastica' && report.contenidosPlastica) {
+ // 3. Agregamos Contenidos o Fundamentación antes de la tabla
+ if (report.tipoInforme === 'plastica' && report.contenidosPlastica) {
      desarrolloHTML += `
        <div class="mb-4" style="break-inside: avoid;">
          <h3 class="font-black uppercase text-violet-900 text-[10px] tracking-widest mb-1 border-b border-violet-100 pb-1">Contenidos Abordados</h3>
          <p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2 whitespace-pre-wrap">${report.contenidosPlastica}</p>
        </div>
      `;
-  }
+ }
    
-  if (report.tipoInforme === 'musica') {
+ if (report.tipoInforme === 'musica') {
      desarrolloHTML += `
        <div class="mb-4" style="break-inside: avoid;">
          <h3 class="font-black uppercase text-violet-900 text-[10px] tracking-widest mb-1 border-b border-violet-100 pb-1">Fundamentación</h3>
          <p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2 whitespace-pre-wrap">El trabajo rítmico estructurado en formato de círculo favorece la eliminación de jerarquías, promueve el contacto visual continuo y estimula procesos de autorregulación, atención conjunta y empatía a través de la producción de un pulso compartido.</p>
        </div>
      `;
-  }
+ }
 
-  if (report.tipoInforme === 'musica_brenda') {
+ if (report.tipoInforme === 'musica_brenda') {
      desarrolloHTML += `
        <div class="mb-4" style="break-inside: avoid;">
          <h3 class="font-black uppercase text-violet-900 text-[10px] tracking-widest mb-1 border-b border-violet-100 pb-1">Fundamentación</h3>
-         <p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2 whitespace-pre-wrap">La música cumple un papel fundamental en el desarrollo integral de los niños, ya que estimula el lenguaje, la creatividad y la atención. Favorece la expresión emocional, la sociabilidad y mejora la coordinación motriz. Es una herramienta que enriquece su desarrollo integral de manera lúdica significativa.</p>
+         <p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2 whitespace-pre-wrap">La música cumple un papel fundamental en el desarrollo integral de los niños, ya que estimula el lenguaje, la creatividad y la atención. Favorece la expression emocional, la sociabilidad y mejora la coordinación motriz. Es una herramienta que enriquece su desarrollo integral de manera lúdica significativa.</p>
        </div>
      `;
-  }
+ }
 
-  if (report.tipoInforme === 'psicomotricidad') {
+ if (report.tipoInforme === 'psicomotricidad') {
      desarrolloHTML += `
        <div class="mb-4" style="break-inside: avoid;">
          <h3 class="font-black uppercase text-violet-900 text-[10px] tracking-widest mb-1 border-b border-violet-100 pb-1">Fundamentación</h3>
@@ -507,9 +507,9 @@ const generarHTMLImpresion = (s, report) => {
                 </p>
        </div>
      `;
-  }
+ }
   
-  if (report.tipoInforme === 'educacion_fisica') {
+ if (report.tipoInforme === 'educacion_fisica') {
      const isCFI = s?.level?.toUpperCase() === 'CFI' || s?.level?.toUpperCase() === 'FINES';
      const fundacionEducacionFisica = isCFI 
        ? "En este ciclo lectivo, la Educación Física se propone como un espacio de encuentro..."
@@ -521,10 +521,10 @@ const generarHTMLImpresion = (s, report) => {
          <p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2 whitespace-pre-wrap">${fundacionEducacionFisica}</p>
        </div>
      `;
-  }
+ }
 
-  // 4. Renderizamos la Grilla o el Texto
-  if (materiasConGrilla.includes(report.tipoInforme)) {
+ // 4. Renderizamos la Grilla o el Texto
+ if (materiasConGrilla.includes(report.tipoInforme)) {
      desarrolloHTML += `
        <table class="w-full text-left border-collapse mt-4 text-[11px] mb-6" style="break-inside: avoid;">
          <thead>
@@ -555,7 +555,7 @@ const generarHTMLImpresion = (s, report) => {
        `;
      });
      desarrolloHTML += `</tbody></table>`;
-  } else {
+ } else {
      desarrolloHTML += `<div class="space-y-4 border-l-2 border-violet-200 ml-1 pl-4">`;
      indicadores.forEach(c => {
        const answer = report.answers?.[c.id];
@@ -572,7 +572,112 @@ const generarHTMLImpresion = (s, report) => {
        }
      });
      desarrolloHTML += `</div>`;
-  }
+ }
+
+ let obsYObjetivosHTML = '';
+ if (materiasConGrilla.includes(report.tipoInforme)) {
+      const obsEspeciales = report.observacionesPlastica || report.observacionesMusica || report.observacionesPsicomotricidad || report.observacionesEducacionFisica || '';
+      if (obsEspeciales) {
+        obsYObjetivosHTML = `
+        <div class="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style="break-inside: avoid;">
+            <h2 class="font-black uppercase text-violet-900 mb-2 text-[10px] tracking-widest border-b border-violet-200 pb-1">Observaciones del período</h2>
+            <p class="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">${obsEspeciales}</p>
+        </div>`;
+      }
+ } else {
+      // Agregado de las observaciones y los 3 objetivos para informes pedagógicos y laborales
+      if (report.obsCuatrimestre1) {
+        obsYObjetivosHTML += `
+        <div class="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style="break-inside: avoid;">
+            <h2 class="font-black uppercase text-violet-900 mb-2 text-[10px] tracking-widest border-b border-violet-200 pb-1">Observaciones sobre los objetivos planteados para este primer cuatrimestre</h2>
+            <p class="text-[11px] text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">${report.obsCuatrimestre1}</p>
+        </div>`;
+      }
+      
+      if (report.objConductual || report.objPedagogico || report.objSocioafectivo) {
+        obsYObjetivosHTML += `
+        <div class="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style="break-inside: avoid;">
+            <h2 class="font-black uppercase text-violet-900 mb-2 text-[10px] tracking-widest border-b border-violet-200 pb-1">Objetivos para el segundo cuatrimestre</h2>
+            <div class="space-y-2 mt-2">
+                ${report.objConductual ? `<div><strong class="text-[10px] font-black uppercase text-violet-800">Objetivo Conductual:</strong> <p class="text-[11px] text-gray-800 inline">${report.objConductual}</p></div>` : ''}
+                ${report.objPedagogico ? `<div><strong class="text-[10px] font-black uppercase text-violet-800">Objetivo Pedagógico:</strong> <p class="text-[11px] text-gray-800 inline">${report.objPedagogico}</p></div>` : ''}
+                ${report.objSocioafectivo ? `<div><strong class="text-[10px] font-black uppercase text-violet-800">Objetivo Socioafectivo:</strong> <p class="text-[11px] text-gray-800 inline">${report.objSocioafectivo}</p></div>` : ''}
+            </div>
+        </div>`;
+      }
+ }
+
+ const subtituloArea = report.tipoInforme === 'musica' 
+   ? 'Música (Francisco Jaime)' 
+   : (report.tipoInforme === 'musica_brenda' ? 'Música (Brenda Celiz)' : report.tipoInforme);
+
+ const mostrarAuxiliar = !['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(report.tipoInforme);
+
+ return `
+ <div class="pagina w-full bg-white text-black font-sans pb-4">
+     <div class="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
+         <img src="/logosinfondo.png" alt="Logo Institucional" class="h-16 object-contain mb-3" />
+         <h1 class="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME ${report.periodo.toUpperCase()} 2026</h1>
+         <p class="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
+             Área: ${subtituloArea}
+         </p>
+     </div>
+     
+    <div class="border border-violet-200 rounded-xl p-5 mb-3 bg-white shadow-sm" style="break-inside: avoid;">
+         <h2 class="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Datos del Estudiante</h2>
+         <div class="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
+             <p><strong class="font-black text-gray-900">Alumno/a:</strong> <span class="text-gray-700">${s.lastName}, ${s.firstName}</span></p>
+             <p><strong class="font-black text-gray-900">DNI:</strong> <span class="text-gray-700">${s.dni || '....................................'}</span></p>
+             <p><strong class="font-black text-gray-900">Fecha de Nac.:</strong> <span class="text-gray-700">${s.birthDate || s.fechaNac || '....................................'}</span></p>
+             <p><strong class="font-black text-gray-900">Grupo:</strong> <span class="text-gray-700 font-bold">${report.grupo}</span></p>
+             <p><strong class="font-black text-gray-900">Docente a cargo:</strong> <span class="text-gray-700">${report?.docente || s.teacher || s.docente || '....................................'}</span></p>
+             ${mostrarAuxiliar ? `<p><strong class="font-black text-gray-900">Auxiliar/Preceptora:</strong> <span class="text-gray-700">${report?.auxiliar || s.auxiliary || s.auxiliar || '....................................'}</span></p>` : ''}
+             <p class="col-span-2"><strong class="font-black text-gray-900">Año de cursada:</strong> <span class="text-gray-700">2026</span></p>
+         </div>
+     </div>
+     
+  <div class="mb-3">
+   <h2 class="text-sm font-black text-white bg-violet-800 uppercase px-4 py-1.5 rounded-md mb-2 shadow-sm inline-block" style="break-inside: avoid;">
+            Desarrollo ${report.tipoInforme === 'musica' || report.tipoInforme === 'musica_brenda' ? 'Música' : report.tipoInforme.replace('_', ' ')}
+         </h2>
+         ${desarrolloHTML}
+     </div>
+     
+     ${obsYObjetivosHTML}
+
+     <div class="mt-8 mb-2 px-4 text-center" style="break-inside: avoid;">
+         <p class="text-xs text-gray-700 italic font-medium">
+             Continuaremos abordando, desde la perspectiva constructivista, el aprendizaje subjetivo del alumno, centrándonos en su bienestar y motivación, para avanzar durante el siguiente periodo.
+         </p>
+     </div>
+
+ 
+     <div class="mt-8 pt-4 flex flex-col items-center justify-center border-t border-dashed border-gray-200" style="break-inside: avoid;">
+         <img src="/firmasylogo.png" alt="Sello Institucional Juntos a la Par" class="max-w-[260px] w-full object-contain mb-6 text-center" />
+         
+       
+         <div class="w-full flex justify-between px-12 mt-12 relative">
+             
+             <div class="flex flex-col items-center w-48 relative">
+                 ${FIRMAS_AREAS[report.tipoInforme] ? `
+                   <div class="absolute bottom-6 flex justify-center items-center w-full pointer-events-none">
+                       <img src="${FIRMAS_AREAS[report.tipoInforme]}" alt="Firma del Docente" class="h-14 object-contain" />
+                   </div>
+                 ` : ''}
+                 <div class="w-full border-t-2 border-black mb-2"></div>
+                 <span class="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
+             </div>
+             
+             <div class="flex flex-col items-center w-48">
+                 <div class="w-full border-t-2 border-black mb-2"></div>
+                 <span class="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
+             </div>
+         </div>
+
+         </div>
+     </div>
+ </div>`;
+};
 
   let obsYObjetivosHTML = '';
   if (materiasConGrilla.includes(report.tipoInforme)) {
