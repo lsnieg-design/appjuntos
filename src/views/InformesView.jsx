@@ -588,7 +588,7 @@ const generarHTMLImpresion = (s, report) => {
       if (report.obsCuatrimestre1) {
         obsYObjetivosHTML += `
         <div class="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style="break-inside: avoid;">
-            <h2 class="font-black uppercase text-violet-900 mb-2 text-[10px] tracking-widest border-b border-violet-200 pb-1">Observaciones sobre los objetivos planteados para este primer cuatrimestre</h2>
+            <h2 class="font-black uppercase text-violet-900 mb-2 text-[10px] tracking-widest border-b border-violet-200 pb-1">Observaciones sobre los objetivos planteados en el primer semestre</h2>
             <p class="text-[11px] text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">${report.obsCuatrimestre1}</p>
         </div>`;
       }
@@ -596,7 +596,7 @@ const generarHTMLImpresion = (s, report) => {
       if (report.objConductual || report.objPedagogico || report.objSocioafectivo) {
         obsYObjetivosHTML += `
         <div class="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style="break-inside: avoid;">
-            <h2 class="font-black uppercase text-violet-900 mb-2 text-[10px] tracking-widest border-b border-violet-200 pb-1">Objetivos para el segundo cuatrimestre</h2>
+            <h2 class="font-black uppercase text-violet-900 mb-2 text-[10px] tracking-widest border-b border-violet-200 pb-1">Objetivos para el segundo semestre</h2>
             <div class="space-y-2 mt-2">
                 ${report.objConductual ? `<div><strong class="text-[10px] font-black uppercase text-violet-800">Objetivo Conductual:</strong> <p class="text-[11px] text-gray-800 inline">${report.objConductual}</p></div>` : ''}
                 ${report.objPedagogico ? `<div><strong class="text-[10px] font-black uppercase text-violet-800">Objetivo Pedagógico:</strong> <p class="text-[11px] text-gray-800 inline">${report.objPedagogico}</p></div>` : ''}
@@ -1590,11 +1590,11 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
             {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
               <div className="mt-8 space-y-4">
                 <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100">
-                  <label className="text-xs font-black uppercase text-violet-800 block mb-2">Observaciones sobre los objetivos planteados para este primer cuatrimestre</label>
+                  <label className="text-xs font-black uppercase text-violet-800 block mb-2">Observaciones sobre los objetivos planteados para el primer semetre</label>
                   <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" placeholder="Escriba aquí las observaciones..." value={obsCuatrimestre1} onChange={e => setObsCuatrimestre1(e.target.value)} rows={4} />
                 </div>
                 <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100 space-y-4">
-                  <h3 className="text-sm font-black uppercase text-violet-900 border-b border-violet-200 pb-2">Objetivos para el segundo cuatrimestre</h3>
+                  <h3 className="text-sm font-black uppercase text-violet-900 border-b border-violet-200 pb-2">Objetivos para el segundo semestre</h3>
                   <div>
                     <label className="text-xs font-black uppercase text-violet-800 block mb-2">Objetivo Conductual</label>
                     <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" value={objConductual} onChange={e => setObjConductual(e.target.value)} rows={2} />
@@ -1747,14 +1747,14 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
 
             {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && obsCuatrimestre1 && (
               <div className="mt-6 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
-                <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Observaciones sobre los objetivos planteados para este primer cuatrimestre</h2>
+                <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Observaciones sobre los objetivos planteados para el primer semetre</h2>
                 <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium">{obsCuatrimestre1}</p>
               </div>
             )}
 
             {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (objConductual || objPedagogico || objSocioafectivo) && (
               <div className="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
-                <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Objetivos para el segundo cuatrimestre</h2>
+                <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Objetivos para el segundo semestre</h2>
                 {objConductual && <div className="mb-2"><strong className="text-xs font-black text-violet-800">Objetivo Conductual:</strong><p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">{objConductual}</p></div>}
                 {objPedagogico && <div className="mb-2"><strong className="text-xs font-black text-violet-800">Objetivo Pedagógico:</strong><p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">{objPedagogico}</p></div>}
                 {objSocioafectivo && <div className="mb-2"><strong className="text-xs font-black text-violet-800">Objetivo Socioafectivo:</strong><p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">{objSocioafectivo}</p></div>}
