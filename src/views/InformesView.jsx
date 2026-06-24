@@ -1888,9 +1888,10 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
             </div>
           </div>
         );
-      })()}
+    })()}
     </div>
    )}
   </div>
+ </div>
  );
 }
