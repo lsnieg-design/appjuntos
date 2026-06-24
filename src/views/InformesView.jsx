@@ -1157,70 +1157,106 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
       ) : (
         <>
         
-  {/* BOTÓN DE CONTROL DE CONTROL DE IMPRESIÓN Y CORRECCIÓN */}
-{grupoFiltro !== 'Todos' && filteredStudents.length > 0 && (
-  <div className="space-y-3">
-    <button 
-      onClick={() => { /* ... tu lógica existente de impresión masiva ... */ }}
-      className="w-full mt-4 bg-emerald-600 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-emerald-700 transition"
-    >
-      <Printer size={20} /> Imprimir todos los informes del grupo
-    </button>
+  {/* ========================================================================= */}
+      {/* PARCHE DE CONEXIÓN SEGURA: BOTONES DE ACCIÓN GRUPAL */}
+      {/* ========================================================================= */}
+      {grupoFiltro !== 'Todos' && filteredStudents.length > 0 && (
+        <div className="space-y-3">
+          {/* BOTÓN IMPRESIÓN GRUPAL */}
+          <button 
+            onClick={() => {
+              let contenedor = document.getElementById('impresion-masiva');
+              if (!contenedor) {
+                contenedor = document.createElement('div');
+                contenedor.id = 'impresion-masiva';
+                document.body.appendChild(contenedor);
+              }
+              
+              const esMateriaEspecial = ['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme);
+              contenedor.className = esMateriaEspecial ? 'print:block compacto' : 'print:block con-aire';
+              
+              let htmlMasivo = '';
+              filteredStudents.forEach(s => {
+                const report = savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
+                if (report) {
+                  htmlMasivo += generarHTMLImpresion(s, report);
+                }
+              });
+              
+              if (!htmlMasivo) {
+                alert("No hay informes guardados en este grupo para imprimir.");
+                return;
+              }
 
-    {/* BOTONES DE ACCIÓN GRUPAL */}
-<div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-  {/* BOTÓN IMPRESO */}
-  <button
-    onClick={() => {
-      const reportesCargadosGrupo = filteredStudents
-        .map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`)
-        .filter(id => savedReports.some(r => r.id === id));
-      
-      const todosImpresos = reportesCargadosGrupo.length > 0 && 
-        reportesCargadosGrupo.every(id => reportsImpresos.includes(id));
-        
-      handleAlternarImpresionGrupo(filteredStudents, todosImpresos);
-    }}
-    disabled={!filteredStudents.some(s => savedReports.some(r => r.id === `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`))}
-    className={`w-full p-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all border-2 flex items-center justify-center gap-2 ${
-      filteredStudents.length > 0 && filteredStudents.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`).every(id => reportsImpresos.includes(id) || !savedReports.some(r => r.id === id)) && filteredStudents.some(s => savedReports.some(r => r.id === `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`))
-        ? 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200' 
-        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 disabled:opacity-50'
-    }`}
-  >
-    {filteredStudents.length > 0 && 
-     filteredStudents.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`).every(id => !savedReports.some(r => r.id === id) || reportsImpresos.includes(id))
-      ? '✅ Grupo Impreso (Desmarcar)' 
-      : '🖨️ Marcar grupo como IMPRESO'}
-  </button>
+              contenedor.innerHTML = htmlMasivo;
+              
+              setTimeout(() => {
+                window.print();
+              }, 500);
+            }}
+            className="w-full mt-4 bg-emerald-600 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-emerald-700 transition"
+          >
+            <Printer size={20} /> Imprimir todos los informes del grupo ({
+              filteredStudents.filter(s => 
+                savedReports.some(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme)
+              ).length
+            })
+          </button>
 
-  {/* BOTÓN DE CORREGIDO X EQUIPO TÉCNICO */}
-  <button
-    onClick={() => {
-      const reportesCargadosGrupo = filteredStudents
-        .map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`)
-        .filter(id => savedReports.some(r => r.id === id));
-      
-      const todosCorregidos = reportesCargadosGrupo.length > 0 && 
-        reportesCargadosGrupo.every(id => reportsCorregidos.includes(id));
-        
-      handleAlternarCorrecionGrupo(filteredStudents, todosCorregidos);
-    }}
-    disabled={!filteredStudents.some(s => savedReports.some(r => r.id === `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`))}
-    className={`w-full p-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all border-2 flex items-center justify-center gap-2 ${
-      filteredStudents.length > 0 && filteredStudents.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`).every(id => reportsCorregidos.includes(id) || !savedReports.some(r => r.id === id)) && filteredStudents.some(s => savedReports.some(r => r.id === `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`))
-        ? 'bg-purple-100 text-purple-800 border-purple-300 hover:bg-purple-200' 
-        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 disabled:opacity-50'
-    }`}
-  >
-    {filteredStudents.length > 0 && 
-     filteredStudents.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`).every(id => !savedReports.some(r => r.id === id) || reportsCorregidos.includes(id))
-      ? '⚖️ Corregido por ET (Desmarcar)' 
-      : '📝 Marcar grupo como CORREGIDO por ET'}
-  </button>
-</div>
-  </div>
-)}
+          {/* SUB-GRID DE ESTADOS DE CONTROLES */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+            {/* BOTÓN IMPRESO */}
+            <button
+              onClick={() => {
+                const reportesCargadosGrupo = filteredStudents
+                  .map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`)
+                  .filter(id => savedReports.some(r => r.id === id));
+                
+                const todosImpresos = reportesCargadosGrupo.length > 0 && 
+                  reportesCargadosGrupo.every(id => reportsImpresos.includes(id));
+                  
+                handleAlternarImpresionGrupo(filteredStudents, todosImpresos);
+              }}
+              disabled={!filteredStudents.some(s => savedReports.some(r => r.id === `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`))}
+              className={`w-full p-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all border-2 flex items-center justify-center gap-2 ${
+                filteredStudents.length > 0 && filteredStudents.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`).every(id => reportsImpresos.includes(id) || !savedReports.some(r => r.id === id)) && filteredStudents.some(s => savedReports.some(r => r.id === `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`))
+                  ? 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200' 
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 disabled:opacity-50'
+              }`}
+            >
+              {filteredStudents.length > 0 && 
+               filteredStudents.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`).every(id => !savedReports.some(r => r.id === id) || reportsImpresos.includes(id))
+                ? '✅ Grupo Impreso (Desmarcar)' 
+                : '🖨️ Marcar grupo como IMPRESO'}
+            </button>
+
+            {/* BOTÓN DE CORREGIDO X EQUIPO TÉCNICO */}
+            <button
+              onClick={() => {
+                const reportesCargadosGrupo = filteredStudents
+                  .map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`)
+                  .filter(id => savedReports.some(r => r.id === id));
+                
+                const todosCorregidos = reportesCargadosGrupo.length > 0 && 
+                  reportesCargadosGrupo.every(id => reportsCorregidos.includes(id));
+                  
+                handleAlternarCorrecionGrupo(filteredStudents, todosCorregidos);
+              }}
+              disabled={!filteredStudents.some(s => savedReports.some(r => r.id === `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`))}
+              className={`w-full p-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all border-2 flex items-center justify-center gap-2 ${
+                filteredStudents.length > 0 && filteredStudents.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`).every(id => reportsCorregidos.includes(id) || !savedReports.some(r => r.id === id)) && filteredStudents.some(s => savedReports.some(r => r.id === `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`))
+                  ? 'bg-purple-100 text-purple-800 border-purple-300 hover:bg-purple-200' 
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 disabled:opacity-50'
+              }`}
+            >
+              {filteredStudents.length > 0 && 
+               filteredStudents.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`).every(id => !savedReports.some(r => r.id === id) || reportsCorregidos.includes(id))
+                ? '⚖️ Corregido por ET (Desmarcar)' 
+                : '📝 Marcar grupo como CORREGIDO por ET'}
+            </button>
+          </div>
+        </div>
+      )}
           
           {/* LISTA DE ALUMNOS */}
           <div className="bg-white rounded-3xl shadow-sm border divide-y">
