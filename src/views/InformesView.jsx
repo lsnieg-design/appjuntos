@@ -1264,25 +1264,46 @@ return (
                     {grupoFiltro !== 'Todos' && (
                       <div className="flex items-center gap-2">
                         {rActual && (
-                          <button 
-                            onClick={() => {
-                              let contenedor = document.getElementById('impresion-masiva');
-                              if (!contenedor) {
-                                contenedor = document.createElement('div');
-                                contenedor.id = 'impresion-masiva';
-                                document.body.appendChild(contenedor);
-                              }
-                              const esMateriaEspecial = ['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme);
-                              contenedor.className = esMateriaEspecial ? 'print:block compacto' : 'print:block con-aire';
-                              
-                              contenedor.innerHTML = generarHTMLImpresion(s, rActual);
-                              setTimeout(() => { window.print(); }, 500);
-                            }} 
-                            className="p-2 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors"
-                            title="Imprimir informe individual"
-                          >
-                            <Printer size={16}/>
-                          </button>
+                          {/* BOTÓN IMPRESIÓN GRUPAL RECUPERADO */}
+    <button 
+      onClick={() => {
+        let contenedor = document.getElementById('impresion-masiva');
+        if (!contenedor) {
+          contenedor = document.createElement('div');
+          contenedor.id = 'impresion-masiva';
+          document.body.appendChild(contenedor);
+        }
+        
+        const esMateriaEspecial = ['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme);
+        contenedor.className = esMateriaEspecial ? 'print:block compacto' : 'print:block con-aire';
+        
+        let htmlMasivo = '';
+        filteredStudents.forEach(s => {
+          const report = savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
+          if (report) {
+            htmlMasivo += generarHTMLImpresion(s, report);
+          }
+        });
+        
+        if (!htmlMasivo) {
+          alert("No hay informes guardados en este grupo para imprimir.");
+          return;
+        }
+
+        contenedor.innerHTML = htmlMasivo;
+        
+        setTimeout(() => {
+          window.print();
+        }, 500);
+      }}
+      className="w-full mt-4 bg-emerald-600 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-emerald-700 transition"
+    >
+      <Printer size={20} /> Imprimir todos los informes del grupo ({
+        filteredStudents.filter(s => 
+          savedReports.some(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme)
+        ).length
+      })
+    </button>
                         )}
                         <button 
                           onClick={() => handleEdit(s, rActual)} 
