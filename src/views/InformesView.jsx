@@ -749,49 +749,50 @@ export function InformesView({ user, db, appId }) {
  }, []); // <-- ACÁ CERRAMOS EL EFECTO CORRECTAMENTE
 
  // PARCHE CORRECTO Y SEGURO PARA EL CONTROL DE IMPRESIONES (SEPARADO DEL OTRO)
- useEffect(() => {
-  if (!db || !appId || !periodoInforme) return;
-  
-  let unsub = () => {};
-  
-  try {
-    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'impresiones_control', periodoInforme);
-    unsub = onSnapshot(docRef, (snap) => {
-      if (snap.exists()) {
-        setReportsImpresos(snap.data().ids || []);
-      } else {
-        setReportsImpresos([]);
-      }
-    }, (error) => {
-      console.error("Error en impresiones snapshot:", error);
-    });
-  } catch (e) {
-    console.error("Error inicializando referencia de impresión:", e);
-  }
+// 👇 COPIÁ Y PEGÁ ESTO JUSTO DEBAJO DEL EFECTO DE IMPRESIONES
+useEffect(() => {
+ if (!db || !appId || !periodoInforme) return;
+ 
+ let unsub = () => {};
+ 
+ try {
+   const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'corregidos_control', periodoInforme);
+   unsub = onSnapshot(docRef, (snap) => {
+     if (snap.exists()) {
+       setReportsCorregidos(snap.data().ids || []);
+     } else {
+       setReportsCorregidos([]);
+     }
+   }, (error) => {
+     console.error("Error en correcciones snapshot:", error);
+   });
+ } catch (e) {
+   console.error("Error inicializando referencia de corrección:", e);
+ }
 
-  return () => {
-    if (typeof unsub === 'function') unsub();
-  };
- }, [db, appId, periodoInforme]);
-
- // Función para marcar/desmarcar todo el grupo como impreso
- const handleAlternarImpresionGrupo = async (alumnosGrupo, yaImpresos) => {
-  const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'impresiones_control', periodoInforme);
-  
-  // Generamos los IDs únicos de los reportes de este grupo actual
-  const idsGrupo = alumnosGrupo.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`);
-  
-  let nuevosIds = [...reportsImpresos];
-  if (yaImpresos) {
-    // Si ya estaban marcados, los removemos (desmarcar)
-    nuevosIds = nuevosIds.filter(id => !idsGrupo.includes(id));
-  } else {
-    // Si no, los agregamos sumando solo los que no estén repetidos
-    nuevosIds = Array.from(new Set([...nuevosIds, ...idsGrupo]));
-  }
-  
-  await setDoc(docRef, { ids: nuevosIds }, { merge: true });
+ return () => {
+   if (typeof unsub === 'function') unsub();
  };
+}, [db, appId, periodoInforme]);
+
+// FUNCIÓN PARA ALTERNAR LA CORRECCIÓN DEL GRUPO EN FIREBASE
+const handleAlternarCorrecionGrupo = async (alumnosGrupo, yaCorregidos) => {
+ const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'corregidos_control', periodoInforme);
+ 
+ // Generamos los IDs únicos de los reportes de este grupo actual
+ const idsGrupo = alumnosGrupo.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`);
+ 
+ let nuevosIds = [...reportsCorregidos];
+ if (yaCorregidos) {
+   // Si ya estaban marcados, los removemos (desmarcar)
+   nuevosIds = nuevosIds.filter(id => !idsGrupo.includes(id));
+ } else {
+   // Si no, los agregamos sumando solo los que no estén repetidos
+   nuevosIds = Array.from(new Set([...nuevosIds, ...idsGrupo]));
+ }
+ 
+ await setDoc(docRef, { ids: nuevosIds }, { merge: true });
+};
 
  useEffect(() => {
   if (!db || !appId) return;
@@ -1139,57 +1140,58 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
       <Printer size={20} /> Imprimir todos los informes del grupo
     </button>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-      {/* BOTÓN IMPRESO */}
-      <button
-        onClick={() => {
-          const reportesCargadosGrupo = filteredStudents
-            .map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`)
-            .filter(id => savedReports.some(r => r.id === id));
-          
-          const todosImpresos = reportesCargadosGrupo.length > 0 && 
-            reportesCargadosGrupo.every(id => reportsImpresos.includes(id));
-            
-          handleAlternarImpresionGrupo(filteredStudents, todosImpresos);
-        }}
-        disabled={!filteredStudents.some(s => savedReports.some(r => r.id === `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`))}
-        className={`w-full p-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all border-2 flex items-center justify-center gap-2 ${
-          filteredStudents.some(s => reportsImpresos.includes(`${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`))
-            ? 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200' 
-            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 disabled:opacity-50'
-        }`}
-      >
-        {filteredStudents.length > 0 && 
-         filteredStudents.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`).every(id => !savedReports.some(r => r.id === id) || reportsImpresos.includes(id))
-          ? '✅ Grupo Impreso (Desmarcar)' 
-          : '🖨️ Marcar grupo como IMPRESO'}
-      </button>
+    {/* BOTONES DE ACCIÓN GRUPAL */}
+<div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+  {/* BOTÓN IMPRESO */}
+  <button
+    onClick={() => {
+      const reportesCargadosGrupo = filteredStudents
+        .map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`)
+        .filter(id => savedReports.some(r => r.id === id));
+      
+      const todosImpresos = reportesCargadosGrupo.length > 0 && 
+        reportesCargadosGrupo.every(id => reportsImpresos.includes(id));
+        
+      handleAlternarImpresionGrupo(filteredStudents, todosImpresos);
+    }}
+    disabled={!filteredStudents.some(s => savedReports.some(r => r.id === `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`))}
+    className={`w-full p-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all border-2 flex items-center justify-center gap-2 ${
+      filteredStudents.length > 0 && filteredStudents.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`).every(id => reportsImpresos.includes(id) || !savedReports.some(r => r.id === id)) && filteredStudents.some(s => savedReports.some(r => r.id === `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`))
+        ? 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200' 
+        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 disabled:opacity-50'
+    }`}
+  >
+    {filteredStudents.length > 0 && 
+     filteredStudents.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`).every(id => !savedReports.some(r => r.id === id) || reportsImpresos.includes(id))
+      ? '✅ Grupo Impreso (Desmarcar)' 
+      : '🖨️ Marcar grupo como IMPRESO'}
+  </button>
 
-      {/* NUEVO BOTÓN DE CORREGIDO X EQUIPO TÉCNICO */}
-      <button
-        onClick={() => {
-          const reportesCargadosGrupo = filteredStudents
-            .map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`)
-            .filter(id => savedReports.some(r => r.id === id));
-          
-          const todosCorregidos = reportesCargadosGrupo.length > 0 && 
-            reportesCargadosGrupo.every(id => reportsCorregidos.includes(id));
-            
-          handleAlternarCorrecionGrupo(filteredStudents, todosCorregidos);
-        }}
-        disabled={!filteredStudents.some(s => savedReports.some(r => r.id === `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`))}
-        className={`w-full p-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all border-2 flex items-center justify-center gap-2 ${
-          filteredStudents.some(s => reportsCorregidos.includes(`${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`))
-            ? 'bg-purple-100 text-purple-800 border-purple-300 hover:bg-purple-200' 
-            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 disabled:opacity-50'
-        }`}
-      >
-        {filteredStudents.length > 0 && 
-         filteredStudents.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`).every(id => !savedReports.some(r => r.id === id) || reportsCorregidos.includes(id))
-          ? '⚖️ Corregido por ET (Desmarcar)' 
-          : '📝 Marcar grupo como CORREGIDO por ET'}
-      </button>
-    </div>
+  {/* BOTÓN DE CORREGIDO X EQUIPO TÉCNICO */}
+  <button
+    onClick={() => {
+      const reportesCargadosGrupo = filteredStudents
+        .map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`)
+        .filter(id => savedReports.some(r => r.id === id));
+      
+      const todosCorregidos = reportesCargadosGrupo.length > 0 && 
+        reportesCargadosGrupo.every(id => reportsCorregidos.includes(id));
+        
+      handleAlternarCorrecionGrupo(filteredStudents, todosCorregidos);
+    }}
+    disabled={!filteredStudents.some(s => savedReports.some(r => r.id === `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`))}
+    className={`w-full p-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all border-2 flex items-center justify-center gap-2 ${
+      filteredStudents.length > 0 && filteredStudents.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`).every(id => reportsCorregidos.includes(id) || !savedReports.some(r => r.id === id)) && filteredStudents.some(s => savedReports.some(r => r.id === `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`))
+        ? 'bg-purple-100 text-purple-800 border-purple-300 hover:bg-purple-200' 
+        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 disabled:opacity-50'
+    }`}
+  >
+    {filteredStudents.length > 0 && 
+     filteredStudents.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`).every(id => !savedReports.some(r => r.id === id) || reportsCorregidos.includes(id))
+      ? '⚖️ Corregido por ET (Desmarcar)' 
+      : '📝 Marcar grupo como CORREGIDO por ET'}
+  </button>
+</div>
   </div>
 )}
           
@@ -1272,6 +1274,7 @@ return (
       )}
     </div>
 {/* MODAL DE ESTADÍSTICAS */}
+{/* MODAL DE ESTADÍSTICAS */}
 {showStatsModal && (
   <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
     <div className="bg-white rounded-[30px] shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -1286,7 +1289,8 @@ return (
       </div>
       <div className="p-6 overflow-y-auto space-y-6 bg-gray-50">
         {(() => {
-          const areasStats = [
+          // 1. Definición limpia de la configuración inicial de áreas
+          const listaAreas = [
             { id: 'pedagogico', label: 'Pedagógico' },
             { id: 'laboral', label: 'Laboral' },
             { id: 'psicomotricidad', label: 'Psicomotricidad' },
@@ -1294,21 +1298,24 @@ return (
             { id: 'musica', label: 'Música Fran' },
             { id: 'musica_brenda', label: 'Música Brenda' },
             { id: 'educacion_fisica', label: 'Ed. Física' }
-          ].map(area => {
+          ];
+
+          // 2. Filtro previo y plano de los reportes cargados en este período
+          const filtradosPorPeriodo = savedReports.filter(r => r.periodo === periodoInforme);
+
+          // 3. Mapeo matemático puro sin llamadas ni referencias dudosas
+          const desglosadoEstadisticas = listaAreas.map(area => {
             let expected = 0;
             let completed = 0;
-            const reportsCurrentPeriod = savedReports.filter(r => r.periodo === periodoInforme);
 
             estudiantesSede.forEach(s => {
               const lvl = s.level ? s.level.toUpperCase() : '';
               let expects = false;
               
-              // Analizamos los grupos del alumno
               const groups = [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean).map(g => g.toUpperCase());
               const hasTaller = groups.some(g => g.includes('TALLER') || g.includes('PRE TALLER') || g.includes('PRETALLER'));
               const hasPedagogico = groups.some(g => !g.includes('TALLER') && !g.includes('PRE TALLER') && !g.includes('PRETALLER'));
 
-              // Reglas de asignación de informes
               if (area.id === 'pedagogico' && hasPedagogico) expects = true;
               if (area.id === 'laboral' && hasTaller) expects = true;
               if (area.id === 'psicomotricidad') expects = true;
@@ -1319,7 +1326,7 @@ return (
 
               if (expects) {
                 expected++;
-                if (reportsCurrentPeriod.some(r => r.studentId === s.id && r.tipoInforme === area.id)) {
+                if (filtradosPorPeriodo.some(r => r.studentId === s.id && r.tipoInforme === area.id)) {
                   completed++;
                 }
               }
@@ -1329,22 +1336,22 @@ return (
             return { ...area, expected, completed, percentage };
           });
 
-          const totalExpected = areasStats.reduce((acc, curr) => acc + curr.expected, 0);
-          const totalCompleted = areasStats.reduce((acc, curr) => acc + curr.completed, 0);
+          // 4. Cálculos de totales generales basados en los mapeos previos
+          const totalExpected = desglosadoEstadisticas.reduce((acc, curr) => acc + curr.expected, 0);
+          const totalCompleted = desglosadoEstadisticas.reduce((acc, curr) => acc + curr.completed, 0);
           const totalPercentage = totalExpected === 0 ? 0 : Math.round((totalCompleted / totalExpected) * 100);
 
-          // CÁLCULO PARA IMPRESOS
-          const totalImpresos = savedReports.filter(r => r.periodo === periodoInforme && reportsImpresos.includes(r.id)).length;
+          // 5. Tratamiento seguro de estados externos mediante filtrado directo de IDs
+          const totalImpresos = filtradosPorPeriodo.filter(r => reportsImpresos.includes(r.id)).length;
           const impresosPercentage = totalCompleted === 0 ? 0 : Math.round((totalImpresos / totalCompleted) * 100);
 
-          // NUEVO CÁLCULO PARA CORREGIDOS POR EL EQUIPO TÉCNICO
-          const totalCorregidos = savedReports.filter(r => r.periodo === periodoInforme && reportsCorregidos.includes(r.id)).length;
+          const totalCorregidos = filtradosPorPeriodo.filter(r => reportsCorregidos.includes(r.id)).length;
           const corregidosPercentage = totalCompleted === 0 ? 0 : Math.round((totalCorregidos / totalCompleted) * 100);
 
           return (
             <>
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
-                {/* BARRA DE PROGRESO DE CARGA (LOGÍSTICA DIGITAL) */}
+                {/* BARRA DE PROGRESO DE CARGA */}
                 <div className="text-center border-b pb-4">
                   <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">Progreso Global Carga</p>
                   <div className="flex items-end justify-center gap-2 mb-2">
@@ -1358,7 +1365,7 @@ return (
 
                 {/* DOBLE COLUMNA DE SEGUIMIENTO FÍSICO Y TÉCNICO */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                  {/* BARRA DE PROGRESO DE IMPRESIÓN FÍSICA */}
+                  {/* PROGRESO IMPRESIÓN FÍSICA */}
                   <div className="text-center md:border-r md:pr-4">
                     <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Total Impreso / Listo</p>
                     <div className="flex items-end justify-center gap-1 mb-2">
@@ -1370,7 +1377,7 @@ return (
                     </div>
                   </div>
 
-                  {/* NUEVA BARRA DE PROGRESO DE CORRECCIÓN (EQUIPO TÉCNICO) */}
+                  {/* PROGRESO CORRECCIÓN EQUIPO TÉCNICO */}
                   <div className="text-center">
                     <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Corregido por Eq. Técnico</p>
                     <div className="flex items-end justify-center gap-1 mb-2">
@@ -1384,9 +1391,10 @@ return (
                 </div>
               </div>
 
+              {/* DESGLOSE POR ÁREA */}
               <div className="space-y-4">
                 <h3 className="font-black text-gray-800 uppercase text-xs tracking-widest px-2">Desglose por Área</h3>
-                {areasStats.map(stat => (
+                {desglosadoEstadisticas.map(stat => (
                   <div key={stat.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-2">
                     <div className="flex justify-between items-center">
                       <span className="font-bold text-gray-800">{stat.label}</span>
