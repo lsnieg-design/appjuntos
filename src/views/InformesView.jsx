@@ -1340,505 +1340,495 @@ return (
    </div> {/* <=== ¡¡ESTE ES EL DIV QUE FALTABA!! Cierra la Vista Principal. */}
 
 
-   {/* ========================================================================= */}
-   {/* MODAL DE ESTADÍSTICAS                                                     */}
-   {/* ========================================================================= */}
-   {showStatsModal && (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-     <div className="bg-white rounded-[30px] shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
-      <div className="p-6 bg-violet-800 text-white flex justify-between items-center">
-       <div>
-        <h2 className="text-xl font-black flex items-center gap-2"><PieChart size={24} /> Progreso de Carga</h2>
-        <p className="text-violet-200 text-sm">Informes del período: {periodoInforme}</p>
-       </div>
-       <button onClick={() => setShowStatsModal(false)} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors">
-        <X size={20} />
-       </button>
-      </div>
-      <div className="p-6 overflow-y-auto space-y-6 bg-gray-50">
-       {(() => {
-        // 1. Definición limpia de la configuración inicial de áreas
-        const listaAreas = [
-         { id: 'pedagogico', label: 'Pedagógico' },
-         { id: 'laboral', label: 'Laboral' },
-         { id: 'psicomotricidad', label: 'Psicomotricidad' },
-         { id: 'plastica', label: 'Plástica' },
-         { id: 'musica', label: 'Música Fran' },
-         { id: 'musica_brenda', label: 'Música Brenda' },
-         { id: 'educacion_fisica', label: 'Ed. Física' }
-        ];
-
-        // 2. Filtro previo y plano de los reportes cargados en este período
-        const filtradosPorPeriodo = savedReports.filter(r => r.periodo === periodoInforme);
-
-        // 3. Mapeo matemático puro
-        const desglosadoEstadisticas = listaAreas.map(area => {
-         let expected = 0;
-         let completed = 0;
-
-         estudiantesSede.forEach(s => {
-          const lvl = s.level ? s.level.toUpperCase() : '';
-          let expects = false;
-          
-          const groups = [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean).map(g => g.toUpperCase());
-          const hasTaller = groups.some(g => g.includes('TALLER') || g.includes('PRE TALLER') || g.includes('PRETALLER'));
-          const hasPedagogico = groups.some(g => !g.includes('TALLER') && !g.includes('PRE TALLER') && !g.includes('PRETALLER'));
-
-          if (area.id === 'pedagogico' && hasPedagogico) expects = true;
-          if (area.id === 'laboral' && hasTaller) expects = true;
-          if (area.id === 'psicomotricidad') expects = true;
-          if (area.id === 'musica') expects = true;
-          if (area.id === 'musica_brenda') expects = true;
-          if (area.id === 'plastica' && lvl !== 'INICIAL') expects = true;
-          if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CICLO')) expects = true;
-
-          if (expects) {
-           expected++;
-           if (filtradosPorPeriodo.some(r => r.studentId === s.id && r.tipoInforme === area.id)) {
-            completed++;
-           }
-          }
-         });
-
-         const percentage = expected === 0 ? 0 : Math.round((completed / expected) * 100);
-         return { ...area, expected, completed, percentage };
-        });
-
-        // 4. Cálculos de totales generales
-        const totalExpected = desglosadoEstadisticas.reduce((acc, curr) => acc + curr.expected, 0);
-        const totalCompleted = desglosadoEstadisticas.reduce((acc, curr) => acc + curr.completed, 0);
-        const totalPercentage = totalExpected === 0 ? 0 : Math.round((totalCompleted / totalExpected) * 100);
-
-        // 5. Tratamiento seguro de estados externos
-        const totalImpresos = filtradosPorPeriodo.filter(r => reportsImpresos.includes(r.id)).length;
-        const impresosPercentage = totalCompleted === 0 ? 0 : Math.round((totalImpresos / totalCompleted) * 100);
-
-        const totalCorregidos = filtradosPorPeriodo.filter(r => reportsCorregidos.includes(r.id)).length;
-        const corregidosPercentage = totalCompleted === 0 ? 0 : Math.round((totalCorregidos / totalCompleted) * 100);
-
-        return (
-         <>
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
-           {/* BARRA DE PROGRESO DE CARGA */}
-           <div className="text-center border-b pb-4">
-            <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">Progreso Global Carga</p>
-            <div className="flex items-end justify-center gap-2 mb-2">
-             <span className="text-5xl font-black text-violet-700">{totalPercentage}%</span>
-             <span className="text-gray-400 font-medium pb-1">({totalCompleted} de {totalExpected})</span>
+{/* ========================================================================= */}
+    {/* MODAL DE ESTADÍSTICAS                                                     */}
+    {/* ========================================================================= */}
+    {showStatsModal && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+        <div className="bg-white rounded-[30px] shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="p-6 bg-violet-800 text-white flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-black flex items-center gap-2"><PieChart size={24} /> Progreso de Carga</h2>
+              <p className="text-violet-200 text-sm">Informes del período: {periodoInforme}</p>
             </div>
-            <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
-             <div className="bg-violet-600 h-3 rounded-full transition-all duration-1000" style={{ width: `${totalPercentage}%` }}></div>
-            </div>
-           </div>
-
-           {/* DOBLE COLUMNA DE SEGUIMIENTO FÍSICO Y TÉCNICO */}
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-            <div className="text-center md:border-r md:pr-4">
-             <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Total Impreso / Listo</p>
-             <div className="flex items-end justify-center gap-1 mb-2">
-              <span className="text-3xl font-black text-blue-600">{impresosPercentage}%</span>
-              <span className="text-gray-400 text-xs font-bold pb-0.5">({totalImpresos} de {totalCompleted})</span>
-             </div>
-             <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
-              <div className="bg-blue-500 h-2.5 rounded-full transition-all duration-1000" style={{ width: `${impresosPercentage}%` }}></div>
-             </div>
-            </div>
-
-            <div className="text-center">
-             <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Corregido por Eq. Técnico</p>
-             <div className="flex items-end justify-center gap-1 mb-2">
-              <span className="text-3xl font-black text-purple-600">{corregidosPercentage}%</span>
-              <span className="text-gray-400 text-xs font-bold pb-0.5">({totalCorregidos} de {totalCompleted})</span>
-             </div>
-             <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
-              <div className="bg-purple-500 h-2.5 rounded-full transition-all duration-1000" style={{ width: `${corregidosPercentage}%` }}></div>
-             </div>
-            </div>
-           </div>
+            <button onClick={() => setShowStatsModal(false)} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors">
+              <X size={20} />
+            </button>
           </div>
+          <div className="p-6 overflow-y-auto space-y-6 bg-gray-50">
+            {(() => {
+              const listaAreas = [
+                { id: 'pedagogico', label: 'Pedagógico' },
+                { id: 'laboral', label: 'Laboral' },
+                { id: 'psicomotricidad', label: 'Psicomotricidad' },
+                { id: 'plastica', label: 'Plástica' },
+                { id: 'musica', label: 'Música Fran' },
+                { id: 'musica_brenda', label: 'Música Brenda' },
+                { id: 'educacion_fisica', label: 'Ed. Física' }
+              ];
 
-          {/* DESGLOSE POR ÁREA */}
-          <div className="space-y-4">
-           <h3 className="font-black text-gray-800 uppercase text-xs tracking-widest px-2">Desglose por Área</h3>
-           {desglosadoEstadisticas.map(stat => (
-            <div key={stat.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-2">
-             <div className="flex justify-between items-center">
-              <span className="font-bold text-gray-800">{stat.label}</span>
-              <span className="text-xs font-black px-2 py-1 bg-gray-100 rounded-md text-gray-600">
-               {stat.completed} / {stat.expected} listos
-              </span>
-             </div>
-             <div className="flex items-center gap-3">
-              <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
-               <div 
-                className={`h-2.5 rounded-full transition-all duration-1000 ${stat.percentage === 100 ? 'bg-emerald-500' : stat.percentage > 40 ? 'bg-indigo-500' : 'bg-amber-500'}`} 
-                style={{ width: `${stat.percentage}%` }}
-               ></div>
-              </div>
-              <span className="text-xs font-black w-10 text-right text-gray-700">{stat.percentage}%</span>
-             </div>
-            </div>
-           ))}
-          </div>
-         </>
-        );
-       })()}
-      </div>
-     </div>
-    </div>
-   )}
+              const filtradosPorPeriodo = savedReports.filter(r => r.periodo === periodoInforme);
 
+              const desglosadoEstadisticas = listaAreas.map(area => {
+                let expected = 0;
+                let completed = 0;
 
-   {/* ========================================================================= */}
-   {/* INTERFAZ DE EDICIÓN EN PANTALLA (FORMULARIO)                              */}
-   {/* ========================================================================= */}
-   {stage === 'form' && selectedStudent && (
-    <div className="bg-white p-8 rounded-[40px] shadow-lg border space-y-6 print:hidden animate-in fade-in">
-     
-     <div className="flex justify-between items-center mb-4">
-      <button onClick={() => setStage('main')} className="bg-gray-100 p-3 rounded-full hover:bg-gray-200">
-       <X size={20}/>
-      </button>
-      <div className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-       <span>Guardado automático</span>
-      </div>
-     </div>
-     
-     <div className="bg-violet-50 p-6 rounded-3xl mb-6 border border-violet-100">
-       <h3 className="font-black text-2xl text-violet-900">{selectedStudent.lastName}, {selectedStudent.firstName}</h3>
-       <p className="text-sm font-bold text-violet-600 uppercase mb-4">GRUPO: {grupoFiltro} | INFORME: {tipoInforme} {periodoInforme}</p>
-       
-       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-         <label className="text-[10px] font-black uppercase text-violet-800">Docente a cargo</label>
-         <input type="text" className="w-full p-3 rounded-xl bg-white border border-violet-200 text-sm font-bold text-gray-700" value={docentePrint} onChange={e => setDocentePrint(e.target.value)} placeholder="Ej. Alejandra..." />
-        </div>
-        {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
-         <div>
-          <label className="text-[10px] font-black uppercase text-violet-800">Auxiliar / Preceptora</label>
-          <input type="text" className="w-full p-3 rounded-xl bg-white border border-violet-200 text-sm font-bold text-gray-700" value={preceptoraPrint} onChange={e => setPreceptoraPrint(e.target.value)} placeholder="Ej. Andrea..." />
-         </div>
-        )}
-       </div>
-     </div>
+                estudiantesSede.forEach(s => {
+                  const lvl = s.level ? s.level.toUpperCase() : '';
+                  let expects = false;
+                  
+                  const groups = [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean).map(g => g.toUpperCase());
+                  const hasTaller = groups.some(g => g.includes('TALLER') || g.includes('PRE TALLER') || g.includes('PRETALLER'));
+                  const hasPedagogico = groups.some(g => !g.includes('TALLER') && !g.includes('PRE TALLER') && !g.includes('PRETALLER'));
 
-   <div className="space-y-4">
-           
-    {/* BLOQUEOS DE SEGURIDAD SEGÚN NIVEL */}
-    {((tipoInforme === 'plastica' && selectedStudent?.level?.toUpperCase() === 'INICIAL') || 
-      (tipoInforme === 'educacion_fisica' && ['INICIAL', '1° CICLO'].includes(selectedStudent?.level?.toUpperCase())) ||
-      (tipoInforme === 'musica_brenda' && !(['INICIAL', '1° CICLO'].includes(selectedStudent?.level?.toUpperCase())))) ? (
-      
-      <div className="bg-amber-50 border border-amber-200 p-8 rounded-3xl text-center">
-        <span className="text-4xl block mb-2">⚠️</span>
-        <p className="text-amber-900 font-black text-lg">
-          El nivel {selectedStudent?.level} no posee informe de {tipoInforme === 'musica_brenda' ? 'Música Brenda' : tipoInforme.replace('_', ' ')}.
-        </p>
-        <p className="text-amber-700 text-sm mt-1">Este espacio está habilitado exclusivamente para Inicial y 1° Ciclo.</p>
-      </div>
+                  if (area.id === 'pedagogico' && hasPedagogico) expects = true;
+                  if (area.id === 'laboral' && hasTaller) expects = true;
+                  if (area.id === 'psicomotricidad') expects = true;
+                  if (area.id === 'musica') expects = true;
+                  if (area.id === 'musica_brenda') expects = true;
+                  if (area.id === 'plastica' && lvl !== 'INICIAL') expects = true;
+                  if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CICLO')) expects = true;
 
-    ) : (
-
-      /* RENDERIZADO NORMAL DEL FORMULARIO */
-      <>
-        {/* 1. ESPACIO DE CONTENIDOS (SOLO PARA PLÁSTICA) */}
-        {tipoInforme === 'plastica' && (
-          <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mb-6">
-            <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Contenidos Abordados</label>
-            <textarea 
-              className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" 
-              placeholder="Ej: El espacio, aprovechamiento y utilización consciente del plano. El color..." 
-              value={contenidosPlastica} 
-              onChange={e => setContenidosPlastica(e.target.value)} 
-              rows={3}
-            />
-          </div>
-        )}
-
-        {/* SELECTOR DE NIVEL PARA MÚSICA */}
-        {tipoInforme === 'musica' && (
-          <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100 mb-6 text-center">
-            <h3 className="text-sm font-black text-indigo-900 uppercase mb-4">Seleccione el Nivel de Música a evaluar</h3>
-            <div className="flex gap-4 max-w-md mx-auto">
-              <button 
-                onClick={() => setNivelMusica('Nivel 1')} 
-                className={`flex-1 p-4 rounded-xl font-black uppercase text-sm transition-all ${nivelMusica === 'Nivel 1' ? 'bg-violet-600 text-white shadow-md scale-105' : 'bg-white border-2 border-indigo-100 hover:border-violet-400 text-gray-600'}`}
-              >
-                Nivel 1
-              </button>
-              <button 
-                onClick={() => setNivelMusica('Nivel 2')} 
-                className={`flex-1 p-4 rounded-xl font-black uppercase text-sm transition-all ${nivelMusica === 'Nivel 2' ? 'bg-violet-600 text-white shadow-md scale-105' : 'bg-white border-2 border-indigo-100 hover:border-violet-400 text-gray-600'}`}
-              >
-                Nivel 2
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* COMPORTAMIENTO FORMULARIO ACTIVO SEGÚN FILTRO DE MÚSICA */}
-        {!(tipoInforme === 'musica' && !nivelMusica) ? (
-          <>
-            {/* FUNDAMENTACIÓN DE MÚSICA FRAN */}
-            {tipoInforme === 'musica' && (
-              <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
-                <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
-                <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
-                  El trabajo rítmico estructurado en formato de círculo favorece la eliminación de jerarquías, promueve el contacto visual continuo y estimula procesos de autorregulación, atención conjunta y empatía a través de la producción de un pulso compartido.
-                </p>
-              </div>
-            )}
-
-            {/* FUNDAMENTACIÓN DE MÚSICA BRENDA */}
-            {tipoInforme === 'musica_brenda' && (
-              <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
-                <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
-                <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
-                  La música cumple un papel fundamental en el desarrollo integral de los niños, ya que estimula el lenguaje, la creatividad y la atención. Favorece la expresión emocional, la sociabilidad y mejora la coordinación motriz. Es una herramienta que enriquece su desarrollo integral de manera lúdica significativa.
-                </p>
-              </div>
-            )}
-
-            {/* FUNDAMENTACIÓN DE PSICOMOTRICIDAD */}
-            {tipoInforme === 'psicomotricidad' && (
-              <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
-                <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
-                <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
-                  El espacio de Psicomotricidad ofrece propuestas que favorecen el desarrollo integral de los estudiantes a través del movimiento, el juego y la interacción con otros. Mediante experiencias adaptadas a las posibilidades e intereses de cada alumno, se promueve la exploración corporal, la participación activa, la comunicación y la construcción de recursos que contribuyen a una mayor autonomía en los distintos contextos cotidianos.
-                 Las actividades propuestas buscan acompañar el fortalecimiento de habilidades motrices, la organización de la acción, la adaptación a diferentes situaciones y el desarrollo de estrategias que favorezcan una participación cada vez más significativa dentro de las experiencias compartidas.
-                </p>
-              </div>
-            )}
-
-            {tipoInforme === 'educacion_fisica' && (
-              <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
-                <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
-                <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
-                  {['CFI', 'FINES'].includes(selectedStudent?.level?.toUpperCase()) ? 
-                   "En este ciclo lectivo, la Educación Física se propone como un espacio de encuentro, disfrute y aprendizaje a través del cuerpo. Desde una mirada inclusiva, priorizamos el desarrollo de la autonomía, la confianza y las habilidades motrices de cada alumno, respetando sus tiempos y singularidades. A través del juego cooperativo y la introducción a los deportes adaptados, buscamos que la clase sea un lugar de participación plena para todos, donde las reglas y materiales se transforman para que la diversidad enriquezca la convivencia y el aprendizaje compartido." :
-                   "En este ciclo lectivo, la Educación Física se propone como un espacio de encuentro, disfrute y aprendizaje a través del cuerpo. Desde una mirada inclusiva, priorizamos el desarrollo de la autonomía, la confianza y las habilidades motrices de cada alumno, respetando sus tiempos y singularidades. A través del juego cooperativo, buscamos que la clase sea un lugar de participación plena para todos, donde las reglas y materiales se transforman para que la diversidad enriquezca la convivencia y el aprendizaje compartido."
+                  if (expects) {
+                    expected++;
+                    if (filtradosPorPeriodo.some(r => r.studentId === s.id && r.tipoInforme === area.id)) {
+                      completed++;
+                    }
                   }
-                </p>
-              </div>
-            )}
+                });
 
-            {/* 2. RÚBRICA DE INDICADORES (PARA TODOS) */}
-            {indicadoresActuales.map(c => (
-              <div key={c.id} className="space-y-2 mb-4 p-4 bg-gray-50 rounded-2xl">
-                <label className="text-xs font-black uppercase text-gray-700">{c.label}</label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                  {c.options.map(opt => {
-                    const isSelected = answers[c.id] === opt;
-                    return (
-                      <button 
-                        key={opt} 
-                        onClick={() => setAnswers(p => ({...p, [c.id]: opt}))} 
-                        className={"p-3 rounded-xl font-bold text-[10px] uppercase border-2 text-center transition-all " + (isSelected ? "bg-violet-600 text-white border-violet-700 shadow-md" : "bg-white border-gray-200 hover:border-violet-300")}
-                      >
-                        {opt}
-                      </button>
-                    );
-                  })}
-                </div>
+                const percentage = expected === 0 ? 0 : Math.round((completed / expected) * 100);
+                return { ...area, expected, completed, percentage };
+              });
 
-                {/* Campo personalizado para áreas pedagógica y laboral */}
-                {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
-                  <div className="mt-3/2">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">O escribir una opción personalizada:</label>
-                    <textarea
-                      className="w-full p-3 bg-white rounded-xl text-xs border border-gray-200 font-medium text-gray-700 placeholder-gray-400"
-                      placeholder="Escribí acá un texto a medida para este indicador..."
-                      value={answers[c.id] || ''}
-                      onChange={e => setAnswers(p => ({...p, [c.id]: e.target.value}))}
-                      rows={2}
-                    />
-                  </div>
-                )}
-              </div>
-            ))}
+              const totalExpected = desglosadoEstadisticas.reduce((acc, curr) => acc + curr.expected, 0);
+              const totalCompleted = desglosadoEstadisticas.reduce((acc, curr) => acc + curr.completed, 0);
+              const totalPercentage = totalExpected === 0 ? 0 : Math.round((totalCompleted / totalExpected) * 100);
 
-            {/* 3. ESPACIO DE OBSERVACIONES (MATERIAS ESPECIALES) */}
-            {tipoInforme === 'plastica' && (
-              <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
-                <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
-                <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" value={observacionesPlastica} onChange={e => setObservacionesPlastica(e.target.value)} rows={4} />
-              </div>
-            )}
-            {tipoInforme === 'psicomotricidad' && (
-              <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
-                <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
-                <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" value={observacionesPsicomotricidad} onChange={e => setObservacionesPsicomotricidad(e.target.value)} rows={4} />
-              </div>
-            )}
-            {(tipoInforme === 'musica' || tipoInforme === 'musica_brenda') && (
-              <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
-                <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
-                <textarea 
-                  className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" 
-                  placeholder="Escriba aquí las observaciones finales de música (opcional)..." 
-                  value={observacionesMusica} 
-                  onChange={e => setObservacionesMusica(e.target.value)} 
-                  rows={4}
-                />
-              </div>
-            )}
-            {tipoInforme === 'educacion_fisica' && (
-              <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
-                <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
-                <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" value={observacionesEducacionFisica} onChange={e => setObservacionesEducacionFisica(e.target.value)} rows={4} />
-              </div>
-            )}
+              const totalImpresos = filtradosPorPeriodo.filter(r => reportsImpresos.includes(r.id)).length;
+              const impresosPercentage = totalCompleted === 0 ? 0 : Math.round((totalImpresos / totalCompleted) * 100);
 
-            {/* 4. OBJETIVOS Y OBS. CUATRIMESTRE 1 (OCULTOS EN MATERIAS ESPECIALES) */}
-            {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
-              <div className="mt-8 space-y-4">
-                <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100">
-                  <label className="text-xs font-black uppercase text-violet-800 block mb-2">Observaciones sobre los objetivos planteados para el primer semestre</label>
-                  <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" placeholder="Escriba aquí las observaciones..." value={obsCuatrimestre1} onChange={e => setObsCuatrimestre1(e.target.value)} rows={4} />
-                </div>
-                <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100 space-y-4">
-                  <h3 className="text-sm font-black uppercase text-violet-900 border-b border-violet-200 pb-2">Objetivos para el segundo semestre</h3>
-                  <div>
-                    <label className="text-xs font-black uppercase text-violet-800 block mb-2">Objetivo Conductual</label>
-                    <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" value={objConductual} onChange={e => setObjConductual(e.target.value)} rows={2} />
+              const totalCorregidos = filtradosPorPeriodo.filter(r => reportsCorregidos.includes(r.id)).length;
+              const corregidosPercentage = totalCompleted === 0 ? 0 : Math.round((totalCorregidos / totalCompleted) * 100);
+
+              return (
+                <>
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
+                    <div className="text-center border-b pb-4">
+                      <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">Progreso Global Carga</p>
+                      <div className="flex items-end justify-center gap-2 mb-2">
+                        <span className="text-5xl font-black text-violet-700">{totalPercentage}%</span>
+                        <span className="text-gray-400 font-medium pb-1">({totalCompleted} de {totalExpected})</span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                        <div className="bg-violet-600 h-3 rounded-full transition-all duration-1000" style={{ width: `${totalPercentage}%` }}></div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                      <div className="text-center md:border-r md:pr-4">
+                        <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Total Impreso / Listo</p>
+                        <div className="flex items-end justify-center gap-1 mb-2">
+                          <span className="text-3xl font-black text-blue-600">{impresosPercentage}%</span>
+                          <span className="text-gray-400 text-xs font-bold pb-0.5">({totalImpresos} de {totalCompleted})</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                          <div className="bg-blue-500 h-2.5 rounded-full transition-all duration-1000" style={{ width: `${impresosPercentage}%` }}></div>
+                        </div>
+                      </div>
+
+                      <div className="text-center">
+                        <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Corregido por Eq. Técnico</p>
+                        <div className="flex items-end justify-center gap-1 mb-2">
+                          <span className="text-3xl font-black text-purple-600">{corregidosPercentage}%</span>
+                          <span className="text-gray-400 text-xs font-bold pb-0.5">({totalCorregidos} de {totalCompleted})</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                          <div className="bg-purple-500 h-2.5 rounded-full transition-all duration-1000" style={{ width: `${corregidosPercentage}%` }}></div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-xs font-black uppercase text-violet-800 block mb-2">Objetivo Pedagógico</label>
-                    <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" value={objPedagogico} onChange={e => setObjPedagogico(e.target.value)} rows={2} />
+
+                  <div className="space-y-4">
+                    <h3 className="font-black text-gray-800 uppercase text-xs tracking-widest px-2">Desglose por Área</h3>
+                    {desglosadoEstadisticas.map(stat => (
+                      <div key={stat.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-2">
+                        <div className="flex justify-between items-center">
+                          <span className="font-bold text-gray-800">{stat.label}</span>
+                          <span className="text-xs font-black px-2 py-1 bg-gray-100 rounded-md text-gray-600">
+                            {stat.completed} / {stat.expected} listos
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                            <div 
+                              className={`h-2.5 rounded-full transition-all duration-1000 ${stat.percentage === 100 ? 'bg-emerald-500' : stat.percentage > 40 ? 'bg-indigo-500' : 'bg-amber-500'}`} 
+                              style={{ width: `${stat.percentage}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-xs font-black w-10 text-right text-gray-700">{stat.percentage}%</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div>
-                    <label className="text-xs font-black uppercase text-violet-800 block mb-2">Objetivo Socioafectivo</label>
-                    <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" value={objSocioafectivo} onChange={e => setObjSocioafectivo(e.target.value)} rows={2} />
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
-        )}
+                </>
+              );
+            })()}
+          </div>
+        </div>
       </div>
+    )}
 
-      {/* BOTÓN GENERAL DE GUARDADO AL FINAL DEL FORMULARIO */}
-      <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 mt-6 bg-violet-800 hover:bg-violet-900 text-white font-black rounded-2xl transition-colors">
-        {isSaving ? 'Guardando...' : 'Guardar Informe'}
-      </button>
-
-      {/* DOCUMENTO DE IMPRESIÓN OCULTO DENTRO DEL MISMO STAGE PARA EVITAR ERRORES */}
-      <div id="informe-imprimir" className="hidden">
-        {selectedStudent && (() => {
-          const currentReport = savedReports.find(r => 
-            r.studentId === selectedStudent.id && 
-            r.tipoInforme === tipoInforme && 
-            r.grupo === grupoFiltro && 
-            r.periodo === periodoInforme
-          );
-
-          return (
-            <div className="pagina w-full bg-white text-black font-sans pb-4">
-              <div className="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
-                <img src="/logosinfondo.png" alt="Logo Institucional" className="h-16 object-contain mb-3" />
-                <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME {periodoInforme.toUpperCase()} 2026</h1>
-                <p className="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
-                  Área: {tipoInforme === 'musica' ? 'Música (Francisco Jaime)' : tipoInforme === 'musica_brenda' ? 'Música (Brenda Celiz)' : tipoInforme}
-                </p>
+    {/* ========================================================================= */}
+    {/* INTERFAZ DE EDICIÓN EN PANTALLA (FORMULARIO)                              */}
+    {/* ========================================================================= */}
+    {stage === 'form' && selectedStudent && (
+      <div className="bg-white p-8 rounded-[40px] shadow-lg border space-y-6 print:hidden animate-in fade-in">
+        
+        <div className="flex justify-between items-center mb-4">
+          <button onClick={() => setStage('main')} className="bg-gray-100 p-3 rounded-full hover:bg-gray-200">
+            <X size={20}/>
+          </button>
+          <div className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+            <span>Guardado automático</span>
+          </div>
+        </div>
+        
+        <div className="bg-violet-50 p-6 rounded-3xl mb-6 border border-violet-100">
+          <h3 className="font-black text-2xl text-violet-900">{selectedStudent.lastName}, {selectedStudent.firstName}</h3>
+          <p className="text-sm font-bold text-violet-600 uppercase mb-4">GRUPO: {grupoFiltro} | INFORME: {tipoInforme} {periodoInforme}</p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-[10px] font-black uppercase text-violet-800">Docente a cargo</label>
+              <input type="text" className="w-full p-3 rounded-xl bg-white border border-violet-200 text-sm font-bold text-gray-700" value={docentePrint} onChange={e => setDocentePrint(e.target.value)} placeholder="Ej. Alejandra..." />
+            </div>
+            {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
+              <div>
+                <label className="text-[10px] font-black uppercase text-violet-800">Auxiliar / Preceptora</label>
+                <input type="text" className="w-full p-3 rounded-xl bg-white border border-violet-200 text-sm font-bold text-gray-700" value={preceptoraPrint} onChange={e => setPreceptoraPrint(e.target.value)} placeholder="Ej. Andrea..." />
               </div>
-              
-              <div className="border border-violet-200 rounded-xl p-5 mb-3 bg-white shadow-sm" style={{ breakInside: 'avoid' }}>
-                <h2 className="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Datos del Estudiante</h2>
-                <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
-                  <p><strong className="font-black text-gray-900">Alumno/a:</strong> <span className="text-gray-700">{selectedStudent.lastName}, {selectedStudent.firstName}</span></p>
-                  <p><strong className="font-black text-gray-900">DNI:</strong> <span className="text-gray-700">{selectedStudent.dni || '....................................'}</span></p>
-                  <p><strong className="font-black text-gray-900">Fecha de Nac.:</strong> <span className="text-gray-700">{selectedStudent.birthDate || selectedStudent.fechaNac || '....................................'}</span></p>
-                  <p><strong className="font-black text-gray-900">Grupo:</strong> <span className="text-gray-700 font-bold">{grupoFiltro}</span></p>
-                  <p>
-                    <strong className="font-black text-gray-900">Docente a cargo:</strong>{" "}
-                    <span className="text-gray-700">{docentePrint || currentReport?.docente || selectedStudent.teacher || '....................................'}</span>
-                  </p>
-                  {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
-                    <p>
-                      <strong className="font-black text-gray-900">Auxiliar/Preceptora:</strong>{" "}
-                      <span className="text-gray-700">{preceptoraPrint || currentReport?.auxiliar || selectedStudent.auxiliary || '....................................'}</span>
-                    </p>
-                  )}
-                  <p className="col-span-2"><strong className="font-black text-gray-900">Año de cursada:</strong> <span className="text-gray-700">2026</span></p>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {/* BLOQUEOS DE SEGURIDAD SEGÚN NIVEL */}
+          {((tipoInforme === 'plastica' && selectedStudent?.level?.toUpperCase() === 'INICIAL') || 
+            (tipoInforme === 'educacion_fisica' && ['INICIAL', '1° CICLO'].includes(selectedStudent?.level?.toUpperCase())) ||
+            (tipoInforme === 'musica_brenda' && !(['INICIAL', '1° CICLO'].includes(selectedStudent?.level?.toUpperCase())))) ? (
+            
+            <div className="bg-amber-50 border border-amber-200 p-8 rounded-3xl text-center">
+              <span className="text-4xl block mb-2">⚠️</span>
+              <p className="text-amber-900 font-black text-lg">
+                El nivel {selectedStudent?.level} no posee informe de {tipoInforme === 'musica_brenda' ? 'Música Brenda' : tipoInforme.replace('_', ' ')}.
+              </p>
+              <p className="text-amber-700 text-sm mt-1">Este espacio está habilitado exclusivamente para Inicial y 1° Ciclo.</p>
+            </div>
+
+          ) : (
+
+            /* RENDERIZADO NORMAL DEL FORMULARIO */
+            <>
+              {/* 1. ESPACIO DE CONTENIDOS (SOLO PARA PLÁSTICA) */}
+              {tipoInforme === 'plastica' && (
+                <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mb-6">
+                  <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Contenidos Abordados</label>
+                  <textarea 
+                    className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" 
+                    placeholder="Ej: El espacio, aprovechamiento y utilización consciente del plano. El color..." 
+                    value={contenidosPlastica} 
+                    onChange={e => setContenidosPlastica(e.target.value)} 
+                    rows={3}
+                  />
                 </div>
-              </div>
+              )}
 
-              <div className="mb-3">
-                <h2 className="text-sm font-black text-white bg-violet-800 uppercase px-4 py-1.5 rounded-md mb-2 shadow-sm inline-block" style={{ breakInside: 'avoid' }}>
-                  Desarrollo {tipoInforme === 'musica' || tipoInforme === 'musica_brenda' ? 'Música' : tipoInforme}
-                </h2>
+              {/* SELECTOR DE NIVEL PARA MÚSICA */}
+              {tipoInforme === 'musica' && (
+                <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100 mb-6 text-center">
+                  <h3 className="text-sm font-black text-indigo-900 uppercase mb-4">Seleccione el Nivel de Música a evaluar</h3>
+                  <div className="flex gap-4 max-w-md mx-auto">
+                    <button 
+                      onClick={() => setNivelMusica('Nivel 1')} 
+                      className={`flex-1 p-4 rounded-xl font-black uppercase text-sm transition-all ${nivelMusica === 'Nivel 1' ? 'bg-violet-600 text-white shadow-md scale-105' : 'bg-white border-2 border-indigo-100 hover:border-violet-400 text-gray-600'}`}
+                    >
+                      Nivel 1
+                    </button>
+                    <button 
+                      onClick={() => setNivelMusica('Nivel 2')} 
+                      className={`flex-1 p-4 rounded-xl font-black uppercase text-sm transition-all ${nivelMusica === 'Nivel 2' ? 'bg-violet-600 text-white shadow-md scale-105' : 'bg-white border-2 border-indigo-100 hover:border-violet-400 text-gray-600'}`}
+                    >
+                      Nivel 2
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* COMPORTAMIENTO FORMULARIO ACTIVO SEGÚN FILTRO DE MÚSICA */}
+              {!(tipoInforme === 'musica' && !nivelMusica) ? (
+                <>
+                  {/* FUNDAMENTACIONES */}
+                  {tipoInforme === 'musica' && (
+                    <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
+                      <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
+                      <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
+                        El trabajo rítmico estructurado en formato de círculo favorece la eliminación de jerarquías, promueve el contacto visual continuo y estimula procesos de autorregulación, atención conjunta y empatía a través de la producción de un pulso compartido.
+                      </p>
+                    </div>
+                  )}
+
+                  {tipoInforme === 'musica_brenda' && (
+                    <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
+                      <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
+                      <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
+                        La música cumple un papel fundamental en el desarrollo integral de los niños, ya que estimula el lenguaje, la creatividad y la atención. Favorece la expresión emocional, la sociabilidad y mejora la coordinación motriz. Es una herramienta que enriquece su desarrollo integral de manera lúdica significativa.
+                      </p>
+                    </div>
+                  )}
+
+                  {tipoInforme === 'psicomotricidad' && (
+                    <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
+                      <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
+                      <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
+                        El espacio de Psicomotricidad ofrece propuestas que favorecen el desarrollo integral de los estudiantes a través del movimiento, el juego y la interacción con otros. Mediante experiencias adaptadas a las posibilidades e intereses de cada alumno, se promueve la exploración corporal, la participación activa, la comunicación y la construcción de recursos que contribuyen a una mayor autonomía en los distintos contextos cotidianos. Las actividades propuestas buscan acompañar el fortalecimiento de habilidades motrices, la organización de la acción, la adaptación a diferentes situaciones y el desarrollo de estrategias que favorezcan una participación cada vez más significativa dentro de las experiencias compartidas.
+                      </p>
+                    </div>
+                  )}
+
+                  {tipoInforme === 'educacion_fisica' && (
+                    <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
+                      <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
+                      <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
+                        {['CFI', 'FINES'].includes(selectedStudent?.level?.toUpperCase()) ? 
+                         "En este ciclo lectivo, la Educación Física se propone como un espacio de encuentro, disfrute y aprendizaje a través del cuerpo. Desde una mirada inclusiva, priorizamos el desarrollo de la autonomía, la confianza y las habilidades motrices de cada alumno, respetando sus tiempos y singularidades. A través del juego cooperativo y la introducción a los deportes adaptados, buscamos que la clase sea un lugar de participación plena para todos, donde las reglas y materiales se transforman para que la diversidad enriquezca la convivencia y el aprendizaje compartido." :
+                         "En este ciclo lectivo, la Educación Física se propone como un espacio de encuentro, disfrute y aprendizaje a través del cuerpo. Desde una mirada inclusiva, priorizamos el desarrollo de la autonomía, la confianza y las habilidades motrices de cada alumno, respetando sus tiempos y singularidades. A través del juego cooperativo, buscamos que la clase sea un lugar de participación plena para todos, donde las reglas y materiales se transforman para que la diversidad enriquezca la convivencia y el aprendizaje compartido."
+                        }
+                      </p>
+                    </div>
+                  )}
+
+                  {/* 2. RÚBRICA DE INDICADORES (PARA TODOS) */}
+                  {indicadoresActuales.map(c => (
+                    <div key={c.id} className="space-y-2 mb-4 p-4 bg-gray-50 rounded-2xl">
+                      <label className="text-xs font-black uppercase text-gray-700">{c.label}</label>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                        {c.options.map(opt => {
+                          const isSelected = answers[c.id] === opt;
+                          return (
+                            <button 
+                              key={opt} 
+                              onClick={() => setAnswers(p => ({...p, [c.id]: opt}))} 
+                              className={"p-3 rounded-xl font-bold text-[10px] uppercase border-2 text-center transition-all " + (isSelected ? "bg-violet-600 text-white border-violet-700 shadow-md" : "bg-white border-gray-200 hover:border-violet-300")}
+                            >
+                              {opt}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Campo personalizado para áreas pedagógica y laboral */}
+                      {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
+                        <div className="mt-3/2">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">O escribir una opción personalizada:</label>
+                          <textarea
+                            className="w-full p-3 bg-white rounded-xl text-xs border border-gray-200 font-medium text-gray-700 placeholder-gray-400"
+                            placeholder="Escribí acá un texto a medida para este indicador..."
+                            value={answers[c.id] || ''}
+                            onChange={e => setAnswers(p => ({...p, [c.id]: e.target.value}))}
+                            rows={2}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* 3. ESPACIO DE OBSERVACIONES (MATERIAS ESPECIALES) */}
+                  {tipoInforme === 'plastica' && (
+                    <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
+                      <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
+                      <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" value={observacionesPlastica} onChange={e => setObservacionesPlastica(e.target.value)} rows={4} />
+                    </div>
+                  )}
+                  {tipoInforme === 'psicomotricidad' && (
+                    <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
+                      <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
+                      <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" value={observacionesPsicomotricidad} onChange={e => setObservacionesPsicomotricidad(e.target.value)} rows={4} />
+                    </div>
+                  )}
+                  {(tipoInforme === 'musica' || tipoInforme === 'musica_brenda') && (
+                    <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
+                      <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
+                      <textarea 
+                        className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" 
+                        placeholder="Escriba aquí las observaciones finales de música (opcional)..." 
+                        value={observacionesMusica} 
+                        onChange={e => setObservacionesMusica(e.target.value)} 
+                        rows={4}
+                      />
+                    </div>
+                  )}
+                  {tipoInforme === 'educacion_fisica' && (
+                    <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
+                      <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
+                      <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" value={observacionesEducacionFisica} onChange={e => setObservacionesEducacionFisica(e.target.value)} rows={4} />
+                    </div>
+                  )}
+
+                  {/* 4. OBJETIVOS Y OBS. CUATRIMESTRE 1 (OCULTOS EN MATERIAS ESPECIALES) */}
+                  {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
+                    <div className="mt-8 space-y-4">
+                      <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100">
+                        <label className="text-xs font-black uppercase text-violet-800 block mb-2">Observaciones sobre los objetivos planteados para el primer semestre</label>
+                        <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" placeholder="Escriba aquí las observaciones..." value={obsCuatrimestre1} onChange={e => setObsCuatrimestre1(e.target.value)} rows={4} />
+                      </div>
+                      <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100 space-y-4">
+                        <h3 className="text-sm font-black uppercase text-violet-900 border-b border-violet-200 pb-2">Objetivos para el segundo semestre</h3>
+                        <div>
+                          <label className="text-xs font-black uppercase text-violet-800 block mb-2">Objetivo Conductual</label>
+                          <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" value={objConductual} onChange={e => setObjConductual(e.target.value)} rows={2} />
+                        </div>
+                        <div>
+                          <label className="text-xs font-black uppercase text-violet-800 block mb-2">Objetivo Pedagógico</label>
+                          <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" value={objPedagogico} onChange={e => setObjPedagogico(e.target.value)} rows={2} />
+                        </div>
+                        <div>
+                          <label className="text-xs font-black uppercase text-violet-800 block mb-2">Objetivo Socioafectivo</label>
+                          <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" value={objSocioafectivo} onChange={e => setObjSocioafectivo(e.target.value)} rows={2} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="p-12 text-center text-gray-400 font-medium border-2 border-dashed border-gray-200 rounded-3xl mb-8">
+                  👆 Por favor, seleccioná Nivel 1 o Nivel 2 arriba para desplegar la rúbrica correspondiente.
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* BOTÓN GENERAL DE GUARDADO AL FINAL DEL FORMULARIO */}
+        <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 mt-6 bg-violet-800 hover:bg-violet-900 text-white font-black rounded-2xl transition-colors">
+          {isSaving ? 'Guardando...' : 'Guardar Informe'}
+        </button>
+
+        {/* DOCUMENTO DE IMPRESIÓN OCULTO DENTRO DEL MISMO STAGE PARA EVITAR ERRORES */}
+        <div id="informe-imprimir" className="hidden">
+          {selectedStudent && (() => {
+            const currentReport = savedReports.find(r => 
+              r.studentId === selectedStudent.id && 
+              r.tipoInforme === tipoInforme && 
+              r.grupo === grupoFiltro && 
+              r.periodo === periodoInforme
+            );
+
+            return (
+              <div className="pagina w-full bg-white text-black font-sans pb-4">
+                <div className="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
+                  <img src="/logosinfondo.png" alt="Logo Institucional" className="h-16 object-contain mb-3" />
+                  <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME {periodoInforme.toUpperCase()} 2026</h1>
+                  <p className="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
+                    Área: {tipoInforme === 'musica' ? 'Música (Francisco Jaime)' : tipoInforme === 'musica_brenda' ? 'Música (Brenda Celiz)' : tipoInforme}
+                  </p>
+                </div>
                 
-                {/* Contenido dinámico del informe impreso */}
-                {['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) ? (
-                  <table className="w-full text-left border-collapse mt-4 text-[11px] mb-6" style={{ breakInside: 'avoid' }}>
-                    <thead>
-                      <tr className="bg-violet-100 text-violet-900">
-                        <th className="border border-violet-200 p-2 font-black uppercase">Objetivos / Indicadores</th>
-                        <th className="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">Realiza con<br/>autonomía</th>
-                        <th className="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">Realiza con<br/>apoyo</th>
-                        <th className="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">En<br/>proceso</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                <div className="border border-violet-200 rounded-xl p-5 mb-3 bg-white shadow-sm" style={{ breakInside: 'avoid' }}>
+                  <h2 className="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Datos del Estudiante</h2>
+                  <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
+                    <p><strong className="font-black text-gray-900">Alumno/a:</strong> <span className="text-gray-700">{selectedStudent.lastName}, {selectedStudent.firstName}</span></p>
+                    <p><strong className="font-black text-gray-900">DNI:</strong> <span className="text-gray-700">{selectedStudent.dni || '....................................'}</span></p>
+                    <p><strong className="font-black text-gray-900">Fecha de Nac.:</strong> <span className="text-gray-700">{selectedStudent.birthDate || selectedStudent.fechaNac || '....................................'}</span></p>
+                    <p><strong className="font-black text-gray-900">Grupo:</strong> <span className="text-gray-700 font-bold">{grupoFiltro}</span></p>
+                    <p>
+                      <strong className="font-black text-gray-900">Docente a cargo:</strong>{" "}
+                      <span className="text-gray-700">{docentePrint || currentReport?.docente || selectedStudent.teacher || '....................................'}</span>
+                    </p>
+                    {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
+                      <p>
+                        <strong className="font-black text-gray-900">Auxiliar/Preceptora:</strong>{" "}
+                        <span className="text-gray-700">{preceptoraPrint || currentReport?.auxiliar || selectedStudent.auxiliary || '....................................'}</span>
+                      </p>
+                    )}
+                    <p className="col-span-2"><strong className="font-black text-gray-900">Año de cursada:</strong> <span className="text-gray-700">2026</span></p>
+                  </div>
+                </div>
+
+                <div className="mb-3">
+                  <h2 className="text-sm font-black text-white bg-violet-800 uppercase px-4 py-1.5 rounded-md mb-2 shadow-sm inline-block" style={{ breakInside: 'avoid' }}>
+                    Desarrollo {tipoInforme === 'musica' || tipoInforme === 'musica_brenda' ? 'Música' : tipoInforme}
+                  </h2>
+                  
+                  {['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) ? (
+                    <table className="w-full text-left border-collapse mt-4 text-[11px] mb-6" style={{ breakInside: 'avoid' }}>
+                      <thead>
+                        <tr className="bg-violet-100 text-violet-900">
+                          <th className="border border-violet-200 p-2 font-black uppercase">Objetivos / Indicadores</th>
+                          <th className="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">Realiza con<br/>autonomía</th>
+                          <th className="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">Realiza con<br/>apoyo</th>
+                          <th className="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">En<br/>proceso</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {indicadoresActuales.map(c => {
+                          const answer = answers[c.id];
+                          if (!answer) return null;
+                          return (
+                            <tr key={c.id}>
+                              <td className="border border-violet-200 p-2 font-medium text-gray-800">{c.label}</td>
+                              <td className="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">{answer === c.options[0] ? 'X' : ''}</td>
+                              <td className="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">{answer === c.options[1] ? 'X' : ''}</td>
+                              <td className="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">{answer === c.options[2] ? 'X' : ''}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="space-y-4 border-l-2 border-violet-200 ml-1 pl-4">
                       {indicadoresActuales.map(c => {
                         const answer = answers[c.id];
-                        if (!answer) return null;
+                        if (!answer) return null; 
+                        const optionIndex = c.options.indexOf(answer);
+                        let textoDescriptivo = optionIndex !== -1 ? formatearTextoImpresion(c.id, optionIndex, answer, selectedStudent?.firstName) : answer;
+                        if (!textoDescriptivo) return null;
                         return (
-                          <tr key={c.id}>
-                            <td className="border border-violet-200 p-2 font-medium text-gray-800">{c.label}</td>
-                            <td className="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">{answer === c.options[0] ? 'X' : ''}</td>
-                            <td className="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">{answer === c.options[1] ? 'X' : ''}</td>
-                            <td className="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">{answer === c.options[2] ? 'X' : ''}</td>
-                          </tr>
+                          <div key={c.id} className="text-xs flex flex-col mb-2 pb-3 border-b border-gray-100 last:border-0" style={{ breakInside: 'avoid' }}>
+                            <span className="font-black text-violet-900 uppercase text-[10px] tracking-widest mb-1">{c.label}</span>
+                            <span className="text-gray-800 leading-relaxed font-medium text-[11px]">{textoDescriptivo}</span>
+                          </div>
                         );
                       })}
-                    </tbody>
-                  </table>
-                ) : (
-                  <div className="space-y-4 border-l-2 border-violet-200 ml-1 pl-4">
-                    {indicadoresActuales.map(c => {
-                      const answer = answers[c.id];
-                      if (!answer) return null; 
-                      const optionIndex = c.options.indexOf(answer);
-                      let textoDescriptivo = optionIndex !== -1 ? formatearTextoImpresion(c.id, optionIndex, answer, selectedStudent?.firstName) : answer;
-                      if (!textoDescriptivo) return null;
-                      return (
-                        <div key={c.id} className="text-xs flex flex-col mb-2 pb-3 border-b border-gray-100 last:border-0" style={{ breakInside: 'avoid' }}>
-                          <span className="font-black text-violet-900 uppercase text-[10px] tracking-widest mb-1">{c.label}</span>
-                          <span className="text-gray-800 leading-relaxed font-medium text-[11px]">{textoDescriptivo}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+                    </div>
+                  )}
+                </div>
 
-              {/* Sello y Firmas */}
-              <div className="mt-8 pt-4 flex flex-col items-center justify-center border-t border-dashed border-gray-200" style={{ breakInside: 'avoid' }}>
-                <img src="/firmasylogo.png" alt="Sello Institucional" className="max-w-[260px] w-full object-contain mb-6 text-center" />
-                <div className="w-full flex justify-between px-12 mt-12 relative">
-                  <div className="flex flex-col items-center w-48 relative">
-                    {FIRMAS_AREAS[tipoInforme] && (
-                      <div className="absolute bottom-6 flex justify-center items-center w-full pointer-events-none">
-                        <img src={FIRMAS_AREAS[tipoInforme]} alt="Firma Docente" className="h-14 object-contain" />
-                      </div>
-                    )}
-                    <div className="w-full border-t-2 border-black mb-2"></div>
-                    <span className="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
-                  </div>
-                  <div className="flex flex-col items-center w-48">
-                    <div className="w-full border-t-2 border-black mb-2"></div>
-                    <span className="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
+                <div className="mt-8 pt-4 flex flex-col items-center justify-center border-t border-dashed border-gray-200" style={{ breakInside: 'avoid' }}>
+                  <img src="/firmasylogo.png" alt="Sello Institucional" className="max-w-[260px] w-full object-contain mb-6 text-center" />
+                  <div className="w-full flex justify-between px-12 mt-12 relative">
+                    <div className="flex flex-col items-center w-48 relative">
+                      {FIRMAS_AREAS[tipoInforme] && (
+                        <div className="absolute bottom-6 flex justify-center items-center w-full pointer-events-none">
+                          <img src={FIRMAS_AREAS[tipoInforme]} alt="Firma Docente" className="h-14 object-contain" />
+                        </div>
+                      )}
+                      <div className="w-full border-t-2 border-black mb-2"></div>
+                      <span className="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
+                    </div>
+                    <div className="flex flex-col items-center w-48">
+                      <div className="w-full border-t-2 border-black mb-2"></div>
+                      <span className="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          );
-        })()}
+            );
+          })()}
+        </div>
       </div>
-
-    </div>
-   )}
+    )}
   </div>
  );
 }
