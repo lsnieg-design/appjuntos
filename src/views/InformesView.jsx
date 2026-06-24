@@ -953,6 +953,9 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
  return (
   <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in relative">
    
+return (
+  <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in relative">
+   
   {/* MAGIA CSS PARA IMPRESIÓN (Con márgenes dinámicos según el tipo de informe) */}
 <style dangerouslySetInnerHTML={{ __html: `
  @media screen {
@@ -1047,7 +1050,10 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
    }
  }
 `}} />
-   {/* VISTA PRINCIPAL */}
+
+   {/* ========================================================================= */}
+   {/* VISTA PRINCIPAL DE ALUMNOS                                                */}
+   {/* ========================================================================= */}
    <div className={`${stage === 'main' ? 'block' : 'hidden'} print:hidden`}>
     <div className="bg-gradient-to-r from-violet-600 to-indigo-700 p-6 md:p-8 rounded-[30px] md:rounded-[40px] shadow-xl text-white mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
      <div className="w-full md:w-auto text-center md:text-left">
@@ -1331,156 +1337,162 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
           </div>
         </>
       )}
-{/* MODAL DE ESTADÍSTICAS */}
-{/* MODAL DE ESTADÍSTICAS */}
-{showStatsModal && (
-  <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-    <div className="bg-white rounded-[30px] shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
+   </div> {/* <=== ¡¡ESTE ES EL DIV QUE FALTABA!! Cierra la Vista Principal. */}
+
+
+   {/* ========================================================================= */}
+   {/* MODAL DE ESTADÍSTICAS                                                     */}
+   {/* ========================================================================= */}
+   {showStatsModal && (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+     <div className="bg-white rounded-[30px] shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
       <div className="p-6 bg-violet-800 text-white flex justify-between items-center">
-        <div>
-          <h2 className="text-xl font-black flex items-center gap-2"><PieChart size={24} /> Progreso de Carga</h2>
-          <p className="text-violet-200 text-sm">Informes del período: {periodoInforme}</p>
-        </div>
-        <button onClick={() => setShowStatsModal(false)} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors">
-          <X size={20} />
-        </button>
+       <div>
+        <h2 className="text-xl font-black flex items-center gap-2"><PieChart size={24} /> Progreso de Carga</h2>
+        <p className="text-violet-200 text-sm">Informes del período: {periodoInforme}</p>
+       </div>
+       <button onClick={() => setShowStatsModal(false)} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors">
+        <X size={20} />
+       </button>
       </div>
       <div className="p-6 overflow-y-auto space-y-6 bg-gray-50">
-        {(() => {
-          // 1. Definición limpia de la configuración inicial de áreas
-          const listaAreas = [
-            { id: 'pedagogico', label: 'Pedagógico' },
-            { id: 'laboral', label: 'Laboral' },
-            { id: 'psicomotricidad', label: 'Psicomotricidad' },
-            { id: 'plastica', label: 'Plástica' },
-            { id: 'musica', label: 'Música Fran' },
-            { id: 'musica_brenda', label: 'Música Brenda' },
-            { id: 'educacion_fisica', label: 'Ed. Física' }
-          ];
+       {(() => {
+        // 1. Definición limpia de la configuración inicial de áreas
+        const listaAreas = [
+         { id: 'pedagogico', label: 'Pedagógico' },
+         { id: 'laboral', label: 'Laboral' },
+         { id: 'psicomotricidad', label: 'Psicomotricidad' },
+         { id: 'plastica', label: 'Plástica' },
+         { id: 'musica', label: 'Música Fran' },
+         { id: 'musica_brenda', label: 'Música Brenda' },
+         { id: 'educacion_fisica', label: 'Ed. Física' }
+        ];
 
-          // 2. Filtro previo y plano de los reportes cargados en este período
-          const filtradosPorPeriodo = savedReports.filter(r => r.periodo === periodoInforme);
+        // 2. Filtro previo y plano de los reportes cargados en este período
+        const filtradosPorPeriodo = savedReports.filter(r => r.periodo === periodoInforme);
 
-          // 3. Mapeo matemático puro sin llamadas ni referencias dudosas
-          const desglosadoEstadisticas = listaAreas.map(area => {
-            let expected = 0;
-            let completed = 0;
+        // 3. Mapeo matemático puro
+        const desglosadoEstadisticas = listaAreas.map(area => {
+         let expected = 0;
+         let completed = 0;
 
-            estudiantesSede.forEach(s => {
-              const lvl = s.level ? s.level.toUpperCase() : '';
-              let expects = false;
-              
-              const groups = [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean).map(g => g.toUpperCase());
-              const hasTaller = groups.some(g => g.includes('TALLER') || g.includes('PRE TALLER') || g.includes('PRETALLER'));
-              const hasPedagogico = groups.some(g => !g.includes('TALLER') && !g.includes('PRE TALLER') && !g.includes('PRETALLER'));
+         estudiantesSede.forEach(s => {
+          const lvl = s.level ? s.level.toUpperCase() : '';
+          let expects = false;
+          
+          const groups = [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean).map(g => g.toUpperCase());
+          const hasTaller = groups.some(g => g.includes('TALLER') || g.includes('PRE TALLER') || g.includes('PRETALLER'));
+          const hasPedagogico = groups.some(g => !g.includes('TALLER') && !g.includes('PRE TALLER') && !g.includes('PRETALLER'));
 
-              if (area.id === 'pedagogico' && hasPedagogico) expects = true;
-              if (area.id === 'laboral' && hasTaller) expects = true;
-              if (area.id === 'psicomotricidad') expects = true;
-              if (area.id === 'musica') expects = true;
-              if (area.id === 'musica_brenda') expects = true;
-              if (area.id === 'plastica' && lvl !== 'INICIAL') expects = true;
-              if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CICLO')) expects = true;
+          if (area.id === 'pedagogico' && hasPedagogico) expects = true;
+          if (area.id === 'laboral' && hasTaller) expects = true;
+          if (area.id === 'psicomotricidad') expects = true;
+          if (area.id === 'musica') expects = true;
+          if (area.id === 'musica_brenda') expects = true;
+          if (area.id === 'plastica' && lvl !== 'INICIAL') expects = true;
+          if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CICLO')) expects = true;
 
-              if (expects) {
-                expected++;
-                if (filtradosPorPeriodo.some(r => r.studentId === s.id && r.tipoInforme === area.id)) {
-                  completed++;
-                }
-              }
-            });
+          if (expects) {
+           expected++;
+           if (filtradosPorPeriodo.some(r => r.studentId === s.id && r.tipoInforme === area.id)) {
+            completed++;
+           }
+          }
+         });
 
-            const percentage = expected === 0 ? 0 : Math.round((completed / expected) * 100);
-            return { ...area, expected, completed, percentage };
-          });
+         const percentage = expected === 0 ? 0 : Math.round((completed / expected) * 100);
+         return { ...area, expected, completed, percentage };
+        });
 
-          // 4. Cálculos de totales generales basados en los mapeos previos
-          const totalExpected = desglosadoEstadisticas.reduce((acc, curr) => acc + curr.expected, 0);
-          const totalCompleted = desglosadoEstadisticas.reduce((acc, curr) => acc + curr.completed, 0);
-          const totalPercentage = totalExpected === 0 ? 0 : Math.round((totalCompleted / totalExpected) * 100);
+        // 4. Cálculos de totales generales
+        const totalExpected = desglosadoEstadisticas.reduce((acc, curr) => acc + curr.expected, 0);
+        const totalCompleted = desglosadoEstadisticas.reduce((acc, curr) => acc + curr.completed, 0);
+        const totalPercentage = totalExpected === 0 ? 0 : Math.round((totalCompleted / totalExpected) * 100);
 
-          // 5. Tratamiento seguro de estados externos mediante filtrado directo de IDs
-          const totalImpresos = filtradosPorPeriodo.filter(r => reportsImpresos.includes(r.id)).length;
-          const impresosPercentage = totalCompleted === 0 ? 0 : Math.round((totalImpresos / totalCompleted) * 100);
+        // 5. Tratamiento seguro de estados externos
+        const totalImpresos = filtradosPorPeriodo.filter(r => reportsImpresos.includes(r.id)).length;
+        const impresosPercentage = totalCompleted === 0 ? 0 : Math.round((totalImpresos / totalCompleted) * 100);
 
-          const totalCorregidos = filtradosPorPeriodo.filter(r => reportsCorregidos.includes(r.id)).length;
-          const corregidosPercentage = totalCompleted === 0 ? 0 : Math.round((totalCorregidos / totalCompleted) * 100);
+        const totalCorregidos = filtradosPorPeriodo.filter(r => reportsCorregidos.includes(r.id)).length;
+        const corregidosPercentage = totalCompleted === 0 ? 0 : Math.round((totalCorregidos / totalCompleted) * 100);
 
-          return (
-            <>
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
-                {/* BARRA DE PROGRESO DE CARGA */}
-                <div className="text-center border-b pb-4">
-                  <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">Progreso Global Carga</p>
-                  <div className="flex items-end justify-center gap-2 mb-2">
-                    <span className="text-5xl font-black text-violet-700">{totalPercentage}%</span>
-                    <span className="text-gray-400 font-medium pb-1">({totalCompleted} de {totalExpected})</span>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
-                    <div className="bg-violet-600 h-3 rounded-full transition-all duration-1000" style={{ width: `${totalPercentage}%` }}></div>
-                  </div>
-                </div>
+        return (
+         <>
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
+           {/* BARRA DE PROGRESO DE CARGA */}
+           <div className="text-center border-b pb-4">
+            <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">Progreso Global Carga</p>
+            <div className="flex items-end justify-center gap-2 mb-2">
+             <span className="text-5xl font-black text-violet-700">{totalPercentage}%</span>
+             <span className="text-gray-400 font-medium pb-1">({totalCompleted} de {totalExpected})</span>
+            </div>
+            <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+             <div className="bg-violet-600 h-3 rounded-full transition-all duration-1000" style={{ width: `${totalPercentage}%` }}></div>
+            </div>
+           </div>
 
-                {/* DOBLE COLUMNA DE SEGUIMIENTO FÍSICO Y TÉCNICO */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                  {/* PROGRESO IMPRESIÓN FÍSICA */}
-                  <div className="text-center md:border-r md:pr-4">
-                    <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Total Impreso / Listo</p>
-                    <div className="flex items-end justify-center gap-1 mb-2">
-                      <span className="text-3xl font-black text-blue-600">{impresosPercentage}%</span>
-                      <span className="text-gray-400 text-xs font-bold pb-0.5">({totalImpresos} de {totalCompleted})</span>
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
-                      <div className="bg-blue-500 h-2.5 rounded-full transition-all duration-1000" style={{ width: `${impresosPercentage}%` }}></div>
-                    </div>
-                  </div>
+           {/* DOBLE COLUMNA DE SEGUIMIENTO FÍSICO Y TÉCNICO */}
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+            <div className="text-center md:border-r md:pr-4">
+             <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Total Impreso / Listo</p>
+             <div className="flex items-end justify-center gap-1 mb-2">
+              <span className="text-3xl font-black text-blue-600">{impresosPercentage}%</span>
+              <span className="text-gray-400 text-xs font-bold pb-0.5">({totalImpresos} de {totalCompleted})</span>
+             </div>
+             <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+              <div className="bg-blue-500 h-2.5 rounded-full transition-all duration-1000" style={{ width: `${impresosPercentage}%` }}></div>
+             </div>
+            </div>
 
-                  {/* PROGRESO CORRECCIÓN EQUIPO TÉCNICO */}
-                  <div className="text-center">
-                    <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Corregido por Eq. Técnico</p>
-                    <div className="flex items-end justify-center gap-1 mb-2">
-                      <span className="text-3xl font-black text-purple-600">{corregidosPercentage}%</span>
-                      <span className="text-gray-400 text-xs font-bold pb-0.5">({totalCorregidos} de {totalCompleted})</span>
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
-                      <div className="bg-purple-500 h-2.5 rounded-full transition-all duration-1000" style={{ width: `${corregidosPercentage}%` }}></div>
-                    </div>
-                  </div>
-                </div>
+            <div className="text-center">
+             <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Corregido por Eq. Técnico</p>
+             <div className="flex items-end justify-center gap-1 mb-2">
+              <span className="text-3xl font-black text-purple-600">{corregidosPercentage}%</span>
+              <span className="text-gray-400 text-xs font-bold pb-0.5">({totalCorregidos} de {totalCompleted})</span>
+             </div>
+             <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+              <div className="bg-purple-500 h-2.5 rounded-full transition-all duration-1000" style={{ width: `${corregidosPercentage}%` }}></div>
+             </div>
+            </div>
+           </div>
+          </div>
+
+          {/* DESGLOSE POR ÁREA */}
+          <div className="space-y-4">
+           <h3 className="font-black text-gray-800 uppercase text-xs tracking-widest px-2">Desglose por Área</h3>
+           {desglosadoEstadisticas.map(stat => (
+            <div key={stat.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-2">
+             <div className="flex justify-between items-center">
+              <span className="font-bold text-gray-800">{stat.label}</span>
+              <span className="text-xs font-black px-2 py-1 bg-gray-100 rounded-md text-gray-600">
+               {stat.completed} / {stat.expected} listos
+              </span>
+             </div>
+             <div className="flex items-center gap-3">
+              <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+               <div 
+                className={`h-2.5 rounded-full transition-all duration-1000 ${stat.percentage === 100 ? 'bg-emerald-500' : stat.percentage > 40 ? 'bg-indigo-500' : 'bg-amber-500'}`} 
+                style={{ width: `${stat.percentage}%` }}
+               ></div>
               </div>
-
-              {/* DESGLOSE POR ÁREA */}
-              <div className="space-y-4">
-                <h3 className="font-black text-gray-800 uppercase text-xs tracking-widest px-2">Desglose por Área</h3>
-                {desglosadoEstadisticas.map(stat => (
-                  <div key={stat.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-2">
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-gray-800">{stat.label}</span>
-                      <span className="text-xs font-black px-2 py-1 bg-gray-100 rounded-md text-gray-600">
-                        {stat.completed} / {stat.expected} listos
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
-                        <div 
-                          className={`h-2.5 rounded-full transition-all duration-1000 ${stat.percentage === 100 ? 'bg-emerald-500' : stat.percentage > 40 ? 'bg-indigo-500' : 'bg-amber-500'}`} 
-                          style={{ width: `${stat.percentage}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-xs font-black w-10 text-right text-gray-700">{stat.percentage}%</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          );
-        })()}
+              <span className="text-xs font-black w-10 text-right text-gray-700">{stat.percentage}%</span>
+             </div>
+            </div>
+           ))}
+          </div>
+         </>
+        );
+       })()}
       </div>
+     </div>
     </div>
-  </div>
-)}
-   {/* INTERFAZ DE EDICIÓN EN PANTALLA */}
-   {stage === 'form' && (
+   )}
+
+
+   {/* ========================================================================= */}
+   {/* INTERFAZ DE EDICIÓN EN PANTALLA (FORMULARIO)                              */}
+   {/* ========================================================================= */}
+   {stage === 'form' && selectedStudent && (
     <div className="bg-white p-8 rounded-[40px] shadow-lg border space-y-6 print:hidden animate-in fade-in">
      
      <div className="flex justify-between items-center mb-4">
@@ -1511,7 +1523,7 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
      </div>
 
    <div className="space-y-4">
-            
+           
     {/* BLOQUEOS DE SEGURIDAD SEGÚN NIVEL */}
     {((tipoInforme === 'plastica' && selectedStudent?.level?.toUpperCase() === 'INICIAL') || 
       (tipoInforme === 'educacion_fisica' && ['INICIAL', '1° CICLO'].includes(selectedStudent?.level?.toUpperCase())) ||
@@ -1646,38 +1658,38 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
             ))}
 
             {/* 3. ESPACIO DE OBSERVACIONES (MATERIAS ESPECIALES) */}
-            {/* 3. ESPACIO DE OBSERVACIONES (MATERIAS ESPECIALES) */}
-{tipoInforme === 'plastica' && (
-  <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
-    <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
-    <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" value={observacionesPlastica} onChange={e => setObservacionesPlastica(e.target.value)} rows={4} />
-  </div>
-)}
-{tipoInforme === 'psicomotricidad' && (
-  <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
-    <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
-    <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" value={observacionesPsicomotricidad} onChange={e => setObservacionesPsicomotricidad(e.target.value)} rows={4} />
-  </div>
-)}
-{(tipoInforme === 'musica' || tipoInforme === 'musica_brenda') && (
-  <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
-    <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
-    <textarea 
-      className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" 
-      placeholder="Escriba aquí las observaciones finales de música (opcional)..." 
-      value={observacionesMusica} 
-      onChange={e => setObservacionesMusica(e.target.value)} 
-      rows={4}
-    />
-  </div>
-)}
-{tipoInforme === 'educacion_fisica' && (
-  <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
-    <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
-    <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" value={observacionesEducacionFisica} onChange={e => setObservacionesEducacionFisica(e.target.value)} rows={4} />
-  </div>
-)}
-           {/* 4. OBJETIVOS Y OBS. CUATRIMESTRE 1 (OCULTOS EN MATERIAS ESPECIALES) */}
+            {tipoInforme === 'plastica' && (
+              <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
+                <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
+                <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" value={observacionesPlastica} onChange={e => setObservacionesPlastica(e.target.value)} rows={4} />
+              </div>
+            )}
+            {tipoInforme === 'psicomotricidad' && (
+              <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
+                <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
+                <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" value={observacionesPsicomotricidad} onChange={e => setObservacionesPsicomotricidad(e.target.value)} rows={4} />
+              </div>
+            )}
+            {(tipoInforme === 'musica' || tipoInforme === 'musica_brenda') && (
+              <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
+                <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
+                <textarea 
+                  className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" 
+                  placeholder="Escriba aquí las observaciones finales de música (opcional)..." 
+                  value={observacionesMusica} 
+                  onChange={e => setObservacionesMusica(e.target.value)} 
+                  rows={4}
+                />
+              </div>
+            )}
+            {tipoInforme === 'educacion_fisica' && (
+              <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
+                <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
+                <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" value={observacionesEducacionFisica} onChange={e => setObservacionesEducacionFisica(e.target.value)} rows={4} />
+              </div>
+            )}
+
+            {/* 4. OBJETIVOS Y OBS. CUATRIMESTRE 1 (OCULTOS EN MATERIAS ESPECIALES) */}
             {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
               <div className="mt-8 space-y-4">
                 <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100">
@@ -1747,7 +1759,7 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
                       <span className="text-gray-700">{preceptoraPrint || currentReport?.auxiliar || selectedStudent.auxiliary || '....................................'}</span>
                     </p>
                   )}
-                  <p class="col-span-2"><strong className="font-black text-gray-900">Año de cursada:</strong> <span className="text-gray-700">2026</span></p>
+                  <p className="col-span-2"><strong className="font-black text-gray-900">Año de cursada:</strong> <span className="text-gray-700">2026</span></p>
                 </div>
               </div>
 
