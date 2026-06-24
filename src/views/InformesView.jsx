@@ -685,6 +685,7 @@ export function InformesView({ user, db, appId }) {
  const [nivelFiltro, setNivelFiltro] = useState('Todos');
  const [grupoFiltro, setGrupoFiltro] = useState('Todos');
  const [reportsImpresos, setReportsImpresos] = useState([]);
+ 
  const [reportsCorregidos, setReportsCorregidos] = useState([]);
  const [nivelMusica, setNivelMusica] = useState('');
   const [observacionesMusica, setObservacionesMusica] = useState('');
@@ -719,9 +720,7 @@ export function InformesView({ user, db, appId }) {
     }
    });
   };
-  const [reportsImpresos, setReportsImpresos] = useState([]);
-// 1. NUEVO ESTADO PARA REPORTES CORREGIDOS
-const [reportsCorregidos, setReportsCorregidos] = useState([]);
+ 
 
   const handleAfterPrint = () => {
    // Destruimos el contenedor fantasma
