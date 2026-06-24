@@ -748,52 +748,79 @@ export function InformesView({ user, db, appId }) {
   };
  }, []); // <-- ACÁ CERRAMOS EL EFECTO CORRECTAMENTE
 
- // PARCHE CORRECTO Y SEGURO PARA EL CONTROL DE IMPRESIONES (SEPARADO DEL OTRO)
-// 👇 COPIÁ Y PEGÁ ESTO JUSTO DEBAJO DEL EFECTO DE IMPRESIONES
-useEffect(() => {
- if (!db || !appId || !periodoInforme) return;
- 
- let unsub = () => {};
- 
- try {
-   const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'corregidos_control', periodoInforme);
-   unsub = onSnapshot(docRef, (snap) => {
-     if (snap.exists()) {
-       setReportsCorregidos(snap.data().ids || []);
-     } else {
-       setReportsCorregidos([]);
-     }
-   }, (error) => {
-     console.error("Error en correcciones snapshot:", error);
-   });
- } catch (e) {
-   console.error("Error inicializando referencia de corrección:", e);
- }
+// =========================================================================
+  // PARCHE CORREGIDO: CONTROLES EN TIEMPO REAL (IMPRESOS Y CORREGIDOS)
+  // =========================================================================
 
- return () => {
-   if (typeof unsub === 'function') unsub();
- };
-}, [db, appId, periodoInforme]);
+  // 1. Escuchar reportes IMPRESOS desde Firebase
+  useEffect(() => {
+    if (!db || !appId || !periodoInforme) return;
+    let unsub = () => {};
+    try {
+      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'impresiones_control', periodoInforme);
+      unsub = onSnapshot(docRef, (snap) => {
+        if (snap.exists()) {
+          setReportsImpresos(snap.data().ids || []);
+        } else {
+          setReportsImpresos([]);
+        }
+      }, (error) => {
+        console.error("Error en impresiones snapshot:", error);
+      });
+    } catch (e) {
+      console.error("Error inicializando referencia de impresión:", e);
+    }
+    return () => { if (typeof unsub === 'function') unsub(); };
+  }, [db, appId, periodoInforme]);
 
-// FUNCIÓN PARA ALTERNAR LA CORRECCIÓN DEL GRUPO EN FIREBASE
-const handleAlternarCorrecionGrupo = async (alumnosGrupo, yaCorregidos) => {
- const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'corregidos_control', periodoInforme);
- 
- // Generamos los IDs únicos de los reportes de este grupo actual
- const idsGrupo = alumnosGrupo.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`);
- 
- let nuevosIds = [...reportsCorregidos];
- if (yaCorregidos) {
-   // Si ya estaban marcados, los removemos (desmarcar)
-   nuevosIds = nuevosIds.filter(id => !idsGrupo.includes(id));
- } else {
-   // Si no, los agregamos sumando solo los que no estén repetidos
-   nuevosIds = Array.from(new Set([...nuevosIds, ...idsGrupo]));
- }
- 
- await setDoc(docRef, { ids: nuevosIds }, { merge: true });
-};
+  // 2. Escuchar reportes CORREGIDOS desde Firebase
+  useEffect(() => {
+    if (!db || !appId || !periodoInforme) return;
+    let unsub = () => {};
+    try {
+      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'corregidos_control', periodoInforme);
+      unsub = onSnapshot(docRef, (snap) => {
+        if (snap.exists()) {
+          setReportsCorregidos(snap.data().ids || []);
+        } else {
+          setReportsCorregidos([]);
+        }
+      }, (error) => {
+        console.error("Error en correcciones snapshot:", error);
+      });
+    } catch (e) {
+      console.error("Error inicializando referencia de corrección:", e);
+    }
+    return () => { if (typeof unsub === 'function') unsub(); };
+  }, [db, appId, periodoInforme]);
 
+  // 3. Función para alternar estado IMPRESO en grupo
+  const handleAlternarImpresionGrupo = async (alumnosGrupo, yaImpresos) => {
+    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'impresiones_control', periodoInforme);
+    const idsGrupo = alumnosGrupo.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`);
+    
+    let nuevosIds = [...reportsImpresos];
+    if (yaImpresos) {
+      nuevosIds = nuevosIds.filter(id => !idsGrupo.includes(id));
+    } else {
+      nuevosIds = Array.from(new Set([...nuevosIds, ...idsGrupo]));
+    }
+    await setDoc(docRef, { ids: nuevosIds }, { merge: true });
+  };
+
+  // 4. Función para alternar estado CORREGIDO en grupo
+  const handleAlternarCorrecionGrupo = async (alumnosGrupo, yaCorregidos) => {
+    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'corregidos_control', periodoInforme);
+    const idsGrupo = alumnosGrupo.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`);
+    
+    let nuevosIds = [...reportsCorregidos];
+    if (yaCorregidos) {
+      nuevosIds = nuevosIds.filter(id => !idsGrupo.includes(id));
+    } else {
+      nuevosIds = Array.from(new Set([...nuevosIds, ...idsGrupo]));
+    }
+    await setDoc(docRef, { ids: nuevosIds }, { merge: true });
+  };
  useEffect(() => {
   if (!db || !appId) return;
   const qS = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'));
