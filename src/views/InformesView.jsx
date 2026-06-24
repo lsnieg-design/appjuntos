@@ -685,6 +685,7 @@ export function InformesView({ user, db, appId }) {
  const [nivelFiltro, setNivelFiltro] = useState('Todos');
  const [grupoFiltro, setGrupoFiltro] = useState('Todos');
  const [reportsImpresos, setReportsImpresos] = useState([]);
+ const [reportsCorregidos, setReportsCorregidos] = useState([]);
  const [nivelMusica, setNivelMusica] = useState('');
   const [observacionesMusica, setObservacionesMusica] = useState('');
  const [observacionesPsicomotricidad, setObservacionesPsicomotricidad] = useState('');
@@ -718,6 +719,9 @@ export function InformesView({ user, db, appId }) {
     }
    });
   };
+  const [reportsImpresos, setReportsImpresos] = useState([]);
+// 1. NUEVO ESTADO PARA REPORTES CORREGIDOS
+const [reportsCorregidos, setReportsCorregidos] = useState([]);
 
   const handleAfterPrint = () => {
    // Destruimos el contenedor fantasma
@@ -1126,69 +1130,69 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
       ) : (
         <>
         
-     {/* BOTÓN IMPRESIÓN GRUPAL */}
-          {grupoFiltro !== 'Todos' && filteredStudents.length > 0 && (
-            <div className="space-y-3">
-              <button 
-                onClick={() => {
-                  let contenedor = document.getElementById('impresion-masiva');
-                  if (!contenedor) {
-                    contenedor = document.createElement('div');
-                    contenedor.id = 'impresion-masiva';
-                    document.body.appendChild(contenedor);
-                  }
-                  
-                  const esMateriaEspecial = ['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme);
-                  contenedor.className = esMateriaEspecial ? 'print:block compacto' : 'print:block con-aire';
-                  
-                  let htmlMasivo = '';
-                  filteredStudents.forEach(s => {
-                    const report = savedReports.find(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme);
-                    if(report) {
-                      htmlMasivo += generarHTMLImpresion(s, report);
-                    }
-                  });
-                  contenedor.innerHTML = htmlMasivo;
-                  
-                  setTimeout(() => {
-                    window.print();
-                  }, 500);
-                }}
-                className="w-full mt-4 bg-emerald-600 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-emerald-700 transition"
-              >
-                <Printer size={20} /> Imprimir todos los informes del grupo ({
-                  filteredStudents.filter(s => 
-                    savedReports.some(r => r.studentId === s.id && r.tipoInforme === tipoInforme && r.grupo === grupoFiltro && r.periodo === periodoInforme)
-                  ).length
-                })
-              </button>
+  {/* BOTÓN DE CONTROL DE CONTROL DE IMPRESIÓN Y CORRECCIÓN */}
+{grupoFiltro !== 'Todos' && filteredStudents.length > 0 && (
+  <div className="space-y-3">
+    <button 
+      onClick={() => { /* ... tu lógica existente de impresión masiva ... */ }}
+      className="w-full mt-4 bg-emerald-600 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-emerald-700 transition"
+    >
+      <Printer size={20} /> Imprimir todos los informes del grupo
+    </button>
 
-              {/* BOTÓN DE CONTROL DE CONTROL DE IMPRESIÓN CORREGIDO SIN HOOKS INTERNOS */}
-              <button
-                onClick={() => {
-                  const reportesCargadosGrupo = filteredStudents
-                    .map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`)
-                    .filter(id => savedReports.some(r => r.id === id));
-                  
-                  const todosImpresos = reportesCargadosGrupo.length > 0 && 
-                    reportesCargadosGrupo.every(id => reportsImpresos.includes(id));
-                    
-                  handleAlternarImpresionGrupo(filteredStudents, todosImpresos);
-                }}
-                disabled={!filteredStudents.some(s => savedReports.some(r => r.id === `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`))}
-                className={`w-full mb-4 p-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all border-2 flex items-center justify-center gap-2 ${
-                  filteredStudents.some(s => reportsImpresos.includes(`${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`))
-                    ? 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200' 
-                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 disabled:opacity-50'
-                }`}
-              >
-                {filteredStudents.length > 0 && 
-                 filteredStudents.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`).every(id => !savedReports.some(r => r.id === id) || reportsImpresos.includes(id))
-                  ? '✅ Grupo listo (Marcar como No Impreso)' 
-                  : '🖨️ Marcar este grupo como IMPRESO'}
-              </button>
-            </div>
-          )}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {/* BOTÓN IMPRESO */}
+      <button
+        onClick={() => {
+          const reportesCargadosGrupo = filteredStudents
+            .map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`)
+            .filter(id => savedReports.some(r => r.id === id));
+          
+          const todosImpresos = reportesCargadosGrupo.length > 0 && 
+            reportesCargadosGrupo.every(id => reportsImpresos.includes(id));
+            
+          handleAlternarImpresionGrupo(filteredStudents, todosImpresos);
+        }}
+        disabled={!filteredStudents.some(s => savedReports.some(r => r.id === `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`))}
+        className={`w-full p-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all border-2 flex items-center justify-center gap-2 ${
+          filteredStudents.some(s => reportsImpresos.includes(`${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`))
+            ? 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200' 
+            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 disabled:opacity-50'
+        }`}
+      >
+        {filteredStudents.length > 0 && 
+         filteredStudents.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`).every(id => !savedReports.some(r => r.id === id) || reportsImpresos.includes(id))
+          ? '✅ Grupo Impreso (Desmarcar)' 
+          : '🖨️ Marcar grupo como IMPRESO'}
+      </button>
+
+      {/* NUEVO BOTÓN DE CORREGIDO X EQUIPO TÉCNICO */}
+      <button
+        onClick={() => {
+          const reportesCargadosGrupo = filteredStudents
+            .map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`)
+            .filter(id => savedReports.some(r => r.id === id));
+          
+          const todosCorregidos = reportesCargadosGrupo.length > 0 && 
+            reportesCargadosGrupo.every(id => reportsCorregidos.includes(id));
+            
+          handleAlternarCorrecionGrupo(filteredStudents, todosCorregidos);
+        }}
+        disabled={!filteredStudents.some(s => savedReports.some(r => r.id === `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`))}
+        className={`w-full p-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all border-2 flex items-center justify-center gap-2 ${
+          filteredStudents.some(s => reportsCorregidos.includes(`${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`))
+            ? 'bg-purple-100 text-purple-800 border-purple-300 hover:bg-purple-200' 
+            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 disabled:opacity-50'
+        }`}
+      >
+        {filteredStudents.length > 0 && 
+         filteredStudents.map(s => `${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`).every(id => !savedReports.some(r => r.id === id) || reportsCorregidos.includes(id))
+          ? '⚖️ Corregido por ET (Desmarcar)' 
+          : '📝 Marcar grupo como CORREGIDO por ET'}
+      </button>
+    </div>
+  </div>
+)}
           
           {/* LISTA DE ALUMNOS */}
           <div className="bg-white rounded-3xl shadow-sm border divide-y">
@@ -1205,27 +1209,30 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
                 );
                 
                 const yaImpreso = reportsImpresos.includes(`${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`);
+// NUEVA CONSTANTE LOCAL
+const yaCorregido = reportsCorregidos.includes(`${s.id}_${tipoInforme}_${grupoFiltro}_${periodoInforme}`);
 
-                return (
-                  <div 
-                    key={`${s.id}-${grupoFiltro}`} 
-                    className={`p-5 flex justify-between items-center transition-colors ${
-                      yaImpreso 
-                        ? 'bg-blue-50/70 border-l-4 border-blue-500' 
-                        : rActual 
-                          ? 'bg-emerald-50' 
-                          : 'hover:bg-violet-50/50'
-                    }`}
-                  >
-                    <div>
-                      <p className={`font-bold ${yaImpreso ? 'text-blue-900' : rActual ? 'text-emerald-900' : 'text-gray-900'}`}>
-                        {s.lastName}, {s.firstName}
-                      </p>
-                      <p className={`text-[10px] font-bold uppercase ${yaImpreso ? 'text-blue-600' : rActual ? 'text-emerald-600' : 'text-gray-400'}`}>
-                        {s.level} | {yaImpreso ? 'Impreso' : rActual ? `Cargado (${periodoInforme})` : 'Pendiente'}
-                      </p>
-                    </div>
-                    
+return (
+  <div 
+    key={`${s.id}-${grupoFiltro}`} 
+    className={`p-5 flex justify-between items-center transition-colors ${
+      yaImpreso 
+        ? 'bg-blue-50/70 border-l-4 border-blue-500' 
+        : yaCorregido
+          ? 'bg-purple-50 border-l-4 border-purple-400'
+          : rActual 
+            ? 'bg-emerald-50' 
+            : 'hover:bg-violet-50/50'
+    }`}
+  >
+    <div>
+      <p className={`font-bold ${yaImpreso ? 'text-blue-900' : yaCorregido ? 'text-purple-900' : rActual ? 'text-emerald-900' : 'text-gray-900'}`}>
+        {s.lastName}, {s.firstName}
+      </p>
+      <p className={`text-[10px] font-bold uppercase ${yaImpreso ? 'text-blue-600' : yaCorregido ? 'text-purple-600' : rActual ? 'text-emerald-600' : 'text-gray-400'}`}>
+        {s.level} | {yaImpreso ? 'Impreso' : rActual ? `Cargado (${periodoInforme})` : 'Pendiente'} {yaCorregido && ' | ⚖️ Corregido ET'}
+      </p>
+    </div>
                     {grupoFiltro !== 'Todos' && (
                       <div className="flex items-center gap-2">
                         {rActual && (
@@ -1266,127 +1273,146 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
       )}
     </div>
 {/* MODAL DE ESTADÍSTICAS */}
-  {showStatsModal && (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-white rounded-[30px] shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="p-6 bg-violet-800 text-white flex justify-between items-center">
-          <div>
-            <h2 className="text-xl font-black flex items-center gap-2"><PieChart size={24} /> Progreso de Carga</h2>
-            <p className="text-violet-200 text-sm">Informes del período: {periodoInforme}</p>
-          </div>
-          <button onClick={() => setShowStatsModal(false)} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors">
-            <X size={20} />
-          </button>
+{showStatsModal && (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+    <div className="bg-white rounded-[30px] shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="p-6 bg-violet-800 text-white flex justify-between items-center">
+        <div>
+          <h2 className="text-xl font-black flex items-center gap-2"><PieChart size={24} /> Progreso de Carga</h2>
+          <p className="text-violet-200 text-sm">Informes del período: {periodoInforme}</p>
         </div>
-        <div className="p-6 overflow-y-auto space-y-6 bg-gray-50">
-          {(() => {
-            const areasStats = [
+        <button onClick={() => setShowStatsModal(false)} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors">
+          <X size={20} />
+        </button>
+      </div>
+      <div className="p-6 overflow-y-auto space-y-6 bg-gray-50">
+        {(() => {
+          const areasStats = [
             { id: 'pedagogico', label: 'Pedagógico' },
-  { id: 'laboral', label: 'Laboral' },
-  { id: 'psicomotricidad', label: 'Psicomotricidad' },
-  { id: 'plastica', label: 'Plástica' },
-  { id: 'musica', label: 'Música Fran' },
-  { id: 'musica_brenda', label: 'Música Brenda' },
-  { id: 'educacion_fisica', label: 'Ed. Física' }
-            ].map(area => {
-              let expected = 0;
-              let completed = 0;
-              const reportsCurrentPeriod = savedReports.filter(r => r.periodo === periodoInforme);
+            { id: 'laboral', label: 'Laboral' },
+            { id: 'psicomotricidad', label: 'Psicomotricidad' },
+            { id: 'plastica', label: 'Plástica' },
+            { id: 'musica', label: 'Música Fran' },
+            { id: 'musica_brenda', label: 'Música Brenda' },
+            { id: 'educacion_fisica', label: 'Ed. Física' }
+          ].map(area => {
+            let expected = 0;
+            let completed = 0;
+            const reportsCurrentPeriod = savedReports.filter(r => r.periodo === periodoInforme);
 
-              estudiantesSede.forEach(s => {
-                const lvl = s.level ? s.level.toUpperCase() : '';
-                let expects = false;
-                
-                // Analizamos los grupos del alumno
-                const groups = [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean).map(g => g.toUpperCase());
-                const hasTaller = groups.some(g => g.includes('TALLER') || g.includes('PRE TALLER') || g.includes('PRETALLER'));
-                const hasPedagogico = groups.some(g => !g.includes('TALLER') && !g.includes('PRE TALLER') && !g.includes('PRETALLER'));
+            estudiantesSede.forEach(s => {
+              const lvl = s.level ? s.level.toUpperCase() : '';
+              let expects = false;
+              
+              // Analizamos los grupos del alumno
+              const groups = [s.groupMorning, s.groupAfternoon, s.laboralGroup].filter(Boolean).map(g => g.toUpperCase());
+              const hasTaller = groups.some(g => g.includes('TALLER') || g.includes('PRE TALLER') || g.includes('PRETALLER'));
+              const hasPedagogico = groups.some(g => !g.includes('TALLER') && !g.includes('PRE TALLER') && !g.includes('PRETALLER'));
 
-                // Reglas de asignación de informes
-                if (area.id === 'pedagogico' && hasPedagogico) expects = true;
-                if (area.id === 'laboral' && hasTaller) expects = true;
-                if (area.id === 'psicomotricidad') expects = true;
-                if (area.id === 'musica') expects = true;
-                if (area.id === 'musica_brenda') expects = true;
-                if (area.id === 'plastica' && lvl !== 'INICIAL') expects = true;
-                if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CICLO')) expects = true;
+              // Reglas de asignación de informes
+              if (area.id === 'pedagogico' && hasPedagogico) expects = true;
+              if (area.id === 'laboral' && hasTaller) expects = true;
+              if (area.id === 'psicomotricidad') expects = true;
+              if (area.id === 'musica') expects = true;
+              if (area.id === 'musica_brenda') expects = true;
+              if (area.id === 'plastica' && lvl !== 'INICIAL') expects = true;
+              if (area.id === 'educacion_fisica' && lvl !== 'INICIAL' && !lvl.includes('1° CICLO')) expects = true;
 
-                if (expects) {
-                  expected++;
-                  if (reportsCurrentPeriod.some(r => r.studentId === s.id && r.tipoInforme === area.id)) {
-                    completed++;
-                  }
+              if (expects) {
+                expected++;
+                if (reportsCurrentPeriod.some(r => r.studentId === s.id && r.tipoInforme === area.id)) {
+                  completed++;
                 }
-              });
-
-              const percentage = expected === 0 ? 0 : Math.round((completed / expected) * 100);
-              return { ...area, expected, completed, percentage };
+              }
             });
 
-           const totalExpected = areasStats.reduce((acc, curr) => acc + curr.expected, 0);
-            const totalCompleted = areasStats.reduce((acc, curr) => acc + curr.completed, 0);
-            const totalPercentage = totalExpected === 0 ? 0 : Math.round((totalCompleted / totalExpected) * 100);
+            const percentage = expected === 0 ? 0 : Math.round((completed / expected) * 100);
+            return { ...area, expected, completed, percentage };
+          });
 
-            // NUEVO CÁLCULO PARA IMPRESOS
-            const totalImpresos = savedReports.filter(r => r.periodo === periodoInforme && reportsImpresos.includes(r.id)).length;
-            const impresosPercentage = totalCompleted === 0 ? 0 : Math.round((totalImpresos / totalCompleted) * 100);
+          const totalExpected = areasStats.reduce((acc, curr) => acc + curr.expected, 0);
+          const totalCompleted = areasStats.reduce((acc, curr) => acc + curr.completed, 0);
+          const totalPercentage = totalExpected === 0 ? 0 : Math.round((totalCompleted / totalExpected) * 100);
 
-            return (
-              <>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-                  {/* BARRA DE PROGRESO DE CARGA (LOGÍSTICA DIGITAL) */}
-                  <div className="text-center border-b pb-4">
-                    <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">Progreso Global Carga</p>
-                    <div className="flex items-end justify-center gap-2 mb-2">
-                      <span className="text-5xl font-black text-violet-700">{totalPercentage}%</span>
-                      <span className="text-gray-400 font-medium pb-1">({totalCompleted} de {totalExpected})</span>
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
-                      <div className="bg-violet-600 h-3 rounded-full transition-all duration-1000" style={{ width: `${totalPercentage}%` }}></div>
-                    </div>
+          // CÁLCULO PARA IMPRESOS
+          const totalImpresos = savedReports.filter(r => r.periodo === periodoInforme && reportsImpresos.includes(r.id)).length;
+          const impresosPercentage = totalCompleted === 0 ? 0 : Math.round((totalImpresos / totalCompleted) * 100);
+
+          // NUEVO CÁLCULO PARA CORREGIDOS POR EL EQUIPO TÉCNICO
+          const totalCorregidos = savedReports.filter(r => r.periodo === periodoInforme && reportsCorregidos.includes(r.id)).length;
+          const corregidosPercentage = totalCompleted === 0 ? 0 : Math.round((totalCorregidos / totalCompleted) * 100);
+
+          return (
+            <>
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
+                {/* BARRA DE PROGRESO DE CARGA (LOGÍSTICA DIGITAL) */}
+                <div className="text-center border-b pb-4">
+                  <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">Progreso Global Carga</p>
+                  <div className="flex items-end justify-center gap-2 mb-2">
+                    <span className="text-5xl font-black text-violet-700">{totalPercentage}%</span>
+                    <span className="text-gray-400 font-medium pb-1">({totalCompleted} de {totalExpected})</span>
                   </div>
+                  <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                    <div className="bg-violet-600 h-3 rounded-full transition-all duration-1000" style={{ width: `${totalPercentage}%` }}></div>
+                  </div>
+                </div>
 
-                  {/* NUEVA BARRA DE PROGRESO DE IMPRESIÓN FÍSICA */}
-                  <div className="text-center pt-2">
-                    <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">Total Impreso / Listo Físico</p>
-                    <div className="flex items-end justify-center gap-2 mb-2">
-                      <span className="text-4xl font-black text-blue-600">{impresosPercentage}%</span>
-                      <span className="text-gray-400 font-medium pb-1">({totalImpresos} de {totalCompleted} cargados)</span>
+                {/* DOBLE COLUMNA DE SEGUIMIENTO FÍSICO Y TÉCNICO */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                  {/* BARRA DE PROGRESO DE IMPRESIÓN FÍSICA */}
+                  <div className="text-center md:border-r md:pr-4">
+                    <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Total Impreso / Listo</p>
+                    <div className="flex items-end justify-center gap-1 mb-2">
+                      <span className="text-3xl font-black text-blue-600">{impresosPercentage}%</span>
+                      <span className="text-gray-400 text-xs font-bold pb-0.5">({totalImpresos} de {totalCompleted})</span>
                     </div>
                     <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
                       <div className="bg-blue-500 h-2.5 rounded-full transition-all duration-1000" style={{ width: `${impresosPercentage}%` }}></div>
                     </div>
                   </div>
-                </div>
 
-            <div className="space-y-4">
-      <h3 className="font-black text-gray-800 uppercase text-xs tracking-widest px-2">Desglose por Área</h3>
-      {areasStats.map(stat => (
-        <div key={stat.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-2">
-          <div className="flex justify-between items-center">
-            <span className="font-bold text-gray-800">{stat.label}</span>
-            <span className="text-xs font-black px-2 py-1 bg-gray-100 rounded-md text-gray-600">
-              {stat.completed} / {stat.expected} listos
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
-              <div 
-                className={`h-2.5 rounded-full transition-all duration-1000 ${stat.percentage === 100 ? 'bg-emerald-500' : stat.percentage > 40 ? 'bg-indigo-500' : 'bg-amber-500'}`} 
-                style={{ width: `${stat.percentage}%` }}
-              ></div>
-            </div>
-            <span className="text-xs font-black w-10 text-right text-gray-700">{stat.percentage}%</span>
-          </div>
-        </div>
-      ))}
+                  {/* NUEVA BARRA DE PROGRESO DE CORRECCIÓN (EQUIPO TÉCNICO) */}
+                  <div className="text-center">
+                    <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Corregido por Eq. Técnico</p>
+                    <div className="flex items-end justify-center gap-1 mb-2">
+                      <span className="text-3xl font-black text-purple-600">{corregidosPercentage}%</span>
+                      <span className="text-gray-400 text-xs font-bold pb-0.5">({totalCorregidos} de {totalCompleted})</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                      <div className="bg-purple-500 h-2.5 rounded-full transition-all duration-1000" style={{ width: `${corregidosPercentage}%` }}></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="font-black text-gray-800 uppercase text-xs tracking-widest px-2">Desglose por Área</h3>
+                {areasStats.map(stat => (
+                  <div key={stat.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-2">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-gray-800">{stat.label}</span>
+                      <span className="text-xs font-black px-2 py-1 bg-gray-100 rounded-md text-gray-600">
+                        {stat.completed} / {stat.expected} listos
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                        <div 
+                          className={`h-2.5 rounded-full transition-all duration-1000 ${stat.percentage === 100 ? 'bg-emerald-500' : stat.percentage > 40 ? 'bg-indigo-500' : 'bg-amber-500'}`} 
+                          style={{ width: `${stat.percentage}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-xs font-black w-10 text-right text-gray-700">{stat.percentage}%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          );
+        })()}
+      </div>
     </div>
-  </>
-);
-})()}
-</div>
-</div>
-</div>
+  </div>
 )}
    {/* INTERFAZ DE EDICIÓN EN PANTALLA */}
    {stage === 'form' && (
