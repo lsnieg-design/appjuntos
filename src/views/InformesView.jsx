@@ -1646,37 +1646,37 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
             ))}
 
             {/* 3. ESPACIO DE OBSERVACIONES (MATERIAS ESPECIALES) */}
-            {tipoInforme === 'plastica' && (
-              <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
-                <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
-                <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" value={observacionesPlastica} onChange={e => setObservacionesPlastica(e.target.value)} rows={4} />
-              </div>
-            )}
-            {tipoInforme === 'psicomotricidad' && (
-              <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
-                <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
-                <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" value={observacionesPsicomotricidad} onChange={e => setObservationsPsicomotricidad(e.target.value)} rows={4} />
-              </div>
-            )}
-            {(tipoInforme === 'musica' || tipoInforme === 'musica_brenda') && (
-              <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
-                <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
-                <textarea 
-                  className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" 
-                  placeholder="Escriba aquí las observaciones finales de música (opcional)..." 
-                  value={observacionesMusica} 
-                  onChange={e => setObservacionesMusica(e.target.value)} 
-                  rows={4}
-                />
-              </div>
-            )}
-            {tipoInforme === 'educacion_fisica' && (
-              <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
-                <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
-                <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" value={observacionesEducacionFisica} onChange={e => setObservacionesEducacionFisica(e.target.value)} rows={4} />
-              </div>
-            )}
-
+            {/* 3. ESPACIO DE OBSERVACIONES (MATERIAS ESPECIALES) */}
+{tipoInforme === 'plastica' && (
+  <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
+    <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
+    <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" value={observacionesPlastica} onChange={e => setObservacionesPlastica(e.target.value)} rows={4} />
+  </div>
+)}
+{tipoInforme === 'psicomotricidad' && (
+  <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
+    <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
+    <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" value={observacionesPsicomotricidad} onChange={e => setObservacionesPsicomotricidad(e.target.value)} rows={4} />
+  </div>
+)}
+{(tipoInforme === 'musica' || tipoInforme === 'musica_brenda') && (
+  <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
+    <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
+    <textarea 
+      className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" 
+      placeholder="Escriba aquí las observaciones finales de música (opcional)..." 
+      value={observacionesMusica} 
+      onChange={e => setObservacionesMusica(e.target.value)} 
+      rows={4}
+    />
+  </div>
+)}
+{tipoInforme === 'educacion_fisica' && (
+  <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
+    <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
+    <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" value={observacionesEducacionFisica} onChange={e => setObservacionesEducacionFisica(e.target.value)} rows={4} />
+  </div>
+)}
             {/* 4. OBJETIVOS Y OBS. CUATRIMESTRE 1 (OCULTOS EN MATERIAS ESPECIALES) */}
             {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
               <div className="mt-8 space-y-4">
