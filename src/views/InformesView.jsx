@@ -1677,11 +1677,11 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
     <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" value={observacionesEducacionFisica} onChange={e => setObservacionesEducacionFisica(e.target.value)} rows={4} />
   </div>
 )}
-            {/* 4. OBJETIVOS Y OBS. CUATRIMESTRE 1 (OCULTOS EN MATERIAS ESPECIALES) */}
+           {/* 4. OBJETIVOS Y OBS. CUATRIMESTRE 1 (OCULTOS EN MATERIAS ESPECIALES) */}
             {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
               <div className="mt-8 space-y-4">
                 <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100">
-                  <label className="text-xs font-black uppercase text-violet-800 block mb-2">Observaciones sobre los objetivos planteados para el primer semetre</label>
+                  <label className="text-xs font-black uppercase text-violet-800 block mb-2">Observaciones sobre los objetivos planteados para el primer semestre</label>
                   <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-violet-200" placeholder="Escriba aquí las observaciones..." value={obsCuatrimestre1} onChange={e => setObsCuatrimestre1(e.target.value)} rows={4} />
                 </div>
                 <div className="p-4 bg-violet-50 rounded-2xl border border-violet-100 space-y-4">
@@ -1702,196 +1702,131 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
               </div>
             )}
           </>
-        ) : (
-          <div className="p-12 text-center text-gray-400 font-medium border-2 border-dashed border-gray-200 rounded-3xl mb-8">
-            👆 Por favor, seleccioná Nivel 1 o Nivel 2 arriba para desplegar la rúbrica correspondiente.
-          </div>
         )}
-      </>
-    )}
-  </div>
+      </div>
 
-     {/* BOTÓN GENERAL DE GUARDADO AL FINAL DEL FORMULARIO */}
-      <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 mt-6 bg-violet-800 hover:bg-violet-900 text-white font-black rounded-2xl">
+      {/* BOTÓN GENERAL DE GUARDADO AL FINAL DEL FORMULARIO */}
+      <button onClick={handleSaveInforme} disabled={isSaving} className="w-full py-4 mt-6 bg-violet-800 hover:bg-violet-900 text-white font-black rounded-2xl transition-colors">
         {isSaving ? 'Guardando...' : 'Guardar Informe'}
       </button>
-    </div>
-   )}
 
-   {/* DOCUMENTO DE IMPRESIÓN OCULTO AL FONDO (Se activa al presionar Imprimir) */}
-   {stage === 'form' && (
-    <div id="informe-imprimir" className="hidden">
-      {(() => {
-        const currentReport = savedReports.find(r => 
-          r.studentId === selectedStudent?.id && 
-          r.tipoInforme === tipoInforme && 
-          r.grupo === grupoFiltro && 
-          r.periodo === periodoInforme
-        );
+      {/* DOCUMENTO DE IMPRESIÓN OCULTO DENTRO DEL MISMO STAGE PARA EVITAR ERRORES */}
+      <div id="informe-imprimir" className="hidden">
+        {selectedStudent && (() => {
+          const currentReport = savedReports.find(r => 
+            r.studentId === selectedStudent.id && 
+            r.tipoInforme === tipoInforme && 
+            r.grupo === grupoFiltro && 
+            r.periodo === periodoInforme
+          );
 
-        return (
-          <div className="pagina w-full bg-white text-black font-sans pb-4">
-            <div className="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
-              <img src="/logosinfondo.png" alt="Logo Institucional" className="h-16 object-contain mb-3" />
-              <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME {periodoInforme.toUpperCase()} 2026</h1>
-              <p className="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
-                Área: {tipoInforme === 'musica' ? 'Música (Francisco Jaime)' : tipoInforme === 'musica_brenda' ? 'Música' : tipoInforme}
-              </p>
-            </div>
-            
-            <div className="border border-violet-200 rounded-xl p-5 mb-3 bg-white shadow-sm" style={{ breakInside: 'avoid' }}>
-              <h2 className="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Datos del Estudiante</h2>
-              <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
-                <p><strong className="font-black text-gray-900">Alumno/a:</strong> <span className="text-gray-700">{selectedStudent?.lastName}, {selectedStudent?.firstName}</span></p>
-                <p><strong className="font-black text-gray-900">DNI:</strong> <span className="text-gray-700">{selectedStudent?.dni || '....................................'}</span></p>
-                <p><strong className="font-black text-gray-900">Fecha de Nac.:</strong> <span className="text-gray-700">{selectedStudent?.birthDate || selectedStudent?.fechaNac || '....................................'}</span></p>
-                <p><strong className="font-black text-gray-900">Grupo:</strong> <span className="text-gray-700 font-bold">{grupoFiltro}</span></p>
-                <p>
-                  <strong className="font-black text-gray-900">Docente a cargo:</strong>{" "}
-                  <span className="text-gray-700">{docentePrint || currentReport?.docente || selectedStudent?.teacher || '....................................'}</span>
+          return (
+            <div className="pagina w-full bg-white text-black font-sans pb-4">
+              <div className="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
+                <img src="/logosinfondo.png" alt="Logo Institucional" className="h-16 object-contain mb-3" />
+                <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME {periodoInforme.toUpperCase()} 2026</h1>
+                <p className="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
+                  Área: {tipoInforme === 'musica' ? 'Música (Francisco Jaime)' : tipoInforme === 'musica_brenda' ? 'Música (Brenda Celiz)' : tipoInforme}
                 </p>
-                {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
-                  <p>
-                    <strong className="font-black text-gray-900">Auxiliar/Preceptora:</strong>{" "}
-                    <span className="text-gray-700">{preceptoraPrint || currentReport?.auxiliar || selectedStudent?.auxiliary || '....................................'}</span>
-                  </p>
-                )}
-                <p className="col-span-2"><strong className="font-black text-gray-900">Año de cursada:</strong> <span className="text-gray-700">2026</span></p>
               </div>
-            </div>
-
-            <div className="mb-3">
-              <h2 className="text-sm font-black text-white bg-violet-800 uppercase px-4 py-1.5 rounded-md mb-2 shadow-sm inline-block" style={{ breakInside: 'avoid' }}>
-                Desarrollo {tipoInforme === 'musica' || tipoInforme === 'musica_brenda' ? 'Música' : tipoInforme}
-              </h2>
               
-              {tipoInforme === 'musica' && (
-                <div className="mb-4" style={{ breakInside: 'avoid' }}>
-                  <h3 className="font-black uppercase text-violet-900 text-[10px] tracking-widest mb-1 border-b border-violet-100 pb-1">Fundamentación</h3>
-                  <p className="text-gray-800 leading-relaxed font-medium text-[11px] mt-2 whitespace-pre-wrap">El trabajo rítmico estructurado en formato de círculo favorece la eliminación de jerarquías, promueve el contacto visual continuo y estimula procesos de autorregulación, atención conjunta y empatía a través de la producción de un pulso compartido.</p>
+              <div className="border border-violet-200 rounded-xl p-5 mb-3 bg-white shadow-sm" style={{ breakInside: 'avoid' }}>
+                <h2 className="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Datos del Estudiante</h2>
+                <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-xs">
+                  <p><strong className="font-black text-gray-900">Alumno/a:</strong> <span className="text-gray-700">{selectedStudent.lastName}, {selectedStudent.firstName}</span></p>
+                  <p><strong className="font-black text-gray-900">DNI:</strong> <span className="text-gray-700">{selectedStudent.dni || '....................................'}</span></p>
+                  <p><strong className="font-black text-gray-900">Fecha de Nac.:</strong> <span className="text-gray-700">{selectedStudent.birthDate || selectedStudent.fechaNac || '....................................'}</span></p>
+                  <p><strong className="font-black text-gray-900">Grupo:</strong> <span className="text-gray-700 font-bold">{grupoFiltro}</span></p>
+                  <p>
+                    <strong className="font-black text-gray-900">Docente a cargo:</strong>{" "}
+                    <span className="text-gray-700">{docentePrint || currentReport?.docente || selectedStudent.teacher || '....................................'}</span>
+                  </p>
+                  {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
+                    <p>
+                      <strong className="font-black text-gray-900">Auxiliar/Preceptora:</strong>{" "}
+                      <span className="text-gray-700">{preceptoraPrint || currentReport?.auxiliar || selectedStudent.auxiliary || '....................................'}</span>
+                    </p>
+                  )}
+                  <p class="col-span-2"><strong className="font-black text-gray-900">Año de cursada:</strong> <span className="text-gray-700">2026</span></p>
                 </div>
-              )}
+              </div>
 
-              {tipoInforme === 'musica_brenda' && (
-                <div className="mb-4" style={{ breakInside: 'avoid' }}>
-                  <h3 className="font-black uppercase text-violet-900 text-[10px] tracking-widest mb-1 border-b border-violet-100 pb-1">Fundamentación</h3>
-                  <p className="text-gray-800 leading-relaxed font-medium text-[11px] mt-2 whitespace-pre-wrap">La música cumple un papel fundamental en el desarrollo integral de los niños, ya que estimula el lenguaje, la creatividad y la atención. Favorece la expresión emocional, la sociabilidad y mejora la coordinación motriz. Es una herramienta que enriquece su desarrollo integral de manera lúdica significativa.</p>
-                </div>
-              )}
-              
-              {['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) ? (
-                <table className="w-full text-left border-collapse mt-4 text-[11px] mb-6" style={{ breakInside: 'avoid' }}>
-                  <thead>
-                    <tr className="bg-violet-100 text-violet-900">
-                      <th className="border border-violet-200 p-2 font-black uppercase">Objetivos / Indicadores</th>
-                      <th className="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">Realiza con<br/>autonomía</th>
-                      <th className="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">Realiza con<br/>apoyo</th>
-                      <th className="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">En<br/>proceso</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              <div className="mb-3">
+                <h2 className="text-sm font-black text-white bg-violet-800 uppercase px-4 py-1.5 rounded-md mb-2 shadow-sm inline-block" style={{ breakInside: 'avoid' }}>
+                  Desarrollo {tipoInforme === 'musica' || tipoInforme === 'musica_brenda' ? 'Música' : tipoInforme}
+                </h2>
+                
+                {/* Contenido dinámico del informe impreso */}
+                {['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) ? (
+                  <table className="w-full text-left border-collapse mt-4 text-[11px] mb-6" style={{ breakInside: 'avoid' }}>
+                    <thead>
+                      <tr className="bg-violet-100 text-violet-900">
+                        <th className="border border-violet-200 p-2 font-black uppercase">Objetivos / Indicadores</th>
+                        <th className="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">Realiza con<br/>autonomía</th>
+                        <th className="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">Realiza con<br/>apoyo</th>
+                        <th className="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">En<br/>proceso</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {indicadoresActuales.map(c => {
+                        const answer = answers[c.id];
+                        if (!answer) return null;
+                        return (
+                          <tr key={c.id}>
+                            <td className="border border-violet-200 p-2 font-medium text-gray-800">{c.label}</td>
+                            <td className="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">{answer === c.options[0] ? 'X' : ''}</td>
+                            <td className="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">{answer === c.options[1] ? 'X' : ''}</td>
+                            <td className="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">{answer === c.options[2] ? 'X' : ''}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="space-y-4 border-l-2 border-violet-200 ml-1 pl-4">
                     {indicadoresActuales.map(c => {
                       const answer = answers[c.id];
-                      if (!answer) return null;
+                      if (!answer) return null; 
+                      const optionIndex = c.options.indexOf(answer);
+                      let textoDescriptivo = optionIndex !== -1 ? formatearTextoImpresion(c.id, optionIndex, answer, selectedStudent?.firstName) : answer;
+                      if (!textoDescriptivo) return null;
                       return (
-                        <tr key={c.id}>
-                          <td className="border border-violet-200 p-2 font-medium text-gray-800">{c.label}</td>
-                          <td className="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">{answer === c.options[0] ? 'X' : ''}</td>
-                          <td className="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">{answer === c.options[1] ? 'X' : ''}</td>
-                          <td className="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">{answer === c.options[2] ? 'X' : ''}</td>
-                        </tr>
+                        <div key={c.id} className="text-xs flex flex-col mb-2 pb-3 border-b border-gray-100 last:border-0" style={{ breakInside: 'avoid' }}>
+                          <span className="font-black text-violet-900 uppercase text-[10px] tracking-widest mb-1">{c.label}</span>
+                          <span className="text-gray-800 leading-relaxed font-medium text-[11px]">{textoDescriptivo}</span>
+                        </div>
                       );
                     })}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="space-y-4 border-l-2 border-violet-200 ml-1 pl-4">
-                  {indicadoresActuales.map(c => {
-                    const answer = answers[c.id];
-                    if (!answer) return null; 
-                    const optionIndex = c.options.indexOf(answer);
-                    let textoDescriptivo = optionIndex !== -1 ? formatearTextoImpresion(c.id, optionIndex, answer, selectedStudent?.firstName) : answer;
-                    if (!textoDescriptivo) return null;
-                    return (
-                      <div key={c.id} className="text-xs flex flex-col mb-2 pb-3 border-b border-gray-100 last:border-0" style={{ breakInside: 'avoid' }}>
-                        <span className="font-black text-violet-900 uppercase text-[10px] tracking-widest mb-1">{c.label}</span>
-                        <span className="text-gray-800 leading-relaxed font-medium text-[11px]">{textoDescriptivo}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {(() => {
-              const obsEspeciales = currentReport?.observacionesPlastica || currentReport?.observacionesMusica || currentReport?.observacionesPsicomotricidad || currentReport?.observacionesEducacionFisica || observacionesMusica || '';
-              if (['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && obsEspeciales) {
-                return (
-                  <div className="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
-                    <h2 className="font-black uppercase text-violet-900 mb-2 text-[10px] tracking-widest border-b border-violet-200 pb-1">Observaciones del período</h2>
-                    <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">{obsEspeciales}</p>
                   </div>
-                );
-              }
-              return null;
-            })()}
-
-            {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && obsCuatrimestre1 && (
-              <div className="mt-6 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
-                <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Observaciones sobre los objetivos planteados para el primer semetre</h2>
-                <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium">{obsCuatrimestre1}</p>
+                )}
               </div>
-            )}
 
-            {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (objConductual || objPedagogico || objSocioafectivo) && (
-              <div className="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style={{ breakInside: 'avoid' }}>
-                <h2 className="font-black uppercase text-violet-900 mb-2 text-sm border-b border-violet-200 pb-1">Objetivos para el segundo semestre</h2>
-                {objConductual && <div className="mb-2"><strong className="text-xs font-black text-violet-800">Objetivo Conductual:</strong><p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">{objConductual}</p></div>}
-                {objPedagogico && <div className="mb-2"><strong className="text-xs font-black text-violet-800">Objetivo Pedagógico:</strong><p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">{objPedagogico}</p></div>}
-                {objSocioafectivo && <div className="mb-2"><strong className="text-xs font-black text-violet-800">Objetivo Socioafectivo:</strong><p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">{objSocioafectivo}</p></div>}
-              </div>
-            )}
-
-            <div className="mt-8 mb-2 px-4 text-center" style={{ breakInside: 'avoid' }}>
-              <p className="text-xs text-gray-700 italic font-medium">
-                Continuaremos abordando, desde la perspective constructivista, el aprendizaje subjetivo del alumno, centrándonos en su bienestar y motivación, para avanzar durante el siguiente periodo.
-              </p>
-            </div>
-
-            <div className="mt-8 pt-4 flex flex-col items-center justify-center border-t border-dashed border-gray-200" style={{ breakInside: 'avoid' }}>
-              <img 
-                src="/firmasylogo.png" 
-                alt="Sello Institucional Juntos a la Par" 
-                className="max-w-[260px] w-full object-contain mb-6 text-center" 
-              />
-              
-              <div className="w-full flex justify-between px-12 mt-12 relative">
-                <div className="flex flex-col items-center w-48 relative">
-                  {FIRMAS_AREAS[tipoInforme] && (
-                    <div className="absolute bottom-6 flex justify-center items-center w-full pointer-events-none">
-                      <img 
-                        src={FIRMAS_AREAS[tipoInforme]} 
-                        alt="Firma del Docente Autorizada" 
-                        className="h-14 object-contain" 
-                      />
-                    </div>
-                  )}
-                  <div className="w-full border-t-2 border-black mb-2"></div>
-                  <span className="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
-                </div>
-                
-                <div className="flex flex-col items-center w-48">
-                  <div className="w-full border-t-2 border-black mb-2"></div>
-                  <span className="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
+              {/* Sello y Firmas */}
+              <div className="mt-8 pt-4 flex flex-col items-center justify-center border-t border-dashed border-gray-200" style={{ breakInside: 'avoid' }}>
+                <img src="/firmasylogo.png" alt="Sello Institucional" className="max-w-[260px] w-full object-contain mb-6 text-center" />
+                <div className="w-full flex justify-between px-12 mt-12 relative">
+                  <div className="flex flex-col items-center w-48 relative">
+                    {FIRMAS_AREAS[tipoInforme] && (
+                      <div className="absolute bottom-6 flex justify-center items-center w-full pointer-events-none">
+                        <img src={FIRMAS_AREAS[tipoInforme]} alt="Firma Docente" className="h-14 object-contain" />
+                      </div>
+                    )}
+                    <div className="w-full border-t-2 border-black mb-2"></div>
+                    <span className="text-[10px] font-black uppercase text-gray-900">Firma de Docente</span>
+                  </div>
+                  <div className="flex flex-col items-center w-48">
+                    <div className="w-full border-t-2 border-black mb-2"></div>
+                    <span className="text-[10px] font-black uppercase text-gray-900">Firma de Familia</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        );
-    })()}
+          );
+        })()}
+      </div>
+
     </div>
    )}
   </div>
- </div>
  );
 }
