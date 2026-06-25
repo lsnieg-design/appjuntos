@@ -410,26 +410,14 @@ const FIRMAS_AREAS = {
 const descargarComoWord = (s, report) => {
   const informeHTML = generarHTMLImpresion(s, report);
   
-  // Estilos "Inline" para que Word los interprete
-  const estiloWord = `
-    <style>
-      body { font-family: Calibri, sans-serif; }
-      .pagina { background-color: white; color: black; padding: 20px; }
-      h1 { color: #5b21b6; font-size: 24px; text-transform: uppercase; text-align: center; }
-      .datos-box { border: 1px solid #ddd; padding: 10px; margin-bottom: 20px; }
-      .seccion-titulo { background-color: #5b21b6; color: white; padding: 5px; font-weight: bold; }
-      img { max-width: 200px; }
-      table { border-collapse: collapse; width: 100%; }
-      td, th { border: 1px solid #ccc; padding: 5px; }
-    </style>`;
-
-  const docCompleto = `
+  const header = `
     <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-    <head><meta charset='utf-8'>${estiloWord}</head>
-    <body>${informeHTML}</body>
-    </html>`;
+    <head><meta charset='utf-8'><title>Informe</title></head>
+    <body style="font-family: Arial, sans-serif;">
+      ${informeHTML}
+    </body></html>`;
 
-  const blob = new Blob(['\ufeff', docCompleto], { type: 'application/msword' });
+  const blob = new Blob(['\ufeff', header], { type: 'application/msword' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -438,7 +426,6 @@ const descargarComoWord = (s, report) => {
   link.click();
   document.body.removeChild(link);
 };
-
   const blob = await Packer.toBlob(doc);
   saveAs(blob, `Informe_${s.lastName}.docx`);
 };
@@ -1366,21 +1353,19 @@ return (
                             <Printer size={16}/>
                           </button>
                         )}
-                     <button 
+                    <button 
   onClick={() => {
-    // Verificamos que el reporte exista antes de intentar descargar
     if (rActual) {
-      descargarComoWord(s, rActual, tipoInforme);
+      descargarComoWord(s, rActual); // <--- Llama a la función de arriba
     } else {
-      alert("Primero debes cargar el informe para poder descargarlo.");
+      alert("Primero debes cargar el informe.");
     }
   }}
   className="p-2 ml-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
   title="Descargar Word"
 >
   <FileText size={18}/>
-</button>
-                        <button 
+</button>              <button 
                           onClick={() => handleEdit(s, rActual)} 
                           className={`p-2 rounded-lg transition-colors ${rActual ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-violet-600 text-white hover:bg-violet-700'}`}
                         >
