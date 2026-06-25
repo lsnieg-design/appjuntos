@@ -972,68 +972,50 @@ return (
                 <input name="classroom" defaultValue={editingGroup.classroom || ""} className="w-full p-3 bg-slate-50 rounded-xl font-bold text-sm outline-none" />
               </div>
 
-              {/* SELECTOR DOCENTE 1 */}
-              <div>
-                <label className="text-[10px] font-black text-violet-600 uppercase ml-1 tracking-widest">Docente Titular</label>
-                <select name="teacher" defaultValue={editingGroup.teacherId || ""} className="w-full p-3 bg-violet-50 rounded-xl font-bold text-xs uppercase outline-none border border-violet-100">
-                  <option value="">Seleccionar...</option>
-                  {usersList.map(u => (
-                    <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* SELECTOR DOCENTE 2 (PAREJA) */}
-              <div>
-                <label className="text-[10px] font-black text-violet-400 uppercase ml-1 tracking-widest">Docente Pareja (Opcional)</label>
-                <select name="teacher2Id" defaultValue={editingGroup.teacherId2 || ""} className="w-full p-3 bg-slate-50 rounded-xl font-bold text-xs uppercase outline-none">
-                  <option value="">Ninguno / Vacante</option>
-                  {usersList.map(u => (
-                    <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* SELECTOR AUXILIAR */}
-              <div>
-                <label className="text-[10px] font-black text-orange-600 uppercase ml-1 tracking-widest">Auxiliar / Preceptor</label>
-                <select name="auxId" defaultValue={editingGroup.auxId || ""} className="w-full p-3 bg-orange-50 rounded-xl font-bold text-xs uppercase outline-none border border-orange-100">
-                  <option value="">Sin asignar</option>
-                  {usersList.map(u => (
-                    <option key={u.id} value={u.id}>{u.lastName}, {u.firstName}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-  <label className="text-[10px] font-black text-violet-600 uppercase">Profesores Especiales</label>
-  <div className="grid grid-cols-2 gap-2 mt-2">
-    
-    <select name="profePlastica" defaultValue={editingGroup.profePlastica || ""} className="p-2 bg-gray-50 rounded-lg text-xs font-bold border">
-      <option value="">Plástica...</option>
-   {usersList
-    .filter(u => u.role && u.role.toString().toUpperCase().includes("PROFE ESPECIAL"))
-    .map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)
-  }
-</select>
-
-    <select name="profeMusica" defaultValue={editingGroup.profeMusica || ""} className="p-2 bg-gray-50 rounded-lg text-xs font-bold border">
-      <option value="">Música...</option>
-      {usersList.filter(u => u.role === ' Profes Especiales').map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
-    </select>
-
-    <select name="profeEF" defaultValue={editingGroup.profeEF || ""} className="p-2 bg-gray-50 rounded-lg text-xs font-bold border">
-      <option value="">Ed. Física...</option>
-      {usersList.filter(u => u.role === ' Profes Especiales').map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
-    </select>
-
-    <select name="profePsico" defaultValue={editingGroup.profePsico || ""} className="p-2 bg-gray-50 rounded-lg text-xs font-bold border">
-      <option value="">Psicomotricidad...</option>
-      {usersList.filter(u => u.role === ' Profes Especiales').map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
-    </select>
-    
-  </div>
+            {/* DOCENTE TITULAR */}
+<div>
+  <label className="text-[10px] font-black text-violet-600 uppercase ml-1 tracking-widest">Docente Titular</label>
+  <select name="teacher" defaultValue={editingGroup.teacherMorning || editingGroup.teacherAfternoon || ""} className="w-full p-3 bg-violet-50 rounded-xl font-bold text-xs uppercase outline-none border border-violet-100">
+    <option value="">Seleccionar...</option>
+    {usersList.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
+  </select>
 </div>
 
+{/* DOCENTE PAREJA */}
+<div>
+  <label className="text-[10px] font-black text-violet-400 uppercase ml-1 tracking-widest">Docente Pareja</label>
+  <select name="teacher2" defaultValue={editingGroup.teacher2Morning || editingGroup.teacher2Afternoon || ""} className="w-full p-3 bg-slate-50 rounded-xl font-bold text-xs uppercase outline-none">
+    <option value="">Ninguno / Vacante</option>
+    {usersList.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
+  </select>
+</div>
+
+{/* AUXILIAR */}
+<div>
+  <label className="text-[10px] font-black text-orange-600 uppercase ml-1 tracking-widest">Auxiliar / Preceptor</label>
+  <select name="aux" defaultValue={editingGroup.auxMorning || editingGroup.auxAfternoon || ""} className="w-full p-3 bg-orange-50 rounded-xl font-bold text-xs uppercase outline-none border border-orange-100">
+    <option value="">Sin asignar</option>
+    {usersList.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
+  </select>
+</div>
+
+{/* ESPECIALES */}
+<div>
+  <label className="text-[10px] font-black text-violet-600 uppercase">Profesores Especiales</label>
+  <div className="grid grid-cols-2 gap-2 mt-2">
+    {[
+      { name: 'profePlastica', label: 'Plástica' },
+      { name: 'profeMusica', label: 'Música' },
+      { name: 'profeEF', label: 'Ed. Física' },
+      { name: 'profePsico', label: 'Psicomotricidad' }
+    ].map((esp) => (
+      <select key={esp.name} name={esp.name} defaultValue={editingGroup[esp.name] || ""} className="p-2 bg-gray-50 rounded-lg text-xs font-bold border outline-none">
+        <option value="">{esp.label}...</option>
+        {usersList.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
+      </select>
+    ))}
+  </div>
+</div>
               {/* LINKS DRIVE */}
               <div>
                 <label className="text-[10px] font-black text-emerald-600 uppercase ml-1 tracking-widest">Link Carpeta Fotos</label>
