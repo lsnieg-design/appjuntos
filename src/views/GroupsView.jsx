@@ -319,6 +319,10 @@ const gruposFinales = React.useMemo(() => {
       [`teacher2${suf}`]: getName(fd.get('teacher2Id')),
       [`auxId${suf}`]: fd.get('auxId'),
       [`aux${suf}`]: getName(fd.get('auxId')),
+      profePlastica: fd.get('profePlastica'),
+  profeMusica: fd.get('profeMusica'),
+  profeEF: fd.get('profeEF'),
+  profePsico: fd.get('profePsico')
       [`driveLink${suf}`]: fd.get('driveLink'),
       institucionalDrive: fd.get('institucionalDrive')
     };
@@ -1000,6 +1004,15 @@ return (
                   ))}
                 </select>
               </div>
+              <div>
+  <label className="text-[10px] font-black text-violet-600 uppercase">Especiales (Plástica / Música / EF / Psico)</label>
+  <div className="grid grid-cols-2 gap-2 mt-2">
+     <input name="profePlastica" defaultValue={editingGroup.profePlastica || ""} placeholder="Plástica" className="p-2 bg-gray-50 rounded-lg text-xs font-bold" />
+     <input name="profeMusica" defaultValue={editingGroup.profeMusica || ""} placeholder="Música" className="p-2 bg-gray-50 rounded-lg text-xs font-bold" />
+     <input name="profeEF" defaultValue={editingGroup.profeEF || ""} placeholder="Ed. Física" className="p-2 bg-gray-50 rounded-lg text-xs font-bold" />
+     <input name="profePsico" defaultValue={editingGroup.profePsico || ""} placeholder="Psicomotricidad" className="p-2 bg-gray-50 rounded-lg text-xs font-bold" />
+  </div>
+</div>
 
               {/* LINKS DRIVE */}
               <div>
