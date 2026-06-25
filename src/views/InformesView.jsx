@@ -407,22 +407,29 @@ const FIRMAS_AREAS = {
 // Añade esto al inicio de tu archivo:
 // <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
 
-const descargarComoWord = (s, report, tipoInforme) => {
-  // Construimos el HTML de forma limpia y directa
-  const contenido = `
-    <div style="font-family: Arial, sans-serif; padding: 20px;">
-      <h1 style="color: #5b21b6; text-align: center;">INFORME ${report.periodo.toUpperCase()} 2026</h1>
-      <h2 style="border-bottom: 2px solid #5b21b6;">Datos del Estudiante</h2>
-      <p><b>Alumno/a:</b> ${s.lastName}, ${s.firstName}</p>
-      <p><b>Grupo:</b> ${report.grupo}</p>
-      
-      <h2 style="color: #5b21b6; border-bottom: 1px solid #5b21b6; margin-top: 20px;">Desarrollo ${tipoInforme}</h2>
-      <div style="margin-top: 15px;">
-        ${document.getElementById('informe-imprimir')?.innerHTML || 'Contenido no disponible'}
-      </div>
-    </div>`;
+const descargarComoWord = (s, report) => {
+  const informeHTML = generarHTMLImpresion(s, report);
+  
+  // Estilos "Inline" para que Word los interprete
+  const estiloWord = `
+    <style>
+      body { font-family: Calibri, sans-serif; }
+      .pagina { background-color: white; color: black; padding: 20px; }
+      h1 { color: #5b21b6; font-size: 24px; text-transform: uppercase; text-align: center; }
+      .datos-box { border: 1px solid #ddd; padding: 10px; margin-bottom: 20px; }
+      .seccion-titulo { background-color: #5b21b6; color: white; padding: 5px; font-weight: bold; }
+      img { max-width: 200px; }
+      table { border-collapse: collapse; width: 100%; }
+      td, th { border: 1px solid #ccc; padding: 5px; }
+    </style>`;
 
-  const blob = new Blob(['\ufeff', contenido], { type: 'application/msword' });
+  const docCompleto = `
+    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+    <head><meta charset='utf-8'>${estiloWord}</head>
+    <body>${informeHTML}</body>
+    </html>`;
+
+  const blob = new Blob(['\ufeff', docCompleto], { type: 'application/msword' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -637,7 +644,7 @@ const generarHTMLImpresion = (s, report) => {
  return `
  <div class="pagina w-full bg-white text-black font-sans pb-4">
      <div class="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
-         <img src="/logosinfondo.png" alt="Logo Institucional" class="h-16 object-contain mb-3" />
+         <img <img src="https://tu-app-en-vercel.vercel.app/logosinfondo.png" alt="Logo Institucional" class="h-16 object-contain mb-3" />
          <h1 class="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME ${report.periodo.toUpperCase()} 2026</h1>
          <p class="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
              Área: ${subtituloArea}
@@ -1779,7 +1786,7 @@ return (
             return (
               <div className="pagina w-full bg-white text-black font-sans pb-4">
                 <div className="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
-                  <img src="/logosinfondo.png" alt="Logo Institucional" className="h-16 object-contain mb-3" />
+                  <img <img src="https://tu-app-en-vercel.vercel.app/logosinfondo.png" alt="Logo Institucional" className="h-16 object-contain mb-3" />
                   <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME {periodoInforme.toUpperCase()} 2026</h1>
                   <p className="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
                     Área: {tipoInforme === 'musica' ? 'Música (Francisco Jaime)' : tipoInforme === 'musica_brenda' ? 'Música (Brenda Celiz)' : tipoInforme}
