@@ -1010,22 +1010,22 @@ return (
     
     <select name="profePlastica" defaultValue={editingGroup.profePlastica || ""} className="p-2 bg-gray-50 rounded-lg text-xs font-bold border">
       <option value="">Plástica...</option>
-      {usersList.filter(u => u.role === 'Docente Especial').map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
+      {usersList.filter(u => u.role === 'Profe Especial').map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
     </select>
 
     <select name="profeMusica" defaultValue={editingGroup.profeMusica || ""} className="p-2 bg-gray-50 rounded-lg text-xs font-bold border">
       <option value="">Música...</option>
-      {usersList.filter(u => u.role === 'Docente Especial').map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
+      {usersList.filter(u => u.role === 'Profe Especial').map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
     </select>
 
     <select name="profeEF" defaultValue={editingGroup.profeEF || ""} className="p-2 bg-gray-50 rounded-lg text-xs font-bold border">
       <option value="">Ed. Física...</option>
-      {usersList.filter(u => u.role === 'Docente Especial').map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
+      {usersList.filter(u => u.role === 'Profe Especial').map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
     </select>
 
     <select name="profePsico" defaultValue={editingGroup.profePsico || ""} className="p-2 bg-gray-50 rounded-lg text-xs font-bold border">
       <option value="">Psicomotricidad...</option>
-      {usersList.filter(u => u.role === 'Docente Especial').map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
+      {usersList.filter(u => u.role === 'Profe Especial').map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
     </select>
     
   </div>
