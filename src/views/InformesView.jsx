@@ -405,30 +405,29 @@ const FIRMAS_AREAS = {
   laboral: null     // Sin firma digital, firman a mano
 };
 const descargarComoWord = (htmlContent, nombreArchivo) => {
-  const css = `
-    <style>
-      body { font-family: sans-serif; }
-      table { border-collapse: collapse; width: 100%; }
-      th, td { border: 1px solid #ccc; padding: 8px; }
-      .font-black { font-weight: 900; }
-      .text-violet-900 { color: #5b21b6; }
-    </style>`;
-  
-  const header = `
-    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-    <head><meta charset='utf-8'><title>${nombreArchivo}</title>${css}</head>
-    <body>`;
-  
-  const footer = "</body></html>";
-  const sourceHTML = header + htmlContent + footer;
+  const preHtml = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+  <head><meta charset='utf-8'><title>${nombreArchivo}</title>
+  <style>
+    body { font-family: Calibri, sans-serif; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 5px; }
+    .font-black { font-weight: bold; }
+  </style>
+  </head><body>`;
+  const postHtml = "</body></html>";
+  const fullHtml = preHtml + htmlContent + postHtml;
 
-  const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
-  const fileDownload = document.createElement("a");
-  document.body.appendChild(fileDownload);
-  fileDownload.href = source;
-  fileDownload.download = `${nombreArchivo}.doc`;
-  fileDownload.click();
-  document.body.removeChild(fileDownload);
+  const blob = new Blob(['\ufeff', fullHtml], {
+    type: 'application/msword'
+  });
+  
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${nombreArchivo}.doc`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };
 
 const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firstNameRaw) => {
