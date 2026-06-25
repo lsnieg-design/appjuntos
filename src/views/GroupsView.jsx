@@ -104,16 +104,20 @@ const gruposFinales = React.useMemo(() => {
 
     if (!gName) return acc;
     
-    if (!acc[gName]) {
+   if (!acc[gName]) { 
       acc[gName] = { 
         name: gName, 
         students: [], 
-        teacher: viewMode === 'Sede' ? (s[`teacher${suf}`] || 'Sin asignar') : gName, 
-        aux: viewMode === 'Sede' ? (s[`aux${suf}`] || 'S/D') : (s.originSchool || 'Escuela común'),
+        teacher: viewMode === 'Sede' ? (s[`teacher${suf}`] || '') : gName, 
+        teacher2: s[`teacher2${suf}`] || '',
+        aux: viewMode === 'Sede' ? (s[`aux${suf}`] || '') : (s.originSchool || 'Escuela común'),
+        profePlastica: s.profePlastica || '',
+        profeMusica: s.profeMusica || '',
+        profeEF: s.profeEF || '',
+        profePsico: s.profePsico || '',
         classroom: viewMode === 'Sede' ? s.classroom : s.originGrade, 
         driveLink: s[`driveLink${suf}`], 
         institucionalDrive: s.institucionalDrive,
-        // Dejamos las variables internas idénticas para no romper el JSX de abajo
         stats: { varones: 0, mujeres: 0, conDI: 0, conTEA: 0 }
       };
     }
@@ -309,31 +313,35 @@ const gruposFinales = React.useMemo(() => {
     setUpdatingGroup(true);
     const fd = new FormData(e.target);
     const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-    const getName = (id) => usersList.find(u => u.id === id)?.fullName || "";
+    
     const updates = { 
       [`group${suf}`]: fd.get('groupName'), 
       classroom: fd.get('classroom'),
-      [`teacherId${suf}`]: fd.get('teacher'),
-      [`teacher${suf}`]: getName(fd.get('teacher')),
-      [`teacherId2${suf}`]: fd.get('teacher2Id'),
-      [`teacher2${suf}`]: getName(fd.get('teacher2Id')),
-      [`auxId${suf}`]: fd.get('auxId'),
-      [`aux${suf}`]: getName(fd.get('auxId')),
-      profePlastica: fd.get('profePlastica'),
-  profeMusica: fd.get('profeMusica'),
-  profeEF: fd.get('profeEF'),
-  profePsico: fd.get('profePsico'),
-      [`driveLink${suf}`]: fd.get('driveLink'),
-      institucionalDrive: fd.get('institucionalDrive')
+      // Como el select manda el nombre directo, lo guardamos. Si falla, retenemos el anterior.
+      [`teacher${suf}`]: fd.get('teacher') || editingGroup.teacher || "",
+      [`teacher2${suf}`]: fd.get('teacher2') || editingGroup.teacher2 || "",
+      [`aux${suf}`]: fd.get('aux') || editingGroup.aux || "",
+      
+      profePlastica: fd.get('profePlastica') || editingGroup.profePlastica || "",
+      profeMusica: fd.get('profeMusica') || editingGroup.profeMusica || "",
+      profeEF: fd.get('profeEF') || editingGroup.profeEF || "",
+      profePsico: fd.get('profePsico') || editingGroup.profePsico || "",
+      
+      [`driveLink${suf}`]: fd.get('driveLink') || editingGroup.driveLink || "",
+      institucionalDrive: fd.get('institucionalDrive') || editingGroup.institucionalDrive || ""
     };
+    
     try {
       const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates));
       await Promise.all(promises);
       setEditingGroup(null);
       alert("✅ Datos del grupo actualizados.");
-    } catch (err) { alert("Error: " + err.message); } finally { setUpdatingGroup(false); }
+    } catch (err) { 
+      alert("Error: " + err.message); 
+    } finally { 
+      setUpdatingGroup(false); 
+    }
   };
-
 const deleteIncident = async (studentId, inc) => {
     if (!confirm("⚠️ ¿Seguro que querés borrar este registro de la bitácora?")) return;
     try {
@@ -972,10 +980,10 @@ return (
                 <input name="classroom" defaultValue={editingGroup.classroom || ""} className="w-full p-3 bg-slate-50 rounded-xl font-bold text-sm outline-none" />
               </div>
 
-            {/* DOCENTE TITULAR */}
+          {/* DOCENTE TITULAR */}
 <div>
   <label className="text-[10px] font-black text-violet-600 uppercase ml-1 tracking-widest">Docente Titular</label>
-  <select name="teacher" defaultValue={editingGroup.teacherMorning || editingGroup.teacherAfternoon || ""} className="w-full p-3 bg-violet-50 rounded-xl font-bold text-xs uppercase outline-none border border-violet-100">
+  <select name="teacher" defaultValue={editingGroup.teacher || ""} className="w-full p-3 bg-violet-50 rounded-xl font-bold text-xs uppercase outline-none border border-violet-100">
     <option value="">Seleccionar...</option>
     {usersList.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
   </select>
@@ -984,7 +992,7 @@ return (
 {/* DOCENTE PAREJA */}
 <div>
   <label className="text-[10px] font-black text-violet-400 uppercase ml-1 tracking-widest">Docente Pareja</label>
-  <select name="teacher2" defaultValue={editingGroup.teacher2Morning || editingGroup.teacher2Afternoon || ""} className="w-full p-3 bg-slate-50 rounded-xl font-bold text-xs uppercase outline-none">
+  <select name="teacher2" defaultValue={editingGroup.teacher2 || ""} className="w-full p-3 bg-slate-50 rounded-xl font-bold text-xs uppercase outline-none">
     <option value="">Ninguno / Vacante</option>
     {usersList.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
   </select>
@@ -993,13 +1001,13 @@ return (
 {/* AUXILIAR */}
 <div>
   <label className="text-[10px] font-black text-orange-600 uppercase ml-1 tracking-widest">Auxiliar / Preceptor</label>
-  <select name="aux" defaultValue={editingGroup.auxMorning || editingGroup.auxAfternoon || ""} className="w-full p-3 bg-orange-50 rounded-xl font-bold text-xs uppercase outline-none border border-orange-100">
+  <select name="aux" defaultValue={editingGroup.aux || ""} className="w-full p-3 bg-orange-50 rounded-xl font-bold text-xs uppercase outline-none border border-orange-100">
     <option value="">Sin asignar</option>
     {usersList.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
   </select>
 </div>
 
-{/* ESPECIALES */}
+{/* ESPECIALES (Mantén el código que ya tienes que estaba perfecto) */}
 <div>
   <label className="text-[10px] font-black text-violet-600 uppercase">Profesores Especiales</label>
   <div className="grid grid-cols-2 gap-2 mt-2">
