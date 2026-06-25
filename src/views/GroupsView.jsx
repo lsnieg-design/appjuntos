@@ -1005,12 +1005,29 @@ return (
                 </select>
               </div>
               <div>
-  <label className="text-[10px] font-black text-violet-600 uppercase">Especiales (Plástica / Música / EF / Psico)</label>
+  <label className="text-[10px] font-black text-violet-600 uppercase">Profesores Especiales</label>
   <div className="grid grid-cols-2 gap-2 mt-2">
-     <input name="profePlastica" defaultValue={editingGroup.profePlastica || ""} placeholder="Plástica" className="p-2 bg-gray-50 rounded-lg text-xs font-bold" />
-     <input name="profeMusica" defaultValue={editingGroup.profeMusica || ""} placeholder="Música" className="p-2 bg-gray-50 rounded-lg text-xs font-bold" />
-     <input name="profeEF" defaultValue={editingGroup.profeEF || ""} placeholder="Ed. Física" className="p-2 bg-gray-50 rounded-lg text-xs font-bold" />
-     <input name="profePsico" defaultValue={editingGroup.profePsico || ""} placeholder="Psicomotricidad" className="p-2 bg-gray-50 rounded-lg text-xs font-bold" />
+    
+    <select name="profePlastica" defaultValue={editingGroup.profePlastica || ""} className="p-2 bg-gray-50 rounded-lg text-xs font-bold border">
+      <option value="">Plástica...</option>
+      {usersList.filter(u => u.role === 'Docente Especial').map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
+    </select>
+
+    <select name="profeMusica" defaultValue={editingGroup.profeMusica || ""} className="p-2 bg-gray-50 rounded-lg text-xs font-bold border">
+      <option value="">Música...</option>
+      {usersList.filter(u => u.role === 'Docente Especial').map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
+    </select>
+
+    <select name="profeEF" defaultValue={editingGroup.profeEF || ""} className="p-2 bg-gray-50 rounded-lg text-xs font-bold border">
+      <option value="">Ed. Física...</option>
+      {usersList.filter(u => u.role === 'Docente Especial').map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
+    </select>
+
+    <select name="profePsico" defaultValue={editingGroup.profePsico || ""} className="p-2 bg-gray-50 rounded-lg text-xs font-bold border">
+      <option value="">Psicomotricidad...</option>
+      {usersList.filter(u => u.role === 'Docente Especial').map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
+    </select>
+    
   </div>
 </div>
 
