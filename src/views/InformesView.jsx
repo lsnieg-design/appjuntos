@@ -426,9 +426,7 @@ const descargarComoWord = (s, report) => {
   link.click();
   document.body.removeChild(link);
 };
-  const blob = await Packer.toBlob(doc);
-  saveAs(blob, `Informe_${s.lastName}.docx`);
-};
+ 
 
 const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firstNameRaw) => {
   if (!respuestaCorta || typeof respuestaCorta !== 'string') return '';
