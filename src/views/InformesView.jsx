@@ -442,9 +442,9 @@ const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firs
   const esMujer = nom.endsWith('a') && !excepcionesMasculinas.includes(nom);
 
   const gen = {
-    sujeto: esMujer ? 'La alumna' : 'El alumno',
-    Lo: esMujer ? 'La' : 'Lo',
-    lo: esMujer ? 'la' : 'lo',
+    el_la: esMujer ? 'La' : 'El',
+    lo_la: esMujer ? 'la' : 'lo',
+    Lo_La: esMujer ? 'La' : 'Lo',
     solo: esMujer ? 'sola' : 'solo',
     atento: esMujer ? 'atenta' : 'atento',
     integrarlo: esMujer ? 'integrarla' : 'integrarlo',
@@ -453,33 +453,23 @@ const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firs
     acompaniandolo: esMujer ? 'acompañándola' : 'acompañándolo'
   };
 
-  // 2. Obtener y "desnudar" el texto original (quitamos el "Nombre" inicial)
-  let textoBase = DICCIONARIO[idIndicador]?.[indiceOpcion] || respuestaCorta;
-  // Esta línea quita "Nombre " o "Nombre se encuentra en " para quedarnos con el núcleo del párrafo
-  let contenido = textoBase.replace(/^Nombre\s+(se\s+encuentra\s+en\s+la\s+|se\s+encuentra\s+en\s+|escribe\s+|comprende\s+)?/i, '').trim();
-  contenido = contenido.charAt(0).toUpperCase() + contenido.slice(1);
+  // 2. Obtener texto del diccionario
+  let textoFinal = DICCIONARIO[idIndicador]?.[indiceOpcion] || respuestaCorta;
 
-  // 3. Crear variantes de inicio aleatorias
-  const variantes = [
-    `${nombreReal} ${contenido.charAt(0).toLowerCase() + contenido.slice(1)}`, // Empieza con Nombre
-    `${gen.sujeto} ${contenido.charAt(0).toLowerCase() + contenido.slice(1)}`,  // Empieza con El/La alumno/a
-    `${contenido}`                                                               // Empieza directo con el verbo
-  ];
-  
-  let textoFinal = variantes[Math.floor(Math.random() * variantes.length)];
-
-  // 4. Reemplazos finales de género y correcciones
+  // 3. Reemplazos de nombre y género
   textoFinal = textoFinal
+    .replace(/\bNombre\b/g, nombreReal)
     .replace(/\bsolo\/a\b/gi, gen.solo)
     .replace(/\batento\/a\b/gi, gen.atento)
     .replace(/\bseguro\/a\b/gi, gen.seguro)
     .replace(/\bintegrarlo\/a\b/gi, gen.integrarlo)
     .replace(/\banimándolo\/a\b/gi, gen.animandolo)
     .replace(/\bacompañándolo\/a\b/gi, gen.acompaniandolo)
-    .replace(/\b(Lo|La) ayudamos\b/gi, gen.Lo + " ayudamos")
-    .replace(/\b(lo|la) ayudamos\b/gi, gen.lo + " ayudamos")
-    .replace(/\b(Lo|La) asistimos\b/gi, gen.Lo + " asistimos")
-    .replace(/\b(lo|la) asistimos\b/gi, gen.lo + " asistimos");
+    // Reemplazos de pronombres y verbos
+    .replace(/\b(Lo|La) ayudamos\b/gi, gen.Lo_La + " ayudamos")
+    .replace(/\b(lo|la) ayudamos\b/gi, gen.lo_la + " ayudamos")
+    .replace(/\b(Lo|La) asistimos\b/gi, gen.Lo_La + " asistimos")
+    .replace(/\b(lo|la) asistimos\b/gi, gen.lo_la + " asistimos");
 
   return textoFinal;
 };
