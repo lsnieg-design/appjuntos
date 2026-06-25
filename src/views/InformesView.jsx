@@ -404,6 +404,24 @@ const FIRMAS_AREAS = {
   pedagogico: null, // Sin firma digital, firman a mano
   laboral: null     // Sin firma digital, firman a mano
 };
+const descargarComoWord = (htmlContent, nombreArchivo) => {
+  // Convertimos el HTML a un formato que Word entienda
+  const header = `
+    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+    <head><meta charset='utf-8'><title>${nombreArchivo}</title></head>
+    <body>`;
+  const footer = "</body></html>";
+  const sourceHTML = header + htmlContent + footer;
+
+  const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
+  const fileDownload = document.createElement("a");
+  document.body.appendChild(fileDownload);
+  fileDownload.href = source;
+  fileDownload.download = `${nombreArchivo}.doc`;
+  fileDownload.click();
+  document.body.removeChild(fileDownload);
+};
+
 const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firstNameRaw) => {
   if (!respuestaCorta || typeof respuestaCorta !== 'string') return '';
 
@@ -1327,6 +1345,17 @@ return (
                             <Printer size={16}/>
                           </button>
                         )}
+                       <button 
+  onClick={() => {
+    const contenedor = document.getElementById('informe-imprimir');
+    if (contenedor) {
+      descargarComoWord(contenedor.innerHTML, `Informe_${selectedStudent.lastName}`);
+    }
+  }}
+  className="w-full py-4 mt-2 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-2xl transition-colors flex items-center justify-center gap-2"
+>
+  Descargar en Word Editable
+</button>
                         <button 
                           onClick={() => handleEdit(s, rActual)} 
                           className={`p-2 rounded-lg transition-colors ${rActual ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-violet-600 text-white hover:bg-violet-700'}`}
