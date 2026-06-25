@@ -407,23 +407,30 @@ const FIRMAS_AREAS = {
 // Añade esto al inicio de tu archivo:
 // <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
 
-const descargarComoWordPro = async (s, report) => {
-  const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType } = window.docx;
+const descargarComoWord = (s, report, tipoInforme) => {
+  // Construimos el HTML de forma limpia y directa
+  const contenido = `
+    <div style="font-family: Arial, sans-serif; padding: 20px;">
+      <h1 style="color: #5b21b6; text-align: center;">INFORME ${report.periodo.toUpperCase()} 2026</h1>
+      <h2 style="border-bottom: 2px solid #5b21b6;">Datos del Estudiante</h2>
+      <p><b>Alumno/a:</b> ${s.lastName}, ${s.firstName}</p>
+      <p><b>Grupo:</b> ${report.grupo}</p>
+      
+      <h2 style="color: #5b21b6; border-bottom: 1px solid #5b21b6; margin-top: 20px;">Desarrollo ${tipoInforme}</h2>
+      <div style="margin-top: 15px;">
+        ${document.getElementById('informe-imprimir')?.innerHTML || 'Contenido no disponible'}
+      </div>
+    </div>`;
 
-  const doc = new Document({
-    sections: [{
-      properties: {},
-      children: [
-        new Paragraph({
-          children: [new TextRun({ text: `INFORME ${report.periodo.toUpperCase()} 2026`, bold: true, size: 32 })],
-        }),
-        new Paragraph({ text: `Alumno: ${s.lastName}, ${s.firstName}` }),
-        // Aquí irías agregando cada sección:
-        new Paragraph({ text: "Desarrollo Pedagógico", heading: "Heading1" }),
-        // ... repite para cada sección
-      ],
-    }],
-  });
+  const blob = new Blob(['\ufeff', contenido], { type: 'application/msword' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `Informe_${s.lastName}.doc`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
 
   const blob = await Packer.toBlob(doc);
   saveAs(blob, `Informe_${s.lastName}.docx`);
@@ -1352,17 +1359,20 @@ return (
                             <Printer size={16}/>
                           </button>
                         )}
-                       <button 
-    onClick={() => {
-       // Generamos el HTML al vuelo usando la función que ya tenías
-       const htmlContent = generarHTMLImpresion(s, rActual);
-       descargarComoWord(htmlContent, `Informe_${s.lastName}_${s.firstName}`);
-    }}
-    className="p-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
-    title="Descargar en Word"
-  >
-    <FileText size={16}/>
-  </button>
+                     <button 
+  onClick={() => {
+    // Verificamos que el reporte exista antes de intentar descargar
+    if (rActual) {
+      descargarComoWord(s, rActual, tipoInforme);
+    } else {
+      alert("Primero debes cargar el informe para poder descargarlo.");
+    }
+  }}
+  className="p-2 ml-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+  title="Descargar Word"
+>
+  <FileText size={18}/>
+</button>
                         <button 
                           onClick={() => handleEdit(s, rActual)} 
                           className={`p-2 rounded-lg transition-colors ${rActual ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-violet-600 text-white hover:bg-violet-700'}`}
