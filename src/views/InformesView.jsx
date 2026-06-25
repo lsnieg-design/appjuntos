@@ -316,7 +316,7 @@ const DICCIONARIO = {
   `Nombre requiere sin excepción el suministro directo y de tipo constante de un conjunto de configuraciones de apoyo materializadas exclusivamente en intervenciones físicas, guía manual orientada (modelado continuo) y un contacto de orden presencial extremadamente cercano. Depende íntegramente de un soporte de encuadre altamente directivo y de altísima y recurrentes intensidad provisto por parte de la totalidad de los profesionales responsables del espacio para poder garantizar la estructuración organizativa, el propiciar y dar inicio a la tarea, y lograr finalmente un sostenimiento en el curso general del abanico de todas y cada una de las actividades. Necesita nuestra presencia física para todo y lo guiamos constantemente para que se sienta seguro/a al trabajar.`,
   `Nombre precisa la disposición integral y el uso continuo e invariable de diferentes y complementarias herramientas de formato instrumental, estructuradas de manera primordialmente externa. El estudiante logra sostenerse de una forma funcional a partir de la provisión y el diseño de elementos clave, tales como agendas visuales de rutina, estructurados sistemas visuales de anticipación paso a paso de los eventos, y puntuales soportes referenciales de carácter eminentemente e innegablemente concreto. Todo este conjunto le permite llegar a organizar temporal y secuencialmente las pautas básicas de la estructura total de todo su desempeño áulico e institucional. Usa apoyos visuales y soportes concretos para organizarse y entender qué sigue.`,
   `Nombre cuenta y evidencia de manera observable con niveles de autonomía intermedios y de carácter sumamente funcional para su desempeño. Recurre ocasionalmente al lógico y natural requerimiento de la disposición presencial de ciertos apoyos pedagógicos sumamente puntuales, breves orientaciones directivas de tipo verbal y limitadas en el tiempo, o a eventuales configuraciones de marco organizativo únicamente, y de forma casi exclusiva, cuando el estudiante debe necesariamente afrontar y estructurar el abordaje general de tareas que le resultan plenamente no familiares, transiciones de eventos consideradas atípicas para su rutina, o bien ante propuestas académicas de una notoria, evidente y comprobable complejidad de tipo cognitiva o procesual. Es bastante autónomo/a y solo nos busca para que lo guiemos en tareas nuevas o muy difíciles.`,
-  `Nombre presenta un destacado y consolidado perfil de independencia absolutamente operativa, de carácter sustained, sumamente constante e ininterrumpido en todas sus esferas dentro de la dinámica normal del aula escolar. Se desenvuelve acudiendo de forma totalmente excepcional o en la mayoría de los casos de forma directamente nula, a cualquier tipo de andamiajes de soporte estructural y orientaciones o directrices de baja intensidad. La necesidad de estos soportes mínimos, si es que logra presentarse en algún momento del ciclo, se asocia de forma exclusiva y puramente ocasional al estricto abordaje analítico, reflexivo y estratégico de complejas consignas u órdenes de trabajo que demandan y requieren estrictamente un nivel funcional de procesamiento cognitivo, de estructuración organizacional, o de un nivel de razonamiento de orden analítico marcadamente avanzado y plenamente superior. Es totalmente independiente y casi no necesita ayuda nuestra; se gestiona solo/a.`
+  `Nombre presenta un destacado y consolidado perfil de independencia absolutamente operativa, constante e ininterrumpido en todas sus esferas dentro de la dinámica normal del aula escolar. Se desenvuelve acudiendo de forma totalmente excepcional o en la mayoría de los casos de forma directamente nula, a cualquier tipo de andamiajes de soporte estructural y orientaciones o directrices de baja intensidad. La necesidad de estos soportes mínimos, si es que logra presentarse en algún momento del ciclo, se asocia de forma exclusiva y puramente ocasional al estricto abordaje analítico, reflexivo y estratégico de complejas consignas u órdenes de trabajo que demandan y requieren estrictamente un nivel funcional de procesamiento cognitivo, de estructuración organizacional, o de un nivel de razonamiento de orden analítico marcadamente avanzado y plenamente superior. Es totalmente independiente y casi no necesita ayuda nuestra; se gestiona solo/a.`
  ],
 
  // ==========================================
@@ -404,15 +404,12 @@ const FIRMAS_AREAS = {
   pedagogico: null, // Sin firma digital, firman a mano
   laboral: null     // Sin firma digital, firman a mano
 };
-// ⚠️ ACÁ ARRIBA DEJÁ TUS CONSTANTES INTACTAS: 
-// CONFIG_INDICADORES y DICCIONARIO
-
 const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firstNameRaw) => {
   if (!respuestaCorta || typeof respuestaCorta !== 'string') return '';
 
   const nombreReal = firstNameRaw ? firstNameRaw.split(' ')[0] : 'El/la estudiante';
 
-  // 1. Obtención de género
+  // 1. Lógica de género
   const nom = nombreReal.trim().toLowerCase();
   const excepcionesMasculinas = ['bautista', 'luca', 'noa', 'sasha', 'borja', 'mika', 'andrea', 'jonas'];
   const esMujer = nom.endsWith('a') && !excepcionesMasculinas.includes(nom);
@@ -422,7 +419,8 @@ const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firs
     nuestra: esMujer ? 'Nuestra alumna' : 'Nuestro alumno',
     lo: esMujer ? 'la' : 'lo',
     Lo: esMujer ? 'La' : 'Lo',
-    sujeto: esMujer ? 'la alumna' : 'el alumno'
+    // Sujeto dinámico para el inicio de frase
+    sujeto: esMujer ? 'La alumna' : 'El alumno'
   };
 
   // 2. Obtener el texto base
@@ -434,13 +432,9 @@ const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firs
     textoFinal = `Nombre ${textoMinuscula}`;
   }
 
-  // 3. Aplicar reemplazos inteligentes
-  // Reemplaza "Nombre" por el nombre real primero
-  textoFinal = textoFinal.replace(/Nombre/g, nombreReal);
-
-  // Reemplaza las estructuras de género
-  // Nota: Asegúrate de que tus textos en el DICCIONARIO usen estas frases exactas
+  // 3. Reemplazos de Género y Nombre
   textoFinal = textoFinal
+    .replace(/\bNombre\b/g, nombreReal)
     .replace(/\bEl estudiante\b|\bLa estudiante\b/gi, genero.alumno)
     .replace(/\bNuestro alumno\b|\bNuestra alumna\b/gi, genero.nuestra)
     .replace(/\bLo ayudamos\b|\bLa ayudamos\b/gi, `${genero.Lo} ayudamos`)
@@ -448,45 +442,11 @@ const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firs
     .replace(/\bLo asistimos\b|\bLa asistimos\b/gi, `${genero.Lo} asistimos`)
     .replace(/\blo asistimos\b|\bla asistimos\b/gi, `${genero.lo} asistimos`);
 
+  // 4. Limpieza final (Opcional: puedes agregar aquí lógica de "DIRECTO" si la necesitas)
+  // Si no usas más "DIRECTO_MIN" o "DIRECTO_MAY", esta parte está cubierta por los reemplazos anteriores.
+
   return textoFinal;
 };
-  const articuloEstudiante = esMujer ? 'La estudiante' : 'El estudiante';
-  const articuloAlumno = esMujer ? 'Nuestra alumna' : 'Nuestro alumno';
-
-  const opciones = [nombreReal, articuloEstudiante, articuloAlumno, nombreReal, 'DIRECTO_MIN', 'DIRECTO_MAY'];
-  return opciones[Math.floor(Math.random() * opciones.length)];
- };
-
- let textoFinal = '';
- if (DICCIONARIO[idIndicador] && DICCIONARIO[idIndicador][indiceOpcion]) {
-  textoFinal = DICCIONARIO[idIndicador][indiceOpcion];
- } else {
-  let textoMinuscula = respuestaCorta.charAt(0).toLowerCase() + respuestaCorta.slice(1);
-  textoFinal = `Se observa que Nombre ${textoMinuscula}`;
- }
-
- const sujetoDinamico = obtenerSujeto();
-
- if (sujetoDinamico === 'DIRECTO_MIN') {
-  // Remueve "Nombre se encuentra en..." o "Nombre escribe..." y arranca con la acción directa en minúscula
-  // Útil si la frase viene antecedida por conectores o limpiando el inicio.
-  textoFinal = textoFinal.replace(/^Nombre\s+(se\s+encuentra\s+en\s+la\s+|se\s+encuentra\s+en\s+|es\s+capaz\s+de\s+)?/i, '');
-  textoFinal = textoFinal.charAt(0).toLowerCase() + textoFinal.slice(1);
- } else if (sujetoDinamico === 'DIRECTO_MAY') {
-  // Remueve el nombre y fuerza a que el verbo o acción empiece con Mayúscula (Ej: "Sostiene una comunicación...")
-  textoFinal = textoFinal.replace(/^Nombre\s+(se\s+encuentra\s+en\s+la\s+|se\s+encuentra\s+en\s+|es\s+capaz\s+de\s+)?/i, '');
-  textoFinal = textoFinal.charAt(0).toUpperCase() + textoFinal.slice(1);
- } else {
-  // Reemplazo normal con Nombre, El estudiante o Nuestro alumno
-  textoFinal = textoFinal.replace('Nombre', sujetoDinamico);
- }
-
- // Limpieza final de cualquier otra aparición secundaria de la palabra clave "Nombre"
- textoFinal = textoFinal.replace(/Nombre/g, nombreReal);
-
- return textoFinal;
-};
-
 const generarHTMLImpresion = (s, report) => {
  // 1. Normalizar el tipo de informe para la lectura de rúbricas e indicadores
  const tipoInformeNormalizado = report.tipoInforme;
