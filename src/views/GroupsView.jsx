@@ -322,7 +322,7 @@ const gruposFinales = React.useMemo(() => {
       profePlastica: fd.get('profePlastica'),
   profeMusica: fd.get('profeMusica'),
   profeEF: fd.get('profeEF'),
-  profePsico: fd.get('profePsico')
+  profePsico: fd.get('profePsico'),
       [`driveLink${suf}`]: fd.get('driveLink'),
       institucionalDrive: fd.get('institucionalDrive')
     };
