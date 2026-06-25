@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Edit3, Plus, BookOpen, Printer, PieChart } from 'lucide-react';
+import { X, Edit3, Plus, BookOpen, Printer, PieChart, FileText } from 'lucide-react';
 import { doc, setDoc, onSnapshot, serverTimestamp, collection, query, deleteDoc } from 'firebase/firestore';
 
 const CONFIG_INDICADORES = {
@@ -405,11 +405,20 @@ const FIRMAS_AREAS = {
   laboral: null     // Sin firma digital, firman a mano
 };
 const descargarComoWord = (htmlContent, nombreArchivo) => {
-  // Convertimos el HTML a un formato que Word entienda
+  const css = `
+    <style>
+      body { font-family: sans-serif; }
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border: 1px solid #ccc; padding: 8px; }
+      .font-black { font-weight: 900; }
+      .text-violet-900 { color: #5b21b6; }
+    </style>`;
+  
   const header = `
     <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-    <head><meta charset='utf-8'><title>${nombreArchivo}</title></head>
+    <head><meta charset='utf-8'><title>${nombreArchivo}</title>${css}</head>
     <body>`;
+  
   const footer = "</body></html>";
   const sourceHTML = header + htmlContent + footer;
 
@@ -433,9 +442,9 @@ const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firs
   const esMujer = nom.endsWith('a') && !excepcionesMasculinas.includes(nom);
 
   const gen = {
-    el_la: esMujer ? 'La' : 'El',
-    lo_la: esMujer ? 'la' : 'lo',
-    Lo_La: esMujer ? 'La' : 'Lo',
+    sujeto: esMujer ? 'La alumna' : 'El alumno',
+    Lo: esMujer ? 'La' : 'Lo',
+    lo: esMujer ? 'la' : 'lo',
     solo: esMujer ? 'sola' : 'solo',
     atento: esMujer ? 'atenta' : 'atento',
     integrarlo: esMujer ? 'integrarla' : 'integrarlo',
@@ -444,23 +453,33 @@ const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firs
     acompaniandolo: esMujer ? 'acompañándola' : 'acompañándolo'
   };
 
-  // 2. Obtener texto del diccionario
-  let textoFinal = DICCIONARIO[idIndicador]?.[indiceOpcion] || respuestaCorta;
+  // 2. Obtener y "desnudar" el texto original (quitamos el "Nombre" inicial)
+  let textoBase = DICCIONARIO[idIndicador]?.[indiceOpcion] || respuestaCorta;
+  // Esta línea quita "Nombre " o "Nombre se encuentra en " para quedarnos con el núcleo del párrafo
+  let contenido = textoBase.replace(/^Nombre\s+(se\s+encuentra\s+en\s+la\s+|se\s+encuentra\s+en\s+|escribe\s+|comprende\s+)?/i, '').trim();
+  contenido = contenido.charAt(0).toUpperCase() + contenido.slice(1);
 
-  // 3. Reemplazos de nombre y género
+  // 3. Crear variantes de inicio aleatorias
+  const variantes = [
+    `${nombreReal} ${contenido.charAt(0).toLowerCase() + contenido.slice(1)}`, // Empieza con Nombre
+    `${gen.sujeto} ${contenido.charAt(0).toLowerCase() + contenido.slice(1)}`,  // Empieza con El/La alumno/a
+    `${contenido}`                                                               // Empieza directo con el verbo
+  ];
+  
+  let textoFinal = variantes[Math.floor(Math.random() * variantes.length)];
+
+  // 4. Reemplazos finales de género y correcciones
   textoFinal = textoFinal
-    .replace(/\bNombre\b/g, nombreReal)
     .replace(/\bsolo\/a\b/gi, gen.solo)
     .replace(/\batento\/a\b/gi, gen.atento)
     .replace(/\bseguro\/a\b/gi, gen.seguro)
     .replace(/\bintegrarlo\/a\b/gi, gen.integrarlo)
     .replace(/\banimándolo\/a\b/gi, gen.animandolo)
     .replace(/\bacompañándolo\/a\b/gi, gen.acompaniandolo)
-    // Reemplazos de pronombres y verbos
-    .replace(/\b(Lo|La) ayudamos\b/gi, gen.Lo_La + " ayudamos")
-    .replace(/\b(lo|la) ayudamos\b/gi, gen.lo_la + " ayudamos")
-    .replace(/\b(Lo|La) asistimos\b/gi, gen.Lo_La + " asistimos")
-    .replace(/\b(lo|la) asistimos\b/gi, gen.lo_la + " asistimos");
+    .replace(/\b(Lo|La) ayudamos\b/gi, gen.Lo + " ayudamos")
+    .replace(/\b(lo|la) ayudamos\b/gi, gen.lo + " ayudamos")
+    .replace(/\b(Lo|La) asistimos\b/gi, gen.Lo + " asistimos")
+    .replace(/\b(lo|la) asistimos\b/gi, gen.lo + " asistimos");
 
   return textoFinal;
 };
@@ -1346,16 +1365,16 @@ return (
                           </button>
                         )}
                        <button 
-  onClick={() => {
-    const contenedor = document.getElementById('informe-imprimir');
-    if (contenedor) {
-      descargarComoWord(contenedor.innerHTML, `Informe_${selectedStudent.lastName}`);
-    }
-  }}
-  className="w-full py-4 mt-2 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-2xl transition-colors flex items-center justify-center gap-2"
->
-  Descargar en Word Editable
-</button>
+    onClick={() => {
+       // Generamos el HTML al vuelo usando la función que ya tenías
+       const htmlContent = generarHTMLImpresion(s, rActual);
+       descargarComoWord(htmlContent, `Informe_${s.lastName}_${s.firstName}`);
+    }}
+    className="p-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+    title="Descargar en Word"
+  >
+    <FileText size={16}/>
+  </button>
                         <button 
                           onClick={() => handleEdit(s, rActual)} 
                           className={`p-2 rounded-lg transition-colors ${rActual ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-violet-600 text-white hover:bg-violet-700'}`}
