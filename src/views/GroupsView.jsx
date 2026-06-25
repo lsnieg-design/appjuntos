@@ -1010,8 +1010,12 @@ return (
     
     <select name="profePlastica" defaultValue={editingGroup.profePlastica || ""} className="p-2 bg-gray-50 rounded-lg text-xs font-bold border">
       <option value="">Plástica...</option>
-      {usersList.filter(u => u.role === ' PROFE ESPECIAL').map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
-    </select>
+    {usersList.map(u => (
+    <option key={u.id} value={u.fullName}>
+       {u.fullName} ({u.role})
+    </option>
+  ))}
+</select>
 
     <select name="profeMusica" defaultValue={editingGroup.profeMusica || ""} className="p-2 bg-gray-50 rounded-lg text-xs font-bold border">
       <option value="">Música...</option>
