@@ -409,48 +409,40 @@ const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firs
 
   const nombreReal = firstNameRaw ? firstNameRaw.split(' ')[0] : 'El/la estudiante';
 
-  // 1. Detectar género
+  // 1. Detección de género
   const nom = nombreReal.trim().toLowerCase();
   const excepcionesMasculinas = ['bautista', 'luca', 'noa', 'sasha', 'borja', 'mika', 'andrea', 'jonas'];
   const esMujer = nom.endsWith('a') && !excepcionesMasculinas.includes(nom);
 
   const gen = {
-    alumno: esMujer ? 'La estudiante' : 'El estudiante',
-    alumnoMin: esMujer ? 'la estudiante' : 'el estudiante',
-    nuestra: esMujer ? 'Nuestra alumna' : 'Nuestro alumno',
-    lo: esMujer ? 'la' : 'lo',
-    Lo: esMujer ? 'La' : 'Lo',
-    sujeto: esMujer ? 'La alumna' : 'El alumno'
+    el_la: esMujer ? 'La' : 'El',
+    lo_la: esMujer ? 'la' : 'lo',
+    Lo_La: esMujer ? 'La' : 'Lo',
+    solo: esMujer ? 'sola' : 'solo',
+    atento: esMujer ? 'atenta' : 'atento',
+    integrarlo: esMujer ? 'integrarla' : 'integrarlo',
+    seguro: esMujer ? 'segura' : 'seguro',
+    animandolo: esMujer ? 'animándola' : 'animándolo',
+    acompaniandolo: esMujer ? 'acompañándola' : 'acompañándolo'
   };
 
-  // 2. Obtener texto del diccionario y limpiar prefijo "Nombre"
-  let rawText = DICCIONARIO[idIndicador]?.[indiceOpcion] || respuestaCorta;
-  // Quitamos "Nombre " o "Nombre se encuentra en..." para poder reconstruir la frase
-  let textoBase = rawText.replace(/^Nombre\s+(se\s+encuentra\s+en\s+(la\s+|el\s+)?|escribe\s+|comprende\s+)?/i, '').trim();
-  textoBase = textoBase.charAt(0).toLowerCase() + textoBase.slice(1);
+  // 2. Obtener texto del diccionario
+  let textoFinal = DICCIONARIO[idIndicador]?.[indiceOpcion] || respuestaCorta;
 
-  // 3. Elegir una variante aleatoria
-  const variantes = ['NOMBRE', 'ARTICULO', 'DIRECTO'];
-  const estilo = variantes[Math.floor(Math.random() * variantes.length)];
-
-  let textoFinal = '';
-  if (estilo === 'NOMBRE') {
-    textoFinal = `${nombreReal} ${textoBase}`;
-  } else if (estilo === 'ARTICULO') {
-    textoFinal = `${gen.alumno} ${textoBase}`;
-  } else {
-    // ESTILO DIRECTO: Ponemos en mayúscula la primera letra del texto base
-    textoFinal = textoBase.charAt(0).toUpperCase() + textoBase.slice(1);
-  }
-
-  // 4. Corrección gramatical de género en toda la oración
+  // 3. Reemplazos de nombre y género
   textoFinal = textoFinal
-    .replace(/\bLo ayudamos\b|\bLa ayudamos\b/gi, `${gen.Lo} ayudamos`)
-    .replace(/\blo ayudamos\b|\bla ayudamos\b/gi, `${gen.lo} ayudamos`)
-    .replace(/\bLo asistimos\b|\bLa asistimos\b/gi, `${gen.Lo} asistimos`)
-    .replace(/\blo asistimos\b|\bla asistimos\b/gi, `${gen.lo} asistimos`)
-    .replace(/\bEl estudiante\b|\bLa estudiante\b/gi, gen.alumno)
-    .replace(/\bNuestro alumno\b|\bNuestra alumna\b/gi, gen.nuestra);
+    .replace(/\bNombre\b/g, nombreReal)
+    .replace(/\bsolo\/a\b/gi, gen.solo)
+    .replace(/\batento\/a\b/gi, gen.atento)
+    .replace(/\bseguro\/a\b/gi, gen.seguro)
+    .replace(/\bintegrarlo\/a\b/gi, gen.integrarlo)
+    .replace(/\banimándolo\/a\b/gi, gen.animandolo)
+    .replace(/\bacompañándolo\/a\b/gi, gen.acompaniandolo)
+    // Reemplazos de pronombres y verbos
+    .replace(/\b(Lo|La) ayudamos\b/gi, gen.Lo_La + " ayudamos")
+    .replace(/\b(lo|la) ayudamos\b/gi, gen.lo_la + " ayudamos")
+    .replace(/\b(Lo|La) asistimos\b/gi, gen.Lo_La + " asistimos")
+    .replace(/\b(lo|la) asistimos\b/gi, gen.lo_la + " asistimos");
 
   return textoFinal;
 };
