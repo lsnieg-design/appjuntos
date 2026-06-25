@@ -408,17 +408,48 @@ const FIRMAS_AREAS = {
 // CONFIG_INDICADORES y DICCIONARIO
 
 const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firstNameRaw) => {
- if (!respuestaCorta || typeof respuestaCorta !== 'string') return '';
+  if (!respuestaCorta || typeof respuestaCorta !== 'string') return '';
 
- const nombreReal = firstNameRaw ? firstNameRaw.split(' ')[0] : 'El/la estudiante';
+  const nombreReal = firstNameRaw ? firstNameRaw.split(' ')[0] : 'El/la estudiante';
 
- const obtenerSujeto = () => {
+  // 1. Obtención de género
   const nom = nombreReal.trim().toLowerCase();
-  const excepcionesMasculinas = ['bautista', 'luca', 'noa', 'sasha', 'borja', 'mika', 'andrea'];
-  let esMujer = false;
-  if (nom.endsWith('a') && !excepcionesMasculinas.includes(nom)) {
-   esMujer = true;
+  const excepcionesMasculinas = ['bautista', 'luca', 'noa', 'sasha', 'borja', 'mika', 'andrea', 'jonas'];
+  const esMujer = nom.endsWith('a') && !excepcionesMasculinas.includes(nom);
+
+  const genero = {
+    alumno: esMujer ? 'La estudiante' : 'El estudiante',
+    nuestra: esMujer ? 'Nuestra alumna' : 'Nuestro alumno',
+    lo: esMujer ? 'la' : 'lo',
+    Lo: esMujer ? 'La' : 'Lo',
+    sujeto: esMujer ? 'la alumna' : 'el alumno'
+  };
+
+  // 2. Obtener el texto base
+  let textoFinal = '';
+  if (DICCIONARIO[idIndicador] && DICCIONARIO[idIndicador][indiceOpcion]) {
+    textoFinal = DICCIONARIO[idIndicador][indiceOpcion];
+  } else {
+    let textoMinuscula = respuestaCorta.charAt(0).toLowerCase() + respuestaCorta.slice(1);
+    textoFinal = `Nombre ${textoMinuscula}`;
   }
+
+  // 3. Aplicar reemplazos inteligentes
+  // Reemplaza "Nombre" por el nombre real primero
+  textoFinal = textoFinal.replace(/Nombre/g, nombreReal);
+
+  // Reemplaza las estructuras de género
+  // Nota: Asegúrate de que tus textos en el DICCIONARIO usen estas frases exactas
+  textoFinal = textoFinal
+    .replace(/\bEl estudiante\b|\bLa estudiante\b/gi, genero.alumno)
+    .replace(/\bNuestro alumno\b|\bNuestra alumna\b/gi, genero.nuestra)
+    .replace(/\bLo ayudamos\b|\bLa ayudamos\b/gi, `${genero.Lo} ayudamos`)
+    .replace(/\blo ayudamos\b|\bla ayudamos\b/gi, `${genero.lo} ayudamos`)
+    .replace(/\bLo asistimos\b|\bLa asistimos\b/gi, `${genero.Lo} asistimos`)
+    .replace(/\blo asistimos\b|\bla asistimos\b/gi, `${genero.lo} asistimos`);
+
+  return textoFinal;
+};
   const articuloEstudiante = esMujer ? 'La estudiante' : 'El estudiante';
   const articuloAlumno = esMujer ? 'Nuestra alumna' : 'Nuestro alumno';
 
