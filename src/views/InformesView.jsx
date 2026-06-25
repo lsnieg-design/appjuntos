@@ -860,43 +860,59 @@ const filteredStudents = estudiantesSede.filter(s => {
 });
 
 const handleEdit = (student, report) => {
- setSelectedStudent(student);
- 
- // PARCHE DE EMERGENCIA: Si el informe viejo se guardó como 'musica',
- // nos aseguramos de que el formulario de 'musica' herede todas sus respuestas intactas.
- setAnswers(report?.answers || {});
- 
- setObsCuatrimestre1(report?.obsCuatrimestre1 || '');
- setObjConductual(report?.objConductual || '');
- setObjPedagogico(report?.objPedagogico || '');
- setObjSocioafectivo(report?.objSocioafectivo || '');
- setNivelMusica(report?.nivelMusica || '');
- setObservacionesMusica(report?.observacionesMusica || report?.observacionesPsicomotricidad || report?.observacionesEducacionFisica || '');
- setObservacionesPsicomotricidad(report?.observacionesPsicomotricidad || '');
- setObservacionesEducacionFisica(report?.observacionesEducacionFisica || '');
+  setSelectedStudent(student);
   
- let docenteAsignado = student.teacher || student.docente || '';
- if (tipoInforme === 'musica') docenteAsignado = 'Francisco Jaime';
- if (tipoInforme === 'musica_brenda') docenteAsignado = 'Brenda Celiz';
- if (tipoInforme === 'plastica') docenteAsignado = 'Rosario Cozzarín';
- if (tipoInforme === 'educacion_fisica') docenteAsignado = 'Juan Cruz Ricchi';
- if (tipoInforme === 'psicomotricidad') docenteAsignado = 'Pablo Pagliuca';
+  // Mantenemos las respuestas y observaciones previas intactas
+  setAnswers(report?.answers || {});
+  setObsCuatrimestre1(report?.obsCuatrimestre1 || '');
+  setObjConductual(report?.objConductual || '');
+  setObjPedagogico(report?.objPedagogico || '');
+  setObjSocioafectivo(report?.objSocioafectivo || '');
+  setNivelMusica(report?.nivelMusica || '');
+  setObservacionesMusica(report?.observacionesMusica || report?.observacionesPsicomotricidad || report?.observacionesEducacionFisica || '');
+  setObservacionesPsicomotricidad(report?.observacionesPsicomotricidad || '');
+  setObservacionesEducacionFisica(report?.observacionesEducacionFisica || '');
   
- setDocentePrint(docenteAsignado);
+  // --- LÓGICA DINÁMICA DE NOMBRES ---
+  // Buscamos si hay un informe previo en el grupo para extraer los profes especiales
+  const grupoData = savedReports.find(r => r.grupo === student.groupMorning || r.grupo === student.groupAfternoon);
   
- let defaultPlastica = '';
- const lvl = student?.level?.toUpperCase() || '';
- if (lvl.includes('1° CICLO')) {
-    defaultPlastica = '- El espacio, aprovechamiento y utilización consciente del plano.\n- El color.\n- Textura visual y táctil.';
- } else if (lvl.includes('2° CICLO')) {
-    defaultPlastica = 'Organización dentro del plano.\n- Textura visual y táctil.\n- El color.';
- } else if (lvl.includes('CFI')) {
-    defaultPlastica = 'Espacio plástico bidimensional. El marco. Límite de la obra.\n- Texturas. Textura visual y táctil.\n- El color. Mezclas.\n- La composición.';
- }
- setContenidosPlastica(report?.contenidosPlastica || defaultPlastica);
- setObservacionesPlastica(report?.observacionesPlastica || '');
- setPreceptoraPrint(student.auxiliary || student.auxiliar || student.preceptora || '');
- setStage('form');
+  // Prioridad 1: Nombre guardado en el informe (si existe), 
+  // Prioridad 2: Nombre especial guardado en el grupo (si existe), 
+  // Prioridad 3: Nombre fijo por defecto.
+  
+  let docenteAsignado = student.teacher || student.docente || '';
+  let auxAsignado = student.auxiliary || student.auxiliar || student.preceptora || '';
+
+  if (tipoInforme === 'musica') {
+    docenteAsignado = report?.docente || grupoData?.profeMusica || 'Francisco Jaime';
+  } else if (tipoInforme === 'musica_brenda') {
+    docenteAsignado = report?.docente || 'Brenda Celiz';
+  } else if (tipoInforme === 'plastica') {
+    docenteAsignado = report?.docente || grupoData?.profePlastica || 'Rosario Cozzarín';
+  } else if (tipoInforme === 'educacion_fisica') {
+    docenteAsignado = report?.docente || grupoData?.profeEF || 'Juan Cruz Ricchi';
+  } else if (tipoInforme === 'psicomotricidad') {
+    docenteAsignado = report?.docente || grupoData?.profePsico || 'Pablo Pagliuca';
+  }
+  
+  setDocentePrint(docenteAsignado);
+  setPreceptoraPrint(report?.auxiliar || auxAsignado);
+  
+  // Contenidos Plástica
+  let defaultPlastica = '';
+  const lvl = student?.level?.toUpperCase() || '';
+  if (lvl.includes('1° CICLO')) {
+     defaultPlastica = '- El espacio, aprovechamiento y utilización consciente del plano.\n- El color.\n- Textura visual y táctil.';
+  } else if (lvl.includes('2° CICLO')) {
+     defaultPlastica = 'Organización dentro del plano.\n- Textura visual y táctil.\n- El color.';
+  } else if (lvl.includes('CFI')) {
+     defaultPlastica = 'Espacio plástico bidimensional. El marco. Límite de la obra.\n- Texturas. Textura visual y táctil.\n- El color. Mezclas.\n- La composición.';
+  }
+  setContenidosPlastica(report?.contenidosPlastica || defaultPlastica);
+  setObservacionesPlastica(report?.observacionesPlastica || '');
+  
+  setStage('form');
 };
 
 const handleSaveInforme = async () => {
