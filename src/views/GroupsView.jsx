@@ -980,34 +980,53 @@ return (
                 <input name="classroom" defaultValue={editingGroup.classroom || ""} className="w-full p-3 bg-slate-50 rounded-xl font-bold text-sm outline-none" />
               </div>
 
-          {/* DOCENTE TITULAR */}
+         {/* DEFINIMOS LA LISTA UNA SOLA VEZ PARA TODOS LOS CAMPOS */}
+<datalist id="lista-personal">
+  {usersList.map(u => (
+    <option key={u.id} value={u.fullName} />
+  ))}
+</datalist>
+
+{/* DOCENTE TITULAR */}
 <div>
   <label className="text-[10px] font-black text-violet-600 uppercase ml-1 tracking-widest">Docente Titular</label>
-  <select name="teacher" defaultValue={editingGroup.teacher || ""} className="w-full p-3 bg-violet-50 rounded-xl font-bold text-xs uppercase outline-none border border-violet-100">
-    <option value="">Seleccionar...</option>
-    {usersList.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
-  </select>
+  <input 
+    name="teacher" 
+    list="lista-personal"
+    placeholder="Escribí para buscar..."
+    autoComplete="off"
+    defaultValue={editingGroup.teacher || ""} 
+    className="w-full p-3 bg-violet-50 rounded-xl font-bold text-xs uppercase outline-none border border-violet-100"
+  />
 </div>
 
 {/* DOCENTE PAREJA */}
 <div>
   <label className="text-[10px] font-black text-violet-400 uppercase ml-1 tracking-widest">Docente Pareja</label>
-  <select name="teacher2" defaultValue={editingGroup.teacher2 || ""} className="w-full p-3 bg-slate-50 rounded-xl font-bold text-xs uppercase outline-none">
-    <option value="">Ninguno / Vacante</option>
-    {usersList.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
-  </select>
+  <input 
+    name="teacher2" 
+    list="lista-personal"
+    placeholder="Escribí para buscar..."
+    autoComplete="off"
+    defaultValue={editingGroup.teacher2 || ""} 
+    className="w-full p-3 bg-slate-50 rounded-xl font-bold text-xs uppercase outline-none"
+  />
 </div>
 
 {/* AUXILIAR */}
 <div>
   <label className="text-[10px] font-black text-orange-600 uppercase ml-1 tracking-widest">Auxiliar / Preceptor</label>
-  <select name="aux" defaultValue={editingGroup.aux || ""} className="w-full p-3 bg-orange-50 rounded-xl font-bold text-xs uppercase outline-none border border-orange-100">
-    <option value="">Sin asignar</option>
-    {usersList.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
-  </select>
+  <input 
+    name="aux" 
+    list="lista-personal"
+    placeholder="Escribí para buscar..."
+    autoComplete="off"
+    defaultValue={editingGroup.aux || ""} 
+    className="w-full p-3 bg-orange-50 rounded-xl font-bold text-xs uppercase outline-none border border-orange-100"
+  />
 </div>
 
-{/* ESPECIALES (Mantén el código que ya tienes que estaba perfecto) */}
+{/* ESPECIALES */}
 <div>
   <label className="text-[10px] font-black text-violet-600 uppercase">Profesores Especiales</label>
   <div className="grid grid-cols-2 gap-2 mt-2">
@@ -1017,10 +1036,15 @@ return (
       { name: 'profeEF', label: 'Ed. Física' },
       { name: 'profePsico', label: 'Psicomotricidad' }
     ].map((esp) => (
-      <select key={esp.name} name={esp.name} defaultValue={editingGroup[esp.name] || ""} className="p-2 bg-gray-50 rounded-lg text-xs font-bold border outline-none">
-        <option value="">{esp.label}...</option>
-        {usersList.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
-      </select>
+      <input 
+        key={esp.name} 
+        name={esp.name} 
+        list="lista-personal"
+        placeholder={`Buscar ${esp.label}...`}
+        autoComplete="off"
+        defaultValue={editingGroup[esp.name] || ""} 
+        className="p-2 bg-gray-50 rounded-lg text-xs font-bold border outline-none w-full"
+      />
     ))}
   </div>
 </div>
