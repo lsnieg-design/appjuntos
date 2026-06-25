@@ -404,37 +404,29 @@ const FIRMAS_AREAS = {
   pedagogico: null, // Sin firma digital, firman a mano
   laboral: null     // Sin firma digital, firman a mano
 };
-const descargarComoWord = (htmlContent, nombreArchivo) => {
-  // Definimos el estilo inline para el diseño
-  const estilosWord = `
-    <style>
-      body { font-family: Arial, sans-serif; font-size: 14px; }
-      .informe-container { width: 100%; padding: 20px; }
-      .header { border-bottom: 2px solid #5b21b6; padding-bottom: 15px; margin-bottom: 20px; text-align: center; }
-      .logo { height: 60px; margin-bottom: 10px; }
-      .titulo { color: #5b21b6; font-size: 24px; font-weight: bold; text-transform: uppercase; }
-      .subtitle { background: #f5f3ff; color: #7c3aed; padding: 5px 15px; border-radius: 15px; font-weight: bold; }
-      .seccion-titulo { color: #5b21b6; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #ddd; margin-top: 20px; }
-      .datos-box { border: 1px solid #ddd; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
-      table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-      th { background-color: #f5f3ff; color: #5b21b6; border: 1px solid #ddd; padding: 8px; }
-      td { border: 1px solid #ddd; padding: 8px; }
-    </style>`;
+// Añade esto al inicio de tu archivo:
+// <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
 
-  const header = `
-    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-    <head><meta charset='utf-8'><title>${nombreArchivo}</title>${estilosWord}</head>
-    <body><div class="informe-container">`;
-    
-  const footer = "</div></body></html>";
-  const sourceHTML = header + htmlContent + footer;
+const descargarComoWordPro = async (s, report) => {
+  const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType } = window.docx;
 
-  const blob = new Blob(['\ufeff', sourceHTML], { type: 'application/msword' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${nombreArchivo}.doc`;
-  link.click();
+  const doc = new Document({
+    sections: [{
+      properties: {},
+      children: [
+        new Paragraph({
+          children: [new TextRun({ text: `INFORME ${report.periodo.toUpperCase()} 2026`, bold: true, size: 32 })],
+        }),
+        new Paragraph({ text: `Alumno: ${s.lastName}, ${s.firstName}` }),
+        // Aquí irías agregando cada sección:
+        new Paragraph({ text: "Desarrollo Pedagógico", heading: "Heading1" }),
+        // ... repite para cada sección
+      ],
+    }],
+  });
+
+  const blob = await Packer.toBlob(doc);
+  saveAs(blob, `Informe_${s.lastName}.docx`);
 };
 
 const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firstNameRaw) => {
