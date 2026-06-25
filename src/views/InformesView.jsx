@@ -1132,7 +1132,7 @@ return (
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <input className="p-4 rounded-2xl border bg-white text-sm" placeholder="Buscar por apellido..." onChange={e => setSearchTerm(e.target.value)} />
+        
         
         <select className="p-4 rounded-2xl border bg-white text-sm font-bold" value={turnoFiltro} onChange={e => {setTurnoFiltro(e.target.value); setNivelFiltro('Todos'); setGrupoFiltro('Todos');}}>
          <option value="Todos">Turno: Todos</option>
