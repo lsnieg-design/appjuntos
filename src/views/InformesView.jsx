@@ -969,15 +969,16 @@ const handleSaveInforme = async () => {
 
 // REEMPLAZAR EL BLOQUE DE nivelActual E indicadoresActuales POR ESTE:
 const lvlUpper = selectedStudent?.level?.toUpperCase() || '';
-const esNivelValidoBrenda = lvlUpper.includes('INICIAL') || lvlUpper.includes('1° CICLO');
+const grupoUpper = grupoFiltro?.toUpperCase() || '';
 
-const nivelActual = tipoInforme === 'musica' 
-  ? (nivelMusica || 'Nivel 1') 
-  : (tipoInforme === 'musica_brenda' ? 'Inicial' : (selectedStudent?.level || 'Inicial'));
+// Validamos si el nivel O el grupo que estamos viendo pertenecen a Inicial o 1° Ciclo
+const esNivelValidoBrenda = 
+  lvlUpper.includes('INICIAL') || 
+  lvlUpper.includes('1° CICLO') ||
+  grupoUpper.includes('INICIAL') || 
+  grupoUpper.includes('1° CICLO');
 
-const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBrenda)
-  ? []
-  : (CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || []);
+const nivelActual = tipoInforme === 'musica'
 
  // LÓGICA DE FILTRADO DINÁMICO
  const nivelesDisponibles = tipoInforme === 'laboral' 
@@ -1560,9 +1561,9 @@ return (
 
         <div className="space-y-4">
           {/* BLOQUEOS DE SEGURIDAD SEGÚN NIVEL */}
-          {((tipoInforme === 'plastica' && selectedStudent?.level?.toUpperCase() === 'INICIAL') || 
+         {((tipoInforme === 'plastica' && selectedStudent?.level?.toUpperCase() === 'INICIAL') || 
             (tipoInforme === 'educacion_fisica' && ['INICIAL', '1° CICLO'].includes(selectedStudent?.level?.toUpperCase())) ||
-            (tipoInforme === 'musica_brenda' && !(['INICIAL', '1° CICLO'].includes(selectedStudent?.level?.toUpperCase())))) ? (
+            (tipoInforme === 'musica_brenda' && !esNivelValidoBrenda)) ? (
             
             <div className="bg-amber-50 border border-amber-200 p-8 rounded-3xl text-center">
               <span className="text-4xl block mb-2">⚠️</span>
