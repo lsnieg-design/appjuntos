@@ -633,7 +633,7 @@ const generarHTMLImpresion = (s, report) => {
  return `
  <div class="pagina w-full bg-white text-black font-sans pb-4">
      <div class="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
-         <img src="https://tu-app-en-vercel.vercel.app/logosinfondo.png" alt="Logo Institucional" class="h-16 object-contain mb-3" />
+         <img src="public/logosinfondo.png" alt="Logo Institucional" class="h-16 object-contain mb-3" />
          <h1 class="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME ${report.periodo.toUpperCase()} 2026</h1>
          <p class="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
              Área: ${subtituloArea}
