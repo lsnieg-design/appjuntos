@@ -339,28 +339,28 @@ pedido_de_ayuda: [
   `Nombre manipula las herramientas. Aplica correctamente las técnicas de uso, demostrando un buen dominio instrumental en sus labores prácticas. Manipula las herramientas con seguridad.`
  ],
  produccion_proceso: [
-  `Nombre presenta un importante desafío para seguir la secuencia de pasos en el proceso productivo. Necesita de la mediación directa y estructurada del adulto en cada una de las acciones que componen la tarea para poder avanzar. Estamos trabajando cerquita suyo, ayudándole paso a paso para que empiece a entender cómo se hace el producto.`,
-  `Nombre logra llevar a cabo pasos simples del proceso productivo, apoyándose de manera efectiva en soportes visuales, esquemas gráficos o mediante la recepción de instrucciones verbales cortas y precisas. Con alguna imagen de ayuda o explicándole cortito, ya puede hacer varios pasos del trabajo muy bien.`,
+  `Nombre presenta desafíos para seguir la secuencia de pasos en el proceso productivo. Necesita la mediación del adulto en las acciones que componen la tarea para poder avanzar. Estamos trabajando para que logre entender cómo se hace el producto.`,
+  `Nombre logra llevar a cabo pasos simples del proceso productivo, apoyándose de manera efectiva en soportes visuales, esquemas gráficos o mediante la recepción de instrucciones verbales cortas y precisas.`,
   `Nombre realiza de forma adecuada las diversas tareas productivas, logrando seguir e internalizar las secuencias preestablecidas de trabajo con un grado de independencia sumamente funcional para la dinámica del taller. Trabaja súper bien siguiendo las indicaciones y ya hace gran parte del producto por su propia cuenta.`,
   `Nombre es capaz de desarrollar y concretar productos terminados abordando el proceso productivo en su totalidad de manera plenamente independiente. Planifica, ejecuta y concluye los pasos secuenciales sin requerir ningún tipo de asistencia. Sabe exactamente qué tiene que hacer desde que empieza hasta que termina el producto, sin que le digamos nada.`
  ],
  produccion_calidad: [
-  `En cuanto a la calidad de terminación, Nombre requiere que el docente intervenga de manera directa para corregir, ajustar o finalizar sus producciones y así lograr alcanzar los estándares mínimos requeridos en el taller. Por ahora lo ayudamos a terminar y emprolijar las cosas para que el resultado final quede muy lindo.`,
-  `Nombre concreta producciones de manera funcional, aunque precisa de la supervisión frecuente y la corrección externa de los detalles y acabados para optimizar el nivel de calidad del producto final. Trabaja muy lindo, solo le damos una manito al final para corregir pequeños detalles de prolijidad.`,
-  `Nombre logra plasmar acabados de muy buena calidad en sus trabajos, evidenciando esmero en la terminación. Únicamente requiere de revisiones esporádicas o sugerencias puntuales para perfeccionar su producción. Hace trabajos hermosos y muy prolijos, casi no hace falta que le corrijamos nada.`,
-  `Nombre realiza sus tareas logrando producciones de altísima calidad. Demuestra una minuciosa y excelente atención a los detalles, entregando productos con acabados sobresalientes y de nivel plenamente profesional. Los productos que hace son impecables, trabaja con muchísimo cuidado y amor por los detalles.`
+  `En cuanto a la calidad de terminación, Nombre requiere que la docente intervenga de manera directa para corregir, ajustar o finalizar sus producciones y así lograr alcanzar los estándares mínimos requeridos en el taller. Se acompaña para terminar y emprolijar las cosas para que el producto quede finalizado.`,
+  `Nombre concreta producciones de manera funcional, aunque precisa de la supervisión frecuente y la corrección externa de los detalles y acabados para optimizar el nivel de calidad del producto final. Trabaja bien y solo se ayuda al final para corregir pequeños detalles de prolijidad.`,
+  `Nombre logra plasmar acabados de muy buena calidad en sus trabajos, evidenciando esmero en la terminación. Únicamente requiere de revisiones esporádicas o sugerencias puntuales para perfeccionar su producción. Hace trabajos prolijos y casi no hace falta que se lo ayude en nada.`,
+  `Nombre realiza sus tareas logrando producciones de calidad. Demuestra atención a los detalles.`
  ],
  autonomia_trabajo: [
-  `Nombre manifiesta una dependencia absoluta hacia la figura del adulto para lograr iniciar, estructurar y sostener temporalmente cualquier tipo de tarea laboral. Requiere instigación permanente para mantenerse activo/a en su puesto. Necesita que estemos muy presentes animándolo/a para que empiece y sostenga sus ganas de trabajar.`,
-  `Nombre logra sostener la atención y el esfuerzo en la tarea por períodos breves de tiempo. Precisa de recordatorios verbales y estímulos constantes por parte del docente para poder retomar y dar continuidad al trabajo. Trabaja un ratito por su cuenta, pero necesita que le recordemos seguir adelante para no distraerse.`,
-  `Nombre mantiene un ritmo de trabajo sostenido, constante y productivo, requiriendo tan solo de una supervisión de carácter intermitente. Demuestra capacidad para autorregular su actividad operativa de forma funcional. Trabaja re bien a su propio ritmo y casi no necesita que le digamos qué hacer a continuación.`,
-  `Nombre trabaja con un nivel de autonomía sumamente destacado, organizando de manera personal sus tiempos, prioridades y tareas operativas. Gestiona su propia jornada laboral de forma plenamente independiente y responsable. Organiza todo su día de trabajo de manera increíble, hace sus tareas solo/a y con muchísima responsabilidad.`
+  `Requiere asistencia para iniciar, estructurar y sostener temporalmente la tarea.`,
+  `Logra sostener la atención en la tarea por períodos breves de tiempo. Precisa de recordatorios verbales y motivación por parte del docente para poder retomar y dar continuidad al trabajo.`,
+  `Mantiene un ritmo de trabajo sostenido, constante y productivo, requiriendo supervisión intermitente. Demuestra capacidad para regular su actividad operativa de forma funcional. Trabaja a su propio ritmo de forma sostenida`,
+  `Gestiona su propia jornada laboral de forma independiente. Organiza su día de trabajo y hace sus tareas de forma responsable.`
  ],
  autonomia_seguridad: [
-  `Nombre aún no ha internalizado las normas básicas de seguridad e higiene del taller. Requiere de control físico, supervisión constante y modelado preventivo para evitar situaciones de riesgo en el espacio de trabajo. Le estamos enseñando a cuidarse y a cuidar a los demás mientras trabaja, acompañándolo/a en todo momento.`,
-  `Nombre evidencia conocimiento teórico de las normas básicas de seguridad e higiene, logrando aplicarlas si cuenta con el recordatorio explícito y la anticipación verbal del docente justo antes de comenzar sus actividades. Conoce las reglas para no lastimarse, solo se las recordamos un poquito antes de empezar a trabajar.`,
-  `Nombre respeta y aplica de forma metódica y consistente las normativas vigentes de seguridad e higiene industrial. Demuestra cuidado por su propia integridad y mantiene los estándares de limpieza durante su desempeño. Es muy cuidadoso/a, sabe qué cosas son peligrosas y mantiene su lugar siempre limpio y seguro.`,
-  `Nombre se posiciona como un verdadero referente dentro del grupo en materia de normas de seguridad e higiene. Cuida de forma proactiva y autónoma tanto su espacio personal de trabajo como el entorno general del taller. Nos da muchísimo orgullo ver cómo se cuida y ayuda a que todo el grupo trabaje seguro. Es un gran ejemplo.`
+  `Nombre aún no ha internalizado las normas básicas de seguridad e higiene del taller. Requiere de control físico, supervisión y modelado preventivo para evitar situaciones de riesgo en el espacio de trabajo.`,
+  `Evidencia conocimiento teórico de las normas básicas de seguridad e higiene, logrando aplicarlas con el recordatorio explícito y la anticipación de la docente justo antes de comenzar sus actividades.`,
+  `Nombre respeta y aplica de forma metódica y consistente las normativas vigentes de seguridad e higiene. Demuestra cuidado por su propia integridad y mantiene los estándares de limpieza durante su desempeño. Sabe qué cosas son peligrosas y mantiene su lugar siempre limpio y seguro.`,
+  `Nombre se posiciona como referente dentro del grupo. Cuida de forma proactiva y autónoma tanto su espacio personal de trabajo como el entorno general del taller.`
  ],
  rol_pautas: [
   `Nombre presenta notorias dificultades para ajustarse a las pautas del taller, tendiendo a la deambulación o interrumpiendo frecuentemente el trabajo de sus compañeros. Requiere constante reconducción a su puesto y tarea. Le está costando un poquito quedarse en su lugar de trabajo y seguir el ritmo, así que lo acompañamos con mucha paciencia.`,
@@ -978,15 +978,19 @@ const esNivelValidoBrenda =
   grupoUpper.includes('INICIAL') || 
   grupoUpper.includes('1° CICLO');
 
-const nivelActual = tipoInforme === 'musica'
+const nivelActual = tipoInforme === 'musica' 
+  ? (nivelMusica || 'Nivel 1') 
+  : (tipoInforme === 'musica_brenda' ? 'Inicial' : (selectedStudent?.level || 'Inicial'));
 
- // LÓGICA DE FILTRADO DINÁMICO
- const nivelesDisponibles = tipoInforme === 'laboral' 
+// ¡ESTA ES LA VARIABLE QUE LA CONSOLA DICE QUE FALTA!
+const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBrenda)
+  ? []
+  : (CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || []);
+
+const nivelesDisponibles = tipoInforme === 'laboral' 
   ? ['2° Ciclo', 'CFI'] 
   : ['Inicial', '1° Ciclo', '2° Ciclo', 'CFI'];
 
-
-   
 return (
   <div className="max-w-4xl mx-auto p-4 pb-20 animate-in fade-in relative">
    
