@@ -14,7 +14,7 @@ const CONFIG_INDICADORES = {
    { id: 'figuras', label: 'Figuras y lógica', options: ['Identifica figuras básicas, pero requiere mediación para clasificarlas.', 'Clasifica elementos por forma, tamaño o color con supervisión.', 'Resuelve problemas simples de lógica y comparación.', 'Resuelve problemas de alta complejidad de forma autónoma.'] },
    { id: 'rutinas', label: 'Rutinas / Higiene', options: ['Requiere asistencia total y acompañamiento cercano en toda rutina.', 'Realiza rutinas básicas con supervisión constante y apoyo puntual.', 'Realiza rutinas con supervisión mínima y esporádica.', 'Es totalmente autónomo en sus rutinas escolares y cuidado personal.'] },
    { id: 'organizacion', label: 'Organización', options: ['Precisa que el adulto organice sus materiales de trabajo siempre.', 'Organiza sus materiales solo ante el recordatorio del docente.', 'Mantiene sus materiales organizados de forma independiente.', 'Anticipa y organiza todos los materiales necesarios antes de iniciar.'] },
-   { id: 'pedido_ayuda', label: 'Pedido de ayuda', options: ['Ante la dificultad, se bloquea y espera la intervención externa.', 'Solicita ayuda mediante mediación o sugerencia del docente.', 'Identifica cuando necesita ayuda y la solicita ante la duda.', 'Es proactivo; ante un obstáculo busca soluciones antes de pedir ayuda.'] },
+   { id: 'pedido_ayuda', label: 'Pedido de ayuda', options: ['Ante la dificultad, espera la intervención externa.', 'Solicita ayuda mediante mediación o sugerencia del docente.', 'Identifica cuando necesita ayuda y la solicita ante la duda.', 'Es proactivo; ante un obstáculo busca soluciones antes de pedir ayuda.'] },
    { id: 'vinculo_pares', label: 'Vínculo con pares', options: ['Su juego es paralelo o solitario; le cuesta integrar a otros.', 'Interactúa con pares principalmente en actividades guiadas.', 'Se integra espontáneamente a juegos cooperativos grupales.', 'Lidera o propone actividades grupales de forma activa.'] },
    { id: 'vinculo_adulto', label: 'Vínculo adulto', options: ['Dependencia total del adulto para iniciar cualquier tarea.', 'Busca apoyo y validación constante de figuras adultas.', 'Busca apoyo solo ante dudas específicas o situaciones nuevas.', 'Establece un vínculo saludable de referencia, con autonomía.'] },
    { id: 'emocional', label: 'Expresión emocional', options: ['Ante malestar reacciona con impulsividad o conductas físicas.', 'Expresa su malestar verbalmente solo mediante mediación.', 'Expresa sus sentimientos de forma verbal con claridad.', 'Posee autorregulación y gestiona sus emociones de forma autónoma.'] },
@@ -176,7 +176,7 @@ const DICCIONARIO = {
   `Escribe de manera autónoma, expresando ideas, experiencias y conocimientos a través de producciones con sentido y claridad. Utiliza la escritura para comunicar aquello que desea compartir, mostrando iniciativa y creatividad en sus producciones. Se observa un buen nivel de autonomía en las situaciones de escritura propuestas.`
 ],
 comprension: [
-   `Nombre se encuentra en proceso de acercamiento a la lectura. Actualmente, logra reconocer y describir imágenes presentes en los textos, utilizando estas referencias para anticipar o comentar situaciones. Se continúa favoreciendo el descubrimiento hacia las palabras escritas también transmiten mensajes e información, ampliando progresivamente las posibilidades de comprensión.`,
+   `Nombre se encuentra en proceso de acercamiento a la lectura. Actualmente, logra reconocer imágenes presentes en los textos, utilizando estas referencias para anticipar. Se continúa favoreciendo el descubrimiento hacia las palabras escritas que también transmiten mensajes e información, ampliando progresivamente las posibilidades de comprensión.`,
   `Nombre comprende textos breves y sencillos cuando la lectura es acompañada por otras personas. Las situaciones de lectura compartida favorecen la comprensión de personajes, acciones y secuencias, permitiéndole participar activamente en la construcción de significado.`,
   `Nombre comprende el sentido general de textos breves con apoyo y orientación. A través de preguntas, intercambios y acompañamiento, logra identificar información importante y reconstruir aspectos relevantes de aquello que ha leído o escuchado.`,
   `Nombre realiza lecturas de manera autónoma y comprende el sentido global de diversos textos. Identifica información relevante, relaciona ideas y construye interpretaciones acordes al contenido, utilizando la lectura como una herramienta funcional para aprender y acceder a nueva información.`
@@ -203,7 +203,7 @@ operaciones: [
  figuras: [
    `Reconoce algunas figuras geométricas básicas y se encuentra desarrollando progresivamente estrategias para observar, comparar y clasificar elementos según diferentes características.`,
   `Clasifica elementos considerando atributos como la forma, el tamaño o el color cuando cuenta con orientación y acompañamiento. Estas experiencias favorecen la organización de la información y el desarrollo del pensamiento lógico.`,
-  `Resuelve situaciones sencillas de comparación y razonamiento lógico. Logra identificar relaciones entre elementos y aplicar estrategias adecuadas para encontrar soluciones.`,
+  `Resuelve situaciones sencillas de comparación y razonamiento lógico. Logra identificar relaciones entre los elementos.`,
   `Resuelve situaciones de lógica y comparación con autonomía, analizando diferentes alternativas y aplicando estrategias cada vez más complejas para abordar los desafíos propuestos.`
 ],
  rutinas: [
@@ -244,8 +244,8 @@ pedido_de_ayuda: [
   `Mantiene un vínculo positivo y de confianza con las personas adultas de referencia. Se muestra seguro para desenvolverse de manera autónoma en las actividades diarias, solicitando acompañamiento únicamente cuando lo considera necesario.`
 ],
  emocional: [
-    `Se encuentra aprendiendo progresivamente a expresar y comunicar aquello que le preocupa, incomoda o genera frustración. En algunas situaciones puede manifestar su malestar a través de conductas o reacciones intensas, por lo que requiere acompañamiento para identificar lo que siente y encontrar formas más adecuadas de expresarlo.`,
-  `Comienza a poner en palabras aquello que siente cuando cuenta con el acompañamiento y la orientación de una persona adulta. A través del diálogo y la escucha, logra identificar situaciones que le generan malestar y comunicar progresivamente sus emociones y necesidades.`,
+   `Se encuentra aprendiendo progresivamente a expresar y comunicar aquello que le preocupa, incomoda o genera frustración. En algunas situaciones puede manifestar su malestar a través de conductas o reacciones inapropiadas, por lo que requiere acompañamiento para identificar lo que siente y encontrar formas más adecuadas de expresarlo.`,
+  `Comienza a poner en palabras aquello que siente cuando cuenta con el acompañamiento y la orientación una persona adulta. Logra identificar progresivamente sus emociones y necesidades.`,
   `Reconoce y expresa sus emociones, necesidades e inquietudes de manera clara y adecuada. Logra comunicar aquello que le agrada, le preocupa o le resulta difícil, favoreciendo la resolución de situaciones cotidianas a través del diálogo.`,
   `Reconoce sus emociones y cuenta con recursos para gestionarlas de manera cada vez más autónoma. Frente a situaciones que generan frustración, enojo o preocupación, logra poner en práctica estrategias que le permiten recuperar la calma y continuar participando de las actividades de forma adecuada.`
 ],
@@ -263,7 +263,7 @@ pedido_de_ayuda: [
 ],
  conflictos: [
    `Se encuentra aprendiendo formas cada vez más adecuadas de expresar su enojo, frustración o desacuerdo frente a situaciones de conflicto. En algunos momentos puede reaccionar de manera impulsiva, por lo que requiere acompañamiento para identificar lo ocurrido, expresar lo que siente y encontrar alternativas más positivas para resolver la situación.`,
-  `Logra expresar aquello que le molesta o preocupa cuando surge un conflicto. Con el acompañamiento de las personas adultas, puede conversar sobre lo ocurrido, escuchar otras perspectivas y avanzar en la búsqueda de acuerdos para resolver la situación.`,
+  `Con el acompañamiento de las personas adultas, logra expresar aquello que le molesta o  preocupa cuando surge un conflicto.`,
   `Utiliza el diálogo como principal herramienta para resolver desacuerdos o dificultades con otras personas. Logra expresar su punto de vista, escuchar a los demás y participar en la búsqueda de soluciones, requiriendo solo orientaciones ocasionales en algunas situaciones.`,
   `Resuelve los conflictos cotidianos de manera autónoma y respetuosa. Logra dialogar, escuchar diferentes puntos de vista, llegar a acuerdos y sostener vínculos positivos con sus compañeros, favoreciendo una buena convivencia dentro del grupo.`
 ],
@@ -275,7 +275,7 @@ pedido_de_ayuda: [
 ],
  juego: [
  `Disfruta explorando los objetos y materiales a través de la observación, la manipulación y la experimentación. Se interesa por descubrir sus características, posibilidades y formas de uso, construyendo aprendizajes a partir de la exploración directa del entorno.`,
-  `Participa en juegos de imaginación y representación, utilizando objetos y materiales para recrear situaciones de la vida cotidiana o inventar nuevas historias. Disfruta del juego de "hacer de cuenta", incorporando personajes, acciones y escenarios en sus propuestas lúdicas.`,
+  `Participa en juegos de representación, utilizando objetos y materiales para recrear situaciones de la vida cotidiana.`,
   `Participa de juegos con reglas sencillas, comprendiendo progresivamente las consignas y respetando los turnos de participación. Disfruta de las propuestas compartidas y logra desenvolverse adecuadamente dentro de las dinámicas de juego grupal.`,
   `Participa activamente en juegos con reglas más complejas y suele proponer nuevas ideas para enriquecer las actividades compartidas. Disfruta de los desafíos grupales, colabora con sus compañeros y contribuye a organizar y sostener las propuestas de juego.`
 ],
@@ -312,7 +312,7 @@ pedido_de_ayuda: [
 ],
  intereses: [
     `Muestra un marcado interés por determinados objetos, temas o actividades que resultan especialmente significativos. A partir de estas preferencias, se promueve progresivamente la exploración de nuevas propuestas, ampliando experiencias y oportunidades de aprendizaje.`,
-  `Posee intereses y preferencias claramente identificables que favorecen la participación y el involucramiento en las distintas actividades. Estos temas resultan valiosos para despertar la curiosidad, sostener la atención y acompañar nuevos aprendizajes.`,
+  `Posee intereses y preferencias que favorecen su participación en las distintas actividades. Estos temas resultan valiosos para despertar la curiosidad, sostener la atención y acompañar nuevos aprendizajes.`,
   `Utiliza sus intereses y temas favoritos como una herramienta para participar activamente en las propuestas escolares y vincularse con otras personas. Estas preferencias favorecen la comunicación, el intercambio y la construcción de experiencias compartidas con sus compañeros.`,
   `Aprovecha sus intereses, fortalezas y habilidades para desenvolverse con seguridad en diferentes situaciones escolares. Logra aplicar estos recursos en nuevos desafíos, mostrando iniciativa, creatividad y confianza para aprender, resolver problemas y participar activamente en la vida escolar.`
 ],
