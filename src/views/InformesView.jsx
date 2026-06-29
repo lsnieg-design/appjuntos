@@ -223,7 +223,7 @@ pedido_de_ayuda: [
  `Necesita acompañamiento cercano frente a situaciones que resultan difíciles o desafiantes. Cuando encuentra obstáculos en una tarea, suele requerir orientación para retomar la actividad y continuar avanzando. Se trabaja progresivamente en el desarrollo de recursos que favorezcan la confianza, la perseverancia y la búsqueda de alternativas frente a las dificultades.`,
   `Comienza a reconocer cuándo necesita apoyo para resolver una actividad. Con acompañamiento y sugerencias, logra solicitar ayuda y aprovechar las orientaciones recibidas para continuar participando y avanzar en la tarea propuesta.`,
   `Identifica las situaciones en las que requiere apoyo y solicita ayuda de manera adecuada cuando surge alguna duda o dificultad. Este recurso le permite continuar avanzando en las actividades y fortalecer progresivamente su autonomía en el aprendizaje.`,
-  `Afronta las dificultades con una actitud activa, intentando diferentes estrategias antes de solicitar ayuda. Explora alternativas, revisa sus acciones y busca posibles soluciones de manera autónoma, recurriendo al acompañamiento de otras personas cuando considera que lo necesita.`
+  `Identifica cuando necesita ayuda y la solicita.`
 ],
  flexibilidad: [
   `Necesita acompañamiento para afrontar cambios en las rutinas, las actividades o las propuestas habituales. La anticipación y los apoyos brindados favorecen progresivamente una mayor adaptación a situaciones nuevas o diferentes.`,
@@ -281,7 +281,7 @@ pedido_de_ayuda: [
 ],
  ciencias: [
   `Participa de las propuestas de exploración con acompañamiento cercano para utilizar los materiales y desarrollar las actividades. Muestra interés y curiosidad por diferentes elementos y situaciones, aunque aún necesita apoyo para sostener la observación y la atención durante períodos más prolongados.`,
-  `Explora los materiales con interés y participa activamente de las propuestas de observación e investigación. A través de preguntas, conversaciones y orientaciones, logra descubrir características, establecer relaciones y ampliar progresivamente su comprensión sobre el entorno que lo rodea.`,
+  `Explora los materiales de interés y participa activamente en las propuestas de observación. A través de orientaciones logra establecer relaciones y ampliar progresivamente su comprensión sobre el entorno que lo rodea.`,
   `Participa con entusiasmo en propuestas de exploración e investigación. Se muestra curioso frente a diferentes situaciones, realiza observaciones, formula preguntas y busca comprender cómo funcionan las cosas, aportando ideas y producciones propias durante las actividades.`,
   `Explora e investiga de manera autónoma, demostrando iniciativa para observar, formular preguntas y buscar respuestas sobre distintas situaciones de su entorno. Participa activamente de las propuestas, comparte sus ideas y construye explicaciones propias a partir de lo que observa, experimenta y descubre.`
 ],
@@ -307,12 +307,12 @@ pedido_de_ayuda: [
  sensorial: [
   `Puede sentirse incómodo o abrumado frente a algunos estímulos del entorno, como ruidos intensos, luces, movimientos o situaciones con mucha actividad. En estos momentos requiere acompañamiento y estrategias que favorezcan la calma y el bienestar para poder retomar las actividades de manera gradual.`,
   `Presenta sensibilidad frente a determinados estímulos del entorno escolar. En algunas situaciones se beneficia de espacios tranquilos, momentos de pausa o apoyos específicos que le permiten recuperar la calma y continuar participando de las actividades de manera más cómoda y segura.`,
-  `Logra desenvolverse adecuadamente en los distintos espacios y actividades de la escuela, tolerando los estímulos habituales del entorno. Los ruidos, movimientos y dinámicas propias de la jornada escolar no suelen interferir de manera significativa en su participación y aprendizaje.`,
+  `Logra desenvolverse adecuadamente en los distintos espacios y actividades de la escuela, tolerando los estímulos habituales del entorno.`,
   `Participa con comodidad en diferentes contextos y actividades, incluso en situaciones con mucho movimiento o estímulos variados. Logra adaptarse a las demandas del entorno y mantener una participación activa, utilizando recursos personales que favorecen su bienestar y regulación.`
 ],
  intereses: [
     `Muestra un marcado interés por determinados objetos, temas o actividades que resultan especialmente significativos. A partir de estas preferencias, se promueve progresivamente la exploración de nuevas propuestas, ampliando experiencias y oportunidades de aprendizaje.`,
-  `Posee intereses y preferencias que favorecen su participación en las distintas actividades. Estos temas resultan valiosos para despertar la curiosidad, sostener la atención y acompañar nuevos aprendizajes.`,
+  ` Posee intereses y preferencias que favorecen la participación en las distintas actividades. . Estos temas resultan valiosos para despertar la curiosidad, sostener la atención y acompañar nuevos aprendizajes.`,
   `Utiliza sus intereses y temas favoritos como una herramienta para participar activamente en las propuestas escolares y vincularse con otras personas. Estas preferencias favorecen la comunicación, el intercambio y la construcción de experiencias compartidas con sus compañeros.`,
   `Aprovecha sus intereses, fortalezas y habilidades para desenvolverse con seguridad en diferentes situaciones escolares. Logra aplicar estos recursos en nuevos desafíos, mostrando iniciativa, creatividad y confianza para aprender, resolver problemas y participar activamente en la vida escolar.`
 ],
