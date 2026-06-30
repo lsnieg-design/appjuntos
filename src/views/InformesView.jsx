@@ -253,7 +253,7 @@ pedido_de_ayuda: [
   `Se encuentra en proceso de incorporar las pautas de convivencia y los tiempos de espera propios de las actividades grupales. Requiere acompañamiento frecuente para participar de los intercambios, r a otras personas y esperar su turno en distintas situaciones de la jornada escolar.`,
   `Logra respetar las pautas de convivencia y los turnos de participación cuando cuenta con recordatorios y acompañamiento. Estos apoyos favorecen una participación cada vez más organizada dentro de las actividades compartidas con el grupo.`,
   `Participa adecuadamente de las actividades grupales, respetando los acuerdos de convivencia y los turnos de intercambio en la mayoría de las situaciones. Requiere únicamente orientaciones ocasionales para sostener estas conductas en algunos momentos específicos.`,
-  `Participa de manera autónoma y respetuosa en las distintas propuestas grupales. Logra esperar su turno, r a otras personas y desenvolverse de acuerdo con los acuerdos de convivencia establecidos, favoreciendo un clima positivo de trabajo y participación.`
+  `Participa de manera autónoma y respetuosa en las distintas propuestas grupales. Logra esperar su turno, escucharr a otras personas y desenvolverse de acuerdo con los acuerdos de convivencia establecidos, favoreciendo un clima positivo de trabajo y participación.`
 ],
  escucha: [
    `Necesita acompañamiento para sostener la atención durante las propuestas grupales. Con apoyos y estrategias que favorecen su participación, logra involucrarse progresivamente en las actividades y comprender las consignas compartidas con el grupo.`,
