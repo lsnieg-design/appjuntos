@@ -282,7 +282,7 @@ pedido_de_ayuda: [
  ciencias: [
   `Participa de las propuestas de exploración con acompañamiento cercano para utilizar los materiales y desarrollar las actividades. Muestra interés y curiosidad por diferentes elementos y situaciones, aunque aún necesita apoyo para sostener la observación y la atención durante períodos más prolongados.`,
   `Explora los materiales de interés y participa activamente en las propuestas de observación. A través de orientaciones logra establecer relaciones y ampliar progresivamente su comprensión sobre el entorno que lo rodea.`,
-  `Participa con entusiasmo en propuestas de exploración e investigación. Se muestra curioso frente a diferentes situaciones, realiza observaciones, formula preguntas y busca comprender cómo funcionan las cosas, aportando ideas y producciones propias durante las actividades.`,
+  `Participa con entusiasmo en propuestas de exploración. Se muestra curioso frente a distintas situaciones. Aporta producciones propias durante las actividades.`,
   `Explora e investiga de manera autónoma, demostrando iniciativa para observar, formular preguntas y buscar respuestas sobre distintas situaciones de su entorno. Participa activamente de las propuestas, comparte sus ideas y construye explicaciones propias a partir de lo que observa, experimenta y descubre.`
 ],
  cuidado: [
@@ -295,7 +295,7 @@ pedido_de_ayuda: [
   `Se comunica principalmente a través de gestos, expresiones, miradas o sonidos para expresar necesidades e intereses inmediatos. Estas formas de comunicación le permiten interactuar con las personas de su entorno y hacerse entender en situaciones cotidianas.`,
   `Utiliza diferentes recursos para comunicarse, como señas, pictogramas, palabras o expresiones sencillas. Con acompañamiento y apoyos adecuados, logra expresar necesidades, intereses e ideas, participando de manera cada vez más activa en los intercambios con otras personas.`,
   `Participa activamente de los intercambios comunicativos, expresando deseos, necesidades, opiniones e intereses mediante frases breves y comprensibles. Logra comunicar aquello que piensa o siente, favoreciendo la interacción con pares y personas adultas.`,
-  `Se comunica con claridad y seguridad en diferentes situaciones. Logra relatar experiencias, compartir ideas, hacer preguntas y sostener conversaciones acordes a los distintos contextos, utilizando el lenguaje como una herramienta para expresarse, aprender y vincularse con otras personas.`
+  `Se comunica con claridad en diferentes situaciones. Utiliza el lenguaje como una herramienta para expresarse y resolver las actividades con seguridad.`
 ],
  funciones: [
  `Necesita acompañamiento frecuente para sostener la atención en las actividades propuestas. Suele distraerse con facilidad y requiere recordatorios, apoyos y estrategias que favorezcan la concentración y la participación en las tareas.`,
