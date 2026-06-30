@@ -178,7 +178,7 @@ const DICCIONARIO = {
 comprension: [
    `Nombre se encuentra en proceso de acercamiento a la lectura. Actualmente, logra reconocer imágenes presentes en los textos, utilizando estas referencias para anticipar. Se continúa favoreciendo el descubrimiento hacia las palabras escritas que también transmiten mensajes e información, ampliando progresivamente las posibilidades de comprensión.`,
   `Nombre comprende textos breves y sencillos cuando la lectura es acompañada por otras personas. Las situaciones de lectura compartida favorecen la comprensión de personajes, acciones y secuencias, permitiéndole participar activamente en la construcción de significado.`,
-  `Nombre comprende el sentido general de textos breves con apoyo y orientación. A través de preguntas, intercambios y acompañamiento, logra identificar información importante y reconstruir aspectos relevantes de aquello que ha leído o escuchado.`,
+  `Nombre comprende el sentido general de textos breves con apoyo y orientación. A través de preguntas, intercambios y acompañamiento, logra identificar información importante y reconstruir aspectos relevantes de aquello que ha leído o do.`,
   `Nombre realiza lecturas de manera autónoma y comprende el sentido global de diversos textos. Identifica información relevante, relaciona ideas y construye interpretaciones acordes al contenido, utilizando la lectura como una herramienta funcional para aprender y acceder a nueva información.`
 ],
 reconocimiento: [
@@ -250,15 +250,15 @@ pedido_de_ayuda: [
   `Reconoce sus emociones y cuenta con recursos para gestionarlas de manera cada vez más autónoma. Frente a situaciones que generan frustración, enojo o preocupación, logra poner en práctica estrategias que le permiten recuperar la calma y continuar participando de las actividades de forma adecuada.`
 ],
  pautas: [
-  `Se encuentra en proceso de incorporar las pautas de convivencia y los tiempos de espera propios de las actividades grupales. Requiere acompañamiento frecuente para participar de los intercambios, escuchar a otras personas y esperar su turno en distintas situaciones de la jornada escolar.`,
+  `Se encuentra en proceso de incorporar las pautas de convivencia y los tiempos de espera propios de las actividades grupales. Requiere acompañamiento frecuente para participar de los intercambios, r a otras personas y esperar su turno en distintas situaciones de la jornada escolar.`,
   `Logra respetar las pautas de convivencia y los turnos de participación cuando cuenta con recordatorios y acompañamiento. Estos apoyos favorecen una participación cada vez más organizada dentro de las actividades compartidas con el grupo.`,
   `Participa adecuadamente de las actividades grupales, respetando los acuerdos de convivencia y los turnos de intercambio en la mayoría de las situaciones. Requiere únicamente orientaciones ocasionales para sostener estas conductas en algunos momentos específicos.`,
-  `Participa de manera autónoma y respetuosa en las distintas propuestas grupales. Logra esperar su turno, escuchar a otras personas y desenvolverse de acuerdo con los acuerdos de convivencia establecidos, favoreciendo un clima positivo de trabajo y participación.`
+  `Participa de manera autónoma y respetuosa en las distintas propuestas grupales. Logra esperar su turno, r a otras personas y desenvolverse de acuerdo con los acuerdos de convivencia establecidos, favoreciendo un clima positivo de trabajo y participación.`
 ],
  escucha: [
    `Necesita acompañamiento para sostener la atención durante las propuestas grupales. Con apoyos y estrategias que favorecen su participación, logra involucrarse progresivamente en las actividades y comprender las consignas compartidas con el grupo.`,
   `Responde mejor a las consignas cuando se le brindan de manera individual o con un acompañamiento más cercano. Estas intervenciones favorecen la comprensión de las propuestas y una participación más activa en las actividades escolares.`,
-  `Participa de las situaciones de escucha compartida y logra atender a relatos, conversaciones y consignas dirigidas al grupo. Se observa una adecuada disposición para seguir las propuestas y responder a partir de la información recibida.`,
+  `Participa de situaciones de escucha compartida, logrando atender a relatos y consignas dirigidas al grupo. Se observa una adecuada disposición para seguir las propuestas y responder a partir de la información recibida.`,
   `Se muestra atento durante las actividades grupales y logra comprender y responder adecuadamente a las consignas propuestas. Sigue las indicaciones con autonomía, participa activamente y sostiene una escucha que favorece su aprendizaje y participación en el grupo.`
 ],
  conflictos: [
@@ -274,7 +274,7 @@ pedido_de_ayuda: [
   `Se desplaza de manera autónoma y segura por los diferentes espacios de la escuela. Reconoce los distintos sectores, se orienta adecuadamente y participa de las actividades de la jornada con independencia y confianza.`
 ],
  juego: [
- `Disfruta explorando los objetos y materiales a través de la observación, la manipulación y la experimentación. Se interesa por descubrir sus características, posibilidades y formas de uso, construyendo aprendizajes a partir de la exploración directa del entorno.`,
+ `Disfruta explorando los objetos y materiales a través de la observación, manipulación y experimentación. Se interesa por descubrir sus características, construyendo aprendizajes a partir de la exploración directa del entorno.`,
   `Participa en juegos de representación, utilizando objetos y materiales para recrear situaciones de la vida cotidiana.`,
   `Participa de juegos con reglas sencillas, comprendiendo progresivamente las consignas y respetando los turnos de participación. Disfruta de las propuestas compartidas y logra desenvolverse adecuadamente dentro de las dinámicas de juego grupal.`,
   `Participa activamente en juegos con reglas más complejas y suele proponer nuevas ideas para enriquecer las actividades compartidas. Disfruta de los desafíos grupales, colabora con sus compañeros y contribuye a organizar y sostener las propuestas de juego.`
