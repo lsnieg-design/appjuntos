@@ -411,26 +411,6 @@ const FIRMAS_AREAS = {
 // Añade esto al inicio de tu archivo:
 // <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
 
-const descargarComoWord = (s, report) => {
-  const informeHTML = generarHTMLImpresion(s, report);
-  
-  const header = `
-    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-    <head><meta charset='utf-8'><title>Informe</title></head>
-    <body style="font-family: Arial, sans-serif;">
-      ${informeHTML}
-    </body></html>`;
-
-  const blob = new Blob(['\ufeff', header], { type: 'application/msword' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `Informe_${s.lastName}.doc`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-};
- 
 
 const formatearTextoImpresion = (idIndicador, indiceOpcion, respuestaCorta, firstNameRaw) => {
   if (!respuestaCorta || typeof respuestaCorta !== 'string') return '';
@@ -1360,19 +1340,7 @@ return (
                             <Printer size={16}/>
                           </button>
                         )}
-                    <button 
-  onClick={() => {
-    if (rActual) {
-      descargarComoWord(s, rActual); // <--- Llama a la función de arriba
-    } else {
-      alert("Primero debes cargar el informe.");
-    }
-  }}
-  className="p-2 ml-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
-  title="Descargar Word"
->
-  <FileText size={18}/>
-</button>              <button 
+                             <button 
                           onClick={() => handleEdit(s, rActual)} 
                           className={`p-2 rounded-lg transition-colors ${rActual ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-violet-600 text-white hover:bg-violet-700'}`}
                         >
