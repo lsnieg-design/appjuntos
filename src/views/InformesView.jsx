@@ -631,17 +631,14 @@ const generarHTMLImpresion = (s, report) => {
  const mostrarAuxiliar = !['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(report.tipoInforme);
 
  return `
-<div class="pagina w-full bg-white text-black font-sans pb-4">
-    <div class="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
-        <!-- He cambiado h-16 por h-32 para agrandar la imagen -->
-        <img src="/logosinfondo.png" alt="Logo Institucional" class="h-32 object-contain mb-3" />
-        
-        <h1 class="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME ${report.periodo.toUpperCase()} 2026</h1>
-        <p class="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
-            Área: ${subtituloArea}
-        </p>
-    </div>
-</div>
+ <div class="pagina w-full bg-white text-black font-sans pb-4">
+     <div class="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
+         <img src="/logosinfondo.png" alt="Logo Institucional" class="h-16 object-contain mb-3" />
+         <h1 class="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME ${report.periodo.toUpperCase()} 2026</h1>
+         <p class="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
+             Área: ${subtituloArea}
+         </p>
+     </div>
      
     <div class="border border-violet-200 rounded-xl p-5 mb-3 bg-white shadow-sm" style="break-inside: avoid;">
          <h2 class="text-sm font-black text-violet-900 uppercase border-b border-violet-100 pb-1 mb-3">Datos del Estudiante</h2>
@@ -672,7 +669,7 @@ const generarHTMLImpresion = (s, report) => {
      </div>
 
      <div class="mt-8 pt-4 flex flex-col items-center justify-center border-t border-dashed border-gray-200" style="break-inside: avoid;">
-         <img src="/firmasylogo.png" alt="Sello Institucional Juntos a la Par" class="max-w-[320px] w-full object-contain mb-6 text-center" />
+         <img src="/firmasylogo.png" alt="Sello Institucional Juntos a la Par" class="max-w-[500px] w-full object-contain mb-6 text-center" />
          
          <div class="w-full flex justify-between px-12 mt-12 relative">
              <div class="flex flex-col items-center w-48 relative">
@@ -1781,7 +1778,7 @@ return (
             return (
               <div className="pagina w-full bg-white text-black font-sans pb-4">
                 <div className="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
-                  <img src="https://tu-app-en-vercel.vercel.app/logosinfondo.png" alt="Logo Institucional" className="h-32 object-contain mb-3" />
+                  <img src="https://tu-app-en-vercel.vercel.app/logosinfondo.png" alt="Logo Institucional" className="h-16 object-contain mb-3" />
                   <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME {periodoInforme.toUpperCase()} 2026</h1>
                   <p className="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
                     Área: {tipoInforme === 'musica' ? 'Música (Francisco Jaime)' : tipoInforme === 'musica_brenda' ? 'Música (Brenda Celiz)' : tipoInforme}
@@ -1859,7 +1856,7 @@ return (
                 </div>
 
                 <div className="mt-8 pt-4 flex flex-col items-center justify-center border-t border-dashed border-gray-200" style={{ breakInside: 'avoid' }}>
-                  <img src="/firmasylogo.png" alt="Sello Institucional" className="max-w-[320px] w-full object-contain mb-6 text-center" />
+                  <img src="/firmasylogo.png" alt="Sello Institucional" className="max-w-[500px] w-full object-contain mb-6 text-center" />
                   <div className="w-full flex justify-between px-12 mt-12 relative">
                     <div className="flex flex-col items-center w-48 relative">
                       {FIRMAS_AREAS[tipoInforme] && (
