@@ -236,17 +236,27 @@ const printGroups = (groupsList) => {
     document.body.appendChild(iframe);
     
     let h = `<html><head><style>
-      body{font-family:sans-serif; padding:20px;}
-      .group-page { page-break-after: always; }
+      @page {
+        size: A4;
+        margin: 0.8cm;
+      }
+      body{font-family:sans-serif; padding:0; margin:0; color:#222;}
+      .group-page { 
+        page-break-inside: avoid; 
+        page-break-after: always; 
+      }
       .group-page:last-child { page-break-after: avoid; }
-      .header{background:#f3f4f6; padding:15px; border-left:5px solid #7c3aed; margin-bottom:10px; border-radius: 0 15px 15px 0;}
-      .header h2 { margin: 0; color: #7c3aed; text-transform: uppercase; font-size: 16px; }
-      .header-info { margin: 6px 0 0 0; font-size: 12px; color: #555; }
-      table{width:100%; border-collapse:collapse; font-size:10px; margin-top: 10px;}
-      th{background:#7c3aed; color:white; padding:8px; text-align:left; text-transform:uppercase;}
-      td{border:1px solid #ddd; padding:8px; vertical-align: middle;}
-      .foto-print { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; background: #eee; display: block; margin: 0 auto; }
-      @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+      .header{background:#f3f4f6; padding:10px 12px; border-left:5px solid #7c3aed; margin-bottom:8px; border-radius: 0 12px 12px 0;}
+      .header h2 { margin: 0; color: #7c3aed; text-transform: uppercase; font-size: 14px; }
+      .header-info { margin: 4px 0 0 0; font-size: 11px; color: #555; }
+      table{width:100%; border-collapse:collapse; font-size:9.5px;}
+      th{background:#7c3aed; color:white; padding:6px; text-align:left; text-transform:uppercase; font-size:9px;}
+      td{border:1px solid #ddd; padding:5px 6px; vertical-align: middle;}
+      .foto-print { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: #eee; display: block; margin: 0 auto; }
+      @media print { 
+        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        tr { page-break-inside: avoid; }
+      }
     </style></head><body>`;
 
     if (printMode === 'staff') {
@@ -284,8 +294,8 @@ const printGroups = (groupsList) => {
                   <table>
                     <thead>
                       <tr>
-                        <th style="width: 25px; text-align: center;">#</th>
-                        <th style="width: 45px; text-align: center;">Foto</th>
+                        <th style="width: 20px; text-align: center;">#</th>
+                        <th style="width: 35px; text-align: center;">Foto</th>
                         <th>Nombre y Apellido</th>
                         <th>DNI</th>
                         <th>Nacimiento</th>
@@ -297,7 +307,7 @@ const printGroups = (groupsList) => {
           g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).forEach((s, i) => {
               const fotoHTML = s.photoUrl 
                 ? `<img src="${s.photoUrl}" class="foto-print" />` 
-                : `<div class="foto-print" style="line-height:35px; color:#aaa; text-align:center; font-size:14px; font-weight:bold;">${s.firstName[0]}</div>`;
+                : `<div class="foto-print" style="line-height:28px; color:#aaa; text-align:center; font-size:12px; font-weight:bold;">${s.firstName[0]}</div>`;
               
               h += `<tr>
                 <td style="text-align: center;">${i+1}</td>
@@ -316,7 +326,6 @@ const printGroups = (groupsList) => {
     const docIframe = iframe.contentWindow.document; docIframe.open(); docIframe.write(h); docIframe.close();
     setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); document.body.removeChild(iframe); }, 500);
   };
-
   
  const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
     const campo = `informe${numeroInforme}`;
