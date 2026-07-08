@@ -235,28 +235,18 @@ const printGroups = (groupsList) => {
     iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
     document.body.appendChild(iframe);
     
-    // Saneamiento de edad para usar dentro de la impresión si es necesario
-    const getEdad = (d) => {
-      if (!d) return '-';
-      const t = new Date();
-      const b = new Date(d);
-      let a = t.getFullYear() - b.getFullYear();
-      const m = t.getMonth() - b.getMonth();
-      if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--;
-      return a;
-    };
-
     let h = `<html><head><style>
-      body{font-family:sans-serif; padding:20px; color:#333;}
-      .header{background:#f3f4f6; padding:15px; border-left:5px solid #7c3aed; margin-bottom:5px; border-radius: 0 15px 15px 0;}
+      body{font-family:sans-serif; padding:20px;}
+      .group-page { page-break-after: always; }
+      .group-page:last-child { page-break-after: avoid; }
+      .header{background:#f3f4f6; padding:15px; border-left:5px solid #7c3aed; margin-bottom:10px; border-radius: 0 15px 15px 0;}
       .header h2 { margin: 0; color: #7c3aed; text-transform: uppercase; font-size: 16px; }
-      .sub-header { font-size: 11px; margin-bottom: 12px; padding-left: 5px; color: #555; }
-      table{width:100%; border-collapse:collapse; font-size:10px; margin-top: 5px; margin-bottom: 25px;}
+      .header-info { margin: 6px 0 0 0; font-size: 12px; color: #555; }
+      table{width:100%; border-collapse:collapse; font-size:10px; margin-top: 10px;}
       th{background:#7c3aed; color:white; padding:8px; text-align:left; text-transform:uppercase;}
-      td{border:1px solid #ddd; padding:6px 8px; vertical-align:middle;}
-      .img-cell { width: 35px; text-align: center; }
-      .thumb { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; border: 1px solid #ccc; }
-      .no-thumb { width: 30px; height: 30px; border-radius: 50%; background: #eee; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; color: #888; }
+      td{border:1px solid #ddd; padding:8px; vertical-align: middle;}
+      .foto-print { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; background: #eee; display: block; margin: 0 auto; }
+      @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
     </style></head><body>`;
 
     if (printMode === 'staff') {
@@ -282,52 +272,52 @@ const printGroups = (groupsList) => {
       const turnoTexto = turn === 'morning' ? 'Mañana' : 'Tarde';
       
       groupsList.forEach(g => {
-          h += `<div class="header"><h2>${g.name}</h2></div>
-          <div class="sub-header">
-            <b>Docente:</b> ${g.teacher || 'Sin asignar'} | 
-            <b>Auxiliar / Preceptora:</b> ${g.aux || 'Sin asignar'} | 
-            <b>Turno:</b> ${turnoTexto}
-          </div>
-          <table><thead><tr>
-            <th style="width: 25px;">#</th>
-            <th style="width: 40px;">Foto</th>
-            <th>Nombre y Apellido</th>
-            <th>DNI</th>
-            <th>Edad</th>
-            <th>F. Nacimiento</th>
-            <th>Género</th>
-            <th>Diagnóstico</th>
-          </tr></thead><tbody>`;
-          
+          h += `<div class="group-page">
+                  <div class="header">
+                    <h2>${g.name}</h2>
+                    <p class="header-info">
+                      <b>Docente:</b> ${g.teacher || 'Sin asignar'} &nbsp;|&nbsp; 
+                      <b>Auxiliar/Preceptora:</b> ${g.aux || 'Sin asignar'} &nbsp;|&nbsp; 
+                      <b>Turno:</b> ${turnoTexto}
+                    </p>
+                  </div>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th style="width: 25px; text-align: center;">#</th>
+                        <th style="width: 45px; text-align: center;">Foto</th>
+                        <th>Nombre y Apellido</th>
+                        <th>DNI</th>
+                        <th>Nacimiento</th>
+                        <th>Género</th>
+                        <th>Diagnóstico</th>
+                      </tr>
+                    </thead>
+                    <tbody>`;
           g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).forEach((s, i) => {
-              // Limpieza y filtro para mostrar idealmente TED o DI
-              const dxRaw = (s.dx || '').toUpperCase();
-              let dxMuestra = s.dx || '-';
-              if (dxRaw.includes('TEA') || dxRaw.includes('TED') || dxRaw.includes('ESPECTRO')) dxMuestra = 'TED';
-              else if (dxRaw.includes('DI') || dxRaw.includes('INTELECTUAL')) dxMuestra = 'DI';
-
-              const fotoHtml = s.photoUrl 
-                ? `<img class="thumb" src="${s.photoUrl}" />` 
-                : `<div class="no-thumb">${(s.firstName && s.firstName[0]) || '?'}</div>`;
-
+              const fotoHTML = s.photoUrl 
+                ? `<img src="${s.photoUrl}" class="foto-print" />` 
+                : `<div class="foto-print" style="line-height:35px; color:#aaa; text-align:center; font-size:14px; font-weight:bold;">${s.firstName[0]}</div>`;
+              
               h += `<tr>
                 <td style="text-align: center;">${i+1}</td>
-                <td class="img-cell">${fotoHtml}</td>
+                <td>${fotoHTML}</td>
                 <td><b>${s.lastName}, ${s.firstName}</b></td>
                 <td>${s.dni || '-'}</td>
-                <td>${calculateAge(s.birthDate)}</td>
                 <td>${getSafeDate(s.birthDate) || '-'}</td>
                 <td style="text-transform: capitalize;">${s.gender || '-'}</td>
-                <td><b style="color: #4c1d95;">${dxMuestra}</b></td>
+                <td style="text-transform: uppercase;">${s.dx || '-'}</td>
               </tr>`;
           });
-          h += `</tbody></table>`;
+          h += `</tbody></table></div>`;
       });
     }
     h += `</body></html>`;
     const docIframe = iframe.contentWindow.document; docIframe.open(); docIframe.write(h); docIframe.close();
     setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); document.body.removeChild(iframe); }, 500);
   };
+
+  
  const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
     const campo = `informe${numeroInforme}`;
     const info = estudiante[campo] || { status: 'Pendiente' };
