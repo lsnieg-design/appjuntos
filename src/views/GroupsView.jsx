@@ -237,8 +237,8 @@ const printGroups = (groupsList) => {
     
     let h = `<html><head><style>
       @page {
-        size: A4;
-        margin: 0.8cm;
+        size: A4 landscape;
+        margin: 0.6cm;
       }
       body{font-family:sans-serif; padding:0; margin:0; color:#222;}
       .group-page { 
@@ -246,13 +246,13 @@ const printGroups = (groupsList) => {
         page-break-after: always; 
       }
       .group-page:last-child { page-break-after: avoid; }
-      .header{background:#f3f4f6; padding:10px 12px; border-left:5px solid #7c3aed; margin-bottom:8px; border-radius: 0 12px 12px 0;}
-      .header h2 { margin: 0; color: #7c3aed; text-transform: uppercase; font-size: 14px; }
+      .header{background:#f3f4f6; padding:10px 14px; border-left:5px solid #7c3aed; margin-bottom:10px; border-radius: 0 12px 12px 0;}
+      .header h2 { margin: 0; color: #7c3aed; text-transform: uppercase; font-size: 15px; }
       .header-info { margin: 4px 0 0 0; font-size: 11px; color: #555; }
-      table{width:100%; border-collapse:collapse; font-size:9.5px;}
-      th{background:#7c3aed; color:white; padding:6px; text-align:left; text-transform:uppercase; font-size:9px;}
-      td{border:1px solid #ddd; padding:5px 6px; vertical-align: middle;}
-      .foto-print { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: #eee; display: block; margin: 0 auto; }
+      table{width:100%; border-collapse:collapse; font-size:10px;}
+      th{background:#7c3aed; color:white; padding:8px 6px; text-align:left; text-transform:uppercase; font-size:9.5px;}
+      td{border:1px solid #ddd; padding:6px; vertical-align: middle;}
+      .foto-print { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: #eee; display: block; margin: 0 auto; }
       @media print { 
         body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         tr { page-break-inside: avoid; }
@@ -294,11 +294,12 @@ const printGroups = (groupsList) => {
                   <table>
                     <thead>
                       <tr>
-                        <th style="width: 20px; text-align: center;">#</th>
-                        <th style="width: 35px; text-align: center;">Foto</th>
+                        <th style="width: 30px; text-align: center;">#</th>
+                        <th style="width: 45px; text-align: center;">Foto</th>
                         <th>Nombre y Apellido</th>
                         <th>DNI</th>
-                        <th>Nacimiento</th>
+                        <th>Edad</th>
+                        <th>Fecha de Nacimiento</th>
                         <th>Género</th>
                         <th>Diagnóstico</th>
                       </tr>
@@ -307,13 +308,14 @@ const printGroups = (groupsList) => {
           g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).forEach((s, i) => {
               const fotoHTML = s.photoUrl 
                 ? `<img src="${s.photoUrl}" class="foto-print" />` 
-                : `<div class="foto-print" style="line-height:28px; color:#aaa; text-align:center; font-size:12px; font-weight:bold;">${s.firstName[0]}</div>`;
+                : `<div class="foto-print" style="line-height:32px; color:#aaa; text-align:center; font-size:13px; font-weight:bold;">${s.firstName[0]}</div>`;
               
               h += `<tr>
-                <td style="text-align: center;">${i+1}</td>
+                <td style="text-align: center;"><b>${i+1}</b></td>
                 <td>${fotoHTML}</td>
                 <td><b>${s.lastName}, ${s.firstName}</b></td>
                 <td>${s.dni || '-'}</td>
+                <td>${calculateAge(s.birthDate)} años</td>
                 <td>${getSafeDate(s.birthDate) || '-'}</td>
                 <td style="text-transform: capitalize;">${s.gender || '-'}</td>
                 <td style="text-transform: uppercase;">${s.dx || '-'}</td>
@@ -326,6 +328,7 @@ const printGroups = (groupsList) => {
     const docIframe = iframe.contentWindow.document; docIframe.open(); docIframe.write(h); docIframe.close();
     setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); document.body.removeChild(iframe); }, 500);
   };
+
   
  const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
     const campo = `informe${numeroInforme}`;
