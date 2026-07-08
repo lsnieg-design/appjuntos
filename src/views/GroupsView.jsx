@@ -230,18 +230,33 @@ const gruposFinales = React.useMemo(() => {
   
   // --- FUNCIONES DE ACCIÓN ---
 
-  const printGroups = (groupsList) => {
+const printGroups = (groupsList) => {
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
     document.body.appendChild(iframe);
     
+    // Saneamiento de edad para usar dentro de la impresión si es necesario
+    const getEdad = (d) => {
+      if (!d) return '-';
+      const t = new Date();
+      const b = new Date(d);
+      let a = t.getFullYear() - b.getFullYear();
+      const m = t.getMonth() - b.getMonth();
+      if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--;
+      return a;
+    };
+
     let h = `<html><head><style>
-      body{font-family:sans-serif; padding:20px;}
-      .header{background:#f3f4f6; padding:15px; border-left:5px solid #7c3aed; margin-bottom:10px; border-radius: 0 15px 15px 0;}
+      body{font-family:sans-serif; padding:20px; color:#333;}
+      .header{background:#f3f4f6; padding:15px; border-left:5px solid #7c3aed; margin-bottom:5px; border-radius: 0 15px 15px 0;}
       .header h2 { margin: 0; color: #7c3aed; text-transform: uppercase; font-size: 16px; }
-      table{width:100%; border-collapse:collapse; font-size:10px; margin-top: 10px;}
+      .sub-header { font-size: 11px; margin-bottom: 12px; padding-left: 5px; color: #555; }
+      table{width:100%; border-collapse:collapse; font-size:10px; margin-top: 5px; margin-bottom: 25px;}
       th{background:#7c3aed; color:white; padding:8px; text-align:left; text-transform:uppercase;}
-      td{border:1px solid #ddd; padding:8px;}
+      td{border:1px solid #ddd; padding:6px 8px; vertical-align:middle;}
+      .img-cell { width: 35px; text-align: center; }
+      .thumb { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; border: 1px solid #ccc; }
+      .no-thumb { width: 30px; height: 30px; border-radius: 50%; background: #eee; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; color: #888; }
     </style></head><body>`;
 
     if (printMode === 'staff') {
@@ -264,20 +279,55 @@ const gruposFinales = React.useMemo(() => {
       });
       h += `</tbody></table>`;
     } else {
+      const turnoTexto = turn === 'morning' ? 'Mañana' : 'Tarde';
+      
       groupsList.forEach(g => {
           h += `<div class="header"><h2>${g.name}</h2></div>
-          <table><thead><tr><th>#</th><th>Nombre y Apellido</th><th>DNI</th><th>Nacimiento</th><th>Familia</th></tr></thead><tbody>`;
+          <div class="sub-header">
+            <b>Docente:</b> ${g.teacher || 'Sin asignar'} | 
+            <b>Auxiliar / Preceptora:</b> ${g.aux || 'Sin asignar'} | 
+            <b>Turno:</b> ${turnoTexto}
+          </div>
+          <table><thead><tr>
+            <th style="width: 25px;">#</th>
+            <th style="width: 40px;">Foto</th>
+            <th>Nombre y Apellido</th>
+            <th>DNI</th>
+            <th>Edad</th>
+            <th>F. Nacimiento</th>
+            <th>Género</th>
+            <th>Diagnóstico</th>
+          </tr></thead><tbody>`;
+          
           g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).forEach((s, i) => {
-              h += `<tr><td>${i+1}</td><td><b>${s.lastName}, ${s.firstName}</b></td><td>${s.dni || '-'}</td><td>${s.birthDate || '-'}</td><td>${s.motherContact || '-'}</td></tr>`;
+              // Limpieza y filtro para mostrar idealmente TED o DI
+              const dxRaw = (s.dx || '').toUpperCase();
+              let dxMuestra = s.dx || '-';
+              if (dxRaw.includes('TEA') || dxRaw.includes('TED') || dxRaw.includes('ESPECTRO')) dxMuestra = 'TED';
+              else if (dxRaw.includes('DI') || dxRaw.includes('INTELECTUAL')) dxMuestra = 'DI';
+
+              const fotoHtml = s.photoUrl 
+                ? `<img class="thumb" src="${s.photoUrl}" />` 
+                : `<div class="no-thumb">${(s.firstName && s.firstName[0]) || '?'}</div>`;
+
+              h += `<tr>
+                <td style="text-align: center;">${i+1}</td>
+                <td class="img-cell">${fotoHtml}</td>
+                <td><b>${s.lastName}, ${s.firstName}</b></td>
+                <td>${s.dni || '-'}</td>
+                <td>${calculateAge(s.birthDate)}</td>
+                <td>${getSafeDate(s.birthDate) || '-'}</td>
+                <td style="text-transform: capitalize;">${s.gender || '-'}</td>
+                <td><b style="color: #4c1d95;">${dxMuestra}</b></td>
+              </tr>`;
           });
-          h += `</tbody></table><br/>`;
+          h += `</tbody></table>`;
       });
     }
     h += `</body></html>`;
     const docIframe = iframe.contentWindow.document; docIframe.open(); docIframe.write(h); docIframe.close();
     setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); document.body.removeChild(iframe); }, 500);
   };
-
  const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
     const campo = `informe${numeroInforme}`;
     const info = estudiante[campo] || { status: 'Pendiente' };
