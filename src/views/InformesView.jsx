@@ -344,9 +344,9 @@ pedido_de_ayuda: [
   `Realiza de forma adecuada las diversas tareas productivas, logrando seguir e internalizar las secuencias preestablecidas de trabajo con un grado de independencia sumamente funcional para la dinámica del taller. Trabaja súper bien siguiendo las indicaciones y ya hace gran parte del producto por su propia cuenta.`,
   `Nombre es capaz de desarrollar y concretar productos terminados abordando el proceso productivo en su totalidad de manera plenamente independiente. Planifica, ejecuta y concluye los pasos secuenciales sin requerir ningún tipo de asistencia. Sabe exactamente qué tiene que hacer desde que empieza hasta que termina el producto, sin que le digamos nada.`
  ],
- produccion_calidad: [
+produccion_calidad: [
   `En cuanto a la calidad de terminación, Nombre requiere que la docente intervenga de manera directa para corregir, ajustar o finalizar sus producciones y así lograr alcanzar los estándares mínimos requeridos en el taller. Se acompaña para terminar y emprolijar las cosas para que el producto quede finalizado.`,
-  `Concreta producciones de manera funcional, aunque precisa de supervisión y acompañamiento frecuente.` 
+  `Concreta producciones de manera funcional, aunque precisa de supervisión y acompañamiento frecuente.`, // <--- AGREGAR ESTA COMA
   `Logra plasmar acabados de muy buena calidad en sus trabajos, evidenciando esmero en la terminación. Únicamente requiere de revisiones esporádicas o sugerencias puntuales para perfeccionar su producción. Hace trabajos prolijos y casi no hace falta que se lo ayude en nada.`,
   `Realiza sus tareas logrando producciones de calidad. Demuestra atención a los detalles.`
  ],
