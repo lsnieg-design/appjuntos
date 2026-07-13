@@ -346,7 +346,7 @@ pedido_de_ayuda: [
  ],
  produccion_calidad: [
   `En cuanto a la calidad de terminación, Nombre requiere que la docente intervenga de manera directa para corregir, ajustar o finalizar sus producciones y así lograr alcanzar los estándares mínimos requeridos en el taller. Se acompaña para terminar y emprolijar las cosas para que el producto quede finalizado.`,
-  `Concreta producciones de manera funcional, aunque precisa de la supervisión frecuente y la corrección externa de los detalles y acabados para optimizar el nivel de calidad del producto final. Trabaja bien y solo se ayuda al final para corregir pequeños detalles de prolijidad.`,
+  `Concreta producciones de manera funcional, aunque precisa de supervisión y acompañamiento frecuente.` 
   `Logra plasmar acabados de muy buena calidad en sus trabajos, evidenciando esmero en la terminación. Únicamente requiere de revisiones esporádicas o sugerencias puntuales para perfeccionar su producción. Hace trabajos prolijos y casi no hace falta que se lo ayude en nada.`,
   `Realiza sus tareas logrando producciones de calidad. Demuestra atención a los detalles.`
  ],
@@ -358,13 +358,13 @@ pedido_de_ayuda: [
  ],
  autonomia_seguridad: [
   `Nombre aún no ha internalizado las normas básicas de seguridad e higiene del taller. Requiere de control físico, supervisión y modelado preventivo para evitar situaciones de riesgo en el espacio de trabajo.`,
-  `Evidencia conocimiento teórico de las normas básicas de seguridad e higiene, logrando aplicarlas con el recordatorio explícito y la anticipación de la docente justo antes de comenzar sus actividades.`,
+  `Evidencia conocimiento de las normas básicas de seguridad e higiene, logrando aplicarlas con el recordatorio explícito y la anticipación de la docente justo antes de comenzar sus actividades.`,
   `Nombre respeta y aplica de forma metódica y consistente las normativas vigentes de seguridad e higiene. Demuestra cuidado por su propia integridad y mantiene los estándares de limpieza durante su desempeño. Sabe qué cosas son peligrosas y mantiene su lugar siempre limpio y seguro.`,
   `Nombre se posiciona como referente dentro del grupo. Cuida de forma proactiva y autónoma tanto su espacio personal de trabajo como el entorno general del taller.`
  ],
  rol_pautas: [
   `Presenta notorias dificultades para ajustarse a las pautas del taller, tendiendo a la deambulación o interrumpiendo frecuentemente el trabajo de sus compañeros. Requiere constante reconducción a su puesto y tarea. Le está costando un poquito quedarse en su lugar de trabajo y seguir el ritmo, así que lo acompañamos con mucha paciencia.`,
-  `Logra respetar de forma básica las pautas de convivencia, las normas de funcionamiento y los horarios establecidos del entorno laboral, precisando para ello de supervisión externa y señalamientos frecuentes. Va aprendiendo muy bien las reglas de convivencia del grupo con un poco de guía nuestra.`,
+  `Logra respetar de forma básica las pautas de convivencia y las normas de funcionamiento, precisando para ello de supervisión externa y señalamientos frecuentes. `,
   `Cumple adecuadamente con las pautas estructurales de trabajo, asimilando con responsabilidad los tiempos, los cronogramas y las rutinas normativas propias de la dinámica cotidiana del taller pre-profesional. Entendió perfecto cómo funcionamos en el taller y respeta súper bien los horarios y las normas.`,
   `Demuestra un nivel de compromiso, puntualidad y sentido de responsabilidad laboral absolutamente intachables. Sostiene una actitud sumamente madura y respetuosa hacia las normativas generales de la institución. Es súper responsable y respetuoso/a con todas las reglas, da gusto ver el compromiso que tiene con su trabajo.`
  ],
@@ -376,24 +376,24 @@ pedido_de_ayuda: [
  ],
  comprension_proceso: [
   `Se limita a ejecutar acciones repetitivas o pasos productivos de manera aislada y descontextualizada, sin lograr aún comprender el sentido global de la tarea o el resultado final del producto que se está elaborando. Está aprendiendo recién a hacer una partecita del trabajo, pero todavía le falta entender para qué sirve lo que estamos fabricando.`,
-  `Logra comprender parcialmente ciertas etapas de la secuencia de producción, necesitando de la explicación reiterada y la mediación conceptual constante por parte del docente para otorgarle sentido a su trabajo. Va entendiendo de a poco qué es lo que hacemos, y le explicamos para qué sirve su enorme esfuerzo.`,
+  `Logra comprender parcialmente ciertas etapas de la secuencia de producción, necesitando de la explicación reiterada y la mediación constante por parte del docente. `,
   `Comprende claramente la secuencia lógica y el encadenamiento integral del proceso productivo. Identifica con asertividad su lugar funcional dentro del sistema y la importancia de su tarea específica. Sabe muy bien qué lugar ocupa en el taller y por qué su ayuda es tan importante para terminar el producto.`,
   `Posee un entendimiento absolutamente global y detallado del proceso productivo integral de la institución. Identifica, valora y analiza de manera crítica cómo cada mínima intervención propia aporta al éxito del resultado final. Entiende a la perfección todo lo que hacemos en el taller y sabe que su trabajo es súper valioso para que todo quede excelente.`
  ],
  responsabilidad_rol: [
   `Requiere de estímulos y supervisión directiva de manera continua para lograr mantenerse físicamente en su puesto de trabajo y focalizado/a en la función operativa que le ha sido asignada dentro de la jornada. Necesita que lo/la animemos mucho para que no deje su tarea y entienda qué tiene que hacer.`,
-  `Logra asumir un rol productivo de características simples bajo supervisión general. Cumple de manera obediente y operativa con las tareas directas que le son explícitamente asignadas y demandadas por el docente. Hace muy bien las tareas que le pedimos, siempre con un poquito de guía nuestra para no perderse.`,
+  `Logra asumir un rol productivo de características simples bajo supervisión general. `,
   `Asume, respeta y mantiene su rol laboral y su función específica con total autonomía y responsabilidad. Se desenvuelve con soltura e independencia dentro del andamiaje general del grupo de trabajo. Es súper responsable con lo que le toca hacer y se maneja solo/a sin que tengamos que estar encima.`,
   `Demuestra una sobresaliente madurez laboral. Es capaz de identificar por cuenta propia las diferentes necesidades o falencias emergentes del sistema productivo, asumiendo proactivamente nuevas funciones para darles solución. Es tan responsable que si ve que falta hacer algo que no era su tarea, se ofrece a ayudar sin que se lo pidamos.`
  ],
  adaptabilidad: [
   `Manifiesta una notoria rigidez de tipo conductual ante cualquier mínima variación introducida en su tarea habitual, en el uso de los materiales o ante posibles y necesarios cambios de su puesto físico de trabajo. Le cuestan mucho los cambios repentinos, así que tratamos de mantener su rutina para que se sienta seguro/a.`,
-  `Logra aceptar de forma transitoria ciertos cambios en su función productiva, siempre y cuando estas modificaciones cuenten previamente con una explicación clara, un encuadre anticipatorio visual y un acompañamiento empático. Acepta probar cosas nuevas o cambiar de tarea si se lo explicamos con tiempo y mucha tranquilidad.`,
+  `Logra aceptar de forma transitoria ciertos cambios en su función productiva, siempre y cuando estas modificaciones cuenten previamente con una explicación clara, un encuadre anticipatorio visual y acompañamiento.`,
   `Se adapta de forma sumamente flexible y operativa a la rotación por diferentes roles o estaciones de trabajo dentro del taller, requiriendo tan solo de una guía técnica de inducción mínima frente al nuevo desafío. Se adapta rapidísimo si un día le toca hacer una tarea distinta o trabajar con otro compañero.`,
   `Muestra una extraordinaria versatilidad y plasticidad sociolaboral. Cambia rápidamente de rol, puesto o función operativa basándose pura y exclusivamente en las demandas situacionales y las necesidades del sistema productivo. Es un todoterreno, no tiene problemas en cambiar de tarea mil veces si hace falta y siempre con excelente actitud.`
  ],
  gestion_tiempos: [
-  `No evidencia un registro consciente, funcional ni autónomo del paso del tiempo laboral. Depende imperativamente de directivas externas para iniciar su labor, comprender los momentos de receso o finalizar su tarea. Le estamos enseñando a darse cuenta de cuándo es momento de trabajar y cuándo es momento de descansar.`,
+  `Trabaja en el registro consciente y funcional del paso del tiempo de trabajo. Requiere indicaciones directas para iniciar su labor, comprender los momentos de receso o finalizar su tarea. `,
   `Ejecuta las consignas de trabajo respetando ciertos márgenes y ritmos mínimos de productividad, contando siempre con la estructuración, el andamiaje y la pautación de tiempos controlada por la supervisión externa. Sigue bien los tiempos si nosotros le avisamos cuándo empezar y cuándo frenar a tomar algo o descansar.`,
   `Logra autorregular su propio ritmo, velocidad y nivel de exigencia en el trabajo. Gestiona sus tiempos de descanso y actividad de manera equilibrada para cumplir funcionalmente con los objetivos y plazos de entrega. Sabe organizarse perfecto: trabaja a buen ritmo y frena a descansar lo justo y necesario.`,
   `Planifica de manera estratégica e independiente todo su tiempo laboral y la disposición de sus recursos técnicos con el fin de optimizar al máximo los niveles y la eficiencia global de la producción del taller. Maneja los tiempos como un profesional, organizándose tan bien que hace que todo el equipo trabaje mejor.`
