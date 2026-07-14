@@ -354,7 +354,7 @@ produccion_calidad: [
   `Requiere asistencia para iniciar, estructurar y sostener temporalmente la tarea.`,
   `Logra sostener la atención en la tarea por períodos breves de tiempo. Precisa de recordatorios verbales y motivación por parte del docente para poder retomar y dar continuidad al trabajo.`,
   `Mantiene un ritmo de trabajo sostenido, constante y productivo, requiriendo supervisión intermitente. Demuestra capacidad para regular su actividad operativa de forma funcional.`,
-  `Gestiona su propia jornada laboral de forma independiente. Organiza su día de trabajo y hace sus tareas de forma responsable.`
+  `Gestiona su propia jornada laboral de con poco apoyo de las docentes. Organiza su trabajo y hace la parte de la producción de forma responsable.`
  ],
  autonomia_seguridad: [
   `Nombre aún no ha internalizado las normas básicas de seguridad e higiene del taller. Requiere de control físico, supervisión y modelado preventivo para evitar situaciones de riesgo en el espacio de trabajo.`,
