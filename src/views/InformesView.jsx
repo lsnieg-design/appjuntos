@@ -346,7 +346,7 @@ pedido_de_ayuda: [
  ],
 produccion_calidad: [
   `En cuanto a la calidad de terminación, Nombre requiere que la docente intervenga de manera directa para corregir, ajustar o finalizar sus producciones y así lograr alcanzar los estándares mínimos requeridos en el taller. Se acompaña para terminar y emprolijar las cosas para que el producto quede finalizado.`,
-  `Concreta producciones de manera funcional, aunque precisa de supervisión y acompañamiento frecuente.`, // <--- AGREGAR ESTA COMA
+  `Concreta producciones de manera funcional, aunque precisa de supervisión y acompañamiento frecuente. `, // <--- AGREGAR ESTA COMA
   `Logra plasmar acabados de muy buena calidad en sus trabajos, evidenciando esmero en la terminación. Únicamente requiere de revisiones esporádicas o sugerencias puntuales para perfeccionar su producción. Hace trabajos prolijos y casi no hace falta que se lo ayude en nada.`,
   `Realiza sus tareas logrando producciones de calidad. Demuestra atención a los detalles.`
  ],
@@ -370,18 +370,18 @@ produccion_calidad: [
  ],
  rol_equipo: [
   `Tiende a ejecutar sus tareas de manera totalmente aislada, centrando su foco únicamente en su propia actividad sin considerar, registrar o articular su desempeño con el resto del entorno productivo y humano. Estamos incentivándolo/a para que empiece a notar el trabajo de sus compañeros y de a poquito comparta con ellos.`,
-  `Logra participar de manera funcional en tareas de tipo compartido y proyectos asociativos únicamente cuando es el docente quien pauta, coordina de forma directa y media la dinámica vincular con el resto del grupo. Comparte muy bien el trabajo con sus compañeros cuando nosotros organizamos la actividad y lo acompañamos.`,
+  ` Logra participar de manera funcional en tareas compartidas y proyectos asociativos, cuando es el docente quien da la pauta, coordina de forma directa y media la dinámica vincular con el resto del grupo.`,
   `Colabora asertivamente con sus pares en el desarrollo de producciones grupales. Logra sostener una comunicación técnica fluida, respetando su función y engranando su tarea con la de sus compañeros de manera natural. Trabaja hermoso en grupo, charla, comparte y hace su parte para que el trabajo entre todos salga bárbaro.`,
   `Asume un rol proactivo y solidario frente a sus compañeros. Constantemente propone nuevas tareas de índole colaborativa, asiste a sus pares ante las dificultades y fomenta un excelente clima de trabajo en equipo. Es un compañero/a de oro, siempre ayuda a los demás y tira para adelante con todo el grupo.`
  ],
  comprension_proceso: [
-  `Se limita a ejecutar acciones repetitivas o pasos productivos de manera aislada y descontextualizada, sin lograr aún comprender el sentido global de la tarea o el resultado final del producto que se está elaborando. Está aprendiendo recién a hacer una partecita del trabajo, pero todavía le falta entender para qué sirve lo que estamos fabricando.`,
+  `Ejecuta acciones repetitivas o pasos productivos de manera sistemática. Trabaja en la comprensión del sentido global de la tarea o el resultado final.`,
   `Logra comprender parcialmente ciertas etapas de la secuencia de producción, necesitando de la explicación reiterada y la mediación constante por parte del docente. `,
   `Comprende claramente la secuencia lógica y el encadenamiento integral del proceso productivo. Identifica con asertividad su lugar funcional dentro del sistema y la importancia de su tarea específica. Sabe muy bien qué lugar ocupa en el taller y por qué su ayuda es tan importante para terminar el producto.`,
   `Posee un entendimiento absolutamente global y detallado del proceso productivo integral de la institución. Identifica, valora y analiza de manera crítica cómo cada mínima intervención propia aporta al éxito del resultado final. Entiende a la perfección todo lo que hacemos en el taller y sabe que su trabajo es súper valioso para que todo quede excelente.`
  ],
  responsabilidad_rol: [
-  `Requiere de estímulos y supervisión directiva de manera continua para lograr mantenerse físicamente en su puesto de trabajo y focalizado/a en la función operativa que le ha sido asignada dentro de la jornada. Necesita que lo/la animemos mucho para que no deje su tarea y entienda qué tiene que hacer.`,
+  `Requiere de estímulos y supervisión directa de manera continua para lograr mantenerse en su lugar de trabajo y de esta forma focalizar su atención sobre la función operativa que le ha sido asignada dentro de la jornada.`,
   `Logra asumir un rol productivo de características simples bajo supervisión general. `,
   `Asume, respeta y mantiene su rol laboral y su función específica con total autonomía y responsabilidad. Se desenvuelve con soltura e independencia dentro del andamiaje general del grupo de trabajo. Es súper responsable con lo que le toca hacer y se maneja solo/a sin que tengamos que estar encima.`,
   `Demuestra una sobresaliente madurez laboral. Es capaz de identificar por cuenta propia las diferentes necesidades o falencias emergentes del sistema productivo, asumiendo proactivamente nuevas funciones para darles solución. Es tan responsable que si ve que falta hacer algo que no era su tarea, se ofrece a ayudar sin que se lo pidamos.`
