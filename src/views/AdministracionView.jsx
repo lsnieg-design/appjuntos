@@ -12,7 +12,7 @@ import {
   ChevronUp 
 } from 'lucide-react';
 
-import { 
+import {  
   collection, query, orderBy, onSnapshot, addDoc, serverTimestamp 
 } from 'firebase/firestore';
 
