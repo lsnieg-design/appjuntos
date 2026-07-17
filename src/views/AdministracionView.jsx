@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import * as XLSX from 'xlsx';
 import { 
   Calendar as CalendarIcon, CheckSquare, Settings, User, FileText, CheckCircle, 
   Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, 
@@ -42,6 +43,45 @@ export function AdministracionView({ user, db, appId }) {
     });
     return () => unsubStudents();
   }, [db, appId]);
+ const downloadStudentsByOS = () => {
+    // 1. Lógica para calcular el horario
+    const getSchedule = (s) => {
+      const journey = (s.journey || '').toLowerCase();
+      if (journey.includes('simple')) {
+        if (journey.includes('mañana')) return '08:30 a 12:30';
+        if (journey.includes('tarde')) return '12:30 a 16:30';
+      }
+      if (journey.includes('doble')) return '08:30 a 16:30';
+      return 'A definir';
+    };
+
+    // 2. Preparar los datos
+    const dataToExport = students.map(s => ({
+      'Apellido': s.lastName || '',
+      'Nombre': s.firstName || '',
+      'Prestación': '', // <--- Se deja vacío para completar a mano
+      'Obra Social': s.healthInsurance || 'SIN OBRA SOCIAL',
+      'Horario': getSchedule(s)
+    }));
+
+    // 3. Ordenar por Obra Social
+    dataToExport.sort((a, b) => a['Obra Social'].localeCompare(b['Obra Social']));
+
+    // 4. Crear el archivo
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    
+    // Opcional: Ajustar el ancho de las columnas para que sea más fácil escribir
+    const wscols = [
+      { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 15 }
+    ];
+    worksheet['!cols'] = wscols;
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Estudiantes");
+
+    // 5. Descargar
+    XLSX.writeFile(workbook, `Alumnos_por_OS_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
 
   const filteredStudents = students.filter(s => {
       if (s.isActive === false) return false;
@@ -208,6 +248,12 @@ export function AdministracionView({ user, db, appId }) {
                 <button onClick={generateDocument} disabled={generating || selectedIds.length === 0} className="bg-blue-600 text-white px-6 py-2 rounded-xl text-xs font-black uppercase shadow-md flex items-center gap-2">
                   {generating ? <RefreshCw className="animate-spin" size={14}/> : <><Printer size={16}/> Imprimir</>}
                 </button>
+              <button 
+  onClick={downloadStudentsByOS}
+  className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase shadow-md flex items-center gap-2 hover:bg-emerald-700 transition-colors"
+>
+  <Download size={14}/> Excel OS
+</button>
             </div>
         </div>
 
