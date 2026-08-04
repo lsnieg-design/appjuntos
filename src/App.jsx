@@ -679,9 +679,7 @@ const canAccessInformesExternos = ['Equipo Directivo', 'Equipo Técnico', 'Equip
                 <button onClick={() => { setActiveTab('proyecto'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
                   <PieChart size={18} className="text-orange-500"/> Proyecto Inst.
                 </button>
-                <button onClick={() => { setActiveTab('informes'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
-                  <ClipboardCheck size={18} className="text-violet-500"/> Informes Pedagógicos
-                </button>
+               
                 
                 {showPrivateMenu && (
                   <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
