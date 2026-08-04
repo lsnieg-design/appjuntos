@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StudentDetailView } from './StudentDetailView';
 import { 
-  User, FileText, Plus, Users, Grid, CheckCircle, ChevronRight, RefreshCw, ChevronLeft, Printer, MessageSquare, Send, Folder, Edit3, X, Search, GraduationCap, Activity 
+  User, FileText, Plus, Users, Grid, CheckCircle, ChevronRight, RefreshCw, ChevronLeft, Printer, MessageSquare, Send, Folder, Edit3, X, Search, GraduationCap, Activity, Shield, MapPin, Phone 
 } from 'lucide-react';
 import { doc, updateDoc, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, arrayUnion, arrayRemove, increment, where } from 'firebase/firestore';
+
 // -------------------------------------------------------------
 // FUNCIONES AUXILIARES DE FECHAS Y EDAD (SANEAMIENTO)
 // -------------------------------------------------------------
@@ -32,6 +33,7 @@ const checkCudStatus = (cudDate) => {
   if (diffDays <= 90) return { status: 'warning', text: `Vence en ${diffDays} días` };
   return { status: 'ok', text: 'Vigente' };
 };
+
 export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
   const [students, setStudents] = useState([]);
   const [usersList, setUsersList] = useState([]); 
@@ -50,11 +52,8 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
   const [updatingGroup, setUpdatingGroup] = useState(false);
   const [showPrintOptions, setShowPrintOptions] = useState(false);
   const [groupsToPrint, setGroupsToPrint] = useState([]);
-  const [printColumns, setPrintColumns] = useState({
-    dni: true, birthDate: true, healthInsurance: false, contacts: true, photo: false
-  });
   const [printMode, setPrintMode] = useState('students'); // 'students' o 'staff'
-  
+  const [viewMode, setViewMode] = useState('Sede'); 
 
   const scrollRef = useRef(null);
   const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scrollRef.current.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' }); } };
@@ -69,7 +68,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     { label: "Fuga / Intento", emoji: "🏃", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
   ];
 
- useEffect(() => {
+  useEffect(() => {
     if (!db || !appId) return;
     const unsubS = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true)), (snap) => setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const unsubU = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('lastName', 'asc')), (snap) => setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
@@ -80,121 +79,74 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     return () => { unsubS(); unsubU(); unsubGM(); };
   }, [db, appId]);
 
-  // --- LÓGICA DE AGRUPAMIENTO OPTIMIZADA ---
-// Nueva variable de estado para alternar vista (agregala arriba con los otros useState)
-  const [viewMode, setViewMode] = useState('Sede'); 
+  const gruposFinales = React.useMemo(() => {
+    const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
 
-const gruposFinales = React.useMemo(() => {
-  const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-  const isManagement = [
-    'admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 
-    'Administración', 'Dirección Inclusión', 'Equipo Técnico Inclusión'
-  ].includes(user.role) || user.rol === 'admin';
+    const grouped = students.reduce((acc, s) => {
+      const studentModality = s.modality || 'Sede';
+      if (studentModality !== viewMode) return acc;
 
-  const grouped = students.reduce((acc, s) => {
-    const studentModality = s.modality || 'Sede';
-    if (studentModality !== viewMode) return acc;
+      const gName = viewMode === 'Sede' ? s[`group${suf}`] : (s[`dai${suf}`] || 'SIN DAI ASIGNADA');
+      const teacherName = s[`teacher${suf}`];
+      const teacher2Name = s[`teacher2${suf}`];
+      const auxName = s[`aux${suf}`];
+      const daiName = s[`dai${suf}`];
 
-    const gName = viewMode === 'Sede' ? s[`group${suf}`] : (s[`dai${suf}`] || 'SIN DAI ASIGNADA');
-    const teacherName = s[`teacher${suf}`];
-    const teacher2Name = s[`teacher2${suf}`];
-    const auxName = s[`aux${suf}`];
-    const daiName = s[`dai${suf}`];
+      if (!isManagement) {
+        const userMatches = 
+          teacherName === user.fullName || 
+          teacher2Name === user.fullName || 
+          auxName === user.fullName || 
+          daiName === user.fullName;
 
-    // Validación de permisos ampliada para incluir docentes, pareja y auxiliares/preceptores
-    if (!isManagement) {
-      const userMatches = 
-        teacherName === user.fullName || 
-        teacher2Name === user.fullName || 
-        auxName === user.fullName || 
-        daiName === user.fullName;
+        if (!userMatches) return acc;
+      }
 
-      if (!userMatches) return acc;
-    }
+      if (!gName) return acc;
+      
+      if (!acc[gName]) { 
+        acc[gName] = { 
+          name: gName, 
+          students: [], 
+          teacher: viewMode === 'Sede' ? (s[`teacher${suf}`] || '') : gName, 
+          teacher2: s[`teacher2${suf}`] || '',
+          aux: viewMode === 'Sede' ? (s[`aux${suf}`] || '') : (s.originSchool || 'Escuela común'),
+          profePlastica: s.profePlastica || '',
+          profeMusica: s.profeMusica || '',
+          profeEF: s.profeEF || '',
+          profePsico: s.profePsico || '',
+          classroom: viewMode === 'Sede' ? s.classroom : s.originGrade, 
+          driveLink: s[`driveLink${suf}`], 
+          institucionalDrive: s.institucionalDrive,
+          stats: { varones: 0, mujeres: 0, conDI: 0, conTEA: 0 }
+        };
+      }
 
-    if (!gName) return acc;
-    
-    if (!acc[gName]) { 
-      acc[gName] = { 
-        name: gName, 
-        students: [], 
-        teacher: viewMode === 'Sede' ? (s[`teacher${suf}`] || '') : gName, 
-        teacher2: s[`teacher2${suf}`] || '',
-        aux: viewMode === 'Sede' ? (s[`aux${suf}`] || '') : (s.originSchool || 'Escuela común'),
-        profePlastica: s.profePlastica || '',
-        profeMusica: s.profeMusica || '',
-        profeEF: s.profeEF || '',
-        profePsico: s.profePsico || '',
-        classroom: viewMode === 'Sede' ? s.classroom : s.originGrade, 
-        driveLink: s[`driveLink${suf}`], 
-        institucionalDrive: s.institucionalDrive,
-        stats: { varones: 0, mujeres: 0, conDI: 0, conTEA: 0 }
-      };
-    }
+      acc[gName].students.push(s);
 
-    acc[gName].students.push(s);
+      const gender = s.gender?.toLowerCase() || '';
+      const dx = (s.dx || '')
+        .toUpperCase()
+        .trim()
+        .replace(/\./g, '')
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
 
-    const gender = s.gender?.toLowerCase() || '';
-    const dx = (s.dx || '')
-      .toUpperCase()
-      .trim()
-      .replace(/\./g, '')
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
+      if (gender === 'masculino' || gender === 'v' || gender === 'm') acc[gName].stats.varones++;
+      if (gender === 'femenino' || gender === 'f') acc[gName].stats.mujeres++;
+      if (dx.includes('DI') || dx.includes('INTELECTUAL')) acc[gName].stats.conDI++;
+      if (dx.includes('TES') || dx.includes('EMOCIONAL') || dx.includes('CONDUCTA')) acc[gName].stats.conTEA++;
 
-    if (gender === 'masculino' || gender === 'v' || gender === 'm') acc[gName].stats.varones++;
-    if (gender === 'femenino' || gender === 'f') acc[gName].stats.mujeres++;
-    if (dx.includes('DI') || dx.includes('INTELECTUAL')) acc[gName].stats.conDI++;
-    if (dx.includes('TES') || dx.includes('EMOCIONAL') || dx.includes('CONDUCTA')) acc[gName].stats.conTEA++;
+      return acc;
+    }, {});
 
-    return acc;
-  }, {});
+    return Object.values(grouped).sort((a, b) => 
+      a.name.includes("INICIAL") ? -1 : a.name.localeCompare(b.name)
+    );
+  }, [students, turn, viewMode, user, isManagement]);
 
-  return Object.values(grouped).sort((a, b) => 
-    a.name.includes("INICIAL") ? -1 : a.name.localeCompare(b.name)
-  );
-}, [students, turn, viewMode, user]);
-
-const handleUpdateGroup = async (e) => {
-  e.preventDefault(); 
-  if (!editingGroup) return; 
-  setUpdatingGroup(true);
-  const fd = new FormData(e.target);
-  const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-  
-  const updates = { 
-    [`group${suf}`]: fd.get('groupName'), 
-    classroom: fd.get('classroom'),
-    [`teacher${suf}`]: fd.get('teacher') || editingGroup.teacher || "",
-    [`teacher2${suf}`]: fd.get('teacher2') || editingGroup.teacher2 || "",
-    [`aux${suf}`]: fd.get('aux') || editingGroup.aux || "",
-    
-    profePlastica: fd.get('profePlastica') || editingGroup.profePlastica || "",
-    profeMusica: fd.get('profeMusica') || editingGroup.profeMusica || "",
-    profeEF: fd.get('profeEF') || editingGroup.profeEF || "",
-    profePsico: fd.get('profePsico') || editingGroup.profePsico || "",
-    
-    [`driveLink${suf}`]: fd.get('driveLink') || editingGroup.driveLink || "",
-    institucionalDrive: fd.get('institucionalDrive') || editingGroup.institucionalDrive || ""
-  };
-  
-  try {
-    const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates));
-    await Promise.all(promises);
-    setEditingGroup(null);
-    alert("✅ Datos del grupo actualizados.");
-  } catch (err) { 
-    alert("Error: " + err.message); 
-  } finally { 
-    updatingGroup(false); 
-  }
-};
-
-  
   const imprimirBitacora = (student) => {
-      // Función auxiliar por si no está globalmente disponible en este archivo
       const getEdad = (d) => { if (!d) return '-'; const t = new Date(); const b = new Date(d); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; };
-
       const incidents = (student.incidents || []).slice().sort((a, b) => new Date(b.date) - new Date(a.date));
 
       let h = `<html><head><title>Bitácora - ${student.lastName}</title>
@@ -266,10 +218,8 @@ const handleUpdateGroup = async (e) => {
           setTimeout(() => { document.body.removeChild(iframe); }, 5000);
       }, 500);
   };
-  
-  // --- FUNCIONES DE ACCIÓN ---
 
-const printGroups = (groupsList) => {
+  const printGroups = (groupsList) => {
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
     document.body.appendChild(iframe);
@@ -368,19 +318,16 @@ const printGroups = (groupsList) => {
     setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); document.body.removeChild(iframe); }, 500);
   };
 
-  
- const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
+  const handleToggleInformeGrupo = async (estudiante, numeroInforme) => {
     const campo = `informe${numeroInforme}`;
     const info = estudiante[campo] || { status: 'Pendiente' };
     const proximo = { 'Pendiente': 'Hecho', 'Hecho': 'Impreso', 'Impreso': 'Enviado', 'Enviado': 'Archivado' }[info.status] || 'Pendiente';
     
     try {
-      // El await ahora sí está dentro de una función async
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', estudiante.id), { 
         [campo]: { status: proximo, updatedAt: new Date().toISOString() } 
       });
 
-      // --- REGISTRO AUDITORÍA ---
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'activity_log'), {
         userName: user.firstName || user.fullName,
         userId: user.id,
@@ -398,6 +345,7 @@ const printGroups = (groupsList) => {
       setSelectedGroupDetails({ ...selectedGroupDetails, students: nuevosEstudiantes });
     } catch (e) { console.error(e); }
   };
+
   const handleUpdateGroup = async (e) => {
     e.preventDefault(); 
     if (!editingGroup) return; 
@@ -408,7 +356,6 @@ const printGroups = (groupsList) => {
     const updates = { 
       [`group${suf}`]: fd.get('groupName'), 
       classroom: fd.get('classroom'),
-      // Como el select manda el nombre directo, lo guardamos. Si falla, retenemos el anterior.
       [`teacher${suf}`]: fd.get('teacher') || editingGroup.teacher || "",
       [`teacher2${suf}`]: fd.get('teacher2') || editingGroup.teacher2 || "",
       [`aux${suf}`]: fd.get('aux') || editingGroup.aux || "",
@@ -433,7 +380,8 @@ const printGroups = (groupsList) => {
       setUpdatingGroup(false); 
     }
   };
-const deleteIncident = async (studentId, inc) => {
+
+  const deleteIncident = async (studentId, inc) => {
     if (!confirm("⚠️ ¿Seguro que querés borrar este registro de la bitácora?")) return;
     try {
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', studentId), {
@@ -444,13 +392,13 @@ const deleteIncident = async (studentId, inc) => {
       alert("❌ No se pudo eliminar el registro.");
     }
   };
+
   const handleSaveIncident = async (type, severity = "medium", text = "") => {
     const activeStudent = showBitacoraModal || selectedStudent;
     if (!activeStudent) return;
     setSavingIncident(true);
     
     try {
-      // 1. Registro en la Bitácora Express (Legajo del alumno)
       const entry = { 
         date: new Date().toISOString(), 
         type: text ? "Nota" : type, 
@@ -463,7 +411,6 @@ const deleteIncident = async (studentId, inc) => {
         incidents: arrayUnion(entry) 
       });
       
-      // 2. Registro en Auditoría Global
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'activity_log'), {
         userName: user?.firstName || user?.fullName || "Docente",
         userId: user?.id || "unknown",
@@ -472,13 +419,10 @@ const deleteIncident = async (studentId, inc) => {
         timestamp: serverTimestamp()
       });
 
-      // 3. ENLACE CON SOCIAL (Filtro a prueba de balas)
-      // Buscamos la palabra clave en lugar de usar coincidencia exacta
       const esAusentismo = type && type.toLowerCase().includes("ausentismo");
 
       if (esAusentismo) {
         const socialRef = collection(db, 'artifacts', appId, 'public', 'data', 'social_cases');
-        
         await addDoc(socialRef, {
           studentId: activeStudent.id,
           studentName: `${activeStudent.lastName}, ${activeStudent.firstName}`,
@@ -496,7 +440,6 @@ const deleteIncident = async (studentId, inc) => {
         });
       }
 
-      // 4. Sumar Puntos
       if (user?.id) {
         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { score: increment(10) });
       }
@@ -505,7 +448,6 @@ const deleteIncident = async (studentId, inc) => {
       setIsWriting(false); 
       setNewNote("");
       
-      // EL CARTEL TE AVISARÁ SI LOGRÓ ENVIARLO A TRABAJO SOCIAL
       alert(`✅ Registro guardado en Bitácora${esAusentismo ? " y derivado a Trabajo Social." : "."}`);
 
     } catch (e) { 
@@ -514,26 +456,8 @@ const deleteIncident = async (studentId, inc) => {
       setSavingIncident(false); 
     }
   };
-  const handleAttendance = async (student, status) => {
-    try {
-      const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', student.id);
-      await updateDoc(studentRef, { 
-        lastAttendance: status,
-        lastAttendanceDate: serverTimestamp() 
-      });
 
-      // --- REGISTRO AUDITORÍA ---
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'activity_log'), {
-        userName: user.firstName || user.fullName,
-        userId: user.id,
-        action: "Asistencia",
-        details: `${status === 'present' ? 'PRESENTE' : 'AUSENTE'} - ${student.lastName} ${student.firstName}`,
-        timestamp: serverTimestamp()
-      });
-    } catch (e) { console.error(e); }
-  };
-
-const handleAddGroupComment = async (e, groupName) => {
+  const handleAddGroupComment = async (e, groupName) => {
     e.preventDefault();
     const text = e.target.comment.value;
     if (!text.trim()) return;
@@ -546,19 +470,16 @@ const handleAddGroupComment = async (e, groupName) => {
         createdAt: serverTimestamp() 
       });
 
-      // --- SUMAR PUNTOS POR COMUNICACIÓN ---
       const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-      await updateDoc(userRef, { score: increment(3) }); // 3 puntos por cada aviso al equipo
-      // -------------------------------------
+      await updateDoc(userRef, { score: increment(3) });
 
       e.target.reset();
     } catch (err) { alert(err.message); }
   };
 
-return (
+  return (
     <div className="flex flex-col h-full bg-slate-100 animate-in fade-in relative overflow-hidden">
-  {/* 1. CABECERA FIJA */}
-<div className="bg-white p-4 shadow-sm z-20 sticky top-0 flex flex-col gap-3">
+      <div className="bg-white p-4 shadow-sm z-20 sticky top-0 flex flex-col gap-3">
         <div className="flex justify-between items-center px-2">
           <div>
             <h2 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2">
@@ -574,14 +495,12 @@ return (
           </button>
         </div>
 
-      <div className="flex flex-col md:flex-row gap-2 mx-2">
-          {/* Selector de Turno */}
+        <div className="flex flex-col md:flex-row gap-2 mx-2">
           <div className="flex bg-gray-100 p-1 rounded-2xl flex-1">
             <button onClick={() => setTurn('morning')} className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${turn === 'morning' ? 'bg-white text-orange-500 shadow-sm' : 'text-gray-400'}`}>☀️ MAÑANA</button>
             <button onClick={() => setTurn('afternoon')} className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${turn === 'afternoon' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}>🌙 TARDE</button>
           </div>
 
-      {/* Selector de Modalidad */}
           <div className="flex bg-gray-200 p-1 rounded-2xl">
             <button onClick={() => setViewMode('Sede')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${viewMode === 'Sede' ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-500'}`}>Sede</button>
             <button onClick={() => setViewMode('Inclusión')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${viewMode === 'Inclusión' ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-500'}`}>Inclusión</button>
@@ -589,19 +508,14 @@ return (
         </div>
       </div>
       
-      
       <div className="flex-1 relative flex items-start overflow-hidden">
-        
-        {/* FLECHA IZQUIERDA */}
-       {/* FLECHA IZQUIERDA */}
-<button 
-  onClick={() => scroll('left')}
-  className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-white text-violet-600 p-4 rounded-full shadow-2xl border border-slate-100 hover:scale-110 active:scale-95 transition-all hidden lg:flex"
->
+        <button 
+          onClick={() => scroll('left')}
+          className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-white text-violet-600 p-4 rounded-full shadow-2xl border border-slate-100 hover:scale-110 active:scale-95 transition-all hidden lg:flex"
+        >
           <ChevronLeft size={32} strokeWidth={3} />
         </button>
 
-     {/* CONTENEDOR PRINCIPAL */}
         <div 
           ref={scrollRef} 
           className="h-full w-full overflow-x-auto flex gap-6 p-6 scroll-smooth no-scrollbar items-start"
@@ -609,8 +523,6 @@ return (
         >
           {gruposFinales.map((g) => (
             <div key={g.name} className="flex flex-col min-w-[340px] bg-white rounded-[40px] border border-slate-200 shadow-sm overflow-hidden h-fit mb-10">
-              
-              {/* CABECERA TARJETA: AJUSTADA PARA INCLUSIÓN/SEDE */}
               <div className={`p-6 border-b-4 relative ${turn === 'morning' ? 'border-orange-400 bg-orange-50/50' : 'border-indigo-400 bg-indigo-50/50'}`}>
                 <div className="absolute top-4 right-4 flex gap-1">
                   <button onClick={() => { setGroupsToPrint([g]); setShowPrintOptions(true); }} className="p-2 bg-white/80 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>
@@ -618,10 +530,8 @@ return (
                   {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/80 hover:bg-white rounded-full text-slate-400 shadow-sm transition"><Edit3 size={14}/></button>}
                 </div>
                 
-                {/* Nombre del Grupo o Nombre de la DAI */}
                 <h3 className="font-black text-slate-800 text-xl leading-tight pr-16 uppercase">{g.name}</h3>
                 
-                {/* ETIQUETAS DINÁMICAS Y ESTADÍSTICAS SANEADAS */}
                 <div className="flex flex-col gap-2 mt-3">
                   <div className="flex flex-wrap gap-2">
                     <span className="bg-white text-violet-700 px-2 py-1 rounded-lg text-[9px] font-black uppercase shadow-sm border border-violet-100">
@@ -634,7 +544,6 @@ return (
                     )}
                   </div>
 
-                  {/* Renderizado directo desde las stats precalculadas */}
                   <div className="flex flex-wrap gap-1 bg-slate-100/60 p-1.5 rounded-xl border border-slate-200/40">
                     {g.stats?.varones > 0 && <span className="text-[9px] font-bold text-slate-500 bg-white px-1.5 py-0.5 rounded-md">👦 {g.stats.varones}V</span>}
                     {g.stats?.mujeres > 0 && <span className="text-[9px] font-bold text-slate-500 bg-white px-1.5 py-0.5 rounded-md">👧 {g.stats.mujeres}M</span>}
@@ -643,7 +552,6 @@ return (
                   </div>
                 </div>
 
-                {/* STAFF DINÁMICO */}
                 <div className="mt-4 pt-3 border-t border-slate-200/50 space-y-1">
                   <p className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
                     {viewMode === 'Sede' ? 'DOC:' : 'DAI:'} <span className="text-slate-700 font-black">{g.teacher || 'Sin asignar'}</span>
@@ -654,7 +562,6 @@ return (
                 </div>
               </div>
 
-              {/* LISTADO ALUMNOS */}
               <div className="p-4 bg-slate-50/30 space-y-2 h-fit">
                 {g.students.sort((a,b)=>a.lastName.localeCompare(b.lastName)).map(s => (
                   <div key={s.id} onClick={() => setSelectedStudent(s)} className="bg-white p-3 rounded-[24px] shadow-sm flex items-center justify-between cursor-pointer border-2 border-transparent hover:border-violet-200 transition-all group/item">
@@ -668,7 +575,6 @@ return (
                       </div>
                       <div className="flex flex-col min-w-0">
                         <span className="font-bold text-xs text-slate-700 uppercase tracking-tight truncate">{s.lastName}, {s.firstName}</span>
-                        {/* ETIQUETA DE EDAD SANEADA */}
                         {s.birthDate && (
                           <span className="text-[10px] font-black text-violet-600 uppercase tracking-wider mt-0.5 bg-violet-50 px-1.5 py-0.5 rounded-md w-fit">
                             {calculateAge(s.birthDate)} años
@@ -684,7 +590,6 @@ return (
           ))}
         </div>
 
-        {/* FLECHA DERECHA */}
         <button 
           onClick={() => scroll('right')}
           className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-white text-violet-600 p-4 rounded-full shadow-2xl border border-slate-100 hover:scale-110 active:scale-95 transition-all hidden lg:flex"
@@ -697,12 +602,9 @@ return (
         <StudentDetailView student={selectedStudent} user={user} db={db} appId={appId} onClose={() => setSelectedStudent(null)} onEdit={(s) => { setSelectedStudent(null); setFullFileStudent(s); }} />
       )}
 
-     {/* 3. MODAL LEGAJO DIGITAL (REDISEÑADO PARA PC) */}
       {fullFileStudent && (
         <div className="fixed inset-0 bg-slate-900/60 z-[1000] flex items-center justify-center p-4 lg:p-10 backdrop-blur-md animate-in fade-in">
           <div className="bg-white rounded-[40px] w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] border border-white/20">
-            
-            {/* CABECERA ESTILO PREMIUM */}
             <div className="p-6 lg:p-8 bg-slate-900 text-white flex justify-between items-center shrink-0">
                 <div className="flex items-center gap-5">
                   <div className="w-16 h-16 lg:w-20 lg:h-20 rounded-3xl bg-gradient-to-br from-orange-400 to-orange-600 p-1 shadow-lg">
@@ -724,11 +626,8 @@ return (
                 <button onClick={() => setFullFileStudent(null)} className="p-3 bg-white/5 rounded-full hover:bg-red-500 transition-all hover:rotate-90"><X size={24}/></button>
             </div>
 
-            {/* CUERPO RE-ORDENADO */}
             <div className="flex-1 overflow-y-auto bg-slate-50 p-6 lg:p-10 custom-scrollbar">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-                  
-                  {/* COLUMNA 1: IDENTIDAD Y SALUD */}
                   <div className="space-y-6">
                     <section className="bg-white p-6 rounded-[35px] shadow-sm border border-slate-100">
                       <h4 className="text-violet-600 font-black text-[11px] uppercase mb-4 flex items-center gap-2 border-b border-violet-50 pb-2">
@@ -757,7 +656,6 @@ return (
                     </section>
                   </div>
 
-                  {/* COLUMNA 2: FAMILIA Y CONTACTO */}
                  <div className="space-y-6">
                     <section className="bg-white p-6 rounded-[35px] shadow-sm border border-slate-100 h-full">
                       <h4 className="text-orange-600 font-black text-[11px] uppercase mb-4 flex items-center gap-2 border-b border-orange-50 pb-2"><Users size={16}/> Grupo Familiar</h4>
@@ -777,7 +675,6 @@ return (
                     </section>
                   </div>
 
-                  {/* COLUMNA 3: ESCOLARIDAD Y RETIRO */}
                   <div className="space-y-6">
                     <section className="bg-indigo-900 text-white p-6 rounded-[35px] shadow-xl">
                       <h4 className="text-indigo-300 font-black text-[11px] uppercase mb-4 flex items-center gap-2 border-b border-white/10 pb-2">
@@ -800,7 +697,6 @@ return (
                       </div>
                     </section>
 
-                    {/* Mini Muro de Grupo en Legajo Individual */}
                     <div className="mt-4 p-4 bg-orange-50 rounded-2xl border border-orange-100">
                       <p className="text-[9px] font-black text-orange-600 uppercase mb-2 flex items-center gap-1">
                         <MessageSquare size={12}/> Últimas novedades del grupo
@@ -830,7 +726,6 @@ return (
                 </div>
             </div>
 
-            {/* BOTONERA INFERIOR */}
             <div className="p-6 bg-white border-t border-slate-100 flex justify-center gap-4 shrink-0">
                 <button onClick={() => setFullFileStudent(null)} className="px-8 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-xs hover:bg-slate-200 transition-all">Cerrar</button>
                 <button onClick={() => { printGroups([fullFileStudent]) }} className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs shadow-lg flex items-center gap-2 hover:scale-105 transition-all"><Printer size={16}/> Imprimir Legajo</button>
@@ -840,15 +735,12 @@ return (
       )}
 
       {showBitacoraModal && (() => {
-        // Buscamos los datos "vivos" del alumno para que el historial se actualice al instante
         const liveStudent = students.find(s => s.id === showBitacoraModal.id) || showBitacoraModal;
         const historialIncidentes = [...(liveStudent.incidents || [])].sort((a, b) => new Date(b.date) - new Date(a.date));
 
         return (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
             <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl border-t-8 border-emerald-500 animate-in zoom-in-95 flex flex-col max-h-[90vh]">
-              
-              {/* CABECERA */}
               <div className="flex justify-between items-center mb-4 shrink-0">
                 <div>
                   <h3 className="text-lg font-black text-gray-800 uppercase italic">Bitácora Express</h3>
@@ -864,7 +756,6 @@ return (
                 </div>
               </div>
 
-              {/* CUERPO DEL MODAL (BOTONES O TEXTAREA) */}
               <div className="shrink-0 mb-4">
                 {!isWriting ? (
                   <div className="grid grid-cols-2 gap-2">
@@ -889,7 +780,6 @@ return (
                 )}
               </div>
 
-              {/* HISTORIAL RECIENTE CON ELIMINAR */}
               <div className="flex-1 overflow-y-auto border-t pt-3 space-y-2 pr-1 select-none" style={{ scrollbarWidth: 'thin' }}>
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-2">Registros recientes:</p>
                 {historialIncidentes.length === 0 ? (
@@ -918,15 +808,13 @@ return (
                   })
                 )}
               </div>
-
             </div>
           </div>
         );
       })()}
-     {/* 4. PANEL ENFOQUE GRUPO (CHAT + INFORMES RE-DISEÑADO) */}
+
       {selectedGroupDetails && (
         <div className="fixed inset-0 bg-slate-100 z-[500] flex flex-col animate-in fade-in">
-          {/* CABECERA FIJA */}
           <div className="p-4 border-b-4 border-violet-100 flex justify-between items-center bg-white shrink-0 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="bg-violet-600 text-white p-2 rounded-xl shadow-lg"><Users size={20}/></div>
@@ -939,17 +827,12 @@ return (
           </div>
           
           <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-            
-            {/* COLUMNA IZQUIERDA: INFORMES Y LINKS (Ahora colapsable en móvil) */}
             <div className="w-full lg:w-[400px] bg-white border-r flex flex-col overflow-y-auto custom-scrollbar border-slate-200">
-              
-              {/* SECCIÓN LINKS (Fotos/Drive) */}
               <div className="p-4 grid grid-cols-2 gap-2 border-b border-slate-50 bg-slate-50/50">
                 <button onClick={() => window.open(selectedGroupDetails.institucionalDrive, '_blank')} className="p-3 bg-emerald-100 text-emerald-700 rounded-2xl font-black text-[9px] uppercase flex items-center justify-center gap-2 shadow-sm hover:bg-emerald-200 transition-all"><Folder size={16}/> Drive</button>
                 <button onClick={() => window.open(selectedGroupDetails.driveLink, '_blank')} className="p-3 bg-blue-100 text-blue-700 rounded-2xl font-black text-[9px] uppercase flex items-center justify-center gap-2 shadow-sm hover:bg-blue-200 transition-all"><FileText size={16}/> Fotos</button>
               </div>
 
-              {/* SECCIÓN INFORMES (Tipo Acordeón) */}
               <div className="p-4">
                 <div className="flex items-center gap-2 mb-4 text-violet-900">
                   <GraduationCap size={18}/>
@@ -989,9 +872,7 @@ return (
               </div>
             </div>
 
-            {/* COLUMNA DERECHA: EL MURO / CHAT (Más grande en PC, principal en móvil) */}
             <div className="flex-1 flex flex-col bg-slate-50 relative">
-                {/* FONDO DECORATIVO PARA EL CHAT */}
                 <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: `url("https://www.transparenttextures.com/patterns/cubes.png")` }}></div>
 
                 <div className="p-4 bg-white border-b flex items-center justify-between shrink-0 z-10 shadow-sm">
@@ -1002,7 +883,6 @@ return (
                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded-full">Novedades del día</span>
                 </div>
 
-                {/* AREA DE MENSAJES */}
                 <div className="flex-1 overflow-y-auto p-4 lg:p-8 flex flex-col-reverse space-y-4 custom-scrollbar z-10">
                     {(!groupMessages[selectedGroupDetails.name] || groupMessages[selectedGroupDetails.name].length === 0) ? (
                       <div className="flex-1 flex flex-col items-center justify-center text-center p-10 animate-pulse">
@@ -1030,7 +910,6 @@ return (
                     )}
                 </div>
 
-                {/* INPUT DE MENSAJE */}
                 <div className="p-4 lg:p-6 bg-white border-t-2 border-slate-100 z-10 shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
                   <form onSubmit={(e) => handleAddGroupComment(e, selectedGroupDetails.name)} className="max-w-4xl mx-auto flex gap-2">
                     <input 
@@ -1049,8 +928,6 @@ return (
         </div>
       )}
 
-   
-     {/* 5. DIÁLOGO DE EDICIÓN DE GRUPO (COMPLETO) */}
       {editingGroup && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
           <form onSubmit={handleUpdateGroup} className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl border-t-8 border-violet-600 max-h-[90vh] overflow-y-auto no-scrollbar">
@@ -1060,7 +937,6 @@ return (
             </div>
             
             <div className="space-y-4">
-              {/* NOMBRE Y AULA */}
               <div>
                 <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Nombre Grupo</label>
                 <input name="groupName" defaultValue={editingGroup.name} className="w-full p-3 bg-slate-50 rounded-xl font-black text-sm uppercase outline-none border-b-2 border-violet-200" />
@@ -1071,75 +947,70 @@ return (
                 <input name="classroom" defaultValue={editingGroup.classroom || ""} className="w-full p-3 bg-slate-50 rounded-xl font-bold text-sm outline-none" />
               </div>
 
-         {/* DEFINIMOS LA LISTA UNA SOLA VEZ PARA TODOS LOS CAMPOS */}
-<datalist id="lista-personal">
-  {usersList.map(u => (
-    <option key={u.id} value={u.fullName} />
-  ))}
-</datalist>
+              <datalist id="lista-personal">
+                {usersList.map(u => (
+                  <option key={u.id} value={u.fullName} />
+                ))}
+              </datalist>
 
-{/* DOCENTE TITULAR */}
-<div>
-  <label className="text-[10px] font-black text-violet-600 uppercase ml-1 tracking-widest">Docente Titular</label>
-  <input 
-    name="teacher" 
-    list="lista-personal"
-    placeholder="Escribí para buscar..."
-    autoComplete="off"
-    defaultValue={editingGroup.teacher || ""} 
-    className="w-full p-3 bg-violet-50 rounded-xl font-bold text-xs uppercase outline-none border border-violet-100"
-  />
-</div>
+              <div>
+                <label className="text-[10px] font-black text-violet-600 uppercase ml-1 tracking-widest">Docente Titular</label>
+                <input 
+                  name="teacher" 
+                  list="lista-personal"
+                  placeholder="Escribí para buscar..."
+                  autoComplete="off"
+                  defaultValue={editingGroup.teacher || ""} 
+                  className="w-full p-3 bg-violet-50 rounded-xl font-bold text-xs uppercase outline-none border border-violet-100"
+                />
+              </div>
 
-{/* DOCENTE PAREJA */}
-<div>
-  <label className="text-[10px] font-black text-violet-400 uppercase ml-1 tracking-widest">Docente Pareja</label>
-  <input 
-    name="teacher2" 
-    list="lista-personal"
-    placeholder="Escribí para buscar..."
-    autoComplete="off"
-    defaultValue={editingGroup.teacher2 || ""} 
-    className="w-full p-3 bg-slate-50 rounded-xl font-bold text-xs uppercase outline-none"
-  />
-</div>
+              <div>
+                <label className="text-[10px] font-black text-violet-400 uppercase ml-1 tracking-widest">Docente Pareja</label>
+                <input 
+                  name="teacher2" 
+                  list="lista-personal"
+                  placeholder="Escribí para buscar..."
+                  autoComplete="off"
+                  defaultValue={editingGroup.teacher2 || ""} 
+                  className="w-full p-3 bg-slate-50 rounded-xl font-bold text-xs uppercase outline-none"
+                />
+              </div>
 
-{/* AUXILIAR */}
-<div>
-  <label className="text-[10px] font-black text-orange-600 uppercase ml-1 tracking-widest">Auxiliar / Preceptor</label>
-  <input 
-    name="aux" 
-    list="lista-personal"
-    placeholder="Escribí para buscar..."
-    autoComplete="off"
-    defaultValue={editingGroup.aux || ""} 
-    className="w-full p-3 bg-orange-50 rounded-xl font-bold text-xs uppercase outline-none border border-orange-100"
-  />
-</div>
+              <div>
+                <label className="text-[10px] font-black text-orange-600 uppercase ml-1 tracking-widest">Auxiliar / Preceptor</label>
+                <input 
+                  name="aux" 
+                  list="lista-personal"
+                  placeholder="Escribí para buscar..."
+                  autoComplete="off"
+                  defaultValue={editingGroup.aux || ""} 
+                  className="w-full p-3 bg-orange-50 rounded-xl font-bold text-xs uppercase outline-none border border-orange-100"
+                />
+              </div>
 
-{/* ESPECIALES */}
-<div>
-  <label className="text-[10px] font-black text-violet-600 uppercase">Profesores Especiales</label>
-  <div className="grid grid-cols-2 gap-2 mt-2">
-    {[
-      { name: 'profePlastica', label: 'Plástica' },
-      { name: 'profeMusica', label: 'Música' },
-      { name: 'profeEF', label: 'Ed. Física' },
-      { name: 'profePsico', label: 'Psicomotricidad' }
-    ].map((esp) => (
-      <input 
-        key={esp.name} 
-        name={esp.name} 
-        list="lista-personal"
-        placeholder={`Buscar ${esp.label}...`}
-        autoComplete="off"
-        defaultValue={editingGroup[esp.name] || ""} 
-        className="p-2 bg-gray-50 rounded-lg text-xs font-bold border outline-none w-full"
-      />
-    ))}
-  </div>
-</div>
-              {/* LINKS DRIVE */}
+              <div>
+                <label className="text-[10px] font-black text-violet-600 uppercase">Profesores Especiales</label>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  {[
+                    { name: 'profePlastica', label: 'Plástica' },
+                    { name: 'profeMusica', label: 'Música' },
+                    { name: 'profeEF', label: 'Ed. Física' },
+                    { name: 'profePsico', label: 'Psicomotricidad' }
+                  ].map((esp) => (
+                    <input 
+                      key={esp.name} 
+                      name={esp.name} 
+                      list="lista-personal"
+                      placeholder={`Buscar ${esp.label}...`}
+                      autoComplete="off"
+                      defaultValue={editingGroup[esp.name] || ""} 
+                      className="p-2 bg-gray-50 rounded-lg text-xs font-bold border outline-none w-full"
+                    />
+                  ))}
+                </div>
+              </div>
+
               <div>
                 <label className="text-[10px] font-black text-emerald-600 uppercase ml-1 tracking-widest">Link Carpeta Fotos</label>
                 <input name="driveLink" defaultValue={editingGroup.driveLink || ""} className="w-full p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-xs font-bold text-emerald-800 outline-none" />
@@ -1157,7 +1028,7 @@ return (
           </form>
         </div> 
       )}
-    {/* 6. MODAL DE OPCIONES DE IMPRESIÓN */}
+
       {showPrintOptions && (
         <div className="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-[40px] w-full max-w-sm p-8 shadow-2xl border-t-8 border-violet-600">
@@ -1167,7 +1038,7 @@ return (
               <button onClick={() => setPrintMode('staff')} className={`p-4 rounded-2xl border-2 text-left transition-all ${printMode === 'staff' ? 'border-violet-600 bg-violet-50' : 'border-slate-100'}`}><p className="font-black text-xs uppercase text-violet-900">Listado de Staff</p><p className="text-[10px] text-slate-500">Grilla de Docentes, Auxiliares y Aulas.</p></button>
             </div>
             <button onClick={() => { printGroups(groupsToPrint); setShowPrintOptions(false); }} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg mb-2">Confirmar e Imprimir</button>
-<button onClick={() => setShowPrintOptions(false)} className="w-full py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
+            <button onClick={() => setShowPrintOptions(false)} className="w-full py-3 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
           </div>
         </div>
       )}
