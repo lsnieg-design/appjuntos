@@ -86,7 +86,10 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
 
 const gruposFinales = React.useMemo(() => {
   const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
-  const isManagement = ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración', 'Dirección Inclusión', 'Equipo Técnico Inclusión'].includes(user.role) || user.rol === 'admin';
+  const isManagement = [
+    'admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 
+    'Administración', 'Dirección Inclusión', 'Equipo Técnico Inclusión'
+  ].includes(user.role) || user.rol === 'admin';
 
   const grouped = students.reduce((acc, s) => {
     const studentModality = s.modality || 'Sede';
@@ -94,17 +97,24 @@ const gruposFinales = React.useMemo(() => {
 
     const gName = viewMode === 'Sede' ? s[`group${suf}`] : (s[`dai${suf}`] || 'SIN DAI ASIGNADA');
     const teacherName = s[`teacher${suf}`];
+    const teacher2Name = s[`teacher2${suf}`];
+    const auxName = s[`aux${suf}`];
     const daiName = s[`dai${suf}`];
 
+    // Validación de permisos ampliada para incluir docentes, pareja y auxiliares/preceptores
     if (!isManagement) {
-      const userMatchesTeacher = teacherName === user.fullName;
-      const userMatchesDai = daiName === user.fullName;
-      if (!userMatchesTeacher && !userMatchesDai) return acc;
+      const userMatches = 
+        teacherName === user.fullName || 
+        teacher2Name === user.fullName || 
+        auxName === user.fullName || 
+        daiName === user.fullName;
+
+      if (!userMatches) return acc;
     }
 
     if (!gName) return acc;
     
-   if (!acc[gName]) { 
+    if (!acc[gName]) { 
       acc[gName] = { 
         name: gName, 
         students: [], 
@@ -124,10 +134,7 @@ const gruposFinales = React.useMemo(() => {
 
     acc[gName].students.push(s);
 
-    // Contabilizar estadísticas al vuelo (Saneado definitivo)
     const gender = s.gender?.toLowerCase() || '';
-    
-    // Convertimos a mayúsculas, quitamos puntos, acentos y CUALQUIER espacio extra
     const dx = (s.dx || '')
       .toUpperCase()
       .trim()
@@ -137,10 +144,7 @@ const gruposFinales = React.useMemo(() => {
 
     if (gender === 'masculino' || gender === 'v' || gender === 'm') acc[gName].stats.varones++;
     if (gender === 'femenino' || gender === 'f') acc[gName].stats.mujeres++;
-    
     if (dx.includes('DI') || dx.includes('INTELECTUAL')) acc[gName].stats.conDI++;
-    
-    // Captura exacta de TES, incluso si forma parte de otra palabra o frase
     if (dx.includes('TES') || dx.includes('EMOCIONAL') || dx.includes('CONDUCTA')) acc[gName].stats.conTEA++;
 
     return acc;
@@ -150,6 +154,41 @@ const gruposFinales = React.useMemo(() => {
     a.name.includes("INICIAL") ? -1 : a.name.localeCompare(b.name)
   );
 }, [students, turn, viewMode, user]);
+
+const handleUpdateGroup = async (e) => {
+  e.preventDefault(); 
+  if (!editingGroup) return; 
+  setUpdatingGroup(true);
+  const fd = new FormData(e.target);
+  const suf = turn === 'morning' ? 'Morning' : 'Afternoon';
+  
+  const updates = { 
+    [`group${suf}`]: fd.get('groupName'), 
+    classroom: fd.get('classroom'),
+    [`teacher${suf}`]: fd.get('teacher') || editingGroup.teacher || "",
+    [`teacher2${suf}`]: fd.get('teacher2') || editingGroup.teacher2 || "",
+    [`aux${suf}`]: fd.get('aux') || editingGroup.aux || "",
+    
+    profePlastica: fd.get('profePlastica') || editingGroup.profePlastica || "",
+    profeMusica: fd.get('profeMusica') || editingGroup.profeMusica || "",
+    profeEF: fd.get('profeEF') || editingGroup.profeEF || "",
+    profePsico: fd.get('profePsico') || editingGroup.profePsico || "",
+    
+    [`driveLink${suf}`]: fd.get('driveLink') || editingGroup.driveLink || "",
+    institucionalDrive: fd.get('institucionalDrive') || editingGroup.institucionalDrive || ""
+  };
+  
+  try {
+    const promises = editingGroup.students.map(s => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', s.id), updates));
+    await Promise.all(promises);
+    setEditingGroup(null);
+    alert("✅ Datos del grupo actualizados.");
+  } catch (err) { 
+    alert("Error: " + err.message); 
+  } finally { 
+    updatingGroup(false); 
+  }
+};
 
   
   const imprimirBitacora = (student) => {
