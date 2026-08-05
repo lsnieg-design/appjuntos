@@ -244,10 +244,11 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
           if (hasC1) {
               let subBadge = (s.cargo1_subsidized === 'true' || s.isSubsidized === 'true') ? '<span class="badge-sub">SUBVENCIONADO (MECA)</span>' : '<span class="badge-nosub">SIN SUBVENCIÓN (DENO)</span>';
               let papelesBadge = s.cargo1_en_papeles === 'true' ? '<span class="badge-papeles">SOLO EN PAPELES</span>' : '';
+              let bajaC1 = s.cargo1_baja ? `<span style="color:red; font-size:10px; margin-left:10px;">BAJA: ${getSafeDate(s.cargo1_baja)}</span>` : '';
               c1Html = `
               <div class="cargo-card active">
                   <div class="cargo-header">
-                      <span class="cargo-role">CARGO 1: ${c1Role}</span>
+                      <span class="cargo-role">CARGO 1: ${c1Role} ${bajaC1}</span>
                       <div>${subBadge}${papelesBadge}</div>
                   </div>
                   <div class="cargo-grid">
@@ -267,10 +268,11 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
           if (hasC2) {
               let subBadge = s.cargo2_subsidized === 'true' ? '<span class="badge-sub">SUBVENCIONADO (MECA)</span>' : '<span class="badge-nosub">SIN SUBVENCIÓN (DENO)</span>';
               let papelesBadge = s.cargo2_en_papeles === 'true' ? '<span class="badge-papeles">SOLO EN PAPELES</span>' : '';
+              let bajaC2 = s.cargo2_baja ? `<span style="color:red; font-size:10px; margin-left:10px;">BAJA: ${getSafeDate(s.cargo2_baja)}</span>` : '';
               c2Html = `
               <div class="cargo-card active">
                   <div class="cargo-header">
-                      <span class="cargo-role">CARGO 2: ${c2Role}</span>
+                      <span class="cargo-role">CARGO 2: ${c2Role} ${bajaC2}</span>
                       <div>${subBadge}${papelesBadge}</div>
                   </div>
                   <div class="cargo-grid">
@@ -306,7 +308,7 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
                   <div class="field"><span class="label">Fecha Ingreso Inst.</span><span class="value">${s.fechaIngreso ? new Date(s.fechaIngreso + 'T00:00:00').toLocaleDateString('es-AR') : '-'}</span></div>
                   <div class="field"><span class="label">Antigüedad Reconocida Total</span><span class="value" style="color:#5b21b6; font-size:14px;">${antiguedad}</span></div>
               </div>
-              <div class="section-title" style="margin-bottom: 15px;">Detalle de Cargos Activos</div>
+              <div class="section-title" style="margin-bottom: 15px;">Detalle de Cargos</div>
               ${c1Html}
               ${c2Html}
               <div class="footer">Juntos a la Par - Legajo Docente generado el ${new Date().toLocaleDateString('es-AR')} a las ${new Date().toLocaleTimeString('es-AR', {hour: '2-digit', minute:'2-digit'})}</div>
@@ -359,8 +361,8 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
           html += `<tr>
               <td style="font-weight:700; text-transform:uppercase;">${s.lastName}, ${s.firstName}</td>
               ${printColumns.dni ? `<td>${s.dni || '-'}</td>` : ''}
-              ${printColumns.cargo1 ? `<td><div class="cargo-role">${s.cargo1_role || s.role || ''}</div>${s.cargo1_name || ''}</td>` : ''}
-              ${printColumns.cargo2 ? `<td><div class="cargo-role">${s.cargo2_role || ''}</div>${s.cargo2_name || ''}</td>` : ''}
+              ${printColumns.cargo1 ? `<td><div class="cargo-role">${s.cargo1_role || s.role || ''}</div>${s.cargo1_name || ''} ${s.cargo1_baja ? '<b style="color:red;">(BAJA)</b>' : ''}</td>` : ''}
+              ${printColumns.cargo2 ? `<td><div class="cargo-role">${s.cargo2_role || ''}</div>${s.cargo2_name || ''} ${s.cargo2_baja ? '<b style="color:red;">(BAJA)</b>' : ''}</td>` : ''}
               ${printColumns.alta ? `<td>${s.fechaIngreso ? new Date(s.fechaIngreso+'T12:00:00').toLocaleDateString('es-AR') : '-'}</td>` : ''}
               ${printColumns.domicilio ? `<td>${s.address || '-'}</td>` : ''}
               ${printColumns.telefono ? `<td>${s.phone || '-'}</td>` : ''}
@@ -427,7 +429,7 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
     if(!d.cargo2_name || d.cargo2_name.trim() === '') { 
         d.cargo2_role = ''; d.cargo2_turn = ''; d.cargo2_type = ''; 
         d.cargo2_revista = ''; d.cargo2_ingreso = ''; d.cargo2_name = ''; 
-        d.cargo2_subsidized = 'false'; d.cargo2_en_papeles = 'false';
+        d.cargo2_subsidized = 'false'; d.cargo2_en_papeles = 'false'; d.cargo2_baja = '';
     }
 
     try {
@@ -484,8 +486,8 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
           const isC2Papeles = s.cargo2_en_papeles === 'true';
 
           let activeCargosCount = 0;
-          if (c1Matches && !isC1Papeles && s.cargo1_name) activeCargosCount++;
-          if (c2Matches && !isC2Papeles && s.cargo2_name) activeCargosCount++;
+          if (c1Matches && !isC1Papeles && s.cargo1_name && !s.cargo1_baja) activeCargosCount++;
+          if (c2Matches && !isC2Papeles && s.cargo2_name && !s.cargo2_baja) activeCargosCount++;
 
           if (activeCargosCount === 2) stats.cargos.doble++;
           else if (activeCargosCount === 1) stats.cargos.simple++;
@@ -662,11 +664,11 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
                 <h3 className="font-black text-violet-900 uppercase italic text-xl">Personal</h3>
                 
                 <div className="flex gap-2">
-                    <div className="bg-orange-100 text-orange-700 px-3 py-2 rounded-xl font-black text-[10px] md:text-xs flex items-center gap-1.5 border border-orange-200 shadow-sm uppercase tracking-widest" title="Cantidad de personas físicas">
-                        <User size={14}/> {filteredStaff.length} {filteredStaff.length === 1 ? 'Persona' : 'Personas'}
+                    <div className="bg-orange-100 text-orange-700 px-3 py-2 rounded-xl font-black text-[10px] md:text-xs flex items-center gap-1.5 border border-orange-200 shadow-sm uppercase tracking-widest" title="Cantidad de personas físicas activas">
+                        <User size={14}/> {filteredStaff.filter(s => !s.cargo1_baja || !s.cargo2_baja).length} {filteredStaff.length === 1 ? 'Persona' : 'Personas'}
                     </div>
                     
-                    <div className="bg-emerald-100 text-emerald-800 px-3 py-2 rounded-xl font-black text-[10px] md:text-xs flex items-center gap-1.5 border border-emerald-200 shadow-sm uppercase tracking-widest" title="Cantidad total de cargos ejercidos">
+                    <div className="bg-emerald-100 text-emerald-800 px-3 py-2 rounded-xl font-black text-[10px] md:text-xs flex items-center gap-1.5 border border-emerald-200 shadow-sm uppercase tracking-widest" title="Cantidad total de cargos ejercidos activos">
                         {totalCargosReales} {totalCargosReales === 1 ? 'Cargo Activo' : 'Cargos Activos'}
                     </div>
                 </div>
@@ -772,9 +774,9 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
             )}
         </div>
 
-        {/* LISTADO DE PERSONAL */}
+        {/* LISTADO DE PERSONAL (CON SOPORTE DE BAJA EN GRIS) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-24 mt-2">
-             {filteredStaff.map(s => {
+            {filteredStaff.map(s => {
                 const tieneSub = s.cargo1_subsidized === 'true' || s.cargo2_subsidized === 'true' || s.isSubsidized === 'true';
                 
                 const c1Role = getNormRole(s.cargo1_role || s.role);
@@ -787,58 +789,84 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
                 const c2NeedsFix = hasC2 && !VALID_ROLES_OFFICIAL.includes(c2Role);
                 const needsRoleFix = c1NeedsFix || c2NeedsFix;
                                 
+                // Determinar si está totalmente dado de baja (si ambos cargos tienen fecha de baja o no hay cargo activo)
+                const c1Baja = Boolean(s.cargo1_baja);
+                const c2Baja = Boolean(s.cargo2_baja);
+                const estaDadoDeBajaTotal = (hasC1 ? c1Baja : true) && (hasC2 ? c2Baja : true);
+
                 return (
-                    <div key={s.id} onClick={() => setViewingStaff(s)} className="bg-white p-4 rounded-[25px] border border-gray-100 shadow-sm flex items-center gap-4 hover:border-violet-300 transition-all cursor-pointer group relative">
-                        <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100 shrink-0 relative">
-                            {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName?.[0]}
-                            {tieneSub && <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white shadow-sm" title="Subvencionada"></div>}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="flex gap-2 items-center flex-wrap">
-                                <h4 className="font-bold text-gray-800 text-sm uppercase truncate">{s.lastName}, {s.firstName}</h4>
-                                <span className={`text-[8px] px-2 py-0.5 rounded-md font-black uppercase ${s.modality === 'Inclusión' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}`}>{s.modality || 'Sede'}</span>
-                                {needsRoleFix && <span className="bg-red-100 text-red-700 text-[9px] font-black px-2 py-0.5 rounded-lg border border-red-200 animate-pulse">⚠️ ASIGNAR ROL</span>}
-                            </div>
-                            <div className="flex gap-2 text-[10px] mt-1 text-gray-500 font-bold">
-                                {s.dni && <span>DNI: {s.dni}</span>}
-                                <span className="text-violet-500">Anti: {calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef)}</span>
-                            </div>
-                            
-                            <p className="text-[10px] font-black uppercase mt-1 truncate">
-                                {hasC1 ? (
-                                    <span className={s.cargo1_subsidized === 'true' ? 'text-emerald-600' : s.cargo1_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
-                                        C1: {getNormRole(s.cargo1_role || s.role)} ({s.cargo1_turn || '-'}) 
-                                        {s.cargo1_subsidized === 'true' ? ' (MECA)' : s.cargo1_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
-                                    </span>
-                                ) : (
-                                    <span className="text-gray-300">NO TRABAJA (C1)</span>
-                                )} 
-                                
-                                {hasC2 ? (
-                                    <>
-                                        <span className="text-gray-300 mx-1">|</span>
-                                        <span className={s.cargo2_subsidized === 'true' ? 'text-emerald-600' : s.cargo2_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
-                                            C2: {getNormRole(s.cargo2_role)} ({s.cargo2_turn || '-'}) 
-                                            {s.cargo2_subsidized === 'true' ? ' (MECA)' : s.cargo2_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
-                                        </span>
-                                    </>
-                                ) : (
-                                    <span className="text-gray-300"> | NO TRABAJA (C2)</span>
-                                )}
-                            </p>
-                        </div>
-                        <Eye className="text-gray-300 group-hover:text-violet-500 transition-colors shrink-0" />
+                    <div 
+                      key={s.id} 
+                      onClick={() => setViewingStaff(s)} 
+                      className={`p-4 rounded-[25px] border transition-all cursor-pointer group relative flex items-center gap-4 ${
+                        estaDadoDeBajaTotal 
+                            ? 'bg-gray-100 border-gray-300 opacity-60 grayscale' 
+                          : 'bg-white border-gray-100 hover:border-violet-300 shadow-sm'
+                    }`}
+                  >
+                      <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100 shrink-0 relative">
+                        {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName?.[0]}
+                        {tieneSub && <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white shadow-sm" title="Subvencionada"></div>}
                     </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex gap-2 items-center flex-wrap">
+                            <h4 className="font-bold text-gray-800 text-sm uppercase truncate">{s.lastName}, {s.firstName}</h4>
+                            <span className={`text-[8px] px-2 py-0.5 rounded-md font-black uppercase ${s.modality === 'Inclusión' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}`}>{s.modality || 'Sede'}</span>
+                            {estaDadoDeBajaTotal && <span className="bg-red-100 text-red-700 text-[9px] font-black px-2 py-0.5 rounded-lg border border-red-200">BAJA</span>}
+                            {needsRoleFix && <span className="bg-red-100 text-red-700 text-[9px] font-black px-2 py-0.5 rounded-lg border border-red-200 animate-pulse">⚠️ ASIGNAR ROL</span>}
+                        </div>
+                        <div className="flex gap-2 text-[10px] mt-1 text-gray-500 font-bold">
+                            {s.dni && <span>DNI: {s.dni}</span>}
+                            <span className="text-violet-500">Anti: {calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef)}</span>
+                        </div>
+                        
+                        <p className="text-[10px] font-black uppercase mt-1 truncate">
+                            {hasC1 ? (
+                                <span className={s.cargo1_subsidized === 'true' ? 'text-emerald-600' : s.cargo1_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
+                                    C1: {getNormRole(s.cargo1_role || s.role)} ({s.cargo1_turn || '-'}) 
+                                    {s.cargo1_subsidized === 'true' ? ' (MECA)' : s.cargo1_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
+                                    {s.cargo1_baja && <b className="text-red-500 ml-1">[Baja: {getSafeDate(s.cargo1_baja)}]</b>}
+                                </span>
+                            ) : (
+                                <span className="text-gray-300">NO TRABAJA (C1)</span>
+                            )} 
+                            
+                            {hasC2 ? (
+                                <>
+                                    <span className="text-gray-300 mx-1">|</span>
+                                    <span className={s.cargo2_subsidized === 'true' ? 'text-emerald-600' : s.cargo2_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
+                                        C2: {getNormRole(s.cargo2_role)} ({s.cargo2_turn || '-'}) 
+                                        {s.cargo2_subsidized === 'true' ? ' (MECA)' : s.cargo2_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
+                                        {s.cargo2_baja && <b className="text-red-500 ml-1">[Baja: {getSafeDate(s.cargo2_baja)}]</b>}
+                                    </span>
+                                </>
+                            ) : (
+                                <span className="text-gray-300"> | NO TRABAJA (C2)</span>
+                            )}
+                        </p>
+                    </div>
+                    <Eye className="text-gray-300 group-hover:text-violet-500 transition-colors shrink-0" />
+                </div>
                 );
              })}
         </div>
 
-        {/* MODAL LECTURA LEGAJO */}
+        {/* MODAL LECTURA LEGAJO (CON BOTÓN DE EDITAR RECUPERADO) */}
         {viewingStaff && !showStaffForm && (
             <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setViewingStaff(null)}>
                 <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
                     
                     <div className="bg-violet-800 p-6 text-white relative shrink-0">
+                        <div className="absolute top-4 right-14 flex gap-2">
+                            {/* BOTÓN EDITAR RECUPERADO */}
+                            <button 
+                              onClick={() => { setEditingStaff(viewingStaff); setPhotoPreview(viewingStaff.photoUrl || null); setShowStaffForm(true); }} 
+                              className="bg-white/20 p-2 rounded-full hover:bg-white/40 transition flex items-center gap-1 text-xs font-bold"
+                              title="Editar ficha"
+                          >
+                              <Edit3 size={18}/>
+                          </button>
+                        </div>
                         <button onClick={()=>setViewingStaff(null)} className="absolute top-4 right-4 bg-white/20 p-1.5 rounded-full hover:bg-white/40 transition"><X size={20}/></button>
                         <div className="flex gap-5 items-center">
                             <div className="w-20 h-20 rounded-2xl bg-white/20 border-4 border-white/10 overflow-hidden flex items-center justify-center shadow-lg">
@@ -865,9 +893,9 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
                             </div>
                             
                             {Boolean((viewingStaff.cargo1_name && viewingStaff.cargo1_name.trim()) || viewingStaff.cargo1_role || viewingStaff.role) && (
-                                <div className={`bg-white p-3 rounded-lg border ${viewingStaff.cargo1_en_papeles === 'true' ? 'border-gray-200 opacity-70' : 'border-violet-200 shadow-sm'} text-xs relative`}>
+                                <div className={`bg-white p-3 rounded-lg border ${viewingStaff.cargo1_baja ? 'border-red-300 bg-red-50/50' : 'border-violet-200 shadow-sm'} text-xs relative`}>
                                     <div className="flex justify-between items-center mb-1">
-                                        <span className="font-black text-violet-900 uppercase">C1: {getNormRole(viewingStaff.cargo1_role || viewingStaff.role)} {viewingStaff.cargo1_en_papeles === 'true' && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[8px] ml-1">EN PAPELES</span>}</span>
+                                        <span className="font-black text-violet-900 uppercase">C1: {getNormRole(viewingStaff.cargo1_role || viewingStaff.role)} {viewingStaff.cargo1_baja && <span className="bg-red-200 text-red-800 px-1.5 py-0.5 rounded text-[8px] ml-1">BAJA: {getSafeDate(viewingStaff.cargo1_baja)}</span>}</span>
                                         <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${viewingStaff.cargo1_subsidized === 'true' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`}>{viewingStaff.cargo1_subsidized === 'true' ? 'MECA' : 'DENO'}</span>
                                     </div>
                                     <p className="font-bold text-gray-700">{viewingStaff.cargo1_name}</p>
@@ -877,9 +905,9 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
                             )}
 
                             {Boolean((viewingStaff.cargo2_name && viewingStaff.cargo2_name.trim()) || viewingStaff.cargo2_role) && (
-                                <div className={`bg-white p-3 rounded-lg border ${viewingStaff.cargo2_en_papeles === 'true' ? 'border-gray-200 opacity-70' : 'border-violet-200 shadow-sm'} text-xs relative`}>
+                                <div className={`bg-white p-3 rounded-lg border ${viewingStaff.cargo2_baja ? 'border-red-300 bg-red-50/50' : 'border-violet-200 shadow-sm'} text-xs relative`}>
                                     <div className="flex justify-between items-center mb-1">
-                                        <span className="font-black text-violet-900 uppercase">C2: {getNormRole(viewingStaff.cargo2_role)} {viewingStaff.cargo2_en_papeles === 'true' && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[8px] ml-1">EN PAPELES</span>}</span>
+                                        <span className="font-black text-violet-900 uppercase">C2: {getNormRole(viewingStaff.cargo2_role)} {viewingStaff.cargo2_baja && <span className="bg-red-200 text-red-800 px-1.5 py-0.5 rounded text-[8px] ml-1">BAJA: {getSafeDate(viewingStaff.cargo2_baja)}</span>}</span>
                                         <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${viewingStaff.cargo2_subsidized === 'true' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`}>{viewingStaff.cargo2_subsidized === 'true' ? 'MECA' : 'DENO'}</span>
                                     </div>
                                     <p className="font-bold text-gray-700">{viewingStaff.cargo2_name}</p>
@@ -948,19 +976,19 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
                                                         <span>{new Date(falta.date + 'T00:00:00').toLocaleDateString('es-AR')}</span>
                                                         {falta.notes && <span className="text-orange-600 italic font-bold normal-case truncate max-w-[180px]">“{falta.notes}”</span>}
                                                     </p>
-                                                </div>
                                             </div>
-                                            
-                                            <button 
-                                                onClick={() => handleDeleteAbsence(falta.id)} 
-                                                className="text-red-300 hover:text-red-600 p-1.5 bg-red-50 rounded-lg opacity-0 group-hover/falta:opacity-100 transition-all"
-                                                title="Eliminar registro"
-                                            >
-                                                <Trash2 size={12}/>
-                                            </button>
                                         </div>
-                                    ))}
-                                </div>
+                                        
+                                        <button 
+                                            onClick={() => handleDeleteAbsence(falta.id)} 
+                                            className="text-red-300 hover:text-red-600 p-1.5 bg-red-50 rounded-lg opacity-0 group-hover/falta:opacity-100 transition-all"
+                                            title="Eliminar registro"
+                                        >
+                                            <Trash2 size={12}/>
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
                             )}
                         </div>
                     </div>
@@ -968,7 +996,7 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
             </div>
         )}
           
-        {/* MODAL EDICIÓN LEGAJO */}
+        {/* MODAL EDICIÓN LEGAJO (CON FECHAS DE BAJA PARA CARGO 1 Y CARGO 2) */}
         {showStaffForm && (
           <div className="fixed inset-0 bg-black/70 z-[150] flex items-center justify-center p-2 sm:p-4 backdrop-blur-md animate-in fade-in duration-300">
             <div className="bg-slate-50 rounded-[30px] w-full max-w-xl shadow-2xl max-h-[95vh] overflow-hidden flex flex-col border border-white/20">
@@ -1106,7 +1134,7 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
                         </select>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-2 gap-2">
                        <select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
                         <option value="">Revista...</option>
                         <option value="Titular">Titular</option><option value="Provisional">Provisional</option><option value="Suplente">Suplente</option>
@@ -1115,6 +1143,10 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
                         <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Alta Cargo</label>
                         <input name="cargo1_ingreso" type="date" defaultValue={editingStaff?.cargo1_ingreso || ""} className="p-2 bg-slate-50 rounded-xl border-none font-bold text-xs"/>
                       </div>
+                    </div>
+                    <div className="flex flex-col bg-red-50 p-2.5 rounded-xl border border-red-100">
+                        <label className="text-[8px] font-black text-red-600 uppercase ml-1">Fecha de Baja Cargo 1 (Dejar vacío si sigue activo)</label>
+                        <input name="cargo1_baja" type="date" defaultValue={editingStaff?.cargo1_baja || ""} className="p-2 bg-white rounded-lg border border-red-200 font-bold text-xs mt-1"/>
                     </div>
                   </div>
                 </details>
@@ -1155,6 +1187,10 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
                         <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Alta Cargo 2</label>
                         <input name="cargo2_ingreso" type="date" defaultValue={editingStaff?.cargo2_ingreso || ""} className="p-2 bg-slate-50 rounded-xl border-none font-bold text-xs"/>
                       </div>
+                    </div>
+                    <div className="flex flex-col bg-red-50 p-2.5 rounded-xl border border-red-100">
+                        <label className="text-[8px] font-black text-red-600 uppercase ml-1">Fecha de Baja Cargo 2 (Dejar vacío si sigue activo)</label>
+                        <input name="cargo2_baja" type="date" defaultValue={editingStaff?.cargo2_baja || ""} className="p-2 bg-white rounded-lg border border-red-200 font-bold text-xs mt-1"/>
                     </div>
                     <div className="flex items-center gap-2 px-2">
                        <input type="checkbox" name="cargo2_en_papeles" defaultChecked={editingStaff?.cargo2_en_papeles === 'true'} value="true" className="w-4 h-4 accent-violet-600"/>
@@ -1223,9 +1259,9 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
                     Eliminar Personal del Sistema
                   </button>
                 )}
-              </div>
-            </div> 
-          </div>
+            </div>
+          </div> 
+        </div>
         )}
 
         {/* MODAL CONFIGURACIÓN IMPRESIÓN GENERAL */}
@@ -1395,22 +1431,22 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
                                 </label>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                                     {Object.entries(CODIGOS_FALTAS).map(([codigo, descripcion]) => (
-                                        <button
+                                          <button
                                             type="button"
                                             key={codigo}
                                             onClick={() => setAbsenceCode(codigo)}
                                             title={descripcion}
                                             className={`group relative p-2.5 rounded-xl border transition-all flex flex-col items-center justify-center ${absenceCode === codigo ? 'bg-orange-500 border-orange-600 text-white shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:bg-orange-50'}`}
-                                        >
+                                          >
                                             <span className="font-black text-xs uppercase">{codigo}</span>
                                             <span className="text-[7px] text-center opacity-60 truncate w-full max-w-[90px]">{descripcion}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
+                                          </button>
+                                      ))}
+                                  </div>
+                              </div>
 
-                            <div>
-                                <label className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1 block">Observaciones / Notas (Opcional)</label>
+                              <div>
+                                  <label className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1 block">Observaciones / Notas (Opcional)</label>
                                 <textarea
                                     value={absenceNotes}
                                     onChange={(e) => setAbsenceNotes(e.target.value)}
@@ -1418,9 +1454,9 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
                                     rows={2}
                                     className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-orange-200 resize-none"
                                 />
-                            </div>
+                              </div>
 
-                            <div className="pt-2">
+                              <div className="pt-2">
                                 <button 
                                     type="button"
                                     onClick={handleSaveAbsence}
@@ -1431,8 +1467,8 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
                                         <>
                                             <CheckCircle size={16}/>
                                             {absenceCode ? `Registrar Ausentismo` : 'Seleccione un Código'}
-                                        </>
-                                    )}
+                                        >
+                                  )}
                                 </button>
                             </div>
                         </div>
@@ -1445,7 +1481,7 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
         {showAbsencesSummary && (
             <div className="fixed inset-0 bg-black/70 z-[250] flex items-center justify-center p-2 sm:p-4 backdrop-blur-md animate-in fade-in">
                 <div className="bg-slate-50 rounded-[30px] w-full max-w-4xl shadow-2xl max-h-[95vh] flex flex-col border border-white/20 overflow-hidden">
-                    
+                     
                     <div className="bg-violet-700 p-5 text-white flex justify-between items-center shrink-0">
                         <div className="flex items-center gap-3">
                             <div className="bg-white/20 p-2 rounded-xl">
