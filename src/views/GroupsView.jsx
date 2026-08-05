@@ -54,6 +54,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
   const [groupsToPrint, setGroupsToPrint] = useState([]);
   const [printMode, setPrintMode] = useState('students'); // 'students' o 'staff'
   const [viewMode, setViewMode] = useState('Sede'); 
+  const [socialCases, setSocialCases] = useState([]);
 
   const scrollRef = useRef(null);
   const scroll = (direction) => { if (scrollRef.current) { const amount = 350; scrollRef.current.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' }); } };
@@ -67,8 +68,9 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     { label: "Agresión / Violencia", emoji: "👊", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
     { label: "Fuga / Intento", emoji: "🏃", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
   ];
+  
 
-  useEffect(() => {
+ useEffect(() => {
     if (!db || !appId) return;
     const unsubS = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true)), (snap) => setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const unsubU = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), orderBy('lastName', 'asc')), (snap) => setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
@@ -76,7 +78,11 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
       const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setGroupMessages(msgs.reduce((acc, m) => { if (!acc[m.groupName]) acc[m.groupName] = []; acc[m.groupName].push(m); return acc; }, {}));
     });
-    return () => { unsubS(); unsubU(); unsubGM(); };
+    // --- ESCUCHA DE SOCIAL CASES ---
+    const unsubSocial = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'), (snap) => {
+      setSocialCases(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => { unsubS(); unsubU(); unsubGM(); if (typeof unsubSocial === 'function') unsubSocial(); };
   }, [db, appId]);
 
   const gruposFinales = React.useMemo(() => {
@@ -734,9 +740,22 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
         </div>
       )}
 
-      {showBitacoraModal && (() => {
+     {showBitacoraModal && (() => {
         const liveStudent = students.find(s => s.id === showBitacoraModal.id) || showBitacoraModal;
-        const historialIncidentes = [...(liveStudent.incidents || [])].sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        // Unificamos incidentes de aula y casos de gabinete/trabajo social (incluyendo archivados)
+        const normales = (liveStudent.incidents || []).map(inc => ({ ...inc, source: 'aula' }));
+        const sociales = (socialCases || [])
+          .filter(c => (c.studentId === liveStudent.id) || (c.studentName === `${liveStudent.lastName}, ${liveStudent.firstName}`))
+          .map(c => ({
+            date: c.createdAt?.seconds ? new Date(c.createdAt.seconds * 1000).toISOString() : new Date().toISOString(),
+            text: `⚠️ INTERVENCIÓN SOCIAL: ${c.reason}`,
+            author: c.reportedBy || 'Gabinete',
+            severity: 'high',
+            source: 'social',
+            isClosed: c.status === 'Reincorporado'
+          }));
+        const historialUnificado = [...normales, ...sociales].sort((a, b) => new Date(b.date) - new Date(a.date));
 
         return (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
@@ -747,7 +766,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
                   <p className="text-xs text-gray-500 font-bold">{liveStudent.firstName} {liveStudent.lastName}</p>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => imprimirBitacora(liveStudent)} className="bg-violet-100 text-violet-700 p-2 rounded-full hover:bg-violet-200 transition" title="Imprimir Historial">
+                  <button onClick={() => imprimirBitacora(liveStudent, historialUnificado)} className="bg-violet-100 text-violet-700 p-2 rounded-full hover:bg-violet-200 transition" title="Imprimir Historial">
                     <Printer size={20}/>
                   </button>
                   <button onClick={() => { setShowBitacoraModal(null); setIsWriting(false); }} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition">
@@ -782,27 +801,27 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
 
               <div className="flex-1 overflow-y-auto border-t pt-3 space-y-2 pr-1 select-none" style={{ scrollbarWidth: 'thin' }}>
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-2">Registros recientes:</p>
-                {historialIncidentes.length === 0 ? (
+                {historialUnificado.length === 0 ? (
                   <p className="text-[11px] text-gray-400 italic text-center py-4">Sin registros previos en esta etapa.</p>
                 ) : (
-                  historialIncidentes.map((inc, idx) => {
-                    const colorSev = inc.severity === 'positive' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : inc.severity === 'high' ? 'bg-red-50 border-red-200 text-red-800' : inc.severity === 'medium' ? 'bg-orange-50 border-orange-200 text-orange-800' : 'bg-gray-50 border-gray-200 text-gray-600';
+                  historialUnificado.map((inc, idx) => {
+                    const colorSev = inc.source === 'social' 
+                      ? (inc.isClosed ? 'bg-slate-50 border-slate-200 text-slate-500' : 'bg-red-50 border-red-200 text-red-800 ring-1 ring-red-300')
+                      : (inc.severity === 'positive' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : inc.severity === 'high' ? 'bg-red-50 border-red-200 text-red-800' : inc.severity === 'medium' ? 'bg-orange-50 border-orange-200 text-orange-800' : 'bg-gray-50 border-gray-200 text-gray-600');
+                    
                     return (
                       <div key={idx} className={`p-2.5 rounded-xl border flex justify-between items-start text-xs ${colorSev}`}>
                         <div className="flex-1 pr-2">
                           <p className="text-[8px] font-bold opacity-60 uppercase mb-0.5">
-                            {inc.date ? new Date(inc.date).toLocaleDateString('es-AR') : 'Fecha s/d'} • Por: {inc.author || 'Docente'}
+                            {inc.date ? new Date(inc.date).toLocaleDateString('es-AR') : 'Fecha s/d'} • Origen: {inc.source === 'social' ? 'Gabinete' : 'Aula'} • Por: {inc.author || 'Docente'}
                           </p>
-                          <p className="font-bold leading-tight">{inc.text || inc.type}</p>
+                          <p className={`font-bold leading-tight ${inc.isClosed ? 'line-through' : ''}`}>{inc.text || inc.type}</p>
                         </div>
-                        <button 
-                          type="button" 
-                          onClick={() => deleteIncident(liveStudent.id, inc)} 
-                          className="text-gray-400 hover:text-red-600 p-0.5 rounded-lg transition"
-                          title="Eliminar Registro"
-                        >
-                          <X size={14} strokeWidth={3}/>
-                        </button>
+                        {inc.source === 'aula' && (
+                          <button type="button" onClick={() => deleteIncident(liveStudent.id, inc)} className="text-gray-400 hover:text-red-600 p-0.5 rounded-lg transition" title="Eliminar Registro">
+                            <X size={14} strokeWidth={3}/>
+                          </button>
+                        )}
                       </div>
                     );
                   })
