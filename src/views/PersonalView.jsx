@@ -1457,18 +1457,19 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
 
                             <div className="pt-2">
                                <button 
-                                            type="button"
-                                            onClick={handleSaveAbsence}
-                                            disabled={processing || !absenceCode}
-                                            className={`w-full py-3.5 rounded-xl font-black uppercase tracking-widest text-xs shadow-md transition active:scale-95 flex justify-center items-center gap-2 ${absenceCode && !processing ? 'bg-orange-600 text-white hover:bg-orange-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
-                                        >
-                                            {processing ? <RefreshCw className="animate-spin" size={14}/> : (
-                                                <>
-                                                    <CheckCircle size={16}/>
-                                                    {absenceCode ? `Registrar Ausentismo` : 'Seleccione un Código'}
-                                                </>
-                                            )}
-                                        </button>
+                                                type="button"
+                                                onClick={handleSaveAbsence}
+                                                disabled={processing || !absenceCode}
+                                                className={`w-full py-3.5 rounded-xl font-black uppercase tracking-widest text-xs shadow-md transition active:scale-95 flex justify-center items-center gap-2 ${absenceCode && !processing ? 'bg-orange-600 text-white hover:bg-orange-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+                                            >
+                                                {processing ? <RefreshCw className="animate-spin" size={14}/> : (
+                                                    <>
+                                                        <CheckCircle size={16}/>
+                                                        {absenceCode ? `Registrar Ausentismo` : 'Seleccione un Código'}
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1479,7 +1480,7 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
         )}
 
     </div>
-  )
+  );
 }
         {/* MODAL RESUMEN MENSUAL DE FALTAS */}
         {showAbsencesSummary && (
