@@ -8,13 +8,12 @@ import {
   Smartphone, GraduationCap, Search, X, UploadCloud, PieChart, Eye, Edit3, Trophy,
   Folder, MessageSquare, Globe, BookOpen, Lightbulb, ChevronDown, PlusCircle, Printer,
   AlignLeft, AlignCenter, AlignRight, AlignJustify, Phone, CheckCircle2, Clock3, UserCheck,
-  ChevronUp // <--- ESTE ES EL QUE FALTABA
+  ChevronUp
 } from 'lucide-react';
 import { 
   collection, query, where, onSnapshot, doc, 
   updateDoc, arrayUnion, increment 
 } from 'firebase/firestore';
-
 
 export function SocialView({ user, db, appId }) {
   const [cases, setCases] = useState([]);
@@ -25,34 +24,30 @@ export function SocialView({ user, db, appId }) {
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState({});
   const [selectedCase, setSelectedCase] = useState(null); 
-  const [searchTerm, setSearchTerm] = useState(''); // <--- NUEVO ESTADO
+  const [searchTerm, setSearchProfile] = useState(''); // Estado de búsqueda
 
   const isAllowed = ['admin', 'super-admin', 'Docente', 'Auxiliar/Preceptor', 'Equipo Directivo', 'Equipo Técnico'].includes(user.role) || user.rol === 'admin';
 
-useEffect(() => {
+  useEffect(() => {
     if (!isAllowed || !db || !appId) return;
 
-    // CONSULTA PURA: Traemos la colección sin filtros para evitar errores de índices
     const socialRef = collection(db, 'artifacts', appId, 'public', 'data', 'social_cases');
     
     const unsub = onSnapshot(socialRef, (snap) => {
       const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       
-      // Ordenamos manualmente por fecha (lo más nuevo arriba)
       docs.sort((a, b) => {
         const dateA = a.createdAt?.seconds || Date.now() / 1000;
         const dateB = b.createdAt?.seconds || Date.now() / 1000;
         return dateB - dateA;
       });
 
-      console.log("🔥 Casos recibidos en Social:", docs.length);
       setCases(docs);
       setLoading(false);
     }, (error) => {
       console.error("❌ Error de Firebase en SocialView:", error);
     });
 
-    // Escuchar estudiantes (esto ya funciona bien)
     const qStudents = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'), where('isActive', '==', true));
     const unsubStudents = onSnapshot(qStudents, (snap) => {
       setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -61,14 +56,12 @@ useEffect(() => {
     return () => { unsub(); unsubStudents(); };
   }, [isAllowed, db, appId]);
 
-  
   const hasNews = (c) => {
     const lastSeenCount = parseInt(localStorage.getItem(`lastSeenSocial_${c.id}_${user.id}`) || "0");
     return (c.history?.length || 0) > lastSeenCount;
   };
 
- const handleOpenCase = (c) => {
-    // Buscamos al alumno por ID primero, y si no por Apellido (flexibilidad total)
+  const handleOpenCase = (c) => {
     const studentInfo = students.find(s => 
       s.id === c.studentId || 
       c.studentName?.toLowerCase().includes(s.lastName?.toLowerCase())
@@ -99,7 +92,6 @@ useEffect(() => {
         } 
       };
 
-      // Si marcamos como hecho, agregamos nota al historial y sumamos puntos
       if (!currentValue) {
         const autoNote = { 
           date: new Date().toISOString(), 
@@ -118,7 +110,6 @@ useEffect(() => {
         await updateDoc(caseRef, { steps: newSteps });
       }
 
-      // Actualizar el estado local para que se vea el cambio sin recargar
       if (selectedCase && selectedCase.id === caseId) {
         setSelectedCase(prev => ({
           ...prev,
@@ -130,14 +121,13 @@ useEffect(() => {
           }] : prev.history
         }));
       }
-
     } catch (err) {
       console.error("Error al actualizar paso:", err);
       alert("Error al guardar el cambio.");
     }
   };
 
- const handleAddComment = async (caseId) => {
+  const handleAddComment = async (caseId) => {
     const text = newComment[caseId];
     if (!text || !text.trim()) return;
     const userFullName = user.fullName || `${user.firstName} ${user.lastName}`;
@@ -147,12 +137,10 @@ useEffect(() => {
         history: arrayUnion(entry) 
       });
 
-      // --- PARCHE PUNTOS MAYO ---
       if (new Date() >= new Date('2026-05-01')) {
           const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
           await updateDoc(userRef, { score: increment(10) });
       }
-      // --------------------------
 
       if (selectedCase && selectedCase.id === caseId) {
         setSelectedCase(prev => ({ ...prev, history: [...(prev.history || []), entry] }));
@@ -223,21 +211,16 @@ useEffect(() => {
     if (!win) { window.location.href = url; }
   };
 
-const filteredCases = cases.filter(c => {
-    // 1. Si hay buscador, ignoramos todo lo demás y mostramos coincidencias
+  const filteredCases = cases.filter(c => {
     const term = searchTerm.trim().toLowerCase();
     if (term) {
       return c.studentName?.toLowerCase().includes(term);
     }
 
-    // 2. Lógica de Pestañas (Activos vs Archivo)
-    // Un caso solo se oculta de 'activos' si dice exactamente 'Reincorporado'
     const isArchived = c.status === 'Reincorporado';
     if (viewMode === 'archived' && !isArchived) return false;
     if (viewMode === 'active' && isArchived) return false;
 
-    // 3. Filtro de Ciclo (Solo si NO es un caso nuevo 'Pendiente')
-    // Esto asegura que los reportes de ausentismo aparezcan SIEMPRE
     if (filter !== 'all' && c.status !== 'Pendiente') {
       const level = (c.level || '').toUpperCase();
       if (filter === 'primeros') {
@@ -253,8 +236,6 @@ const filteredCases = cases.filter(c => {
     return true;
   });
 
-
-  
   return (
     <div className="h-full flex flex-col space-y-4 animate-in fade-in pb-20">
       {/* HEADER PRINCIPAL */}
@@ -269,17 +250,16 @@ const filteredCases = cases.filter(c => {
           </button>
         </div>
 
-        {/* BUSCADOR Y FILTRO CICLO */}
         <div className="flex flex-col md:flex-row gap-2">
           <div className="flex-1 bg-slate-100 rounded-xl flex items-center px-3 border border-transparent focus-within:border-blue-400 focus-within:bg-white transition-all">
             <Search size={18} className="text-slate-400"/>
             <input 
               value={searchTerm} 
-              onChange={(e) => setSearchTerm(e.target.value)} 
+              onChange={(e) => setSearchProfile(e.target.value)} 
               placeholder="Buscar por nombre, apellido o DNI..." 
               className="w-full p-3 bg-transparent outline-none text-sm font-bold"
             />
-            {searchTerm && <button onClick={() => setSearchTerm('')}><X size={16} className="text-slate-400"/></button>}
+            {searchTerm && <button onClick={() => setSearchProfile('')}><X size={16} className="text-slate-400"/></button>}
           </div>
           <select value={filter} onChange={(e) => setFilter(e.target.value)} className="bg-slate-100 text-slate-600 font-bold text-[10px] p-3 rounded-xl uppercase outline-none border-none">
             <option value="all">Todos los Ciclos</option>
@@ -405,42 +385,70 @@ const filteredCases = cases.filter(c => {
         </div>
       )}
 
-      {/* MODAL DETALLE ESTUDIANTE (BITÁCORA DE AULA) */}
-      {viewingStudent && (
-          <div className="fixed inset-0 bg-slate-900/95 z-[200] flex items-center justify-center p-4 backdrop-blur-md animate-in zoom-in-95">
-              <div className="bg-white rounded-[45px] w-full max-w-lg p-8 relative shadow-2xl flex flex-col max-h-[90vh]">
-                  <button onClick={() => setViewingStudent(null)} className="absolute top-8 right-8 text-slate-300 hover:text-slate-500 transition"><X size={28}/></button>
-                  <h3 className="font-black text-2xl text-slate-800 uppercase tracking-tighter leading-none mb-4">{viewingStudent.lastName}, {viewingStudent.firstName}</h3>
-                  <div className="flex-1 overflow-y-auto space-y-6 custom-scrollbar pr-2">
-                      <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100 grid grid-cols-2 gap-6">
-                          <div><label className="text-[9px] font-black text-slate-400 uppercase block mb-1">DNI</label><p className="font-bold text-slate-800">{viewingStudent.dni || '-'}</p></div>
-                          <div><label className="text-[9px] font-black text-slate-400 uppercase block mb-1">F. Nac</label><p className="font-bold text-slate-800">{viewingStudent.birthDate || '-'}</p></div>
-                          <div className="col-span-2"><label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Obra Social</label><p className="font-bold text-slate-800 uppercase">{viewingStudent.healthInsurance || 'S/D'}</p></div>
+      {/* MODAL DETALLE ESTUDIANTE (BITÁCORA DE AULA & SOCIAL) */}
+      {viewingStudent && (() => {
+          // Buscamos el caso social vinculado a este estudiante
+          const studentSocialCase = cases.find(c => 
+              c.studentId === viewingStudent.id || 
+              c.studentName?.toLowerCase().includes(viewingStudent.lastName?.toLowerCase())
+          );
+
+          return (
+              <div className="fixed inset-0 bg-slate-900/95 z-[200] flex items-center justify-center p-4 backdrop-blur-md animate-in zoom-in-95">
+                  <div className="bg-white rounded-[45px] w-full max-w-xl p-8 relative shadow-2xl flex flex-col max-h-[90vh]">
+                      <button onClick={() => setViewingStudent(null)} className="absolute top-8 right-8 text-slate-300 hover:text-slate-500 transition"><X size={28}/></button>
+                      <h3 className="font-black text-2xl text-slate-800 uppercase tracking-tighter leading-none mb-4">{viewingStudent.lastName}, {viewingStudent.firstName}</h3>
+                      
+                      <div className="flex-1 overflow-y-auto space-y-6 custom-scrollbar pr-2">
+                          <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100 grid grid-cols-2 gap-6">
+                              <div><label className="text-[9px] font-black text-slate-400 uppercase block mb-1">DNI</label><p className="font-bold text-slate-800">{viewingStudent.dni || '-'}</p></div>
+                              <div><label className="text-[9px] font-black text-slate-400 uppercase block mb-1">F. Nac</label><p className="font-bold text-slate-800">{viewingStudent.birthDate || '-'}</p></div>
+                              <div className="col-span-2"><label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Obra Social</label><p className="font-bold text-slate-800 uppercase">{viewingStudent.healthInsurance || 'S/D'}</p></div>
+                          </div>
+
+                          {/* INTERVENCIONES / SEGUIMIENTO SOCIAL */}
+                          <div className="space-y-3">
+                              <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest ml-1 flex items-center gap-1">
+                                  <Briefcase size={14}/> Intervenciones de Trabajo Social
+                              </h4>
+                              {studentSocialCase && studentSocialCase.history && studentSocialCase.history.length > 0 ? (
+                                  studentSocialCase.history.slice().reverse().map((h, idx) => (
+                                      <div key={idx} className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 shadow-sm">
+                                          <div className="flex justify-between mb-1">
+                                              <span className="text-[9px] font-black text-blue-500 uppercase">{new Date(h.date).toLocaleDateString()}</span>
+                                              <span className="text-[9px] font-bold text-slate-500 uppercase italic">Por: {h.author}</span>
+                                          </div>
+                                          <p className="text-xs font-bold text-slate-700 leading-relaxed">{h.text}</p>
+                                      </div>
+                                  ))
+                              ) : (
+                                  <p className="text-center text-xs text-gray-400 italic py-2 bg-slate-50 rounded-2xl">No hay intervenciones sociales registradas.</p>
+                              )}
+                          </div>
+
+                          {/* BITÁCORA PEDAGÓGICA (AULA) */}
+                          <div className="space-y-3">
+                              <h4 className="text-[10px] font-black text-violet-600 uppercase tracking-widest ml-1">Bitácora Pedagógica (Aula)</h4>
+                              {viewingStudent.incidents && viewingStudent.incidents.length > 0 ? (
+                                  viewingStudent.incidents.slice().reverse().map((inc, idx) => (
+                                      <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                                          <div className="flex justify-between mb-1">
+                                              <span className="text-[9px] font-black text-violet-400 uppercase">{new Date(inc.date).toLocaleDateString()}</span>
+                                              <span className="text-[9px] font-bold text-slate-400 uppercase italic">Por: {inc.author}</span>
+                                          </div>
+                                          <p className="text-xs font-bold text-slate-700 leading-relaxed">{inc.text || inc.type}</p>
+                                      </div>
+                                  ))
+                              ) : (
+                                  <p className="text-center text-xs text-gray-400 italic py-4">No hay incidentes de aula registrados.</p>
+                              )}
+                          </div>
                       </div>
-                      <div className="space-y-3">
-                          <h4 className="text-[10px] font-black text-violet-600 uppercase tracking-widest ml-1">Bitácora Pedagógica (Aula)</h4>
-                          {viewingStudent.incidents && viewingStudent.incidents.length > 0 ? (
-                              viewingStudent.incidents.slice().reverse().map((inc, idx) => (
-                                <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                                    <div className="flex justify-between mb-1">
-                                        <span className="text-[9px] font-black text-violet-400 uppercase">{new Date(inc.date).toLocaleDateString()}</span>
-                                        <span className="text-[9px] font-bold text-slate-400 uppercase italic">Por: {inc.author}</span>
-                                    </div>
-                                    <p className="text-xs font-bold text-slate-700 leading-relaxed">{inc.text || inc.type}</p>
-                                </div>
-                              ))
-                          ) : (
-                              <p className="text-center text-xs text-gray-400 italic py-4">No hay incidentes de aula registrados.</p>
-                          )}
-                      </div>
+                      <button onClick={() => setViewingStudent(null)} className="w-full mt-8 py-5 bg-slate-900 text-white rounded-[25px] font-black uppercase text-xs tracking-widest shadow-xl shrink-0">Cerrar Ficha</button>
                   </div>
-                  <button onClick={() => setViewingStudent(null)} className="w-full mt-8 py-5 bg-slate-900 text-white rounded-[25px] font-black uppercase text-xs tracking-widest shadow-xl shrink-0">Cerrar Ficha</button>
               </div>
-          </div>
-      )}
+          );
+      })()}
     </div>
   );
 }
-
-
-
