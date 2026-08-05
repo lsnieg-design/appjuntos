@@ -17,6 +17,7 @@ import {
 
 export function SocialView({ user, db, appId }) {
   const [cases, setCases] = useState([]);
+  const [allSocialCases, setAllSocialCases] = useState([]); // <--- NUEVO: Guarda absolutamente todos los casos (activos y archivados)
   const [students, setStudents] = useState([]);
   const [viewingStudent, setViewingStudent] = useState(null);
   const [filter, setFilter] = useState('all');
@@ -24,7 +25,7 @@ export function SocialView({ user, db, appId }) {
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState({});
   const [selectedCase, setSelectedCase] = useState(null); 
-  const [searchTerm, setSearchProfile] = useState(''); // Estado de búsqueda
+  const [searchTerm, setSearchProfile] = useState('');
 
   const isAllowed = ['admin', 'super-admin', 'Docente', 'Auxiliar/Preceptor', 'Equipo Directivo', 'Equipo Técnico'].includes(user.role) || user.rol === 'admin';
 
@@ -42,6 +43,7 @@ export function SocialView({ user, db, appId }) {
         return dateB - dateA;
       });
 
+      setAllSocialCases(docs); // <--- Guardamos TODOS los casos sin filtrar
       setCases(docs);
       setLoading(false);
     }, (error) => {
@@ -387,8 +389,8 @@ export function SocialView({ user, db, appId }) {
 
       {/* MODAL DETALLE ESTUDIANTE (BITÁCORA DE AULA & SOCIAL) */}
       {viewingStudent && (() => {
-          // Buscamos el caso social vinculado a este estudiante
-          const studentSocialCase = cases.find(c => 
+          // Buscamos el caso social en allSocialCases (incluye archivados)
+          const studentSocialCase = allSocialCases.find(c => 
               c.studentId === viewingStudent.id || 
               c.studentName?.toLowerCase().includes(viewingStudent.lastName?.toLowerCase())
           );
@@ -406,10 +408,10 @@ export function SocialView({ user, db, appId }) {
                               <div className="col-span-2"><label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Obra Social</label><p className="font-bold text-slate-800 uppercase">{viewingStudent.healthInsurance || 'S/D'}</p></div>
                           </div>
 
-                          {/* INTERVENCIONES / SEGUIMIENTO SOCIAL */}
+                          {/* INTERVENCIONES / SEGUIMIENTO SOCIAL (INCLUYENDO ARCHIVADOS) */}
                           <div className="space-y-3">
                               <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest ml-1 flex items-center gap-1">
-                                  <Briefcase size={14}/> Intervenciones de Trabajo Social
+                                  <Briefcase size={14}/> Intervenciones de Trabajo Social {studentSocialCase?.status === 'Reincorporado' && <span className="text-[8px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded ml-1">Archivado</span>}
                               </h4>
                               {studentSocialCase && studentSocialCase.history && studentSocialCase.history.length > 0 ? (
                                   studentSocialCase.history.slice().reverse().map((h, idx) => (
