@@ -1534,7 +1534,7 @@ return (
         <div className="space-y-4">
           {/* BLOQUEOS DE SEGURIDAD SEGÚN NIVEL */}
          {((tipoInforme === 'plastica' && selectedStudent?.level?.toUpperCase() === 'INICIAL') || 
-            (tipoInforme === 'educacion_fisica' && ['INICIAL', '1° CICLO'].includes(selectedStudent?.level?.toUpperCase())) ||
+           
             (tipoInforme === 'musica_brenda' && !esNivelValidoBrenda)) ? (
             
             <div className="bg-amber-50 border border-amber-200 p-8 rounded-3xl text-center">
