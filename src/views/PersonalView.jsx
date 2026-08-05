@@ -676,9 +676,9 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
             
             <div className="flex gap-2">
                 <button 
-                  onClick={() => setShowPrintOptions(true)} 
-                  className="bg-white text-blue-600 border border-blue-200 p-3 rounded-2xl shadow-sm hover:bg-blue-50 transition" 
-                  title="Configurar Planilla"
+                    onClick={() => setShowPrintOptions(true)} 
+                    className="bg-white text-blue-600 border border-blue-200 p-3 rounded-2xl shadow-sm hover:bg-blue-50 transition" 
+                    title="Configurar Planilla"
                 >
                     <Grid size={20}/>
                 </button>
@@ -776,7 +776,7 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
 
         {/* LISTADO DE PERSONAL (CON SOPORTE DE BAJA EN GRIS) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-24 mt-2">
-            {filteredStaff.map(s => {
+             {filteredStaff.map(s => {
                 const tieneSub = s.cargo1_subsidized === 'true' || s.cargo2_subsidized === 'true' || s.isSubsidized === 'true';
                 
                 const c1Role = getNormRole(s.cargo1_role || s.role);
@@ -789,7 +789,6 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
                 const c2NeedsFix = hasC2 && !VALID_ROLES_OFFICIAL.includes(c2Role);
                 const needsRoleFix = c1NeedsFix || c2NeedsFix;
                                 
-                // Determinar si está totalmente dado de baja (si ambos cargos tienen fecha de baja o no hay cargo activo)
                 const c1Baja = Boolean(s.cargo1_baja);
                 const c2Baja = Boolean(s.cargo2_baja);
                 const estaDadoDeBajaTotal = (hasC1 ? c1Baja : true) && (hasC2 ? c2Baja : true);
@@ -799,71 +798,70 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
                       key={s.id} 
                       onClick={() => setViewingStaff(s)} 
                       className={`p-4 rounded-[25px] border transition-all cursor-pointer group relative flex items-center gap-4 ${
-                        estaDadoDeBajaTotal 
-                            ? 'bg-gray-100 border-gray-300 opacity-60 grayscale' 
-                          : 'bg-white border-gray-100 hover:border-violet-300 shadow-sm'
-                    }`}
-                  >
-                      <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100 shrink-0 relative">
-                        {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName?.[0]}
-                        {tieneSub && <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white shadow-sm" title="Subvencionada"></div>}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="flex gap-2 items-center flex-wrap">
-                            <h4 className="font-bold text-gray-800 text-sm uppercase truncate">{s.lastName}, {s.firstName}</h4>
-                            <span className={`text-[8px] px-2 py-0.5 rounded-md font-black uppercase ${s.modality === 'Inclusión' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}`}>{s.modality || 'Sede'}</span>
-                            {estaDadoDeBajaTotal && <span className="bg-red-100 text-red-700 text-[9px] font-black px-2 py-0.5 rounded-lg border border-red-200">BAJA</span>}
-                            {needsRoleFix && <span className="bg-red-100 text-red-700 text-[9px] font-black px-2 py-0.5 rounded-lg border border-red-200 animate-pulse">⚠️ ASIGNAR ROL</span>}
+                          estaDadoDeBajaTotal 
+                              ? 'bg-gray-100 border-gray-300 opacity-60 grayscale' 
+                              : 'bg-white border-gray-100 hover:border-violet-300 shadow-sm'
+                      }`}
+                    >
+                        <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center font-black text-violet-300 overflow-hidden border-2 border-violet-100 shrink-0 relative">
+                            {s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : s.firstName?.[0]}
+                            {tieneSub && <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white shadow-sm" title="Subvencionada"></div>}
                         </div>
-                        <div className="flex gap-2 text-[10px] mt-1 text-gray-500 font-bold">
-                            {s.dni && <span>DNI: {s.dni}</span>}
-                            <span className="text-violet-500">Anti: {calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef)}</span>
-                        </div>
-                        
-                        <p className="text-[10px] font-black uppercase mt-1 truncate">
-                            {hasC1 ? (
-                                <span className={s.cargo1_subsidized === 'true' ? 'text-emerald-600' : s.cargo1_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
-                                    C1: {getNormRole(s.cargo1_role || s.role)} ({s.cargo1_turn || '-'}) 
-                                    {s.cargo1_subsidized === 'true' ? ' (MECA)' : s.cargo1_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
-                                    {s.cargo1_baja && <b className="text-red-500 ml-1">[Baja: {getSafeDate(s.cargo1_baja)}]</b>}
-                                </span>
-                            ) : (
-                                <span className="text-gray-300">NO TRABAJA (C1)</span>
-                            )} 
+                        <div className="flex-1 min-w-0">
+                            <div className="flex gap-2 items-center flex-wrap">
+                                <h4 className="font-bold text-gray-800 text-sm uppercase truncate">{s.lastName}, {s.firstName}</h4>
+                                <span className={`text-[8px] px-2 py-0.5 rounded-md font-black uppercase ${s.modality === 'Inclusión' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700'}`}>{s.modality || 'Sede'}</span>
+                                {estaDadoDeBajaTotal && <span className="bg-red-100 text-red-700 text-[9px] font-black px-2 py-0.5 rounded-lg border border-red-200">BAJA</span>}
+                                {needsRoleFix && <span className="bg-red-100 text-red-700 text-[9px] font-black px-2 py-0.5 rounded-lg border border-red-200 animate-pulse">⚠️ ASIGNAR ROL</span>}
+                            </div>
+                            <div className="flex gap-2 text-[10px] mt-1 text-gray-500 font-bold">
+                                {s.dni && <span>DNI: {s.dni}</span>}
+                                <span className="text-violet-500">Anti: {calcularAntiguedad(s.antiguedadAnios, s.antiguedadMeses, s.antiguedadFechaRef)}</span>
+                            </div>
                             
-                            {hasC2 ? (
-                                <>
-                                    <span className="text-gray-300 mx-1">|</span>
-                                    <span className={s.cargo2_subsidized === 'true' ? 'text-emerald-600' : s.cargo2_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
-                                        C2: {getNormRole(s.cargo2_role)} ({s.cargo2_turn || '-'}) 
-                                        {s.cargo2_subsidized === 'true' ? ' (MECA)' : s.cargo2_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
-                                        {s.cargo2_baja && <b className="text-red-500 ml-1">[Baja: {getSafeDate(s.cargo2_baja)}]</b>}
+                            <p className="text-[10px] font-black uppercase mt-1 truncate">
+                                {hasC1 ? (
+                                    <span className={s.cargo1_subsidized === 'true' ? 'text-emerald-600' : s.cargo1_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
+                                        C1: {getNormRole(s.cargo1_role || s.role)} ({s.cargo1_turn || '-'}) 
+                                        {s.cargo1_subsidized === 'true' ? ' (MECA)' : s.cargo1_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
+                                        {s.cargo1_baja && <b className="text-red-500 ml-1">[Baja: {getSafeDate(s.cargo1_baja)}]</b>}
                                     </span>
-                                </>
-                            ) : (
-                                <span className="text-gray-300"> | NO TRABAJA (C2)</span>
-                            )}
-                        </p>
+                                ) : (
+                                    <span className="text-gray-300">NO TRABAJA (C1)</span>
+                                )} 
+                                
+                                {hasC2 ? (
+                                    <>
+                                        <span className="text-gray-300 mx-1">|</span>
+                                        <span className={s.cargo2_subsidized === 'true' ? 'text-emerald-600' : s.cargo2_subsidized === 'fuera' ? 'text-amber-600' : 'text-slate-400'}>
+                                            C2: {getNormRole(s.cargo2_role)} ({s.cargo2_turn || '-'}) 
+                                            {s.cargo2_subsidized === 'true' ? ' (MECA)' : s.cargo2_subsidized === 'fuera' ? ' (PAPELES)' : ' (DENO)'}
+                                            {s.cargo2_baja && <b className="text-red-500 ml-1">[Baja: {getSafeDate(s.cargo2_baja)}]</b>}
+                                        </span>
+                                    </>
+                                ) : (
+                                    <span className="text-gray-300"> | NO TRABAJA (C2)</span>
+                                )}
+                            </p>
+                        </div>
+                        <Eye className="text-gray-300 group-hover:text-violet-500 transition-colors shrink-0" />
                     </div>
-                    <Eye className="text-gray-300 group-hover:text-violet-500 transition-colors shrink-0" />
-                </div>
                 );
              })}
         </div>
 
-        {/* MODAL LECTURA LEGAJO (CON BOTÓN DE EDITAR RECUPERADO) */}
+        {/* MODAL LECTURA LEGAJO */}
         {viewingStaff && !showStaffForm && (
             <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setViewingStaff(null)}>
                 <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
                     
                     <div className="bg-violet-800 p-6 text-white relative shrink-0">
                         <div className="absolute top-4 right-14 flex gap-2">
-                            {/* BOTÓN EDITAR RECUPERADO */}
                             <button 
                               onClick={() => { setEditingStaff(viewingStaff); setPhotoPreview(viewingStaff.photoUrl || null); setShowStaffForm(true); }} 
                               className="bg-white/20 p-2 rounded-full hover:bg-white/40 transition flex items-center gap-1 text-xs font-bold"
                               title="Editar ficha"
-                          >
+                            >
                                 <Edit3 size={18}/>
                             </button>
                         </div>
@@ -891,7 +889,7 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
                                 <span className="font-bold text-gray-500">Ingreso Inst: {getSafeDate(viewingStaff.fechaIngreso)}</span>
                                 <span className="font-black text-violet-700">Antigüedad: {calcularAntiguedad(viewingStaff.antiguedadAnios, viewingStaff.antiguedadMeses, viewingStaff.antiguedadFechaRef)}</span>
                             </div>
-                             
+                            
                             {Boolean((viewingStaff.cargo1_name && viewingStaff.cargo1_name.trim()) || viewingStaff.cargo1_role || viewingStaff.role) && (
                                 <div className={`bg-white p-3 rounded-lg border ${viewingStaff.cargo1_baja ? 'border-red-300 bg-red-50/50' : 'border-violet-200 shadow-sm'} text-xs relative`}>
                                     <div className="flex justify-between items-center mb-1">
@@ -943,198 +941,199 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
                                 </div>
                                 <p className="text-[7px] text-emerald-400 mt-2 italic text-center">* Información vinculada por ID de seguridad</p>
                             </div>
-                    )}
+                        )}
 
-                    <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 shadow-sm mt-2">
-                        <div className="flex justify-between items-center mb-3">
-                            <h4 className="text-[10px] font-black text-orange-600 uppercase flex items-center gap-2">
-                                <UserCheck size={14}/> Historial de Inasistencias
-                            </h4>
-                            <span className="bg-orange-200 text-orange-800 text-[9px] font-black px-2 py-0.5 rounded-lg">
-                                Total: {staffAbsences.length}
-                            </span>
-                        </div>
+                        <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 shadow-sm mt-2">
+                            <div className="flex justify-between items-center mb-3">
+                                <h4 className="text-[10px] font-black text-orange-600 uppercase flex items-center gap-2">
+                                    <UserCheck size={14}/> Historial de Inasistencias
+                                </h4>
+                                <span className="bg-orange-200 text-orange-800 text-[9px] font-black px-2 py-0.5 rounded-lg">
+                                    Total: {staffAbsences.length}
+                                </span>
+                            </div>
 
-                       {staffAbsences.length === 0 ? (
-                            <p className="text-[10px] text-orange-400 font-bold italic text-center py-2">
-                                No registra inasistencias cargadas.
-                            </p>
-                    ) : (
-                            <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
-                                {staffAbsences.map((falta) => (
-                                    <div key={falta.id} className="bg-white p-2 rounded-xl border border-orange-200 flex justify-between items-center group/falta">
-                                        <div className="flex items-center gap-2">
-                                            <span className="bg-orange-500 text-white font-black text-[10px] px-2 py-1 rounded-lg uppercase">
-                                                {falta.code}
-                                            </span>
-                                            <div>
-                                                <p className="text-[10px] font-bold text-slate-700 leading-tight">
-                                                    {falta.description} 
-                                                    {falta.turn && <span className="bg-slate-100 text-slate-600 font-black text-[7px] px-1.5 py-0.5 rounded-md ml-1.5 border border-slate-200">{falta.turn.toUpperCase()}</span>}
-                                                </p>
-                                                <p className="text-[8px] text-slate-400 uppercase font-black flex justify-between items-center mt-0.5">
-                                                    <span>{new Date(falta.date + 'T00:00:00').toLocaleDateString('es-AR')}</span>
-                                                    {falta.notes && <span className="text-orange-600 italic font-bold normal-case truncate max-w-[180px]">“{falta.notes}”</span>}
-                                                </p>
+                           {staffAbsences.length === 0 ? (
+                                <p className="text-[10px] text-orange-400 font-bold italic text-center py-2">
+                                    No registra inasistencias cargadas.
+                                </p>
+                            ) : (
+                                <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                                    {staffAbsences.map((falta) => (
+                                        <div key={falta.id} className="bg-white p-2 rounded-xl border border-orange-200 flex justify-between items-center group/falta">
+                                            <div className="flex items-center gap-2">
+                                                <span className="bg-orange-500 text-white font-black text-[10px] px-2 py-1 rounded-lg uppercase">
+                                                    {falta.code}
+                                                </span>
+                                                <div>
+                                                    <p className="text-[10px] font-bold text-slate-700 leading-tight">
+                                                        {falta.description} 
+                                                        {falta.turn && <span className="bg-slate-100 text-slate-600 font-black text-[7px] px-1.5 py-0.5 rounded-md ml-1.5 border border-slate-200">{falta.turn.toUpperCase()}</span>}
+                                                    </p>
+                                                    <p className="text-[8px] text-slate-400 uppercase font-black flex justify-between items-center mt-0.5">
+                                                        <span>{new Date(falta.date + 'T00:00:00').toLocaleDateString('es-AR')}</span>
+                                                        {falta.notes && <span className="text-orange-600 italic font-bold normal-case truncate max-w-[180px]">“{falta.notes}”</span>}
+                                                    </p>
+                                                </div>
                                             </div>
+                                            
+                                            <button 
+                                                onClick={() => handleDeleteAbsence(falta.id)} 
+                                                className="text-red-300 hover:text-red-600 p-1.5 bg-red-50 rounded-lg opacity-0 group-hover/falta:opacity-100 transition-all"
+                                                title="Eliminar registro"
+                                            >
+                                                <Trash2 size={12}/>
+                                            </button>
                                         </div>
-                                         
-                                        <button 
-                                            onClick={() => handleDeleteAbsence(falta.id)} 
-                                            className="text-red-300 hover:text-red-600 p-1.5 bg-red-50 rounded-lg opacity-0 group-hover/falta:opacity-100 transition-all"
-                                            title="Eliminar registro"
-                                        >
-                                            <Trash2 size={12}/>
-                                        </button>
-                                    </div>
-                                ))}
-                          </div>
-                      )}
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
         )}
-          
-        {/* MODAL EDICIÓN LEGAJO (CON FECHAS DE BAJA PARA CARGO 1 Y CARGO 2) */}
+        
+        {/* MODAL EDICIÓN LEGAJO */}
         {showStaffForm && (
           <div className="fixed inset-0 bg-black/70 z-[150] flex items-center justify-center p-2 sm:p-4 backdrop-blur-md animate-in fade-in duration-300">
             <div className="bg-slate-50 rounded-[30px] w-full max-w-xl shadow-2xl max-h-[95vh] overflow-hidden flex flex-col border border-white/20">
-             
-            <div className="bg-violet-700 p-5 text-white flex justify-between items-center shrink-0">
-              <div className="flex-1">
-                <h3 className="text-lg font-black uppercase italic tracking-tighter">
-                  {editingStaff ? 'Editar Legajo' : 'Nuevo Personal'}
-                </h3>
-                {editingStaff && (!editingStaff?.dni || !editingStaff?.cargo1_role || !editingStaff?.modality) ? (
-                  <div className="bg-amber-400 text-amber-900 text-[8px] font-black px-2 py-0.5 rounded-full inline-flex items-center gap-1 animate-pulse mt-1 uppercase">
-                    ⚠️ Atención: Ficha incompleta. Completar datos para vinculación.
-                  </div>
-                ) : (
-                  <p className="text-[10px] opacity-70 font-bold uppercase">Configuración de ficha técnica</p>
-                )}
-              </div>
-              <button onClick={() => setShowStaffForm(false)} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition">
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* FORMULARIO */}
-            <form id="staffForm" onSubmit={handleSaveStaff} className="overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar flex-1">
-               
-              <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 space-y-2">
-                  <p className="text-[10px] font-black text-blue-600 uppercase flex items-center gap-2">
-                      <LinkIcon size={14}/> Conexión de Seguridad y Grupos
-                  </p>
-                  <input 
-                      name="userId" 
-                      defaultValue={editingStaff?.userId || ""} 
-                      placeholder="ID de Usuario vinculado para login y grupos..." 
-                      className="p-3 bg-white rounded-xl w-full font-mono text-[10px] outline-none border border-blue-200 focus:ring-2 ring-blue-100"
-                  />
-                  <p className="text-[7px] text-blue-400 font-bold italic uppercase px-1">
-                      * Este ID conecta el legajo con el usuario y detecta automáticamente sus grupos asignados.
-                  </p>
-              </div>
-
-              <div className="flex flex-col items-center mb-6">
-                  <div className="w-24 h-24 rounded-3xl bg-violet-100 border-4 border-white shadow-md overflow-hidden relative group">
-                      {photoPreview ? <img src={photoPreview} className="w-full h-full object-cover"/> : (editingStaff?.photoUrl ? <img src={editingStaff.photoUrl} className="w-full h-full object-cover"/> : <div className="flex items-center justify-center h-full text-violet-300"><User size={40}/></div>)}
-                      <label className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer">
-                          <Camera className="text-white" size={24}/>
-                          <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange}/>
-                      </label>
-                  </div>
-                  <p className="text-[9px] font-black text-violet-400 uppercase mt-2">Tocar para cambiar foto</p>
-              </div>
-
-              <details open className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
-                  <span className="text-[11px] font-black text-violet-600 uppercase flex items-center gap-2"><User size={14}/> Datos de Identidad</span>
-                  <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
-                </summary>
-                <div className="p-4 pt-0 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <input name="lastName" defaultValue={editingStaff?.lastName || ""} placeholder="Apellido/s" required className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
-                  <input name="firstName" defaultValue={editingStaff?.firstName || ""} placeholder="Nombre/s" required className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
-                  <input name="dni" defaultValue={editingStaff?.dni || ""} placeholder="DNI sin puntos" className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
-                  <input name="birthDate" type="date" defaultValue={editingStaff?.birthDate || ""} className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm"/>
-                  <input name="phone" defaultValue={editingStaff?.phone || ""} placeholder="Celular" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
-                  <input name="email" defaultValue={editingStaff?.email || ""} placeholder="Email" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
-                </div>
-              </details>
-
-              <details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-3">
-                <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
-                  <span className="text-[11px] font-black text-blue-600 uppercase flex items-center gap-2"><MapPin size={14}/> Domicilio y Título</span>
-                  <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
-                </summary>
-                <div className="p-4 pt-0 space-y-3">
-                  <input name="address" defaultValue={editingStaff?.address || ""} placeholder="Dirección completa" className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm"/>
-                  <input name="emergencyContact" defaultValue={editingStaff?.emergencyContact || ""} placeholder="Contacto Emergencia (Nombre y Tel)" className="p-3 bg-red-50 text-red-700 rounded-xl border-none w-full font-bold text-sm placeholder:text-red-300"/>
-                  <div className="grid grid-cols-2 gap-2">
-                      <input name="degree" defaultValue={editingStaff?.degree || ""} placeholder="Título Obtenido" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
-                      <select name="studyStatus" defaultValue={editingStaff?.studyStatus || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
-                          <option value="">Estado estudios...</option>
-                          <option value="Completo">Completo</option>
-                          <option value="Incompleto">Incompleto</option>
-                          <option value="En curso">En curso</option>
-                      </select>
-                  </div>
-                </div>
-              </details>
-
-              <details open className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition border-l-4 border-emerald-500">
-                  <span className="text-[11px] font-black text-emerald-600 uppercase flex items-center gap-2">
-                    <Briefcase size={14}/> Cargo Principal
-                  </span>
-                  <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
-                </summary>
-                <div className="p-4 pt-0 space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <select name="modality" defaultValue={editingStaff?.modality || 'Sede'} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
-                      <option value="Sede">Modalidad: Sede</option>
-                      <option value="Inclusión">Modalidad: Inclusión</option>
-                      <option value="Ambos">Modalidad: Ambos</option>
-                    </select>
-                    <select name="cargo1_subsidized" defaultValue={editingStaff?.cargo1_subsidized || 'false'} className={`p-3 rounded-xl border-none font-black text-xs ${editingStaff?.cargo1_subsidized === 'true' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500'}`}>
-                      <option value="false">DENO (No Subvencionado)</option>
-                      <option value="true">MECA (Subvencionado)</option>
-                      <option value="fuera">FUERA DE PLANTA (Papeles)</option>
-                    </select>
-                  </div>
-                  <div className="grid grid-cols-[1fr,2fr] gap-2">
-                    <input name="cargo1_numero" defaultValue={editingStaff?.cargo1_numero || ""} placeholder="N° Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
-                    <input name="cargo1_name" defaultValue={editingStaff?.cargo1_name || ""} placeholder="Nombre del Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div className="flex flex-col">
-                      <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Función / Rol</label>
-                      <select 
-                        name="cargo1_role" 
-                        defaultValue={editingStaff?.cargo1_role || editingStaff?.role || ""} 
-                        className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs"
-                        required
-                      >
-                        <option value="">Seleccionar Rol...</option>
-                        {(typeof VALID_ROLES_OFFICIAL !== 'undefined' ? VALID_ROLES_OFFICIAL : []).map(r => (
-                          <option key={r} value={r}>{r}</option>
-                        ))}
-                      </select>
+              
+              <div className="bg-violet-700 p-5 text-white flex justify-between items-center shrink-0">
+                <div className="flex-1">
+                  <h3 className="text-lg font-black uppercase italic tracking-tighter">
+                    {editingStaff ? 'Editar Legajo' : 'Nuevo Personal'}
+                  </h3>
+                  {editingStaff && (!editingStaff?.dni || !editingStaff?.cargo1_role || !editingStaff?.modality) ? (
+                    <div className="bg-amber-400 text-amber-900 text-[8px] font-black px-2 py-0.5 rounded-full inline-flex items-center gap-1 animate-pulse mt-1 uppercase">
+                      ⚠️ Atención: Ficha incompleta. Completar datos para vinculación.
                     </div>
-                    <div className="flex flex-col">
-                      <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Turno Horario</label>
-                      <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
-                        <option value="">Turno...</option>
-                        <option value="Mañana">Mañana</option>
-                        <option value="Tarde">Tarde</option>
-                        <option value="Alternado">Alternado</option>
-                        <option value="Vespertino">Vespertino</option>
-                        <option value="Doble">Doble</option>
-                      </select>
+                  ) : (
+                    <p className="text-[10px] opacity-70 font-bold uppercase">Configuración de ficha técnica</p>
+                  )}
+                </div>
+                <button onClick={() => setShowStaffForm(false)} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition">
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* FORMULARIO */}
+              <form id="staffForm" onSubmit={handleSaveStaff} className="overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar flex-1">
+                
+                <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 space-y-2">
+                    <p className="text-[10px] font-black text-blue-600 uppercase flex items-center gap-2">
+                        <LinkIcon size={14}/> Conexión de Seguridad y Grupos
+                    </p>
+                    <input 
+                        name="userId" 
+                        defaultValue={editingStaff?.userId || ""} 
+                        placeholder="ID de Usuario vinculado para login y grupos..." 
+                        className="p-3 bg-white rounded-xl w-full font-mono text-[10px] outline-none border border-blue-200 focus:ring-2 ring-blue-100"
+                    />
+                    <p className="text-[7px] text-blue-400 font-bold italic uppercase px-1">
+                        * Este ID conecta el legajo con el usuario y detecta automáticamente sus grupos asignados.
+                    </p>
+                </div>
+
+                <div className="flex flex-col items-center mb-6">
+                    <div className="w-24 h-24 rounded-3xl bg-violet-100 border-4 border-white shadow-md overflow-hidden relative group">
+                        {photoPreview ? <img src={photoPreview} className="w-full h-full object-cover"/> : (editingStaff?.photoUrl ? <img src={editingStaff.photoUrl} className="w-full h-full object-cover"/> : <div className="flex items-center justify-center h-full text-violet-300"><User size={40}/></div>)}
+                        <label className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer">
+                            <Camera className="text-white" size={24}/>
+                            <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange}/>
+                        </label>
+                    </div>
+                    <p className="text-[9px] font-black text-violet-400 uppercase mt-2">Tocar para cambiar foto</p>
+                </div>
+
+                <details open className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                  <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
+                    <span className="text-[11px] font-black text-violet-600 uppercase flex items-center gap-2"><User size={14}/> Datos de Identidad</span>
+                    <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
+                  </summary>
+                  <div className="p-4 pt-0 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input name="lastName" defaultValue={editingStaff?.lastName || ""} placeholder="Apellido/s" required className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
+                    <input name="firstName" defaultValue={editingStaff?.firstName || ""} placeholder="Nombre/s" required className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
+                    <input name="dni" defaultValue={editingStaff?.dni || ""} placeholder="DNI sin puntos" className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm focus:ring-2 ring-violet-200"/>
+                    <input name="birthDate" type="date" defaultValue={editingStaff?.birthDate || ""} className="p-3 bg-slate-50 rounded-xl border-none outline-none font-bold text-sm"/>
+                    <input name="phone" defaultValue={editingStaff?.phone || ""} placeholder="Celular" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+                    <input name="email" defaultValue={editingStaff?.email || ""} placeholder="Email" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+                  </div>
+                </details>
+
+                <details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-3">
+                  <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
+                    <span className="text-[11px] font-black text-blue-600 uppercase flex items-center gap-2"><MapPin size={14}/> Domicilio y Título</span>
+                    <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
+                  </summary>
+                  <div className="p-4 pt-0 space-y-3">
+                    <input name="address" defaultValue={editingStaff?.address || ""} placeholder="Dirección completa" className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm"/>
+                    <input name="emergencyContact" defaultValue={editingStaff?.emergencyContact || ""} placeholder="Contacto Emergencia (Nombre y Tel)" className="p-3 bg-red-50 text-red-700 rounded-xl border-none w-full font-bold text-sm placeholder:text-red-300"/>
+                    <div className="grid grid-cols-2 gap-2">
+                        <input name="degree" defaultValue={editingStaff?.degree || ""} placeholder="Título Obtenido" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+                        <select name="studyStatus" defaultValue={editingStaff?.studyStatus || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+                            <option value="">Estado estudios...</option>
+                            <option value="Completo">Completo</option>
+                            <option value="Incompleto">Incompleto</option>
+                            <option value="En curso">En curso</option>
+                        </select>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-2 gap-2">
-                       <select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+                </details>
+
+                <details open className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                  <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition border-l-4 border-emerald-500">
+                    <span className="text-[11px] font-black text-emerald-600 uppercase flex items-center gap-2">
+                      <Briefcase size={14}/> Cargo Principal
+                    </span>
+                    <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
+                  </summary>
+                  <div className="p-4 pt-0 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <select name="modality" defaultValue={editingStaff?.modality || 'Sede'} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+                        <option value="Sede">Modalidad: Sede</option>
+                        <option value="Inclusión">Modalidad: Inclusión</option>
+                        <option value="Ambos">Modalidad: Ambos</option>
+                      </select>
+                      <select name="cargo1_subsidized" defaultValue={editingStaff?.cargo1_subsidized || 'false'} className={`p-3 rounded-xl border-none font-black text-xs ${editingStaff?.cargo1_subsidized === 'true' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500'}`}>
+                        <option value="false">DENO (No Subvencionado)</option>
+                        <option value="true">MECA (Subvencionado)</option>
+                        <option value="fuera">FUERA DE PLANTA (Papeles)</option>
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-[1fr,2fr] gap-2">
+                      <input name="cargo1_numero" defaultValue={editingStaff?.cargo1_numero || ""} placeholder="N° Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+                      <input name="cargo1_name" defaultValue={editingStaff?.cargo1_name || ""} placeholder="Nombre del Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm"/>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="flex flex-col">
+                        <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Función / Rol</label>
+                        <select 
+                          name="cargo1_role" 
+                          defaultValue={editingStaff?.cargo1_role || editingStaff?.role || ""} 
+                          className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs"
+                          required
+                        >
+                          <option value="">Seleccionar Rol...</option>
+                          {(typeof VALID_ROLES_OFFICIAL !== 'undefined' ? VALID_ROLES_OFFICIAL : []).map(r => (
+                            <option key={r} value={r}>{r}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Turno Horario</label>
+                        <select name="cargo1_turn" defaultValue={editingStaff?.cargo1_turn || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+                          <option value="">Turno...</option>
+                          <option value="Mañana">Mañana</option>
+                          <option value="Tarde">Tarde</option>
+                          <option value="Alternado">Alternado</option>
+                          <option value="Vespertino">Vespertino</option>
+                          <option value="Doble">Doble</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-2 gap-2">
+                         <select name="cargo1_revista" defaultValue={editingStaff?.cargo1_revista || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
                         <option value="">Revista...</option>
                         <option value="Titular">Titular</option><option value="Provisional">Provisional</option><option value="Suplente">Suplente</option>
                       </select>
@@ -1142,41 +1141,41 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
                         <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Alta Cargo</label>
                         <input name="cargo1_ingreso" type="date" defaultValue={editingStaff?.cargo1_ingreso || ""} className="p-2 bg-slate-50 rounded-xl border-none font-bold text-xs"/>
                       </div>
+                    </div>
+                    <div className="flex flex-col bg-red-50 p-2.5 rounded-xl border border-red-100">
+                        <label className="text-[8px] font-black text-red-600 uppercase ml-1">Fecha de Baja Cargo 1 (Dejar vacío si sigue activo)</label>
+                        <input name="cargo1_baja" type="date" defaultValue={editingStaff?.cargo1_baja || ""} className="p-2 bg-white rounded-lg border border-red-200 font-bold text-xs mt-1"/>
+                    </div>
                   </div>
-                  <div className="flex flex-col bg-red-50 p-2.5 rounded-xl border border-red-100">
-                      <label className="text-[8px] font-black text-red-600 uppercase ml-1">Fecha de Baja Cargo 1 (Dejar vacío si sigue activo)</label>
-                      <input name="cargo1_baja" type="date" defaultValue={editingStaff?.cargo1_baja || ""} className="p-2 bg-white rounded-lg border border-red-200 font-bold text-xs mt-1"/>
-                  </div>
-                </div>
-              </details>
+                </details>
 
-              <details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-3">
-                <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
-                  <span className="text-[11px] font-black text-slate-500 uppercase flex items-center gap-2">
-                    <PlusCircle size={14}/> Cargo Secundario / Adicional
-                  </span>
-                  <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
-                </summary>
-                <div className="p-4 pt-0 space-y-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    <input name="cargo2_numero" defaultValue={editingStaff?.cargo2_numero || ""} placeholder="N° Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm w-full"/>
-                    <input name="cargo2_name" defaultValue={editingStaff?.cargo2_name || ""} placeholder="Nombre Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm w-full"/>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <select name="cargo2_role" defaultValue={editingStaff?.cargo2_role || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
-                      <option value="">Rol Cargo 2...</option>
-                      {VALID_ROLES.map(r => (
-                        <option key={r} value={r}>{r}</option>
-                      ))}
-                    </select>
-                    <select name="cargo2_subsidized" defaultValue={editingStaff?.cargo2_subsidized || 'false'} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
-                      <option value="false">DENO (No Subvencionado)</option>
-                      <option value="true">MECA (Subvencionado)</option>
-                      <option value="fuera">FUERA DE PLANTA (Papeles)</option>
-                    </select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                       <select name="cargo2_revista" defaultValue={editingStaff?.cargo2_revista || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
+                <details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-3">
+                  <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
+                    <span className="text-[11px] font-black text-slate-500 uppercase flex items-center gap-2">
+                      <PlusCircle size={14}/> Cargo Secundario / Adicional
+                    </span>
+                    <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
+                  </summary>
+                  <div className="p-4 pt-0 space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <input name="cargo2_numero" defaultValue={editingStaff?.cargo2_numero || ""} placeholder="N° Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm w-full"/>
+                      <input name="cargo2_name" defaultValue={editingStaff?.cargo2_name || ""} placeholder="Nombre Cargo" className="p-3 bg-slate-50 rounded-xl border-none font-bold text-sm w-full"/>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <select name="cargo2_role" defaultValue={editingStaff?.cargo2_role || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
+                        <option value="">Rol Cargo 2...</option>
+                        {VALID_ROLES.map(r => (
+                          <option key={r} value={r}>{r}</option>
+                        ))}
+                      </select>
+                      <select name="cargo2_subsidized" defaultValue={editingStaff?.cargo2_subsidized || 'false'} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs w-full">
+                        <option value="false">DENO (No Subvencionado)</option>
+                        <option value="true">MECA (Subvencionado)</option>
+                        <option value="fuera">FUERA DE PLANTA (Papeles)</option>
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                         <select name="cargo2_revista" defaultValue={editingStaff?.cargo2_revista || ""} className="p-3 bg-slate-50 rounded-xl border-none font-bold text-xs">
                         <option value="">Revista...</option>
                         <option value="Titular">Titular</option>
                         <option value="Provisional">Provisional</option>
@@ -1186,81 +1185,81 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
                         <label className="text-[7px] font-black text-slate-400 uppercase ml-2">Alta Cargo 2</label>
                         <input name="cargo2_ingreso" type="date" defaultValue={editingStaff?.cargo2_ingreso || ""} className="p-2 bg-slate-50 rounded-xl border-none font-bold text-xs"/>
                       </div>
-                  </div>
-                  <div className="flex flex-col bg-red-50 p-2.5 rounded-xl border border-red-100">
-                      <label className="text-[8px] font-black text-red-600 uppercase ml-1">Fecha de Baja Cargo 2 (Dejar vacío si sigue activo)</label>
-                      <input name="cargo2_baja" type="date" defaultValue={editingStaff?.cargo2_baja || ""} className="p-2 bg-white rounded-lg border border-red-200 font-bold text-xs mt-1"/>
-                  </div>
-                  <div className="flex items-center gap-2 px-2">
-                       <input type="checkbox" name="cargo2_en_papeles" defaultChecked={editingStaff?.cargo2_en_papeles === 'true'} value="true" className="w-4 h-4 accent-violet-600"/>
-                       <span className="text-[10px] font-bold text-gray-500 uppercase">¿Este cargo figura solo en papeles?</span>
-                  </div>
-                </div>
-              </details>
-
-              <details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
-                  <span className="text-[11px] font-black text-violet-500 uppercase flex items-center gap-2">
-                    <Clock size={14}/> Ingreso y Antigüedad
-                  </span>
-                  <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
-                </summary>
-                <div className="p-4 pt-0 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Ingreso Institución</label>
-                    <input name="fechaIngreso" type="date" defaultValue={editingStaff?.fechaIngreso || ""} className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm"/>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Años Anti.</label>
-                      <input name="antiguedadAnios" type="number" defaultValue={editingStaff?.antiguedadAnios || ""} className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm text-center"/>
                     </div>
-                    <div>
-                      <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Meses Anti.</label>
-                      <input name="antiguedadMeses" type="number" defaultValue={editingStaff?.antiguedadMeses || ""} className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm text-center"/>
+                    <div className="flex flex-col bg-red-50 p-2.5 rounded-xl border border-red-100">
+                        <label className="text-[8px] font-black text-red-600 uppercase ml-1">Fecha de Baja Cargo 2 (Dejar vacío si sigue activo)</label>
+                        <input name="cargo2_baja" type="date" defaultValue={editingStaff?.cargo2_baja || ""} className="p-2 bg-white rounded-lg border border-red-200 font-bold text-xs mt-1"/>
+                    </div>
+                    <div className="flex items-center gap-2 px-2">
+                         <input type="checkbox" name="cargo2_en_papeles" defaultChecked={editingStaff?.cargo2_en_papeles === 'true'} value="true" className="w-4 h-4 accent-violet-600"/>
+                         <span className="text-[10px] font-bold text-gray-500 uppercase">¿Este cargo figura solo en papeles?</span>
                     </div>
                   </div>
-                  <input name="antiguedadFechaRef" type="hidden" defaultValue={editingStaff?.antiguedadFechaRef || new Date().toISOString().split('T')[0]} />
+                </details>
+
+                <details className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                  <summary className="list-none p-4 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition">
+                    <span className="text-[11px] font-black text-violet-500 uppercase flex items-center gap-2">
+                      <Clock size={14}/> Ingreso y Antigüedad
+                    </span>
+                    <ChevronDown size={16} className="group-open:rotate-180 transition-transform text-slate-400" />
+                  </summary>
+                  <div className="p-4 pt-0 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Ingreso Institución</label>
+                      <input name="fechaIngreso" type="date" defaultValue={editingStaff?.fechaIngreso || ""} className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm"/>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Años Anti.</label>
+                        <input name="antiguedadAnios" type="number" defaultValue={editingStaff?.antiguedadAnios || ""} className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm text-center"/>
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1">Meses Anti.</label>
+                        <input name="antiguedadMeses" type="number" defaultValue={editingStaff?.antiguedadMeses || ""} className="p-3 bg-slate-50 rounded-xl border-none w-full font-bold text-sm text-center"/>
+                      </div>
+                    </div>
+                    <input name="antiguedadFechaRef" type="hidden" defaultValue={editingStaff?.antiguedadFechaRef || new Date().toISOString().split('T')[0]} />
+                  </div>
+                </details>
+
+                <div className="h-4"></div>
+              </form>
+
+              {/* BOTONERA DE FORMULARIO DE LEGAJO */}
+              <div className="p-4 bg-white border-t space-y-3 shrink-0">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button type="button" onClick={() => setShowStaffForm(false)} className="order-2 sm:order-1 flex-1 py-3 text-slate-500 font-bold uppercase text-[10px] tracking-widest">
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit" 
+                    form="staffForm" 
+                    disabled={processing}
+                    className="order-1 sm:order-2 flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-violet-200 hover:bg-violet-700 transition active:scale-95 flex justify-center items-center gap-2"
+                  >
+                    {processing ? <RefreshCw className="animate-spin" size={16}/> : 'Guardar Cambios'}
+                  </button>
                 </div>
-              </details>
-
-              <div className="h-4"></div>
-            </form>
-
-            {/* BOTONERA DE FORMULARIO DE LEGAJO */}
-            <div className="p-4 bg-white border-t space-y-3 shrink-0">
-              <div className="flex flex-col sm:flex-row gap-2">
-                <button type="button" onClick={() => setShowStaffForm(false)} className="order-2 sm:order-1 flex-1 py-3 text-slate-500 font-bold uppercase text-[10px] tracking-widest">
-                  Cancelar
-                </button>
-                <button 
-                  type="submit" 
-                  form="staffForm" 
-                  disabled={processing}
-                  className="order-1 sm:order-2 flex-[2] py-4 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-violet-200 hover:bg-violet-700 transition active:scale-95 flex justify-center items-center gap-2"
-                >
-                  {processing ? <RefreshCw className="animate-spin" size={16}/> : 'Guardar Cambios'}
-                </button>
+                 
+                {editingStaff && (
+                  <button 
+                    type="button" 
+                    onClick={async () => {
+                      if(confirm("¿Eliminar definitivamente?")) {
+                        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); 
+                        setShowStaffForm(false); 
+                        setViewingStaff(null);
+                      }
+                    }} 
+                    className="w-full py-2 text-red-400 font-bold text-[9px] uppercase hover:text-red-500 transition tracking-tighter"
+                  >
+                    Eliminar Personal del Sistema
+                  </button>
+                )}
               </div>
-               
-              {editingStaff && (
-                <button 
-                  type="button" 
-                  onClick={async () => {
-                    if(confirm("¿Eliminar definitivamente?")) {
-                      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'staff_records', editingStaff.id)); 
-                      setShowStaffForm(false); 
-                      setViewingStaff(null);
-                    }
-                  }} 
-                  className="w-full py-2 text-red-400 font-bold text-[9px] uppercase hover:text-red-500 transition tracking-tighter"
-                >
-                  Eliminar Personal del Sistema
-                </button>
-              )}
-            </div>
-          </div> 
-        </div>
+            </div> 
+          </div>
         )}
 
         {/* MODAL CONFIGURACIÓN IMPRESIÓN GENERAL */}
@@ -1300,7 +1299,7 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
         {showAbsenceForm && (
             <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-2 sm:p-4 backdrop-blur-md animate-in fade-in">
                 <div className="bg-slate-50 rounded-[30px] w-full max-w-4xl shadow-2xl max-h-[95vh] flex flex-col border border-white/20 overflow-hidden">
-                     
+                    
                     <div className="bg-orange-600 p-5 text-white flex justify-between items-center shrink-0">
                         <div>
                             <h3 className="text-lg font-black uppercase italic tracking-tighter flex items-center gap-2">
@@ -1314,7 +1313,7 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
                     </div>
 
                     <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-                         
+                        
                         {/* COLUMNA IZQUIERDA: SELECCIÓN */}
                         <div className="w-full md:w-1/2 bg-white border-r border-slate-200 flex flex-col overflow-hidden">
                             <div className="p-3 bg-slate-100 border-b border-slate-200 shrink-0">
@@ -1456,22 +1455,19 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
                             </div>
 
                             <div className="pt-2">
-                               <button 
-                                                type="button"
-                                                onClick={handleSaveAbsence}
-                                                disabled={processing || !absenceCode}
-                                                className={`w-full py-3.5 rounded-xl font-black uppercase tracking-widest text-xs shadow-md transition active:scale-95 flex justify-center items-center gap-2 ${absenceCode && !processing ? 'bg-orange-600 text-white hover:bg-orange-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
-                                            >
-                                                {processing ? <RefreshCw className="animate-spin" size={14}/> : (
-                                                    <>
-                                                        <CheckCircle size={16}/>
-                                                        {absenceCode ? `Registrar Ausentismo` : 'Seleccione un Código'}
-                                                    </>
-                                                )}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+                                <button 
+                                    type="button"
+                                    onClick={handleSaveAbsence}
+                                    disabled={processing || !absenceCode}
+                                    className={`w-full py-3.5 rounded-xl font-black uppercase tracking-widest text-xs shadow-md transition active:scale-95 flex justify-center items-center gap-2 ${absenceCode && !processing ? 'bg-orange-600 text-white hover:bg-orange-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+                                >
+                                    {processing ? <RefreshCw className="animate-spin" size={14}/> : (
+                                        <>
+                                            <CheckCircle size={16}/>
+                                            {absenceCode ? `Registrar Ausentismo` : 'Seleccione un Código'}
+                                        </>
+                                    )}
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1479,14 +1475,11 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
             </div>
         )}
 
-    </div>
-  );
-}
         {/* MODAL RESUMEN MENSUAL DE FALTAS */}
         {showAbsencesSummary && (
             <div className="fixed inset-0 bg-black/70 z-[250] flex items-center justify-center p-2 sm:p-4 backdrop-blur-md animate-in fade-in">
                 <div className="bg-slate-50 rounded-[30px] w-full max-w-4xl shadow-2xl max-h-[95vh] flex flex-col border border-white/20 overflow-hidden">
-                     
+                    
                     <div className="bg-violet-700 p-5 text-white flex justify-between items-center shrink-0">
                         <div className="flex items-center gap-3">
                             <div className="bg-white/20 p-2 rounded-xl">
@@ -1573,5 +1566,5 @@ export function PersonalView({ user, db, appId, TURNS_LIST, VALID_ROLES_OFFICIAL
         )}
 
     </div>
-  ); 
+  );
 }
