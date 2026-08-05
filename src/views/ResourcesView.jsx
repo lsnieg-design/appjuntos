@@ -64,52 +64,80 @@ export function ResourcesView({ resources, canEdit, db, appId, user }) {
     } catch (err) { alert(err.message); }
   };
 const handleDownloadNota = async () => {
-    if(!notaData.title && !notaData.body) return alert("Escribí algo.");
-    setIsGeneratingImg(true);
+  if (!notaData.title && !notaData.body) return alert("Escribí algo.");
+  setIsGeneratingImg(true);
 
-    try {
-      const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
+  try {
+    const html2canvas = (await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.esm.js')).default;
 
-      // 1. Creamos hoja virtual tamaño PC
-      const tempDiv = document.createElement('div');
-      tempDiv.style.cssText = 'position:absolute; left:-9999px; top:0; width:800px;';
-      document.body.appendChild(tempDiv);
+    // 1. Creamos hoja virtual tamaño PC fuera de la pantalla
+    const tempDiv = document.createElement('div');
+    tempDiv.style.cssText = 'position:absolute; left:-9999px; top:0; width:800px; z-index:99999;';
+    document.body.appendChild(tempDiv);
 
-      const source = document.getElementById('nota-canvas');
-      const clone = source.cloneNode(true);
-      
-      // 2. Forzamos diseño perfecto en el clon
-      clone.style.cssText = 'transform:none; width:800px; height:auto; min-height:600px; padding:60px; display:block; background:' + (notaData.isPrintMode ? "#ffffff" : "#fefce8");
-      
-      const content = clone.querySelector('.whitespace-pre-wrap');
-      if(content) {
-        content.style.cssText = `font-size:20px; line-height:1.8; text-align:${notaData.textAlign.replace('text-', '')}; width:100%; display:block;`;
-      }
-      
-      tempDiv.appendChild(clone);
+    const source = document.getElementById('nota-canvas');
+    const clone = source.cloneNode(true);
+    
+    // 2. Forzamos diseño limpio en el clon
+    clone.style.cssText = 'transform:none; width:800px; height:auto; min-height:700px; padding:60px; display:block; background:' + (notaData.isPrintMode ? "#ffffff" : "#fefce8");
+    
+    // Forzar tamaño y visibilidad correcta de la imagen del logo en el clon
+    const clonedImg = clone.querySelector('img');
+    if (clonedImg) {
+      clonedImg.style.cssText = 'width:70px !important; height:70px !important; object-fit:contain; display:block !important;';
+      clonedImg.crossOrigin = "anonymous";
+    }
 
-      // 3. Captura
-      const canvas = await html2canvas(clone, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8',
-      });
+    const content = clone.querySelector('.whitespace-pre-wrap');
+    if (content) {
+      content.style.cssText = `font-size:20px; line-height:1.8; text-align:${notaData.textAlign.replace('text-', '')}; width:100%; display:block; color:#334155;`;
+    }
+    
+    tempDiv.appendChild(clone);
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      const link = document.createElement('a');
-      link.download = `Nota_${new Date().getTime()}.jpg`;
-      link.href = imgData;
-      link.click();
+    // 3. ASEGURAR QUE LAS IMÁGENES ESTÉN CARGADAS ANTES DE RENDERIZAR
+    const images = tempDiv.getElementsByTagName('img');
+    await Promise.all(
+      Array.from(images).map(img => {
+        if (img.complete) return Promise.resolve();
+        return new Promise(resolve => {
+          img.onload = resolve;
+          img.onerror = resolve; // Evita que se cuelgue si falla
+        });
+      })
+    );
 
-      document.body.removeChild(tempDiv);
-      const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-      await updateDoc(userRef, { score: increment(15) });
-      alert("🚀 ¡Nota generada perfectamente!");
-    } catch (error) {
-      alert("Error al procesar imagen.");
-    } finally { setIsGeneratingImg(false); }
-  };
+    // Pequeñorespiro para el motor de renderizado del navegador
+    await new Promise(r => setTimeout(r, 150));
+
+    // 4. Captura con html2canvas
+    const canvas = await html2canvas(clone, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: notaData.isPrintMode ? '#ffffff' : '#fefce8',
+    });
+
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    const link = document.createElement('a');
+    link.download = `Nota_${new Date().getTime()}.jpg`;
+    link.href = imgData;
+    link.click();
+
+    document.body.removeChild(tempDiv);
+
+    // Sumar puntos al usuario en Firestore
+    const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+    await updateDoc(userRef, { score: increment(15) });
+    
+    alert("🚀 ¡Nota generada perfectamente!");
+  } catch (error) {
+    console.error(error);
+    alert("Error al procesar la imagen.");
+  } finally {
+    setIsGeneratingImg(false);
+  }
+};
   
   const aplicarPlantillaReunion = () => {
       if(!templateData.fechaReunion || !templateData.horaReunion) {
