@@ -524,16 +524,16 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
 
           {/* CONTENEDOR DE BOTONES SUPERIOR DERECHA */}
           <div className="flex items-center gap-2">
-            {isManagement && (
-              <button 
-                onClick={exportGroupsToExcel}
-                title="Descargar información en Excel"
-                className="bg-emerald-100 text-emerald-700 p-2.5 rounded-xl hover:bg-emerald-200 transition shadow-sm flex items-center gap-1.5 px-3 font-black text-xs uppercase cursor-pointer"
-              >
-                <Download size={20}/>
-                <span className="hidden md:inline">Excel</span>
-              </button>
-            )}
+         {isManagement && (
+  <button 
+    onClick={exportGroupsToExcel}
+    title="Descargar Excel"
+    className="bg-emerald-100 text-emerald-700 p-2.5 rounded-xl hover:bg-emerald-200 transition shadow-sm flex items-center justify-center gap-1.5 px-3 font-black text-xs uppercase cursor-pointer"
+  >
+    <Download size={20}/>
+    <span>Excel</span>
+  </button>
+)}
 
             <button 
               onClick={() => { setGroupsToPrint(gruposFinales); setShowPrintOptions(true); }} 
