@@ -224,7 +224,35 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
           setTimeout(() => { document.body.removeChild(iframe); }, 5000);
       }, 500);
   };
+// --- FUNCIÓN DE DESCARGA EXCEL EXCLUSIVA PARA ADMIN ---
+  const exportGroupsToExcel = () => {
+    if (!isManagement) return;
 
+    let csvContent = "\uFEFF"; // BOM para correcta lectura de tildes en Excel
+    csvContent += "GRUPO,APELLIDO Y NOMBRE,DNI,EDAD,GENERO,DIAGNOSTICO\n";
+
+    gruposFinales.forEach(g => {
+      g.students.sort((a, b) => a.lastName.localeCompare(b.lastName)).forEach(s => {
+        const grupoEscapes = `"${g.name.replace(/"/g, '""')}"`;
+        const nombreCompleto = `"${(s.lastName + ", " + s.firstName).replace(/"/g, '""')}"`;
+        const dni = `"${s.dni || ''}"`;
+        const edad = `"${calculateAge(s.birthDate)}"`;
+        const genero = `"${s.gender || ''}"`;
+        const dx = `"${(s.dx || '').replace(/"/g, '""')}"`;
+
+        csvContent += `${grupoEscapes},${nombreCompleto},${dni},${edad},${genero},${dx}\n`;
+      });
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Informacion_Grupos_${turn.toUpperCase()}_${viewMode}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
   const printGroups = (groupsList) => {
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
@@ -493,12 +521,26 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
             </h2>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-8">Vista Institucional</p>
           </div>
-          <button 
-            onClick={() => { setGroupsToPrint(gruposFinales); setShowPrintOptions(true); }} 
-            className="bg-violet-100 text-violet-700 p-2.5 rounded-xl hover:bg-violet-200 transition shadow-sm"
-          >
-            <Printer size={24}/>
-          </button>
+        <div className="flex items-center gap-2">
+            {isManagement && (
+              <button 
+                onClick={exportGroupsToExcel}
+                title="Descargar información en Excel"
+                className="bg-emerald-100 text-emerald-700 p-2.5 rounded-xl hover:bg-emerald-200 transition shadow-sm flex items-center gap-1.5 px-3 font-black text-xs uppercase"
+              >
+                <Download size={20}/>
+                <span className="hidden md:inline">Excel</span>
+              </button>
+            )}
+
+            <button 
+              onClick={() => { setGroupsToPrint(gruposFinales); setShowPrintOptions(true); }} 
+              className="bg-violet-100 text-violet-700 p-2.5 rounded-xl hover:bg-violet-200 transition shadow-sm"
+              title="Imprimir"
+            >
+              <Printer size={24}/>
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-col md:flex-row gap-2 mx-2">
