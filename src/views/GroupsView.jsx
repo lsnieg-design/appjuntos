@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StudentDetailView } from './StudentDetailView';
 import { 
-  User, FileText, Plus, Users, Grid, CheckCircle, ChevronRight, RefreshCw, ChevronLeft, Printer, MessageSquare, Send, Folder, Edit3, X, Search, GraduationCap, Activity, Shield, MapPin, Phone 
+  User, FileText, Plus, Users, Grid, CheckCircle, ChevronRight, RefreshCw, ChevronLeft, Printer, MessageSquare, Send, Folder, Edit3, X, Search, GraduationCap, Activity, Shield, MapPin, Phone, Download 
 } from 'lucide-react';
 import { doc, updateDoc, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, arrayUnion, arrayRemove, increment, where } from 'firebase/firestore';
 
