@@ -488,19 +488,30 @@ function MainApp({ user, onLogout }) {
     };
   }, [user.id, db, appId, isStandalone]);
 
-  const handleInstallApp = async () => {
+ const handleInstallApp = async () => {
     if (deferredPrompt) {
+      // Muestra directamente el cuadro de instalación nativo
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
+      console.log(`Resultado de la instalación: ${outcome}`);
+      
       if (outcome === 'accepted') {
         setIsInstallable(false);
       }
       setDeferredPrompt(null);
     } else {
-      alert("Para instalar la app, también puedes ir al menú de tu navegador (los tres puntos arriba a la derecha) y seleccionar 'Instalar aplicación' o 'Agregar a la pantalla principal'.");
+      // Si el navegador aún no capturó el evento automático, 
+      // intentamos forzar undispatchEvent para despertar al navegador
+      const customEvent = new Event('beforeinstallprompt', { cancelable: true });
+      window.dispatchEvent(customEvent);
+      
+      if (deferredPrompt) {
+        handleInstallApp();
+      } else {
+        alert("Para que el botón descargue de forma directa, asegurate de estar accediendo a través de un entorno seguro (HTTPS) o de haber iniciado sesión de forma correcta. Si persiste, el navegador se está preparando para habilitarla.");
+      }
     }
   };
-
   const handleGlobalSearch = async (text) => { 
     setSearchQuery(text); 
     if (text.length < 2 || !db || !appId) { setSearchResults([]); return; } 
