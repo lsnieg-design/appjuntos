@@ -1,21 +1,11 @@
 const CACHE_NAME = 'juntos-al-apar-v1';
-const urlsToCache = [
-  './',
-  './index.html',
-  './manifest.json'
-];
 
-// Instalación del Service Worker
+// Instalación simple sin forzar descargas masivas que puedan fallar
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        return cache.addAll(urlsToCache);
-      })
-  );
+  self.skipWaiting();
 });
 
-// Activación y limpieza de cachés antiguos
+// Activación inmediata
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -28,14 +18,33 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
+  self.clients.claim();
 });
 
-// Interceptar peticiones para funcionamiento offline
+// Estrategia de red con respaldo en caché
 self.addEventListener('fetch', (event) => {
+  // Evitamos cachear peticiones de Firebase o APIs externas si las hubiera
+  if (event.request.url.includes('firestore.googleapis.com') || event.request.url.includes('identitytoolkit')) {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
-        return response || fetch(event.request);
+        return response || fetch(event.request).then((fetchResponse) => {
+          return caches.open(CACHE_NAME).then((cache) => {
+            // Guardamos dinámicamente en caché lo que el usuario va visitando
+            if (event.request.method === 'GET' && fetchResponse.status === 200) {
+              cache.put(event.request, fetchResponse.clone());
+            }
+            return fetchResponse;
+          });
+        });
+      }).catch(() => {
+        // Fallback opcional si no hay conexión
+        if (event.request.mode === 'navigate') {
+          return caches.match('./index.html');
+        }
       })
   );
 });
