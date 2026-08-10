@@ -27,7 +27,7 @@ import {
   Smartphone, GraduationCap, Search, X, UploadCloud, PieChart, Eye, Edit3, Trophy,
   Folder, MessageSquare, Globe, BookOpen, Lightbulb, ChevronDown, PlusCircle, Printer,
   AlignLeft, AlignCenter, AlignRight, AlignJustify, Phone, CheckCircle2, Clock3, UserCheck,
-  ChevronUp, ClipboardCheck // <--- ¡AQUÍ ESTÁ EL FALTANTE IMPORTADO CORRECTAMENTE!
+  ChevronUp, ClipboardCheck
 } from 'lucide-react';
 
 import { initializeApp } from 'firebase/app';
@@ -96,37 +96,20 @@ const ROLES = [
   'Profes Especiales', 
   'Administración',
   'Dirección Inclusión', 
-  'Equipo Técnico Inclusión', // NUEVO
-  'DAI' // NUEVO (Docente de Apoyo a la Inclusión)
+  'Equipo Técnico Inclusión',
+  'DAI'
 ];
-// Tipos de Modalidad para filtrar
 const MODALIDADES = ['Sede', 'Inclusión'];
 const EVENT_TYPES = ['SALIDA EDUCATIVA', 'GENERAL', 'ADMINISTRATIVO', 'INFORMES', 'EVENTOS', 'ACTOS', 'EFEMÉRIDES', 'CUMPLEAÑOS', 'INCLUSIÓN' ];
 
-// Reemplazá tu calculateDaysLeft por este:
 const calculateBusinessDaysLeft = (dateString) => {
   if (!dateString) return 0;
   
-  // Feriados Argentina 2026 (Y-M-D)
   const FERIADOS_ARG_2026 = [
-    '2026-01-01', // Año Nuevo
-    '2026-02-16', // Carnaval
-    '2026-02-17', // Carnaval
-    '2026-03-23', // Puente turístico
-    '2026-03-24', // Día de la Memoria
-    '2026-04-02', // Malvinas / Jueves Santo
-    '2026-04-03', // Viernes Santo
-    '2026-05-01', // Día del Trabajador
-    '2026-05-25', // Revolución de Mayo
-    '2026-06-15', // Güemes (trasladado)
-    '2026-07-09', // Independencia
-    '2026-07-10', // Puente turístico
-    '2026-08-17', // San Martín
-    '2026-10-12', // Diversidad Cultural
-    '2026-11-23', // Soberanía (trasladado)
-    '2026-12-07', // Puente turístico
-    '2026-12-08', // Inmaculada Concepción
-    '2026-12-25'  // Navidad
+    '2026-01-01', '2026-02-16', '2026-02-17', '2026-03-23', '2026-03-24', 
+    '2026-04-02', '2026-04-03', '2026-05-01', '2026-05-25', '2026-06-15', 
+    '2026-07-09', '2026-07-10', '2026-08-17', '2026-10-12', '2026-11-23', 
+    '2026-12-07', '2026-12-08', '2026-12-25'
   ];
 
   const targetDate = new Date(dateString + 'T00:00:00');
@@ -143,14 +126,12 @@ const calculateBusinessDaysLeft = (dateString) => {
     tempDate.setDate(tempDate.getDate() + 1);
     const dayOfWeek = tempDate.getDay();
     
-    // Si no es Domingo (0) ni Sábado (6)
     if (dayOfWeek !== 0 && dayOfWeek !== 6) {
       const yyyy = tempDate.getFullYear();
       const mm = String(tempDate.getMonth() + 1).padStart(2, '0');
       const dd = String(tempDate.getDate()).padStart(2, '0');
       const formattedDate = `${yyyy}-${mm}-${dd}`;
       
-      // Si no es feriado, es día hábil
       if (!FERIADOS_ARG_2026.includes(formattedDate)) {
         businessDays++;
       }
@@ -159,6 +140,7 @@ const calculateBusinessDaysLeft = (dateString) => {
 
   return businessDays;
 };
+
 const formatDate = (dateString) => {
   if (!dateString) return '';
   const date = new Date(dateString + 'T00:00:00');
@@ -255,27 +237,23 @@ function LoginScreen({ onLogin }) {
   const [recoverUser, setRecoverUser] = useState('');
   const [recoverStatus, setRecoverStatus] = useState('idle');
   
-  // PWA Logic
   const [showInstall, setShowInstall] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isIos, setIsIos] = useState(false);
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
   useEffect(() => {
-    // Detectar si es iOS
     const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
     setIsIos(ios);
 
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      // Si no está instalada, mostramos el cartel
       if (!isStandalone) setShowInstall(true);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // En iOS no salta el evento, así que lo forzamos si no es standalone
     if (ios && !isStandalone) {
         setTimeout(() => setShowInstall(true), 2000);
     }
@@ -294,7 +272,6 @@ function LoginScreen({ onLogin }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault(); setError(''); setChecking(true);
-    // Backdoor admin
     if (username === 'admin' && password === 'admin123') {
       onLogin({ id: 'super-admin', firstName: 'Super', lastName: 'Admin', fullName: 'Super Admin', role: 'Equipo Directivo', rol: 'super-admin', isAdmin: true, username: 'admin' }); return;
     }
@@ -325,7 +302,6 @@ function LoginScreen({ onLogin }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-900 to-fuchsia-900 flex items-center justify-center p-6 relative">
       
-      {/* --- CARTEL DE INSTALACIÓN PWA MEJORADO --- */}
       {!isStandalone && showInstall && (
          <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-500">
              <div className="bg-white rounded-[35px] shadow-2xl p-6 w-full max-w-sm text-center mb-4 md:mb-0 border-t-8 border-violet-500 relative">
@@ -405,6 +381,7 @@ function LoginScreen({ onLogin }) {
     </div>
   );
 }
+
 function NavButton({ active, onClick, icon, label }) {
   return (
     <button 
@@ -419,7 +396,7 @@ function NavButton({ active, onClick, icon, label }) {
   );
 }
 
-// --- APP PRINCIPAL (FINAL: CON ADMIN INTEGRADO + MANTENIMIENTO + NOTIFS) ---
+// --- APP PRINCIPAL ---
 function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedStudentId, setSelectedStudentId] = useState(null);
@@ -437,37 +414,42 @@ function MainApp({ user, onLogout }) {
   const [searchResults, setSearchResults] = useState([]);
   const [globalViewingStudent, setGlobalViewingStudent] = useState(null);
   
-  // POPUPS
+  // POPUPS Y PWA HEADER
   const [showNotifRequest, setShowNotifRequest] = useState(false);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [showMaintenanceAlert, setShowMaintenanceAlert] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
   const prevNotifCount = useRef(0);
   const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin'; 
   const canManageContent = user.rol === 'admin' || isSuperAdmin || user.role === 'Equipo Directivo';
   
-  // --- DEFINICIÓN DE PERMISOS GLOBALES ---
   const isAdminRole = ['admin', 'super-admin', 'Administración', 'Equipo Directivo', 'Dirección Inclusión'].includes(user?.role) || user?.rol === 'admin';
   const isTechTeamRole = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión', 'Equipo Técnico', 'Equipo Técnico Inclusión'].includes(user?.role) || user?.rol === 'admin';
   const isMedicalRole = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión', 'Médico', 'Enfermería', 'Salud'].includes(user?.role) || user?.rol === 'admin';
   const canAccessSocial = ['admin', 'super-admin', 'Docente', 'Auxiliar/Preceptor', 'Equipo Directivo', 'Equipo Técnico', 'Inclusión', 'DAI'].includes(user?.role) || user?.rol === 'admin';
-const canAccessInformesExternos = ['Equipo Directivo', 'Equipo Técnico', 'Equipo Técnico Inclusión', 'Administración', 'admin', 'super-admin'].includes(user?.role) || user?.rol === 'admin';
+  const canAccessInformesExternos = ['Equipo Directivo', 'Equipo Técnico', 'Equipo Técnico Inclusión', 'Administración', 'admin', 'super-admin'].includes(user?.role) || user?.rol === 'admin';
   const showPrivateMenu = isAdminRole || isTechTeamRole || isMedicalRole || canAccessSocial;
 
   const isWideTab = ['groups', 'calendar', 'matricula', 'resources', 'users', 'admin'].includes(activeTab);
 
   useEffect(() => {
-    // --- ESCUDO ANTIBLOQUEO ---
-    // Si no hay usuario, base de datos o appId, no hacemos nada todavía
     if (!db || !appId || !user?.id) return; 
-    // --------------------------
 
-    // Registro de último login (solo si hay conexión)
     updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { 
       lastLogin: serverTimestamp() 
     }).catch(() => {});
 
-    // Escuchas en tiempo real (Blindadas)
+    // Capturar evento de instalación PWA para el botón del header
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      if (!isStandalone) setIsInstallable(true);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
     const unsubTasks = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('dueDate', 'asc')), (snap) => setTasks(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const unsubEvents = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc')), (snap) => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const unsubResources = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc')), (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
@@ -486,7 +468,6 @@ const canAccessInformesExternos = ['Equipo Directivo', 'Equipo Técnico', 'Equip
         const unread = d.filter(n=>!n.read); 
         setNotifications(unread);
         
-        // Solo notificar si hay nuevas reales
         if (unread.length > prevNotifCount.current) { 
           const latest = unread[0]; 
           if (latest && "Notification" in window && Notification.permission === "granted") { 
@@ -496,16 +477,29 @@ const canAccessInformesExternos = ['Equipo Directivo', 'Equipo Técnico', 'Equip
         prevNotifCount.current = unread.length;
     });
 
-    // Pedir permiso de notificaciones con delay para no molestar
     if ("Notification" in window && Notification.permission === 'default') {
         const timer = setTimeout(() => setShowNotifRequest(true), 5000);
         return () => clearTimeout(timer);
     }
 
     return () => { 
-      unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); unsubAnnounce(); unsubMaint(); 
+      unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); unsubAnnounce(); unsubMaint();
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
-  }, [user.id, db, appId]); // <--- AGREGADOS db y appId PARA RE-INTENTO AUTOMÁTICO
+  }, [user.id, db, appId, isStandalone]);
+
+  const handleInstallApp = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setIsInstallable(false);
+      }
+      setDeferredPrompt(null);
+    } else {
+      alert("Para instalar la app, también puedes ir al menú de tu navegador (los tres puntos arriba a la derecha) y seleccionar 'Instalar aplicación' o 'Agregar a la pantalla principal'.");
+    }
+  };
 
   const handleGlobalSearch = async (text) => { 
     setSearchQuery(text); 
@@ -516,8 +510,8 @@ const canAccessInformesExternos = ['Equipo Directivo', 'Equipo Técnico', 'Equip
       const s = await getDocs(q); 
       const r = s.docs.map(d => ({ id: d.id, ...d.data() }))
         .filter(s => (s.isActive === undefined || s.isActive) && 
-                (s.firstName.toLowerCase().includes(text.toLowerCase()) || 
-                 s.lastName.toLowerCase().includes(text.toLowerCase()))); 
+              (s.firstName.toLowerCase().includes(text.toLowerCase()) || 
+               s.lastName.toLowerCase().includes(text.toLowerCase()))); 
       setSearchResults(r.slice(0, 5)); 
     } catch (err) { console.error("Search error:", err); }
   };
@@ -561,14 +555,38 @@ const canAccessInformesExternos = ['Equipo Directivo', 'Equipo Técnico', 'Equip
       } 
       setShowNotifRequest(false); 
   };
+
   return (
     <div className="flex flex-col h-[100dvh] w-full bg-gray-50 font-sans text-slate-800 overflow-hidden relative">
       <header className="bg-violet-800 text-white shadow-lg px-4 py-3 flex justify-between items-center z-50 sticky top-0 shrink-0">
-        <div className="flex items-center space-x-3"><img src={LOGO_URL} alt="Logo" className="w-10 h-8 object-contain" /><div><h1 className="font-bold text-sm leading-tight">Juntos a la Par</h1><p className="text-[10px] text-orange-200 uppercase font-bold">{user.firstName}</p></div></div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center space-x-3">
+          <img src={LOGO_URL} alt="Logo" className="w-10 h-8 object-contain" />
+          <div>
+            <h1 className="font-bold text-sm leading-tight">Juntos a la Par</h1>
+            <p className="text-[10px] text-orange-200 uppercase font-bold">{user.firstName}</p>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {/* --- BOTÓN DE DESCARGAR/INSTALAR APP EN EL HEADER --- */}
+          {!isStandalone && (
+            <button 
+              onClick={handleInstallApp} 
+              title="Instalar Aplicación"
+              className="p-2 rounded-full bg-orange-500 hover:bg-orange-600 transition flex items-center gap-1.5 px-3 text-xs font-black shadow-md animate-pulse"
+            >
+              <Download size={16} />
+              <span className="hidden md:inline uppercase">Instalar App</span>
+            </button>
+          )}
+
           <button onClick={() => setShowSearch(true)} className="p-2 rounded-full bg-violet-900/50 hover:bg-orange-500 transition"><Search size={20} /></button>
+          
           <div className="relative">
-            <button onClick={() => setShowNotifPanel(!showNotifPanel)} className={`p-2 rounded-full transition ${showNotifPanel ? 'bg-orange-500' : 'bg-violet-900/50'}`}><Bell size={20} />{notifications.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-pulse border border-white">{notifications.length}</span>}</button>
+            <button onClick={() => setShowNotifPanel(!showNotifPanel)} className={`p-2 rounded-full transition ${showNotifPanel ? 'bg-orange-500' : 'bg-violet-900/50'}`}>
+              <Bell size={20} />
+              {notifications.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-pulse border border-white">{notifications.length}</span>}
+            </button>
             {showNotifPanel && (
               <div className="absolute right-0 mt-3 w-72 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[100]">
                 <div className="p-4 bg-violet-50 border-b flex justify-between items-center"><h3 className="font-bold text-violet-900 text-sm">Avisos</h3><button onClick={() => setShowNotifPanel(false)}><X size={16} className="text-gray-400"/></button></div>
@@ -576,7 +594,10 @@ const canAccessInformesExternos = ['Equipo Directivo', 'Equipo Técnico', 'Equip
               </div>
             )}
           </div>
-          <div onClick={() => {setActiveTab('profile'); setShowNotifPanel(false);}} className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold border-2 border-orange-400 overflow-hidden cursor-pointer active:scale-95 transition">{user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover" /> : user.firstName?.[0]}</div>
+          
+          <div onClick={() => {setActiveTab('profile'); setShowNotifPanel(false);}} className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold border-2 border-orange-400 overflow-hidden cursor-pointer active:scale-95 transition">
+            {user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover" /> : user.firstName?.[0]}
+          </div>
         </div>
       </header>
 
@@ -600,20 +621,18 @@ const canAccessInformesExternos = ['Equipo Directivo', 'Equipo Técnico', 'Equip
       {showNotifRequest && (
         <div className="fixed inset-0 z-[400] flex items-end md:items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in">
              <div className="bg-white rounded-[30px] p-6 w-full max-w-sm shadow-2xl text-center border-t-8 border-orange-500 mb-20 md:mb-0">
-                 <Bell size={32} className="text-orange-500 mx-auto mb-4"/>
-                 <h3 className="text-xl font-black text-gray-800">¡No te pierdas nada!</h3>
-                 <p className="text-sm text-gray-500 mb-6">Activá los avisos urgentes.</p>
-                 <div className="flex flex-col gap-3">
-                     <button onClick={enableNotifications} className="w-full bg-violet-600 text-white font-bold py-3 rounded-xl">ACTIVAR AHORA</button>
-                     <button onClick={() => setShowNotifRequest(false)} className="text-gray-400 text-xs font-bold uppercase">Ahora no</button>
-                 </div>
+                  <Bell size={32} className="text-orange-500 mx-auto mb-4"/>
+                  <h3 className="text-xl font-black text-gray-800">¡No te pierdas nada!</h3>
+                  <p className="text-sm text-gray-500 mb-6">Activá los avisos urgentes.</p>
+                  <div className="flex flex-col gap-3">
+                      <button onClick={enableNotifications} className="w-full bg-violet-600 text-white font-bold py-3 rounded-xl">ACTIVAR AHORA</button>
+                      <button onClick={() => setShowNotifRequest(false)} className="text-gray-400 text-xs font-bold uppercase">Ahora no</button>
+                  </div>
              </div>
-         </div>
+        </div>
       )}
 
-<main className={`flex-1 overflow-y-auto no-scrollbar pb-24 pt-6 mx-auto w-full transition-all duration-300 ${isWideTab ? 'px-2 max-w-[98%]' : 'px-4 max-w-4xl'}`}>
-        
-        {/* VISTAS PÚBLICAS / DOCENTES */}
+      <main className={`flex-1 overflow-y-auto no-scrollbar pb-24 pt-6 mx-auto w-full transition-all duration-300 ${isWideTab ? 'px-2 max-w-[98%]' : 'px-4 max-w-4xl'}`}>
         {activeTab === 'dashboard' && <DashboardView user={user} db={db} appId={appId} tasks={tasks} events={events} announcements={announcements} setActiveTab={setActiveTab} />}
         {activeTab === 'calendar' && <CalendarView events={events} user={user} db={db} appId={appId} canEdit={canManageContent} />}
         {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} db={db} appId={appId} />}
@@ -621,34 +640,20 @@ const canAccessInformesExternos = ['Equipo Directivo', 'Equipo Técnico', 'Equip
         {activeTab === 'groups' && <GroupsView user={user} db={db} appId={appId} setActiveTab={setActiveTab} onSelectStudent={setSelectedStudentId} />}
         {activeTab === 'resources' && <ResourcesView resources={resources} canEdit={canManageContent} db={db} appId={appId} user={user} />}
         {activeTab === 'social' && <SocialView user={user} db={db} appId={appId} />}
-       {activeTab === 'profile' && <ProfileView user={user} tasks={tasks} onLogout={onLogout} isSuperAdmin={isSuperAdmin} db={db} appId={appId} />}
-       {activeTab === 'proyecto' && <ProyectoView user={user} db={db} appId={appId} />}
-       {activeTab === 'evaluations' && isTechTeamRole && <EvaluationsView user={user} db={db} appId={appId} />}
-       
-
+        {activeTab === 'profile' && <ProfileView user={user} tasks={tasks} onLogout={onLogout} isSuperAdmin={isSuperAdmin} db={db} appId={appId} />}
+        {activeTab === 'proyecto' && <ProyectoView user={user} db={db} appId={appId} />}
+        {activeTab === 'evaluations' && isTechTeamRole && <EvaluationsView user={user} db={db} appId={appId} />}
         {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={isSuperAdmin} user={user} />}
 
-        {/* VISTAS PRIVADAS (PROTEGIDAS CON && db) */}
         {activeTab === 'users' && isSuperAdmin && db && <UsersAdminView db={db} appId={appId} />}
         {activeTab === 'personal' && isAdminRole && db && <PersonalView user={user} db={db} appId={appId} TURNS_LIST={TURNS_LIST} VALID_ROLES_OFFICIAL={VALID_ROLES_OFFICIAL} />}
         {activeTab === 'admin' && isAdminRole && db && <AdministracionView user={user} db={db} appId={appId} />}
         {activeTab === 'equipo' && isTechTeamRole && db && <EquipoTecnicoView user={user} db={db} appId={appId} />}
-     {activeTab === 'medical' && isMedicalRole && db && <MedicalView user={user} db={db} appId={appId} />}
- 
-{activeTab === 'informes' && (
-  <InformesView 
-    user={user} 
-    students={students} // <--- Asegúrate que este sea el array de alumnos que usas en matricula
-    db={db} 
-    appId={appId} 
-  />
-)}
-  {activeTab === 'informes_externos' && canAccessInformesExternos && (
-          <InformesExternosView user={user} db={db} appId={appId} />
-        )}
-        {activeTab === 'audit' && isSuperAdmin && db && (
-      <ActivityLogView db={db} appId={appId} />
-    )}
+        {activeTab === 'medical' && isMedicalRole && db && <MedicalView user={user} db={db} appId={appId} />}
+  
+        {activeTab === 'informes' && (<InformesView user={user} students={students} db={db} appId={appId} />)}
+        {activeTab === 'informes_externos' && canAccessInformesExternos && (<InformesExternosView user={user} db={db} appId={appId} />)}
+        {activeTab === 'audit' && isSuperAdmin && db && (<ActivityLogView db={db} appId={appId} />)}
       </main>
 
       <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-16 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] pb-safe shrink-0 text-center">
@@ -668,7 +673,7 @@ const canAccessInformesExternos = ['Equipo Directivo', 'Equipo Técnico', 'Equip
           <div className="relative">
             <NavButton active={['matricula', 'resources', 'proyecto', 'admin', 'personal', 'medical', 'equipo', 'social', 'users'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={20} />} label="Más" />
             
-        {showMoreMenu && (
+            {showMoreMenu && (
               <div className="absolute bottom-16 right-0 bg-white rounded-3xl shadow-2xl border border-gray-100 p-2 w-64 animate-in slide-in-from-bottom-5 zoom-in-95 origin-bottom-right z-[100] max-h-[70vh] overflow-y-auto custom-scrollbar">
                 <button onClick={() => { setActiveTab('matricula'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
                   <GraduationCap size={18} className="text-violet-500"/> Legajos
@@ -694,10 +699,10 @@ const canAccessInformesExternos = ['Equipo Directivo', 'Equipo Técnico', 'Equip
                       </>
                     )}
                     {canAccessInformesExternos && (
-                  <button onClick={() => { setActiveTab('informes_externos'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
-                    <ExternalLink size={18} className="text-pink-500"/> Informes Externos
-                  </button>
-                )}
+                      <button onClick={() => { setActiveTab('informes_externos'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
+                        <ExternalLink size={18} className="text-pink-500"/> Informes Externos
+                      </button>
+                    )}
                     {isTechTeamRole && <button onClick={() => { setActiveTab('evaluations'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl bg-orange-50 text-orange-950 flex items-center gap-3 text-sm font-black transition border border-orange-100/50 shadow-inner"><ClipboardCheck size={18} className="text-orange-600"/> Evaluación Áreas</button>}
                     {canAccessSocial && <button onClick={() => { setActiveTab('social'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition"><Users size={18} className="text-blue-500"/> Trabajo Social</button>}
                     {isMedicalRole && <button onClick={() => { setActiveTab('medical'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-red-50 flex items-center gap-3 text-sm font-bold text-red-600 transition"><Activity size={18} className="text-red-500"/> Médico</button>}
@@ -715,7 +720,6 @@ const canAccessInformesExternos = ['Equipo Directivo', 'Equipo Técnico', 'Equip
         </div>
       </nav>
 
-      {/* MODALES GLOBALES */}
       {showSearch && ( 
         <div className="fixed inset-0 bg-violet-900/90 z-[300] flex flex-col p-4 backdrop-blur-md animate-in fade-in">
           <div className="flex justify-between items-center text-white mb-4"><h3 className="font-black italic uppercase">Buscador Rápido</h3><button onClick={() => {setShowSearch(false); setSearchQuery(''); setSearchResults([]);}} className="p-2 bg-white/20 rounded-full"><X/></button></div>
@@ -731,7 +735,7 @@ const canAccessInformesExternos = ['Equipo Directivo', 'Equipo Técnico', 'Equip
           </div>
         </div> 
       )}
-      
+       
       {globalViewingStudent && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[350] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95">
