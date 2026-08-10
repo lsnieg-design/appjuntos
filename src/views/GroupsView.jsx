@@ -511,7 +511,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     } catch (err) { alert(err.message); }
   };
 
-  return (
+ return (
     <div className="flex flex-col h-full bg-slate-100 animate-in fade-in relative overflow-hidden">
       <div className="bg-white p-4 shadow-sm z-20 sticky top-0 flex flex-col gap-3">
         <div className="flex justify-between items-center px-2">
@@ -521,12 +521,14 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
             </h2>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-8">Vista Institucional</p>
           </div>
-        <div className="flex items-center gap-2">
+
+          {/* CONTENEDOR DE BOTONES SUPERIOR DERECHA */}
+          <div className="flex items-center gap-2">
             {isManagement && (
               <button 
                 onClick={exportGroupsToExcel}
                 title="Descargar información en Excel"
-                className="bg-emerald-100 text-emerald-700 p-2.5 rounded-xl hover:bg-emerald-200 transition shadow-sm flex items-center gap-1.5 px-3 font-black text-xs uppercase"
+                className="bg-emerald-100 text-emerald-700 p-2.5 rounded-xl hover:bg-emerald-200 transition shadow-sm flex items-center gap-1.5 px-3 font-black text-xs uppercase cursor-pointer"
               >
                 <Download size={20}/>
                 <span className="hidden md:inline">Excel</span>
@@ -535,7 +537,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
 
             <button 
               onClick={() => { setGroupsToPrint(gruposFinales); setShowPrintOptions(true); }} 
-              className="bg-violet-100 text-violet-700 p-2.5 rounded-xl hover:bg-violet-200 transition shadow-sm"
+              className="bg-violet-100 text-violet-700 p-2.5 rounded-xl hover:bg-violet-200 transition shadow-sm cursor-pointer"
               title="Imprimir"
             >
               <Printer size={24}/>
