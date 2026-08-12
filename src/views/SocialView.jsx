@@ -64,10 +64,18 @@ export function SocialView({ user, db, appId }) {
   };
 
   const handleOpenCase = (c) => {
-    const studentInfo = students.find(s => 
-      s.id === c.studentId || 
-      c.studentName?.toLowerCase().includes(s.lastName?.toLowerCase())
-    );
+    const studentInfo = students.find(s => {
+      // 1. Coincidencia exacta por ID (la más segura)
+      if (c.studentId && s.id === c.studentId) return true;
+
+      // 2. Coincidencia exacta por Nombre y Apellido completos
+      const fullName = `${s.lastName || ''} ${s.firstName || ''}`.trim().toLowerCase();
+      const reverseFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+      const caseName = (c.studentName || '').trim().toLowerCase();
+
+      return caseName === fullName || caseName === reverseFullName;
+    });
+
     setSelectedCase({ ...c, fullInfo: studentInfo });
     localStorage.setItem(`lastSeenSocial_${c.id}_${user.id}`, c.history?.length || 0);
   };
@@ -390,10 +398,15 @@ export function SocialView({ user, db, appId }) {
       {/* MODAL DETALLE ESTUDIANTE (BITÁCORA DE AULA & SOCIAL) */}
       {viewingStudent && (() => {
           // Buscamos el caso social en allSocialCases (incluye archivados)
-          const studentSocialCase = allSocialCases.find(c => 
-              c.studentId === viewingStudent.id || 
-              c.studentName?.toLowerCase().includes(viewingStudent.lastName?.toLowerCase())
-          );
+       const studentSocialCase = allSocialCases.find(c => {
+    if (c.studentId && c.studentId === viewingStudent.id) return true;
+    
+    const fullName = `${viewingStudent.lastName || ''} ${viewingStudent.firstName || ''}`.trim().toLowerCase();
+    const reverseFullName = `${viewingStudent.firstName || ''} ${viewingStudent.lastName || ''}`.trim().toLowerCase();
+    const caseName = (c.studentName || '').trim().toLowerCase();
+
+    return caseName === fullName || caseName === reverseFullName;
+});
 
           return (
               <div className="fixed inset-0 bg-slate-900/95 z-[200] flex items-center justify-center p-4 backdrop-blur-md animate-in zoom-in-95">
