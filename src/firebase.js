@@ -5,7 +5,8 @@ import { getMessaging, getToken, onMessage } from "firebase/messaging";
 const firebaseConfig = {
  apiKey: "AIzaSyAsa-o1ykRaY4sy4AhSSrCFApWh-XBhb8M",
   authDomain: "juntos-a-la-par-d3534.firebaseapp.com",
-  projectId: "juntos-a-la-par-d3534",
+  projectId: "
+juntos-a-la-par-d3534",
   storageBucket: "juntos-a-la-par-d3534.firebasestorage.app",
   messagingSenderId: "320753617430",
   appId: "1:320753617430:web:964ae79ff0ea94dc520337"
