@@ -459,13 +459,17 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
 
       // 2. Si es ausentismo, creamos el caso social asegurando los campos clave
       if (esAusentismo) {
+        const socialRef = collection(db, 'artifacts', const esAusentismo = type && type.toLowerCase().includes("ausentismo");
+
+      if (esAusentismo) {
         const socialRef = collection(db, 'artifacts', appId, 'public', 'data', 'social_cases');
         await addDoc(socialRef, {
-          studentId: activeStudent.id,
+          studentId: activeStudent.id,       // 👈 Obligatorio
+          dni: activeStudent.dni || "",      // 👈 Obligatorio
           studentName: `${activeStudent.lastName}, ${activeStudent.firstName}`,
           level: activeStudent.level || "SEDE", 
           reason: "REPORTE DESDE AULA: Ausentismo detectado.",
-          status: "Pendiente", // 👈 Vital para que aparezca en "Activos" y no en el archivo
+          status: "Pendiente", 
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           steps: { llamada: { done: false }, continuidad: { sent: false } },
