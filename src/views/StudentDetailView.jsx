@@ -58,9 +58,10 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
       await updateDoc(userRef, { score: increment(10) });
       
       // PARCHE TRABAJO SOCIAL
-      if (type.includes("Ausentismo")) {
+    if (type.includes("Ausentismo")) {
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'), {
-            studentId: student.id,
+            studentId: student.id, // 👈 CLAVE PARA QUE NO SE CRUCEN
+            dni: student.dni || "", // 👈 GUARDAMOS EL DNI
             studentName: `${student.lastName}, ${student.firstName}`,
             level: student.level || "SEDE",
             reason: "REPORTE DESDE AULA: Ausentismo detectado.",
@@ -100,7 +101,8 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
 
       // Lógica de Trabajo Social (duplicada aquí por seguridad)
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'), {
-          studentId: student.id,
+          studentId: student.id, // 👈 CLAVE PARA QUE NO SE CRUCEN
+          dni: student.dni || "", // 👈 GUARDAMOS EL DNI
           studentName: `${student.lastName}, ${student.firstName}`,
           level: student.level || "SEDE",
           reason: "REPORTE DESDE AULA: Ausentismo detectado.",
