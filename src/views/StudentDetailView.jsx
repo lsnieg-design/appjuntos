@@ -40,6 +40,7 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
   };
 
  const handleSaveIncident = async (type, severity, text = "") => {
+   alert("¡Hiciste clic! Tipo recibido: " + type);
     // 1. Validamos que Firebase esté disponible antes de hacer nada
     if (!db || !appId) {
       alert("❌ Error crítico: Firebase (db) o el appId no están configurados en esta vista.");
