@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { 
   collection, query, where, onSnapshot, doc, 
-  updateDoc, arrayUnion, increment 
+  updateDoc, arrayUnion, increment, deleteDoc, serverTimestamp 
 } from 'firebase/firestore';
 
 export function SocialView({ user, db, appId }) {
@@ -160,15 +160,45 @@ export function SocialView({ user, db, appId }) {
     }
   };
 
+  // NUEVA FUNCIÓN PARA ARCHIVAR/REACTIVAR EL CASO
   const handleArchiveCase = async (c) => {
-    const confirmMsg = c.status === 'Reincorporado' 
-      ? "¿Deseas reactivar este caso?" 
+    const isCurrentlyArchived = c.status === 'Archivado' || c.status === 'Reincorporado';
+    const confirmMsg = isCurrentlyArchived 
+      ? "¿Deseas reactivar este caso? Volverá a la lista de activos." 
       : "❗ ¿Imprimiste el reporte para el legajo físico? El caso pasará al archivo.";
     
     if (confirm(confirmMsg)) {
-        const newStatus = c.status === 'Reincorporado' ? 'Pendiente' : 'Reincorporado';
-        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', c.id), { status: newStatus });
+        const newStatus = isCurrentlyArchived ? 'Pendiente' : 'Archivado';
+        const userFullName = user.fullName || `${user.firstName} ${user.lastName}`;
+        
+        try {
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', c.id), { 
+                status: newStatus,
+                updatedAt: serverTimestamp(),
+                history: arrayUnion({
+                    date: new Date().toISOString(),
+                    text: newStatus === 'Archivado' ? "📦 CASO ARCHIVADO por Trabajo Social." : "🔄 CASO REACTIVADO por Trabajo Social.",
+                    author: userFullName
+                })
+            });
+            setSelectedCase(null);
+            alert(newStatus === 'Archivado' ? "Caso archivado correctamente." : "Caso reactivado con éxito.");
+        } catch (error) {
+            alert("Error al actualizar el estado: " + error.message);
+        }
+    }
+  };
+
+  // NUEVA FUNCIÓN PARA BORRAR EL CASO POR COMPLETO
+  const handleDeleteCase = async (c) => {
+    if (!confirm("⚠️ ATENCIÓN: ¿Borrar definitivamente este caso de la base de datos? Esta acción no se puede deshacer.")) return;
+    
+    try {
+        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'social_cases', c.id));
         setSelectedCase(null);
+        alert("Caso eliminado con éxito de la base de datos.");
+    } catch (error) {
+        alert("Error al eliminar: " + error.message);
     }
   };
 
@@ -225,7 +255,7 @@ export function SocialView({ user, db, appId }) {
       return c.studentName?.toLowerCase().includes(term);
     }
 
-    const isArchived = c.status === 'Reincorporado';
+    const isArchived = c.status === 'Reincorporado' || c.status === 'Archivado';
     if (viewMode === 'archived' && !isArchived) return false;
     if (viewMode === 'active' && isArchived) return false;
 
@@ -281,7 +311,7 @@ export function SocialView({ user, db, appId }) {
       <div className="flex-1 overflow-y-auto px-4 space-y-3 custom-scrollbar">
         {loading ? <p className="text-center py-20 opacity-20 font-black">CARGANDO...</p> : filteredCases.map(c => {
             const caseHasNews = hasNews(c);
-            const isArchived = c.status === 'Reincorporado';
+            const isArchived = c.status === 'Reincorporado' || c.status === 'Archivado';
             return (
               <div key={c.id} onClick={() => handleOpenCase(c)} className={`bg-white p-5 rounded-[30px] border-2 flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer ${isArchived ? 'opacity-60 grayscale' : ''} ${caseHasNews ? 'border-orange-400 ring-4 ring-orange-50 shadow-lg' : 'border-transparent shadow-sm hover:border-blue-100'}`}>
                 <div className="flex items-center gap-4 min-w-0">
@@ -310,8 +340,21 @@ export function SocialView({ user, db, appId }) {
             <div className="text-center flex-1 min-w-0"><h2 className="text-sm font-black uppercase truncate px-4">{selectedCase.studentName}</h2></div>
             <div className="flex gap-2">
               <button onClick={() => imprimirSeguimientoSocial(selectedCase)} className="p-3 bg-white/10 rounded-xl hover:bg-blue-600 transition" title="Imprimir"><Printer size={20}/></button>
-              <button onClick={() => handleArchiveCase(selectedCase)} className={`p-3 rounded-xl transition ${selectedCase.status === 'Reincorporado' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-white/10 hover:bg-emerald-600'}`} title={selectedCase.status === 'Reincorporado' ? "Reactivar" : "Archivar"}>
-                {selectedCase.status === 'Reincorporado' ? <RefreshCw size={20}/> : <Folder size={20}/>}
+              
+              <button 
+                onClick={() => handleArchiveCase(selectedCase)} 
+                className={`p-3 rounded-xl transition ${selectedCase.status === 'Archivado' || selectedCase.status === 'Reincorporado' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-white/10 hover:bg-emerald-600'}`} 
+                title={selectedCase.status === 'Archivado' || selectedCase.status === 'Reincorporado' ? "Reactivar Caso" : "Archivar Caso"}
+              >
+                {selectedCase.status === 'Archivado' || selectedCase.status === 'Reincorporado' ? <RefreshCw size={20}/> : <Folder size={20}/>}
+              </button>
+
+              <button 
+                onClick={() => handleDeleteCase(selectedCase)} 
+                className="p-3 bg-white/10 text-white hover:bg-red-600 rounded-xl transition shadow-sm" 
+                title="Eliminar Caso"
+              >
+                <Trash2 size={20}/>
               </button>
             </div>
           </div>
@@ -392,72 +435,6 @@ export function SocialView({ user, db, appId }) {
           </div>
         </div>
       )}
-
-      {/* MODAL DETALLE ESTUDIANTE (BITÁCORA DE AULA & SOCIAL) */}
-      {viewingStudent && (() => {
-          const studentSocialCase = allSocialCases.find(c => {
-            if (c.studentId && viewingStudent.id && c.studentId === viewingStudent.id) return true;
-            if (c.dni && viewingStudent.dni && c.dni === viewingStudent.dni) return true;
-            const fullName = `${viewingStudent.lastName || ''}, ${viewingStudent.firstName || ''}`.trim().toLowerCase();
-            return (c.studentName || '').trim().toLowerCase() === fullName;
-          });
-
-          return (
-              <div className="fixed inset-0 bg-slate-900/95 z-[200] flex items-center justify-center p-4 backdrop-blur-md animate-in zoom-in-95">
-                  <div className="bg-white rounded-[45px] w-full max-w-xl p-8 relative shadow-2xl flex flex-col max-h-[90vh]">
-                      <button onClick={() => setViewingStudent(null)} className="absolute top-8 right-8 text-slate-300 hover:text-slate-500 transition"><X size={28}/></button>
-                      <h3 className="font-black text-2xl text-slate-800 uppercase tracking-tighter leading-none mb-4">{viewingStudent.lastName}, {viewingStudent.firstName}</h3>
-                       
-                      <div className="flex-1 overflow-y-auto space-y-6 custom-scrollbar pr-2">
-                          <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100 grid grid-cols-2 gap-6">
-                              <div><label className="text-[9px] font-black text-slate-400 uppercase block mb-1">DNI</label><p className="font-bold text-slate-800">{viewingStudent.dni || '-'}</p></div>
-                              <div><label className="text-[9px] font-black text-slate-400 uppercase block mb-1">F. Nac</label><p className="font-bold text-slate-800">{viewingStudent.birthDate || '-'}</p></div>
-                              <div className="col-span-2"><label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Obra Social</label><p className="font-bold text-slate-800 uppercase">{viewingStudent.healthInsurance || 'S/D'}</p></div>
-                          </div>
-
-                          {/* INTERVENCIONES / SEGUIMIENTO SOCIAL */}
-                          <div className="space-y-3">
-                              <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest ml-1 flex items-center gap-1">
-                                  <Briefcase size={14}/> Intervenciones de Trabajo Social {studentSocialCase?.status === 'Reincorporado' && <span className="text-[8px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded ml-1">Archivado</span>}
-                              </h4>
-                              {studentSocialCase && studentSocialCase.history && studentSocialCase.history.length > 0 ? (
-                                  studentSocialCase.history.slice().reverse().map((h, idx) => (
-                                      <div key={idx} className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 shadow-sm">
-                                          <div className="flex justify-between mb-1">
-                                              <span className="text-[9px] font-black text-blue-500 uppercase">{new Date(h.date).toLocaleDateString()}</span>
-                                              <span className="text-[9px] font-bold text-slate-500 uppercase italic">Por: {h.author}</span>
-                                          </div>
-                                          <p className="text-xs font-bold text-slate-700 leading-relaxed">{h.text}</p>
-                                      </div>
-                                  ))
-                              ) : (
-                                  <p className="text-center text-xs text-gray-400 italic py-2 bg-slate-50 rounded-2xl">No hay intervenciones sociales registradas.</p>
-                              )}
-                          </div>
-
-                          {/* BITÁCORA PEDAGÓGICA (AULA) */}
-                          <div className="space-y-3">
-                              <h4 className="text-[10px] font-black text-violet-600 uppercase tracking-widest ml-1">Bitácora Pedagógica (Aula)</h4>
-                              {viewingStudent.incidents && viewingStudent.incidents.length > 0 ? (
-                                  viewingStudent.incidents.slice().reverse().map((inc, idx) => (
-                                      <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                                          <div className="flex justify-between mb-1">
-                                              <span className="text-[9px] font-black text-violet-400 uppercase">{new Date(inc.date).toLocaleDateString()}</span>
-                                              <span className="text-[9px] font-bold text-slate-400 uppercase italic">Por: {inc.author}</span>
-                                          </div>
-                                          <p className="text-xs font-bold text-slate-700 leading-relaxed">{inc.text || inc.type}</p>
-                                      </div>
-                                  ))
-                              ) : (
-                                  <p className="text-center text-xs text-gray-400 italic py-4">No hay incidentes de aula registrados.</p>
-                              )}
-                          </div>
-                      </div>
-                      <button onClick={() => setViewingStudent(null)} className="w-full mt-8 py-5 bg-slate-900 text-white rounded-[25px] font-black uppercase text-xs tracking-widest shadow-xl shrink-0">Cerrar Ficha</button>
-                  </div>
-              </div>
-          );
-      })()}
     </div>
   );
 }
