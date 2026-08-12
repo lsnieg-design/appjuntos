@@ -799,24 +799,31 @@ const handleSaveIncident = async (type, severity = "medium", text = "") => {
      {showBitacoraModal && (() => {
         const liveStudent = students.find(s => s.id === showBitacoraModal.id) || showBitacoraModal;
         
-        // Unificamos incidentes de aula y casos de gabinete/trabajo social (incluyendo archivados)
+      // Unificamos incidentes de aula y todo el historial de gabinete/trabajo social
         const normales = (liveStudent.incidents || []).map(inc => ({ ...inc, source: 'aula' }));
-    const sociales = (socialCases || []).filter(c => {
-          // 1. Coincidencia estricta y obligatoria por ID de Firebase (Inquebrantable)
+        
+        const sociales = [];
+        (socialCases || []).filter(c => {
           if (c.studentId && c.studentId === liveStudent.id) return true;
-
-          // 2. Coincidencia por DNI si estuviese disponible
           if (c.dni && liveStudent.dni && c.dni === liveStudent.dni) return true;
-
-          // 3. Coincidencia estricta de Nombre y Apellido completos (JAMÁS solo el apellido)
-          const fullNameA = `${liveStudent.lastName || ''}, ${liveStudent.firstName || ''}`.trim().toLowerCase();
-          const fullNameB = `${liveStudent.firstName || ''} ${liveStudent.lastName || ''}`.trim().toLowerCase();
-          const caseName = (c.studentName || '').trim().toLowerCase();
-
-          return caseName === fullNameA || caseName === fullNameB;
+          return false;
+        }).forEach(c => {
+          // Extraemos CADA NOTA que Trabajo Social haya escrito en el historial del caso
+          if (c.history && Array.isArray(c.history)) {
+            c.history.forEach(h => {
+              sociales.push({
+                date: h.date || new Date().toISOString(),
+                text: h.text,
+                author: h.author || 'Gabinete',
+                severity: (c.status === 'Archivado' || c.status === 'Reincorporado') ? 'low' : 'high',
+                source: 'social',
+                isClosed: c.status === 'Archivado' || c.status === 'Reincorporado'
+              });
+            });
+          }
         });
-        const historialUnificado = [...normales, ...sociales].sort((a, b) => new Date(b.date) - new Date(a.date));
 
+        const historialUnificado = [...normales, ...sociales].sort((a, b) => new Date(b.date) - new Date(a.date));
         return (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
             <div className="bg-white rounded-[40px] w-full max-w-sm p-6 shadow-2xl border-t-8 border-emerald-500 animate-in zoom-in-95 flex flex-col max-h-[90vh]">
