@@ -2,9 +2,7 @@ import React, { useState } from 'react';
 import { 
   X, Users, AlertTriangle, Edit3, Trash2
 } from 'lucide-react';
-// Agregué addDoc, collection, serverTimestamp para que la lógica de Social funcione
 import { doc, updateDoc, arrayUnion, increment, addDoc, collection, serverTimestamp } from 'firebase/firestore';
-
 
 export function StudentDetailView({ student, onClose, onEdit, db, appId, user }) {
   const [activeTabModal, setActiveTabModal] = useState("info");
@@ -25,7 +23,8 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
     { label: "Agresión / Violencia", emoji: "👊", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
     { label: "Brote / Gritos", emoji: "🤬", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
     { label: "Fuga / Intento", emoji: "🏃", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
-    { label: "Convulsión / Salud", emoji: "🚑", severity: "high", color: "bg-indigo-100 border-indigo-300 text-indigo-800" }, 
+    { label: "Convulsión / Salud", emoji: "🚑", severity: "high", color: "bg-indigo-100 border-indigo-300 text-indigo-800" },
+    { label: "Ausentismo", emoji: "🏠", severity: "medium", color: "bg-blue-100 border-blue-300 text-blue-800" }, // 👈 BOTÓN AGREGADO AQUÍ
   ];
 
   if (!student) return null;
@@ -57,22 +56,31 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
       const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
       await updateDoc(userRef, { score: increment(10) });
       
-if (type && type.toLowerCase().includes("ausentismo")) {
+      // VALIDACIÓN ROBUSTA Y SEGURA PARA TRABAJO SOCIAL
+      const esAusentismo = type && type.toLowerCase().includes("ausentismo");
+
+      if (esAusentismo) {
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'), {
-            studentId: student.id,
-            dni: student.dni || "",
+            studentId: student.id,           // 👈 ID único obligatorio
+            dni: student.dni || "",          // 👈 DNI de respaldo
             studentName: `${student.lastName}, ${student.firstName}`,
             level: student.level || "SEDE",
             reason: "REPORTE DESDE AULA: Ausentismo detectado.",
             status: "Pendiente",
             createdAt: serverTimestamp(),
-            history: [{ date: new Date().toISOString(), text: `Reporte: ${text || type}`, author: user.firstName }]
+            updatedAt: serverTimestamp(),
+            steps: { llamada: { done: false }, continuidad: { sent: false } },
+            history: [{ 
+              date: new Date().toISOString(), 
+              text: `📢 REGISTRO AUTOMÁTICO: Reporte de ausentismo registrado por ${user.firstName || "Docente"}.`, 
+              author: user.firstName || "Docente" 
+            }]
         });
       }
 
       setNewNote('');
       setIsWriting(false);
-      alert(`✅ Registrado correctamente.`);
+      alert(`✅ Registrado correctamente${esAusentismo ? " y derivado a Trabajo Social." : ""}.`);
     } catch (e) { 
       console.error(e);
       alert("Error al guardar: " + e.message); 
@@ -98,16 +106,22 @@ if (type && type.toLowerCase().includes("ausentismo")) {
         absenteeismAlert: true 
       });
 
-      // Lógica de Trabajo Social (duplicada aquí por seguridad)
+      // DERIVACIÓN A TRABAJO SOCIAL DESDE ALERTA PROLONGADA
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'), {
-          studentId: student.id, // 👈 CLAVE PARA QUE NO SE CRUCEN
-          dni: student.dni || "", // 👈 GUARDAMOS EL DNI
+          studentId: student.id,
+          dni: student.dni || "",
           studentName: `${student.lastName}, ${student.firstName}`,
           level: student.level || "SEDE",
-          reason: "REPORTE DESDE AULA: Ausentismo detectado.",
+          reason: "REPORTE DESDE AULA: Ausentismo prolongado.",
           status: "Pendiente",
           createdAt: serverTimestamp(),
-          history: [{ date: new Date().toISOString(), text: `Alerta de ausentismo: ${reason}`, author: user.firstName }]
+          updatedAt: serverTimestamp(),
+          steps: { llamada: { done: false }, continuidad: { sent: false } },
+          history: [{ 
+            date: new Date().toISOString(), 
+            text: `Alerta de ausentismo: ${reason}`, 
+            author: user.firstName || "Docente" 
+          }]
       });
 
       const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
