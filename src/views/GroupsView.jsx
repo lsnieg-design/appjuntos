@@ -429,6 +429,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
   };
 
 const handleSaveIncident = async (type, severity = "medium", text = "") => {
+  alert("¡Hiciste clic! Tipo recibido: " + type);
     const activeStudent = showBitacoraModal || selectedStudent;
     if (!activeStudent) return;
     setSavingIncident(true);
