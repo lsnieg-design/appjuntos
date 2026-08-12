@@ -1275,16 +1275,27 @@ const filteredStudents = students.filter(s => {
                         <div className="space-y-3">
                           {(() => {
                             const normales = (viewingStudent.incidents || []).map(inc => ({ ...inc, source: 'aula' }));
-                            const sociales = (socialCases || [])
-                              .filter(c => (c.studentId === viewingStudent.id) || (c.studentName === `${viewingStudent.lastName}, ${viewingStudent.firstName}`))
-                              .map(c => ({
-                                date: c.createdAt?.seconds ? new Date(c.createdAt.seconds * 1000).toISOString() : new Date().toISOString(),
-                                text: `⚠️ INTERVENCIÓN SOCIAL: ${c.reason}`,
-                                author: c.reportedBy || 'Gabinete',
-                                severity: 'high',
-                                source: 'social',
-                                isClosed: c.status === 'Reincorporado'
-                              }));
+                            
+                            const sociales = [];
+                            (socialCases || []).filter(c => {
+                              if (c.studentId && c.studentId === viewingStudent.id) return true;
+                              if (c.dni && viewingStudent.dni && c.dni === viewingStudent.dni) return true;
+                              return false;
+                            }).forEach(c => {
+                              if (c.history && Array.isArray(c.history)) {
+                                c.history.forEach(h => {
+                                  sociales.push({
+                                    date: h.date || new Date().toISOString(),
+                                    text: h.text,
+                                    author: h.author || 'Gabinete',
+                                    severity: (c.status === 'Archivado' || c.status === 'Reincorporado') ? 'low' : 'high',
+                                    source: 'social',
+                                    isClosed: c.status === 'Archivado' || c.status === 'Reincorporado'
+                                  });
+                                });
+                              }
+                            });
+                            
                             const combined = [...normales, ...sociales].sort((a, b) => new Date(b.date) - new Date(a.date));
                             
                             return (
