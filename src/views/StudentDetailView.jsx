@@ -110,7 +110,7 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
     }
   };
 
- const handleReportAbsenteeism = async () => {
+const handleReportAbsenteeism = async () => {
     const reason = prompt("¿Motivo del ausentismo prolongado? (Ej: Salud, Viaje, etc.)");
     if (!reason) return;
     
@@ -121,6 +121,7 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
 
     setLoading(true);
     try {
+      console.log("🟢 [Reporte Ausentismo] Iniciando registro para alumno ID:", student.id);
       const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', student.id);
       const entry = {
         date: new Date().toISOString(),
@@ -136,15 +137,15 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
         absenteeismAlert: true 
       });
 
-      // 🚨 CREACIÓN DEL CASO SOCIAL EN FIREBASE (Asegurando studentId y dni)
+      // 🚨 CREACIÓN DIRECTA Y SEGURA DEL CASO SOCIAL
       const socialRef = collection(db, 'artifacts', appId, 'public', 'data', 'social_cases');
-      await addDoc(socialRef, {
-          studentId: student.id,           // 👈 Obligatorio para que no se crucen con otro apellido
-          dni: student.dni || "",          // 👈 Identificador seguro de respaldo
+      const docRefSocial = await addDoc(socialRef, {
+          studentId: student.id,           // 👈 ID Único estricto (evita cruce con apellidos repetidos)
+          dni: student.dni || "",          // 👈 DNI de respaldo
           studentName: `${student.lastName}, ${student.firstName}`,
           level: student.level || "SEDE",
           reason: `REPORTE DESDE AULA: Ausentismo prolongado (${reason}).`,
-          status: "Pendiente",             // 👈 Vital para que aparezca en activos
+          status: "Pendiente",             // 👈 Vital para ver en activos
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           steps: { llamada: { done: false }, continuidad: { sent: false } },
@@ -155,6 +156,8 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
           }]
       });
 
+      console.log("✅ ¡Caso social creado con éxito! ID:", docRefSocial.id);
+
       if (user?.id) {
         const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
         await updateDoc(userRef, { score: increment(5) });
@@ -162,7 +165,7 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
 
       alert("⚠️ Alerta enviada al Equipo Técnico y derivada a Trabajo Social. ¡Sumaste 5 puntos!");
     } catch (e) { 
-      console.error("Error al reportar ausentismo:", e);
+      console.error("❌ Error crítico al reportar ausentismo:", e);
       alert("Error al guardar en Firebase: " + e.message); 
     } finally { 
       setLoading(false); 
