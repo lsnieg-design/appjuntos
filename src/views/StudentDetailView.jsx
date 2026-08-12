@@ -74,7 +74,7 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
 
       if (esAusentismo) {
         console.log("🟢 3. Intentando crear caso social en social_cases con appId:", appId);
-        const socialRef = collection(db, 'artifacts', 'appId', 'public', 'data', 'social_cases');
+        const socialRef = collection(db, 'artifacts', appId, 'public', 'data', 'social_cases');
         
         const payloadSocial = {
             studentId: student.id,
@@ -138,7 +138,7 @@ const handleReportAbsenteeism = async () => {
       });
 
       // 🚨 CREACIÓN DIRECTA Y SEGURA DEL CASO SOCIAL (Sin duplicados y bien escrito)
-      const socialRef = collection(db, 'artifacts', 'appId', 'public', 'data', 'social_cases');
+      const socialRef = collection(db, 'artifacts', appId, 'public', 'data', 'social_cases');
       const docRefSocial = await addDoc(socialRef, {
           studentId: student.id,           // 👈 ID Único estricto (evita cruce con apellidos repetidos)
           dni: student.dni || "",          // 👈 DNI de respaldo
