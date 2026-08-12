@@ -789,16 +789,17 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
         
         // Unificamos incidentes de aula y casos de gabinete/trabajo social (incluyendo archivados)
         const normales = (liveStudent.incidents || []).map(inc => ({ ...inc, source: 'aula' }));
-        const sociales = (socialCases || [])
-          .filter(c => (c.studentId === liveStudent.id) || (c.studentName === `${liveStudent.lastName}, ${liveStudent.firstName}`))
-          .map(c => ({
-            date: c.createdAt?.seconds ? new Date(c.createdAt.seconds * 1000).toISOString() : new Date().toISOString(),
-            text: `⚠️ INTERVENCIÓN SOCIAL: ${c.reason}`,
-            author: c.reportedBy || 'Gabinete',
-            severity: 'high',
-            source: 'social',
-            isClosed: c.status === 'Reincorporado'
-          }));
+      const sociales = (socialCases || []).filter(c => {
+    // 1. Si el caso tiene el ID exacto del alumno, es 100% él.
+    if (c.studentId && c.studentId === liveStudent.id) return true;
+
+    // 2. Si no tiene ID, comparamos nombre y apellido completo de forma estricta
+    const fullNameA = `${liveStudent.lastName || ''}, ${liveStudent.firstName || ''}`.trim().toLowerCase();
+    const fullNameB = `${liveStudent.firstName || ''} ${liveStudent.lastName || ''}`.trim().toLowerCase();
+    const caseName = (c.studentName || '').trim().toLowerCase();
+
+    return caseName === fullNameA || caseName === fullNameB;
+});
         const historialUnificado = [...normales, ...sociales].sort((a, b) => new Date(b.date) - new Date(a.date));
 
         return (
