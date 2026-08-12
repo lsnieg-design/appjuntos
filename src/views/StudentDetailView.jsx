@@ -39,30 +39,45 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
     return a;
   };
 
-  const handleSaveIncident = async (type, severity, text = "") => {
-    if (!db || !appId || !user) return;
+ const handleSaveIncident = async (type, severity, text = "") => {
+    // 1. Validamos que Firebase esté disponible antes de hacer nada
+    if (!db || !appId) {
+      alert("❌ Error crítico: Firebase (db) o el appId no están configurados en esta vista.");
+      console.error("Faltan credenciales:", { db, appId, user });
+      return;
+    }
+
     setLoading(true);
     try {
+      console.log("🟢 1. Guardando en la bitácora del alumno:", student.id);
       const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', student.id);
       const entry = {
         date: new Date().toISOString(),
         type: type,
         text: text || type,
         severity: severity,
-        author: user.fullName || `${user.firstName} ${user.lastName || ''}`,
-        authorId: user.id
+        author: user?.fullName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || "Docente",
+        authorId: user?.id || "unknown"
       };
-      await updateDoc(studentRef, { incidents: arrayUnion(entry) });
-      const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-      await updateDoc(userRef, { score: increment(10) });
       
-      // VALIDACIÓN ROBUSTA Y SEGURA PARA TRABAJO SOCIAL
+      await updateDoc(studentRef, { incidents: arrayUnion(entry) });
+      
+      if (user?.id) {
+        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+        await updateDoc(userRef, { score: increment(10) });
+      }
+      
+      // 2. Validamos si es ausentismo de forma estricta
       const esAusentismo = type && type.toLowerCase().includes("ausentismo");
+      console.log("🟢 2. ¿Es ausentismo?", esAusentismo, "Tipo:", type);
 
       if (esAusentismo) {
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'), {
-            studentId: student.id,           // 👈 ID único obligatorio
-            dni: student.dni || "",          // 👈 DNI de respaldo
+        console.log("🟢 3. Intentando crear caso social en social_cases con appId:", appId);
+        const socialRef = collection(db, 'artifacts', appId, 'public', 'data', 'social_cases');
+        
+        const payloadSocial = {
+            studentId: student.id,
+            dni: student.dni || "",
             studentName: `${student.lastName}, ${student.firstName}`,
             level: student.level || "SEDE",
             reason: "REPORTE DESDE AULA: Ausentismo detectado.",
@@ -72,19 +87,26 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
             steps: { llamada: { done: false }, continuidad: { sent: false } },
             history: [{ 
               date: new Date().toISOString(), 
-              text: `📢 REGISTRO AUTOMÁTICO: Reporte de ausentismo registrado por ${user.firstName || "Docente"}.`, 
-              author: user.firstName || "Docente" 
+              text: `📢 REGISTRO AUTOMÁTICO: Reporte de ausentismo registrado.`, 
+              author: user?.firstName || "Docente" 
             }]
-        });
+        };
+
+        const docRefSocial = await addDoc(socialRef, payloadSocial);
+        console.log("✅ ¡Caso social creado exitosamente con ID:", docRefSocial.id);
+        alert("✅ ¡Caso creado y derivado a Trabajo Social con éxito!");
+      } else {
+        alert("✅ Incidencia guardada correctamente en la bitácora.");
       }
 
       setNewNote('');
       setIsWriting(false);
-      alert(`✅ Registrado correctamente${esAusentismo ? " y derivado a Trabajo Social." : ""}.`);
     } catch (e) { 
-      console.error(e);
-      alert("Error al guardar: " + e.message); 
-    } finally { setLoading(false); }
+      console.error("❌ ERROR COMPLETO EN FIREBASE:", e);
+      alert("❌ Error de Firebase al guardar: " + e.message); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleReportAbsenteeism = async () => {
