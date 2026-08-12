@@ -57,21 +57,16 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
       const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
       await updateDoc(userRef, { score: increment(10) });
       
-      // PARCHE TRABAJO SOCIAL
-if (type.includes("Ausentismo") || type.includes("AUSENTISMO")) {
+if (type && type.toLowerCase().includes("ausentismo")) {
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'), {
-            studentId: student.id,           // 👈 Obligatorio para evitar cruces con apellidos repetidos
-            dni: student.dni || "",          // 👈 Identificador secundario seguro
+            studentId: student.id,
+            dni: student.dni || "",
             studentName: `${student.lastName}, ${student.firstName}`,
             level: student.level || "SEDE",
             reason: "REPORTE DESDE AULA: Ausentismo detectado.",
             status: "Pendiente",
             createdAt: serverTimestamp(),
-            history: [{ 
-              date: new Date().toISOString(), 
-              text: `Reporte: ${text || type}`, 
-              author: user.firstName || "Docente" 
-            }]
+            history: [{ date: new Date().toISOString(), text: `Reporte: ${text || type}`, author: user.firstName }]
         });
       }
 
