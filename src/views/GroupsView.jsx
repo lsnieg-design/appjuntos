@@ -456,26 +456,33 @@ const handleSaveIncident = async (type, severity = "medium", text = "") => {
       });
 
       // Definimos la variable limpiamente fuera de cualquier llamada
-      const esAusentismo = type && type.toLowerCase().includes("ausentismo");
+     const esAusentismo = type && type.toLowerCase().includes("ausentismo");
 
       if (esAusentismo) {
-        const socialRef = collection(db, 'artifacts', appId, 'public', 'data', 'social_cases');
-        await addDoc(socialRef, {
-          studentId: activeStudent.id,
-          dni: activeStudent.dni || "",
-          studentName: `${activeStudent.lastName}, ${activeStudent.firstName}`,
-          level: activeStudent.level || "SEDE", 
-          reason: "REPORTE DESDE AULA: Ausentismo detectado.",
-          status: "Pendiente", 
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          steps: { llamada: { done: false }, continuidad: { sent: false } },
-          history: [{ 
-            date: new Date().toISOString(), 
-            text: `📢 REGISTRO AUTOMÁTICO: Caso abierto por reporte de ausentismo desde el aula.`, 
-            author: user?.fullName || user?.firstName || "Sistema" 
-          }]
-        });
+        try {
+          console.log("Intentando guardar caso social con appId:", appId, "y db:", db);
+          const socialRef = collection(db, 'artifacts', appId, 'public', 'data', 'social_cases');
+          await addDoc(socialRef, {
+            studentId: activeStudent.id,
+            dni: activeStudent.dni || "",
+            studentName: `${activeStudent.lastName}, ${activeStudent.firstName}`,
+            level: activeStudent.level || "SEDE", 
+            reason: "REPORTE DESDE AULA: Ausentismo detectado.",
+            status: "Pendiente", 
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            steps: { llamada: { done: false }, continuidad: { sent: false } },
+            history: [{ 
+              date: new Date().toISOString(), 
+              text: `📢 REGISTRO AUTOMÁTICO: Caso abierto por reporte de ausentismo desde el aula.`, 
+              author: user?.fullName || user?.firstName || "Sistema" 
+            }]
+          });
+          console.log("¡Caso social guardado con éxito en Firebase!");
+        } catch (errFirebase) {
+          console.error("ERROR CRÍTICO AL GUARDAR EN SOCIAL_CASES:", errFirebase);
+          alert("Error de Firebase: " + errFirebase.message);
+        }
       }
 
       if (user?.id) {
