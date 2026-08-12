@@ -17,7 +17,7 @@ import {
 
 export function SocialView({ user, db, appId }) {
   const [cases, setCases] = useState([]);
-  const [allSocialCases, setAllSocialCases] = useState([]); // <--- NUEVO: Guarda absolutamente todos los casos (activos y archivados)
+  const [allSocialCases, setAllSocialCases] = useState([]); 
   const [students, setStudents] = useState([]);
   const [viewingStudent, setViewingStudent] = useState(null);
   const [filter, setFilter] = useState('all');
@@ -43,7 +43,7 @@ export function SocialView({ user, db, appId }) {
         return dateB - dateA;
       });
 
-      setAllSocialCases(docs); // <--- Guardamos TODOS los casos sin filtrar
+      setAllSocialCases(docs); 
       setCases(docs);
       setLoading(false);
     }, (error) => {
@@ -63,11 +63,9 @@ export function SocialView({ user, db, appId }) {
     return (c.history?.length || 0) > lastSeenCount;
   };
 
-const handleOpenCase = (c) => {
-    // Buscamos primero estrictamente por ID único de Firebase
+  const handleOpenCase = (c) => {
     let studentInfo = students.find(s => c.studentId && s.id === c.studentId);
 
-    // Si el caso social NO tiene studentId (casos viejos), buscamos por DNI o Nombre Completo exacto
     if (!studentInfo) {
       studentInfo = students.find(s => {
         if (c.dni && s.dni && c.dni === s.dni) return true;
@@ -80,9 +78,6 @@ const handleOpenCase = (c) => {
     localStorage.setItem(`lastSeenSocial_${c.id}_${user.id}`, c.history?.length || 0);
   };
 
-    setSelectedCase({ ...c, fullInfo: studentInfo });
-    localStorage.setItem(`lastSeenSocial_${c.id}_${user.id}`, c.history?.length || 0);
-  };
   const updateStep = async (caseId, stepName) => {
     const c = cases.find(x => x.id === caseId);
     if (!c) return;
@@ -400,24 +395,19 @@ const handleOpenCase = (c) => {
 
       {/* MODAL DETALLE ESTUDIANTE (BITÁCORA DE AULA & SOCIAL) */}
       {viewingStudent && (() => {
-          // Buscamos el caso social en allSocialCases (incluye archivados)
-       const studentSocialCase = allSocialCases.find(c => {
-      // 1. Coincidencia estricta y obligatoria por ID
-      if (c.studentId && viewingStudent.id && c.studentId === viewingStudent.id) return true;
+          const studentSocialCase = allSocialCases.find(c => {
+            if (c.studentId && viewingStudent.id && c.studentId === viewingStudent.id) return true;
+            if (c.dni && viewingStudent.dni && c.dni === viewingStudent.dni) return true;
+            const fullName = `${viewingStudent.lastName || ''}, ${viewingStudent.firstName || ''}`.trim().toLowerCase();
+            return (c.studentName || '').trim().toLowerCase() === fullName;
+          });
 
-      // 2. Coincidencia por DNI
-      if (c.dni && viewingStudent.dni && c.dni === viewingStudent.dni) return true;
-
-      // 3. Si no tiene ID ni DNI, comparamos el nombre y apellido completo exacto (NUNCA solo el apellido)
-      const fullName = `${viewingStudent.lastName || ''}, ${viewingStudent.firstName || ''}`.trim().toLowerCase();
-      return (c.studentName || '').trim().toLowerCase() === fullName;
-  });
           return (
               <div className="fixed inset-0 bg-slate-900/95 z-[200] flex items-center justify-center p-4 backdrop-blur-md animate-in zoom-in-95">
                   <div className="bg-white rounded-[45px] w-full max-w-xl p-8 relative shadow-2xl flex flex-col max-h-[90vh]">
                       <button onClick={() => setViewingStudent(null)} className="absolute top-8 right-8 text-slate-300 hover:text-slate-500 transition"><X size={28}/></button>
                       <h3 className="font-black text-2xl text-slate-800 uppercase tracking-tighter leading-none mb-4">{viewingStudent.lastName}, {viewingStudent.firstName}</h3>
-                      
+                       
                       <div className="flex-1 overflow-y-auto space-y-6 custom-scrollbar pr-2">
                           <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100 grid grid-cols-2 gap-6">
                               <div><label className="text-[9px] font-black text-slate-400 uppercase block mb-1">DNI</label><p className="font-bold text-slate-800">{viewingStudent.dni || '-'}</p></div>
@@ -425,7 +415,7 @@ const handleOpenCase = (c) => {
                               <div className="col-span-2"><label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Obra Social</label><p className="font-bold text-slate-800 uppercase">{viewingStudent.healthInsurance || 'S/D'}</p></div>
                           </div>
 
-                          {/* INTERVENCIONES / SEGUIMIENTO SOCIAL (INCLUYENDO ARCHIVADOS) */}
+                          {/* INTERVENCIONES / SEGUIMIENTO SOCIAL */}
                           <div className="space-y-3">
                               <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest ml-1 flex items-center gap-1">
                                   <Briefcase size={14}/> Intervenciones de Trabajo Social {studentSocialCase?.status === 'Reincorporado' && <span className="text-[8px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded ml-1">Archivado</span>}
