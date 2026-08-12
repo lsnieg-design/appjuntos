@@ -1278,17 +1278,18 @@ const filteredStudents = students.filter(s => {
                             
                             const sociales = [];
                             (socialCases || []).filter(c => {
-                              if (c.studentId && c.studentId === viewingStudent.id) return true;
+                              if (c.studentId && viewingStudent.id && c.studentId === viewingStudent.id) return true;
                               if (c.dni && viewingStudent.dni && c.dni === viewingStudent.dni) return true;
-                              return false;
+                              const fullName = `${viewingStudent.lastName || ''}, ${viewingStudent.firstName || ''}`.trim().toLowerCase();
+                              return (c.studentName || '').trim().toLowerCase() === fullName;
                             }).forEach(c => {
                               if (c.history && Array.isArray(c.history)) {
                                 c.history.forEach(h => {
                                   sociales.push({
                                     date: h.date || new Date().toISOString(),
-                                    text: h.text,
+                                    text: `📋 [Gabinete] ${h.text}`,
                                     author: h.author || 'Gabinete',
-                                    severity: (c.status === 'Archivado' || c.status === 'Reincorporado') ? 'low' : 'high',
+                                    severity: 'high',
                                     source: 'social',
                                     isClosed: c.status === 'Archivado' || c.status === 'Reincorporado'
                                   });
@@ -1297,7 +1298,6 @@ const filteredStudents = students.filter(s => {
                             });
                             
                             const combined = [...normales, ...sociales].sort((a, b) => new Date(b.date) - new Date(a.date));
-                            
                             return (
                                 <div className="flex flex-col gap-3">
                                     <div className="flex justify-between items-center mb-1">
