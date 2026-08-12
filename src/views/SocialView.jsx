@@ -63,21 +63,22 @@ export function SocialView({ user, db, appId }) {
     return (c.history?.length || 0) > lastSeenCount;
   };
 
- const handleOpenCase = (c) => {
-    const studentInfo = students.find(s => {
-      // 1. Coincidencia exacta por ID (la ideal)
-      if (c.studentId && s.id === c.studentId) return true;
+const handleOpenCase = (c) => {
+    // Buscamos primero estrictamente por ID único de Firebase
+    let studentInfo = students.find(s => c.studentId && s.id === c.studentId);
 
-      // 2. Coincidencia por DNI si el caso lo tuviera registrado
-      if (c.dni && s.dni && c.dni === s.dni) return true;
+    // Si el caso social NO tiene studentId (casos viejos), buscamos por DNI o Nombre Completo exacto
+    if (!studentInfo) {
+      studentInfo = students.find(s => {
+        if (c.dni && s.dni && c.dni === s.dni) return true;
+        const fullName = `${s.lastName || ''}, ${s.firstName || ''}`.trim().toLowerCase();
+        return (c.studentName || '').trim().toLowerCase() === fullName;
+      });
+    }
 
-      // 3. Coincidencia estricta por Nombre y Apellido completos
-      const fullNameA = `${s.lastName || ''} ${s.firstName || ''}`.trim().toLowerCase();
-      const fullNameB = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
-      const caseName = (c.studentName || '').trim().toLowerCase();
-
-      return caseName === fullNameA || caseName === fullNameB;
-    });
+    setSelectedCase({ ...c, fullInfo: studentInfo });
+    localStorage.setItem(`lastSeenSocial_${c.id}_${user.id}`, c.history?.length || 0);
+  };
 
     setSelectedCase({ ...c, fullInfo: studentInfo });
     localStorage.setItem(`lastSeenSocial_${c.id}_${user.id}`, c.history?.length || 0);
@@ -401,15 +402,15 @@ export function SocialView({ user, db, appId }) {
       {viewingStudent && (() => {
           // Buscamos el caso social en allSocialCases (incluye archivados)
        const studentSocialCase = allSocialCases.find(c => {
-      // 1. Coincidencia exacta por ID de estudiante
-      if (c.studentId && c.studentId === viewingStudent.id) return true;
+      // 1. Coincidencia estricta y obligatoria por ID
+      if (c.studentId && viewingStudent.id && c.studentId === viewingStudent.id) return true;
 
-      // 2. Coincidencia estricta por Nombre y Apellido completos
-      const fullNameA = `${viewingStudent.lastName || ''} ${viewingStudent.firstName || ''}`.trim().toLowerCase();
-      const fullNameB = `${viewingStudent.firstName || ''} ${viewingStudent.lastName || ''}`.trim().toLowerCase();
-      const caseName = (c.studentName || '').trim().toLowerCase();
+      // 2. Coincidencia por DNI
+      if (c.dni && viewingStudent.dni && c.dni === viewingStudent.dni) return true;
 
-      return caseName === fullNameA || caseName === fullNameB;
+      // 3. Si no tiene ID ni DNI, comparamos el nombre y apellido completo exacto (NUNCA solo el apellido)
+      const fullName = `${viewingStudent.lastName || ''}, ${viewingStudent.firstName || ''}`.trim().toLowerCase();
+      return (c.studentName || '').trim().toLowerCase() === fullName;
   });
           return (
               <div className="fixed inset-0 bg-slate-900/95 z-[200] flex items-center justify-center p-4 backdrop-blur-md animate-in zoom-in-95">
