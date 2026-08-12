@@ -110,9 +110,15 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
     }
   };
 
-  const handleReportAbsenteeism = async () => {
+ const handleReportAbsenteeism = async () => {
     const reason = prompt("¿Motivo del ausentismo prolongado? (Ej: Salud, Viaje, etc.)");
     if (!reason) return;
+    
+    if (!db || !appId) {
+      alert("❌ Error: Faltan credenciales de Firebase (db o appId).");
+      return;
+    }
+
     setLoading(true);
     try {
       const studentRef = doc(db, 'artifacts', appId, 'public', 'data', 'students', student.id);
@@ -121,40 +127,48 @@ export function StudentDetailView({ student, onClose, onEdit, db, appId, user })
         type: 'AUSENTISMO PROLONGADO',
         text: `Alerta de ausentismo: ${reason}`,
         severity: 'medium',
-        author: user.firstName,
-        authorId: user.id
+        author: user?.firstName || "Docente",
+        authorId: user?.id || "unknown"
       };
+      
       await updateDoc(studentRef, { 
         incidents: arrayUnion(entry),
         absenteeismAlert: true 
       });
 
-      // DERIVACIÓN A TRABAJO SOCIAL DESDE ALERTA PROLONGADA
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'social_cases'), {
-          studentId: student.id,
-          dni: student.dni || "",
+      // 🚨 CREACIÓN DEL CASO SOCIAL EN FIREBASE (Asegurando studentId y dni)
+      const socialRef = collection(db, 'artifacts', appId, 'public', 'data', 'social_cases');
+      await addDoc(socialRef, {
+          studentId: student.id,           // 👈 Obligatorio para que no se crucen con otro apellido
+          dni: student.dni || "",          // 👈 Identificador seguro de respaldo
           studentName: `${student.lastName}, ${student.firstName}`,
           level: student.level || "SEDE",
-          reason: "REPORTE DESDE AULA: Ausentismo prolongado.",
-          status: "Pendiente",
+          reason: `REPORTE DESDE AULA: Ausentismo prolongado (${reason}).`,
+          status: "Pendiente",             // 👈 Vital para que aparezca en activos
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           steps: { llamada: { done: false }, continuidad: { sent: false } },
           history: [{ 
             date: new Date().toISOString(), 
             text: `Alerta de ausentismo: ${reason}`, 
-            author: user.firstName || "Docente" 
+            author: user?.firstName || "Docente" 
           }]
       });
 
-      const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
-      await updateDoc(userRef, { score: increment(5) });
+      if (user?.id) {
+        const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id);
+        await updateDoc(userRef, { score: increment(5) });
+      }
 
-      alert("⚠️ Alerta enviada al Equipo Técnico. ¡Sumaste 5 puntos!");
-    } catch (e) { alert(e.message); }
-    finally { setLoading(false); }
+      alert("⚠️ Alerta enviada al Equipo Técnico y derivada a Trabajo Social. ¡Sumaste 5 puntos!");
+    } catch (e) { 
+      console.error("Error al reportar ausentismo:", e);
+      alert("Error al guardar en Firebase: " + e.message); 
+    } finally { 
+      setLoading(false); 
+    }
   };
-
+  
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[250] flex items-center justify-center p-4">
       <div className="bg-white rounded-[40px] w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95">
