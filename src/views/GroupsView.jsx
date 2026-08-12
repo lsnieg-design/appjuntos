@@ -427,7 +427,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     }
   };
 
-  const handleSaveIncident = async (type, severity = "medium", text = "") => {
+const handleSaveIncident = async (type, severity = "medium", text = "") => {
     const activeStudent = showBitacoraModal || selectedStudent;
     if (!activeStudent) return;
     setSavingIncident(true);
@@ -442,7 +442,6 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
         authorId: user?.id || "unknown" 
       };
 
-      // 1. Guardamos en la bitácora del alumno
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', activeStudent.id), { 
         incidents: arrayUnion(entry) 
       });
@@ -455,17 +454,14 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
         timestamp: serverTimestamp()
       });
 
+      // Definimos la variable limpiamente fuera de cualquier llamada
       const esAusentismo = type && type.toLowerCase().includes("ausentismo");
-
-      // 2. Si es ausentismo, creamos el caso social asegurando los campos clave
-      if (esAusentismo) {
-        const socialRef = collection(db, 'artifacts', const esAusentismo = type && type.toLowerCase().includes("ausentismo");
 
       if (esAusentismo) {
         const socialRef = collection(db, 'artifacts', appId, 'public', 'data', 'social_cases');
         await addDoc(socialRef, {
-          studentId: activeStudent.id,       // 👈 Obligatorio
-          dni: activeStudent.dni || "",      // 👈 Obligatorio
+          studentId: activeStudent.id,
+          dni: activeStudent.dni || "",
           studentName: `${activeStudent.lastName}, ${activeStudent.firstName}`,
           level: activeStudent.level || "SEDE", 
           reason: "REPORTE DESDE AULA: Ausentismo detectado.",
@@ -497,7 +493,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
       setSavingIncident(false); 
     }
   };
-
+  
   const handleAddGroupComment = async (e, groupName) => {
     e.preventDefault();
     const text = e.target.comment.value;
