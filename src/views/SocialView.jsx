@@ -63,23 +63,25 @@ export function SocialView({ user, db, appId }) {
     return (c.history?.length || 0) > lastSeenCount;
   };
 
-  const handleOpenCase = (c) => {
+ const handleOpenCase = (c) => {
     const studentInfo = students.find(s => {
-      // 1. Coincidencia exacta por ID (la más segura)
+      // 1. Coincidencia exacta por ID (la ideal)
       if (c.studentId && s.id === c.studentId) return true;
 
-      // 2. Coincidencia exacta por Nombre y Apellido completos
-      const fullName = `${s.lastName || ''} ${s.firstName || ''}`.trim().toLowerCase();
-      const reverseFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+      // 2. Coincidencia por DNI si el caso lo tuviera registrado
+      if (c.dni && s.dni && c.dni === s.dni) return true;
+
+      // 3. Coincidencia estricta por Nombre y Apellido completos
+      const fullNameA = `${s.lastName || ''} ${s.firstName || ''}`.trim().toLowerCase();
+      const fullNameB = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
       const caseName = (c.studentName || '').trim().toLowerCase();
 
-      return caseName === fullName || caseName === reverseFullName;
+      return caseName === fullNameA || caseName === fullNameB;
     });
 
     setSelectedCase({ ...c, fullInfo: studentInfo });
     localStorage.setItem(`lastSeenSocial_${c.id}_${user.id}`, c.history?.length || 0);
   };
-
   const updateStep = async (caseId, stepName) => {
     const c = cases.find(x => x.id === caseId);
     if (!c) return;
@@ -399,15 +401,16 @@ export function SocialView({ user, db, appId }) {
       {viewingStudent && (() => {
           // Buscamos el caso social en allSocialCases (incluye archivados)
        const studentSocialCase = allSocialCases.find(c => {
-    if (c.studentId && c.studentId === viewingStudent.id) return true;
-    
-    const fullName = `${viewingStudent.lastName || ''} ${viewingStudent.firstName || ''}`.trim().toLowerCase();
-    const reverseFullName = `${viewingStudent.firstName || ''} ${viewingStudent.lastName || ''}`.trim().toLowerCase();
-    const caseName = (c.studentName || '').trim().toLowerCase();
+      // 1. Coincidencia exacta por ID de estudiante
+      if (c.studentId && c.studentId === viewingStudent.id) return true;
 
-    return caseName === fullName || caseName === reverseFullName;
-});
+      // 2. Coincidencia estricta por Nombre y Apellido completos
+      const fullNameA = `${viewingStudent.lastName || ''} ${viewingStudent.firstName || ''}`.trim().toLowerCase();
+      const fullNameB = `${viewingStudent.firstName || ''} ${viewingStudent.lastName || ''}`.trim().toLowerCase();
+      const caseName = (c.studentName || '').trim().toLowerCase();
 
+      return caseName === fullNameA || caseName === fullNameB;
+  });
           return (
               <div className="fixed inset-0 bg-slate-900/95 z-[200] flex items-center justify-center p-4 backdrop-blur-md animate-in zoom-in-95">
                   <div className="bg-white rounded-[45px] w-full max-w-xl p-8 relative shadow-2xl flex flex-col max-h-[90vh]">
