@@ -801,17 +801,20 @@ const handleSaveIncident = async (type, severity = "medium", text = "") => {
         
         // Unificamos incidentes de aula y casos de gabinete/trabajo social (incluyendo archivados)
         const normales = (liveStudent.incidents || []).map(inc => ({ ...inc, source: 'aula' }));
-      const sociales = (socialCases || []).filter(c => {
-    // 1. Si el caso tiene el ID exacto del alumno, es 100% él.
-    if (c.studentId && c.studentId === liveStudent.id) return true;
+    const sociales = (socialCases || []).filter(c => {
+          // 1. Coincidencia estricta y obligatoria por ID de Firebase (Inquebrantable)
+          if (c.studentId && c.studentId === liveStudent.id) return true;
 
-    // 2. Si no tiene ID, comparamos nombre y apellido completo de forma estricta
-    const fullNameA = `${liveStudent.lastName || ''}, ${liveStudent.firstName || ''}`.trim().toLowerCase();
-    const fullNameB = `${liveStudent.firstName || ''} ${liveStudent.lastName || ''}`.trim().toLowerCase();
-    const caseName = (c.studentName || '').trim().toLowerCase();
+          // 2. Coincidencia por DNI si estuviese disponible
+          if (c.dni && liveStudent.dni && c.dni === liveStudent.dni) return true;
 
-    return caseName === fullNameA || caseName === fullNameB;
-});
+          // 3. Coincidencia estricta de Nombre y Apellido completos (JAMÁS solo el apellido)
+          const fullNameA = `${liveStudent.lastName || ''}, ${liveStudent.firstName || ''}`.trim().toLowerCase();
+          const fullNameB = `${liveStudent.firstName || ''} ${liveStudent.lastName || ''}`.trim().toLowerCase();
+          const caseName = (c.studentName || '').trim().toLowerCase();
+
+          return caseName === fullNameA || caseName === fullNameB;
+        });
         const historialUnificado = [...normales, ...sociales].sort((a, b) => new Date(b.date) - new Date(a.date));
 
         return (
