@@ -441,6 +441,8 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
         author: user?.fullName || user?.firstName || "Docente", 
         authorId: user?.id || "unknown" 
       };
+
+      // 1. Guardamos en la bitácora del alumno
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'students', activeStudent.id), { 
         incidents: arrayUnion(entry) 
       });
@@ -455,6 +457,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
 
       const esAusentismo = type && type.toLowerCase().includes("ausentismo");
 
+      // 2. Si es ausentismo, creamos el caso social asegurando los campos clave
       if (esAusentismo) {
         const socialRef = collection(db, 'artifacts', appId, 'public', 'data', 'social_cases');
         await addDoc(socialRef, {
@@ -462,14 +465,14 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
           studentName: `${activeStudent.lastName}, ${activeStudent.firstName}`,
           level: activeStudent.level || "SEDE", 
           reason: "REPORTE DESDE AULA: Ausentismo detectado.",
-          status: "Pendiente",
+          status: "Pendiente", // 👈 Vital para que aparezca en "Activos" y no en el archivo
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           steps: { llamada: { done: false }, continuidad: { sent: false } },
           history: [{ 
             date: new Date().toISOString(), 
-            text: `Caso abierto automáticamente por reporte de aula.`, 
-            author: "SISTEMA" 
+            text: `📢 REGISTRO AUTOMÁTICO: Caso abierto por reporte de ausentismo desde el aula.`, 
+            author: user?.fullName || user?.firstName || "Sistema" 
           }]
         });
       }
