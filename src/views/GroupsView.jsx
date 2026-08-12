@@ -67,7 +67,7 @@ export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
     { label: "Crisis Llanto", emoji: "😭", severity: "medium", color: "bg-orange-100 border-orange-300 text-orange-800" },
     { label: "Agresión / Violencia", emoji: "👊", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
     { label: "Fuga / Intento", emoji: "🏃", severity: "high", color: "bg-red-100 border-red-300 text-red-800" },
-    { label: "Ausentismo", emoji: "🏠", severity: "medium", color: "bg-blue-100 border-blue-300 text-blue-800" },
+    { label: "Ausentismo", emoji: "🏠", severity: "medium", color: "bg-blue-100 border-blue-300 text-blue-800" }, 
   ];
   
 
