@@ -1,2546 +1,1120 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import {
-  doc,
-  updateDoc,
-  deleteDoc, 
-  collection, 
-  query,
-  orderBy,
-  onSnapshot,
-  addDoc,
-  setDoc,
-  serverTimestamp,
-  where,
-  getDocs
-} from 'firebase/firestore';
-import {
-  User,
-  FileText,
-  Plus,
-  Users,
-  Grid,
-  ChevronLeft,
-  ChevronRight,
-  Printer,
-  MessageSquare,
-  Send,
-  Edit3,
-  X,
-  GraduationCap,
-  Activity,
-  Shield,
-  MapPin,
-  Phone,
-  Mail,
-  Settings2,
-  UserPlus,
-  UsersRound,
-  Save,
-  CalendarDays,
-  Clock3,
-  BookOpen,
-  ExternalLink,
-  Zap,
-  Trash2,
-  CheckCircle2,
-  AlertTriangle,
-  Heart,
-  Home,
-  UserRound
+import React, { useState, useEffect, useRef } from 'react';
+import { GroupsView } from './views/GroupsView';
+import { PersonalView } from './views/PersonalView';
+import { DashboardView } from './views/DashboardView';
+import { ResourcesView } from './views/ResourcesView';
+import { TasksView } from './views/TasksView';
+import { CalendarView } from './views/CalendarView';
+import { MedicalView } from './views/MedicalView';
+import { MatriculaView } from './views/MatriculaView';
+import { AdministracionView } from './views/AdministracionView';
+import { SocialView } from './views/SocialView';
+import { UsersAdminView } from './views/UsersAdminView';
+import { ProfileView } from './views/ProfileView';
+import { ProyectoView } from './views/ProyectoView';
+import { EvaluationsView } from './views/EvaluationsView';
+import { InformesView } from './views/InformesView';
+import { InformesExternosView } from './views/InformesExternosView';
+
+import { 
+  Calendar as CalendarIcon, CheckSquare, Settings, User, FileText, CheckCircle, 
+  Download, RefreshCw, Plus, Trash2, Users, AlertCircle, LogOut, Briefcase, 
+  Lock, List, Grid, ChevronLeft, ChevronRight, Bell, Check, HelpCircle, Mail, Camera, MapPin, 
+  Send, Key, Filter, LayoutDashboard, Link as LinkIcon, ExternalLink, Zap,
+  AlertTriangle, Clock, Shield, Crown, Activity, Share, PlusSquare, 
+  Smartphone, GraduationCap, Search, X, UploadCloud, PieChart, Eye, Edit3, Trophy,
+  Folder, MessageSquare, Globe, BookOpen, Lightbulb, ChevronDown, PlusCircle, Printer,
+  AlignLeft, AlignCenter, AlignRight, AlignJustify, Phone, CheckCircle2, Clock3, UserCheck,
+  ChevronUp, ClipboardCheck
 } from 'lucide-react';
-import { createGroup, updateGroup } from '../data/groups';
-import {
-  createStaffGroupAssignment,
-  closeStaffGroupAssignment,
-  getStaffGroupAssignmentsForGroup
-} from '../data/assignments';
-import { COLLECTIONS } from '../data/collections';
 
-const BASE = (db, appId, collectionName) =>
-  collection(db, 'artifacts', appId, 'public', 'data', collectionName);
-
-const DOC = (db, appId, collectionName, id) =>
-  doc(db, 'artifacts', appId, 'public', 'data', collectionName, id);
-
-const normalizeText = value =>
-  String(value ?? '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim();
-
-const calculateAge = birthDate => {
-  if (!birthDate) return null;
-  try {
-    const birth = new Date(birthDate);
-    const today = new Date();
-    let age = today.getFullYear() - birth.getFullYear();
-    const month = today.getMonth() - birth.getMonth();
-    if (month < 0 || (month === 0 && today.getDate() < birth.getDate())) age--;
-    return age;
-  } catch {
-    return null;
-  }
-};
-
-const formatDate = value => {
-  if (!value) return '-';
-  try {
-    if (value?.toDate) return value.toDate().toLocaleDateString('es-AR');
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '-';
-    return date.toLocaleDateString('es-AR');
-  } catch {
-    return '-';
-  }
-};
-
-const formatDateTime = value => {
-  if (!value) return '-';
-  try {
-    const date = value?.toDate ? value.toDate() : new Date(value);
-    if (Number.isNaN(date.getTime())) return '-';
-    return `${date.toLocaleDateString('es-AR')} · ${date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`;
-  } catch {
-    return '-';
-  }
-};
-
-const getPlacements = assignment => {
-  if (!assignment) return [];
-
-  if (Array.isArray(assignment.placements) && assignment.placements.length) {
-    return assignment.placements;
-  }
-
-  const groupId = assignment.groupId || '';
-  const turnIds = Array.isArray(assignment.turnIds) ? assignment.turnIds : [];
-
-  if (!groupId) return [];
-
-  return turnIds.map(turnId => ({ groupId, turnId }));
-};
-
-const getTurnIdsFromGroup = group =>
-  Array.isArray(group?.turnIds)
-    ? group.turnIds
-    : group?.turnId
-      ? [group.turnId]
-      : [];
-
-const safeName = person =>
-  person?.fullName ||
-  `${person?.firstName || ''} ${person?.lastName || ''}`.trim() ||
-  'Sin nombre';
-
-const escapeHtml = value =>
-  String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-
-const getSeverityClasses = severity => {
-  if (severity === 'positive') {
-    return 'bg-emerald-50 border-emerald-200 text-emerald-800';
-  }
-  if (severity === 'high') {
-    return 'bg-red-50 border-red-200 text-red-800';
-  }
-  if (severity === 'medium') {
-    return 'bg-orange-50 border-orange-200 text-orange-800';
-  }
-  return 'bg-slate-50 border-slate-200 text-slate-700';
-};
-
-const DEFAULT_ACTIONS = [
-  { label: 'Trabajó muy bien', emoji: '🌟', severity: 'positive' },
-  { label: 'Logro / aprendizaje', emoji: '🏆', severity: 'positive' },
-  { label: 'Buena participación', emoji: '🙌', severity: 'positive' },
-  { label: 'Buena conducta', emoji: '😊', severity: 'positive' },
-  { label: 'Crisis / desregulación', emoji: '😭', severity: 'medium' },
-  { label: 'Ausentismo', emoji: '🏠', severity: 'medium' },
-  { label: 'Agresión / violencia', emoji: '✋', severity: 'high' },
-  { label: 'Fuga / intento', emoji: '🏃', severity: 'high' }
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken} from 'firebase/auth';
+import { 
+  getFirestore, collection, addDoc, query, orderBy, onSnapshot, doc, 
+  updateDoc, deleteDoc, where, getDocs, getDoc, serverTimestamp, arrayUnion, arrayRemove, limit,increment 
+} from 'firebase/firestore';
+import { getMessaging, getToken, onMessage } from "firebase/messaging";
+const VALID_ROLES_OFFICIAL = [
+  "Docente", "Preceptora", "Auxiliar", "Profe Especial", "Equipo Técnico", "Equipo Directivo",
+  "Dirección Inclusión", "Equipo Técnico Inclusión", "DAI",
+  "Cocina", "Limpieza", "Mantenimiento", "Administración"
 ];
+const TURNS_LIST = ["Mañana", "Tarde", "Alternado", "Vespertino", "Doble"];
+ const LOGO_URL = "/icon-192.png";
 
-export function GroupsView({ user, db, appId, setActiveTab, onSelectStudent }) {
-  const [students, setStudents] = useState([]);
-  const [staffList, setStaffList] = useState([]);
-  const [groups, setGroups] = useState([]);
-  const [staffAssignments, setStaffAssignments] = useState([]);
-  const [institutionConfig, setInstitutionConfig] = useState({ turns: [], staffRoles: [], scheduleTypes: [] });
-  const [selectedTurnId, setSelectedTurnId] = useState('all');
 
-  const [selectedGroupDetails, setSelectedGroupDetails] = useState(null);
-  const [selectedStudent, setSelectedStudent] = useState(null);
-  const [showBitacoraModal, setShowBitacoraModal] = useState(null);
-  const [bitacoraEntries, setBitacoraEntries] = useState([]);
-  const [loadingBitacora, setLoadingBitacora] = useState(false);
-  const [editingBitacora, setEditingBitacora] = useState(null);
-  const [newNote, setNewNote] = useState('');
-  const [isWriting, setIsWriting] = useState(false);
-  const [savingIncident, setSavingIncident] = useState(false);
+const triggerMobileNotification = (title, body) => {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "granted") {
+    if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+      navigator.serviceWorker.ready.then((registration) => {
+        registration.showNotification(title, { body: body, icon: LOGO_URL, vibrate: [200, 100, 200] });
+      });
+    } else {
+      try { new Notification(title, { body, icon: LOGO_URL }); } catch (e) { console.log("Notif error"); }
+    }
+  }
+};
 
-  const [groupMessages, setGroupMessages] = useState({});
-  const [editingGroup, setEditingGroup] = useState(null);
-  const [staffSelections, setStaffSelections] = useState({});
-  const [updatingGroup, setUpdatingGroup] = useState(false);
-
-  const [showPrintOptions, setShowPrintOptions] = useState(false);
-  const [groupsToPrint, setGroupsToPrint] = useState([]);
-  const [printMode, setPrintMode] = useState('students');
-
-  const institutionMode = institutionConfig?.institutionMode || 'school';
-
-  const personLabel =
-    institutionMode === 'day_center'
-      ? 'concurrente'
-      : institutionMode === 'clinic'
-        ? 'paciente'
-        : 'estudiante';
-
-  const personLabelPlural =
-    institutionMode === 'day_center'
-      ? 'concurrentes'
-      : institutionMode === 'clinic'
-        ? 'pacientes'
-        : 'estudiantes';
-
-  const groupLabel =
-    institutionMode === 'day_center'
-      ? 'taller'
-      : institutionMode === 'clinic'
-        ? 'espacio / equipo'
-        : 'grupo';
-
-  const isManagement =
-    user?.rol === 'admin' ||
-    user?.rol === 'super-admin' ||
-    user?.accessRoleId === 'admin' ||
-    ['admin', 'super-admin', 'Equipo Directivo', 'Equipo Técnico', 'Administración'].includes(user?.role);
-
-  const scheduleTypeOptions = useMemo(() => {
-    const source = Array.isArray(institutionConfig?.scheduleTypes)
-      ? institutionConfig.scheduleTypes
-      : [];
-
-    return source.map((item, index) => {
-      if (typeof item === 'string') {
-        return {
-          id: item.toLowerCase().replace(/[^a-z0-9]+/g, '_'),
-          name: item
-        };
-      }
-
+const getFirebaseConfig = () => {
+  try {
+    if (import.meta.env && import.meta.env.VITE_FIREBASE_API_KEY) {
       return {
-        id: item?.id || `jornada_${index + 1}`,
-        name: item?.name || item?.label || `Jornada ${index + 1}`
+        apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+        authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+        projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+        storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+        messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+        appId: import.meta.env.VITE_FIREBASE_APP_ID
       };
-    });
-  }, [institutionConfig?.scheduleTypes]);
+    }
+  } catch (e) {
+    console.log("Buscando config global...");
+  }
+  if (typeof __firebase_config !== 'undefined') {
+    return JSON.parse(__firebase_config);
+  }
+  return {};
+};
 
-  const turnOptions = useMemo(() => {
-    const source = Array.isArray(institutionConfig?.turns)
-      ? institutionConfig.turns
-      : [];
+const firebaseConfig = getFirebaseConfig();
+const app = Object.keys(firebaseConfig).length > 0 ? initializeApp(firebaseConfig) : null;
+const auth = app ? getAuth(app) : null;
+const db = app ? getFirestore(app) : null;
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'escuela-app-prod';
 
-    return source.map((turn, index) => {
-      if (typeof turn === 'string') {
-        return { id: `turno_${index + 1}`, name: turn };
+ 
+const ROLES = [
+  'Docente', 
+  'Equipo Directivo', 
+  'Equipo Técnico', 
+  'Auxiliar/Preceptor', 
+  'Inclusión', 
+  'Profes Especiales', 
+  'Administración',
+  'Dirección Inclusión', 
+  'Equipo Técnico Inclusión',
+  'DAI'
+];
+const MODALIDADES = ['Sede', 'Inclusión'];
+const EVENT_TYPES = ['SALIDA EDUCATIVA', 'GENERAL', 'ADMINISTRATIVO', 'INFORMES', 'EVENTOS', 'ACTOS', 'EFEMÉRIDES', 'CUMPLEAÑOS', 'INCLUSIÓN' ];
+
+const calculateBusinessDaysLeft = (dateString) => {
+  if (!dateString) return 0;
+  
+  const FERIADOS_ARG_2026 = [
+    '2026-01-01', '2026-02-16', '2026-02-17', '2026-03-23', '2026-03-24', 
+    '2026-04-02', '2026-04-03', '2026-05-01', '2026-05-25', '2026-06-15', 
+    '2026-07-09', '2026-07-10', '2026-08-17', '2026-10-12', '2026-11-23', 
+    '2026-12-07', '2026-12-08', '2026-12-25'
+  ];
+
+  const targetDate = new Date(dateString + 'T00:00:00');
+  let currentDate = new Date();
+  currentDate.setHours(0,0,0,0);
+  targetDate.setHours(0,0,0,0);
+
+  if (targetDate <= currentDate) return 0;
+
+  let businessDays = 0;
+  let tempDate = new Date(currentDate);
+  
+  while (tempDate < targetDate) {
+    tempDate.setDate(tempDate.getDate() + 1);
+    const dayOfWeek = tempDate.getDay();
+    
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      const yyyy = tempDate.getFullYear();
+      const mm = String(tempDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(tempDate.getDate()).padStart(2, '0');
+      const formattedDate = `${yyyy}-${mm}-${dd}`;
+      
+      if (!FERIADOS_ARG_2026.includes(formattedDate)) {
+        businessDays++;
       }
+    }
+  }
 
-      return {
-        id: turn?.id || `turno_${index + 1}`,
-        name: turn?.name || turn?.label || `Turno ${index + 1}`
-      };
-    });
-  }, [institutionConfig?.turns]);
+  return businessDays;
+};
 
-  const roleOptions = useMemo(() => {
-    const source = Array.isArray(institutionConfig?.staffRoles)
-      ? institutionConfig.staffRoles
-      : [];
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString + 'T00:00:00');
+  return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
 
-    return source.map((role, index) => {
-      if (typeof role === 'string') {
-        return {
-          id: role.toLowerCase().replace(/[^a-z0-9]+/g, '_'),
-          name: role,
-          requiredForGroup: role.toLowerCase() === 'docente'
-        };
-      }
-
-      return {
-        id: role?.id || `rol_${index + 1}`,
-        name: role?.name || role?.label || `Rol ${index + 1}`,
-        requiredForGroup: Boolean(role?.requiredForGroup)
-      };
-    });
-  }, [institutionConfig?.staffRoles]);
-
-  const docenteRole = useMemo(
-    () => roleOptions.find(role => role.id === 'docente' || normalizeText(role.name) === 'docente') || {
-      id: 'docente',
-      name: 'Docente',
-      requiredForGroup: true
-    },
-    [roleOptions]
+function SplashScreen() {
+  return (
+    <div className="fixed inset-0 bg-gradient-to-br from-violet-600 to-indigo-700 z-[9999] flex flex-col items-center justify-center animate-out fade-out duration-1000 fill-mode-forwards">
+      <div className="bg-white p-6 rounded-[40px] shadow-2xl animate-bounce">
+        <img 
+          src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" 
+          alt="Logo" 
+          className="w-32 h-auto" 
+        />
+      </div>
+      <h1 className="mt-8 text-3xl font-black text-white tracking-widest uppercase italic animate-pulse">
+        Juntos a la Par
+      </h1>
+      <p className="text-white/60 text-xs font-bold mt-2 uppercase tracking-[4px]">Cargando Sistema...</p>
+    </div>
   );
+}
 
-  const normalizeRoles = roles => {
-    const result = Array.isArray(roles) ? [...roles] : [];
-    if (!result.includes(docenteRole.id) && institutionMode === 'school') {
-      result.unshift(docenteRole.id);
-    }
-    return [...new Set(result)];
-  };
+function NotificationsView({ notifications }) {
+  return (
+    <div className="p-4">
+      <h2 className="text-2xl font-black text-violet-900 mb-6 uppercase italic">Notificaciones</h2>
+      <div className="space-y-3">
+        {notifications.length === 0 ? (
+          <p className="text-gray-400 italic">No hay avisos nuevos.</p>
+        ) : (
+          notifications.map(n => (
+            <div key={n.id} className="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-orange-500">
+              <p className="font-bold text-slate-800">{n.title}</p>
+              <p className="text-sm text-slate-500">{n.message}</p>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
 
-  const getTurnLabel = turnId =>
-    turnOptions.find(turn => turn.id === turnId)?.name || turnId || '';
-
-  const getRoleLabel = roleId =>
-    roleOptions.find(role => role.id === roleId)?.name || roleId || 'Rol';
-
-  const getScheduleTypeLabel = scheduleType =>
-    scheduleTypeOptions.find(item => item.id === scheduleType)?.name ||
-    scheduleType ||
-    'Sin jornada';
-
-  useEffect(() => {
-    if (!db || !appId) return undefined;
-
-    let studentPeople = [];
-    let studentProfiles = [];
-    let studentAssignments = [];
-
-    const rebuildStudents = () => {
-      const peopleById = new Map(studentPeople.map(person => [person.id, person]));
-
-      const result = studentProfiles.map(profile => {
-        const person = peopleById.get(profile.personId) || {};
-        const assignments = studentAssignments.filter(item =>
-          item.studentId === (profile.personId || person.id) &&
-          item.status !== 'closed' &&
-          !item.validTo
-        );
-
-        return {
-          ...person,
-          ...profile,
-          id: profile.personId || person.id,
-          personId: profile.personId || person.id,
-          firstName: profile.firstName || person.firstName || '',
-          lastName: profile.lastName || person.lastName || '',
-          fullName: profile.fullName || person.fullName || `${person.firstName || ''} ${person.lastName || ''}`.trim(),
-          groupAssignments: assignments
-        };
-      });
-
-      setStudents(result);
-    };
-
-    const unsubConfig = onSnapshot(
-      doc(db, 'artifacts', appId, 'public', 'data', 'config', 'institution'),
-      snap => setInstitutionConfig(
-        snap.exists()
-          ? snap.data()
-          : { turns: [], staffRoles: [], scheduleTypes: [] }
-      )
-    );
-
-    const unsubGroups = onSnapshot(
-      BASE(db, appId, COLLECTIONS.GROUPS),
-      snap => setGroups(
-        snap.docs
-          .map(item => ({ id: item.id, ...item.data() }))
-          .filter(group => group.active !== false)
-          .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
-      )
-    );
-
-    const unsubStaff = onSnapshot(
-      query(
-        BASE(db, appId, COLLECTIONS.PEOPLE),
-        where('type', '==', 'staff')
-      ),
-      snap => setStaffList(
-        snap.docs.map(item => ({ id: item.id, ...item.data() }))
-      )
-    );
-
-    const unsubPeople = onSnapshot(
-      query(
-        BASE(db, appId, COLLECTIONS.PEOPLE),
-        where('type', '==', 'student')
-      ),
-      snap => {
-        studentPeople = snap.docs.map(item => ({ id: item.id, ...item.data() }));
-        rebuildStudents();
-      }
-    );
-
-    const unsubProfiles = onSnapshot(
-      BASE(db, appId, COLLECTIONS.STUDENT_PROFILES),
-      snap => {
-        studentProfiles = snap.docs.map(item => ({ id: item.id, ...item.data() }));
-        rebuildStudents();
-      }
-    );
-
-    const unsubStudentAssignments = onSnapshot(
-      BASE(db, appId, COLLECTIONS.STUDENT_GROUP_ASSIGNMENTS),
-      snap => {
-        studentAssignments = snap.docs.map(item => ({ id: item.id, ...item.data() }));
-        rebuildStudents();
-      }
-    );
-
-    const unsubStaffAssignments = onSnapshot(
-      BASE(db, appId, COLLECTIONS.STAFF_GROUP_ASSIGNMENTS),
-      snap => setStaffAssignments(
-        snap.docs.map(item => ({ id: item.id, ...item.data() }))
-      )
-    );
-
-    const unsubMural = onSnapshot(
-      query(
-        BASE(db, appId, 'group_mural'),
-        orderBy('createdAt', 'desc')
-      ),
-      snap => {
-        const messages = snap.docs.map(item => ({ id: item.id, ...item.data() }));
-        setGroupMessages(
-          messages.reduce((acc, message) => {
-            const key = message.groupId || message.groupName || 'sin-grupo';
-            if (!acc[key]) acc[key] = [];
-            acc[key].push(message);
-            return acc;
-          }, {})
-        );
-      }
-    );
-
-    return () => {
-      unsubConfig();
-      unsubGroups();
-      unsubStaff();
-      unsubPeople();
-      unsubProfiles();
-      unsubStudentAssignments();
-      unsubStaffAssignments();
-      unsubMural();
-    };
-  }, [db, appId]);
+export default function App() {
+  const [firebaseUser, setFirebaseUser] = useState(null);
+  const [currentUserProfile, setCurrentUserProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [configError, setConfigError] = useState(false);
+  const [minTimePassed, setMinTimePassed] = useState(false);
 
   useEffect(() => {
-    if (!db || !appId || !showBitacoraModal) return undefined;
+    setTimeout(() => setMinTimePassed(true), 2500);
+    if (!auth) { setConfigError(true); setLoading(false); return; }
 
-    setLoadingBitacora(true);
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (error) { console.error("Auth error:", error); }
+    };
+    initAuth();
 
-    const unsubscribe = onSnapshot(
-      BASE(db, appId, COLLECTIONS.STUDENT_BITACORA),
-      snapshot => {
-        const studentId = showBitacoraModal.personId || showBitacoraModal.id;
-
-        const entries = snapshot.docs
-          .map(item => ({ id: item.id, ...item.data() }))
-          .filter(entry => entry.studentId === studentId)
-          .sort((a, b) => {
-            const dateA = new Date(a.date || 0).getTime();
-            const dateB = new Date(b.date || 0).getTime();
-            return dateB - dateA;
-          });
-
-        setBitacoraEntries(entries);
-        setLoadingBitacora(false);
-      },
-      error => {
-        console.error('Error leyendo bitácora:', error);
-        setBitacoraEntries([]);
-        setLoadingBitacora(false);
-      }
-    );
-
-    return unsubscribe;
-  }, [db, appId, showBitacoraModal]);
-
-  const gruposFinales = useMemo(() => {
-    return groups
-      .filter(group => {
-        if (selectedTurnId === 'all') return true;
-        return getTurnIdsFromGroup(group).includes(selectedTurnId);
-      })
-      .map(group => {
-        const turnIds = getTurnIdsFromGroup(group);
-
-        const peopleInGroup = students.filter(person => {
-          return (person.groupAssignments || []).some(assignment => {
-            const placements = getPlacements(assignment);
-
-            return placements.some(placement =>
-              placement.groupId === group.id &&
-              (
-                selectedTurnId === 'all' ||
-                placement.turnId === selectedTurnId
-              )
-            );
-          });
-        });
-
-        const staffByRole = staffAssignments
-          .filter(item =>
-            item.groupId === group.id &&
-            item.status !== 'closed' &&
-            !item.validTo
-          )
-          .map(assignment => {
-            const person = staffList.find(item => item.id === assignment.staffId);
-
-            return {
-              ...assignment,
-              person,
-              roleName: getRoleLabel(assignment.roleId),
-              name: safeName(person) === 'Sin nombre' ? 'Sin asignar' : safeName(person)
-            };
-          });
-
-        return {
-          ...group,
-          turnIds,
-          turnLabels: turnIds.map(getTurnLabel).filter(Boolean),
-          enabledRoles: normalizeRoles(group.enabledRoles),
-          students: peopleInGroup,
-          staffByRole
-        };
-      });
-  }, [groups, students, staffList, staffAssignments, selectedTurnId, roleOptions, docenteRole.id, institutionMode]);
-
-  const selectedGroup = selectedGroupDetails
-    ? gruposFinales.find(group => group.id === selectedGroupDetails.id) || selectedGroupDetails
-    : null;
-
-  const openCreateGroup = () => {
-    setStaffSelections({});
-
-    setEditingGroup({
-      isNew: true,
-      name: '',
-      siteId: '',
-      levelId: '',
-      sectionId: '',
-      turnIds: turnOptions[0] ? [turnOptions[0].id] : [],
-      scheduleType: scheduleTypeOptions[0]?.id || '',
-      enabledRoles: normalizeRoles(institutionMode === 'school' ? [docenteRole.id] : []),
-      classroom: '',
-      institucionalDrive: ''
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setFirebaseUser(user);
+      const savedProfile = localStorage.getItem('schoolApp_profile');
+      if (savedProfile) setCurrentUserProfile(JSON.parse(savedProfile));
+      setLoading(false);
     });
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogin = (profileData) => { setCurrentUserProfile(profileData); localStorage.setItem('schoolApp_profile', JSON.stringify(profileData)); };
+  const handleLogout = () => { setCurrentUserProfile(null); localStorage.removeItem('schoolApp_profile'); };
+
+  if (loading) return <div className="flex items-center justify-center h-screen bg-violet-50"><div className="animate-spin rounded-full h-12 w-12 border-b-4 border-violet-600"></div></div>;
+  if (configError) return <div className="flex flex-col items-center justify-center h-screen bg-red-50 p-6 text-center"><AlertCircle className="text-red-500 w-16 h-16 mb-4" /><h1 className="text-xl font-bold text-red-700">Error de Configuración</h1></div>;
+  if (!currentUserProfile) return <LoginScreen onLogin={handleLogin} />;
+
+  
+ return <MainApp user={currentUserProfile} onLogout={handleLogout} />;
+}
+
+
+function LoginScreen({ onLogin }) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [showRecover, setShowRecover] = useState(false);
+  const [recoverUser, setRecoverUser] = useState('');
+  const [recoverStatus, setRecoverStatus] = useState('idle');
+  
+  const [showInstall, setShowInstall] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isIos, setIsIos] = useState(false);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+  useEffect(() => {
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
+    setIsIos(ios);
+
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      if (!isStandalone) setShowInstall(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    if (ios && !isStandalone) {
+        setTimeout(() => setShowInstall(true), 2000);
+    }
+
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, [isStandalone]);
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') setShowInstall(false);
+      setDeferredPrompt(null);
+    }
   };
 
-  const openEditGroup = async group => {
-    setUpdatingGroup(true);
-
+  const handleSubmit = async (e) => {
+    e.preventDefault(); setError(''); setChecking(true);
+    if (username === 'admin' && password === 'admin123') {
+      onLogin({ id: 'super-admin', firstName: 'Super', lastName: 'Admin', fullName: 'Super Admin', role: 'Equipo Directivo', rol: 'super-admin', isAdmin: true, username: 'admin' }); return;
+    }
     try {
-      const assignments = await getStaffGroupAssignmentsForGroup(db, appId, group.id);
-      const selections = {};
-
-      assignments
-        .filter(item => item.status !== 'closed' && !item.validTo)
-        .forEach(item => {
-          selections[item.roleId] = item.staffId;
-        });
-
-      setStaffSelections(selections);
-      setEditingGroup({
-        ...group,
-        enabledRoles: normalizeRoles(group.enabledRoles),
-        turnIds: getTurnIdsFromGroup(group)
-      });
-    } catch (error) {
-      console.error(error);
-      alert(`No se pudo abrir el ${groupLabel}: ${error.message}`);
-    } finally {
-      setUpdatingGroup(false);
-    }
+      const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
+      const q = query(usersRef, where('username', '==', username.toLowerCase()), where('password', '==', password));
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        const userDoc = querySnapshot.docs[0]; const userData = userDoc.data();
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', userDoc.id), { lastLogin: serverTimestamp() });
+        const esAdmin = userData.rol === 'admin';
+        onLogin({ ...userData, id: userDoc.id, isAdmin: esAdmin });
+      } else { setError('Usuario o contraseña incorrectos.'); }
+    } catch (err) { setError('Error de conexión.'); } finally { setChecking(false); }
   };
 
-  const handleUpdateGroup = async event => {
-    event.preventDefault();
-    if (!editingGroup) return;
-
-    setUpdatingGroup(true);
-
+  const handleRequestReset = async (e) => {
+    e.preventDefault(); if(!recoverUser.trim()) return; setRecoverStatus('sending');
     try {
-      const form = new FormData(event.currentTarget);
-      const name = String(form.get('groupName') || '').trim();
-
-      if (!name) {
-        throw new Error(`El ${groupLabel} necesita un nombre.`);
-      }
-
-      const turnIds = form.getAll('turnId');
-      const enabledRoles = normalizeRoles(form.getAll('roleId'));
-
-      const groupData = {
-        name,
-        siteId: String(form.get('siteId') || '').trim() || null,
-        levelId: institutionMode === 'school'
-          ? String(form.get('levelId') || '').trim() || null
-          : null,
-        sectionId: institutionMode === 'school'
-          ? String(form.get('sectionId') || '').trim() || null
-          : null,
-        turnIds,
-        scheduleType: institutionMode === 'school'
-          ? (form.get('scheduleType') || '')
-          : null,
-        enabledRoles,
-        classroom: String(form.get('classroom') || '').trim(),
-        institucionalDrive: String(form.get('institucionalDrive') || '').trim(),
-        active: true
-      };
-
-      const groupId = editingGroup.isNew
-        ? await createGroup(db, appId, groupData)
-        : editingGroup.id;
-
-      if (!editingGroup.isNew) {
-        await updateGroup(db, appId, groupId, groupData);
-      }
-
-      const previous = editingGroup.isNew
-        ? []
-        : await getStaffGroupAssignmentsForGroup(db, appId, groupId);
-
-      const activeByRole = previous.filter(item => item.status !== 'closed' && !item.validTo);
-
-      for (const role of roleOptions) {
-        const oldAssignment = activeByRole.find(item => item.roleId === role.id);
-        const selectedStaffId = enabledRoles.includes(role.id)
-          ? (staffSelections[role.id] || '')
-          : '';
-
-        if (oldAssignment?.staffId === selectedStaffId) continue;
-
-        if (oldAssignment) {
-          await closeStaffGroupAssignment(db, appId, oldAssignment.id);
-        }
-
-        if (selectedStaffId) {
-          await createStaffGroupAssignment(db, appId, {
-            staffId: selectedStaffId,
-            groupId,
-            roleId: role.id,
-            turnIds
-          });
-        }
-      }
-
-      setEditingGroup(null);
-      setStaffSelections({});
-    } catch (error) {
-      console.error(error);
-      alert(`No se pudo guardar el ${groupLabel}: ${error.message}`);
-    } finally {
-      setUpdatingGroup(false);
-    }
-  };
-
-  const openStudentSummary = student => {
-    setSelectedStudent(student);
-  };
-
-  const openFullLegajo = student => {
-    const studentId = student.personId || student.id;
-    if (typeof onSelectStudent === 'function' && studentId) {
-      onSelectStudent(studentId);
-    }
-
-    if (typeof setActiveTab === 'function') {
-      setActiveTab('matricula');
-    }
-
-    setSelectedStudent(null);
-    setSelectedGroupDetails(null);
-    setShowBitacoraModal(null);
-  };
-
-  const openBitacora = student => {
-    setSelectedStudent(null);
-    setShowBitacoraModal(student);
-    setEditingBitacora(null);
-    setIsWriting(false);
-    setNewNote('');
-  };
-
-  const saveBitacoraEntry = async ({ type, severity, text }) => {
-    const activeStudent = showBitacoraModal;
-    if (!activeStudent) return;
-
-    const cleanText = String(text || '').trim();
-    if (!cleanText) return;
-
-    setSavingIncident(true);
-
-    try {
-      const studentId = activeStudent.personId || activeStudent.id;
-      const entryData = {
-        studentId,
-        date: editingBitacora?.date || new Date().toISOString(),
-        type: editingBitacora?.type || type || 'Nota',
-        severity: editingBitacora?.severity || severity || 'medium',
-        text: cleanText,
-        author: editingBitacora?.author || user?.fullName || user?.firstName || 'Usuario',
-        authorId: editingBitacora?.authorId || user?.id || null,
-        updatedAt: serverTimestamp(),
-        ...(editingBitacora ? {} : { createdAt: serverTimestamp() })
-      };
-
-      if (editingBitacora?.id) {
-        await updateDoc(
-          DOC(db, appId, COLLECTIONS.STUDENT_BITACORA, editingBitacora.id),
-          entryData
-        );
-      } else {
-        await setDoc(
-          DOC(db, appId, COLLECTIONS.STUDENT_BITACORA, crypto.randomUUID()),
-          entryData
-        );
-      }
-
-      if (!editingBitacora && normalizeText(type).includes('ausentismo')) {
-        try {
-          await addDoc(
-            BASE(db, appId, 'social_cases'),
-            {
-              studentId,
-              dni: activeStudent.dni || '',
-              studentName: `${activeStudent.lastName || ''}, ${activeStudent.firstName || ''}`.trim(),
-              level: activeStudent.level || 'SEDE',
-              reason: 'REPORTE DESDE GRUPO: Ausentismo detectado.',
-              status: 'Pendiente',
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-              steps: {
-                llamada: { done: false },
-                continuidad: { sent: false }
-              },
-              history: [
-                {
-                  date: new Date().toISOString(),
-                  text: 'REGISTRO AUTOMÁTICO: Caso abierto por reporte de ausentismo desde el grupo.',
-                  author: user?.fullName || user?.firstName || 'Sistema'
-                }
-              ]
-            }
-          );
-        } catch (socialError) {
-          console.error('No se pudo abrir caso social:', socialError);
-        }
-      }
-
-      setEditingBitacora(null);
-      setIsWriting(false);
-      setNewNote('');
-    } catch (error) {
-      console.error(error);
-      alert(`No se pudo guardar la bitácora: ${error.message}`);
-    } finally {
-      setSavingIncident(false);
-    }
-  };
-
-  const editBitacoraEntry = entry => {
-    setEditingBitacora(entry);
-    setNewNote(entry.text || '');
-    setIsWriting(true);
-  };
-
-  const deleteBitacoraEntry = async entry => {
-    if (!entry?.id) return;
-
-    const confirmed = window.confirm(
-      `¿Querés eliminar este registro de la bitácora?\n\n${entry.text || entry.type || 'Registro'}`
-    );
-
-    if (!confirmed) return;
-
-    try {
-      await deleteDoc(
-        DOC(db, appId, COLLECTIONS.STUDENT_BITACORA, entry.id)
-      );
-    } catch (error) {
-      console.error(error);
-      alert(`No se pudo eliminar el registro: ${error.message}`);
-    }
-  };
-
-  const printBitacora = (student, entries) => {
-    const institutionName = institutionConfig?.institutionName || 'Mi Institución';
-    const logoUrl = institutionConfig?.logoUrl || '';
-    const age = calculateAge(student.birthDate);
-
-    const rows = entries
-      .slice()
-      .sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0))
-      .map(entry => `
-        <div class="entry ${escapeHtml(entry.severity || '')}">
-          <div class="entry-head">
-            <span>${escapeHtml(entry.type || 'Registro')}</span>
-            <span>${escapeHtml(formatDateTime(entry.date))}</span>
-          </div>
-          <div class="entry-text">${escapeHtml(entry.text || '')}</div>
-          <div class="entry-foot">Registrado por: ${escapeHtml(entry.author || 'Usuario')}</div>
-        </div>
-      `)
-      .join('');
-
-    const printWindow = window.open('', '_blank', 'width=1000,height=900');
-
-    if (!printWindow) {
-      alert('El navegador bloqueó la ventana de impresión.');
-      return;
-    }
-
-    printWindow.document.write(`
-      <!doctype html>
-      <html lang="es">
-        <head>
-          <meta charset="UTF-8" />
-          <title>Bitácora Express - ${escapeHtml(student.lastName)}, ${escapeHtml(student.firstName)}</title>
-          <style>
-            @page { size: A4 portrait; margin: 11mm; }
-            * { box-sizing: border-box; }
-            body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #1e293b; font-size: 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .top { display:flex; justify-content:space-between; align-items:center; border-bottom: 4px solid #7c3aed; padding-bottom: 12px; margin-bottom: 14px; }
-            .brand { display:flex; align-items:center; gap:12px; }
-            .logo { width:58px; height:58px; object-fit:contain; border-radius:14px; border:1px solid #e2e8f0; }
-            h1 { margin:0; font-size:20px; color:#4c1d95; text-transform:uppercase; }
-            .meta { margin-top:5px; color:#64748b; font-size:10px; font-weight:700; }
-            .entry { border:1px solid #e2e8f0; border-left:5px solid #cbd5e1; background:#f8fafc; border-radius:0 10px 10px 0; padding:10px 12px; margin-bottom:10px; page-break-inside:avoid; }
-            .entry.positive { border-left-color:#10b981; background:#ecfdf5; }
-            .entry.medium { border-left-color:#f97316; background:#fff7ed; }
-            .entry.high { border-left-color:#ef4444; background:#fef2f2; }
-            .entry-head { display:flex; justify-content:space-between; gap:15px; color:#64748b; text-transform:uppercase; font-weight:900; font-size:8px; margin-bottom:6px; }
-            .entry-text { font-size:12px; font-weight:700; line-height:1.4; }
-            .entry-foot { margin-top:7px; padding-top:6px; border-top:1px solid rgba(148,163,184,.25); color:#94a3b8; font-size:8px; font-weight:700; text-transform:uppercase; }
-            .empty { text-align:center; padding:30px; color:#94a3b8; font-style:italic; }
-            .footer { margin-top:20px; padding-top:10px; border-top:1px dashed #cbd5e1; text-align:center; color:#94a3b8; font-size:8px; }
-          </style>
-        </head>
-        <body>
-          <div class="top">
-            <div class="brand">
-              ${logoUrl ? `<img class="logo" src="${escapeHtml(logoUrl)}" />` : ''}
-              <div>
-                <h1>Bitácora Express</h1>
-                <div class="meta">${escapeHtml(institutionName)} · ${escapeHtml(student.lastName)}, ${escapeHtml(student.firstName)}</div>
-                <div class="meta">DNI: ${escapeHtml(student.dni || '-')} · Nacimiento: ${escapeHtml(formatDate(student.birthDate))} · Edad: ${escapeHtml(age ?? '-')} años</div>
-              </div>
-            </div>
-          </div>
-          ${rows || '<div class="empty">No hay registros en la bitácora.</div>'}
-          <div class="footer">Documento generado el ${escapeHtml(formatDate(new Date().toISOString()))}</div>
-          <script>window.addEventListener('load',()=>setTimeout(()=>window.print(),300));</script>
-        </body>
-      </html>
-    `);
-
-    printWindow.document.close();
-  };
-
-  const printGroups = groupsList => {
-    const peopleTitle = institutionMode === 'day_center'
-      ? 'Concurrentes'
-      : institutionMode === 'clinic'
-        ? 'Pacientes'
-        : 'Estudiantes';
-
-    const institutionName = institutionConfig?.institutionName || 'Mi Institución';
-
-    const printWindow = window.open('', '_blank', 'width=1100,height=900');
-    if (!printWindow) {
-      alert('El navegador bloqueó la ventana de impresión.');
-      return;
-    }
-
-    const pages = groupsList.map(group => {
-      const rows = [...(group.students || [])]
-        .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''))
-        .map((student, index) => `
-          <tr>
-            <td class="center">${index + 1}</td>
-            <td>${escapeHtml(`${student.lastName || ''}, ${student.firstName || ''}`)}</td>
-            <td>${escapeHtml(student.dni || '-')}</td>
-            <td>${escapeHtml(calculateAge(student.birthDate) ?? '-')} años</td>
-            <td>${escapeHtml(formatDate(student.birthDate))}</td>
-            <td>${escapeHtml(student.phone || '-')}</td>
-          </tr>
-        `)
-        .join('');
-
-      const staff = (group.staffByRole || [])
-        .map(item => `${item.roleName}: ${item.name}`)
-        .join(' · ') || 'Sin personal asignado';
-
-      return `
-        <section class="page">
-          <div class="head">
-            <div>
-              <p class="eyebrow">${escapeHtml(institutionName)}</p>
-              <h1>${escapeHtml(group.name)}</h1>
-              <p>${escapeHtml(group.turnLabels?.join(' · ') || 'Sin turno')} · ${escapeHtml(group.classroom || 'Sin espacio')}</p>
-              <p>${escapeHtml(staff)}</p>
-            </div>
-            <div class="count">${group.students.length}<span>${peopleTitle}</span></div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Nombre y apellido</th>
-                <th>DNI</th>
-                <th>Edad</th>
-                <th>Fecha de nacimiento</th>
-                <th>Teléfono</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows || `<tr><td colspan="6" class="empty">Sin ${peopleTitle.toLowerCase()} asignados.</td></tr>`}
-            </tbody>
-          </table>
-        </section>
-      `;
-    }).join('');
-
-    printWindow.document.write(`
-      <!doctype html>
-      <html lang="es">
-        <head>
-          <meta charset="UTF-8" />
-          <title>Organización institucional</title>
-          <style>
-            @page { size:A4 landscape; margin:10mm; }
-            *{box-sizing:border-box}
-            body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#1e293b;font-size:9px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-            .page{page-break-after:always}.page:last-child{page-break-after:auto}
-            .head{display:flex;justify-content:space-between;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-left:5px solid #7c3aed;padding:12px 14px;border-radius:0 14px 14px 0;margin-bottom:10px}
-            .eyebrow{margin:0 0 2px;color:#7c3aed;text-transform:uppercase;font-size:8px;font-weight:900;letter-spacing:1.2px}
-            h1{margin:0;color:#0f172a;text-transform:uppercase;font-size:18px}
-            .head p{margin:3px 0 0;color:#64748b;font-weight:700}
-            .count{width:70px;height:70px;border-radius:18px;background:#f3e8ff;color:#7c3aed;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:22px;font-weight:900}
-            .count span{font-size:7px;text-transform:uppercase;letter-spacing:.8px;color:#8b5cf6;margin-top:2px}
-            table{width:100%;border-collapse:collapse}
-            th{background:#7c3aed;color:#fff;text-align:left;padding:7px;text-transform:uppercase;font-size:8px}
-            td{padding:6px;border:1px solid #e2e8f0;vertical-align:middle}
-            .center{text-align:center}.empty{text-align:center;color:#94a3b8;padding:20px;font-style:italic}
-          </style>
-        </head>
-        <body>${pages}<script>window.addEventListener('load',()=>setTimeout(()=>window.print(),300));</script></body>
-      </html>
-    `);
-    printWindow.document.close();
-  };
-
-  const handleAddGroupComment = async event => {
-    event.preventDefault();
-    if (!selectedGroup) return;
-
-    const form = new FormData(event.currentTarget);
-    const text = String(form.get('comment') || '').trim();
-    if (!text) return;
-
-    try {
-      await addDoc(BASE(db, appId, 'group_mural'), {
-        groupId: selectedGroup.id,
-        groupName: selectedGroup.name,
-        text,
-        author: user?.fullName || user?.firstName || 'Usuario',
-        authorId: user?.id || null,
-        createdAt: serverTimestamp()
-      });
-
-      event.currentTarget.reset();
-    } catch (error) {
-      console.error(error);
-      alert(`No se pudo publicar el mensaje: ${error.message}`);
-    }
+        const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'users'), where('username', '==', recoverUser));
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) { setRecoverStatus('error'); setTimeout(() => setRecoverStatus('idle'), 3000); return; }
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'requests'), { type: 'password_reset', username: recoverUser, status: 'pending', createdAt: serverTimestamp() });
+        setRecoverStatus('sent');
+    } catch (error) { setRecoverStatus('error'); }
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-100 animate-in fade-in relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-violet-900 to-fuchsia-900 flex items-center justify-center p-6 relative">
+      
+      {!isStandalone && showInstall && (
+         <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-500">
+             <div className="bg-white rounded-[35px] shadow-2xl p-6 w-full max-w-sm text-center mb-4 md:mb-0 border-t-8 border-violet-500 relative">
+                 <button onClick={() => setShowInstall(false)} className="absolute top-4 right-4 text-gray-300 hover:text-gray-500"><X size={24}/></button>
+                 
+                 <div className="flex justify-center mb-4">
+                    <div className="bg-violet-100 p-4 rounded-full animate-bounce">
+                        <Smartphone className="text-violet-600" size={40} />
+                    </div>
+                 </div>
+                 
+                 <h3 className="text-2xl font-black text-gray-800 mb-2 leading-tight">¡Instalá la App! 📲</h3>
+                 <p className="text-sm text-gray-500 mb-6 font-medium">Para tener acceso rápido y recibir notificaciones importantes, instalá la app en tu celular.</p>
+                 
+                 <div className="space-y-3">
+                     {!isIos ? (
+                         <button onClick={handleInstallClick} className="w-full bg-violet-600 text-white font-bold py-4 px-4 rounded-2xl shadow-xl hover:bg-violet-700 transition flex items-center justify-center gap-2 text-sm uppercase tracking-wide">
+                             <Download size={20}/> Instalar Ahora
+                         </button>
+                     ) : (
+                         <div className="text-left bg-gray-50 p-4 rounded-2xl border border-gray-100 text-xs text-gray-600 space-y-3">
+                             <p className="font-bold text-violet-600 text-center uppercase tracking-wider mb-2">Cómo instalar en iPhone:</p>
+                             <div className="flex items-center gap-3">
+                                 <div className="bg-white p-2 rounded-lg shadow-sm text-blue-500"><Share size={18}/></div>
+                                 <span>1. Tocá el botón <b>Compartir</b> (abajo al medio).</span>
+                             </div>
+                             <div className="flex items-center gap-3">
+                                 <div className="bg-white p-2 rounded-lg shadow-sm text-gray-600"><PlusSquare size={18}/></div>
+                                 <span>2. Buscá y elegí <b>"Agregar a Inicio"</b>.</span>
+                             </div>
+                             <div className="flex items-center gap-3">
+                                 <div className="bg-white p-2 rounded-lg shadow-sm font-bold text-blue-500 text-[10px]">Add</div>
+                                 <span>3. Dale a <b>Agregar</b> (arriba derecha).</span>
+                             </div>
+                         </div>
+                     )}
+                     <button onClick={() => setShowInstall(false)} className="text-gray-400 font-bold text-xs uppercase hover:text-gray-600 mt-2">Usar navegador por ahora</button>
+                 </div>
+             </div>
+         </div>
+      )}
 
-      {/* =========================================
-          ENCABEZADO
-      ========================================== */}
-
-      <div className="bg-white p-4 shadow-sm z-20 sticky top-0 flex flex-col gap-3 shrink-0">
-        <div className="flex justify-between items-center px-2 gap-3">
-          <div>
-            <h2 className="text-2xl font-black text-violet-900 uppercase italic flex items-center gap-2">
-              <Grid size={24} className="text-orange-500" />
-              {institutionMode === 'day_center'
-                ? 'Talleres y grupos'
-                : institutionMode === 'clinic'
-                  ? 'Organización'
-                  : 'Mis grupos'}
-            </h2>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-8">
-              {institutionMode === 'day_center'
-                ? 'Organización institucional'
-                : institutionMode === 'clinic'
-                  ? 'Espacios y equipos de atención'
-                  : 'Vista institucional'}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {isManagement && (
-              <button
-                type="button"
-                onClick={openCreateGroup}
-                className="bg-violet-600 text-white px-4 py-2.5 rounded-xl hover:bg-violet-700 transition shadow-sm flex items-center gap-2 font-black text-xs"
-              >
-                <Plus size={16} />
-                {institutionMode === 'day_center'
-                  ? 'Nuevo taller'
-                  : institutionMode === 'clinic'
-                    ? 'Nuevo espacio'
-                    : 'Nuevo grupo'}
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => {
-                setGroupsToPrint(gruposFinales);
-                setShowPrintOptions(true);
-              }}
-              className="bg-slate-100 text-slate-700 p-2.5 rounded-xl hover:bg-slate-200 transition shadow-sm"
-              title="Imprimir"
-            >
-              <Printer size={21} />
-            </button>
-          </div>
+      <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md border-t-8 border-orange-500 relative z-0">
+        <div className="text-center mb-8">
+            <div className="flex justify-center mb-4"><img src="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/crop/x_0,y_79,w_500,h_343/fill/w_143,h_98,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png" alt="Logo" className="h-24 w-auto object-contain drop-shadow-md" /></div>
+            <h1 className="text-2xl font-extrabold text-violet-900 tracking-tight uppercase">PORTAL INSTITUCIONAL<br/><span className="text-orange-500">JUNTOS A LA PAR</span></h1>
         </div>
 
-        {turnOptions.length > 0 && (
-          <div className="flex items-center gap-2 mx-2 overflow-x-auto no-scrollbar">
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl shrink-0">
-              <button
-                type="button"
-                onClick={() => setSelectedTurnId('all')}
-                className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase ${selectedTurnId === 'all' ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-400'}`}
-              >
-                Todos
-              </button>
-
-              {turnOptions.map(turnOption => (
-                <button
-                  type="button"
-                  key={turnOption.id}
-                  onClick={() => setSelectedTurnId(turnOption.id)}
-                  className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase whitespace-nowrap ${selectedTurnId === turnOption.id ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-400'}`}
-                >
-                  {turnOption.name}
-                </button>
-              ))}
-            </div>
+        {!showRecover ? (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div><label className="block text-xs font-bold text-violet-900 uppercase mb-2 ml-1">Usuario</label><div className="relative group"><User className="absolute left-3 top-3.5 text-violet-300" size={18} /><input type="text" required className="w-full pl-10 pr-4 py-3 bg-violet-50 border border-violet-100 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="Nombre de usuario" value={username} onChange={(e) => setUsername(e.target.value)} /></div></div>
+            <div><label className="block text-xs font-bold text-violet-900 uppercase mb-2 ml-1">Contraseña</label><div className="relative group"><Lock className="absolute left-3 top-3.5 text-violet-300" size={18} /><input type="password" required className="w-full pl-10 pr-4 py-3 bg-violet-50 border border-violet-100 rounded-xl outline-none focus:ring-2 focus:ring-orange-400" placeholder="••••••" value={password} onChange={(e) => setPassword(e.target.value)} /></div></div>
+            <div className="flex justify-end"><button type="button" onClick={() => setShowRecover(true)} className="text-xs font-bold text-violet-600 hover:text-orange-500 transition">¿Olvidaste tu contraseña?</button></div>
+            {error && <div className="bg-red-50 text-red-600 text-sm p-4 rounded-xl flex items-center gap-3 border border-red-100">{error}</div>}
+            <button type="submit" disabled={checking} className="w-full bg-gradient-to-r from-violet-600 to-violet-800 text-white py-4 rounded-xl font-bold text-lg hover:from-orange-500 hover:to-orange-600 transition duration-300 shadow-xl disabled:opacity-70 flex justify-center items-center">{checking ? <RefreshCw className="animate-spin" /> : 'Ingresar al Portal'}</button>
+          </form>
+        ) : (
+          <div className="animate-in fade-in slide-in-from-right">
+              <div className="bg-violet-50 p-6 rounded-2xl text-center mb-6 border border-violet-100">
+                <Key className="mx-auto text-violet-500 mb-2" size={40} />
+                <h3 className="font-bold text-violet-900 text-lg mb-2">Solicitar Blanqueo</h3>
+                <p className="text-sm text-gray-600 mb-4">Ingresa tu usuario para notificar a administración.</p>
+                {recoverStatus === 'sent' ? (
+                    <div className="bg-green-100 text-green-700 p-3 rounded-xl mb-4 text-sm font-bold flex items-center justify-center gap-2"><CheckCircle size={18} /> ¡Solicitud Enviada!</div>
+                ) : (
+                    <form onSubmit={handleRequestReset} className="mb-4">
+                        <input className="w-full p-3 bg-white border border-violet-200 rounded-xl mb-3 text-center focus:ring-2 focus:ring-orange-400 outline-none" placeholder="Tu Usuario" value={recoverUser} onChange={(e) => setRecoverUser(e.target.value)} required />
+                        <button type="submit" disabled={recoverStatus === 'sending'} className="w-full bg-orange-500 text-white py-3 rounded-xl font-bold hover:bg-orange-600 transition flex items-center justify-center gap-2">{recoverStatus === 'sending' ? <RefreshCw className="animate-spin" size={18} /> : <><Send size={18} /> Enviar Solicitud</>}</button>
+                        {recoverStatus === 'error' && <p className="text-xs text-red-500 mt-2 font-bold">Error de red o usuario incorrecto.</p>}
+                    </form>
+                )}
+              </div>
+              <button onClick={() => {setShowRecover(false); setRecoverStatus('idle');}} className="w-full text-gray-500 font-bold py-3 hover:text-gray-700 transition">Volver al inicio</button>
           </div>
         )}
       </div>
-
-      {/* =========================================
-          LISTADO DE GRUPOS
-      ========================================== */}
-
-      <div className="flex-1 overflow-y-auto bg-slate-50/70">
-        <div className="max-w-[1800px] mx-auto p-4 md:p-6 lg:p-8">
-
-          {gruposFinales.length === 0 ? (
-            <div className="min-h-[420px] flex items-center justify-center">
-              <div className="w-full max-w-xl bg-white border border-slate-200 rounded-[32px] p-10 md:p-14 text-center shadow-sm">
-                <div className="w-20 h-20 mx-auto rounded-[24px] bg-violet-50 text-violet-600 flex items-center justify-center mb-6">
-                  <UsersRound size={34} />
-                </div>
-
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-500">
-                  Organización institucional
-                </p>
-
-                <h3 className="text-2xl font-black text-slate-900 mt-2">
-                  Todavía no hay {groupLabel}s
-                </h3>
-
-                <p className="text-sm leading-relaxed text-slate-500 mt-3 max-w-md mx-auto">
-                  Creá la estructura de la institución y después asigná a las personas desde sus legajos.
-                </p>
-
-                {isManagement && (
-                  <button
-                    type="button"
-                    onClick={openCreateGroup}
-                    className="mt-7 inline-flex items-center gap-2 px-5 py-3.5 bg-violet-600 hover:bg-violet-700 text-white rounded-2xl font-black text-xs shadow-lg shadow-violet-200 transition"
-                  >
-                    <Plus size={17} />
-                    Crear primero
-                  </button>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-5">
-              {gruposFinales.map(group => {
-                const staffCount = group.staffByRole?.length || 0;
-                const peopleTitle = institutionMode === 'day_center'
-                  ? 'Concurrentes'
-                  : institutionMode === 'clinic'
-                    ? 'Pacientes'
-                    : 'Estudiantes';
-
-                return (
-                  <article
-                    key={group.id}
-                    className="group bg-white rounded-[30px] border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all overflow-hidden"
-                  >
-                    <div className="p-5 md:p-6">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap gap-2 mb-3">
-                            {group.turnLabels?.map(label => (
-                              <span
-                                key={label}
-                                className="inline-flex items-center px-2.5 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-100 text-[9px] font-black uppercase tracking-wide"
-                              >
-                                {label}
-                              </span>
-                            ))}
-
-                            {institutionMode === 'school' && group.scheduleType && (
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-[9px] font-black uppercase tracking-wide">
-                                {getScheduleTypeLabel(group.scheduleType)}
-                              </span>
-                            )}
-                          </div>
-
-                          <h3 className="text-xl md:text-2xl font-black text-slate-900 truncate">
-                            {group.name}
-                          </h3>
-
-                          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[10px] font-bold text-slate-400 uppercase">
-                            {institutionMode === 'school' && group.levelId && <span>{group.levelId}</span>}
-                            {institutionMode === 'school' && group.sectionId && <span>• {group.sectionId}</span>}
-                            {group.classroom && <span>• {group.classroom}</span>}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setGroupsToPrint([group]);
-                              setShowPrintOptions(true);
-                            }}
-                            className="p-2.5 rounded-xl bg-slate-50 text-slate-500 hover:bg-slate-100 transition"
-                            title="Imprimir grupo"
-                          >
-                            <Printer size={15} />
-                          </button>
-
-                          {isManagement && (
-                            <button
-                              type="button"
-                              onClick={() => openEditGroup(group)}
-                              className="p-2.5 rounded-xl bg-violet-50 text-violet-600 hover:bg-violet-100 transition"
-                              title={`Editar ${groupLabel}`}
-                            >
-                              <Edit3 size={15} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3 mt-6">
-                        <div className="rounded-2xl bg-slate-50 border border-slate-100 p-3">
-                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                            {peopleTitle}
-                          </p>
-                          <p className="text-2xl font-black text-slate-800 mt-1">
-                            {group.students.length}
-                          </p>
-                        </div>
-
-                        <div className="rounded-2xl bg-violet-50 border border-violet-100 p-3">
-                          <p className="text-[9px] font-black uppercase tracking-widest text-violet-400">
-                            Equipo
-                          </p>
-                          <p className="text-2xl font-black text-violet-700 mt-1">
-                            {staffCount}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-5 pt-5 border-t border-slate-100">
-                        <div className="flex items-center justify-between gap-3 mb-3">
-                          <div>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                              Personal asignado
-                            </p>
-                            <p className="text-xs text-slate-500 mt-1">
-                              {staffCount === 0 ? 'Sin asignaciones' : `${staffCount} rol${staffCount === 1 ? '' : 'es'}`}
-                            </p>
-                          </div>
-
-                          {group.institucionalDrive && (
-                            <button
-                              type="button"
-                              onClick={() => window.open(group.institucionalDrive, '_blank', 'noopener,noreferrer')}
-                              className="text-[10px] font-black text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
-                            >
-                              <ExternalLink size={13} />
-                              Drive
-                            </button>
-                          )}
-                        </div>
-
-                        {group.staffByRole?.length > 0 ? (
-                          <div className="space-y-2">
-                            {group.staffByRole.slice(0, 3).map(assignment => (
-                              <div
-                                key={assignment.id || `${group.id}-${assignment.roleId}`}
-                                className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50/70 px-3 py-2.5"
-                              >
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <span className={`w-2 h-2 rounded-full shrink-0 ${assignment.name && assignment.name !== 'Sin asignar' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                                  <span className="text-[10px] font-black uppercase text-slate-400 truncate">
-                                    {assignment.roleName}
-                                  </span>
-                                </div>
-
-                                <span className="text-[10px] font-black text-slate-700 text-right truncate">
-                                  {assignment.name}
-                                </span>
-                              </div>
-                            ))}
-
-                            {group.staffByRole.length > 3 && (
-                              <p className="text-[9px] text-slate-400 font-bold uppercase">
-                                +{group.staffByRole.length - 3} asignaciones más
-                              </p>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="p-3 rounded-2xl bg-amber-50 border border-amber-100 text-xs font-bold text-amber-700">
-                            Todavía no hay personal asignado.
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="mt-5 flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedGroupDetails(group)}
-                          className="flex-1 py-3 rounded-2xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-wide hover:bg-slate-800 transition"
-                        >
-                          Ver {groupLabel}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setSelectedGroupDetails(group)}
-                          className="px-4 py-3 rounded-2xl bg-violet-50 text-violet-700 hover:bg-violet-100 transition"
-                          title={`Ver ${peopleTitle.toLowerCase()}`}
-                        >
-                          <Users size={17} />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="border-t border-slate-100 bg-slate-50/50 p-3">
-                      {group.students.length === 0 ? (
-                        <div className="text-center py-4">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">
-                            Sin {peopleTitle.toLowerCase()} asignados
-                          </p>
-                          <p className="text-[10px] text-slate-400 mt-1">
-                            La asignación se gestiona desde los legajos.
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex -space-x-2 overflow-hidden pl-1">
-                            {[...group.students]
-                              .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''))
-                              .slice(0, 6)
-                              .map(person => (
-                                <button
-                                  type="button"
-                                  key={person.id}
-                                  onClick={() => openStudentSummary(person)}
-                                  className="w-9 h-9 rounded-full border-2 border-white bg-slate-200 overflow-hidden flex items-center justify-center text-[9px] font-black text-slate-400 hover:scale-105 transition"
-                                  title={`${person.lastName || ''}, ${person.firstName || ''}`}
-                                >
-                                  {person.photoUrl ? (
-                                    <img
-                                      src={person.photoUrl}
-                                      alt=""
-                                      className="w-full h-full object-cover"
-                                    />
-                                  ) : (
-                                    (person.firstName?.[0] || '?').toUpperCase()
-                                  )}
-                                </button>
-                              ))}
-
-                            {group.students.length > 6 && (
-                              <button
-                                type="button"
-                                onClick={() => setSelectedGroupDetails(group)}
-                                className="w-9 h-9 rounded-full border-2 border-white bg-violet-100 text-violet-700 flex items-center justify-center text-[9px] font-black hover:scale-105 transition"
-                              >
-                                +{group.students.length - 6}
-                              </button>
-                            )}
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => setSelectedGroupDetails(group)}
-                            className="text-[10px] font-black text-slate-400 uppercase hover:text-violet-600 transition"
-                          >
-                            Ver listado →
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* =========================================
-          MODAL GRUPO
-      ========================================== */}
-
-      {selectedGroup && (
-        <div className="fixed inset-0 bg-slate-100 z-[500] flex flex-col animate-in fade-in">
-          <div className="p-4 md:p-5 border-b border-violet-100 flex justify-between items-center bg-white shrink-0 shadow-sm">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="bg-violet-600 text-white p-2.5 rounded-xl shadow-lg shrink-0">
-                <Users size={20} />
-              </div>
-
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-xl font-black uppercase italic text-slate-800 leading-none truncate">
-                    {selectedGroup.name}
-                  </h2>
-
-                  {selectedGroup.turnLabels?.map(label => (
-                    <span
-                      key={label}
-                      className="text-[8px] font-black uppercase bg-violet-50 text-violet-700 border border-violet-100 px-2 py-1 rounded-full"
-                    >
-                      {label}
-                    </span>
-                  ))}
-                </div>
-
-                <p className="text-[9px] font-bold text-violet-400 uppercase tracking-widest mt-1">
-                  {institutionMode === 'day_center'
-                    ? 'Taller · organización y acompañamiento'
-                    : institutionMode === 'clinic'
-                      ? 'Espacio · equipo de atención'
-                      : 'Grupo · organización institucional'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              {selectedGroup.institucionalDrive && (
-                <button
-                  type="button"
-                  onClick={() => window.open(selectedGroup.institucionalDrive, '_blank', 'noopener,noreferrer')}
-                  className="hidden md:flex px-3 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase items-center gap-2 hover:bg-emerald-100 transition"
-                >
-                  <ExternalLink size={15} />
-                  Drive
-                </button>
-              )}
-
-              {isManagement && (
-                <button
-                  type="button"
-                  onClick={() => openEditGroup(selectedGroup)}
-                  className="p-2.5 rounded-xl bg-violet-50 text-violet-700 hover:bg-violet-100 transition"
-                  title={`Editar ${groupLabel}`}
-                >
-                  <Edit3 size={18} />
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setSelectedGroupDetails(null)}
-                className="p-2.5 bg-slate-100 rounded-full text-slate-400 hover:text-red-500 transition-all"
-                title="Cerrar"
-              >
-                <X size={21} />
-              </button>
-            </div>
-          </div>
-
-          <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-
-            {/* =========================================
-                IZQUIERDA — INTEGRANTES
-            ========================================== */}
-
-            <div className="w-full lg:w-[470px] bg-white border-r flex flex-col overflow-hidden">
-              <div className="p-4 border-b border-slate-100 bg-slate-50/60">
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="rounded-2xl bg-white border border-slate-200 p-3">
-                    <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">
-                      {personLabelPlural}
-                    </p>
-                    <p className="text-xl font-black text-slate-800 mt-1">
-                      {selectedGroup.students.length}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl bg-white border border-slate-200 p-3">
-                    <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">
-                      Equipo
-                    </p>
-                    <p className="text-xl font-black text-slate-800 mt-1">
-                      {selectedGroup.staffByRole?.length || 0}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl bg-violet-50 border border-violet-100 p-3">
-                    <p className="text-[8px] font-black uppercase tracking-widest text-violet-500">
-                      Espacio
-                    </p>
-                    <p className="text-xs font-black text-violet-800 mt-1 truncate">
-                      {selectedGroup.classroom || 'Sin definir'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto custom-scrollbar">
-                <div className="p-4">
-                  <div className="flex items-center justify-between gap-3 mb-3">
-                    <div>
-                      <p className="text-[9px] font-black uppercase tracking-widest text-violet-500">
-                        Integrantes
-                      </p>
-                      <p className="text-xs text-slate-400 mt-1">
-                        Tocá una persona para ver un resumen de su legajo.
-                      </p>
-                    </div>
-
-                    {selectedGroup.institutionalDrive && null}
-                  </div>
-
-                  {selectedGroup.students.length === 0 ? (
-                    <div className="p-5 rounded-2xl border border-dashed border-slate-200 text-center">
-                      <UsersRound size={24} className="mx-auto text-slate-300 mb-2" />
-                      <p className="text-xs font-bold text-slate-400">
-                        No hay {personLabelPlural} asignados a este {groupLabel}.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {[...selectedGroup.students]
-                        .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''))
-                        .map(person => {
-                          const age = calculateAge(person.birthDate);
-
-                          return (
-                            <div
-                              key={person.id}
-                              className="group/person flex items-center gap-3 p-3 rounded-2xl border border-slate-100 bg-white hover:border-violet-200 hover:shadow-sm transition"
-                            >
-                              <button
-                                type="button"
-                                onClick={() => openStudentSummary(person)}
-                                className="w-11 h-11 rounded-2xl bg-slate-100 overflow-hidden flex items-center justify-center font-black text-slate-400 shrink-0 hover:ring-2 hover:ring-violet-200 transition"
-                                title="Ver resumen del legajo"
-                              >
-                                {person.photoUrl ? (
-                                  <img src={person.photoUrl} alt="" className="w-full h-full object-cover" />
-                                ) : (
-                                  (person.firstName?.[0] || '?').toUpperCase()
-                                )}
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => openStudentSummary(person)}
-                                className="flex-1 min-w-0 text-left"
-                              >
-                                <p className="text-xs font-black uppercase text-slate-700 truncate">
-                                  {person.lastName}, {person.firstName}
-                                </p>
-                                <p className="text-[9px] font-bold text-violet-500 uppercase mt-0.5">
-                                  {age !== null ? `${age} años` : 'Edad s/d'}
-                                  {person.phone ? ` · ${person.phone}` : ''}
-                                </p>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => openBitacora(person)}
-                                className="w-10 h-10 rounded-xl bg-violet-50 text-violet-600 hover:bg-violet-100 flex items-center justify-center transition shrink-0"
-                                title="Bitácora Express"
-                              >
-                                <Zap size={20} />
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => openStudentSummary(person)}
-                                className="w-9 h-9 rounded-xl bg-slate-50 text-slate-400 hover:bg-violet-50 hover:text-violet-600 flex items-center justify-center transition shrink-0"
-                                title="Ver resumen"
-                              >
-                                <ChevronRight size={17} />
-                              </button>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  )}
-                </div>
-
-                {selectedGroup.staffByRole?.length > 0 && (
-                  <div className="p-4 border-t border-slate-100">
-                    <div className="flex items-center gap-2 mb-3">
-                      <UserPlus size={16} className="text-violet-500" />
-                      <h3 className="font-black uppercase italic text-xs text-slate-800">
-                        Equipo
-                      </h3>
-                    </div>
-
-                    <div className="space-y-2">
-                      {selectedGroup.staffByRole.map(assignment => (
-                        <div
-                          key={assignment.id || `${selectedGroup.id}-${assignment.roleId}`}
-                          className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100"
-                        >
-                          <div>
-                            <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">
-                              {assignment.roleName}
-                            </p>
-                            <p className="text-xs font-black text-slate-700 mt-1">
-                              {assignment.name}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* =========================================
-                DERECHA — MURO
-            ========================================== */}
-
-            <div className="flex-1 flex flex-col bg-slate-50 relative min-h-0">
-              <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#7c3aed_1px,transparent_1px)] [background-size:18px_18px]" />
-
-              <div className="p-4 bg-white border-b flex items-center justify-between shrink-0 z-10 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 bg-orange-500 text-white rounded-lg">
-                    <MessageSquare size={16} />
-                  </div>
-                  <div>
-                    <h3 className="font-black text-slate-800 uppercase italic text-sm">
-                      Muro del {groupLabel}
-                    </h3>
-                    <p className="text-[9px] text-slate-400 uppercase tracking-widest font-bold">
-                      Novedades del equipo
-                    </p>
-                  </div>
-                </div>
-
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded-full">
-                  {selectedGroupMessagesLength(selectedGroup, groupMessages)} novedades
-                </span>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-4 lg:p-8 z-10 custom-scrollbar">
-                {(() => {
-                  const messages = groupMessages[selectedGroup.id] || groupMessages[selectedGroup.name] || [];
-
-                  if (!messages.length) {
-                    return (
-                      <div className="min-h-full flex flex-col items-center justify-center text-center p-10">
-                        <div className="w-20 h-20 bg-white rounded-full border border-slate-200 flex items-center justify-center mb-4 shadow-sm">
-                          <MessageSquare size={30} className="text-slate-300" />
-                        </div>
-                        <h4 className="text-slate-500 font-black uppercase text-xs italic">
-                          El muro está vacío
-                        </h4>
-                        <p className="text-slate-400 text-[10px] mt-1 font-bold uppercase max-w-sm">
-                          Usalo para dejar novedades, acuerdos y recordatorios para el equipo.
-                        </p>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div className="max-w-4xl mx-auto space-y-3">
-                      {messages.map(message => (
-                        <div
-                          key={message.id}
-                          className={`flex ${message.authorId === user?.id ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div
-                            className={`max-w-[90%] lg:max-w-[75%] p-4 rounded-[24px] shadow-sm ${
-                              message.authorId === user?.id
-                                ? 'bg-violet-600 text-white rounded-tr-none'
-                                : 'bg-white text-slate-700 rounded-tl-none border border-slate-200'
-                            }`}
-                          >
-                            <p className={`text-[8px] font-black uppercase mb-1 tracking-wide ${message.authorId === user?.id ? 'text-violet-200' : 'text-violet-500'}`}>
-                              {message.author || 'Usuario'} · {message.createdAt?.seconds
-                                ? new Date(message.createdAt.seconds * 1000).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-                                : 'Ahora'}
-                            </p>
-                            <p className="text-sm font-bold leading-relaxed whitespace-pre-wrap">
-                              {message.text}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()}
-              </div>
-
-              <div className="p-4 lg:p-6 bg-white border-t-2 border-slate-100 z-10 shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
-                <form onSubmit={handleAddGroupComment} className="max-w-4xl mx-auto flex gap-2">
-                  <input
-                    name="comment"
-                    autoComplete="off"
-                    placeholder="Escribí una novedad para el equipo..."
-                    className="flex-1 p-4 bg-slate-50 border-2 border-slate-200 rounded-[30px] text-sm font-bold text-slate-700 outline-none focus:border-orange-300 focus:bg-white transition-all"
-                  />
-                  <button
-                    type="submit"
-                    className="bg-orange-500 text-white p-4 rounded-full shadow-lg shadow-orange-200 active:scale-95 transition-all hover:bg-orange-600"
-                    title="Publicar"
-                  >
-                    <Send size={22} />
-                  </button>
-                </form>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* =========================================
-          RESUMEN DE LEGAJO
-      ========================================== */}
-
-      {selectedStudent && (
-        <StudentSummaryModal
-          student={selectedStudent}
-          institutionMode={institutionMode}
-          personLabel={personLabel}
-          groups={groups}
-          turns={turnOptions}
-          onClose={() => setSelectedStudent(null)}
-          onOpenFullFile={() => openFullLegajo(selectedStudent)}
-          onOpenBitacora={() => openBitacora(selectedStudent)}
-        />
-      )}
-
-      {/* =========================================
-          BITÁCORA EXPRESS
-      ========================================== */}
-
-      {showBitacoraModal && (
-        <BitacoraExpressModal
-          student={showBitacoraModal}
-          entries={bitacoraEntries}
-          loading={loadingBitacora}
-          actions={DEFAULT_ACTIONS}
-          user={user}
-          newNote={newNote}
-          setNewNote={setNewNote}
-          isWriting={isWriting}
-          setIsWriting={setIsWriting}
-          saving={savingIncident}
-          editingEntry={editingBitacora}
-          onClose={() => {
-            setShowBitacoraModal(null);
-            setEditingBitacora(null);
-            setIsWriting(false);
-            setNewNote('');
-          }}
-          onAction={action => saveBitacoraEntry(action)}
-          onSaveNote={() => saveBitacoraEntry({ type: 'Nota', severity: 'medium', text: newNote })}
-          onEdit={editBitacoraEntry}
-          onDelete={deleteBitacoraEntry}
-          onPrint={() => printBitacora(showBitacoraModal, bitacoraEntries)}
-        />
-      )}
-
-      {/* =========================================
-          CREAR / EDITAR GRUPO
-      ========================================== */}
-
-      {editingGroup && (
-        <GroupFormModal
-          editingGroup={editingGroup}
-          institutionMode={institutionMode}
-          groupLabel={groupLabel}
-          turnOptions={turnOptions}
-          scheduleTypeOptions={scheduleTypeOptions}
-          roleOptions={roleOptions}
-          docenteRole={docenteRole}
-          staffList={staffList}
-          staffSelections={staffSelections}
-          setStaffSelections={setStaffSelections}
-          normalizeRoles={normalizeRoles}
-          updatingGroup={updatingGroup}
-          onClose={() => {
-            setEditingGroup(null);
-            setStaffSelections({});
-          }}
-          onSubmit={handleUpdateGroup}
-          getRoleLabel={getRoleLabel}
-        />
-      )}
-
-      {/* =========================================
-          IMPRESIÓN
-      ========================================== */}
-
-      {showPrintOptions && (
-        <div className="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-[32px] w-full max-w-md p-7 shadow-2xl border-t-8 border-violet-600">
-            <div className="flex items-start justify-between gap-4 mb-5">
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-violet-500">
-                  Organización institucional
-                </p>
-                <h3 className="text-xl font-black text-slate-900 mt-1">
-                  ¿Qué querés imprimir?
-                </h3>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowPrintOptions(false)}
-                className="p-2 rounded-full bg-slate-100 text-slate-400 hover:text-red-500"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="space-y-3 mb-6">
-              <button
-                type="button"
-                onClick={() => setPrintMode('students')}
-                className={`w-full p-4 rounded-2xl border-2 text-left transition ${printMode === 'students' ? 'border-violet-600 bg-violet-50' : 'border-slate-100 bg-white'}`}
-              >
-                <div className="flex items-center gap-3">
-                  <UsersRound size={19} className="text-violet-600" />
-                  <div>
-                    <p className="font-black text-xs uppercase text-slate-800">
-                      Listado de {personLabelPlural}
-                    </p>
-                    <p className="text-[10px] text-slate-500 mt-1">
-                      Datos básicos de cada {personLabel}.
-                    </p>
-                  </div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPrintMode('staff')}
-                className={`w-full p-4 rounded-2xl border-2 text-left transition ${printMode === 'staff' ? 'border-violet-600 bg-violet-50' : 'border-slate-100 bg-white'}`}
-              >
-                <div className="flex items-center gap-3">
-                  <UserPlus size={19} className="text-violet-600" />
-                  <div>
-                    <p className="font-black text-xs uppercase text-slate-800">
-                      Organización del personal
-                    </p>
-                    <p className="text-[10px] text-slate-500 mt-1">
-                      Roles y personal asignado a cada grupo.
-                    </p>
-                  </div>
-                </div>
-              </button>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                printGroups(groupsToPrint);
-                setShowPrintOptions(false);
-              }}
-              className="w-full py-3.5 bg-violet-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg"
-            >
-              Confirmar e imprimir
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
-function selectedGroupMessagesLength(group, messages) {
-  if (!group) return 0;
-  return (messages[group.id] || messages[group.name] || []).length;
-}
-
-function StudentSummaryModal({
-  student,
-  institutionMode,
-  personLabel,
-  groups,
-  turns,
-  onClose,
-  onOpenFullFile,
-  onOpenBitacora
-}) {
-  const age = calculateAge(student.birthDate);
-
-  const assignment = (student.groupAssignments || []).find(
-    item => item.status === 'active' && !item.validTo
-  ) || null;
-
-  const placements = getPlacements(assignment);
-
-  const placementDetails = placements.map(placement => {
-    const group = groups.find(item => item.id === placement.groupId);
-    const turn = turns.find(item => item.id === placement.turnId);
-    return {
-      groupName: group?.name,
-      turnName: turn?.name
-    };
-  }).filter(item => item.groupName);
-
+function NavButton({ active, onClick, icon, label }) {
   return (
-    <div className="fixed inset-0 z-[700] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-[32px] w-full max-w-2xl max-h-[92vh] overflow-hidden shadow-2xl flex flex-col">
-
-        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-4 min-w-0">
-            <div className="w-16 h-16 rounded-2xl bg-violet-100 overflow-hidden flex items-center justify-center text-violet-600 font-black text-xl shrink-0">
-              {student.photoUrl ? (
-                <img src={student.photoUrl} alt="" className="w-full h-full object-cover" />
-              ) : (
-                (student.firstName?.[0] || '?').toUpperCase()
-              )}
-            </div>
-
-            <div className="min-w-0">
-              <p className="text-[9px] font-black uppercase tracking-widest text-violet-500">
-                Resumen de legajo
-              </p>
-              <h3 className="text-xl font-black text-slate-900 truncate mt-1">
-                {student.lastName}, {student.firstName}
-              </h3>
-              <p className="text-xs font-bold text-slate-400 mt-1">
-                {age !== null ? `${age} años` : 'Edad s/d'} · {student.dni || 'DNI s/d'}
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2.5 rounded-full bg-slate-100 text-slate-500 hover:text-red-500 shrink-0"
-          >
-            <X size={19} />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          <div className="grid md:grid-cols-3 gap-3">
-            <MiniInfo icon={<CalendarDays size={15} />} label="Nacimiento" value={formatDate(student.birthDate)} />
-            <MiniInfo icon={<Phone size={15} />} label="Teléfono" value={student.phone || 'Sin datos'} />
-            <MiniInfo icon={<Mail size={15} />} label="Email" value={student.email || 'Sin datos'} />
-          </div>
-
-          <section className="rounded-2xl border border-slate-200 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Users size={16} className="text-violet-500" />
-              <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                Contacto familiar
-              </h4>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-3">
-              <ContactCard label="Responsable 1" name={student.motherName} phone={student.motherContact} />
-              <ContactCard label="Responsable 2" name={student.fatherName} phone={student.fatherContact} />
-            </div>
-
-            {(student.address || student.city || student.emergencyContact) && (
-              <div className="mt-3 grid md:grid-cols-2 gap-3">
-                <MiniInfo icon={<MapPin size={15} />} label="Domicilio" value={[student.address, student.city].filter(Boolean).join(' · ') || 'Sin datos'} />
-                <MiniInfo icon={<Phone size={15} />} label="Emergencia" value={student.emergencyContact || 'Sin datos'} />
-              </div>
-            )}
-          </section>
-
-          <section className="rounded-2xl border border-slate-200 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              {institutionMode === 'day_center'
-                ? <Activity size={16} className="text-orange-500" />
-                : institutionMode === 'clinic'
-                  ? <Heart size={16} className="text-rose-500" />
-                  : <GraduationCap size={16} className="text-violet-500" />}
-              <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                {institutionMode === 'day_center'
-                  ? 'Participación'
-                  : institutionMode === 'clinic'
-                    ? 'Atención'
-                    : 'Escolaridad'}
-              </h4>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-3">
-              {institutionMode === 'school' && (
-                <>
-                  <MiniInfo label="Nivel" value={student.level || 'Sin datos'} />
-                  <MiniInfo label="Obra social / prepaga" value={student.healthInsurance || 'Sin datos'} />
-                </>
-              )}
-
-              {institutionMode === 'day_center' && (
-                <>
-                  <MiniInfo label="Obra social / prepaga" value={student.healthInsurance || 'Sin datos'} />
-                  <MiniInfo label="Jornada" value={assignment?.scheduleType || 'Sin datos'} />
-                </>
-              )}
-
-              {institutionMode === 'clinic' && (
-                <MiniInfo label="Obra social / prepaga" value={student.healthInsurance || 'Sin datos'} />
-              )}
-            </div>
-
-            {placementDetails.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {placementDetails.map((item, index) => (
-                  <div key={`${item.groupName}-${item.turnName}-${index}`} className="px-3 py-2 rounded-xl bg-violet-50 border border-violet-100">
-                    <p className="text-xs font-black text-violet-800">{item.groupName}</p>
-                    {item.turnName && <p className="text-[9px] text-violet-500 font-bold uppercase mt-0.5">{item.turnName}</p>}
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section className="rounded-2xl border border-slate-200 p-4">
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Notas</p>
-            <p className="text-xs text-slate-600 font-medium leading-relaxed mt-2">
-              {student.notes || 'No hay observaciones cargadas.'}
-            </p>
-          </section>
-        </div>
-
-        <div className="p-4 border-t border-slate-100 flex flex-col md:flex-row gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={onOpenBitacora}
-            className="flex-1 py-3.5 rounded-2xl bg-violet-50 text-violet-700 font-black uppercase text-[10px] flex items-center justify-center gap-2 hover:bg-violet-100 transition"
-          >
-            <Zap size={16} />
-            Bitácora Express
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenFullFile}
-            className="flex-[1.4] py-3.5 rounded-2xl bg-violet-600 text-white font-black uppercase text-[10px] flex items-center justify-center gap-2 hover:bg-violet-700 transition shadow-lg"
-          >
-            <FileText size={16} />
-            Ver legajo completo
-          </button>
-        </div>
+    <button 
+      onClick={onClick} 
+      className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-300 ${active ? 'text-orange-500 transform -translate-y-1' : 'text-gray-400 hover:text-violet-600'}`}
+    >
+      <div className={`relative p-2 rounded-2xl ${active ? 'bg-orange-50' : 'bg-transparent'}`}>
+        {icon}
       </div>
-    </div>
+      <span className={`text-[10px] font-bold ${active ? 'text-violet-900' : 'text-gray-400'}`}>{label}</span>
+    </button>
   );
 }
 
-function MiniInfo({ icon, label, value }) {
-  return (
-    <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
-      <div className="flex items-center gap-2 text-violet-500 mb-1">
-        {icon || <span className="w-3.5" />}
-        <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
-          {label}
-        </span>
-      </div>
-      <p className="text-xs font-black text-slate-700 break-words">
-        {value}
-      </p>
-    </div>
-  );
-}
+// --- APP PRINCIPAL ---
+function MainApp({ user, onLogout }) {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [selectedStudentId, setSelectedStudentId] = useState(null);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const moreMenuRef = useRef(null);
+  const profileMenuRef = useRef(null);
+  const notifPanelRef = useRef(null);
+  const [tasks, setTasks] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [resources, setResources] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
+  const [students, setStudents] = useState([]);
+  
+  const [showNotifPanel, setShowNotifPanel] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [globalViewingStudent, setGlobalViewingStudent] = useState(null);
+  
+  // POPUPS Y PWA HEADER
+  const [showNotifRequest, setShowNotifRequest] = useState(false);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [showMaintenanceAlert, setShowMaintenanceAlert] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
-function ContactCard({ label, name, phone }) {
-  return (
-    <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
-      <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">
-        {label}
-      </p>
-      <p className="text-xs font-black text-slate-700 mt-1">
-        {name || 'No cargado'}
-      </p>
-      <p className="text-[10px] font-bold text-violet-600 mt-1 flex items-center gap-1">
-        <Phone size={11} />
-        {phone || 'Sin contacto'}
-      </p>
-    </div>
-  );
-}
+  const prevNotifCount = useRef(0);
+  const isSuperAdmin = user.rol === 'super-admin' || user.rol === 'admin'; 
+  const canManageContent = user.rol === 'admin' || isSuperAdmin || user.role === 'Equipo Directivo';
+  
+  const isAdminRole = ['admin', 'super-admin', 'Administración', 'Equipo Directivo', 'Dirección Inclusión'].includes(user?.role) || user?.rol === 'admin';
+  const isTechTeamRole = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión', 'Equipo Técnico', 'Equipo Técnico Inclusión'].includes(user?.role) || user?.rol === 'admin';
+  const isMedicalRole = ['admin', 'super-admin', 'Equipo Directivo', 'Dirección Inclusión', 'Médico', 'Enfermería', 'Salud'].includes(user?.role) || user?.rol === 'admin';
+  const canAccessSocial = ['admin', 'super-admin', 'Docente', 'Auxiliar/Preceptor', 'Equipo Directivo', 'Equipo Técnico', 'Inclusión', 'DAI'].includes(user?.role) || user?.rol === 'admin';
+  const canAccessInformesExternos = ['Equipo Directivo', 'Equipo Técnico', 'Equipo Técnico Inclusión', 'Administración', 'admin', 'super-admin'].includes(user?.role) || user?.rol === 'admin';
+  const showPrivateMenu = isAdminRole || isTechTeamRole || isMedicalRole || canAccessSocial;
 
-function BitacoraExpressModal({
-  student,
-  entries,
-  loading,
-  actions,
-  user,
-  newNote,
-  setNewNote,
-  isWriting,
-  setIsWriting,
-  saving,
-  editingEntry,
-  onClose,
-  onAction,
-  onSaveNote,
-  onEdit,
-  onDelete,
-  onPrint
-}) {
-  return (
-    <div className="fixed inset-0 z-[800] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-[36px] w-full max-w-md max-h-[92vh] shadow-2xl flex flex-col overflow-hidden border-t-8 border-emerald-500">
-
-        <div className="px-5 py-4 flex items-center justify-between shrink-0 border-b border-slate-100">
-          <div className="min-w-0">
-            <p className="text-[9px] font-black uppercase tracking-[0.18em] text-emerald-500">
-              Bitácora Express
-            </p> 
-            <h3 className="text-lg font-black text-slate-800 uppercase italic truncate mt-1">
-              {student.lastName}, {student.firstName}
-            </h3>
-            <p className="text-[9px] font-bold text-slate-400 mt-0.5">
-              {calculateAge(student.birthDate) ?? 'Edad s/d'} años · {student.dni || 'DNI s/d'}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={onPrint}
-              className="p-2.5 rounded-xl bg-violet-50 text-violet-700 hover:bg-violet-100 transition"
-              title="Imprimir bitácora"
-            >
-              <Printer size={17} />
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-2.5 rounded-full bg-slate-100 text-slate-500 hover:text-red-500"
-            >
-              <X size={18} />
-            </button>
-          </div>
-        </div>
-
-        <div className="p-4 bg-slate-50 border-b border-slate-100 shrink-0">
-          {!isWriting ? (
-            <>
-              <div className="grid grid-cols-2 gap-2">
-                {actions.map(action => (
-                  <button
-                    type="button"
-                    key={action.label}
-                    onClick={() => onAction({ ...action, text: action.label })}
-                    disabled={saving}
-                    className={`p-3 rounded-2xl border-2 flex items-center gap-2 transition active:scale-[.98] ${
-                      action.severity === 'positive'
-                        ? 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100'
-                        : action.severity === 'high'
-                          ? 'bg-red-50 border-red-200 text-red-800 hover:bg-red-100'
-                          : 'bg-orange-50 border-orange-200 text-orange-800 hover:bg-orange-100'
-                    } ${saving ? 'opacity-50' : ''}`}
-                  >
-                    <span className="text-xl shrink-0">{action.emoji}</span>
-                    <span className="text-[8px] font-black uppercase text-left leading-tight">
-                      {action.label}
-                    </span>
-                  </button>
-                ))}
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsWriting(true);
-                    setNewNote('');
-                  }}
-                  className="col-span-2 py-3 rounded-2xl bg-slate-900 text-white font-black text-[9px] uppercase tracking-wide flex items-center justify-center gap-2 hover:bg-slate-800 transition"
-                >
-                  <Edit3 size={14} />
-                  Redactar nota
-                </button>
-              </div>
-            </>
-          ) : (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                  {editingEntry ? 'Editar registro' : 'Nueva nota'}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsWriting(false);
-                    setNewNote('');
-                  }}
-                  className="text-[9px] font-black uppercase text-slate-400 hover:text-slate-600"
-                >
-                  Cancelar
-                </button>
-              </div>
-
-              <textarea
-                autoFocus
-                value={newNote}
-                onChange={event => setNewNote(event.target.value)}
-                placeholder="¿Qué pasó? ¿Qué observamos?"
-                className="w-full p-3 bg-white border border-slate-200 rounded-2xl text-xs h-24 outline-none resize-none font-medium focus:border-violet-400"
-              />
-
-              <button
-                type="button"
-                onClick={onSaveNote}
-                disabled={!newNote.trim() || saving}
-                className="w-full mt-2 py-3 rounded-2xl bg-violet-600 text-white font-black uppercase text-[9px] disabled:opacity-50"
-              >
-                {saving ? 'Guardando...' : editingEntry ? 'Guardar cambios' : 'Guardar nota'}
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-4 py-3 custom-scrollbar">
-          <div className="flex items-center justify-between gap-3 mb-2">
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-              Registros recientes
-            </p>
-            <span className="text-[9px] font-black text-slate-300">
-              {entries.length} registro{entries.length === 1 ? '' : 's'}
-            </span>
-          </div>
-
-          {loading ? (
-            <div className="py-12 flex items-center justify-center text-slate-400 text-xs font-bold">
-              Cargando bitácora...
-            </div>
-          ) : entries.length === 0 ? (
-            <div className="py-12 text-center">
-              <BookOpen size={26} className="mx-auto text-slate-300 mb-2" />
-              <p className="text-xs font-bold text-slate-400">
-                Todavía no hay registros.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {entries.map(entry => (
-                <div
-                  key={entry.id}
-                  className={`p-3 rounded-2xl border ${getSeverityClasses(entry.severity)}`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[8px] font-black uppercase tracking-wider opacity-60">
-                          {entry.type || 'Registro'}
-                        </span>
-                        <span className="text-[8px] font-bold opacity-50">
-                          {formatDateTime(entry.date)}
-                        </span>
-                      </div>
-
-                      <p className="text-xs font-black leading-relaxed mt-1 break-words">
-                        {entry.text || entry.type}
-                      </p>
-
-                      <p className="text-[8px] font-bold opacity-50 mt-1 uppercase">
-                        Por: {entry.author || user?.fullName || 'Usuario'}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => onEdit(entry)}
-                        className="p-1.5 rounded-lg bg-white/60 hover:bg-white transition"
-                        title="Editar"
-                      >
-                        <Edit3 size={13} />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => onDelete(entry)}
-                        className="p-1.5 rounded-lg bg-white/60 hover:bg-red-100 transition"
-                        title="Eliminar"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function GroupFormModal({
-  editingGroup,
-  institutionMode,
-  groupLabel,
-  turnOptions,
-  scheduleTypeOptions,
-  roleOptions,
-  docenteRole,
-  staffList,
-  staffSelections,
-  setStaffSelections,
-  normalizeRoles,
-  updatingGroup,
-  onClose,
-  onSubmit,
-  getRoleLabel
-}) {
-  const isSchool = institutionMode === 'school';
-  const isDayCenter = institutionMode === 'day_center';
-  const [enabledRoleIds, setEnabledRoleIds] = useState(() => normalizeRoles(editingGroup.enabledRoles || []));
+  const isWideTab = ['groups', 'calendar', 'matricula', 'resources', 'users', 'admin'].includes(activeTab);
 
   useEffect(() => {
-    setEnabledRoleIds(normalizeRoles(editingGroup.enabledRoles || []));
-  }, [editingGroup, normalizeRoles]);
+    if (!db || !appId || !user?.id) return;
 
-  const toggleRole = roleId => {
-    setEnabledRoleIds(current => {
-      if (isSchool && roleId === docenteRole.id) return current;
-      return current.includes(roleId)
-        ? current.filter(id => id !== roleId)
-        : [...current, roleId];
+    updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), {
+      lastLogin: serverTimestamp()
+    }).catch(() => {});
+
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      if (!isStandalone) setIsInstallable(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    const unsubTasks = onSnapshot(
+      query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('dueDate', 'asc')),
+      (snap) => setTasks(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    );
+
+    const unsubEvents = onSnapshot(
+      query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc')),
+      (snap) => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    );
+
+    const unsubResources = onSnapshot(
+      query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc')),
+      (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    );
+
+    const unsubAnnounce = onSnapshot(
+      query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc')),
+      (snap) => setAnnouncements(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    );
+
+    const unsubMaint = onSnapshot(
+      doc(db, 'artifacts', appId, 'public', 'data', 'config', 'maintenance'),
+      (maintenanceDoc) => {
+        const isActive = maintenanceDoc.exists() ? maintenanceDoc.data().active : false;
+        setMaintenanceMode(isActive);
+        if (isActive && user.rol !== 'super-admin') setShowMaintenanceAlert(true);
+      }
+    );
+
+    const qNotifs = query(
+      collection(db, 'artifacts', appId, 'public', 'data', 'notifications'),
+      where('toUserId', '==', user.id)
+    );
+
+    const unsubNotifs = onSnapshot(qNotifs, (snap) => {
+      const all = snap.docs.map(notificationDoc => ({
+        id: notificationDoc.id,
+        ...notificationDoc.data()
+      }));
+
+      all.sort((a, b) => {
+        const aTime = a.createdAt?.toMillis?.() ?? (a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0);
+        const bTime = b.createdAt?.toMillis?.() ?? (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0);
+        return bTime - aTime;
+      });
+
+      const unread = all.filter(n => !n.read);
+      setNotifications(all);
+
+      if (unread.length > prevNotifCount.current) {
+        const latest = unread[0];
+
+        if (latest && 'Notification' in window && Notification.permission === 'granted') {
+          try {
+            navigator.serviceWorker?.ready.then(registration => {
+              registration.showNotification(`🔔 ${latest.title}`, {
+                body: latest.message || '',
+                icon: LOGO_URL,
+                tag: `centra-${latest.id}`
+              });
+            });
+          } catch (error) {
+            console.warn('No se pudo mostrar la notificación del navegador:', error);
+          }
+        }
+      }
+
+      prevNotifCount.current = unread.length;
     });
+
+    let notificationTimer = null;
+    if ('Notification' in window && Notification.permission === 'default') {
+      notificationTimer = setTimeout(() => setShowNotifRequest(true), 5000);
+    }
+
+    let unsubForegroundMessage = null;
+    if ('Notification' in window && Notification.permission === 'granted' && app) {
+      try {
+        const messaging = getMessaging(app);
+
+        unsubForegroundMessage = onMessage(messaging, (payload) => {
+          const title = payload?.notification?.title || payload?.data?.title || 'Nueva notificación';
+          const body = payload?.notification?.body || payload?.data?.body || '';
+
+          try {
+            navigator.serviceWorker?.ready.then(registration => {
+              registration.showNotification(`🔔 ${title}`, {
+                body,
+                icon: LOGO_URL,
+                tag: `centra-fcm-${Date.now()}`
+              });
+            });
+          } catch (error) {
+            console.warn('No se pudo mostrar el mensaje FCM:', error);
+          }
+        });
+      } catch (error) {
+        console.warn('Firebase Messaging todavía no está disponible:', error);
+      }
+    }
+
+    return () => {
+      unsubTasks();
+      unsubNotifs();
+      unsubEvents();
+      unsubResources();
+      unsubAnnounce();
+      unsubMaint();
+      unsubForegroundMessage?.();
+      if (notificationTimer) clearTimeout(notificationTimer);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, [user.id, db, appId, isStandalone]);
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (showMoreMenu && !moreMenuRef.current?.contains(event.target)) {
+        setShowMoreMenu(false);
+      }
+
+      if (showProfileMenu && !profileMenuRef.current?.contains(event.target)) {
+        setShowProfileMenu(false);
+      }
+
+      if (showNotifPanel && !notifPanelRef.current?.contains(event.target)) {
+        setShowNotifPanel(false);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setShowMoreMenu(false);
+        setShowProfileMenu(false);
+        setShowNotifPanel(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('touchstart', handleOutsideClick);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showMoreMenu, showProfileMenu, showNotifPanel]);
+
+const handleInstallApp = async () => {
+    if (deferredPrompt) {
+      // Si el navegador ya tiene guardado el evento, se descarga de forma directa
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log(`Resultado: ${outcome}`);
+      if (outcome === 'accepted') {
+        setIsInstallable(false);
+      }
+      setDeferredPrompt(null);
+    } else {
+      // Si el navegador aún no liberó el evento directo, le damos instrucciones claras según el dispositivo
+      const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
+      
+      if (isIOS) {
+        alert("Para instalar en iPhone: Toca el botón 'Compartir' (abajo en el navegador) y luego 'Agregar a la pantalla de inicio'.");
+      } else {
+        alert("Para instalar la app, toca los tres puntos (menú superior derecho de tu navegador) y selecciona 'Instalar aplicación' o 'Agregar a la pantalla principal'.");
+      }
+    }
+  };
+  const handleGlobalSearch = async (text) => {
+    setSearchQuery(text);
+
+    if (text.length < 2 || !db || !appId) {
+      setSearchResults([]);
+      return;
+    }
+
+    try {
+      const base = `artifacts/${appId}/public/data`;
+
+      const [peopleSnap, profilesSnap] = await Promise.all([
+        getDocs(collection(db, `${base}/people`)),
+        getDocs(collection(db, `${base}/student_profiles`))
+      ]);
+
+      const profileMap = new Map(
+        profilesSnap.docs.map(profileDoc => [
+          profileDoc.id,
+          { id: profileDoc.id, ...profileDoc.data() }
+        ])
+      );
+
+      const needle = text.toLowerCase().trim();
+
+      const results = peopleSnap.docs
+        .map(personDoc => {
+          const person = { id: personDoc.id, ...personDoc.data() };
+          const profile = profileMap.get(person.id) || profileMap.get(person.personId) || {};
+
+          return {
+            ...person,
+            ...profile,
+            personId: person.id
+          };
+        })
+        .filter(person => person.active !== false)
+        .filter(person => {
+          const haystack = [
+            person.firstName,
+            person.lastName,
+            person.fullName,
+            person.dni,
+            person.email,
+            person.phone
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
+
+          return haystack.includes(needle);
+        })
+        .sort((a, b) =>
+          `${a.lastName || ''} ${a.firstName || ''}`.localeCompare(
+            `${b.lastName || ''} ${b.firstName || ''}`,
+            'es'
+          )
+        );
+
+      setSearchResults(results.slice(0, 8));
+    } catch (err) {
+      console.error('Search error:', err);
+      setSearchResults([]);
+    }
+  };
+
+  const unreadNotifications = notifications.filter(n => !n.read);
+  const unreadNotificationCount = unreadNotifications.length;
+
+  const handleNotificationClick = async (n) => {
+    if (!db || !appId) return;
+
+    try {
+      if (!n.read) {
+        await updateDoc(
+          doc(db, 'artifacts', appId, 'public', 'data', 'notifications', n.id),
+          { read: true, readAt: serverTimestamp() }
+        );
+      }
+
+      if (n.targetTab) setActiveTab(n.targetTab);
+      setShowNotifPanel(false);
+    } catch (err) {
+      console.error('Error al abrir notificación:', err);
+    }
+  };
+
+  const handleMarkAllNotificationsRead = async () => {
+    if (!db || !appId || unreadNotifications.length === 0) return;
+
+    try {
+      await Promise.all(
+        unreadNotifications.map(n =>
+          updateDoc(
+            doc(db, 'artifacts', appId, 'public', 'data', 'notifications', n.id),
+            { read: true, readAt: serverTimestamp() }
+          )
+        )
+      );
+    } catch (err) {
+      console.error('Error al marcar notificaciones como leídas:', err);
+    }
+  };
+
+  const calculateAge = (d) => { 
+    if (!d) return '-'; 
+    const t = new Date(); 
+    const b = new Date(d); 
+    let a = t.getFullYear() - b.getFullYear(); 
+    const m = t.getMonth() - b.getMonth(); 
+    if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; 
+    return a; 
+  };
+  
+  const enableNotifications = async () => {
+    if (!('Notification' in window)) {
+      alert('Este navegador no permite notificaciones.');
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+
+      if (permission !== 'granted') {
+        setShowNotifRequest(false);
+        return;
+      }
+
+      if (!app) throw new Error('Firebase no está inicializado.');
+
+      const messaging = getMessaging(app);
+      const registration = await navigator.serviceWorker?.ready;
+
+      const token = await getToken(messaging, {
+        vapidKey: 'BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw',
+        ...(registration ? { serviceWorkerRegistration: registration } : {})
+      });
+
+      if (token && db && appId) {
+        await updateDoc(
+          doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id),
+          {
+            fcmTokens: arrayUnion(token),
+            notificationsEnabled: true,
+            notificationsUpdatedAt: serverTimestamp()
+          }
+        );
+      }
+
+      alert('¡Listo! CENTRA ya puede avisarte de novedades.');
+    } catch (error) {
+      console.error('FCM Error:', error);
+      alert('No pudimos activar las notificaciones del dispositivo. Los avisos dentro de CENTRA seguirán funcionando.');
+    } finally {
+      setShowNotifRequest(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[900] flex items-center justify-center p-4">
-      <form
-        onSubmit={onSubmit}
-        className="bg-white rounded-[32px] w-full max-w-3xl max-h-[92vh] overflow-hidden shadow-2xl flex flex-col"
-      >
-        <div className="px-6 py-5 border-b border-slate-100 flex items-start justify-between gap-4 shrink-0">
+    <div className="flex flex-col h-[100dvh] w-full bg-gray-50 font-sans text-slate-800 overflow-hidden relative">
+      <header className="bg-violet-800 text-white shadow-lg px-4 py-3 flex justify-between items-center z-50 sticky top-0 shrink-0">
+        <div className="flex items-center space-x-3">
+          <img src={LOGO_URL} alt="Logo" className="w-10 h-8 object-contain" />
           <div>
-            <p className="text-[9px] font-black text-violet-500 uppercase tracking-[0.18em]">
-              Organización institucional
-            </p>
-            <h3 className="text-2xl font-black text-slate-900 mt-1">
-              {editingGroup.isNew
-                ? `Crear ${groupLabel}`
-                : `Editar ${groupLabel}`}
-            </h3>
-            <p className="text-xs text-slate-400 mt-1 max-w-xl">
-              La estructura se configura aquí y las personas se asignan desde sus legajos.
-            </p>
+            <h1 className="font-bold text-sm leading-tight">Juntos a la Par</h1>
+            <p className="text-[10px] text-orange-200 uppercase font-bold">{user.firstName}</p>
           </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2.5 rounded-full bg-slate-100 text-slate-400 hover:text-red-500"
-          >
-            <X size={19} />
-          </button>
         </div>
+        
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              setShowSearch(true);
+              setShowNotifPanel(false);
+              setShowProfileMenu(false);
+              setShowMoreMenu(false);
+            }}
+            className="p-2 rounded-full bg-violet-900/50 hover:bg-orange-500 transition"
+            title="Buscar"
+          >
+            <Search size={20} />
+          </button>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar">
-          <section className="rounded-2xl border border-slate-200 p-5">
-            <div className="grid md:grid-cols-2 gap-4">
-              <label className="block md:col-span-2">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                  Nombre
+          <div ref={notifPanelRef} className="relative">
+            <button
+              onClick={() => {
+                setShowNotifPanel(value => !value);
+                setShowProfileMenu(false);
+                setShowMoreMenu(false);
+              }}
+              className={`p-2 rounded-full transition ${showNotifPanel ? 'bg-orange-500' : 'bg-violet-900/50'}`}
+              title="Notificaciones"
+            >
+              <Bell size={20} />
+              {unreadNotificationCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold min-w-4 h-4 px-1 flex items-center justify-center rounded-full animate-pulse border border-white">
+                  {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
                 </span>
-                <input
-                  name="groupName"
-                  defaultValue={editingGroup.name || ''}
-                  required
-                  className="mt-1 w-full p-3.5 bg-slate-50 rounded-xl font-black text-sm outline-none border border-slate-200 focus:border-violet-400"
-                  placeholder={isSchool ? 'Ej.: 3° A' : isDayCenter ? 'Ej.: Taller de Cerámica' : 'Ej.: Consultorio 1'}
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                  Sede / establecimiento
-                </span>
-                <input
-                  name="siteId"
-                  defaultValue={editingGroup.siteId || ''}
-                  className="mt-1 w-full p-3.5 bg-slate-50 rounded-xl font-bold text-sm outline-none border border-slate-200"
-                  placeholder="Sede"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                  {isSchool ? 'Aula' : 'Espacio'}
-                </span>
-                <input
-                  name="classroom"
-                  defaultValue={editingGroup.classroom || ''}
-                  className="mt-1 w-full p-3.5 bg-slate-50 rounded-xl font-bold text-sm outline-none border border-slate-200"
-                  placeholder={isSchool ? 'Aula 5' : 'SUM / Taller / Consultorio'}
-                />
-              </label>
-
-              {isSchool && (
-                <>
-                  <label className="block">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                      Nivel
-                    </span>
-                    <input
-                      name="levelId"
-                      defaultValue={editingGroup.levelId || ''}
-                      className="mt-1 w-full p-3.5 bg-slate-50 rounded-xl font-bold text-sm outline-none border border-slate-200"
-                      placeholder="Nivel"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                      Sección
-                    </span>
-                    <input
-                      name="sectionId"
-                      defaultValue={editingGroup.sectionId || ''}
-                      className="mt-1 w-full p-3.5 bg-slate-50 rounded-xl font-bold text-sm outline-none border border-slate-200"
-                      placeholder="Sección"
-                    />
-                  </label>
-                </>
               )}
+            </button>
 
-              <div className="md:col-span-2">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                  Turnos / franjas
-                </span>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {turnOptions.length === 0 ? (
-                    <p className="text-xs text-slate-400">
-                      No hay turnos configurados en la institución.
+            {showNotifPanel && (
+              <div className="absolute right-0 mt-3 w-[min(22rem,calc(100vw-1rem))] bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[100]">
+                <div className="p-4 bg-violet-50 border-b flex justify-between items-center gap-3">
+                  <div>
+                    <h3 className="font-bold text-violet-900 text-sm">Avisos</h3>
+                    <p className="text-[10px] text-gray-400 mt-0.5">
+                      {unreadNotificationCount ? `${unreadNotificationCount} sin leer` : 'Todo al día'}
                     </p>
-                  ) : (
-                    turnOptions.map(turnOption => (
-                      <label
-                        key={turnOption.id}
-                        className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer"
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {unreadNotificationCount > 0 && (
+                      <button
+                        onClick={handleMarkAllNotificationsRead}
+                        className="text-[9px] font-black uppercase text-violet-600 hover:text-orange-500"
                       >
-                        <input
-                          type="checkbox"
-                          name="turnId"
-                          value={turnOption.id}
-                          defaultChecked={(editingGroup.turnIds || []).includes(turnOption.id)}
-                          className="accent-violet-600"
-                        />
-                        <span className="text-xs font-bold text-slate-600">
-                          {turnOption.name}
-                        </span>
-                      </label>
+                        Marcar leídas
+                      </button>
+                    )}
+                    <button onClick={() => setShowNotifPanel(false)} title="Cerrar">
+                      <X size={16} className="text-gray-400"/>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="max-h-80 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="p-10 text-center text-gray-400">
+                      <Bell size={24} className="mx-auto mb-2 opacity-30"/>
+                      <p className="text-xs font-bold uppercase">Sin novedades</p>
+                    </div>
+                  ) : (
+                    notifications.slice(0, 20).map(n => (
+                      <button
+                        key={n.id}
+                        onClick={() => handleNotificationClick(n)}
+                        className={`w-full text-left p-4 border-b last:border-b-0 hover:bg-gray-50 transition ${n.read ? 'bg-white' : 'bg-orange-50/50'}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <span className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${n.read ? 'bg-gray-200' : 'bg-orange-500'}`}/>
+                          <div>
+                            <p className={`text-[10px] font-bold mb-1 uppercase ${n.read ? 'text-gray-400' : 'text-orange-600'}`}>{n.title}</p>
+                            <p className="text-xs text-gray-700 leading-relaxed">{n.message}</p>
+                          </div>
+                        </div>
+                      </button>
                     ))
                   )}
                 </div>
               </div>
+            )}
+          </div>
 
-              {isSchool && scheduleTypeOptions.length > 0 && (
-                <label className="block">
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                    Tipo de jornada
-                  </span>
-                  <select
-                    name="scheduleType"
-                    defaultValue={editingGroup.scheduleType || scheduleTypeOptions[0]?.id || ''}
-                    className="mt-1 w-full p-3.5 bg-slate-50 rounded-xl font-bold text-sm outline-none border border-slate-200 focus:border-violet-400"
-                  >
-                    <option value="">Seleccionar</option>
-                    {scheduleTypeOptions.map(option => (
-                      <option key={option.id} value={option.id}>
-                        {option.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+          <div ref={profileMenuRef} className="relative">
+            <button
+              onClick={() => {
+                setShowProfileMenu(value => !value);
+                setShowNotifPanel(false);
+                setShowMoreMenu(false);
+              }}
+              className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold border-2 border-orange-400 overflow-hidden cursor-pointer active:scale-95 transition shadow-sm"
+              title="Mi perfil"
+            >
+              {user.photoUrl ? (
+                <img src={user.photoUrl} className="w-full h-full object-cover" alt="Tu perfil" />
+              ) : (
+                user.firstName?.[0] || user.fullName?.[0] || 'U'
               )}
-            </div>
-          </section>
+            </button>
 
-          <section className="rounded-2xl border border-slate-200 p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <Settings2 size={16} className="text-violet-500" />
-              <h4 className="text-sm font-black text-slate-800">
-                Roles habilitados
-              </h4>
-            </div>
-
-            <p className="text-xs text-slate-400 mb-4">
-              Definí qué roles forman parte de este {groupLabel}.
-            </p>
-
-            <div className="grid md:grid-cols-2 gap-2">
-              {isSchool && enabledRoleIds.includes(docenteRole.id) && (
-                <input type="hidden" name="roleId" value={docenteRole.id} />
-              )}
-              {roleOptions.map(role => {
-                const checked = enabledRoleIds.includes(role.id);
-                const required = isSchool && (role.id === docenteRole.id || role.requiredForGroup);
-
-                return (
-                  <label
-                    key={role.id}
-                    className={`flex items-center justify-between p-3 rounded-xl border ${checked ? 'border-violet-200 bg-violet-50' : 'border-slate-200 bg-slate-50'}`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        name="roleId"
-                        value={role.id}
-                        checked={checked}
-                        onChange={() => toggleRole(role.id)}
-                        disabled={required}
-                        className="accent-violet-600"
-                      />
-                      <span className="text-xs font-black text-slate-700">
-                        {role.name}
-                      </span>
-                    </span>
-
-                    {required && (
-                      <span className="text-[8px] font-black uppercase text-violet-500">
-                        Obligatorio
-                      </span>
-                    )}
-                  </label>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-slate-200 p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <UserPlus size={16} className="text-violet-500" />
-              <h4 className="text-sm font-black text-slate-800">
-                Personal asignado
-              </h4>
-            </div>
-
-            <div className="space-y-2">
-              {enabledRoleIds.map(roleId => (
-                <div
-                  key={roleId}
-                  className="grid grid-cols-1 md:grid-cols-[1fr_1.5fr] items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200"
-                >
-                  <span className="text-[9px] font-black uppercase text-slate-500">
-                    {getRoleLabel(roleId)}
-                  </span>
-
-                  <select
-                    value={staffSelections[roleId] || ''}
-                    onChange={event => setStaffSelections(prev => ({ ...prev, [roleId]: event.target.value }))}
-                    className="p-2.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-700 outline-none"
-                  >
-                    <option value="">Sin asignar</option>
-                    {staffList
-                      .slice()
-                      .sort((a, b) => safeName(a).localeCompare(safeName(b)))
-                      .map(person => (
-                        <option key={person.id} value={person.id}>
-                          {safeName(person)}
-                        </option>
-                      ))}
-                  </select>
+            {showProfileMenu && (
+              <div className="absolute right-0 mt-3 w-72 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[110]">
+                <div className="p-4 bg-gradient-to-br from-violet-800 to-violet-700 text-white">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-white/15 border border-white/20 overflow-hidden flex items-center justify-center font-black">
+                      {user.photoUrl ? (
+                        <img src={user.photoUrl} className="w-full h-full object-cover" alt="" />
+                      ) : (
+                        user.firstName?.[0] || user.fullName?.[0] || 'U'
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-black truncate">{user.fullName || `${user.firstName || ''} ${user.lastName || ''}`}</p>
+                      <p className="text-[10px] text-violet-200 uppercase font-bold mt-0.5 truncate">{user.role || user.rol || 'Usuario'}</p>
+                      {user.email && <p className="text-[10px] text-white/70 mt-1 truncate">{user.email}</p>}
+                    </div>
+                  </div>
                 </div>
-              ))}
-            </div>
 
-            {staffList.length === 0 && (
-              <div className="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-100 text-xs text-amber-700">
-                Todavía no hay personal cargado. El {groupLabel} puede crearse igual.
+                <div className="p-2">
+                  <button
+                    onClick={() => {
+                      setActiveTab('profile');
+                      setShowProfileMenu(false);
+                    }}
+                    className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-700 transition"
+                  >
+                    <User size={18} className="text-violet-500"/> Mi perfil
+                  </button>
+
+                  {!isStandalone && (
+                    <button
+                      onClick={() => {
+                        handleInstallApp();
+                        setShowProfileMenu(false);
+                      }}
+                      className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-700 transition"
+                    >
+                      <Download size={18} className="text-green-500"/> Instalar CENTRA
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      enableNotifications();
+                    }}
+                    className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-700 transition"
+                  >
+                    <Bell size={18} className="text-blue-500"/> Configurar notificaciones
+                  </button>
+
+                  <div className="my-1 border-t border-gray-100"/>
+
+                  <button
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      onLogout();
+                    }}
+                    className="w-full text-left p-3 rounded-xl hover:bg-red-50 flex items-center gap-3 text-sm font-bold text-red-600 transition"
+                  >
+                    <LogOut size={18}/> Cerrar sesión
+                  </button>
+                </div>
               </div>
             )}
-          </section>
+          </div>
+        </div>
+      </header>
 
-          <section className="rounded-2xl border border-slate-200 p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <ExternalLink size={16} className="text-emerald-600" />
-              <h4 className="text-sm font-black text-slate-800">
-                Documentación
-              </h4>
+      {/* --- CARTEL MANTENIMIENTO --- */}
+      {maintenanceMode && showMaintenanceAlert && (
+          <div className="fixed top-16 left-0 right-0 z-[999] p-4 animate-in slide-in-from-top-5">
+              <div className="bg-gradient-to-r from-orange-500 to-red-600 rounded-2xl shadow-2xl p-5 text-white flex flex-col items-center gap-3 border-4 border-white/20 relative overflow-hidden">
+                  <div className="flex items-center gap-3 z-10">
+                      <div className="bg-white p-3 rounded-full text-orange-600"><Settings size={28}/></div>
+                      <div className="text-center">
+                          <h3 className="font-black uppercase text-lg leading-none">¡Estamos en Obra! 🚧</h3>
+                          <p className="text-xs font-medium opacity-90 mt-1">Mejorando la App para vos.</p>
+                      </div>
+                  </div>
+                  <button onClick={() => setShowMaintenanceAlert(false)} className="w-full bg-white text-orange-600 py-3 rounded-xl text-xs font-black uppercase">Entendido</button>
+              </div>
+          </div>
+      )}
+
+      {/* --- POPUP NOTIFICACIONES --- */}
+      {showNotifRequest && (
+        <div className="fixed inset-0 z-[400] flex items-end md:items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in">
+             <div className="bg-white rounded-[30px] p-6 w-full max-w-sm shadow-2xl text-center border-t-8 border-orange-500 mb-20 md:mb-0">
+                  <Bell size={32} className="text-orange-500 mx-auto mb-4"/>
+                  <h3 className="text-xl font-black text-gray-800">¡No te pierdas nada!</h3>
+                  <p className="text-sm text-gray-500 mb-6">Activá los avisos urgentes.</p>
+                  <div className="flex flex-col gap-3">
+                      <button onClick={enableNotifications} className="w-full bg-violet-600 text-white font-bold py-3 rounded-xl">ACTIVAR AHORA</button>
+                      <button onClick={() => setShowNotifRequest(false)} className="text-gray-400 text-xs font-bold uppercase">Ahora no</button>
+                  </div>
+             </div>
+        </div>
+      )}
+
+      <main className={`flex-1 overflow-y-auto no-scrollbar pb-24 pt-6 mx-auto w-full transition-all duration-300 ${isWideTab ? 'px-2 max-w-[98%]' : 'px-4 max-w-4xl'}`}>
+        {activeTab === 'dashboard' && <DashboardView user={user} db={db} appId={appId} tasks={tasks} events={events} announcements={announcements} setActiveTab={setActiveTab} />}
+        {activeTab === 'calendar' && <CalendarView events={events} user={user} db={db} appId={appId} canEdit={canManageContent} />}
+        {activeTab === 'tasks' && <TasksView tasks={tasks} user={user} db={db} appId={appId} />}
+        {activeTab === 'matricula' && <MatriculaView user={user} db={db} appId={appId} initStudentId={selectedStudentId} />}
+        {activeTab === 'groups' && <GroupsView user={user} db={db} appId={appId} setActiveTab={setActiveTab} onSelectStudent={setSelectedStudentId} />}
+        {activeTab === 'resources' && <ResourcesView resources={resources} canEdit={canManageContent} db={db} appId={appId} user={user} />}
+        {activeTab === 'social' && <SocialView user={user} db={db} appId={appId} />}
+        {activeTab === 'profile' && <ProfileView user={user} tasks={tasks} onLogout={onLogout} isSuperAdmin={isSuperAdmin} db={db} appId={appId} />}
+        {activeTab === 'proyecto' && <ProyectoView user={user} db={db} appId={appId} />}
+        {activeTab === 'evaluations' && isTechTeamRole && <EvaluationsView user={user} db={db} appId={appId} />}
+        {activeTab === 'notifications' && <NotificationsView notifications={notifications} canEdit={isSuperAdmin} user={user} />}
+
+        {activeTab === 'users' && isSuperAdmin && db && <UsersAdminView db={db} appId={appId} />}
+        {activeTab === 'personal' && isAdminRole && db && <PersonalView user={user} db={db} appId={appId} TURNS_LIST={TURNS_LIST} VALID_ROLES_OFFICIAL={VALID_ROLES_OFFICIAL} />}
+        {activeTab === 'admin' && isAdminRole && db && <AdministracionView user={user} db={db} appId={appId} />}
+        {activeTab === 'medical' && isMedicalRole && db && <MedicalView user={user} db={db} appId={appId} />}
+  
+        {activeTab === 'informes' && (<InformesView user={user} students={students} db={db} appId={appId} />)}
+        {activeTab === 'informes_externos' && canAccessInformesExternos && (<InformesExternosView user={user} db={db} appId={appId} />)}
+      </main>
+
+      <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-16 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] pb-safe shrink-0 text-center">
+        <div className="grid grid-cols-5 h-full max-w-3xl mx-auto px-2 relative">
+          <NavButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={20} />} label="Inicio" />
+          <NavButton active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} icon={<CheckSquare size={20} />} label="Tareas" />
+          
+          <div className="relative -top-5 flex justify-center">
+            <button onClick={() => setActiveTab('groups')} className={`w-14 h-14 rounded-full flex flex-col items-center justify-center shadow-xl border-4 border-gray-50 transition-all transform active:scale-95 ${activeTab === 'groups' ? 'bg-orange-500 text-white scale-110' : 'bg-violet-600 text-white'}`}>
+              <Grid size={24} />
+            </button>
+            <span className="absolute -bottom-4 text-[9px] font-black text-violet-900 uppercase tracking-wide whitespace-nowrap">Organización</span>
+          </div>
+
+          <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={20} />} label="Agenda" />
+          
+          <div className="relative">
+            <NavButton active={['matricula', 'resources', 'proyecto', 'admin', 'personal', 'medical', 'social', 'users', 'informes', 'informes_externos', 'evaluations'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={20} />} label="Más" />
+            
+            {showMoreMenu && (
+              <div className="absolute bottom-16 right-0 bg-white rounded-3xl shadow-2xl border border-gray-100 p-2 w-64 animate-in slide-in-from-bottom-5 zoom-in-95 origin-bottom-right z-[100] max-h-[70vh] overflow-y-auto custom-scrollbar">
+                <button onClick={() => { setActiveTab('matricula'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
+                  <GraduationCap size={18} className="text-violet-500"/> Legajos
+                </button>
+                <button onClick={() => { setActiveTab('resources'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
+                  <LinkIcon size={18} className="text-green-500"/> Recursos
+                </button>
+                <button onClick={() => { setActiveTab('proyecto'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
+                  <PieChart size={18} className="text-orange-500"/> Proyecto Inst.
+                </button>
+                <button onClick={() => { setActiveTab('informes'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
+                  <ClipboardCheck size={18} className="text-violet-500"/> Informes Pedagógicos
+                </button>
+                
+                {showPrivateMenu && (
+                  <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-3 mb-1 mt-1">Gestión Privada</p>
+                    {isAdminRole && (
+                      <>
+                        <button onClick={() => { setActiveTab('admin'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-blue-600 transition"><FileText size={18} className="text-blue-500"/> Admin Docs</button>
+                        <button onClick={() => { setActiveTab('personal'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-violet-700 transition"><Users size={18} className="text-violet-500"/> Personal</button>
+                      </>
+                    )}
+                    {canAccessInformesExternos && (
+                      <button onClick={() => { setActiveTab('informes_externos'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
+                        <ExternalLink size={18} className="text-pink-500"/> Informes Externos
+                      </button>
+                    )}
+                    {isTechTeamRole && <button onClick={() => { setActiveTab('evaluations'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl bg-orange-50 text-orange-950 flex items-center gap-3 text-sm font-black transition border border-orange-100/50 shadow-inner"><ClipboardCheck size={18} className="text-orange-600"/> Evaluación Áreas</button>}
+                    {canAccessSocial && <button onClick={() => { setActiveTab('social'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition"><Users size={18} className="text-blue-500"/> Trabajo Social</button>}
+                    {isMedicalRole && <button onClick={() => { setActiveTab('medical'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-red-50 flex items-center gap-3 text-sm font-bold text-red-600 transition"><Activity size={18} className="text-red-500"/> Médico</button>}
+                    {isSuperAdmin && (
+                      <>
+                        <button onClick={() => { setActiveTab('users'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-red-50 flex items-center gap-3 text-sm font-bold text-red-700 transition border-t border-red-50 mt-1"><Shield size={18} className="text-red-500"/> Gestión Usuarios</button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </nav>
+
+      {showSearch && ( 
+        <div className="fixed inset-0 bg-violet-900/90 z-[300] flex flex-col p-4 backdrop-blur-md animate-in fade-in">
+          <div className="flex justify-between items-center text-white mb-4"><h3 className="font-black italic uppercase">Buscador Rápido</h3><button onClick={() => {setShowSearch(false); setSearchQuery(''); setSearchResults([]);}} className="p-2 bg-white/20 rounded-full"><X/></button></div>
+          <input autoFocus value={searchQuery} onChange={(e) => handleGlobalSearch(e.target.value)} placeholder="Escribí un nombre o apellido..." className="w-full p-4 rounded-2xl bg-white text-lg font-bold text-gray-800 outline-none shadow-xl mb-4"/>
+          <div className="flex-1 overflow-y-auto space-y-2">
+            {searchResults.map(s => (
+              <div key={s.id} onClick={() => setGlobalViewingStudent(s)} className="bg-white p-3 rounded-xl flex items-center gap-3 active:scale-95 transition cursor-pointer">
+                <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">{s.photoUrl ? <img src={s.photoUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center font-bold text-gray-400">{s.firstName[0]}</div>}</div>
+                <div><p className="font-bold text-gray-800 text-sm">{s.lastName}, {s.firstName}</p><p className="text-[10px] text-gray-500">{s.level} • {s.groupMorning || s.groupAfternoon || 'Sin Grupo'}</p></div>
+              </div>
+            ))}
+            {searchQuery.length > 2 && searchResults.length === 0 && <p className="text-white/50 text-center mt-4">No se encontraron resultados.</p>}
+          </div>
+        </div> 
+      )}
+       
+      {globalViewingStudent && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[350] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95">
+            <div className="bg-violet-600 p-4 text-white flex justify-between items-center"><h3 className="font-bold text-lg">{globalViewingStudent.lastName}, {globalViewingStudent.firstName}</h3><button onClick={() => setGlobalViewingStudent(null)}><X/></button></div>
+            <div className="p-6">
+              <div className="flex gap-4 items-center mb-4">
+                <div className="w-20 h-20 bg-gray-200 rounded-2xl overflow-hidden">{globalViewingStudent.photoUrl && <img src={globalViewingStudent.photoUrl} className="w-full h-full object-cover"/>}</div>
+                <div><p className="text-sm font-bold text-gray-600">Edad: {calculateAge(globalViewingStudent.birthDate)} años</p><p className="text-sm font-bold text-gray-600">DNI: {globalViewingStudent.dni}</p><p className="text-xs text-orange-500 font-bold mt-1 uppercase">{globalViewingStudent.dx}</p></div>
+              </div>
+              <button onClick={() => { setActiveTab('matricula'); setShowSearch(false); setGlobalViewingStudent(null); alert("Te llevamos a Legajos. Buscalo ahí para ver más."); }} className="w-full bg-violet-100 text-violet-700 py-3 rounded-xl font-bold text-xs uppercase hover:bg-violet-200 transition">Ir a Legajo Completo</button>
             </div>
-
-            <label className="block">
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                Link a Drive institucional
-              </span>
-              <input
-                name="institucionalDrive"
-                defaultValue={editingGroup.institucionalDrive || ''}
-                className="mt-1 w-full p-3.5 rounded-xl bg-emerald-50 border border-emerald-100 text-sm font-bold outline-none focus:border-emerald-300"
-                placeholder="https://drive.google.com/..."
-              />
-            </label>
-          </section>
+          </div>
         </div>
-
-        <div className="p-4 border-t border-slate-100 flex gap-3 shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 py-3.5 bg-slate-100 text-slate-500 rounded-xl font-black uppercase text-xs hover:bg-slate-200 transition"
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            disabled={updatingGroup}
-            className="flex-[2] py-3.5 bg-violet-600 text-white rounded-xl font-black uppercase text-xs shadow-lg disabled:opacity-60 flex items-center justify-center gap-2"
-          >
-            <Save size={16} />
-            {updatingGroup ? 'Guardando…' : 'Guardar cambios'}
-          </button>
-        </div>
-      </form>
+      )}
     </div>
+  );
+}
+
+function StartIcon({size}) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+    </svg>
   );
 }
