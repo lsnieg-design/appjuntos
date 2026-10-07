@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GroupsView } from './views/GroupsView';
-import { PersonalView } from './views/PersonalView';
+import { PersonalView } from './views/PersonalView'; 
 import { DashboardView } from './views/DashboardView';
 import { ResourcesView } from './views/ResourcesView';
 import { TasksView } from './views/TasksView';
