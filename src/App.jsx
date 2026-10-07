@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GroupsView } from './views/GroupsView';
-import { PersonalView } from './views/PersonalView'; 
+import { PersonalView } from './views/PersonalView';
 import { DashboardView } from './views/DashboardView';
 import { ResourcesView } from './views/ResourcesView';
 import { TasksView } from './views/TasksView';
@@ -10,7 +10,9 @@ import { MatriculaView } from './views/MatriculaView';
 import { AdministracionView } from './views/AdministracionView';
 import { SocialView } from './views/SocialView';
 import { UsersAdminView } from './views/UsersAdminView';
+import { EquipoTecnicoView } from './views/EquipoTecnicoView';
 import { ProfileView } from './views/ProfileView';
+import { ActivityLogView } from './views/ActivityLogView';
 import { ProyectoView } from './views/ProyectoView';
 import { EvaluationsView } from './views/EvaluationsView';
 import { InformesView } from './views/InformesView';
@@ -399,10 +401,6 @@ function MainApp({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedStudentId, setSelectedStudentId] = useState(null);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const moreMenuRef = useRef(null);
-  const profileMenuRef = useRef(null);
-  const notifPanelRef = useRef(null);
   const [tasks, setTasks] = useState([]);
   const [events, setEvents] = useState([]);
   const [resources, setResources] = useState([]);
@@ -438,167 +436,57 @@ function MainApp({ user, onLogout }) {
   const isWideTab = ['groups', 'calendar', 'matricula', 'resources', 'users', 'admin'].includes(activeTab);
 
   useEffect(() => {
-    if (!db || !appId || !user?.id) return;
+    if (!db || !appId || !user?.id) return; 
 
-    updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), {
-      lastLogin: serverTimestamp()
+    updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { 
+      lastLogin: serverTimestamp() 
     }).catch(() => {});
 
+    // Capturar evento de instalación PWA para el botón del header
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
       if (!isStandalone) setIsInstallable(true);
     };
-
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    const unsubTasks = onSnapshot(
-      query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('dueDate', 'asc')),
-      (snap) => setTasks(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-    );
-
-    const unsubEvents = onSnapshot(
-      query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc')),
-      (snap) => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-    );
-
-    const unsubResources = onSnapshot(
-      query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc')),
-      (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-    );
-
-    const unsubAnnounce = onSnapshot(
-      query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc')),
-      (snap) => setAnnouncements(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-    );
-
-    const unsubMaint = onSnapshot(
-      doc(db, 'artifacts', appId, 'public', 'data', 'config', 'maintenance'),
-      (maintenanceDoc) => {
-        const isActive = maintenanceDoc.exists() ? maintenanceDoc.data().active : false;
+    const unsubTasks = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'tasks'), orderBy('dueDate', 'asc')), (snap) => setTasks(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    const unsubEvents = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('date', 'asc')), (snap) => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    const unsubResources = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'resources'), orderBy('createdAt', 'desc')), (snap) => setResources(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    const unsubAnnounce = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'announcements'), orderBy('createdAt', 'desc')), (snap) => setAnnouncements(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    
+    const unsubMaint = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'maintenance'), (doc) => { 
+        const isActive = doc.exists() ? doc.data().active : false;
         setMaintenanceMode(isActive);
-        if (isActive && user.rol !== 'super-admin') setShowMaintenanceAlert(true);
-      }
-    );
-
-    const qNotifs = query(
-      collection(db, 'artifacts', appId, 'public', 'data', 'notifications'),
-      where('toUserId', '==', user.id)
-    );
-
-    const unsubNotifs = onSnapshot(qNotifs, (snap) => {
-      const all = snap.docs.map(notificationDoc => ({
-        id: notificationDoc.id,
-        ...notificationDoc.data()
-      }));
-
-      all.sort((a, b) => {
-        const aTime = a.createdAt?.toMillis?.() ?? (a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0);
-        const bTime = b.createdAt?.toMillis?.() ?? (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0);
-        return bTime - aTime;
-      });
-
-      const unread = all.filter(n => !n.read);
-      setNotifications(all);
-
-      if (unread.length > prevNotifCount.current) {
-        const latest = unread[0];
-
-        if (latest && 'Notification' in window && Notification.permission === 'granted') {
-          try {
-            navigator.serviceWorker?.ready.then(registration => {
-              registration.showNotification(`🔔 ${latest.title}`, {
-                body: latest.message || '',
-                icon: LOGO_URL,
-                tag: `centra-${latest.id}`
-              });
-            });
-          } catch (error) {
-            console.warn('No se pudo mostrar la notificación del navegador:', error);
-          }
-        }
-      }
-
-      prevNotifCount.current = unread.length;
+        if(isActive && user.rol !== 'super-admin') setShowMaintenanceAlert(true);
     });
 
-    let notificationTimer = null;
-    if ('Notification' in window && Notification.permission === 'default') {
-      notificationTimer = setTimeout(() => setShowNotifRequest(true), 5000);
+    const qNotifs = query(collection(db, 'artifacts', appId, 'public', 'data', 'notifications'), where('toUserId', '==', user.id));
+    const unsubNotifs = onSnapshot(qNotifs, (snap) => { 
+        const d = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
+        d.sort((a,b)=> (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)); 
+        const unread = d.filter(n=>!n.read); 
+        setNotifications(unread);
+        
+        if (unread.length > prevNotifCount.current) { 
+          const latest = unread[0]; 
+          if (latest && "Notification" in window && Notification.permission === "granted") { 
+            new Notification(`🔔 ${latest.title}`, { body: latest.message, icon: LOGO_URL }); 
+          } 
+        } 
+        prevNotifCount.current = unread.length;
+    });
+
+    if ("Notification" in window && Notification.permission === 'default') {
+        const timer = setTimeout(() => setShowNotifRequest(true), 5000);
+        return () => clearTimeout(timer);
     }
 
-    let unsubForegroundMessage = null;
-    if ('Notification' in window && Notification.permission === 'granted' && app) {
-      try {
-        const messaging = getMessaging(app);
-
-        unsubForegroundMessage = onMessage(messaging, (payload) => {
-          const title = payload?.notification?.title || payload?.data?.title || 'Nueva notificación';
-          const body = payload?.notification?.body || payload?.data?.body || '';
-
-          try {
-            navigator.serviceWorker?.ready.then(registration => {
-              registration.showNotification(`🔔 ${title}`, {
-                body,
-                icon: LOGO_URL,
-                tag: `centra-fcm-${Date.now()}`
-              });
-            });
-          } catch (error) {
-            console.warn('No se pudo mostrar el mensaje FCM:', error);
-          }
-        });
-      } catch (error) {
-        console.warn('Firebase Messaging todavía no está disponible:', error);
-      }
-    }
-
-    return () => {
-      unsubTasks();
-      unsubNotifs();
-      unsubEvents();
-      unsubResources();
-      unsubAnnounce();
-      unsubMaint();
-      unsubForegroundMessage?.();
-      if (notificationTimer) clearTimeout(notificationTimer);
+    return () => { 
+      unsubTasks(); unsubNotifs(); unsubEvents(); unsubResources(); unsubAnnounce(); unsubMaint();
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
   }, [user.id, db, appId, isStandalone]);
-
-  useEffect(() => {
-    const handleOutsideClick = (event) => {
-      if (showMoreMenu && !moreMenuRef.current?.contains(event.target)) {
-        setShowMoreMenu(false);
-      }
-
-      if (showProfileMenu && !profileMenuRef.current?.contains(event.target)) {
-        setShowProfileMenu(false);
-      }
-
-      if (showNotifPanel && !notifPanelRef.current?.contains(event.target)) {
-        setShowNotifPanel(false);
-      }
-    };
-
-    const handleEscape = (event) => {
-      if (event.key === 'Escape') {
-        setShowMoreMenu(false);
-        setShowProfileMenu(false);
-        setShowNotifPanel(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleOutsideClick);
-    document.addEventListener('touchstart', handleOutsideClick);
-    document.addEventListener('keydown', handleEscape);
-
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-      document.removeEventListener('touchstart', handleOutsideClick);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [showMoreMenu, showProfileMenu, showNotifPanel]);
 
 const handleInstallApp = async () => {
     if (deferredPrompt) {
@@ -621,108 +509,28 @@ const handleInstallApp = async () => {
       }
     }
   };
-  const handleGlobalSearch = async (text) => {
-    setSearchQuery(text);
-
-    if (text.length < 2 || !db || !appId) {
-      setSearchResults([]);
-      return;
-    }
-
+  const handleGlobalSearch = async (text) => { 
+    setSearchQuery(text); 
+    if (text.length < 2 || !db || !appId) { setSearchResults([]); return; } 
+    
     try {
-      const base = `artifacts/${appId}/public/data`;
-
-      const [peopleSnap, profilesSnap] = await Promise.all([
-        getDocs(collection(db, `${base}/people`)),
-        getDocs(collection(db, `${base}/student_profiles`))
-      ]);
-
-      const profileMap = new Map(
-        profilesSnap.docs.map(profileDoc => [
-          profileDoc.id,
-          { id: profileDoc.id, ...profileDoc.data() }
-        ])
-      );
-
-      const needle = text.toLowerCase().trim();
-
-      const results = peopleSnap.docs
-        .map(personDoc => {
-          const person = { id: personDoc.id, ...personDoc.data() };
-          const profile = profileMap.get(person.id) || profileMap.get(person.personId) || {};
-
-          return {
-            ...person,
-            ...profile,
-            personId: person.id
-          };
-        })
-        .filter(person => person.active !== false)
-        .filter(person => {
-          const haystack = [
-            person.firstName,
-            person.lastName,
-            person.fullName,
-            person.dni,
-            person.email,
-            person.phone
-          ]
-            .filter(Boolean)
-            .join(' ')
-            .toLowerCase();
-
-          return haystack.includes(needle);
-        })
-        .sort((a, b) =>
-          `${a.lastName || ''} ${a.firstName || ''}`.localeCompare(
-            `${b.lastName || ''} ${b.firstName || ''}`,
-            'es'
-          )
-        );
-
-      setSearchResults(results.slice(0, 8));
-    } catch (err) {
-      console.error('Search error:', err);
-      setSearchResults([]);
-    }
+      const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'students')); 
+      const s = await getDocs(q); 
+      const r = s.docs.map(d => ({ id: d.id, ...d.data() }))
+        .filter(s => (s.isActive === undefined || s.isActive) && 
+              (s.firstName.toLowerCase().includes(text.toLowerCase()) || 
+               s.lastName.toLowerCase().includes(text.toLowerCase()))); 
+      setSearchResults(r.slice(0, 5)); 
+    } catch (err) { console.error("Search error:", err); }
   };
 
-  const unreadNotifications = notifications.filter(n => !n.read);
-  const unreadNotificationCount = unreadNotifications.length;
-
-  const handleNotificationClick = async (n) => {
+  const handleNotificationClick = async (n) => { 
     if (!db || !appId) return;
-
     try {
-      if (!n.read) {
-        await updateDoc(
-          doc(db, 'artifacts', appId, 'public', 'data', 'notifications', n.id),
-          { read: true, readAt: serverTimestamp() }
-        );
-      }
-
-      if (n.targetTab) setActiveTab(n.targetTab);
-      setShowNotifPanel(false);
-    } catch (err) {
-      console.error('Error al abrir notificación:', err);
-    }
-  };
-
-  const handleMarkAllNotificationsRead = async () => {
-    if (!db || !appId || unreadNotifications.length === 0) return;
-
-    try {
-      await Promise.all(
-        unreadNotifications.map(n =>
-          updateDoc(
-            doc(db, 'artifacts', appId, 'public', 'data', 'notifications', n.id),
-            { read: true, readAt: serverTimestamp() }
-          )
-        )
-      );
-    } catch (err) {
-      console.error('Error al marcar notificaciones como leídas:', err);
-    }
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'notifications', n.id)); 
+      if (n.targetTab) setActiveTab(n.targetTab); 
+      setShowNotifPanel(false); 
+    } catch (err) { console.error(err); }
   };
 
   const calculateAge = (d) => { 
@@ -735,48 +543,25 @@ const handleInstallApp = async () => {
     return a; 
   };
   
-  const enableNotifications = async () => {
-    if (!('Notification' in window)) {
-      alert('Este navegador no permite notificaciones.');
-      return;
-    }
-
-    try {
-      const permission = await Notification.requestPermission();
-
-      if (permission !== 'granted') {
-        setShowNotifRequest(false);
-        return;
-      }
-
-      if (!app) throw new Error('Firebase no está inicializado.');
-
-      const messaging = getMessaging(app);
-      const registration = await navigator.serviceWorker?.ready;
-
-      const token = await getToken(messaging, {
-        vapidKey: 'BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw',
-        ...(registration ? { serviceWorkerRegistration: registration } : {})
-      });
-
-      if (token && db && appId) {
-        await updateDoc(
-          doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id),
-          {
-            fcmTokens: arrayUnion(token),
-            notificationsEnabled: true,
-            notificationsUpdatedAt: serverTimestamp()
-          }
-        );
-      }
-
-      alert('¡Listo! CENTRA ya puede avisarte de novedades.');
-    } catch (error) {
-      console.error('FCM Error:', error);
-      alert('No pudimos activar las notificaciones del dispositivo. Los avisos dentro de CENTRA seguirán funcionando.');
-    } finally {
-      setShowNotifRequest(false);
-    }
+  const enableNotifications = async () => { 
+      const permission = await Notification.requestPermission(); 
+      if (permission === 'granted') { 
+          try { 
+              const { getMessaging, getToken } = await import("firebase/messaging"); 
+              const messaging = getMessaging(); 
+              const token = await getToken(messaging, { 
+                vapidKey: 'BLtqtHLQvIIDs53Or78_JwxhFNKZaQM6S7rD4gbRoanfoh_YtYSbFbGHCWyHtZgXuL6Dm3rCvirHgW6fB_FUXrw' 
+              }); 
+              
+              if(token && db && appId) {
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', user.id), { 
+                  fcmTokens: arrayUnion(token) 
+                }); 
+              }
+          } catch(e) { console.log("FCM Error:", e); } 
+          alert("✅ ¡Genial! Te avisaremos de las novedades."); 
+      } 
+      setShowNotifRequest(false); 
   };
 
   return (
@@ -791,173 +576,35 @@ const handleInstallApp = async () => {
         </div>
         
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              setShowSearch(true);
-              setShowNotifPanel(false);
-              setShowProfileMenu(false);
-              setShowMoreMenu(false);
-            }}
-            className="p-2 rounded-full bg-violet-900/50 hover:bg-orange-500 transition"
-            title="Buscar"
-          >
-            <Search size={20} />
-          </button>
-
-          <div ref={notifPanelRef} className="relative">
-            <button
-              onClick={() => {
-                setShowNotifPanel(value => !value);
-                setShowProfileMenu(false);
-                setShowMoreMenu(false);
-              }}
-              className={`p-2 rounded-full transition ${showNotifPanel ? 'bg-orange-500' : 'bg-violet-900/50'}`}
-              title="Notificaciones"
+          {/* --- BOTÓN DE DESCARGAR/INSTALAR APP EN EL HEADER --- */}
+          {!isStandalone && (
+            <button 
+              onClick={handleInstallApp} 
+              title="Instalar Aplicación"
+              className="p-2 rounded-full bg-orange-500 hover:bg-orange-600 transition flex items-center gap-1.5 px-3 text-xs font-black shadow-md animate-pulse"
             >
-              <Bell size={20} />
-              {unreadNotificationCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold min-w-4 h-4 px-1 flex items-center justify-center rounded-full animate-pulse border border-white">
-                  {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
-                </span>
-              )}
+              <Download size={16} />
+              <span className="hidden md:inline uppercase">Instalar App</span>
             </button>
+          )}
 
+          <button onClick={() => setShowSearch(true)} className="p-2 rounded-full bg-violet-900/50 hover:bg-orange-500 transition"><Search size={20} /></button>
+          
+          <div className="relative">
+            <button onClick={() => setShowNotifPanel(!showNotifPanel)} className={`p-2 rounded-full transition ${showNotifPanel ? 'bg-orange-500' : 'bg-violet-900/50'}`}>
+              <Bell size={20} />
+              {notifications.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-pulse border border-white">{notifications.length}</span>}
+            </button>
             {showNotifPanel && (
-              <div className="absolute right-0 mt-3 w-[min(22rem,calc(100vw-1rem))] bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[100]">
-                <div className="p-4 bg-violet-50 border-b flex justify-between items-center gap-3">
-                  <div>
-                    <h3 className="font-bold text-violet-900 text-sm">Avisos</h3>
-                    <p className="text-[10px] text-gray-400 mt-0.5">
-                      {unreadNotificationCount ? `${unreadNotificationCount} sin leer` : 'Todo al día'}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {unreadNotificationCount > 0 && (
-                      <button
-                        onClick={handleMarkAllNotificationsRead}
-                        className="text-[9px] font-black uppercase text-violet-600 hover:text-orange-500"
-                      >
-                        Marcar leídas
-                      </button>
-                    )}
-                    <button onClick={() => setShowNotifPanel(false)} title="Cerrar">
-                      <X size={16} className="text-gray-400"/>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="max-h-80 overflow-y-auto">
-                  {notifications.length === 0 ? (
-                    <div className="p-10 text-center text-gray-400">
-                      <Bell size={24} className="mx-auto mb-2 opacity-30"/>
-                      <p className="text-xs font-bold uppercase">Sin novedades</p>
-                    </div>
-                  ) : (
-                    notifications.slice(0, 20).map(n => (
-                      <button
-                        key={n.id}
-                        onClick={() => handleNotificationClick(n)}
-                        className={`w-full text-left p-4 border-b last:border-b-0 hover:bg-gray-50 transition ${n.read ? 'bg-white' : 'bg-orange-50/50'}`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <span className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${n.read ? 'bg-gray-200' : 'bg-orange-500'}`}/>
-                          <div>
-                            <p className={`text-[10px] font-bold mb-1 uppercase ${n.read ? 'text-gray-400' : 'text-orange-600'}`}>{n.title}</p>
-                            <p className="text-xs text-gray-700 leading-relaxed">{n.message}</p>
-                          </div>
-                        </div>
-                      </button>
-                    ))
-                  )}
-                </div>
+              <div className="absolute right-0 mt-3 w-72 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[100]">
+                <div className="p-4 bg-violet-50 border-b flex justify-between items-center"><h3 className="font-bold text-violet-900 text-sm">Avisos</h3><button onClick={() => setShowNotifPanel(false)}><X size={16} className="text-gray-400"/></button></div>
+                <div className="max-h-80 overflow-y-auto">{notifications.length===0?<div className="p-10 text-center text-gray-400"><p className="text-xs font-bold uppercase">Sin novedades</p></div>:notifications.map(n=>(<div key={n.id} onClick={()=>handleNotificationClick(n)} className="p-4 border-b hover:bg-gray-50 cursor-pointer"><p className="text-[10px] font-bold text-orange-600 mb-1 uppercase">{n.title}</p><p className="text-xs text-gray-700">{n.message}</p></div>))}</div>
               </div>
             )}
           </div>
-
-          <div ref={profileMenuRef} className="relative">
-            <button
-              onClick={() => {
-                setShowProfileMenu(value => !value);
-                setShowNotifPanel(false);
-                setShowMoreMenu(false);
-              }}
-              className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold border-2 border-orange-400 overflow-hidden cursor-pointer active:scale-95 transition shadow-sm"
-              title="Mi perfil"
-            >
-              {user.photoUrl ? (
-                <img src={user.photoUrl} className="w-full h-full object-cover" alt="Tu perfil" />
-              ) : (
-                user.firstName?.[0] || user.fullName?.[0] || 'U'
-              )}
-            </button>
-
-            {showProfileMenu && (
-              <div className="absolute right-0 mt-3 w-72 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[110]">
-                <div className="p-4 bg-gradient-to-br from-violet-800 to-violet-700 text-white">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-white/15 border border-white/20 overflow-hidden flex items-center justify-center font-black">
-                      {user.photoUrl ? (
-                        <img src={user.photoUrl} className="w-full h-full object-cover" alt="" />
-                      ) : (
-                        user.firstName?.[0] || user.fullName?.[0] || 'U'
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-black truncate">{user.fullName || `${user.firstName || ''} ${user.lastName || ''}`}</p>
-                      <p className="text-[10px] text-violet-200 uppercase font-bold mt-0.5 truncate">{user.role || user.rol || 'Usuario'}</p>
-                      {user.email && <p className="text-[10px] text-white/70 mt-1 truncate">{user.email}</p>}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-2">
-                  <button
-                    onClick={() => {
-                      setActiveTab('profile');
-                      setShowProfileMenu(false);
-                    }}
-                    className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-700 transition"
-                  >
-                    <User size={18} className="text-violet-500"/> Mi perfil
-                  </button>
-
-                  {!isStandalone && (
-                    <button
-                      onClick={() => {
-                        handleInstallApp();
-                        setShowProfileMenu(false);
-                      }}
-                      className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-700 transition"
-                    >
-                      <Download size={18} className="text-green-500"/> Instalar CENTRA
-                    </button>
-                  )}
-
-                  <button
-                    onClick={() => {
-                      setShowProfileMenu(false);
-                      enableNotifications();
-                    }}
-                    className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-700 transition"
-                  >
-                    <Bell size={18} className="text-blue-500"/> Configurar notificaciones
-                  </button>
-
-                  <div className="my-1 border-t border-gray-100"/>
-
-                  <button
-                    onClick={() => {
-                      setShowProfileMenu(false);
-                      onLogout();
-                    }}
-                    className="w-full text-left p-3 rounded-xl hover:bg-red-50 flex items-center gap-3 text-sm font-bold text-red-600 transition"
-                  >
-                    <LogOut size={18}/> Cerrar sesión
-                  </button>
-                </div>
-              </div>
-            )}
+          
+          <div onClick={() => {setActiveTab('profile'); setShowNotifPanel(false);}} className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold border-2 border-orange-400 overflow-hidden cursor-pointer active:scale-95 transition">
+            {user.photoUrl ? <img src={user.photoUrl} className="w-full h-full object-cover" /> : user.firstName?.[0]}
           </div>
         </div>
       </header>
@@ -1009,10 +656,12 @@ const handleInstallApp = async () => {
         {activeTab === 'users' && isSuperAdmin && db && <UsersAdminView db={db} appId={appId} />}
         {activeTab === 'personal' && isAdminRole && db && <PersonalView user={user} db={db} appId={appId} TURNS_LIST={TURNS_LIST} VALID_ROLES_OFFICIAL={VALID_ROLES_OFFICIAL} />}
         {activeTab === 'admin' && isAdminRole && db && <AdministracionView user={user} db={db} appId={appId} />}
+        {activeTab === 'equipo' && isTechTeamRole && db && <EquipoTecnicoView user={user} db={db} appId={appId} />}
         {activeTab === 'medical' && isMedicalRole && db && <MedicalView user={user} db={db} appId={appId} />}
   
         {activeTab === 'informes' && (<InformesView user={user} students={students} db={db} appId={appId} />)}
         {activeTab === 'informes_externos' && canAccessInformesExternos && (<InformesExternosView user={user} db={db} appId={appId} />)}
+        {activeTab === 'audit' && isSuperAdmin && db && (<ActivityLogView db={db} appId={appId} />)}
       </main>
 
       <nav className="fixed bottom-0 w-full bg-white border-t border-violet-100 h-16 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] pb-safe shrink-0 text-center">
@@ -1024,13 +673,13 @@ const handleInstallApp = async () => {
             <button onClick={() => setActiveTab('groups')} className={`w-14 h-14 rounded-full flex flex-col items-center justify-center shadow-xl border-4 border-gray-50 transition-all transform active:scale-95 ${activeTab === 'groups' ? 'bg-orange-500 text-white scale-110' : 'bg-violet-600 text-white'}`}>
               <Grid size={24} />
             </button>
-            <span className="absolute -bottom-4 text-[9px] font-black text-violet-900 uppercase tracking-wide whitespace-nowrap">Organización</span>
+            <span className="absolute -bottom-4 text-[9px] font-black text-violet-900 uppercase tracking-wide whitespace-nowrap">Mi Aula</span>
           </div>
 
           <NavButton active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarIcon size={20} />} label="Agenda" />
           
           <div className="relative">
-            <NavButton active={['matricula', 'resources', 'proyecto', 'admin', 'personal', 'medical', 'social', 'users', 'informes', 'informes_externos', 'evaluations'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={20} />} label="Más" />
+            <NavButton active={['matricula', 'resources', 'proyecto', 'admin', 'personal', 'medical', 'equipo', 'social', 'users'].includes(activeTab)} onClick={() => setShowMoreMenu(!showMoreMenu)} icon={<List size={20} />} label="Más" />
             
             {showMoreMenu && (
               <div className="absolute bottom-16 right-0 bg-white rounded-3xl shadow-2xl border border-gray-100 p-2 w-64 animate-in slide-in-from-bottom-5 zoom-in-95 origin-bottom-right z-[100] max-h-[70vh] overflow-y-auto custom-scrollbar">
@@ -1050,6 +699,7 @@ const handleInstallApp = async () => {
                 {showPrivateMenu && (
                   <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-3 mb-1 mt-1">Gestión Privada</p>
+                    {isTechTeamRole && <button onClick={() => { setActiveTab('equipo'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-teal-50 flex items-center gap-3 text-sm font-bold text-teal-700 transition"><Briefcase size={18} className="text-teal-500"/> Equipo Técnico</button>}
                     {isAdminRole && (
                       <>
                         <button onClick={() => { setActiveTab('admin'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-blue-50 flex items-center gap-3 text-sm font-bold text-blue-600 transition"><FileText size={18} className="text-blue-500"/> Admin Docs</button>
@@ -1066,6 +716,7 @@ const handleInstallApp = async () => {
                     {isMedicalRole && <button onClick={() => { setActiveTab('medical'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-red-50 flex items-center gap-3 text-sm font-bold text-red-600 transition"><Activity size={18} className="text-red-500"/> Médico</button>}
                     {isSuperAdmin && (
                       <>
+                        <button onClick={() => { setActiveTab('audit'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-slate-100 flex items-center gap-3 text-sm font-bold text-slate-700 transition border-t border-slate-50 mt-1"><Activity size={18} className="text-slate-500"/> Auditoría Global</button>
                         <button onClick={() => { setActiveTab('users'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-red-50 flex items-center gap-3 text-sm font-bold text-red-700 transition border-t border-red-50 mt-1"><Shield size={18} className="text-red-500"/> Gestión Usuarios</button>
                       </>
                     )}
