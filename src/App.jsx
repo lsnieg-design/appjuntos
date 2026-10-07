@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   doc,
   updateDoc,
-  deleteDoc,
+  deleteDoc, 
   collection, 
   query,
   orderBy,
