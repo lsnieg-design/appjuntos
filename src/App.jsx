@@ -2039,7 +2039,7 @@ function BitacoraExpressModal({
           <div className="min-w-0">
             <p className="text-[9px] font-black uppercase tracking-[0.18em] text-emerald-500">
               Bitácora Express
-            </p>
+            </p> 
             <h3 className="text-lg font-black text-slate-800 uppercase italic truncate mt-1">
               {student.lastName}, {student.firstName}
             </h3>
