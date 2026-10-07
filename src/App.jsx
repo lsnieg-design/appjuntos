@@ -3,7 +3,7 @@ import {
   doc,
   updateDoc,
   deleteDoc,
-  collection,
+  collection, 
   query,
   orderBy,
   onSnapshot,
