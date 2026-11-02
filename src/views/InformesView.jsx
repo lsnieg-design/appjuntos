@@ -673,7 +673,7 @@ const generarHTMLImpresion = (s, report) => {
 
 export function InformesView({ user, db, appId }) {
  const [stage, setStage] = useState('main'); 
- const [tipoInforme, setTipoInforme] = useState('pedagogico');
+ const [tipoInforme, setTipoInforme] = useState('psicomotricidad');
  const [periodoInforme, setPeriodoInforme] = useState('Final');
  const [selectedStudent, setSelectedStudent] = useState(null);
  const [contenidosPlastica, setContenidosPlastica] = useState('');
