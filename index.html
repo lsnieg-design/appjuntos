@@ -13,7 +13,7 @@
 
     <link rel="apple-touch-icon" sizes="180x180" href="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/fill/w_180,h_180,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png">
     <link rel="icon" type="image/png" sizes="32x32" href="https://static.wixstatic.com/media/1a42ff_3511de5c6129483cba538636cff31b1d~mv2.png/v1/fill/w_32,h_32,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20sin%20fondo.png">
-    
+
     <link rel="manifest" href="/manifest.json">
   </head>
   <body>
@@ -21,17 +21,28 @@
     <script type="module" src="/src/main.jsx"></script>
     <script>
     if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .then((reg) => {
-        console.log('Service Worker registrado con éxito:', reg.scope);
-      })
-      .catch((err) => {
-        console.error('Error al registrar el Service Worker:', err);
+      const alreadyControlled = Boolean(navigator.serviceWorker.controller);
+      let reloadedForUpdate = false;
+
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (alreadyControlled && !reloadedForUpdate) {
+          reloadedForUpdate = true;
+          window.location.reload();
+        }
       });
-  });
-}
+
+      window.addEventListener('load', async () => {
+        try {
+          const registration = await navigator.serviceWorker.register('/sw.js', {
+            updateViaCache: 'none'
+          });
+          console.log('Service Worker registrado:', registration.scope);
+          await registration.update();
+        } catch (error) {
+          console.error('Error al actualizar el Service Worker:', error);
+        }
+      });
+    }
     </script>
   </body>
 </html>
-
