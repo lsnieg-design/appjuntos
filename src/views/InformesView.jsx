@@ -1092,8 +1092,8 @@ return (
         onChange={e => setPeriodoInforme(e.target.value)}
        >
         <option value="Inicial" disabled>Informe Inicial (Cerrado)</option>
-        <option value="Medio">Informe Medio 2026</option>
         <option value="Final">INFORMES FINALES 2026</option>
+         
        </select>
       </div>
       <button 
