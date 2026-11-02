@@ -606,7 +606,7 @@ const generarHTMLImpresion = (s, report) => {
 
  const subtituloArea = report.tipoInforme === 'musica' 
    ? 'Música (Francisco Jaime)' 
-   : (report.tipoInforme === 'musica_brenda' ? 'Música (Brenda Celiz)' : report.tipoInforme);
+   : (report.tipoInforme === 'musica_brenda' ? 'Música (FER)' : report.tipoInforme);
 
  const mostrarAuxiliar = !['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(report.tipoInforme);
 
@@ -674,7 +674,7 @@ const generarHTMLImpresion = (s, report) => {
 export function InformesView({ user, db, appId }) {
  const [stage, setStage] = useState('main'); 
  const [tipoInforme, setTipoInforme] = useState('pedagogico');
- const [periodoInforme, setPeriodoInforme] = useState('Medio');
+ const [periodoInforme, setPeriodoInforme] = useState('Final');
  const [selectedStudent, setSelectedStudent] = useState(null);
  const [contenidosPlastica, setContenidosPlastica] = useState('');
   const [observacionesPlastica, setObservacionesPlastica] = useState('');
@@ -885,7 +885,7 @@ const handleEdit = (student, report) => {
   if (tipoInforme === 'musica') {
     docenteAsignado = report?.docente || grupoData?.profeMusica || 'Francisco Jaime';
   } else if (tipoInforme === 'musica_brenda') {
-    docenteAsignado = report?.docente || 'Brenda Celiz';
+    docenteAsignado = report?.docente || 'FER';
   } else if (tipoInforme === 'plastica') {
     docenteAsignado = report?.docente || grupoData?.profePlastica || 'Rosario Cozzarín';
   } else if (tipoInforme === 'educacion_fisica') {
@@ -1093,7 +1093,7 @@ return (
        >
         <option value="Inicial" disabled>Informe Inicial (Cerrado)</option>
         <option value="Medio">Informe Medio 2026</option>
-        <option value="Final" disabled>Informe Final (Pronto)</option>
+        <option value="Final">INFORMES FINALES 2026</option>
        </select>
       </div>
       <button 
@@ -1107,12 +1107,10 @@ return (
 
  <div className="flex flex-wrap gap-2 p-2 bg-white rounded-2xl border mb-6">
           {[
-            { id: 'pedagogico', label: 'Pedagógico' },
-            { id: 'laboral', label: 'Laboral' },
             { id: 'psicomotricidad', label: 'Psicomotricidad' },
             { id: 'plastica', label: 'Plástica' },
             { id: 'musica', label: 'Música Fran' },
-   { id: 'musica_brenda', label: 'Música Brenda' },
+   { id: 'musica_brenda', label: 'Música FER' },
             { id: 'educacion_fisica', label: 'Ed. Física' }
           ].map(t => (
             <button 
@@ -1376,12 +1374,10 @@ return (
           <div className="p-6 overflow-y-auto space-y-6 bg-gray-50">
             {(() => {
               const listaAreas = [
-                { id: 'pedagogico', label: 'Pedagógico' },
-                { id: 'laboral', label: 'Laboral' },
-                { id: 'psicomotricidad', label: 'Psicomotricidad' },
+                                { id: 'psicomotricidad', label: 'Psicomotricidad' },
                 { id: 'plastica', label: 'Plástica' },
                 { id: 'musica', label: 'Música Fran' },
-                { id: 'musica_brenda', label: 'Música Brenda' },
+                { id: 'musica_brenda', label: 'Música FER' },
                 { id: 'educacion_fisica', label: 'Ed. Física' }
               ];
 
@@ -1540,7 +1536,7 @@ return (
             <div className="bg-amber-50 border border-amber-200 p-8 rounded-3xl text-center">
               <span className="text-4xl block mb-2">⚠️</span>
               <p className="text-amber-900 font-black text-lg">
-                El nivel {selectedStudent?.level} no posee informe de {tipoInforme === 'musica_brenda' ? 'Música Brenda' : tipoInforme.replace('_', ' ')}.
+                El nivel {selectedStudent?.level} no posee informe de {tipoInforme === 'musica_brenda' ? 'Música FER' : tipoInforme.replace('_', ' ')}.
               </p>
               <p className="text-amber-700 text-sm mt-1">Este espacio está habilitado exclusivamente para Inicial y 1° Ciclo.</p>
             </div>
@@ -1749,7 +1745,7 @@ return (
                   <img src="https://tu-app-en-vercel.vercel.app/logosinfondo.png" alt="Logo Institucional" className="h-16 object-contain mb-3" />
                   <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME {periodoInforme.toUpperCase()} 2026</h1>
                   <p className="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
-                    Área: {tipoInforme === 'musica' ? 'Música (Francisco Jaime)' : tipoInforme === 'musica_brenda' ? 'Música (Brenda Celiz)' : tipoInforme}
+                    Área: {tipoInforme === 'musica' ? 'Música (Francisco Jaime)' : tipoInforme === 'musica_brenda' ? 'Música (FER)' : tipoInforme}
                   </p>
                 </div>
                 
