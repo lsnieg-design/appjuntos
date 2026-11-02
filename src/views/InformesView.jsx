@@ -692,6 +692,8 @@ export function InformesView({ user, db, appId }) {
  const [showStatsModal, setShowStatsModal] = useState(false);
  
  const [students, setStudents] = useState([]);
+ const [studentsLoaded, setStudentsLoaded] = useState(false);
+ const [studentsLoadError, setStudentsLoadError] = useState('');
  const [savedReports, setSavedReports] = useState([]);
  const [isSaving, setIsSaving] = useState(false);
  
@@ -820,15 +822,43 @@ export function InformesView({ user, db, appId }) {
     await setDoc(docRef, { ids: nuevosIds }, { merge: true });
   };
  useEffect(() => {
-  if (!db || !appId) return;
+  if (!db || !appId) {
+    setStudentsLoadError('No se pudo inicializar la conexión con la base de datos.');
+    setStudentsLoaded(true);
+    return;
+  }
+
   const qS = query(collection(db, 'artifacts', appId, 'public', 'data', 'students'));
-  const unsubS = onSnapshot(qS, (snap) => setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+  const unsubS = onSnapshot(
+    qS,
+    (snap) => {
+      setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setStudentsLoaded(true);
+      setStudentsLoadError('');
+    },
+    (error) => {
+      console.error('Error al cargar estudiantes para Informes Finales:', error);
+      setStudentsLoaded(true);
+      setStudentsLoadError(error?.code || error?.message || 'Error desconocido');
+    }
+  );
+
   const qR = collection(db, 'artifacts', appId, 'public', 'data', 'pedagogical_reports');
-  const unsubR = onSnapshot(qR, (snap) => setSavedReports(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+  const unsubR = onSnapshot(
+    qR,
+    (snap) => setSavedReports(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+    (error) => console.error('Error al cargar informes guardados:', error)
+  );
+
   return () => { unsubS(); unsubR(); };
  }, [db, appId]);
 
- const estudiantesSede = students.filter(s => !s.modalidad || s.modalidad === 'Sede');
+ // La matrícula guarda este dato en "modality". Se acepta "modalidad"
+ // para mantener compatibilidad con registros antiguos.
+ const estudiantesSede = students.filter(s => {
+  const modalidad = String(s.modality ?? s.modalidad ?? 'Sede').trim().toLowerCase();
+  return modalidad === 'sede' || modalidad === 'ambos';
+ });
  
 const filteredStudents = estudiantesSede.filter(s => {
  const matchSearch = `${s.lastName || ''} ${s.firstName || ''}`.toLowerCase().includes(searchTerm.toLowerCase());
@@ -1078,7 +1108,13 @@ return (
       <h2 className="text-xl md:text-2xl font-black mb-2 flex items-center justify-center md:justify-start gap-3">
        <BookOpen size={24} className="md:w-[28px] md:h-[28px]" /> Gestión de Informes
       </h2>
-      <p className="text-violet-100 text-xs md:text-sm">Mostrando: {filteredStudents.length} alumnos en la base Sede.</p>
+      <p className="text-violet-100 text-xs md:text-sm">
+        {!studentsLoaded
+          ? 'Conectando con la base de estudiantes…'
+          : studentsLoadError
+            ? `No se pudieron cargar los estudiantes (${studentsLoadError}).`
+            : `Base Sede: ${estudiantesSede.length} estudiantes.`}
+      </p>
      </div>
 
   <div className="w-full md:w-auto bg-white/10 p-3 rounded-2xl border border-white/20 flex flex-col md:flex-row items-end gap-3">
@@ -1093,6 +1129,7 @@ return (
        >
         <option value="Inicial" disabled>Informe Inicial (Cerrado)</option>
         <option value="Final">INFORMES FINALES 2026</option>
+        <option value="Medio">INFORMES MEDIOS 2026</option>
          
        </select>
       </div>
