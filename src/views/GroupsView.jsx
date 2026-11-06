@@ -915,8 +915,8 @@ const handleSaveIncident = async (type, severity = "medium", text = "") => {
           <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
             <div className="w-full lg:w-[400px] bg-white border-r flex flex-col overflow-y-auto custom-scrollbar border-slate-200">
               <div className="p-4 grid grid-cols-2 gap-2 border-b border-slate-50 bg-slate-50/50">
-                <button onClick={() => window.open(selectedGroupDetails.institucionalDrive, '_blank')} className="p-3 bg-emerald-100 text-emerald-700 rounded-2xl font-black text-[9px] uppercase flex items-center justify-center gap-2 shadow-sm hover:bg-emerald-200 transition-all"><Folder size={16}/> Drive</button>
-                <button onClick={() => window.open(selectedGroupDetails.driveLink, '_blank')} className="p-3 bg-blue-100 text-blue-700 rounded-2xl font-black text-[9px] uppercase flex items-center justify-center gap-2 shadow-sm hover:bg-blue-200 transition-all"><FileText size={16}/> Fotos</button>
+                
+                <button onClick={() => window.open(selectedGroupDetails.driveLink, '_blank')} className="p-3 bg-blue-100 text-blue-700 rounded-2xl font-black text-[9px] uppercase flex items-center justify-center gap-2 shadow-sm hover:bg-blue-200 transition-all"><FileText size={16}/> DRIVE</button>
               </div>
 
               <div className="p-4">
