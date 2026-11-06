@@ -158,6 +158,32 @@ musica: {
   ]
  }
 };
+
+// Grilla exclusiva de INFORMES FINALES 2026 para Psicomotricidad.
+// La grilla histórica de CONFIG_INDICADORES.psicomotricidad se conserva
+// sin modificaciones para que los INFORMES MEDIOS sigan siendo idénticos.
+const CONFIG_INDICADORES_PSICOMOTRICIDAD_FINAL = [
+  { id: 'estabilidad', label: 'Capacidad para mantener el equilibrio corporal y regular los movimientos durante las actividades.', options: ['TEA', 'TEP', 'TED'] },
+  { id: 'coordinacion', label: 'Integración de habilidades motoras en situaciones de manejo de elementos y movilidad corporal.', options: ['TEA', 'TEP', 'TED'] },
+  { id: 'juegos_corporales', label: 'Respuesta e involucramiento en propuestas lúdicas que implican acciones y pautas motrices.', options: ['TEA', 'TEP', 'TED'] },
+  { id: 'espera', label: 'Capacidad para adecuarse a las pausas, alternancias y dinámicas de participación compartida.', options: ['TEA', 'TEP', 'TED'] },
+  { id: 'adaptacion', label: 'Flexibilidad para responder a modificaciones en las propuestas, recursos y pautas de trabajo.', options: ['TEA', 'TEP', 'TED'] },
+  { id: 'conducta', label: 'Regulación de las respuestas conductuales ante las diferentes exigencias de las situaciones planteadas.', options: ['TEA', 'TEP', 'TED'] },
+  { id: 'iniciativa', label: 'Grado de autonomía, iniciativa y continuidad en las experiencias de participación colectiva.', options: ['TEA', 'TEP', 'TED'] }
+];
+
+const FUNDAMENTACION_PSICOMOTRICIDAD_FINAL = [
+  'El espacio de Psicomotricidad ofrece propuestas que favorecen el desarrollo integral de los estudiantes a través del movimiento, el juego y la interacción con otros. Mediante experiencias adaptadas a las posibilidades e intereses de cada estudiante, se promueven la exploración corporal, la participación activa, la comunicación y la construcción de recursos que contribuyen a una mayor autonomía en distintos contextos cotidianos.',
+  'Durante el año, las actividades estuvieron orientadas al fortalecimiento de las habilidades motrices, la organización de la acción, la adaptación a diferentes situaciones y el desarrollo de estrategias que favorezcan una participación progresivamente más significativa en las experiencias compartidas.',
+  'En este cierre, se realiza una valoración del recorrido transitado, considerando la participación de cada estudiante y sus modos de responder a las distintas situaciones planteadas. Se contemplan especialmente las habilidades motrices, la organización de la acción, la adaptación a cambios y consignas y la disponibilidad para integrarse a las propuestas grupales. Estos aspectos permiten recuperar lo trabajado durante el año y ofrecer una mirada global sobre su desempeño en el espacio.'
+];
+
+const ACLARACION_TRAYECTORIAS = [
+  { codigo: 'TEA', nombre: 'Trayectoria Educativa Avanzada', descripcion: 'Indica que el estudiante alcanzó los aprendizajes correspondientes a la materia y mantuvo una buena vinculación pedagógica.' },
+  { codigo: 'TEP', nombre: 'Trayectoria Educativa en Proceso', descripcion: 'Indica que el estudiante todavía no alcanzó por completo los contenidos necesarios, pero mantiene una buena vinculación pedagógica con la escuela y los docentes.' },
+  { codigo: 'TED', nombre: 'Trayectoria Educativa Discontinua', descripcion: 'Indica que el estudiante no alcanzó los aprendizajes y presenta una baja o nula vinculación o asistencia a la escuela.' }
+];
+
 const DICCIONARIO = {
  // ==========================================
  // ÁREA PEDAGÓGICA 
@@ -461,9 +487,12 @@ const generarHTMLImpresion = (s, report) => {
    ? (report.nivelMusica || 'Nivel 1') 
    : (tipoInformeNormalizado === 'musica_brenda' ? 'Inicial' : (s?.level || 'Inicial'));
     
- const indicadores = CONFIG_INDICADORES[tipoInformeNormalizado]?.[nivel] || 
-                     CONFIG_INDICADORES[tipoInformeNormalizado]?.['Inicial'] || 
-                     CONFIG_INDICADORES[tipoInformeNormalizado]?.['CFI'] || [];
+ const esPsicomotricidadFinal = tipoInformeNormalizado === 'psicomotricidad' && report.periodo === 'Final';
+ const indicadores = esPsicomotricidadFinal
+   ? CONFIG_INDICADORES_PSICOMOTRICIDAD_FINAL
+   : (CONFIG_INDICADORES[tipoInformeNormalizado]?.[nivel] ||
+      CONFIG_INDICADORES[tipoInformeNormalizado]?.['Inicial'] ||
+      CONFIG_INDICADORES[tipoInformeNormalizado]?.['CFI'] || []);
 
  // 2. Definimos qué áreas usan la Grilla con X y cuáles usan texto redactado
  const materiasConGrilla = ['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'];
@@ -498,10 +527,13 @@ const generarHTMLImpresion = (s, report) => {
  }
 
  if (report.tipoInforme === 'psicomotricidad') {
+     const fundamentacionPsicoHTML = report.periodo === 'Final'
+       ? FUNDAMENTACION_PSICOMOTRICIDAD_FINAL.map(parrafo => `<p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2">${parrafo}</p>`).join('')
+       : `<p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2 whitespace-pre-wrap">El espacio de Psicomotricidad ofrece propuestas que favorecen el desarrollo integral de los estudiantes a través del movimiento, el juego y la interacción con otros. Mediante experiencias adaptadas a las posibilidades e intereses de cada alumno, se promueve la exploración corporal, la participación activa, la comunicación y la construcción de recursos que contribuyen a una mayor autonomía en los distintos contextos cotidianos. Las actividades propuestas buscan acompañar el fortalecimiento de habilidades motrices, la organización de la acción, la adaptación a diferentes situaciones y el desarrollo de estrategias que favorezcan una participación cada vez más significativa dentro de las experiencias compartidas.</p>`;
      desarrolloHTML += `
        <div class="mb-4" style="break-inside: avoid;">
          <h3 class="font-black uppercase text-violet-900 text-[10px] tracking-widest mb-1 border-b border-violet-100 pb-1">Fundamentación</h3>
-         <p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2 whitespace-pre-wrap"> El espacio de Psicomotricidad ofrece propuestas que favorecen el desarrollo integral de los estudiantes a través del movimiento, el juego y la interacción con otros. Mediante experiencias adaptadas a las posibilidades e intereses de cada alumno, se promueve la exploración corporal, la participación activa, la comunicación y la construcción de recursos que contribuyen a una mayor autonomía en los distintos contextos cotidianos. Las actividades propuestas buscan acompañar el fortalecimiento de habilidades motrices, la organización de la acción, la adaptación a diferentes situaciones y el desarrollo de estrategias que favorezcan una participación cada vez más significativa dentro de las experiencias compartidas.</p>
+         ${fundamentacionPsicoHTML}
        </div>
      `;
  }
@@ -523,13 +555,13 @@ const generarHTMLImpresion = (s, report) => {
  // 4. Renderizamos la Grilla o el Texto
  if (materiasConGrilla.includes(report.tipoInforme)) {
      desarrolloHTML += `
-       <table class="w-full text-left border-collapse mt-4 text-[11px] mb-6" style="break-inside: avoid;">
+       <table class="w-full text-left border-collapse mt-4 text-[11px] mb-3" style="break-inside: avoid;">
          <thead>
            <tr class="bg-violet-100 text-violet-900">
-             <th class="border border-violet-200 p-2 font-black uppercase">Objetivos / Indicadores</th>
-             <th class="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">Realiza con<br/>autonomía</th>
-             <th class="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">Realiza con<br/>apoyo</th>
-             <th class="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">En<br/>proceso</th>
+             <th class="border border-violet-200 p-2 font-black uppercase">${esPsicomotricidadFinal ? 'Aspectos observados' : 'Objetivos / Indicadores'}</th>
+             ${esPsicomotricidadFinal
+               ? '<th class="border border-violet-200 p-2 font-black uppercase text-center w-16">TEA</th><th class="border border-violet-200 p-2 font-black uppercase text-center w-16">TEP</th><th class="border border-violet-200 p-2 font-black uppercase text-center w-16">TED</th>'
+               : '<th class="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">Realiza con<br/>autonomía</th><th class="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">Realiza con<br/>apoyo</th><th class="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">En<br/>proceso</th>'}
            </tr>
          </thead>
          <tbody>
@@ -538,20 +570,25 @@ const generarHTMLImpresion = (s, report) => {
        const answer = report.answers?.[c.id];
        if (!answer) return;
        
-       const xAutonomia = answer === c.options[0] ? 'X' : '';
-       const xApoyo = answer === c.options[1] ? 'X' : '';
-       const xProceso = answer === c.options[2] ? 'X' : '';
+       const marca0 = answer === c.options[0] ? 'X' : '';
+       const marca1 = answer === c.options[1] ? 'X' : '';
+       const marca2 = answer === c.options[2] ? 'X' : '';
 
        desarrolloHTML += `
          <tr>
            <td class="border border-violet-200 p-2 font-medium text-gray-800">${c.label}</td>
-           <td class="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">${xAutonomia}</td>
-           <td class="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">${xApoyo}</td>
-           <td class="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">${xProceso}</td>
+           <td class="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">${marca0}</td>
+           <td class="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">${marca1}</td>
+           <td class="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">${marca2}</td>
          </tr>
        `;
      });
      desarrolloHTML += `</tbody></table>`;
+     if (esPsicomotricidadFinal) {
+       desarrolloHTML += `<div class="mt-2 mb-4 text-[9px] leading-relaxed text-gray-700" style="break-inside: avoid;">
+         ${ACLARACION_TRAYECTORIAS.map(item => `<p class="mb-1"><strong>${item.codigo} (${item.nombre}):</strong> ${item.descripcion}</p>`).join('')}
+       </div>`;
+     }
  } else {
      desarrolloHTML += `<div class="space-y-4 border-l-2 border-violet-200 ml-1 pl-4">`;
      indicadores.forEach(c => {
@@ -995,7 +1032,11 @@ const nivelActual = tipoInforme === 'musica'
 // ¡ESTA ES LA VARIABLE QUE LA CONSOLA DICE QUE FALTA!
 const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBrenda)
   ? []
-  : (CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || []);
+  : (tipoInforme === 'psicomotricidad' && periodoInforme === 'Final'
+      ? CONFIG_INDICADORES_PSICOMOTRICIDAD_FINAL
+      : (CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || []));
+
+const esPsicomotricidadFinal = tipoInforme === 'psicomotricidad' && periodoInforme === 'Final';
 
 const nivelesDisponibles = tipoInforme === 'laboral' 
   ? ['2° Ciclo', 'CFI'] 
@@ -1117,27 +1158,30 @@ return (
       </p>
      </div>
 
-  <div className="w-full md:w-auto bg-white/10 p-3 rounded-2xl border border-white/20 flex flex-col md:flex-row items-end gap-3">
-      <div className="w-full md:w-auto">
-       <label className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-violet-200 block mb-1 px-1 text-center md:text-left">
-        Período del Informe:
-       </label>
-       <select 
-        className="w-full bg-white text-violet-900 font-black text-sm md:text-base py-2 px-3 md:p-3 rounded-xl outline-none" 
-        value={periodoInforme} 
-        onChange={e => setPeriodoInforme(e.target.value)}
-       >
-        <option value="Inicial" disabled>Informe Inicial (Cerrado)</option>
-        <option value="Final">INFORMES FINALES 2026</option>
-        <option value="Medio">INFORMES MEDIOS 2026</option>
-         
-       </select>
+  <div className="w-full md:w-auto flex flex-col gap-3">
+      <div className="flex flex-wrap gap-2 justify-center md:justify-end">
+        <button
+          type="button"
+          onClick={() => { setPeriodoInforme('Final'); setStage('main'); }}
+          aria-pressed={periodoInforme === 'Final'}
+          className={`px-4 py-3 rounded-xl text-xs md:text-sm font-black transition-all border-2 ${periodoInforme === 'Final' ? 'bg-white text-violet-900 border-white shadow-lg' : 'bg-white/10 text-white border-white/30 hover:bg-white/20'}`}
+        >
+          INFORMES FINALES 2026
+        </button>
+        <button
+          type="button"
+          onClick={() => { setPeriodoInforme('Medio'); setStage('main'); }}
+          aria-pressed={periodoInforme === 'Medio'}
+          className={`px-4 py-3 rounded-xl text-xs md:text-sm font-black transition-all border-2 ${periodoInforme === 'Medio' ? 'bg-white text-violet-900 border-white shadow-lg' : 'bg-white/10 text-white border-white/30 hover:bg-white/20'}`}
+        >
+          INFORMES MEDIOS 2026
+        </button>
       </div>
-      <button 
-        onClick={() => setShowStatsModal(true)} 
-        className="w-full md:w-auto bg-white text-violet-900 hover:bg-violet-50 font-black py-2.5 px-4 md:p-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm"
+      <button
+        onClick={() => setShowStatsModal(true)}
+        className="w-full bg-white text-violet-900 hover:bg-violet-50 font-black py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm"
       >
-        <PieChart size={20} /> <span className="md:inline">Estadísticas</span>
+        <PieChart size={20} /> Estadísticas de {periodoInforme === 'Final' ? 'informes finales' : 'informes medios'}
       </button>
      </div>
     </div>
@@ -1402,7 +1446,7 @@ return (
           <div className="p-6 bg-violet-800 text-white flex justify-between items-center">
             <div>
               <h2 className="text-xl font-black flex items-center gap-2"><PieChart size={24} /> Progreso de Carga</h2>
-              <p className="text-violet-200 text-sm">Informes del período: {periodoInforme}</p>
+              <p className="text-violet-200 text-sm">Sección activa: {periodoInforme === 'Final' ? 'INFORMES FINALES 2026' : 'INFORMES MEDIOS 2026'}</p>
             </div>
             <button onClick={() => setShowStatsModal(false)} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors">
               <X size={20} />
@@ -1642,9 +1686,15 @@ return (
                   {tipoInforme === 'psicomotricidad' && (
                     <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
                       <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
-                      <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
-                        El espacio de Psicomotricidad ofrece propuestas que favorecen el desarrollo integral de los estudiantes a través del movimiento, el juego y la interacción con otros. Mediante experiencias adaptadas a las posibilidades e intereses de cada alumno, se promueve la exploración corporal, la participación activa, la comunicación y la construcción de recursos que contribuyen a una mayor autonomía en los distintos contextos cotidianos. Las actividades propuestas buscan acompañar el fortalecimiento de habilidades motrices, la organización de la acción, la adaptación a diferentes situaciones y el desarrollo de estrategias que favorezcan una participación cada vez más significativa dentro de las experiencias compartidas.
-                      </p>
+                      {esPsicomotricidadFinal ? (
+                        <div className="text-xs text-indigo-800 font-medium leading-relaxed space-y-2">
+                          {FUNDAMENTACION_PSICOMOTRICIDAD_FINAL.map((parrafo, index) => <p key={index}>{parrafo}</p>)}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
+                          El espacio de Psicomotricidad ofrece propuestas que favorecen el desarrollo integral de los estudiantes a través del movimiento, el juego y la interacción con otros. Mediante experiencias adaptadas a las posibilidades e intereses de cada alumno, se promueve la exploración corporal, la participación activa, la comunicación y la construcción de recursos que contribuyen a una mayor autonomía en los distintos contextos cotidianos. Las actividades propuestas buscan acompañar el fortalecimiento de habilidades motrices, la organización de la acción, la adaptación a diferentes situaciones y el desarrollo de estrategias que favorezcan una participación cada vez más significativa dentro de las experiencias compartidas.
+                        </p>
+                      )}
                     </div>
                   )}
 
@@ -1694,6 +1744,17 @@ return (
                       )}
                     </div>
                   ))}
+
+                  {esPsicomotricidadFinal && (
+                    <div className="mt-5 p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                      <h4 className="text-xs font-black uppercase tracking-wide text-slate-800">Aclaración sobre las trayectorias educativas</h4>
+                      {ACLARACION_TRAYECTORIAS.map(item => (
+                        <p key={item.codigo} className="text-[11px] leading-relaxed text-slate-700">
+                          <strong>{item.codigo} ({item.nombre}):</strong> {item.descripcion}
+                        </p>
+                      ))}
+                    </div>
+                  )}
 
                   {/* 3. ESPACIO DE OBSERVACIONES (MATERIAS ESPECIALES) */}
                   {tipoInforme === 'plastica' && (
@@ -1813,13 +1874,16 @@ return (
                   </h2>
                   
                   {['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) ? (
+                    <>
                     <table className="w-full text-left border-collapse mt-4 text-[11px] mb-6" style={{ breakInside: 'avoid' }}>
                       <thead>
                         <tr className="bg-violet-100 text-violet-900">
-                          <th className="border border-violet-200 p-2 font-black uppercase">Objetivos / Indicadores</th>
-                          <th className="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">Realiza con<br/>autonomía</th>
-                          <th className="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">Realiza con<br/>apoyo</th>
-                          <th className="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">En<br/>proceso</th>
+                          <th className="border border-violet-200 p-2 font-black uppercase">{esPsicomotricidadFinal ? 'Aspectos observados' : 'Objetivos / Indicadores'}</th>
+                          {esPsicomotricidadFinal ? (
+                            <><th className="border border-violet-200 p-2 font-black uppercase text-center w-16">TEA</th><th className="border border-violet-200 p-2 font-black uppercase text-center w-16">TEP</th><th className="border border-violet-200 p-2 font-black uppercase text-center w-16">TED</th></>
+                          ) : (
+                            <><th className="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">Realiza con<br/>autonomía</th><th className="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">Realiza con<br/>apoyo</th><th className="border border-violet-200 p-2 font-black uppercase text-center w-20 leading-tight">En<br/>proceso</th></>
+                          )}
                         </tr>
                       </thead>
                       <tbody>
@@ -1837,6 +1901,14 @@ return (
                         })}
                       </tbody>
                     </table>
+                    {esPsicomotricidadFinal && (
+                      <div className="mt-2 mb-4 text-[9px] leading-relaxed text-gray-700">
+                        {ACLARACION_TRAYECTORIAS.map(item => (
+                          <p key={item.codigo} className="mb-1"><strong>{item.codigo} ({item.nombre}):</strong> {item.descripcion}</p>
+                        ))}
+                      </div>
+                    )}
+                    </>
                   ) : (
                     <div className="space-y-4 border-l-2 border-violet-200 ml-1 pl-4">
                       {indicadoresActuales.map(c => {
