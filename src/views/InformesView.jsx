@@ -585,7 +585,7 @@ const generarHTMLImpresion = (s, report) => {
      });
      desarrolloHTML += `</tbody></table>`;
      if (esPsicomotricidadFinal) {
-       desarrolloHTML += `<div class="mt-2 mb-4 text-[9px] leading-relaxed text-gray-700" style="break-inside: avoid;">
+       desarrolloHTML += `<div class="leyenda-trayectorias mt-2 mb-3 text-gray-700" style="break-inside: avoid; font-size: 7px; line-height: 1.2;">
          ${ACLARACION_TRAYECTORIAS.map(item => `<p class="mb-1"><strong>${item.codigo} (${item.nombre}):</strong> ${item.descripcion}</p>`).join('')}
        </div>`;
      }
@@ -1051,6 +1051,12 @@ return (
    #impresion-masiva { display: none !important; }
  }
  @media print {
+   /* Evita que Chrome agregue fecha, hora, URL y numeración del navegador. */
+   @page {
+     size: A4;
+     margin: 0 !important;
+   }
+
    body > *:not(#impresion-masiva):not(script):not(style) {
      display: none !important;
    }
@@ -1060,10 +1066,19 @@ return (
      position: relative; 
      width: 100%;
    }
-   .pagina { 
-     page-break-after: always; 
+   .pagina {
+     box-sizing: border-box;
+     page-break-after: always;
      page-break-inside: avoid;
-     padding-bottom: 0 !important;
+     padding: 1cm 1.25cm 0.8cm !important;
+     -webkit-print-color-adjust: exact;
+     print-color-adjust: exact;
+   }
+   .con-aire .pagina {
+     padding: 1.2cm 1.4cm 1cm !important;
+   }
+   .compacto .pagina {
+     padding: 0.45cm 0.8cm 0.4cm !important;
    }
    body { 
      background: white; 
@@ -1071,20 +1086,8 @@ return (
      padding: 0; 
    }
 
-   /* --- CONFIGURACIÓN DE MÁRGENES DINÁMICOS (AIRE) --- */
-   /* Si es Pedagógico o Laboral: Margen amplio y elegante */
-   .con-aire @page { 
-     margin: 1.2cm 1.4cm !important; 
-   }
-   .con-aire .pagina {
-     padding-left: 0.5cm !important;
-     padding-right: 0.5cm !important;
-   }
-
-   /* Si es Materia Especial con Grilla: Margen compacto para asegurar hoja única */
-   .compacto @page { 
-     margin: 0.4cm 0.8cm !important; 
-   }
+   /* Los márgenes se aplican dentro de cada hoja para mantener ocultos
+      los encabezados y pies automáticos del navegador. */
 
    /* --- Reducción para el Encabezado en formato Grilla --- */
    .bg-violet-50.p-6.rounded-t-xl {
@@ -1840,7 +1843,7 @@ return (
             return (
               <div className="pagina w-full bg-white text-black font-sans pb-4">
                 <div className="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
-                  <img src="https://tu-app-en-vercel.vercel.app/logosinfondo.png" alt="Logo Institucional" className="h-16 object-contain mb-3" />
+                  <img src="/logosinfondo.png" alt="Logo Institucional" className="h-16 object-contain mb-3" />
                   <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME {periodoInforme.toUpperCase()} 2026</h1>
                   <p className="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
                     Área: {tipoInforme === 'musica' ? 'Música (Francisco Jaime)' : tipoInforme === 'musica_brenda' ? 'Música (FER)' : tipoInforme}
@@ -1902,7 +1905,7 @@ return (
                       </tbody>
                     </table>
                     {esPsicomotricidadFinal && (
-                      <div className="mt-2 mb-4 text-[9px] leading-relaxed text-gray-700">
+                      <div className="leyenda-trayectorias mt-2 mb-3 text-gray-700" style={{ fontSize: '7px', lineHeight: 1.2 }}>
                         {ACLARACION_TRAYECTORIAS.map(item => (
                           <p key={item.codigo} className="mb-1"><strong>{item.codigo} ({item.nombre}):</strong> {item.descripcion}</p>
                         ))}
