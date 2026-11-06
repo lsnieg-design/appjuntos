@@ -588,7 +588,20 @@ const handleSaveIncident = async (type, severity = "medium", text = "") => {
               <div className={`p-6 border-b-4 relative ${turn === 'morning' ? 'border-orange-400 bg-orange-50/50' : 'border-indigo-400 bg-indigo-50/50'}`}>
                 <div className="absolute top-4 right-4 flex gap-1">
                   <button onClick={() => { setGroupsToPrint([g]); setShowPrintOptions(true); }} className="p-2 bg-white/80 hover:bg-white rounded-full text-violet-600 shadow-sm transition"><Printer size={14}/></button>
-                  <button onClick={() => setSelectedGroupDetails(g)} className="p-2 bg-violet-600 text-white rounded-full shadow-lg hover:scale-110 transition"><Plus size={16}/></button>
+                  <button
+  onClick={(e) => {
+    e.stopPropagation();
+    if (g.driveLink) {
+      window.open(g.driveLink, '_blank', 'noopener,noreferrer');
+    } else {
+      alert("Este grupo todavía no tiene una carpeta de Drive asignada.");
+    }
+  }}
+  title="Abrir carpeta de Drive del grupo"
+  className="p-2 bg-blue-100 text-blue-700 rounded-full shadow-sm hover:bg-blue-200 hover:scale-110 transition"
+>
+  <FileText size={16}/>
+</button>
                   {isManagement && <button onClick={()=>setEditingGroup(g)} className="p-2 bg-white/80 hover:bg-white rounded-full text-slate-400 shadow-sm transition"><Edit3 size={14}/></button>}
                 </div>
                 
