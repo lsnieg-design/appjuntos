@@ -1098,14 +1098,11 @@ const handleSaveIncident = async (type, severity = "medium", text = "") => {
               </div>
 
               <div>
-                <label className="text-[10px] font-black text-emerald-600 uppercase ml-1 tracking-widest">Link Carpeta Fotos</label>
+                <label className="text-[10px] font-black text-emerald-600 uppercase ml-1 tracking-widest">Carpeta Informes</label>
                 <input name="driveLink" defaultValue={editingGroup.driveLink || ""} className="w-full p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-xs font-bold text-emerald-800 outline-none" />
               </div>
 
-              <div>
-                <label className="text-[10px] font-black text-blue-600 uppercase ml-1 tracking-widest">Drive Institucional</label>
-                <input name="institucionalDrive" defaultValue={editingGroup.institucionalDrive || ""} className="w-full p-3 bg-blue-50 border border-blue-100 rounded-xl text-xs font-bold text-blue-800 outline-none" />
-              </div>
+              
 
               <button type="submit" disabled={updatingGroup} className="w-full py-4 bg-violet-600 text-white rounded-2xl font-black shadow-lg uppercase text-xs mt-4 hover:scale-[1.02] transition-all">
                 {updatingGroup ? "Guardando..." : "Aplicar Cambios en todo el Grupo"}
