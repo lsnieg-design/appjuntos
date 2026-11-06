@@ -93,14 +93,16 @@ musica: {
       { id: 'seguimiento_pulso', label: 'Seguimiento del pulso: Identifica y sigue el tiempo en la ronda.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
       { id: 'atencion_estructural', label: 'Atención estructural: Descubre y respeta el inicio y el corte.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
       { id: 'manejo_instrumentos', label: 'Manejo de instrumentos: Examina y toca percusión menor.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
-      { id: 'asociacion_efectos', label: 'Asociación de efectos: Rastrea ruidos para creaciones artísticas del momento.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
+      { id: 'asociacion_efectos', label: 'Asociación de efectos: Rastrea ruidos para creaciones artísticas del momento.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'exploracion_timbrica', label: 'Exploración tímbrica: Descubre diferentes sonoridades al percutir diversos materiales y objetos.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
     ],
     'Nivel 2': [
       { id: 'coordinacion_sonora', label: 'Dominio de coordinación: Ensaya y combina planos sonoros.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
       { id: 'ensamble', label: 'Práctica en ensamble: Distingue su ritmo junto a compañeros.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
       { id: 'control_matices', label: 'Control de matices: Experimenta cambios de velocidad e intensidad.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
       { id: 'uso_registro', label: 'Uso de registro: Interpreta gráficos para recordar ritmos.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
-      { id: 'sincronia', label: 'Logro de sincronía: Testea tocar coordinando con la imagen.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
+      { id: 'sincronia', label: 'Logro de sincronía: Testea tocar coordinando con la imagen.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+      { id: 'dialogo_ritmico', label: 'Diálogo rítmico: Propone y responde variaciones sonoras en dinámicas de pregunta-respuesta grupal.', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
     ]
   },
  educacion_fisica: {
@@ -651,7 +653,7 @@ const generarHTMLImpresion = (s, report) => {
  <div class="pagina w-full bg-white text-black font-sans pb-4">
      <div class="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
          <img src="/logosinfondo.png" alt="Logo Institucional" class="h-16 object-contain mb-3" />
-         <h1 class="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME ${report.periodo.toUpperCase()} 2026</h1>
+         <h1 class="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME ${report.tipoInforme === 'musica' ? 'FINAL' : (report.periodo || 'FINAL').toUpperCase()} 2026</h1>
          <p class="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
              Área: ${subtituloArea}
          </p>
@@ -1844,7 +1846,7 @@ return (
               <div className="pagina w-full bg-white text-black font-sans pb-4">
                 <div className="flex flex-col items-center justify-center border-b-2 border-violet-800 pb-4 mb-5 bg-violet-50 p-6 rounded-t-xl">
                   <img src="/logosinfondo.png" alt="Logo Institucional" className="h-16 object-contain mb-3" />
-                  <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME {periodoInforme.toUpperCase()} 2026</h1>
+                  <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME {tipoInforme === 'musica' ? 'FINAL' : periodoInforme.toUpperCase()} 2026</h1>
                   <p className="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
                     Área: {tipoInforme === 'musica' ? 'Música (Francisco Jaime)' : tipoInforme === 'musica_brenda' ? 'Música (FER)' : tipoInforme}
                   </p>
