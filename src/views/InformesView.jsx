@@ -449,7 +449,7 @@ produccion_calidad: [
 const FIRMAS_AREAS = {
   plastica: '/firmaro.png',
   musica: '/firmafran.png',
-  musica_brenda: '/firmafer.jpeg',
+  musica_brenda: '/firmafer.png',
   educacion_fisica: '/firmajuan.png',
   psicomotricidad: '/firmapablo.png',
   pedagogico: null, // Sin firma digital, firman a mano
@@ -669,10 +669,9 @@ const generarHTMLImpresion = (s, report) => {
         </div>`;
       }
  }
-
- const subtituloArea = report.tipoInforme === 'musica' 
-   ? 'Música (Francisco Jaime)' 
-   : (report.tipoInforme === 'musica_brenda' ? 'Música (FER)' : report.tipoInforme);
+const subtituloArea = ['musica', 'musica_brenda'].includes(report.tipoInforme)
+   ? 'Música'
+   : report.tipoInforme;
 
  const mostrarAuxiliar = !['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(report.tipoInforme);
 
@@ -981,7 +980,7 @@ const handleEdit = (student, report) => {
   if (tipoInforme === 'musica') {
     docenteAsignado = report?.docente || grupoData?.profeMusica || 'Francisco Jaime';
   } else if (tipoInforme === 'musica_brenda') {
-    docenteAsignado = report?.docente || 'FER';
+    docenteAsignado = report?.docente || 'Fernanda Diaz';
   } else if (tipoInforme === 'plastica') {
     docenteAsignado = report?.docente || grupoData?.profePlastica || 'Rosario Cozzarín';
   } else if (tipoInforme === 'educacion_fisica') {
@@ -1885,7 +1884,7 @@ return (
                   <img src="/logosinfondo.png" alt="Logo Institucional" className="h-16 object-contain mb-3" />
                   <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME {tipoInforme === 'musica' ? 'FINAL' : periodoInforme.toUpperCase()} 2026</h1>
                   <p className="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
-                    Área: {tipoInforme === 'musica' ? 'Música (Francisco Jaime)' : tipoInforme === 'musica_brenda' ? 'Música (FER)' : tipoInforme}
+                    Área: {['musica', 'musica_brenda'].includes(tipoInforme) ? 'Música' : tipoInforme}
                   </p>
                 </div>
                 
