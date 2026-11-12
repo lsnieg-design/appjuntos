@@ -720,7 +720,7 @@ const subtituloArea = ['musica', 'musica_brenda'].includes(report.tipoInforme)
              <div class="flex flex-col items-center w-48 relative">
                  ${FIRMAS_AREAS[report.tipoInforme] ? `
                    <div class="absolute bottom-6 flex justify-center items-center w-full pointer-events-none">
-                       <img src="${FIRMAS_AREAS[report.tipoInforme]}" alt="Firma del Docente" class="h-14 object-contain" />
+                       <img   src="${FIRMAS_AREAS[report.tipoInforme]}"   alt="Firma del Docente"   style="height: 80px; width: auto; max-width: 180px; object-fit: contain; border: none; outline: none; box-shadow: none; background: transparent;" />
                    </div>
                  ` : ''}
                  <div class="w-full border-t-2 border-black mb-2"></div>
@@ -1975,7 +1975,7 @@ return (
                     <div className="flex flex-col items-center w-48 relative">
                       {FIRMAS_AREAS[tipoInforme] && (
                         <div className="absolute bottom-6 flex justify-center items-center w-full pointer-events-none">
-                          <img src={FIRMAS_AREAS[tipoInforme]} alt="Firma Docente" className="h-14 object-contain" />
+                          <img   src={FIRMAS_AREAS[tipoInforme]}   alt="Firma Docente"   style={{     height: '80px',     width: 'auto',     maxWidth: '180px',     objectFit: 'contain',     border: 'none',     outline: 'none',     boxShadow: 'none',     background: 'transparent'   }} />
                         </div>
                       )}
                       <div className="w-full border-t-2 border-black mb-2"></div>
