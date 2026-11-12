@@ -179,50 +179,6 @@ const FUNDAMENTACION_PSICOMOTRICIDAD_FINAL = [
   'Durante el año, las actividades estuvieron orientadas al fortalecimiento de las habilidades motrices, la organización de la acción, la adaptación a diferentes situaciones y el desarrollo de estrategias que favorezcan una participación progresivamente más significativa en las experiencias compartidas.',
   'En este cierre, se realiza una valoración del recorrido transitado, considerando la participación de cada estudiante y sus modos de responder a las distintas situaciones planteadas. Se contemplan especialmente las habilidades motrices, la organización de la acción, la adaptación a cambios y consignas y la disponibilidad para integrarse a las propuestas grupales. Estos aspectos permiten recuperar lo trabajado durante el año y ofrecer una mirada global sobre su desempeño en el espacio.'
 ];
-// Grilla exclusiva de INFORMES FINALES 2026 para Música FER.
-const CONFIG_INDICADORES_MUSICA_FER_FINAL = [
-  {
-    id: 'fer_exploracion_instrumental',
-    label: 'Exploración de las posibilidades sonoras de los instrumentos.',
-    options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso']
-  },
-  {
-    id: 'fer_participacion_vocal',
-    label: 'Participación vocal en canciones mediante palabras, tarareos o vocalizaciones, con aproximaciones a la melodía y al ritmo.',
-    options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso']
-  },
-  {
-    id: 'fer_expresion_corporal',
-    label: 'Expresión corporal libre con música editada o en vivo, con o sin elementos.',
-    options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso']
-  },
-  {
-    id: 'fer_reconocimiento_corporal',
-    label: 'Reconocimiento de partes del cuerpo e imitación de movimientos.',
-    options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso']
-  },
-  {
-    id: 'fer_contrastes',
-    label: 'Reconocimiento y expresión de contrastes: sonido/silencio y rápido/lento.',
-    options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso']
-  },
-  {
-    id: 'fer_participacion_corporal_canciones',
-    label: 'Participación corporal en canciones con consignas espaciales y de movimiento.',
-    options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso']
-  },
-  {
-    id: 'fer_escucha_acuerdos',
-    label: 'Escucha, seguimiento de consignas y respeto de acuerdos grupales.',
-    options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso']
-  }
-];
-
-const FUNDAMENTACION_MUSICA_FER_FINAL = [
-  'Las clases de Música se orientan al aprendizaje pedagógico musical y, desde una mirada musicoterapéutica, acompañan el desarrollo integral de las infancias, contemplando las dimensiones expresivas, emocionales, sensoriales, comunicacionales y vinculares involucradas.',
-  'Mediante propuestas lúdicas de exploración instrumental, expresión vocal, movimiento y escucha, se abordan los elementos del lenguaje musical. Se consideran los intereses, las posibilidades y los tiempos de cada estudiante, ofreciendo los apoyos necesarios para favorecer su participación.',
-  'Se busca ampliar las experiencias estéticas desde diferentes géneros, incluyendo el patrimonio musical argentino y su relación con la identidad y la pertenencia cultural. Se promueve la creatividad a través de producciones sonoro-musicales colectivas, valorando los recursos expresivos y las posibilidades de cada integrante.'
-];
 
 const ACLARACION_TRAYECTORIAS = [
   { codigo: 'TEA', nombre: 'Trayectoria Educativa Avanzada', descripcion: 'Indica que el estudiante alcanzó los aprendizajes correspondientes a la materia y mantuvo una buena vinculación pedagógica.' },
@@ -533,26 +489,12 @@ const generarHTMLImpresion = (s, report) => {
    ? (report.nivelMusica || 'Nivel 1') 
    : (tipoInformeNormalizado === 'musica_brenda' ? 'Inicial' : (s?.level || 'Inicial'));
     
-const esPsicomotricidadFinal =
-  tipoInformeNormalizado === 'psicomotricidad' &&
-  report.periodo === 'Final';
-
-const esMusicaFERFinal =
-  tipoInformeNormalizado === 'musica_brenda' &&
-  report.periodo === 'Final';
-
-const indicadores = esMusicaFERFinal
-  ? CONFIG_INDICADORES_MUSICA_FER_FINAL
-  : (
-      esPsicomotricidadFinal
-        ? CONFIG_INDICADORES_PSICOMOTRICIDAD_FINAL
-        : (
-            CONFIG_INDICADORES[tipoInformeNormalizado]?.[nivel] ||
-            CONFIG_INDICADORES[tipoInformeNormalizado]?.['Inicial'] ||
-            CONFIG_INDICADORES[tipoInformeNormalizado]?.['CFI'] ||
-            []
-          )
-    );
+ const esPsicomotricidadFinal = tipoInformeNormalizado === 'psicomotricidad' && report.periodo === 'Final';
+ const indicadores = esPsicomotricidadFinal
+   ? CONFIG_INDICADORES_PSICOMOTRICIDAD_FINAL
+   : (CONFIG_INDICADORES[tipoInformeNormalizado]?.[nivel] ||
+      CONFIG_INDICADORES[tipoInformeNormalizado]?.['Inicial'] ||
+      CONFIG_INDICADORES[tipoInformeNormalizado]?.['CFI'] || []);
 
  // 2. Definimos qué áreas usan la Grilla con X y cuáles usan texto redactado
  const materiasConGrilla = ['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'];
@@ -577,29 +519,14 @@ const indicadores = esMusicaFERFinal
      `;
  }
 
-if (report.tipoInforme === 'musica_brenda') {
-  const fundamentacionMusicaFER = report.periodo === 'Final'
-    ? FUNDAMENTACION_MUSICA_FER_FINAL
-        .map(parrafo => `
-          <p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2">
-            ${parrafo}
-          </p>
-        `).join('')
-    : `
-        <p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2 whitespace-pre-wrap">
-          La música cumple un papel fundamental en el desarrollo integral de los niños, ya que estimula el lenguaje, la creatividad y la atención. Favorece la expresión emocional, la sociabilidad y mejora la coordinación motriz. Es una herramienta que enriquece su desarrollo integral de manera lúdica significativa.
-        </p>
-      `;
-
-  desarrolloHTML += `
-    <div class="mb-4" style="break-inside: avoid;">
-      <h3 class="font-black uppercase text-violet-900 text-[10px] tracking-widest mb-1 border-b border-violet-100 pb-1">
-        Fundamentación
-      </h3>
-      ${fundamentacionMusicaFER}
-    </div>
-  `;
-}
+ if (report.tipoInforme === 'musica_brenda') {
+     desarrolloHTML += `
+       <div class="mb-4" style="break-inside: avoid;">
+         <h3 class="font-black uppercase text-violet-900 text-[10px] tracking-widest mb-1 border-b border-violet-100 pb-1">Fundamentación</h3>
+         <p class="text-gray-800 leading-relaxed font-medium text-[11px] mt-2 whitespace-pre-wrap">La música cumple un papel fundamental en el desarrollo integral de los niños, ya que estimula el lenguaje, la creatividad y la atención. Favorece la expression emocional, la sociabilidad y mejora la coordinación motriz. Es una herramienta que enriquece su desarrollo integral de manera lúdica significativa.</p>
+       </div>
+     `;
+ }
 
  if (report.tipoInforme === 'psicomotricidad') {
      const fundamentacionPsicoHTML = report.periodo === 'Final'
@@ -1105,24 +1032,12 @@ const nivelActual = tipoInforme === 'musica'
   : (tipoInforme === 'musica_brenda' ? 'Inicial' : (selectedStudent?.level || 'Inicial'));
 
 // ¡ESTA ES LA VARIABLE QUE LA CONSOLA DICE QUE FALTA!
-const indicadoresActuales =
-  tipoInforme === 'musica_brenda' &&
-  periodoInforme === 'Final'
-    ? CONFIG_INDICADORES_MUSICA_FER_FINAL
-    : (
-        (tipoInforme === 'musica_brenda' && !esNivelValidoBrenda)
-          ? []
-          : (
-              tipoInforme === 'psicomotricidad' && periodoInforme === 'Final'
-                ? CONFIG_INDICADORES_PSICOMOTRICIDAD_FINAL
-                : (
-                    CONFIG_INDICADORES[tipoInforme]?.[nivelActual] ||
-                    CONFIG_INDICADORES[tipoInforme]?.['Inicial'] ||
-                    CONFIG_INDICADORES[tipoInforme]?.['CFI'] ||
-                    []
-                  )
-            )
-      );
+const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBrenda)
+  ? []
+  : (tipoInforme === 'psicomotricidad' && periodoInforme === 'Final'
+      ? CONFIG_INDICADORES_PSICOMOTRICIDAD_FINAL
+      : (CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || []));
+
 const esPsicomotricidadFinal = tipoInforme === 'psicomotricidad' && periodoInforme === 'Final';
 
 const nivelesDisponibles = tipoInforme === 'laboral' 
@@ -1764,25 +1679,14 @@ return (
                     </div>
                   )}
 
-             {tipoInforme === 'musica_brenda' && (
-  <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
-    <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">
-      Fundamentación
-    </h3>
-
-    {periodoInforme === 'Final' ? (
-      <div className="text-xs text-indigo-800 font-medium leading-relaxed space-y-2">
-        {FUNDAMENTACION_MUSICA_FER_FINAL.map((parrafo, index) => (
-          <p key={index}>{parrafo}</p>
-        ))}
-      </div>
-    ) : (
-      <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
-        La música cumple un papel fundamental en el desarrollo integral de los niños, ya que estimula el lenguaje, la creatividad y la atención. Favorece la expresión emocional, la sociabilidad y mejora la coordinación motriz. Es una herramienta que enriquece su desarrollo integral de manera lúdica significativa.
-      </p>
-    )}
-  </div>
-)}
+                  {tipoInforme === 'musica_brenda' && (
+                    <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
+                      <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
+                      <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
+                        La música cumple un papel fundamental en el desarrollo integral de los niños, ya que estimula el lenguaje, la creatividad y la atención. Favorece la expresión emocional, la sociabilidad y mejora la coordinación motriz. Es una herramienta que enriquece su desarrollo integral de manera lúdica significativa.
+                      </p>
+                    </div>
+                  )}
 
                   {tipoInforme === 'psicomotricidad' && (
                     <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
