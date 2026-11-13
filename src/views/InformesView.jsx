@@ -200,17 +200,28 @@ const FUNDAMENTACION_MUSICA_FER_FINAL = [
 ];
 
 // Grilla exclusiva de INFORMES FINALES 2026 para Educación Física.
-// Se toma como base la grilla existente de Educación Física para 2° Ciclo y CFI,
-// pero se conserva separada para que los INFORMES MEDIOS sigan sin cambios.
+// Respeta las tres subsecciones y los indicadores del modelo enviado.
+// La configuración histórica se conserva para que los INFORMES MEDIOS sigan sin cambios.
+const INDICADORES_EDUCACION_FISICA_FINAL = [
+  // DESDE LO MOTRIZ
+  { id: 'ef_final_capacidades_condicionales', seccion: 'Desde lo motriz', label: 'Desarrollo de las capacidades condicionales', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+  { id: 'ef_final_capacidades_coordinativas', seccion: 'Desde lo motriz', label: 'Capacidades Coordinativas Complejas', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+  { id: 'ef_final_tecnicas_deportes', seccion: 'Desde lo motriz', label: 'Técnicas básicas de deportes', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+  { id: 'ef_final_habilidades_dinamicas', seccion: 'Desde lo motriz', label: 'Habilidades Dinámicas', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+
+  // DESDE LO SOCIAL
+  { id: 'ef_final_relacion_docente_grupo', seccion: 'Desde lo social', label: 'Se relaciona con el Docente y el Grupo', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+  { id: 'ef_final_respuesta_propuestas', seccion: 'Desde lo social', label: 'Responde a las propuestas de la clase', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+
+  // DESDE LO LÚDICO
+  { id: 'ef_final_desarrollo_motor', seccion: 'Desde lo lúdico', label: 'Desarrollo motor y corporal', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+  { id: 'ef_final_juego_reglado', seccion: 'Desde lo lúdico', label: 'Juego reglado', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] },
+  { id: 'ef_final_iniciacion_deporte', seccion: 'Desde lo lúdico', label: 'Iniciación al deporte', options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso'] }
+];
+
 const CONFIG_INDICADORES_EDUCACION_FISICA_FINAL = {
-  '2° Ciclo': CONFIG_INDICADORES.educacion_fisica['2° Ciclo'].map(indicador => ({
-    ...indicador,
-    options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso']
-  })),
-  'CFI': CONFIG_INDICADORES.educacion_fisica['CFI'].map(indicador => ({
-    ...indicador,
-    options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso']
-  }))
+  '2° Ciclo': INDICADORES_EDUCACION_FISICA_FINAL,
+  'CFI': INDICADORES_EDUCACION_FISICA_FINAL
 };
 
 const FUNDAMENTACION_EDUCACION_FISICA_FINAL = 'La Educación Física es un pilar fundamental en la formación integral de los y las estudiantes, ya que promueve el desarrollo armónico del cuerpo y la mente a través del movimiento. Su propósito trasciende el mero ejercicio físico para convertirse en un espacio pedagógico de autoconocimiento, salud y convivencia social. Durante esta segunda mitad del año se trabajaron los siguientes objetivos:';
@@ -468,7 +479,7 @@ const FIRMAS_AREAS = {
   plastica: '/firmaro.png',
   musica: '/firmafran.png',
   musica_brenda: '/firmafer.png',
-  educacion_fisica: '/firmajuan.png',
+  educacion_fisica: '/firmajuan.png', // Archivo ubicado en public/firmajuan.png
   psicomotricidad: '/firmapablo.png',
   pedagogico: null, // Sin firma digital, firman a mano
   laboral: null     // Sin firma digital, firman a mano
@@ -619,10 +630,20 @@ const generarHTMLImpresion = (s, report) => {
          </thead>
          <tbody>
      `;
+     let ultimaSeccionEducacionFisica = null;
      indicadores.forEach(c => {
        const answer = report.answers?.[c.id];
        if (!answer) return;
-       
+
+       if (esEducacionFisicaFinal && c.seccion && c.seccion !== ultimaSeccionEducacionFisica) {
+         desarrolloHTML += `
+           <tr>
+             <td colspan="4" class="border border-violet-200 px-2 py-2 bg-violet-100 font-black uppercase tracking-wide text-violet-900">${c.seccion}</td>
+           </tr>
+         `;
+         ultimaSeccionEducacionFisica = c.seccion;
+       }
+
        const marca0 = answer === c.options[0] ? 'X' : '';
        const marca1 = answer === c.options[1] ? 'X' : '';
        const marca2 = answer === c.options[2] ? 'X' : '';
@@ -1786,23 +1807,29 @@ return (
                   )}
 
                   {/* 2. RÚBRICA DE INDICADORES (PARA TODOS) */}
-                  {indicadoresActuales.map(c => (
-                    <div key={c.id} className="space-y-2 mb-4 p-4 bg-gray-50 rounded-2xl">
-                      <label className="text-xs font-black uppercase text-gray-700">{c.label}</label>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                        {c.options.map(opt => {
-                          const isSelected = answers[c.id] === opt;
-                          return (
-                            <button 
-                              key={opt} 
-                              onClick={() => setAnswers(p => ({...p, [c.id]: opt}))} 
-                              className={"p-3 rounded-xl font-bold text-[10px] uppercase border-2 text-center transition-all " + (isSelected ? "bg-violet-600 text-white border-violet-700 shadow-md" : "bg-white border-gray-200 hover:border-violet-300")}
-                            >
-                              {opt}
-                            </button>
-                          );
-                        })}
-                      </div>
+                  {indicadoresActuales.map((c, index) => (
+                    <React.Fragment key={c.id}>
+                      {esEducacionFisicaFinal && c.seccion !== indicadoresActuales[index - 1]?.seccion && (
+                        <div className="mt-5 mb-3 px-4 py-3 rounded-xl bg-violet-100 border-l-4 border-violet-700">
+                          <h4 className="text-xs font-black uppercase tracking-wider text-violet-900">{c.seccion}</h4>
+                        </div>
+                      )}
+                      <div className="space-y-2 mb-4 p-4 bg-gray-50 rounded-2xl">
+                        <label className="text-xs font-black uppercase text-gray-700">{c.label}</label>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                          {c.options.map(opt => {
+                            const isSelected = answers[c.id] === opt;
+                            return (
+                              <button 
+                                key={opt} 
+                                onClick={() => setAnswers(p => ({...p, [c.id]: opt}))} 
+                                className={"p-3 rounded-xl font-bold text-[10px] uppercase border-2 text-center transition-all " + (isSelected ? "bg-violet-600 text-white border-violet-700 shadow-md" : "bg-white border-gray-200 hover:border-violet-300")}
+                              >
+                                {opt}
+                              </button>
+                            );
+                          })}
+                        </div>
 
                       {/* Campo personalizado para áreas pedagógica y laboral */}
                       {!['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(tipoInforme) && (
@@ -1817,7 +1844,8 @@ return (
                           />
                         </div>
                       )}
-                    </div>
+                      </div>
+                    </React.Fragment>
                   ))}
 
                   {esPsicomotricidadFinal && (
@@ -1967,18 +1995,21 @@ return (
                         </tr>
                       </thead>
                       <tbody>
-                        {indicadoresActuales.map(c => {
-                          const answer = answers[c.id];
-                          if (!answer) return null;
-                          return (
-                            <tr key={c.id}>
+                        {indicadoresActuales.filter(c => answers[c.id]).map((c, index, respondidos) => (
+                          <React.Fragment key={c.id}>
+                            {esEducacionFisicaFinal && c.seccion !== respondidos[index - 1]?.seccion && (
+                              <tr>
+                                <td colSpan={4} className="border border-violet-200 px-2 py-2 bg-violet-100 font-black uppercase tracking-wide text-violet-900">{c.seccion}</td>
+                              </tr>
+                            )}
+                            <tr>
                               <td className="border border-violet-200 p-2 font-medium text-gray-800">{c.label}</td>
-                              <td className="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">{answer === c.options[0] ? 'X' : ''}</td>
-                              <td className="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">{answer === c.options[1] ? 'X' : ''}</td>
-                              <td className="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">{answer === c.options[2] ? 'X' : ''}</td>
+                              <td className="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">{answers[c.id] === c.options[0] ? 'X' : ''}</td>
+                              <td className="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">{answers[c.id] === c.options[1] ? 'X' : ''}</td>
+                              <td className="border border-violet-200 p-2 font-black text-center text-violet-800 text-sm">{answers[c.id] === c.options[2] ? 'X' : ''}</td>
                             </tr>
-                          );
-                        })}
+                          </React.Fragment>
+                        ))}
                       </tbody>
                     </table>
                     {esPsicomotricidadFinal && (
