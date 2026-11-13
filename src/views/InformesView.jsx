@@ -716,7 +716,9 @@ const generarHTMLImpresion = (s, report) => {
  }
 const subtituloArea = ['musica', 'musica_brenda'].includes(report.tipoInforme)
    ? 'Música'
-   : report.tipoInforme;
+   : report.tipoInforme === 'educacion_fisica'
+     ? 'Educación Física'
+     : report.tipoInforme;
 
  const mostrarAuxiliar = !['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'].includes(report.tipoInforme);
 
@@ -754,7 +756,7 @@ const subtituloArea = ['musica', 'musica_brenda'].includes(report.tipoInforme)
 
      <div class="mt-8 mb-2 px-4 text-center" style="break-inside: avoid;">
          <p class="text-xs text-gray-700 italic font-medium">
-             Continuaremos abordando, desde la perspectiva constructivista, el aprendizaje subjetivo del alumno, centrándonos en su bienestar y motivación, para avanzar durante el siguiente periodo.
+             Continuaremos abordando, desde la perspectiva constructivista, el aprendizaje subjetivo del alumno, centrándonos en su bienestar y motivación, para avanzar durante el siguiente ciclo lectivo.
          </p>
      </div>
 
@@ -1951,7 +1953,11 @@ return (
                   <img src="/logosinfondo.png" alt="Logo Institucional" className="h-16 object-contain mb-3" />
                   <h1 className="text-2xl font-black uppercase tracking-widest text-violet-900 mb-1">INFORME {tipoInforme === 'musica' ? 'FINAL' : periodoInforme.toUpperCase()} 2026</h1>
                   <p className="inline-block text-xs font-bold uppercase tracking-widest text-violet-600 bg-white px-3 py-0.5 rounded-full border border-violet-200 shadow-sm">
-                    Área: {['musica', 'musica_brenda'].includes(tipoInforme) ? 'Música' : tipoInforme}
+                    Área: {['musica', 'musica_brenda'].includes(tipoInforme)
+  ? 'Música'
+  : tipoInforme === 'educacion_fisica'
+    ? 'Educación Física'
+    : tipoInforme}
                   </p>
                 </div>
                 
