@@ -693,7 +693,7 @@ const handleInstallApp = async () => {
                   <PieChart size={18} className="text-orange-500"/> Proyecto Inst.
                 </button>
                 <button onClick={() => { setActiveTab('informes'); setShowMoreMenu(false); }} className="w-full text-left p-3 rounded-xl hover:bg-violet-50 flex items-center gap-3 text-sm font-bold text-gray-600 transition">
-                  <ClipboardCheck size={18} className="text-violet-500"/> Informes Pedagógicos
+                  <ClipboardCheck size={18} className="text-violet-500"/> Informes áreas especiales
                 </button>
                 
                 {showPrivateMenu && (
