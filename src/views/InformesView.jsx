@@ -199,6 +199,24 @@ const FUNDAMENTACION_MUSICA_FER_FINAL = [
   'Se busca ampliar las experiencias estéticas desde diferentes géneros, incluyendo el patrimonio musical argentino y su relación con la identidad y la pertenencia cultural. Se promueve la creatividad a través de producciones sonoro-musicales colectivas, valorando los recursos expresivos y las posibilidades de cada integrante.'
 ];
 
+// Grilla exclusiva de INFORMES FINALES 2026 para Educación Física.
+// Se toma como base la grilla existente de Educación Física para 2° Ciclo y CFI,
+// pero se conserva separada para que los INFORMES MEDIOS sigan sin cambios.
+const CONFIG_INDICADORES_EDUCACION_FISICA_FINAL = {
+  '2° Ciclo': CONFIG_INDICADORES.educacion_fisica['2° Ciclo'].map(indicador => ({
+    ...indicador,
+    options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso']
+  })),
+  'CFI': CONFIG_INDICADORES.educacion_fisica['CFI'].map(indicador => ({
+    ...indicador,
+    options: ['Realiza con autonomía', 'Realiza con apoyo', 'En proceso']
+  }))
+};
+
+const FUNDAMENTACION_EDUCACION_FISICA_FINAL = 'La Educación Física es un pilar fundamental en la formación integral de los y las estudiantes, ya que promueve el desarrollo armónico del cuerpo y la mente a través del movimiento. Su propósito trasciende el mero ejercicio físico para convertirse en un espacio pedagógico de autoconocimiento, salud y convivencia social. Durante esta segunda mitad del año se trabajaron los siguientes objetivos:';
+
+const OBSERVACIONES_DEFAULT_EDUCACION_FISICA_FINAL = '¡Felicitaciones por este año transitado! Felices vacaciones.';
+
 const ACLARACION_TRAYECTORIAS = [
   { codigo: 'TEA', nombre: 'Trayectoria Educativa Avanzada', descripcion: 'Indica que el estudiante alcanzó los aprendizajes correspondientes a la materia y mantuvo una buena vinculación pedagógica.' },
   { codigo: 'TEP', nombre: 'Trayectoria Educativa en Proceso', descripcion: 'Indica que el estudiante todavía no alcanzó por completo los contenidos necesarios, pero mantiene una buena vinculación pedagógica con la escuela y los docentes.' },
@@ -510,13 +528,17 @@ const generarHTMLImpresion = (s, report) => {
     
  const esPsicomotricidadFinal = tipoInformeNormalizado === 'psicomotricidad' && report.periodo === 'Final';
  const esMusicaFERFinal = tipoInformeNormalizado === 'musica_brenda' && report.periodo === 'Final';
+ const esEducacionFisicaFinal = tipoInformeNormalizado === 'educacion_fisica' && report.periodo === 'Final';
+ const nivelEducacionFisicaFinal = ['CFI', 'FINES'].includes((s?.level || '').toUpperCase()) ? 'CFI' : '2° Ciclo';
  const indicadores = esPsicomotricidadFinal
    ? CONFIG_INDICADORES_PSICOMOTRICIDAD_FINAL
    : (esMusicaFERFinal
        ? CONFIG_INDICADORES_MUSICA_FER_FINAL
-       : (CONFIG_INDICADORES[tipoInformeNormalizado]?.[nivel] ||
-          CONFIG_INDICADORES[tipoInformeNormalizado]?.['Inicial'] ||
-          CONFIG_INDICADORES[tipoInformeNormalizado]?.['CFI'] || []));
+       : (esEducacionFisicaFinal
+           ? CONFIG_INDICADORES_EDUCACION_FISICA_FINAL[nivelEducacionFisicaFinal]
+           : (CONFIG_INDICADORES[tipoInformeNormalizado]?.[nivel] ||
+              CONFIG_INDICADORES[tipoInformeNormalizado]?.['Inicial'] ||
+              CONFIG_INDICADORES[tipoInformeNormalizado]?.['CFI'] || [])));
 
  // 2. Definimos qué áreas usan la Grilla con X y cuáles usan texto redactado
  const materiasConGrilla = ['plastica', 'musica', 'musica_brenda', 'psicomotricidad', 'educacion_fisica'];
@@ -567,9 +589,11 @@ const generarHTMLImpresion = (s, report) => {
   
  if (report.tipoInforme === 'educacion_fisica') {
      const isCFI = s?.level?.toUpperCase() === 'CFI' || s?.level?.toUpperCase() === 'FINES';
-     const fundacionEducacionFisica = isCFI 
-       ? "En este ciclo lectivo, la Educación Física se propone como un espacio de encuentro..."
-       : "En este ciclo lectivo, la Educación Física se propone como un espacio de encuentro...";
+     const fundacionEducacionFisica = esEducacionFisicaFinal
+       ? FUNDAMENTACION_EDUCACION_FISICA_FINAL
+       : (isCFI
+           ? "En este ciclo lectivo, la Educación Física se propone como un espacio de encuentro..."
+           : "En este ciclo lectivo, la Educación Física se propone como un espacio de encuentro...");
 
      desarrolloHTML += `
        <div class="mb-4" style="break-inside: avoid;">
@@ -643,7 +667,7 @@ const generarHTMLImpresion = (s, report) => {
       if (obsEspeciales) {
         obsYObjetivosHTML = `
         <div class="mt-4 bg-violet-50 p-5 rounded-xl border border-violet-200 shadow-sm" style="break-inside: avoid;">
-            <h2 class="font-black uppercase text-violet-900 mb-2 text-[10px] tracking-widest border-b border-violet-200 pb-1">${esMusicaFERFinal ? 'Observaciones:' : 'Observaciones del período'}</h2>
+            <h2 class="font-black uppercase text-violet-900 mb-2 text-[10px] tracking-widest border-b border-violet-200 pb-1">${(esMusicaFERFinal || esEducacionFisicaFinal) ? 'Observaciones:' : 'Observaciones del período'}</h2>
             <p class="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-medium mt-1">${obsEspeciales}</p>
         </div>`;
       }
@@ -964,7 +988,12 @@ const handleEdit = (student, report) => {
   setNivelMusica(report?.nivelMusica || '');
   setObservacionesMusica(report?.observacionesMusica || report?.observacionesPsicomotricidad || report?.observacionesEducacionFisica || '');
   setObservacionesPsicomotricidad(report?.observacionesPsicomotricidad || '');
-  setObservacionesEducacionFisica(report?.observacionesEducacionFisica || '');
+  setObservacionesEducacionFisica(
+    report?.observacionesEducacionFisica ??
+    (tipoInforme === 'educacion_fisica' && periodoInforme === 'Final'
+      ? OBSERVACIONES_DEFAULT_EDUCACION_FISICA_FINAL
+      : '')
+  );
   
   // --- LÓGICA DINÁMICA DE NOMBRES ---
   // Buscamos si hay un informe previo en el grupo para extraer los profes especiales
@@ -1059,6 +1088,8 @@ const nivelActual = tipoInforme === 'musica'
 
 // ¡ESTA ES LA VARIABLE QUE LA CONSOLA DICE QUE FALTA!
 const esMusicaFERFinal = tipoInforme === 'musica_brenda' && periodoInforme === 'Final';
+const esEducacionFisicaFinal = tipoInforme === 'educacion_fisica' && periodoInforme === 'Final';
+const nivelEducacionFisicaFinal = ['CFI', 'FINES'].includes(lvlUpper) ? 'CFI' : '2° Ciclo';
 
 const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBrenda)
   ? []
@@ -1066,7 +1097,9 @@ const indicadoresActuales = (tipoInforme === 'musica_brenda' && !esNivelValidoBr
       ? CONFIG_INDICADORES_MUSICA_FER_FINAL
       : (tipoInforme === 'psicomotricidad' && periodoInforme === 'Final'
           ? CONFIG_INDICADORES_PSICOMOTRICIDAD_FINAL
-          : (CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || [])));
+          : (esEducacionFisicaFinal
+              ? CONFIG_INDICADORES_EDUCACION_FISICA_FINAL[nivelEducacionFisicaFinal]
+              : (CONFIG_INDICADORES[tipoInforme]?.[nivelActual] || CONFIG_INDICADORES[tipoInforme]?.['Inicial'] || CONFIG_INDICADORES[tipoInforme]?.['CFI'] || []))));
 
 const esPsicomotricidadFinal = tipoInforme === 'psicomotricidad' && periodoInforme === 'Final';
 
@@ -1743,10 +1776,11 @@ return (
                     <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 mb-6">
                       <h3 className="text-sm font-black text-indigo-900 uppercase mb-2">Fundamentación</h3>
                       <p className="text-xs text-indigo-800 font-medium leading-relaxed whitespace-pre-wrap">
-                        {['CFI', 'FINES'].includes(selectedStudent?.level?.toUpperCase()) ? 
-                         "En este ciclo lectivo, la Educación Física se propone como un espacio de encuentro, disfrute y aprendizaje a través del cuerpo. Desde una mirada inclusiva, priorizamos el desarrollo de la autonomía, la confianza y las habilidades motrices de cada alumno, respetando sus tiempos y singularidades. A través del juego cooperativo y la introducción a los deportes adaptados, buscamos que la clase sea un lugar de participación plena para todos, donde las reglas y materiales se transforman para que la diversidad enriquezca la convivencia y el aprendizaje compartido." :
-                         "En este ciclo lectivo, la Educación Física se propone como un espacio de encuentro, disfrute y aprendizaje a través del cuerpo. Desde una mirada inclusiva, priorizamos el desarrollo de la autonomía, la confianza y las habilidades motrices de cada alumno, respetando sus tiempos y singularidades. A través del juego cooperativo, buscamos que la clase sea un lugar de participación plena para todos, donde las reglas y materiales se transforman para que la diversidad enriquezca la convivencia y el aprendizaje compartido."
-                        }
+                        {esEducacionFisicaFinal
+                          ? FUNDAMENTACION_EDUCACION_FISICA_FINAL
+                          : (['CFI', 'FINES'].includes(selectedStudent?.level?.toUpperCase()) ?
+                             "En este ciclo lectivo, la Educación Física se propone como un espacio de encuentro, disfrute y aprendizaje a través del cuerpo. Desde una mirada inclusiva, priorizamos el desarrollo de la autonomía, la confianza y las habilidades motrices de cada alumno, respetando sus tiempos y singularidades. A través del juego cooperativo y la introducción a los deportes adaptados, buscamos que la clase sea un lugar de participación plena para todos, donde las reglas y materiales se transforman para que la diversidad enriquezca la convivencia y el aprendizaje compartido." :
+                             "En este ciclo lectivo, la Educación Física se propone como un espacio de encuentro, disfrute y aprendizaje a través del cuerpo. Desde una mirada inclusiva, priorizamos el desarrollo de la autonomía, la confianza y las habilidades motrices de cada alumno, respetando sus tiempos y singularidades. A través del juego cooperativo, buscamos que la clase sea un lugar de participación plena para todos, donde las reglas y materiales se transforman para que la diversidad enriquezca la convivencia y el aprendizaje compartido.")}
                       </p>
                     </div>
                   )}
@@ -1825,7 +1859,12 @@ return (
                   {tipoInforme === 'educacion_fisica' && (
                     <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 mt-6">
                       <label className="text-xs font-black uppercase text-indigo-800 block mb-2">Observaciones del período</label>
-                      <textarea className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200" value={observacionesEducacionFisica} onChange={e => setObservacionesEducacionFisica(e.target.value)} rows={4} />
+                      <textarea
+                        className="w-full p-4 bg-white rounded-xl text-sm border border-indigo-200"
+                        value={observacionesEducacionFisica}
+                        onChange={e => setObservacionesEducacionFisica(e.target.value)}
+                        rows={4}
+                      />
                     </div>
                   )}
 
