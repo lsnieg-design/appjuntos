@@ -179,7 +179,8 @@ const FUNDAMENTACION_PSICOMOTRICIDAD_FINAL = [
   'Durante el año, las actividades estuvieron orientadas al fortalecimiento de las habilidades motrices, la organización de la acción, la adaptación a diferentes situaciones y el desarrollo de estrategias que favorezcan una participación progresivamente más significativa en las experiencias compartidas.',
   'En este cierre, se realiza una valoración del recorrido transitado, considerando la participación de cada estudiante y sus modos de responder a las distintas situaciones planteadas. Se contemplan especialmente las habilidades motrices, la organización de la acción, la adaptación a cambios y consignas y la disponibilidad para integrarse a las propuestas grupales. Estos aspectos permiten recuperar lo trabajado durante el año y ofrecer una mirada global sobre su desempeño en el espacio.'
 ];
-
+const OBSERVACIONES_DEFAULT_PSICOMOTRICIDAD_FINAL =
+  '¡Felicitaciones por este año transitado! Felices vacaciones.';
 // Grilla exclusiva de INFORMES FINALES 2026 para Música FER.
 // La configuración histórica de CONFIG_INDICADORES.musica_brenda se conserva
 // sin modificaciones para que los INFORMES MEDIOS sigan siendo idénticos.
@@ -1015,9 +1016,9 @@ const handleEdit = (student, report) => {
   setObjSocioafectivo(report?.objSocioafectivo || '');
   setNivelMusica(report?.nivelMusica || '');
   setObservacionesMusica(report?.observacionesMusica || report?.observacionesPsicomotricidad || report?.observacionesEducacionFisica || '');
- setObservacionesPsicomotricidad(
-  report
-    ? (report.observacionesPsicomotricidad ?? '')
+setObservacionesPsicomotricidad(
+  report?.observacionesPsicomotricidad?.trim()
+    ? report.observacionesPsicomotricidad
     : (tipoInforme === 'psicomotricidad' && periodoInforme === 'Final'
         ? OBSERVACIONES_DEFAULT_PSICOMOTRICIDAD_FINAL
         : '')
