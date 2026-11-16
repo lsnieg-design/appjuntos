@@ -1319,6 +1319,18 @@ return (
       >
         <PieChart size={20} /> Estadísticas de {periodoInforme === 'Final' ? 'informes finales' : 'informes medios'}
       </button>
+   {tipoInforme === 'psicomotricidad' && periodoInforme === 'Final' && (
+  <button
+    type="button"
+    onClick={handleCompletarObservacionesPsicomotricidad}
+    disabled={!reportsLoaded}
+    className="w-full bg-amber-100 text-amber-900 font-bold py-3 px-4 rounded-xl mt-2 disabled:opacity-50"
+  >
+    {reportsLoaded
+      ? 'Completar observaciones de Psicomotricidad'
+      : 'Cargando informes...'}
+  </button>
+)}
      </div>
     </div>
 
