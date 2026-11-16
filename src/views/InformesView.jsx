@@ -227,6 +227,7 @@ const CONFIG_INDICADORES_EDUCACION_FISICA_FINAL = {
 const FUNDAMENTACION_EDUCACION_FISICA_FINAL = 'La Educación Física es un pilar fundamental en la formación integral de los y las estudiantes, ya que promueve el desarrollo armónico del cuerpo y la mente a través del movimiento. Su propósito trasciende el mero ejercicio físico para convertirse en un espacio pedagógico de autoconocimiento, salud y convivencia social. Durante esta segunda mitad del año se trabajaron los siguientes objetivos:';
 
 const OBSERVACIONES_DEFAULT_EDUCACION_FISICA_FINAL = '¡Felicitaciones por este año transitado! Felices vacaciones.';
+const OBSERVACIONES_DEFAULT_PSICOMOTRICIDAD_FINAL = '¡Felicitaciones por este año transitado! Felices vacaciones.';
 
 const ACLARACION_TRAYECTORIAS = [
   { codigo: 'TEA', nombre: 'Trayectoria Educativa Avanzada', descripcion: 'Indica que el estudiante alcanzó los aprendizajes correspondientes a la materia y mantuvo una buena vinculación pedagógica.' },
@@ -807,6 +808,7 @@ export function InformesView({ user, db, appId }) {
  const [studentsLoaded, setStudentsLoaded] = useState(false);
  const [studentsLoadError, setStudentsLoadError] = useState('');
  const [savedReports, setSavedReports] = useState([]);
+ const [reportsLoaded, setReportsLoaded] = useState(false);
  const [isSaving, setIsSaving] = useState(false);
  
  const [answers, setAnswers] = useState({});
@@ -958,7 +960,10 @@ export function InformesView({ user, db, appId }) {
   const qR = collection(db, 'artifacts', appId, 'public', 'data', 'pedagogical_reports');
   const unsubR = onSnapshot(
     qR,
-    (snap) => setSavedReports(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+   (snap) => {
+  setSavedReports(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  setReportsLoaded(true);
+},
     (error) => console.error('Error al cargar informes guardados:', error)
   );
 
@@ -1010,7 +1015,13 @@ const handleEdit = (student, report) => {
   setObjSocioafectivo(report?.objSocioafectivo || '');
   setNivelMusica(report?.nivelMusica || '');
   setObservacionesMusica(report?.observacionesMusica || report?.observacionesPsicomotricidad || report?.observacionesEducacionFisica || '');
-  setObservacionesPsicomotricidad(report?.observacionesPsicomotricidad || '');
+ setObservacionesPsicomotricidad(
+  report
+    ? (report.observacionesPsicomotricidad ?? '')
+    : (tipoInforme === 'psicomotricidad' && periodoInforme === 'Final'
+        ? OBSERVACIONES_DEFAULT_PSICOMOTRICIDAD_FINAL
+        : '')
+);
   setObservacionesEducacionFisica(
     report?.observacionesEducacionFisica ??
     (tipoInforme === 'educacion_fisica' && periodoInforme === 'Final'
@@ -1093,7 +1104,41 @@ const handleSaveInforme = async () => {
   setIsSaving(false);
 };
  
+const handleCompletarObservacionesPsicomotricidad = async () => {
+  const frase = '¡Felicitaciones por este año transitado! Felices vacaciones.';
 
+  const informesPendientes = savedReports.filter(r =>
+    r.tipoInforme === 'psicomotricidad' &&
+    r.periodo === 'Final' &&
+    !String(r.observacionesPsicomotricidad ?? '').trim()
+  );
+
+  if (informesPendientes.length === 0) {
+    alert('No hay informes de Psicomotricidad pendientes de completar.');
+    return;
+  }
+
+  const confirmar = window.confirm(
+    `Se completarán ${informesPendientes.length} informes de Psicomotricidad Final 2026 que tienen las observaciones vacías. Las respuestas marcadas no se modificarán. ¿Continuar?`
+  );
+
+  if (!confirmar) return;
+
+  try {
+    for (const informe of informesPendientes) {
+      await setDoc(
+        doc(db, 'artifacts', appId, 'public', 'data', 'pedagogical_reports', informe.id),
+        { observacionesPsicomotricidad: frase },
+        { merge: true }
+      );
+    }
+
+    alert(`¡Listo! Se actualizaron ${informesPendientes.length} informes.`);
+  } catch (error) {
+    console.error('Error al completar observaciones:', error);
+    alert('Hubo un error al actualizar los informes. Revisá la consola.');
+  }
+};
 // REEMPLAZAR EL BLOQUE DE nivelActual E indicadoresActuales POR ESTE:
 const lvlUpper = selectedStudent?.level?.toUpperCase() || '';
 const grupoUpper = grupoFiltro?.toUpperCase() || '';
