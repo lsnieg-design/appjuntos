@@ -228,7 +228,6 @@ const CONFIG_INDICADORES_EDUCACION_FISICA_FINAL = {
 const FUNDAMENTACION_EDUCACION_FISICA_FINAL = 'La Educación Física es un pilar fundamental en la formación integral de los y las estudiantes, ya que promueve el desarrollo armónico del cuerpo y la mente a través del movimiento. Su propósito trasciende el mero ejercicio físico para convertirse en un espacio pedagógico de autoconocimiento, salud y convivencia social. Durante esta segunda mitad del año se trabajaron los siguientes objetivos:';
 
 const OBSERVACIONES_DEFAULT_EDUCACION_FISICA_FINAL = '¡Felicitaciones por este año transitado! Felices vacaciones.';
-const OBSERVACIONES_DEFAULT_PSICOMOTRICIDAD_FINAL = '¡Felicitaciones por este año transitado! Felices vacaciones.';
 
 const ACLARACION_TRAYECTORIAS = [
   { codigo: 'TEA', nombre: 'Trayectoria Educativa Avanzada', descripcion: 'Indica que el estudiante alcanzó los aprendizajes correspondientes a la materia y mantuvo una buena vinculación pedagógica.' },
