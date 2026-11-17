@@ -1346,7 +1346,7 @@ return (
       {grupoFiltro === 'Todos' && !searchTerm && (
   <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl flex items-center gap-3 mb-6">
          <span className="text-xl">👉</span>
-         <p className="text-sm text-indigo-900 font-medium">Por favor, <strong>seleccioná el Turno, Nivel y Grupo</strong> (o utilizá el buscador) para ver a los alumnos y empezar a cargar sus informes.</p>
+         <p className="text-sm text-indigo-900 font-medium">Por favor, <strong>seleccioná el Turno, Nivel y Grupo</strong> para ver a los alumnos y empezar a cargar sus informes.</p>
        </div>
       )}
 
