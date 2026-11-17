@@ -1320,7 +1320,6 @@ return (
         <PieChart size={20} /> Estadísticas de {periodoInforme === 'Final' ? 'informes finales' : 'informes medios'}
       </button>
    
-)}
      </div>
     </div>
 
