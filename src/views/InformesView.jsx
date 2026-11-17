@@ -1871,7 +1871,17 @@ return (
                             return (
                               <button 
                                 key={opt} 
-                                onClick={() => setAnswers(p => ({...p, [c.id]: opt}))} 
+                                onClick={() => setAnswers(p => {
+  const nuevasRespuestas = { ...p };
+
+  if (p[c.id] === opt) {
+    delete nuevasRespuestas[c.id];
+  } else {
+    nuevasRespuestas[c.id] = opt;
+  }
+
+  return nuevasRespuestas;
+})} 
                                 className={"p-3 rounded-xl font-bold text-[10px] uppercase border-2 text-center transition-all " + (isSelected ? "bg-violet-600 text-white border-violet-700 shadow-md" : "bg-white border-gray-200 hover:border-violet-300")}
                               >
                                 {opt}
