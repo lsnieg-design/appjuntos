@@ -1298,7 +1298,13 @@ return (
       <div className="flex flex-wrap gap-2 justify-center md:justify-end">
         <button
           type="button"
-          onClick={() => { setPeriodoInforme('Final'); setStage('main'); }}
+          onClick={() => {
+  setPeriodoInforme('Final');
+  setTipoInforme('psicomotricidad');
+  setNivelFiltro('Todos');
+  setGrupoFiltro('Todos');
+  setStage('main');
+}}
           aria-pressed={periodoInforme === 'Final'}
           className={`px-4 py-3 rounded-xl text-xs md:text-sm font-black transition-all border-2 ${periodoInforme === 'Final' ? 'bg-white text-violet-900 border-white shadow-lg' : 'bg-white/10 text-white border-white/30 hover:bg-white/20'}`}
         >
@@ -1306,7 +1312,13 @@ return (
         </button>
         <button
           type="button"
-          onClick={() => { setPeriodoInforme('Medio'); setStage('main'); }}
+         onClick={() => {
+  setPeriodoInforme('Medio');
+  setTipoInforme('pedagogico');
+  setNivelFiltro('Todos');
+  setGrupoFiltro('Todos');
+  setStage('main');
+}}
           aria-pressed={periodoInforme === 'Medio'}
           className={`px-4 py-3 rounded-xl text-xs md:text-sm font-black transition-all border-2 ${periodoInforme === 'Medio' ? 'bg-white text-violet-900 border-white shadow-lg' : 'bg-white/10 text-white border-white/30 hover:bg-white/20'}`}
         >
@@ -1324,13 +1336,36 @@ return (
     </div>
 
  <div className="flex flex-wrap gap-2 p-2 bg-white rounded-2xl border mb-6">
-          {[
-            { id: 'psicomotricidad', label: 'Psicomotricidad' },
-            { id: 'plastica', label: 'Plástica' },
-            { id: 'musica', label: 'Música Fran' },
-   { id: 'musica_brenda', label: 'Música FER' },
-            { id: 'educacion_fisica', label: 'Ed. Física' }
-          ].map(t => (
+ 
+<div className="flex flex-wrap gap-2 p-2 bg-white rounded-2xl border mb-6">
+  {[
+    ...(periodoInforme === 'Medio'
+      ? [{ id: 'pedagogico', label: 'Área Pedagógica' }]
+      : []),
+    { id: 'psicomotricidad', label: 'Psicomotricidad' },
+    { id: 'plastica', label: 'Plástica' },
+    { id: 'musica', label: 'Música Fran' },
+    { id: 'musica_brenda', label: 'Música FER' },
+    { id: 'educacion_fisica', label: 'Ed. Física' }
+  ].map(t => (
+    <button
+      key={t.id}
+      onClick={() => {
+        setTipoInforme(t.id);
+        setNivelFiltro('Todos');
+        setGrupoFiltro('Todos');
+      }}
+      className={`flex-auto min-w-fit whitespace-nowrap px-3 py-2 md:p-3 text-xs md:text-sm rounded-xl font-black transition-all ${
+        tipoInforme === t.id
+          ? 'bg-violet-600 text-white shadow-md'
+          : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+      }`}
+    >
+      {t.label}
+    </button>
+  ))}
+</div>
+
             <button 
               key={t.id} 
               onClick={() => { setTipoInforme(t.id); setNivelFiltro('Todos'); setGrupoFiltro('Todos'); }} 
