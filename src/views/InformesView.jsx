@@ -1363,11 +1363,11 @@ return (
     >
       {t.label}
     </button>
-  ))}a
+  ))}
 </div>
 
            
-          ))}
+          
         </div>
 
     
