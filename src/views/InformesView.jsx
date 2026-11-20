@@ -1366,13 +1366,7 @@ return (
   ))}
 </div>
 
-            <button 
-              key={t.id} 
-              onClick={() => { setTipoInforme(t.id); setNivelFiltro('Todos'); setGrupoFiltro('Todos'); }} 
-              className={`flex-auto min-w-fit whitespace-nowrap px-3 py-2 md:p-3 text-xs md:text-sm rounded-xl font-black transition-all ${tipoInforme === t.id ? 'bg-violet-600 text-white shadow-md' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}`}
-            >
-              {t.label}
-            </button>
+           
           ))}
         </div>
 
